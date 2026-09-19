@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -117,19 +116,6 @@ def test_custom_window_close_event_allows_reload_disposal_without_app_quit(
     assert fake_app.quit_calls == 0
     assert event.accepted is True
     assert base_close_calls == [(window, event)]
-
-
-def test_show_main_window_closes_generation_execution_on_frame_destroyed() -> None:
-    """Shell destruction should close the shared resource lifecycle owner."""
-
-    source = Path(composition.__file__).read_text(encoding="utf-8")
-
-    assert '"generation_job_queue"' in source
-    assert '"workspace_generation"' in source
-    assert (
-        "frame.destroyed.connect(dependencies.shell_resource_lifecycle.shutdown)"
-        in source
-    )
 
 
 class _FakeCloseEvent:

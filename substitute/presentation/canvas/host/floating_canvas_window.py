@@ -34,9 +34,11 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
     release_fluent_tooltips,
 )
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
-from substitute.presentation.shell.window_frame import (
+from substitute.presentation.shell.window_effects import (
     ShellBackdropMode,
     apply_acrylic_effect,
+)
+from substitute.presentation.shell.window_frame import (
     apply_shell_titlebar_button_theme,
 )
 
@@ -96,7 +98,9 @@ class FloatingCanvasWindow(AcrylicWindow):  # type: ignore[misc]
     ) -> None:
         """Create floating shell window and keep content geometry in sync."""
 
+        mounted_canvas_size = canvas_widget.size()
         super().__init__()
+        self.resize(mounted_canvas_size)
         self.canvas_widget = canvas_widget
         self.label = label
         self.redock_callback = redock_callback

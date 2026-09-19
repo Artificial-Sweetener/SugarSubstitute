@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from substitute.domain.generation import OutputResultPosition
-from substitute.domain.workflow import ImageMeta, OutputCompareState
+from substitute.domain.workflow import ImageMeta, OutputCompareState, OutputFocusMode
 
 
 @dataclass(frozen=True)
@@ -51,6 +51,11 @@ class OutputCanvasSourceGroup:
         if not self.images_by_set:
             return None
         return self.images_by_set[min(self.images_by_set)]
+
+    def has_batch_grid(self) -> bool:
+        """Return whether this source has multiple visible batch members."""
+
+        return len(self.images_by_set) > 1
 
 
 @dataclass(frozen=True)
@@ -84,6 +89,7 @@ class OutputCanvasProjection:
     active_scene_overview: bool = False
     scene_count: int = 0
     compare_state: OutputCompareState = OutputCompareState()
+    focus_mode: OutputFocusMode = OutputFocusMode.AUTOMATIC
 
     def source_for_key(self, source_key: str) -> OutputCanvasSourceGroup | None:
         """Return source group for a stable source key when available."""

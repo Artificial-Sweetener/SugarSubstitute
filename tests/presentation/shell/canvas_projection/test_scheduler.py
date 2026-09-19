@@ -27,6 +27,8 @@ from substitute.presentation.shell.canvas_projection_scheduler import (
     CanvasProjectionScheduler,
     ProjectionReason,
 )
+from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
+from tests.support.qt.semantic_wait import wait_for_queued_qt_turn
 
 
 def test_scheduler_coalesces_generated_output_projection_until_flush() -> None:
@@ -82,6 +84,32 @@ def test_scheduler_generated_output_projection_uses_latest_registered_image() ->
     scheduler.flush()
 
     assert calls == [("wf", second_image_id)]
+
+
+def test_scheduler_rechecks_transiently_hidden_active_output_without_route_change() -> (
+    None
+):
+    """Do not strand a final when visibility settles after registration."""
+
+    _app()
+    calls: list[tuple[str, object]] = []
+    visible = False
+
+    def project(workflow_id: str, image_id: object = None) -> None:
+        calls.append((workflow_id, image_id))
+
+    scheduler = CanvasProjectionScheduler(
+        project_workflow=project,
+        active_workflow_id=lambda: "wf",
+        output_canvas_visible=lambda: visible,
+    )
+
+    scheduler.request_projection("wf", reason=ProjectionReason.GENERATED_OUTPUT)
+
+    assert scheduler._timer.isActive()
+    visible = True
+    scheduler.flush()
+    assert calls == [("wf", None)]
 
 
 def test_scheduler_marks_output_activity_after_generated_projection_flush() -> None:
@@ -268,8 +296,10 @@ def test_scheduler_user_selection_clears_pending_deferred_projection() -> None:
     assert calls == [("wf", selected_image_id)]
 
 
-def test_scheduler_defers_hidden_generated_projection_until_visible() -> None:
-    """Generated projection should wait when the output canvas is hidden."""
+def test_scheduler_projects_generated_output_independently_of_route_visibility() -> (
+    None
+):
+    """Durable finals must converge Output state without a route-change trigger."""
 
     _app()
     calls: list[tuple[str, object]] = []
@@ -285,11 +315,6 @@ def test_scheduler_defers_hidden_generated_projection_until_visible() -> None:
     )
 
     scheduler.request_projection("wf", reason=ProjectionReason.GENERATED_OUTPUT)
-    scheduler.flush()
-
-    assert calls == []
-
-    visible = True
     scheduler.flush()
 
     assert calls == [("wf", None)]
@@ -386,6 +411,32 @@ def test_scheduler_preserves_inactive_workflow_request_until_return() -> None:
     scheduler.flush()
 
     assert calls == [("second", second_image_id), ("first", first_image_id)]
+
+
+def test_shutdown_retires_pending_and_new_projection_requests() -> None:
+    """Neither deferred nor user-selected work may resurrect a closed document."""
+
+    ensure_qt_application()
+    calls: list[str] = []
+    scheduler = CanvasProjectionScheduler(
+        project_workflow=lambda workflow, _image: calls.append(workflow),
+        active_workflow_id=lambda: "wf",
+        output_canvas_visible=lambda: True,
+    )
+    try:
+        scheduler.request_projection("wf", reason=ProjectionReason.GENERATED_OUTPUT)
+        scheduler.request_projection("wf", reason=ProjectionReason.WORKFLOW_ACTIVATED)
+        scheduler.shutdown()
+        scheduler.shutdown()
+        for reason in ProjectionReason:
+            scheduler.request_projection("wf", reason=reason)
+        scheduler.flush()
+        scheduler.flush_pending_for_workflow("wf")
+        wait_for_queued_qt_turn()
+        assert calls == []
+    finally:
+        scheduler.shutdown()
+        destroy_qt_object(scheduler)
 
 
 def _app() -> QApplication:

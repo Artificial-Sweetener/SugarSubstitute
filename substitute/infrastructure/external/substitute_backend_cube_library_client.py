@@ -636,6 +636,7 @@ def _parse_catalog_entry(data: JsonObject) -> CubeCatalogEntry:
         source=_parse_source(_read_object(data, "source")),
         content_hash=_required_str(data, "contentHash"),
         updated_at=_read_str(data, "updatedAt"),
+        target_model=_read_str(data, "targetModel"),
         supported_models=(
             _read_str_tuple(data, "supportedModels")
             or _read_str_tuple(data, "supported_models")

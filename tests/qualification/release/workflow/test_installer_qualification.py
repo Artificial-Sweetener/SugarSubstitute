@@ -32,8 +32,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
         "release-current-install-qualification.yml",
         "release-update-qualification.yml",
     )
-    assert "verify_installer_lifecycle.py clean" in current_text
-    assert "verify_installer_lifecycle.py upgrade" in update_text
+    assert "python -u tools/ci/verify_installer_lifecycle.py clean" in current_text
+    assert "python -u tools/ci/verify_installer_lifecycle.py upgrade" in update_text
     assert "python -m tools.ci.resolve_upgrade_sources" in orchestration_text
     assert '--historical-published-at "${{ matrix.history.published_at }}"' in (
         update_text
@@ -41,7 +41,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "Windows x64" in orchestration_text
     assert "Linux x64" in orchestration_text
     assert "macOS Apple Silicon" in current_text
-    assert '@("windows", "linux", "macos")' in orchestration_text
+    assert '@("windows", "linux", "macos")' not in orchestration_text
+    assert '$macosCleanEnabled = "false"' in orchestration_text
     assert "update_platforms" in orchestration_text
     assert "./.github/workflows/managed-comfy-install.yml" in orchestration_text
     assert '$managedComfyEnabled = if ($scope -eq "managed-comfy")' in (
@@ -62,6 +63,9 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     ui_qualification_text = (
         PROJECT_ROOT / "tools" / "ci" / "installer_ui_qualification.py"
     ).read_text(encoding="utf-8")
+    current_installer_text = (
+        PROJECT_ROOT / "tools" / "ci" / "current_installer_execution.py"
+    ).read_text(encoding="utf-8")
     historical_qualification_text = (
         PROJECT_ROOT / "tools" / "ci" / "historical_install_qualification.py"
     ).read_text(encoding="utf-8")
@@ -69,7 +73,7 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "set_update_manifest" in lifecycle_text
     assert "install_candidate_over_historical_install" in lifecycle_text
     assert "INSTALLER_QUALIFICATION_PLAN_ENV" in ui_qualification_text
-    current_installer_path = ui_qualification_text.split(
+    current_installer_path = current_installer_text.split(
         "def run_current_installer_ui", maxsplit=1
     )[1].split("\ndef ", maxsplit=1)[0]
     assert '"--headless-install"' not in current_installer_path

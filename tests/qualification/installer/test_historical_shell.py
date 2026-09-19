@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -42,7 +43,9 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         "OnboardingInstallRootEdit",
         "OnboardingTargetCardRadio_managed_local",
         "OnboardingManagedWorkspaceEdit",
+        "OnboardingYesExistingModelsButton",
         "OnboardingManagedModelRootEdit",
+        "OnboardingFindOwnModelsButton",
         "OnboardingCivitaiApiKeyEdit",
         "OnboardingProgressStatus",
         "OnboardingCompletionSurface",
@@ -64,6 +67,8 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         def is_visible(self) -> bool:
             """Expose only the active page and its controls."""
 
+            if self.suffix == "OnboardingCompletionSurface" and state["page"] == 7:
+                state["page"] = 8
             if self.suffix == "ForceCpuModeCheckBox":
                 return state["page"] == 2
             if self.suffix in page_controls:
@@ -80,19 +85,24 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
 
             if self.suffix == "ForceCpuModeCheckBox":
                 return "Force CPU mode"
-            if state["page"] == 5:
-                return "Review setup"
-            if state["page"] == 6:
+            if state["page"] == 8:
                 return "Open Substitute"
             return "Continue"
 
         def invoke(self) -> None:
             """Advance the production primary route or reveal the main shell."""
 
-            if self.suffix == "OnboardingTargetCardRadio_managed_local":
+            if self.suffix in {
+                "OnboardingTargetCardRadio_managed_local",
+            }:
                 values[self.suffix] = True
+            elif self.suffix == "OnboardingYesExistingModelsButton":
+                values[self.suffix] = True
+                state["page"] += 1
+            elif self.suffix == "OnboardingFindOwnModelsButton":
+                state["page"] += 1
             elif self.suffix == "OnboardingPrimaryButton":
-                if state["page"] == 6:
+                if state["page"] == 8:
                     handoff_events.append("open")
                     state["main"] = True
                 else:
@@ -146,7 +156,12 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
     desktop = SimpleNamespace(
         windows=lambda: [unattributed_window, onboarding, main_window]
     )
-    monkeypatch.setattr("tools.ci.drive_windows_installer.time.sleep", lambda _: None)
+    process_sleep = time.sleep
+    monkeypatch.setattr(
+        "tools.ci.drive_windows_installer.time",
+        SimpleNamespace(sleep=lambda _: None, monotonic=time.monotonic),
+    )
+    assert time.sleep is process_sleep
 
     main_pid = _complete_historical_onboarding(
         desktop=desktop,
@@ -188,7 +203,12 @@ def test_historical_windows_shell_wait_surfaces_terminal_startup_failure(
     )
     managed_output = layout.root / "historical-managed-comfy-startup.log"
     managed_output.write_text("managed Comfy exited with code 1\n", encoding="utf-8")
-    monkeypatch.setattr("tools.ci.drive_windows_installer.time.sleep", lambda _: None)
+    process_sleep = time.sleep
+    monkeypatch.setattr(
+        "tools.ci.drive_windows_installer.time",
+        SimpleNamespace(sleep=lambda _: None, monotonic=time.monotonic),
+    )
+    assert time.sleep is process_sleep
 
     with pytest.raises(
         WindowsInstallerAutomationError,

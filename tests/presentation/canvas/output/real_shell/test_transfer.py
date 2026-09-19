@@ -25,7 +25,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QContextMenuEvent
 
 from substitute.presentation.canvas.output import output_grid_context_menu
-from substitute.presentation.shell import main_window_composition
+from substitute.presentation.shell import main_window_output_composition
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from tests.support.real_output_canvas.harness import RealShellOutputCanvasHarness
 from tests.support.real_output_canvas.models import OutputSpec
@@ -62,7 +62,7 @@ def test_grid_context_copy_materializes_the_clicked_output_mime(
 
     monkeypatch.setattr(output_grid_context_menu, "QFluentMenuRenderer", _Renderer)
     monkeypatch.setattr(
-        main_window_composition,
+        main_window_output_composition,
         "publish_output_transfer_mime_data",
         published_mime_data.append,
     )

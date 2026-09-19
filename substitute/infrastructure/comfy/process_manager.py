@@ -25,13 +25,15 @@ from sugarsubstitute_shared.localization import ApplicationText, app_text
 
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
 from substitute.infrastructure.comfy.managed_launcher import (
-    ManagedComfyState,
     start_managed_comfy_background,
     start_managed_comfy_subprocess,
 )
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationResult,
     ManagedProcessTerminationStatus,
+)
+from substitute.infrastructure.comfy.managed_shutdown import (
     kill_managed_comfy,
     kill_managed_comfy_metadata,
 )
@@ -186,7 +188,6 @@ def _clear_registry_if_terminated(
 
 
 __all__ = [
-    "ManagedComfyState",
     "ManagedComfyStateCleanupResult",
     "ensure_comfyui_setup",
     "kill_comfyui",

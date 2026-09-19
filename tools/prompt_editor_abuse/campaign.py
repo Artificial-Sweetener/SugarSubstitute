@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-import subprocess
 from typing import Protocol
 
 from .coverage import capture_operation_coverage
@@ -57,6 +56,7 @@ def run_campaign(
     seed: int,
     frame_budget_ms: float,
     artifact_root: Path,
+    revision: str,
     deep_trace: bool = False,
     structural_probe: bool = False,
     scenario_runner: ScenarioRunner | None = None,
@@ -88,7 +88,7 @@ def run_campaign(
         )
     coverage = capture_operation_coverage(tuple(scenarios))
     return PromptAbuseCampaignReport(
-        revision=_git_revision(),
+        revision=revision,
         qt_platform=platform_name(),
         seed=seed,
         frame_budget_ms=frame_budget_ms,
@@ -98,21 +98,6 @@ def run_campaign(
         system_load=system_load_probe.finish(),
         structural_probe_enabled=structural_probe,
     )
-
-
-def _git_revision() -> str:
-    """Return the current Git revision without mutating repository state."""
-
-    completed = subprocess.run(  # noqa: S603
-        ["git", "rev-parse", "--short", "HEAD"],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=5,
-    )
-    if completed.returncode != 0:
-        return "unknown"
-    return completed.stdout.strip() or "unknown"
 
 
 __all__ = ["ScenarioRunner", "run_campaign"]

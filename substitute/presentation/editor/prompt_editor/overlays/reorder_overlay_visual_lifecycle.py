@@ -135,7 +135,7 @@ class PromptReorderOverlayVisualLifecycleOwner:
         self.clear_snapshots(reason="overlay_hide")
 
     def close(self) -> None:
-        """Settle visual state and dispose the drag proxy before Qt teardown."""
+        """Settle visual state and hide the proxy while its overlay closes."""
 
         self._animation.settle(reason="overlay_close")
         self.clear_snapshots(reason="overlay_close")

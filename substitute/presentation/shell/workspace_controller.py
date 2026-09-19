@@ -21,7 +21,7 @@ from __future__ import annotations
 from sugarsubstitute_shared.presentation.localization import app_text
 
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 from substitute.application.generation import (
     GenerationJobSnapshot,
@@ -70,7 +70,6 @@ from substitute.presentation.shell.workspace_generation_request_builder import (
 )
 from substitute.presentation.shell.workspace_generation_snapshot_builder import (
     capture_queued_snapshot_preparation,
-    generation_snapshot_from_request,
 )
 from substitute.presentation.shell.workspace_input_canvas_adapter import (
     handle_input_canvas_image_loaded_for_view,
@@ -100,9 +99,6 @@ from substitute.presentation.shell.workspace_search_actions import (
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("presentation.shell.workspace_controller")
-
-if TYPE_CHECKING:
-    from substitute.application.node_behavior import EditorBehaviorSnapshot
 
 
 class WorkspaceController:
@@ -230,18 +226,6 @@ class WorkspaceController:
 
         return self._collaborators.loaded_cube_surface_actions
 
-    def build_generation_snapshot(self) -> GenerationJobSnapshot:
-        """Capture the active workflow as immutable queued Sugar script text."""
-
-        request = self.build_generation_request()
-        return self._build_single_generation_snapshot_from_request(
-            request=request,
-            behavior_snapshot=active_behavior_snapshot(
-                self._views.generation,
-                request.workflow_id,
-            ),
-        )
-
     def build_queued_generation_snapshots(self) -> tuple[GenerationJobSnapshot, ...]:
         """Capture the active workflow as one or more queued generation snapshots."""
 
@@ -278,30 +262,6 @@ class WorkspaceController:
         return QueuedGenerationPreparationJob(
             prepare_snapshots=preparation.prepare_snapshots,
             on_prepared=preparation.on_prepared,
-        )
-
-    def _build_single_generation_snapshot_from_request(
-        self,
-        *,
-        request: GenerationRequest,
-        behavior_snapshot: "EditorBehaviorSnapshot | None",
-    ) -> GenerationJobSnapshot:
-        """Capture one queued Sugar script snapshot from an active request."""
-
-        seed_result = self._collaborators.generation_seed_randomizer(
-            request=request,
-            behavior_snapshot=behavior_snapshot,
-        )
-        request = synchronize_generation_request_seed_scopes(request, seed_result)
-        return generation_snapshot_from_request(
-            request=request,
-            behavior_snapshot=behavior_snapshot,
-            recipe_io_service=self._views.generation.recipe_io_service,
-            prompt_wildcard_preprocessing_service=getattr(
-                self._views.generation,
-                "prompt_wildcard_preprocessing_service",
-                None,
-            ),
         )
 
     def build_scene_generation_snapshots(self) -> tuple[GenerationJobSnapshot, ...]:

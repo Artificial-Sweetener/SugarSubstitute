@@ -128,7 +128,7 @@ def _request() -> ListenerStartRequest:
         ),
         output_dir=Path("outputs"),
         workflow_payload={},
-        sugar_script="",
+        persistence_sugar_script="",
         workflow_id="workflow-1",
         workflow_name="Workflow",
     )
@@ -256,6 +256,7 @@ def test_emit_failure_logs_disconnect_warning(
         )
 
     assert sink.failures[0].error == "closed"
+    assert sink.failures[0].connection_lost is True
     assert any(
         "Comfy websocket listener disconnected before prompt completion"
         in record.message

@@ -31,9 +31,10 @@ from substitute.presentation.shell.model_metadata_update_bridge import (
 from tests.support.qt.semantic_wait import wait_for_queued_qt_turn
 
 
-def test_bridge_emits_immediately_when_not_coalescing() -> None:
-    """Normal bridge behavior should emit each update immediately."""
+def test_bridge_publishes_on_next_gui_turn() -> None:
+    """Publish ready metadata on the next owner-thread event-loop turn."""
 
+    _app()
     bridge = ModelMetadataUpdateBridge()
     received: list[ModelMetadataRefreshEvent] = []
     bridge.model_updated.connect(received.append)
@@ -41,12 +42,14 @@ def test_bridge_emits_immediately_when_not_coalescing() -> None:
 
     bridge.emit_model_updated(event)
 
+    wait_for_queued_qt_turn()
     assert received == [event]
 
 
-def test_bridge_coalesces_until_flush() -> None:
-    """Startup coalescing should retain only the latest event per key."""
+def test_bridge_coalesces_within_one_gui_turn() -> None:
+    """GUI-turn batching should retain only the latest event per kind."""
 
+    _app()
     bridge = ModelMetadataUpdateBridge()
     received: list[ModelMetadataRefreshEvent] = []
     bridge.model_updated.connect(received.append)
@@ -54,21 +57,39 @@ def test_bridge_coalesces_until_flush() -> None:
     latest = _event("checkpoint", "b")
     other = _event("vae", "c")
 
-    bridge.begin_startup_coalescing()
     bridge.emit_model_updated(first)
     bridge.emit_model_updated(latest)
     bridge.emit_model_updated(other)
 
     assert received == []
 
-    bridge.flush_startup_coalescing()
+    wait_for_queued_qt_turn()
 
     assert received == [latest, other]
+
+
+def test_bridge_bounds_hostile_metadata_burst_within_one_gui_turn() -> None:
+    """Thousands of model updates must produce one surface refresh per kind."""
+
+    _app()
+    bridge = ModelMetadataUpdateBridge()
+    received: list[ModelMetadataRefreshEvent] = []
+    bridge.model_updated.connect(received.append)
+
+    for index in range(5_000):
+        bridge.emit_model_updated(_event("checkpoint", str(index)))
+        bridge.emit_model_updated(_event("vae", str(index)))
+
+    assert received == []
+    wait_for_queued_qt_turn()
+
+    assert [event.value for event in received] == ["4999", "4999"]
 
 
 def test_bridge_coalesces_worker_thread_updates_on_owner_thread() -> None:
     """Worker-originated metadata updates should publish on the Qt owner thread."""
 
+    _app()
     _app()
     bridge = ModelMetadataUpdateBridge()
     received: list[ModelMetadataRefreshEvent] = []
@@ -86,8 +107,6 @@ def test_bridge_coalesces_worker_thread_updates_on_owner_thread() -> None:
     latest = _event("checkpoint", "b", thumbnail_updated=True)
     main_thread_id = get_ident()
 
-    bridge.begin_startup_coalescing()
-
     def emit_from_worker() -> None:
         """Emit stale then current events from a background thread."""
 
@@ -100,61 +119,44 @@ def test_bridge_coalesces_worker_thread_updates_on_owner_thread() -> None:
     assert not worker.is_alive()
 
     wait_for_queued_qt_turn()
-    assert received == []
-
-    bridge.end_startup_coalescing()
 
     assert received == [latest]
     assert delivery_thread_ids == [main_thread_id]
 
 
 def test_bridge_coalesces_by_kind_and_preserves_thumbnail_updates() -> None:
-    """Startup coalescing should not lose thumbnail refresh information."""
+    """GUI-turn batching should not lose thumbnail refresh information."""
 
+    _app()
     bridge = ModelMetadataUpdateBridge()
     received: list[ModelMetadataRefreshEvent] = []
     bridge.model_updated.connect(received.append)
     thumbnail = _event("vae", "thumbnail", thumbnail_updated=True)
     later_metadata = _event("vae", "metadata", thumbnail_updated=False)
 
-    bridge.begin_startup_coalescing()
     bridge.emit_model_updated(thumbnail)
     bridge.emit_model_updated(later_metadata)
-    bridge.end_startup_coalescing()
+    wait_for_queued_qt_turn()
 
     assert received == [thumbnail]
 
 
-def test_bridge_end_coalescing_flushes_and_resumes_immediate_emits() -> None:
-    """Ending coalescing should flush pending events and resume normal dispatch."""
+def test_bridge_publishes_updates_across_successive_gui_turns() -> None:
+    """A previous batch must not suppress later metadata changes."""
 
+    _app()
     bridge = ModelMetadataUpdateBridge()
     received: list[ModelMetadataRefreshEvent] = []
     bridge.model_updated.connect(received.append)
     pending = _event("checkpoint", "a")
     immediate = _event("checkpoint", "b")
 
-    bridge.begin_startup_coalescing()
     bridge.emit_model_updated(pending)
-    bridge.end_startup_coalescing()
+    wait_for_queued_qt_turn()
     bridge.emit_model_updated(immediate)
 
+    wait_for_queued_qt_turn()
     assert received == [pending, immediate]
-
-
-def test_bridge_timeout_flushes_startup_coalescing() -> None:
-    """Safety timeout should flush pending startup metadata updates."""
-
-    bridge = ModelMetadataUpdateBridge()
-    received: list[ModelMetadataRefreshEvent] = []
-    bridge.model_updated.connect(received.append)
-    pending = _event("checkpoint", "a")
-
-    bridge.begin_startup_coalescing()
-    bridge.emit_model_updated(pending)
-    bridge.timeout_startup_coalescing()
-
-    assert received == [pending]
 
 
 def test_main_window_uses_shared_model_metadata_update_bridge() -> None:

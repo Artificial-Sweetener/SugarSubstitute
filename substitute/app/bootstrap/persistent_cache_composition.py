@@ -38,6 +38,7 @@ from substitute.domain.model_metadata import (
 )
 
 if TYPE_CHECKING:
+    from substitute.app.bootstrap.persistent_cache_runtime import PersistentCacheRuntime
     from substitute.application.model_metadata import ModelCatalogSnapshot
     from substitute.infrastructure.persistence.danbooru_cache_repository import (
         ComposedDanbooruCacheRepository,
@@ -56,6 +57,9 @@ if TYPE_CHECKING:
     )
     from substitute.infrastructure.persistence.model_thumbnail_store import (
         ModelThumbnailStore,
+    )
+    from substitute.infrastructure.persistence.sqlite_model_thumbnail_asset_store import (
+        SqliteModelThumbnailAssetStore,
     )
 
 
@@ -76,13 +80,27 @@ class ModelCacheRepositories:
     snapshots: LazyModelCatalogSnapshotStore
 
 
+@dataclass(frozen=True, slots=True)
+class RecommendationThumbnailCache:
+    """Carry the prepared thumbnail collaborators used during onboarding."""
+
+    preparer: LazyModelThumbnailStore
+    assets: SqliteModelThumbnailAssetStore
+
+
 class LazyModelThumbnailStore:
     """Defer Qt thumbnail preparation imports until thumbnails are requested."""
 
-    def __init__(self, *, timeout_seconds: float = 20.0) -> None:
+    def __init__(
+        self,
+        *,
+        timeout_seconds: float = 20.0,
+        variant_sizes: tuple[int, ...] = (128, 256, 512),
+    ) -> None:
         """Store construction inputs for the concrete thumbnail preparer."""
 
         self._timeout_seconds = timeout_seconds
+        self._variant_sizes = variant_sizes
         self._store: ModelThumbnailStore | None = None
 
     def cache_thumbnail(
@@ -110,6 +128,7 @@ class LazyModelThumbnailStore:
         source_path: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        selection_policy: str = "user_selected_output_canvas",
     ) -> ThumbnailStoreResult | None:
         """Prepare one local thumbnail through the concrete store."""
 
@@ -121,6 +140,7 @@ class LazyModelThumbnailStore:
             source_path=source_path,
             source_width=source_width,
             source_height=source_height,
+            selection_policy=selection_policy,
         )
 
     def _resolve(self) -> ModelThumbnailStore:
@@ -131,7 +151,10 @@ class LazyModelThumbnailStore:
                 ModelThumbnailStore,
             )
 
-            self._store = ModelThumbnailStore(timeout_seconds=self._timeout_seconds)
+            self._store = ModelThumbnailStore(
+                timeout_seconds=self._timeout_seconds,
+                variant_sizes=self._variant_sizes,
+            )
         return self._store
 
 
@@ -248,12 +271,36 @@ def build_model_cache_repositories(
     )
 
 
+def build_recommendation_thumbnail_cache(
+    runtime: PersistentCacheRuntime,
+    *,
+    thumbnail_timeout_seconds: float = 10.0,
+) -> RecommendationThumbnailCache:
+    """Build onboarding thumbnail collaborators from the governed namespace."""
+
+    from substitute.infrastructure.persistence.sqlite_model_thumbnail_asset_store import (
+        SqliteModelThumbnailAssetStore,
+    )
+
+    return RecommendationThumbnailCache(
+        preparer=LazyModelThumbnailStore(
+            timeout_seconds=thumbnail_timeout_seconds,
+            variant_sizes=(1024,),
+        ),
+        assets=SqliteModelThumbnailAssetStore(
+            runtime.prepared.namespace(CACHE_ID_MODEL_THUMBNAILS).path
+        ),
+    )
+
+
 __all__ = [
     "CubeCacheRepositories",
     "LazyModelCatalogSnapshotStore",
     "LazyModelThumbnailStore",
     "ModelCacheRepositories",
+    "RecommendationThumbnailCache",
     "build_cube_cache_repositories",
     "build_danbooru_cache_repository",
     "build_model_cache_repositories",
+    "build_recommendation_thumbnail_cache",
 ]

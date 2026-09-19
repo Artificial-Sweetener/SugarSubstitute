@@ -72,7 +72,7 @@ def test_open_generation_job_as_workflow_uses_legacy_captured_snapshot() -> None
     snapshot = GenerationJobSnapshot(
         workflow_id="wf-a",
         workflow_name="Queued Recipe",
-        sugar_script_text="# queued",
+        persistence_sugar_script="# queued",
     )
 
     open_generation_job_as_workflow_for_view(
@@ -155,7 +155,7 @@ def test_open_generation_job_as_workflow_falls_back_when_live_snapshot_missing()
     snapshot = GenerationJobSnapshot(
         workflow_id="wf-a",
         workflow_name="Queued Recipe",
-        sugar_script_text="# queued",
+        persistence_sugar_script="# queued",
     )
 
     open_generation_job_as_workflow_for_view(

@@ -85,6 +85,7 @@ class CubeItem(ReorderableTabItemBase):
 
         super()._postInit()
         self._secondary_text = ""
+        self._target_model = ""
         self._compact = False
         self._compact_progress = 0.0
         self._compact_transition_active = False
@@ -118,6 +119,20 @@ class CubeItem(ReorderableTabItemBase):
         """Return the cube metadata row."""
 
         return self._secondary_text
+
+    def setTargetModel(self, target_model: str) -> None:
+        """Set the canonical model label painted over the cube icon."""
+
+        normalized = target_model.strip()
+        if normalized == self._target_model:
+            return
+        self._target_model = normalized
+        self.update()
+
+    def targetModel(self) -> str:
+        """Return the canonical target-model label."""
+
+        return self._target_model
 
     def setIssueSeverity(self, severity: CubeCardIssueSeverity | str | None) -> None:
         """Set presentation-local issue severity for this cube item."""
@@ -477,6 +492,7 @@ class CubeItem(ReorderableTabItemBase):
         return CubeCardVisualState(
             primary_text=self.text(),
             secondary_text=self._secondary_text,
+            target_model=self._target_model,
             icon=self._icon,
             selected=self.isSelected,
             hovered=self.isHover,

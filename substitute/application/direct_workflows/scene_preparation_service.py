@@ -223,7 +223,6 @@ class DirectWorkflowScenePreparationService:
         return GenerationJobSnapshot(
             workflow_id=workflow_id,
             workflow_name=f"{workflow_name} - {scene.title}",
-            sugar_script_text="",
             direct_workflow_plan=projected_plan,
             scene_run_id=scene_run_id,
             scene_key=scene.key,

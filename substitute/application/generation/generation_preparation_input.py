@@ -25,7 +25,7 @@ from typing import Any
 
 from substitute.application.generation.generation_service import GenerationRequest
 from substitute.application.node_behavior import EditorBehaviorSnapshot
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +42,7 @@ class CapturedGenerationRequest:
     disabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
         default_factory=dict
     )
-    global_override_scopes: Mapping[str, GlobalOverrideSerializationScope] | None = None
+    global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None
 
     @classmethod
     def capture(

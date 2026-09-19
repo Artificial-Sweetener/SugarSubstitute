@@ -22,12 +22,23 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import time
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_readiness import (
+    ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
+    publish_application_readiness_receipt,
+)
+from sugarsubstitute_shared.launcher_update.attempt_status import (
+    LauncherUpdateAttemptPhase,
+    LauncherUpdateAttemptStatus,
+    LauncherUpdateAttemptStore,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
 from tools.ci.installer_process_diagnostics import process_tree_diagnostics
@@ -35,6 +46,54 @@ from tools.ci.installer_ui_qualification import (
     InstalledCandidateLaunch,
     launch_installed_candidate,
 )
+
+
+def test_readiness_wait_observes_launcher_handoff_until_main_shell(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Treat painted setup as progress while requiring the terminal main shell."""
+
+    readiness_path = tmp_path / "readiness.json"
+    token = "qualification-token"
+    publish_application_readiness_receipt(
+        receipt_path=readiness_path,
+        receipt=ApplicationReadinessReceipt(
+            pid=101,
+            token=token,
+            surface=ApplicationReadinessSurface.LAUNCHER_WINDOW,
+            parent_pid=100,
+        ),
+    )
+
+    def publish_main_shell(_interval: float) -> None:
+        """Complete the explicit setup-to-application handoff."""
+
+        publish_application_readiness_receipt(
+            receipt_path=readiness_path,
+            receipt=ApplicationReadinessReceipt(
+                pid=202,
+                token=token,
+                surface=ApplicationReadinessSurface.MAIN_SHELL,
+                parent_pid=201,
+            ),
+        )
+
+    process_sleep = time.sleep
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.sleep",
+        publish_main_shell,
+    )
+    assert time.sleep is process_sleep
+
+    receipt = installer_ui_qualification._wait_for_readiness_receipt(
+        readiness_path=readiness_path,
+        token=token,
+        timeout_seconds=30.0,
+    )
+
+    assert receipt.pid == 202
+    assert receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
 
 
 @pytest.mark.parametrize(
@@ -75,6 +134,44 @@ def test_readiness_wait_fails_immediately_on_terminal_startup_trace(
         )
 
     assert "fatal comfy traceback" in str(captured.value)
+
+
+def test_readiness_wait_fails_immediately_on_terminal_update_status(
+    tmp_path: Path,
+) -> None:
+    """Do not consume the outer watchdog after a launcher helper has failed."""
+
+    install_root = tmp_path / "installed"
+    store = LauncherUpdateAttemptStore(install_root)
+    store.save(
+        LauncherUpdateAttemptStatus.create(
+            version="0.23.0",
+            phase=LauncherUpdateAttemptPhase.FAILED,
+            route="legacy_baseline_bridge",
+            error=ValueError("exact legacy identity rejected"),
+        )
+    )
+    process = cast(
+        subprocess.Popen[bytes],
+        SimpleNamespace(pid=123, poll=lambda: None),
+    )
+
+    with pytest.raises(
+        InstallerLifecycleError,
+        match="terminal update failure.*legacy_baseline_bridge.*ValueError",
+    ):
+        installer_ui_qualification._wait_for_readiness_receipt(
+            readiness_path=tmp_path / "missing-readiness.json",
+            token="qualification-token",
+            timeout_seconds=3_600.0,
+            candidate_launch=InstalledCandidateLaunch(
+                process=process,
+                output_path=tmp_path / "candidate.log",
+                update_attempt_baseline=None,
+            ),
+            update_attempt_store=store,
+            expected_update_version="0.23.0",
+        )
 
 
 def test_installed_candidate_launch_is_observed_without_capture_bound_wait(

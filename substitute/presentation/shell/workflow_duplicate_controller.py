@@ -27,9 +27,7 @@ from time import perf_counter
 from typing import Any, Protocol
 
 from substitute.presentation.shell.workspace_input_canvas_adapter import (
-    MaterializeLoadedCubeInputCanvas,
-    ScheduleRehydrationStep,
-    rehydrate_duplicated_workflow_input_canvas,
+    RehydrateDuplicatedInputCanvas,
 )
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
@@ -96,8 +94,7 @@ def duplicate_workflow_tab_for_view(
     workflow_workspace: WorkflowDuplicateWorkspaceProtocol,
     workflow_duplicate_service: WorkflowDuplicateServiceProtocol,
     workflow_id: str,
-    materialize_loaded_cube_input_canvas: MaterializeLoadedCubeInputCanvas,
-    schedule_rehydration: ScheduleRehydrationStep,
+    rehydrate_duplicated_input_canvas: RehydrateDuplicatedInputCanvas,
 ) -> None:
     """Duplicate one workflow tab from in-memory workflow state."""
 
@@ -178,14 +175,7 @@ def duplicate_workflow_tab_for_view(
         duplicated_workflow_id=duplicated_workflow_id,
         base_label=base_label,
     )
-    schedule_rehydration(
-        lambda: rehydrate_duplicated_workflow_input_canvas(
-            workflow_session_service=view.workflow_session_service,
-            workflow_id=duplicated_workflow_id,
-            materialize_loaded_cube_input_canvas=materialize_loaded_cube_input_canvas,
-            schedule_next=schedule_rehydration,
-        )
-    )
+    rehydrate_duplicated_input_canvas(workflow_id, duplicated_workflow_id)
     _log_duplicate_phase_timing(
         "Workflow duplicate request completed",
         started_at=duplicate_started_at,

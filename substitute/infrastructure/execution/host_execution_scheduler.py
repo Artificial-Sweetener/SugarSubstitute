@@ -29,6 +29,9 @@ from functools import partial
 from threading import Condition, Lock, Thread
 from typing import TypeVar
 
+from sugarsubstitute_shared.crash_reporting.runtime import (
+    report_active_execution_exception,
+)
 from substitute.infrastructure.execution.host_execution_diagnostics import (
     HostDiagnosticsSubscription,
     HostExecutionDiagnostics,
@@ -361,7 +364,7 @@ class HostExecutionScheduler:
                 self._mark_running_locked(entry.job)
             try:
                 result = entry.job.run()
-            except BaseException:  # noqa: BLE001
+            except BaseException as error:  # noqa: BLE001
                 self._logger.exception(
                     "Host execution job escaped its lifecycle boundary.",
                     extra={
@@ -369,6 +372,8 @@ class HostExecutionScheduler:
                         "resource": entry.job.requirements.resource.value,
                     },
                 )
+                if report_active_execution_exception(error):
+                    return
                 settlement = None
             else:
                 settlement = (

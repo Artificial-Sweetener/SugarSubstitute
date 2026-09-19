@@ -119,11 +119,11 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
     monkeypatch.setattr(mod, "WorkspaceCanvasActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceCubePickerActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceCubeStackActions", _FakeAction)
-    monkeypatch.setattr(mod, "DeferredCubeDuplicationLinkReconciler", _FakeAction)
+    monkeypatch.setattr(mod, "DeferredWorkflowLinkReconciler", _FakeAction)
     monkeypatch.setattr(mod, "ActiveWorkflowSurfaceRefresher", _FakeAction)
     monkeypatch.setattr(mod, "CubeDuplicationService", _FakeAction)
     monkeypatch.setattr(mod, "CubeStackPresenter", _FakeAction)
-    monkeypatch.setattr(mod, "CubeTabIconResolver", _FakeAction)
+    monkeypatch.setattr(mod, "CubeIconResolver", _FakeAction)
     monkeypatch.setattr(mod, "CubeSurfaceProjectionCoordinator", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceFileActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceSearchActions", _FakeAction)
@@ -141,6 +141,7 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
 
     host = SimpleNamespace(
         _error_presenter="errors",
+        cube_stack_service="cube-stack-service",
         recipe_output_sibling_discovery_service="siblings",
         shell_recipe_model_resolution_controller=SimpleNamespace(
             resolve_missing_recipe_models="resolver"

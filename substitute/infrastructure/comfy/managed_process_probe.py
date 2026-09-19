@@ -23,12 +23,11 @@ from enum import Enum
 import ctypes
 import os
 from pathlib import Path
-import socket
 
 from substitute.infrastructure.comfy.managed_process_containment import (
     describe_persisted_containment,
 )
-from substitute.infrastructure.comfy.managed_readiness import probe_http_ready
+from substitute.infrastructure.comfy.managed_readiness import is_endpoint_listening
 from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
@@ -45,8 +44,6 @@ _WINDOWS_SYNCHRONIZE = 0x00100000
 _WINDOWS_WAIT_OBJECT_0 = 0x00000000
 _WINDOWS_WAIT_TIMEOUT = 0x00000102
 _WINDOWS_WAIT_FAILED = 0xFFFFFFFF
-_TCP_PREFLIGHT_TIMEOUT_SECONDS = 0.005
-_LOOPBACK_BINDABLE_HOSTS = frozenset({"127.0.0.1", "::1"})
 
 
 class ManagedListenerStatus(str, Enum):
@@ -138,56 +135,6 @@ def _get_windows_last_error() -> int:
     return int(ctypes.get_last_error())
 
 
-def is_endpoint_listening(host: str, port: int, *, timeout: float = 0.35) -> bool:
-    """Return whether the supplied host and port serve the ComfyUI HTTP API."""
-
-    if _can_probe_local_port_availability(host) and _local_port_is_available(
-        host=host,
-        port=port,
-    ):
-        return False
-    if not _tcp_endpoint_accepts_connections(
-        host=host,
-        port=port,
-        timeout=min(timeout, _TCP_PREFLIGHT_TIMEOUT_SECONDS),
-    ):
-        return False
-    return probe_http_ready(host=host, port=port)
-
-
-def _can_probe_local_port_availability(host: str) -> bool:
-    """Return whether bind availability is authoritative for one literal host."""
-
-    return host in _LOOPBACK_BINDABLE_HOSTS
-
-
-def _local_port_is_available(*, host: str, port: int) -> bool:
-    """Return whether one literal loopback port can be bound immediately."""
-
-    family = socket.AF_INET6 if host == "::1" else socket.AF_INET
-    try:
-        with socket.socket(family, socket.SOCK_STREAM) as sock:
-            sock.bind((host, port))
-    except OSError:
-        return False
-    return True
-
-
-def _tcp_endpoint_accepts_connections(
-    *,
-    host: str,
-    port: int,
-    timeout: float,
-) -> bool:
-    """Return whether one TCP endpoint accepts a short connection preflight."""
-
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
 def probe_managed_listener(
     *,
     host: str,
@@ -260,6 +207,10 @@ def _is_owned_listener_alive(
 ) -> bool:
     """Return whether the resolved listener still belongs to the owned metadata record."""
 
+    if metadata.containment_mode == "windows_job_object":
+        return listener_pid is not None and _inspect_windows_job(
+            metadata, listener_pid=listener_pid
+        )
     if not _is_owned_process_identity_alive(metadata):
         return False
     if listener_pid is None:
@@ -277,6 +228,8 @@ def _is_owned_listener_alive(
 def _is_owned_process_identity_alive(metadata: ManagedProcessMetadata) -> bool:
     """Return whether the saved pid still belongs to the expected managed process."""
 
+    if metadata.containment_mode == "windows_job_object":
+        return _inspect_windows_job(metadata)
     containment_status = describe_persisted_containment(metadata)
     if containment_status.managed_process_running:
         command_line = get_process_command_line(metadata.pid)
@@ -293,6 +246,25 @@ def _is_owned_process_identity_alive(metadata: ManagedProcessMetadata) -> bool:
     if not containment_status.managed_process_running:
         return False
     return False
+
+
+def _inspect_windows_job(
+    metadata: ManagedProcessMetadata, *, listener_pid: int | None = None
+) -> bool:
+    """Resolve family presence or listener membership from the recorded native job."""
+    from substitute.infrastructure.comfy.windows_managed_job import WindowsManagedJob
+
+    if metadata.job_name is None:
+        return False
+    job = WindowsManagedJob.open(metadata.job_name)
+    if job is None:
+        return False
+    with job:
+        return (
+            job.has_members()
+            if listener_pid is None
+            else job.contains_process(listener_pid)
+        )
 
 
 def _command_line_matches_metadata(
@@ -314,7 +286,6 @@ def _command_line_matches_metadata(
 __all__ = [
     "ManagedListenerProbeResult",
     "ManagedListenerStatus",
-    "is_endpoint_listening",
     "is_process_running",
     "probe_managed_listener",
 ]

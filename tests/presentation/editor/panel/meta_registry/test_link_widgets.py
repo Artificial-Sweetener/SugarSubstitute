@@ -194,8 +194,16 @@ def test_prompt_node_link_refresh_passes_width_groups_by_identity(
     MetaRegistry(panel).update_node_link_widgets()
 
     assert captured == [
-        ("Independent", "🔗 SDXL/Text to Image"),
-        ("Independent", "🔗 SDXL/Text to Image"),
+        (
+            "Independent",
+            "🔗 SDXL/Automask Detailer",
+            "🔗 SDXL/Text to Image",
+        ),
+        (
+            "Independent",
+            "🔗 SDXL/Automask Detailer",
+            "🔗 SDXL/Text to Image",
+        ),
     ]
 
 
@@ -291,8 +299,16 @@ def test_node_link_refresh_passes_width_groups_by_identity(
     MetaRegistry(panel).update_node_link_widgets()
 
     assert captured == [
-        ("Independent", "🔗 SDXL/Text to Image"),
-        ("Independent", "🔗 SDXL/Automask Detailer"),
+        (
+            "Independent",
+            "🔗 SDXL/Automask Detailer",
+            "🔗 SDXL/Text to Image",
+        ),
+        (
+            "Independent",
+            "🔗 SDXL/Diffusion Upscale",
+            "🔗 SDXL/Automask Detailer",
+        ),
     ]
 
 

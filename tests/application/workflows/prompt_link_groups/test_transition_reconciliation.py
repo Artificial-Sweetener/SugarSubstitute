@@ -70,8 +70,8 @@ def test_reconcile_transition_auto_links_new_cube_to_first_earlier_prompt_owner(
     )
 
 
-def test_reconcile_transition_rebases_anchor_on_crossing_reorder() -> None:
-    """Anchor-crossing reorder should preserve the shared prompt and discard dormant locals."""
+def test_reconcile_transition_preserves_anchor_on_crossing_reorder() -> None:
+    """Reordering Cube presentation must preserve relation direction and local values."""
 
     service = _service()
     previous = {
@@ -93,13 +93,13 @@ def test_reconcile_transition_rebases_anchor_on_crossing_reorder() -> None:
 
     node_b = current["B"].buffer["nodes"]["positive_prompt"]
     node_a = current["A"].buffer["nodes"]["positive_prompt"]
-    assert _link_payload(node_b) == {"from_cube": None, "from_node": None}
-    assert _prompt_text(node_b) == "shared"
-    assert _link_payload(node_a) == {
-        "from_cube": "B",
+    assert _link_payload(node_b) == {
+        "from_cube": "A",
         "from_node": "positive_prompt",
     }
-    assert _prompt_text(node_a) == ""
+    assert _prompt_text(node_b) == "dormant"
+    assert _link_payload(node_a) == {"from_cube": None, "from_node": None}
+    assert _prompt_text(node_a) == "shared"
 
 
 def test_reconcile_transition_preserves_dormant_locals_when_anchor_unchanged() -> None:

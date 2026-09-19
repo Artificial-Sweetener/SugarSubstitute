@@ -24,15 +24,16 @@ from uuid import UUID
 
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasImageItem,
-    OutputCanvasProjection,
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
 )
-from substitute.presentation.canvas.output.output_canvas_route_model import (
-    OutputCanvasRouteModel,
+from substitute.presentation.canvas.output.output_canvas_route_state import (
+    output_route_state_snapshot,
+    output_scene_groups_by_key,
+    visible_output_source_groups_by_key,
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
     apply_scene_selector_button_state,
@@ -46,6 +47,9 @@ from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_policy import (
     OutputCanvasNavigationPolicy,
+)
+from substitute.presentation.canvas.output.output_canvas_navigation_measurement import (
+    OutputCanvasNavigationMeasurement,
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
     CompareNavigationVisibility,
@@ -70,133 +74,13 @@ _SOURCE_SELECTOR_HORIZONTAL_PADDING = 28
 
 
 @dataclass(frozen=True, slots=True)
-class OutputCanvasNavigationController:
+class OutputCanvasNavigationController(OutputCanvasNavigationMeasurement):
     """Own floating navigation width and tabbar measurement helpers."""
 
     canvas_width: Callable[[], int | None]
     tabbar: Callable[[], object]
     cached_source_tabbar_width: Callable[[], int]
     set_cached_source_tabbar_width: Callable[[int], None]
-
-    def available_tabbar_container_width(self) -> int:
-        """Return horizontal space available to the floating navigation bar."""
-
-        width = self.canvas_width()
-        if width is None:
-            return 10_000
-        return max(1, int(width) - 24)
-
-    def preferred_tabbar_width(self) -> int:
-        """Return full source tabbar preferred width even when it is hidden."""
-
-        tabbar = self.tabbar()
-        measured_width = self.measure_tabbar_preferred_width(tabbar)
-        if measured_width > 0:
-            self.set_cached_source_tabbar_width(measured_width)
-            return measured_width
-        cached_width = max(0, int(self.cached_source_tabbar_width() or 0))
-        if cached_width > 0:
-            return cached_width
-        width = getattr(tabbar, "width", None)
-        return int(width()) if callable(width) else 0
-
-    @classmethod
-    def measure_tabbar_preferred_width(cls, tabbar: object) -> int:
-        """Measure the source tabbar's content width from current layout state."""
-
-        ensure_polished = getattr(tabbar, "ensurePolished", None)
-        if callable(ensure_polished):
-            ensure_polished()
-        layout_getter = getattr(tabbar, "layout", None)
-        layout = layout_getter() if callable(layout_getter) else None
-        if layout is not None:
-            invalidate = getattr(layout, "invalidate", None)
-            if callable(invalidate):
-                invalidate()
-            activate = getattr(layout, "activate", None)
-            if callable(activate):
-                activate()
-        size_hint_width = cls.size_hint_width(tabbar)
-        if size_hint_width > 0:
-            return size_hint_width
-        return cls.tabbar_item_width(tabbar, layout)
-
-    @staticmethod
-    def size_hint_width(widget: object) -> int:
-        """Return a widget size-hint width when it reports a positive value."""
-
-        size_hint = getattr(widget, "sizeHint", None)
-        if not callable(size_hint):
-            return 0
-        hint = size_hint()
-        width = getattr(hint, "width", None)
-        if not callable(width):
-            return 0
-        return max(0, int(width()))
-
-    @classmethod
-    def tabbar_item_width(cls, tabbar: object, layout: object | None) -> int:
-        """Calculate tabbar width from child item hints when parent hint is stale."""
-
-        items = getattr(tabbar, "items", {})
-        if not isinstance(items, Mapping):
-            return 0
-        item_widths = tuple(
-            cls.tabbar_item_preferred_width(item) for item in items.values()
-        )
-        visible_item_widths = tuple(width for width in item_widths if width > 0)
-        if not visible_item_widths:
-            return 0
-        spacing = cls.layout_spacing(layout)
-        margins = cls.layout_horizontal_margins(layout)
-        return (
-            sum(visible_item_widths)
-            + max(0, len(visible_item_widths) - 1) * spacing
-            + margins
-        )
-
-    @classmethod
-    def tabbar_item_preferred_width(cls, item: object) -> int:
-        """Return a source-tab item width from settled or hinted geometry."""
-
-        ensure_polished = getattr(item, "ensurePolished", None)
-        if callable(ensure_polished):
-            ensure_polished()
-        adjust_size = getattr(item, "adjustSize", None)
-        if callable(adjust_size):
-            adjust_size()
-        hinted_width = cls.size_hint_width(item)
-        if hinted_width > 0:
-            return hinted_width
-        width = getattr(item, "width", None)
-        return max(0, int(width())) if callable(width) else 0
-
-    @staticmethod
-    def layout_spacing(layout: object | None) -> int:
-        """Return a layout's horizontal spacing when available."""
-
-        if layout is None:
-            return 0
-        spacing = getattr(layout, "spacing", None)
-        if not callable(spacing):
-            return 0
-        return max(0, int(spacing()))
-
-    @staticmethod
-    def layout_horizontal_margins(layout: object | None) -> int:
-        """Return a layout's left and right margins when available."""
-
-        if layout is None:
-            return 0
-        contents_margins = getattr(layout, "contentsMargins", None)
-        if not callable(contents_margins):
-            return 0
-        margins = contents_margins()
-        left = getattr(margins, "left", None)
-        right = getattr(margins, "right", None)
-        return (max(0, int(left())) if callable(left) else 0) + (
-            max(0, int(right())) if callable(right) else 0
-        )
 
     @staticmethod
     def navigation_bar_width(
@@ -902,15 +786,7 @@ def sync_output_scene_selector_button(host: object) -> None:
     """Refresh the normal scene selector from an opaque Output host."""
 
     button = getattr(host, "scene_selector_button", None)
-    projection = getattr(host, "_output_projection", None)
-    scene_groups = OutputCanvasRouteModel.scene_groups_by_key(
-        projection if isinstance(projection, OutputCanvasProjection) else None,
-        preview_scene_groups_by_key=getattr(
-            getattr(host, "_output_revision_cache", None),
-            "preview_scene_groups_by_key",
-            {},
-        ),
-    )
+    scene_groups = _scene_groups_for_host(host)
     full_text = scene_selector_full_text(
         scene_groups.values(),
         active_scene_key=getattr(host, "active_scene_key", None),
@@ -1003,25 +879,23 @@ def _visible_source_groups_for_host(
 ) -> dict[str, OutputCanvasSourceGroup]:
     """Return visible source groups for the host's current scene context."""
 
-    projection = getattr(host, "_output_projection", None)
-    typed_projection = (
-        projection if isinstance(projection, OutputCanvasProjection) else None
+    document_navigation = getattr(host, "_document_navigation", None)
+    visible_sources = getattr(document_navigation, "visible_sources", None)
+    if callable(visible_sources):
+        return dict(visible_sources())
+    return visible_output_source_groups_by_key(
+        output_route_state_snapshot(host),
     )
-    scene_groups = OutputCanvasRouteModel.scene_groups_by_key(
-        typed_projection,
-        preview_scene_groups_by_key=getattr(
-            getattr(host, "_output_revision_cache", None),
-            "preview_scene_groups_by_key",
-            {},
-        ),
-    )
-    return OutputCanvasRouteModel.visible_source_groups_by_key(
-        typed_projection,
-        scene_groups_by_key=scene_groups,
-        active_scene_overview=bool(getattr(host, "active_scene_overview", False)),
-        active_scene_key=getattr(host, "active_scene_key", None),
-        scene_count=int(getattr(host, "scene_count", 0)),
-    )
+
+
+def _scene_groups_for_host(host: object) -> dict[str, OutputCanvasSceneGroup]:
+    """Return scene groups from the composed navigation owner when available."""
+
+    document_navigation = getattr(host, "_document_navigation", None)
+    scene_groups = getattr(document_navigation, "scene_groups", None)
+    if callable(scene_groups):
+        return dict(scene_groups())
+    return output_scene_groups_by_key(output_route_state_snapshot(host))
 
 
 def _source_tabs_controller(host: object) -> object | None:

@@ -46,6 +46,9 @@ from substitute.presentation.shell.initial_workspace_controller import (
 from substitute.presentation.shell.restore_projection_controller import (
     restore_projection_controller_for,
 )
+from substitute.presentation.shell.restored_document_state_adapter import (
+    restore_document_states,
+)
 from substitute.presentation.shell.shell_workspace_prehydration_port import (
     ShellWorkspacePrehydrationPort,
 )
@@ -320,6 +323,7 @@ class WorkspaceRestoreController:
             hydration = WorkspaceRuntimeHydrationService(
                 cube_load_service=self._shell.cube_load_service,
                 node_behavior_service=self._shell.node_behavior_service,
+                cube_workflow_analyzer=getattr(self._shell, "cube_graph_gateway", None),
                 preserve_cube_keys=preserve_cube_keys,
             ).hydrate(snapshot)
         for warning in hydration.warnings:
@@ -461,6 +465,7 @@ class WorkspaceRestoreController:
         self._shell._restored_workflow_snapshots_by_id = dict(
             self._shell._pending_restored_workflow_snapshots
         )
+        restore_document_states(self._shell, snapshot.workflows)
         self._shell._prehydrated_workspace_snapshot = snapshot
         trace_mark(
             "main_window.install_hydrated_prehydrated_workspace.end",
@@ -540,6 +545,7 @@ def _catalog_entry_from_record(record: CubeCatalogRecord) -> CubeCatalogEntry:
         source=record.source or CubeSourceMetadata(kind="", path=""),
         content_hash=record.content_hash,
         updated_at=record.updated_at,
+        target_model=record.target_model,
         supported_models=record.supported_models,
         icon=record.icon,
     )

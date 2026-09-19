@@ -226,7 +226,6 @@ def _presenter(
         mask_color_provider=lambda index, total: f"color-{index}/{total}",
         regional_mask_presenter=RegionalMaskCollectionPresenter(
             input_document=document,
-            active_workflow=lambda: cast(Any, workflow),
             active_panel=lambda: panel,
             mask_color=lambda index, total: QColor(index, total, 0),
         ),

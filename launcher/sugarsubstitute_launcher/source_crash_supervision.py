@@ -1,0 +1,83 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Relaunch direct source execution beneath the normal crash supervisor."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+import os
+from pathlib import Path
+import sys
+
+from launcher.sugarsubstitute_launcher.crash_supervisor import (
+    ApplicationCrashSupervisor,
+)
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
+from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
+from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
+from sugarsubstitute_shared.windows_long_paths import subprocess_path
+
+
+def supervise_source_application(*, argv: Sequence[str], app_root: Path) -> int:
+    """Run one source app child beneath the production crash contract."""
+
+    layout = InstallLayout.from_root(app_root)
+    broker = ApplicationInstanceBroker.elect(
+        install_root=layout.root,
+        invocation=ApplicationInvocation.capture(argv),
+    )
+    if broker is None:
+        return 0
+    with broker:
+        supervisor = ApplicationCrashSupervisor(
+            reporter_starter=present_crash_report,
+            native_runtime_resolver=lambda _layout: _source_native_runtime(layout),
+        )
+        command = [
+            subprocess_path(Path(sys.executable)),
+            subprocess_path(app_root / "main.py"),
+            *argv[1:],
+        ]
+        child_environment = broker.child_environment(os.environ)
+        while True:
+            return_code = supervisor.supervise(
+                layout=layout,
+                command=command,
+                environment=child_environment,
+            )
+            if not broker.consume_restart_request():
+                return return_code
+
+
+def _source_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
+    """Return platform Crashpad assets built into the source checkout."""
+
+    target_directory = (
+        layout.root
+        / "third_party"
+        / "bin"
+        / "crashpad"
+        / layout.target.key.replace("_", "-")
+    )
+    return (
+        target_directory / layout.crashpad_handler_path.name,
+        target_directory / layout.crashpad_client_library_path.name,
+    )
+
+
+__all__ = ["supervise_source_application"]

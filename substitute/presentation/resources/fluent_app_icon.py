@@ -52,6 +52,7 @@ class AppIcon(FluentIconBase, Enum):  # type: ignore[misc]
     PANEL_RIGHT_20_REGULAR = "PanelRight20Regular"
     BRAIN_CIRCUIT_20_REGULAR = "BrainCircuit20Regular"
     ERASER_20_REGULAR = "Eraser20Regular"
+    SETTINGS_20_REGULAR = "Settings20Regular"
     ARROW_DOWNLOAD_20_REGULAR = "ArrowDownload20Regular"
     ARROW_AUTOFIT_WIDTH_20_REGULAR = "ArrowAutofitWidth20Regular"
     ARROW_MOVE_20_REGULAR = "ArrowMove20Regular"

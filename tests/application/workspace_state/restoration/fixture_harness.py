@@ -206,6 +206,16 @@ class MixedWorkflowCapturePort:
 
         return {"cube": "Cube", "direct": "Direct"}[workflow_id]
 
+    def workflow_document_dirty(self, workflow_id: str) -> bool:
+        """Return the live document dirty state."""
+
+        return workflow_id == "direct"
+
+    def workflow_document_source_path(self, workflow_id: str) -> Path | None:
+        """Return the durable source path for the direct document."""
+
+        return Path("workflows/direct.json") if workflow_id == "direct" else None
+
     def active_cube_alias(self, workflow_id: str) -> str | None:
         """Return cube focus only for the cube-stack document."""
 

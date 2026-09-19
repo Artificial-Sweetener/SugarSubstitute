@@ -250,7 +250,7 @@ def start_exact_weight_edit(
 def exact_weight_edit_token(box: PromptEditor) -> PromptProjectionToken | None:
     """Return the projection-owned token currently carrying exact edit state."""
 
-    return surface_for(box).exact_weight_edit_token()
+    return surface_for(box).exact_weight_editor.token()
 
 
 def wheel_widget_at_point(

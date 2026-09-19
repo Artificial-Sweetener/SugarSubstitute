@@ -37,8 +37,11 @@ from substitute.domain.onboarding import (
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
 )
-from substitute.presentation.onboarding.onboarding_controller import (
+from substitute.presentation.onboarding.readiness_issue_presenter import (
     ReadinessIssuePresentation,
+)
+from substitute.presentation.onboarding.model_onboarding_session import (
+    ModelOnboardingSession,
 )
 from substitute.presentation.onboarding.onboarding_models import (
     OnboardingCompletion,
@@ -57,6 +60,8 @@ class _FakeController(QObject):
     provisioning_finished = Signal()
     progress_status_changed = Signal(str)
     progress_log_emitted = Signal(str)
+    setup_progress_changed = Signal(object)
+    background_preparation_finished = Signal(object)
     failure_reported = Signal(object)
     completion_ready = Signal(object)
 
@@ -66,6 +71,10 @@ class _FakeController(QObject):
         super().__init__()
         self._draft = draft
         self._flow_mode = flow_mode
+        self._model_session = ModelOnboardingSession(
+            flow_mode=flow_mode,
+            target_mode=draft.target_mode,
+        )
         self._readiness_assessment = ReadinessAssessment(
             route=BootstrapRoute.REPAIR,
             issues=(
@@ -90,6 +99,12 @@ class _FakeController(QObject):
         """Return the active onboarding mode."""
 
         return self._flow_mode
+
+    @property
+    def model_session(self) -> ModelOnboardingSession:
+        """Return the fake window's model-onboarding session."""
+
+        return self._model_session
 
     @property
     def readiness_assessment(self) -> ReadinessAssessment:
@@ -118,6 +133,8 @@ class _FakeController(QObject):
         if current_page is OnboardingPageId.TARGET_MODE:
             return OnboardingPageId.MANAGED_LOCAL
         if current_page is OnboardingPageId.MANAGED_LOCAL:
+            return OnboardingPageId.EXISTING_MODELS
+        if current_page is OnboardingPageId.EXISTING_MODELS:
             return OnboardingPageId.FOLDERS
         if current_page is OnboardingPageId.FOLDERS:
             return OnboardingPageId.INTEGRATIONS
@@ -135,6 +152,8 @@ class _FakeController(QObject):
         if current_page is OnboardingPageId.MANAGED_LOCAL:
             return OnboardingPageId.TARGET_MODE
         if current_page is OnboardingPageId.FOLDERS:
+            return OnboardingPageId.EXISTING_MODELS
+        if current_page is OnboardingPageId.EXISTING_MODELS:
             return OnboardingPageId.MANAGED_LOCAL
         if current_page is OnboardingPageId.INTEGRATIONS:
             return OnboardingPageId.FOLDERS
@@ -151,6 +170,7 @@ class _FakeController(QObject):
         """Update the fake target mode."""
 
         self._draft = replace(self._draft, target_mode=target_mode)
+        self._model_session.set_target_mode(target_mode)
 
     def update_endpoint(self, host: str, port: int) -> None:
         """Accept endpoint updates without side effects."""
@@ -189,6 +209,11 @@ class _FakeController(QObject):
         """Accept managed runtime preference updates without side effects."""
 
         _ = force_cpu_mode, prefer_edge_torch, prefer_edge_comfy_channel
+
+    def start_background_preparation(self) -> bool:
+        """Record no background work for the inert window double."""
+
+        return False
 
     def update_folder_preferences(
         self,

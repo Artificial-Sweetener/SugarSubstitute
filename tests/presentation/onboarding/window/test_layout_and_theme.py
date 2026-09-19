@@ -18,11 +18,15 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QRect
+from tests.support.qt.work_area import set_test_work_area
+
 from pathlib import Path
 from typing import cast
 
 import pytest
-from PySide6.QtCore import QPoint, QRect
+from PySide6.QtCore import QPoint, QSize
+from PySide6.QtWidgets import QWidget
 from qfluentwidgets import Theme  # type: ignore[import-untyped]
 
 from substitute.presentation.onboarding.onboarding_controller import (
@@ -32,6 +36,9 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingDraft,
     OnboardingFlowMode,
     OnboardingTargetMode,
+)
+from sugarsubstitute_shared.presentation.setup_page_stage import (
+    SetupPageStage,
 )
 from substitute.presentation.onboarding.onboarding_window import (
     OnboardingWindow,
@@ -44,14 +51,71 @@ from tests.presentation.theme.support import fluent_theme
 from .controller_double import _FakeController
 
 
+class _HeightNegotiationPage(QWidget):
+    """Expose explicit preferred and minimum heights to the real page stage."""
+
+    def __init__(self, *, preferred_height: int, minimum_height: int) -> None:
+        """Store the two dimensions exercised by stage height negotiation."""
+
+        super().__init__()
+        self._preferred_height = preferred_height
+        self._minimum_height = minimum_height
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        """Return the page's unconstrained preferred size."""
+
+        return QSize(800, self._preferred_height)
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """Return the smallest height that preserves the page's content."""
+
+        return QSize(800, self._minimum_height)
+
+
+@pytest.mark.parametrize(
+    ("minimum_height", "expects_scroll"),
+    ((400, False), (600, True)),
+)
+def test_page_stage_shrinks_flexible_pages_before_enabling_scroll(
+    minimum_height: int,
+    expects_scroll: bool,
+) -> None:
+    """Use the viewport for flexible content and scroll only rigid overflow."""
+
+    application = ensure_qt_application()
+    host = QWidget()
+    host.resize(1104, 548)
+    stage = SetupPageStage(host)
+    stage.setGeometry(host.rect())
+    page = _HeightNegotiationPage(
+        preferred_height=600,
+        minimum_height=minimum_height,
+    )
+    stage.add_page(page)
+    host.show()
+    application.processEvents()
+    stage.show_page(page)
+    application.processEvents()
+
+    viewport_height = stage.viewport().contentsRect().height()
+    if expects_scroll:
+        assert stage.page_stack.height() == 600
+        assert stage.verticalScrollBar().maximum() > 0
+    else:
+        assert stage.page_stack.height() == viewport_height
+        assert stage.verticalScrollBar().maximum() == 0
+        assert page.height() == viewport_height
+    host.close()
+
+
 def test_onboarding_pages_fit_fixed_window_layout_budget(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """Every setup page should remain inside the fixed window and above its footer."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -88,6 +152,7 @@ def test_onboarding_pages_fit_fixed_window_layout_budget(
         window.page_stage,
         window.page_stack,
     )
+    window._provisioning_started = True
 
     page_height_budget = window.page_stage.contentsRect().height()
     for page_id, page in window._pages.items():
@@ -102,19 +167,42 @@ def test_onboarding_pages_fit_fixed_window_layout_budget(
                 window.page_stack,
                 page,
             )
-            return window.page_stage.contentsRect().contains(
-                window.page_stack.geometry()
-            ) and window.page_stack.contentsRect().contains(page.geometry())
+            window.page_stage.refresh_layout()
+            return (
+                window.page_stack.currentWidget() is page
+                and window.page_stack.height()
+                == (
+                    page.heightForWidth(page.width())
+                    if page.hasHeightForWidth()
+                    else page.sizeHint().height()
+                )
+                and window.page_stack.contentsRect().contains(page.geometry())
+            )
 
-        wait_for_qt_condition(page_layout_has_converged)
+        wait_for_qt_condition(
+            page_layout_has_converged,
+            description=f"{page_id.value} layout to converge",
+        )
 
-        assert page.sizeHint().height() <= page_height_budget, (
-            f"{page_id.value} requests {page.sizeHint().height()}px from a "
+        requested_height = (
+            page.heightForWidth(page.width())
+            if page.hasHeightForWidth()
+            else page.sizeHint().height()
+        )
+        assert requested_height <= page_height_budget, (
+            f"{page_id.value} requests {requested_height}px from a "
             f"{page_height_budget}px page stage"
         )
-        assert window.page_stage.contentsRect().contains(
-            window.page_stack.geometry()
-        ), f"{page_id.value} page stack leaves the fixed page stage"
+        assert window.page_stage.verticalScrollBar().maximum() == 0, (
+            f"{page_id.value} creates an installer scrollbar"
+        )
+        stack_rect = QRect(
+            window.page_stack.mapTo(window.page_stage.viewport(), QPoint(0, 0)),
+            window.page_stack.size(),
+        )
+        assert window.page_stage.viewport().contentsRect().contains(stack_rect), (
+            f"{page_id.value} page stack leaves the fixed page stage"
+        )
         assert window.page_stack.contentsRect().contains(page.geometry()), (
             f"{page_id.value} page leaves its stack"
         )
@@ -135,7 +223,6 @@ def test_onboarding_window_stylesheet_refreshes_after_qfluent_theme_switch(
     """Onboarding custom styles should refresh from QFluent theme changes."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -151,10 +238,12 @@ def test_onboarding_window_stylesheet_refreshes_after_qfluent_theme_switch(
                 _FakeController(draft, OnboardingFlowMode.REPAIR),
             )
         )
-        dark_style = window.styleSheet()
+        dark_style = window.root_container.styleSheet()
 
         with fluent_theme(Theme.LIGHT):
-            wait_for_qt_condition(lambda: window.styleSheet() != dark_style)
+            wait_for_qt_condition(
+                lambda: window.root_container.styleSheet() != dark_style
+            )
 
-            assert window.styleSheet() != dark_style
-            assert "rgba(0, 0, 0, 0.74)" in window.styleSheet()
+            assert window.root_container.styleSheet() != dark_style
+            assert "rgba(0, 0, 0, 0.74)" in window.root_container.styleSheet()

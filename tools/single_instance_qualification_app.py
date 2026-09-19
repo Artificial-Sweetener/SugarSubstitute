@@ -14,27 +14,37 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Host the production instance owners behind packaged-launcher qualification."""
+"""Host a real supervisor-connected child for packaged instance qualification."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
+import logging
 import os
 from pathlib import Path
 import sys
+import time
 
-from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.app.bootstrap.application_instance_control import (
-    bind_application_instance_shutdown_request,
+from sugarsubstitute_shared.qt_surface_readiness import (
+    schedule_main_shell_readiness_receipt,
+)
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
+from sugarsubstitute_shared.qt_application_instance_control import (
     start_application_instance_control,
     stop_application_instance_control,
 )
-from sugarsubstitute_shared.application_launch_guard import (
-    ApplicationLaunchGuard,
+from sugarsubstitute_shared.application_launch_context import (
     application_launch_install_root,
-    clear_inherited_application_launch_token,
-    inherited_application_launch_token,
+)
+from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    CleanExitOutcome,
+    CrashRunContext,
 )
 from sugarsubstitute_shared.launch_splash import (
     SocketSplashSessionClient,
@@ -42,86 +52,402 @@ from sugarsubstitute_shared.launch_splash import (
 )
 
 
+APPLICATION_REGISTRATION_DELAY_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_APPLICATION_REGISTRATION_DELAY_SECONDS"
+)
+APPLICATION_REGISTRATION_GATE_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_APPLICATION_REGISTRATION_GATE"
+)
+APPLICATION_PREREGISTRATION_MARKER_NAME = "qualification-application-preregister.json"
+APPLICATION_PREREGISTRATION_RELEASE_NAME = (
+    "qualification-application-preregister.release"
+)
+APPLICATION_PREREGISTRATION_CLAIM_NAME = "qualification-application-preregister.claimed"
+APPLICATION_RESTART_AFTER_INVOCATIONS_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_RESTART_AFTER_INVOCATIONS"
+)
+APPLICATION_EXIT_AFTER_INVOCATIONS_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_EXIT_AFTER_INVOCATIONS"
+)
+APPLICATION_INITIAL_WINDOW_STATE_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_INITIAL_WINDOW_STATE"
+)
+APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_WINDOW_CONSTRUCTION_GATE"
+)
+APPLICATION_PREWINDOW_MARKER_NAME = "qualification-application-prewindow.json"
+APPLICATION_PREWINDOW_RELEASE_NAME = "qualification-application-prewindow.release"
+_WINDOW_CONSTRUCTION_GATE_TIMEOUT_SECONDS = 30.0
+_LOGGER = logging.getLogger(__name__)
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Claim production ownership and remain available for graceful shutdown."""
+    """Register with the elected supervisor and remain alive for qualification."""
 
     arguments = sys.argv if argv is None else argv
     install_root = application_launch_install_root(arguments, app_root=Path.cwd())
-    inherited_token = inherited_application_launch_token()
-    guard = ApplicationLaunchGuard.enter(
-        install_root,
-        inherited_token=inherited_token,
+    _delay_application_registration(install_root)
+    _wait_at_application_registration_gate(install_root)
+    application = QApplication(arguments)
+    received_invocations: list[ApplicationInvocation] = []
+    restart_after_invocations = int(
+        os.environ.pop(APPLICATION_RESTART_AFTER_INVOCATIONS_ENV, "0")
     )
-    clear_inherited_application_launch_token()
-    if guard is None:
-        return 17
+    exit_after_invocations = int(
+        os.environ.pop(APPLICATION_EXIT_AFTER_INVOCATIONS_ENV, "0")
+    )
+    crash_context = CrashRunContext.from_environment()
+    clean_exit_outcome: CleanExitOutcome | None = None
+    control = None
 
-    application = QCoreApplication(arguments)
+    def record_invocation(invocation: ApplicationInvocation) -> None:
+        """Persist deterministic evidence for every delivered secondary launch."""
+
+        nonlocal clean_exit_outcome
+        received_invocations.append(invocation)
+        invocation_evidence_path(install_root).write_text(
+            json.dumps(
+                {
+                    "count": len(received_invocations),
+                    "invocations": [
+                        {
+                            "arguments": list(item.arguments),
+                            "working_directory": item.working_directory,
+                        }
+                        for item in received_invocations
+                    ],
+                    "surface": _surface_evidence(window),
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        if (
+            restart_after_invocations > 0
+            and len(received_invocations) == restart_after_invocations
+            and control is not None
+        ):
+            restart_count = len(received_invocations)
+
+            def request_restart_after_presentation() -> None:
+                """Restart only after the triggering invocation's surface paints."""
+
+                nonlocal clean_exit_outcome
+                assert control is not None
+                accepted = control.request_restart()
+                restart_evidence_path(install_root).write_text(
+                    json.dumps(
+                        {
+                            "accepted": accepted,
+                            "invocation_count": restart_count,
+                            "pid": os.getpid(),
+                        },
+                        sort_keys=True,
+                    ),
+                    encoding="utf-8",
+                )
+                if accepted:
+                    if crash_context is not None:
+                        crash_context.write_exit_intent(
+                            CleanExitOutcome.RESTART,
+                            process_id=os.getpid(),
+                        )
+                    clean_exit_outcome = CleanExitOutcome.RESTART
+                    application.quit()
+
+            run_after_surface_paint(window, request_restart_after_presentation)
+            window.update()
+        elif (
+            exit_after_invocations > 0
+            and len(received_invocations) == exit_after_invocations
+        ):
+
+            def request_close_after_presentation() -> None:
+                """Declare a controlled close before leaving the Qt event loop."""
+
+                nonlocal clean_exit_outcome
+                if crash_context is not None:
+                    crash_context.write_exit_intent(
+                        CleanExitOutcome.CLOSED,
+                        process_id=os.getpid(),
+                    )
+                clean_exit_outcome = CleanExitOutcome.CLOSED
+                application.quit()
+
+            run_after_surface_paint(window, request_close_after_presentation)
+            window.update()
+
+    evidence_path = invocation_evidence_path(install_root)
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text('{"count": 0, "invocations": []}', encoding="utf-8")
+    control = start_application_instance_control(
+        invocation_observer=record_invocation,
+    )
+    if control is None:
+        return 17
+    _wait_at_window_construction_gate(install_root)
+    window = QWidget()
+    window.setWindowTitle("SugarSubstitute instance qualification")
+    window.resize(640, 480)
+    _show_initial_window_state(window)
+    _schedule_startup_handoff(arguments, install_root, window)
     marker_path = install_root / "user" / "qualification-app.json"
     owner_marker_path = (
         install_root / "user" / "qualification-owners" / f"{os.getpid()}.json"
     )
     marker_path.parent.mkdir(parents=True, exist_ok=True)
     owner_marker_path.parent.mkdir(parents=True, exist_ok=True)
-
-    def request_shutdown(_reason: object | None) -> None:
-        """Route local control through the application's event loop."""
-
-        application.quit()
-
-    start_application_instance_control(install_root)
-    bind_application_instance_shutdown_request(request_shutdown)
     marker_path.write_text(
         json.dumps({"pid": os.getpid()}, sort_keys=True),
         encoding="utf-8",
     )
     owner_marker_path.write_text(
-        json.dumps(
-            {
-                "pid": os.getpid(),
-                "parent_pid": os.getppid(),
-            },
-            sort_keys=True,
-        ),
+        json.dumps({"pid": os.getpid(), "parent_pid": os.getppid()}, sort_keys=True),
         encoding="utf-8",
     )
-    splash_spec = splash_session_from_args(arguments)
-    if splash_spec is not None:
-        adoption_path = (
-            install_root
-            / "user"
-            / "qualification-splash-adoptions"
-            / f"{os.getpid()}.json"
-        )
-        adoption_path.parent.mkdir(parents=True, exist_ok=True)
-        adoption_path.write_text(
-            json.dumps(
-                {
-                    "app_pid": os.getpid(),
-                    "splash_host_pid": splash_spec.host_pid,
-                },
-                sort_keys=True,
-            ),
-            encoding="utf-8",
-        )
-        splash_client = SocketSplashSessionClient(splash_spec)
-        QTimer.singleShot(2_500, splash_client.close)
     QTimer.singleShot(120_000, application.quit)
     try:
         return application.exec()
     finally:
         stop_application_instance_control()
-        try:
-            marker_payload = json.loads(marker_path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            marker_payload = None
-        if (
-            isinstance(marker_payload, dict)
-            and marker_payload.get("pid") == os.getpid()
-        ):
-            marker_path.unlink(missing_ok=True)
+        _remove_owned_marker(marker_path)
         owner_marker_path.unlink(missing_ok=True)
-        guard.release()
+        if clean_exit_outcome is not None and crash_context is not None:
+            crash_context.write_exit_receipt(
+                clean_exit_outcome,
+                process_id=os.getpid(),
+            )
+
+
+def _schedule_startup_handoff(
+    arguments: list[str],
+    install_root: Path,
+    window: QWidget,
+) -> None:
+    """Match production's atomic close-before-readiness surface handoff."""
+
+    close_splash = _splash_close_after_surface_paint_callback(
+        arguments,
+        install_root,
+    )
+    schedule_main_shell_readiness_receipt(
+        window,
+        before_publish=close_splash,
+    )
+
+
+def _splash_close_after_surface_paint_callback(
+    arguments: list[str],
+    install_root: Path,
+) -> Callable[[], None] | None:
+    """Create the launcher-splash close step for the painted-surface handoff."""
+
+    splash_spec = splash_session_from_args(arguments)
+    if splash_spec is None:
+        return None
+    adoption_path = (
+        install_root / "user" / "qualification-splash-adoptions" / f"{os.getpid()}.json"
+    )
+    adoption_path.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, object] = {
+        "app_pid": os.getpid(),
+        "close_acknowledged": None,
+        "splash_host_pid": splash_spec.host_pid,
+    }
+    _write_splash_adoption(adoption_path, payload)
+    splash_client = SocketSplashSessionClient(splash_spec)
+
+    def close_adopted_splash() -> None:
+        """Record whether the host applied the production close message."""
+
+        payload["close_acknowledged"] = splash_client.close()
+        _write_splash_adoption(adoption_path, payload)
+
+    return close_adopted_splash
+
+
+def _write_splash_adoption(path: Path, payload: dict[str, object]) -> None:
+    """Atomically publish splash adoption and close acknowledgement evidence."""
+
+    temporary_path = path.with_suffix(f".{os.getpid()}.tmp")
+    temporary_path.write_text(
+        json.dumps(payload, sort_keys=True),
+        encoding="utf-8",
+    )
+    os.replace(temporary_path, path)
+
+
+def _show_initial_window_state(window: QWidget) -> None:
+    """Expose one deterministic presentation state for process qualification."""
+
+    state = os.environ.pop(APPLICATION_INITIAL_WINDOW_STATE_ENV, "normal")
+    if state == "normal":
+        window.show()
+        return
+    if state == "hidden":
+        window.show()
+        window.hide()
+        return
+    if state == "minimized":
+        window.showMinimized()
+        return
+    if state == "offscreen":
+        window.move(100_000, 100_000)
+        window.show()
+        return
+    raise ValueError(f"Unsupported qualification window state: {state}")
+
+
+def _surface_evidence(window: QWidget) -> dict[str, object]:
+    """Describe whether the activation target is visible and screen-accessible."""
+
+    frame = window.frameGeometry()
+    return {
+        "accessible": any(
+            frame.intersects(screen.availableGeometry())
+            for screen in QGuiApplication.screens()
+        ),
+        "minimized": window.isMinimized(),
+        "visible": window.isVisible(),
+        "x": frame.x(),
+        "y": frame.y(),
+    }
+
+
+def _delay_application_registration(install_root: Path) -> None:
+    """Expose an explicit qualification window after supervisor election."""
+
+    delay = float(os.environ.pop(APPLICATION_REGISTRATION_DELAY_ENV, "0"))
+    if delay <= 0:
+        return
+    marker_path = application_preregistration_marker_path(install_root)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    marker_path.write_text(
+        json.dumps({"pid": os.getpid()}, sort_keys=True),
+        encoding="utf-8",
+    )
+    try:
+        time.sleep(delay)
+    finally:
+        marker_path.unlink(missing_ok=True)
+
+
+def application_preregistration_marker_path(install_root: Path) -> Path:
+    """Return the disposable marker for the delayed child registration phase."""
+
+    return install_root / "user" / APPLICATION_PREREGISTRATION_MARKER_NAME
+
+
+def application_preregistration_release_path(install_root: Path) -> Path:
+    """Return the explicit release signal for child registration."""
+
+    return install_root / "user" / APPLICATION_PREREGISTRATION_RELEASE_NAME
+
+
+def application_preregistration_claim_path(install_root: Path) -> Path:
+    """Return the one-supervision-cycle registration-gate claim."""
+
+    return install_root / "user" / APPLICATION_PREREGISTRATION_CLAIM_NAME
+
+
+def application_prewindow_marker_path(install_root: Path) -> Path:
+    """Return the marker proving child registration before window construction."""
+
+    return install_root / "user" / APPLICATION_PREWINDOW_MARKER_NAME
+
+
+def application_prewindow_release_path(install_root: Path) -> Path:
+    """Return the explicit release signal for window construction."""
+
+    return install_root / "user" / APPLICATION_PREWINDOW_RELEASE_NAME
+
+
+def _wait_at_application_registration_gate(install_root: Path) -> None:
+    """Pause one selected child before registration until explicitly released."""
+
+    enabled = os.environ.pop(APPLICATION_REGISTRATION_GATE_ENV, "0") == "1"
+    if not enabled:
+        return
+    marker_path = application_preregistration_marker_path(install_root)
+    release_path = application_preregistration_release_path(install_root)
+    claim_path = application_preregistration_claim_path(install_root)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        claim_path.touch(exist_ok=False)
+    except FileExistsError:
+        return
+    release_path.unlink(missing_ok=True)
+    marker_path.write_text(
+        json.dumps({"pid": os.getpid()}, sort_keys=True),
+        encoding="utf-8",
+    )
+    deadline = time.monotonic() + _WINDOW_CONSTRUCTION_GATE_TIMEOUT_SECONDS
+    try:
+        while not release_path.is_file():
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    "Application-registration qualification gate timed out."
+                )
+            time.sleep(0.05)
+    finally:
+        _remove_owned_marker(marker_path)
+        release_path.unlink(missing_ok=True)
+
+
+def _wait_at_window_construction_gate(install_root: Path) -> None:
+    """Pause a selected child after registration until qualification releases it."""
+
+    enabled = os.environ.pop(APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV, "0") == "1"
+    if not enabled:
+        return
+    marker_path = application_prewindow_marker_path(install_root)
+    release_path = application_prewindow_release_path(install_root)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    release_path.unlink(missing_ok=True)
+    marker_path.write_text(
+        json.dumps({"pid": os.getpid()}, sort_keys=True),
+        encoding="utf-8",
+    )
+    deadline = time.monotonic() + _WINDOW_CONSTRUCTION_GATE_TIMEOUT_SECONDS
+    try:
+        while not release_path.is_file():
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Window-construction qualification gate timed out.")
+            time.sleep(0.05)
+    finally:
+        _remove_owned_marker(marker_path)
+        release_path.unlink(missing_ok=True)
+
+
+def invocation_evidence_path(install_root: Path) -> Path:
+    """Return the disposable forwarded-invocation evidence path."""
+
+    return install_root / "user" / "qualification-invocations.json"
+
+
+def restart_evidence_path(install_root: Path) -> Path:
+    """Return the disposable supervisor-restart evidence path."""
+
+    return install_root / "user" / "qualification-restart.json"
+
+
+def _remove_owned_marker(marker_path: Path) -> None:
+    """Remove the shared PID marker only when this child still owns it."""
+
+    try:
+        marker_payload = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return
+    if isinstance(marker_payload, dict) and marker_payload.get("pid") == os.getpid():
+        try:
+            marker_path.unlink(missing_ok=True)
+        except OSError:
+            _LOGGER.warning(
+                "Qualification marker cleanup was deferred because the file is busy. "
+                "| marker_path=%s | owner_pid=%s",
+                marker_path,
+                os.getpid(),
+            )
 
 
 if __name__ == "__main__":

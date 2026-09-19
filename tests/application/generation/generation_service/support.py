@@ -28,12 +28,14 @@ from substitute.application.generation import (
     GenerationFailure,
     GenerationService,
 )
+from substitute.application.generation.native_cube_workflow_builder import (
+    NativeCubeWorkflowBuilder,
+)
 from substitute.application.ports.comfy_gateway import ComfyGateway
 from substitute.application.recipes.recipe_io_service import (
     RecipeIoService,
     WorkflowLike,
 )
-from substitute.application.recipes.workflow_export_service import WorkflowExportService
 from substitute.application.ports import (
     InterruptResult,
     ListenerCallbacks,
@@ -49,6 +51,8 @@ from substitute.application.ports import (
     QueueVisualRunContext,
     QueuePromptResult,
 )
+from substitute.domain.workflow import CubeState, WorkflowState
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
 
 
 _RealGenerationService = GenerationService
@@ -196,6 +200,25 @@ class _FakeGateway:
             error=None,
         )
 
+    def queue_cube_workflow(
+        self,
+        workflow_payload: dict[str, Any],
+        *,
+        client_id: str,
+        preview_method: str | None = None,
+        visual_context: QueueVisualRunContext,
+        persistence_sugar_script: str | None = None,
+    ) -> QueuePromptResult:
+        """Capture native Cube dispatch through the existing queue call shape."""
+
+        return self.queue_prompt(
+            workflow_payload,
+            client_id=client_id,
+            preview_method=preview_method,
+            sugar_script=persistence_sugar_script,
+            visual_context=visual_context,
+        )
+
     def start_listener(
         self,
         request: ListenerStartRequest,
@@ -280,7 +303,6 @@ def _build_generation_service(
 
     return _RealGenerationService(
         recipe_io_service=cast(RecipeIoService, recipe_io_service),
-        workflow_export_service=cast(WorkflowExportService, workflow_export_service),
         comfy_gateway=cast(ComfyGateway, comfy_gateway),
         **cast(Any, dependencies),
     )
@@ -288,7 +310,70 @@ def _build_generation_service(
 
 def _build_workflow() -> WorkflowLike:
     """Create minimal workflow state required by generation request."""
+
+    return _build_workflow_with_aliases("A")
+
+
+def _build_workflow_with_aliases(
+    *aliases: str,
+    bypassed_aliases: frozenset[str] = frozenset(),
+    global_overrides: dict[str, object] | None = None,
+) -> WorkflowLike:
+    """Create a minimal ordered Cube workflow for graph-native generation tests."""
+
+    cubes = {
+        alias: _build_cube(alias, bypassed=alias in bypassed_aliases)
+        for alias in aliases
+    }
+    workflow = graph_backed_cube_workflow_from_states(*cubes.values())
+    workflow.global_overrides = cast(Any, global_overrides or {})
     return cast(
         WorkflowLike,
-        SimpleNamespace(stack_order=["A"], cubes={}, global_overrides={}),
+        workflow,
     )
+
+
+def _build_cube(alias: str, *, bypassed: bool) -> CubeState:
+    """Create one canonical-document-backed Cube instance fixture."""
+
+    cube = CubeState(
+        cube_id=f"test/{alias}.cube",
+        version="1.0.0",
+        alias=alias,
+        original_cube={
+            "cube_id": f"test/{alias}.cube",
+            "version": "1.0.0",
+            "description": "",
+            "metadata": {},
+        },
+        buffer={
+            "nodes": {"node": {"class_type": "TestNode", "inputs": {}}},
+            "inputs": {},
+            "outputs": {},
+            "layout": {},
+            "definitions": {},
+            "subgraphs": [],
+            "surface": {"default_flavor_id": "default", "controls": []},
+            "flavors": {
+                "authored": [{"id": "default", "name": "Default", "values": {}}]
+            },
+        },
+        ui={
+            "canonical_cube": {
+                "description": "",
+                "metadata": {},
+            }
+        },
+        bypassed=bypassed,
+        output_persistence_enabled=True,
+    )
+    return cube
+
+
+def _build_native_workflow(workflow: WorkflowLike | None = None) -> dict[str, object]:
+    """Build the canonical native Cube graph carried by a prepared request."""
+
+    resolved = workflow or _build_workflow()
+    if not isinstance(resolved, WorkflowState):
+        raise TypeError("Native workflow fixture requires graph-backed state.")
+    return NativeCubeWorkflowBuilder().build(resolved)

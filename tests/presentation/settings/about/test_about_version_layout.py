@@ -37,7 +37,6 @@ _VERSION_OBJECT_KEYS = (
     "ComfyUI",
     "SugarCubes",
     "SubstituteBackend",
-    "SugarDSL",
     "QPane",
     "PySide6FluentWidgets",
     "PySide6",
@@ -64,10 +63,9 @@ def test_about_version_group_uses_two_columns_when_wide(
     assert _card_position(page, layout, "ComfyUI") == (0, 1)
     assert _card_position(page, layout, "SugarCubes") == (1, 0)
     assert _card_position(page, layout, "SubstituteBackend") == (1, 1)
-    assert _card_position(page, layout, "SugarDSL") == (2, 0)
-    assert _card_position(page, layout, "QPane") == (2, 1)
-    assert _card_position(page, layout, "PySide6FluentWidgets") == (3, 0)
-    assert _card_position(page, layout, "PySide6") == (3, 1)
+    assert _card_position(page, layout, "QPane") == (2, 0)
+    assert _card_position(page, layout, "PySide6FluentWidgets") == (2, 1)
+    assert _card_position(page, layout, "PySide6") == (3, 0)
     assert _version_card(page, "QPane").height() == 80
     assert _version_card(page, "QPane").property("aboutVersionLayoutMode") == "wide"
 
@@ -90,26 +88,33 @@ def test_about_version_group_uses_full_width_column_when_width_starved(
         assert card.property("aboutVersionLayoutMode") == "wide"
 
 
-def test_about_version_group_elides_subtitles_under_column_pressure(
+def test_about_version_group_bounds_subtitles_under_column_pressure(
     about_page_factory: AboutPageFactory,
 ) -> None:
-    """Elide bounded subtitles instead of clipping hidden lines."""
+    """Preserve fitting subtitles and elide only text that exceeds two lines."""
 
     page = _shown_page(about_page_factory, width=940, height=720)
     group = _version_group(page)
     assert group.property("aboutVersionColumnCount") == 2
-    for object_key in ("ComfyUI", "SugarDSL"):
+    elided_keys: set[str] = set()
+    for object_key in ("ComfyUI", "SubstituteBackend"):
         card = _version_card(page, object_key)
         subtitle = _version_child_label(card, f"AboutVersionSubtitle-{object_key}")
         assert card.property("aboutVersionLayoutMode") == "wide"
         assert subtitle.text().count("\n") <= 1
-        assert "…" in subtitle.text()
-        assert subtitle.toolTip() != subtitle.text()
+        displayed_text = " ".join(subtitle.text().split())
+        complete_text = " ".join(subtitle.toolTip().split())
+        if "…" in displayed_text:
+            elided_keys.add(object_key)
+            assert displayed_text != complete_text
+        else:
+            assert displayed_text == complete_text
         assert subtitle.height() >= (
             subtitle.fontMetrics().lineSpacing()
             * max(1, len(subtitle.text().splitlines()))
         )
         _assert_card_children_do_not_overlap(card)
+    assert "ComfyUI" in elided_keys
 
 
 def test_about_version_cards_use_compact_layout_at_narrow_width(

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from sugarsubstitute_shared.presentation.terminal.output_transcript import (
+    TerminalOutputMutationKind,
     TerminalOutputTranscript,
 )
 
@@ -75,6 +76,21 @@ def test_terminal_output_transcript_replaces_active_line_for_carriage_return() -
     transcript.apply_record("100%\n")
 
     assert transcript.snapshot() == ("100%",)
+
+
+def test_terminal_output_transcript_clears_only_transient_tail() -> None:
+    """Activity cleanup should preserve every durable output row."""
+
+    transcript = TerminalOutputTranscript(max_lines=3)
+    transcript.apply_record("download complete\n")
+    transcript.apply_record("Updating SugarCubes...\r")
+
+    mutation = transcript.clear_transient_line()
+
+    assert mutation is not None
+    assert mutation.kind is TerminalOutputMutationKind.REMOVE_LAST_LINE
+    assert transcript.snapshot() == ("download complete",)
+    assert transcript.clear_transient_line() is None
 
 
 def test_terminal_output_transcript_keeps_interleaved_progress_and_logs_distinct() -> (

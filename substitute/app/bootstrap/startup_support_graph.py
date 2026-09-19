@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.ready_shell_state import (
     ReadyShellStateBundle,
     create_ready_shell_state_bundle,

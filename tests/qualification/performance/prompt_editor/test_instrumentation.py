@@ -29,7 +29,7 @@ from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
 from substitute.presentation.editor.prompt_editor.shell import (
-    context_menu_controller as prompt_context_menu_module,
+    prompt_text_menu as prompt_context_menu_module,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
@@ -97,7 +97,7 @@ def test_instrumentation_context_does_not_patch_prompt_editor_owners() -> None:
 def test_instrumentation_can_delegate_context_menu_suppression() -> None:
     """Leave menu execution to an outer harness when it owns popup capture."""
 
-    menu_type = cast(Any, prompt_context_menu_module)._PromptEditorTextEditMenu
+    menu_type = cast(Any, prompt_context_menu_module).PromptTextMenu
     original_exec = menu_type.exec
 
     with instrument_prompt_editor(
@@ -112,7 +112,7 @@ def test_instrumentation_can_delegate_context_menu_suppression() -> None:
 def test_instrumentation_suppresses_modal_context_menu_by_default() -> None:
     """Keep menu benchmarks non-modal without replacing menu owner methods."""
 
-    menu_type = cast(Any, prompt_context_menu_module)._PromptEditorTextEditMenu
+    menu_type = cast(Any, prompt_context_menu_module).PromptTextMenu
     original_exec = menu_type.exec
 
     with instrument_prompt_editor(Instrumentation.create()):

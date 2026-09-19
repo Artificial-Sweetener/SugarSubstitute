@@ -155,6 +155,13 @@ class OutputImagePipeline(QObject):
         )
         self._connect_canvas_route_changes()
 
+    def shutdown(self) -> None:
+        """Retire decode, commit, and projection owners before document teardown."""
+
+        self._preparation_dispatcher.shutdown()
+        self._commit_queue.shutdown()
+        self._projection_scheduler.shutdown()
+
     def _project_active_output_projection(
         self,
         workflow_id: str,

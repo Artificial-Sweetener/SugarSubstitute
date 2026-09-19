@@ -35,9 +35,10 @@ def test_update_canvas_callback_submits_to_output_pipeline(
 
     submitted: list[object] = []
     view = SimpleNamespace(
+        cube_stack_service=object(),
         output_image_pipeline=SimpleNamespace(
             submit_legacy_output_update=lambda update: submitted.append(update)
-        )
+        ),
     )
     controller = mod.WorkspaceController(view)
 

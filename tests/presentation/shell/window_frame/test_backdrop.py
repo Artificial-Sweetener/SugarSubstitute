@@ -27,10 +27,9 @@ from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 import pytest
 
-from substitute.presentation.shell.window_frame import (
-    ShellBackdropMode,
-    SubstituteWindowFrame,
-)
+from substitute.presentation.shell.window_effects import ShellBackdropMode
+import substitute.presentation.shell.window_effects as window_effects
+from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 import substitute.presentation.shell.window_frame as window_frame
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -106,15 +105,15 @@ def test_apply_acrylic_effect_applies_native_effect_then_normalizes_chrome(
         winId=lambda: 123,
     )
     monkeypatch.setattr(
-        window_frame,
+        window_effects,
         "normalize_acrylic_frameless_chrome",
         lambda window: calls.append(("normalize", window)),
     )
 
-    window_frame.apply_acrylic_effect(fake_window)
+    window_effects.apply_acrylic_effect(fake_window)
 
     assert calls == [
-        ("effect", (123, window_frame.ACRYLIC_BLEND_COLOR)),
+        ("effect", (123, window_effects.ACRYLIC_BLEND_COLOR)),
         ("normalize", fake_window),
     ]
 
@@ -177,11 +176,11 @@ def test_normalize_acrylic_frameless_chrome_restores_frameless_resize_bits(
         ),
     )
 
-    monkeypatch.setattr(window_frame, "_PLATFORM", "win32")
-    monkeypatch.setattr(window_frame, "win32con", fake_win32con)
-    monkeypatch.setattr(window_frame, "win32gui", fake_win32gui)
+    monkeypatch.setattr(window_effects, "_PLATFORM", "win32")
+    monkeypatch.setattr(window_effects, "win32con", fake_win32con)
+    monkeypatch.setattr(window_effects, "win32gui", fake_win32gui)
     monkeypatch.setattr(
-        window_frame,
+        window_effects,
         "restore_rounded_window_corners",
         lambda window_id: corner_updates.append(int(window_id)),
     )
@@ -191,7 +190,7 @@ def test_normalize_acrylic_frameless_chrome_restores_frameless_resize_bits(
         winId=lambda: 123,
     )
 
-    window_frame.normalize_acrylic_frameless_chrome(fake_window)
+    window_effects.normalize_acrylic_frameless_chrome(fake_window)
 
     assert flag_updates == [(Qt.WindowType.FramelessWindowHint, True)]
     assert style_updates == [
@@ -236,15 +235,15 @@ def test_normalize_acrylic_frameless_chrome_noops_off_windows(
         SetWindowPos=lambda *_args: calls.append("pos"),
     )
 
-    monkeypatch.setattr(window_frame, "_PLATFORM", "linux")
-    monkeypatch.setattr(window_frame, "win32gui", fake_win32gui)
+    monkeypatch.setattr(window_effects, "_PLATFORM", "linux")
+    monkeypatch.setattr(window_effects, "win32gui", fake_win32gui)
 
     fake_window = SimpleNamespace(
         setWindowFlag=lambda *_args: calls.append("flag"),
         winId=lambda: 123,
     )
 
-    window_frame.normalize_acrylic_frameless_chrome(fake_window)
+    window_effects.normalize_acrylic_frameless_chrome(fake_window)
 
     assert calls == []
 
@@ -262,12 +261,12 @@ def test_restore_rounded_window_corners_requests_windows_11_rounding(
         )
     )
 
-    monkeypatch.setattr(window_frame, "_PLATFORM", "win32")
-    monkeypatch.setattr(window_frame, "_DWMAPI", fake_dwmapi)
-    monkeypatch.setattr(window_frame, "_WINDOWS_BUILD", 26200)
-    monkeypatch.setattr(window_frame, "_WINDOW_CORNER_ATTRIBUTE", 33)
-    monkeypatch.setattr(window_frame, "_WINDOW_CORNER_ROUND", 2)
+    monkeypatch.setattr(window_effects, "_PLATFORM", "win32")
+    monkeypatch.setattr(window_effects, "_DWMAPI", fake_dwmapi)
+    monkeypatch.setattr(window_effects, "_WINDOWS_BUILD", 26200)
+    monkeypatch.setattr(window_effects, "_WINDOW_CORNER_ATTRIBUTE", 33)
+    monkeypatch.setattr(window_effects, "_WINDOW_CORNER_ROUND", 2)
 
-    window_frame.restore_rounded_window_corners(123)
+    window_effects.restore_rounded_window_corners(123)
 
     assert calls == [(123, 33, 2, 4)]

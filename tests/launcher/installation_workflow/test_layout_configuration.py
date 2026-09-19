@@ -50,7 +50,6 @@ def test_install_layout_resolves_target_paths(tmp_path: Path) -> None:
     assert layout.logs_dir == layout.root / "launcher" / "logs"
     assert layout.cache_dir == layout.root / "launcher" / "cache"
     assert layout.downloads_dir == layout.root / "launcher" / "downloads"
-    assert layout.locks_dir == layout.root / "launcher" / "locks"
     assert (
         layout.runtime_python
         == layout.root / "runtime" / layout.target.runtime_python_relative_path
@@ -90,7 +89,7 @@ def test_layout_installer_creates_base_directories_and_config(tmp_path: Path) ->
     assert result.layout.logs_dir.is_dir()
     assert result.layout.cache_dir.is_dir()
     assert result.layout.downloads_dir.is_dir()
-    assert result.layout.locks_dir.is_dir()
+    assert not (result.layout.launcher_dir / "locks").exists()
     assert result.layout.runtime_dir.is_dir()
     assert result.layout.user_dir.is_dir()
     assert result.layout.appdata_dir.is_dir()

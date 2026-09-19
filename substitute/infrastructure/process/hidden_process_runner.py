@@ -18,10 +18,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from queue import Empty, Queue
 import subprocess
 import sys
+from threading import Thread
+import time
+from typing import Final
 
 from substitute.shared.logging.logger import get_logger, log_info
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
@@ -32,9 +37,18 @@ from sugarsubstitute_shared.windows_long_paths import (
 )
 
 LogCallback = Callable[[str], None]
+SilenceCallback = Callable[[float], None]
 CommandResult = subprocess.CompletedProcess[str]
 
 _LOGGER = get_logger(__name__)
+_STREAM_ENDED: Final[object] = object()
+
+
+@dataclass(frozen=True, slots=True)
+class _StreamReadFailure:
+    """Carry a background stream failure back to the calling thread."""
+
+    error: Exception
 
 
 def run_command(
@@ -138,10 +152,15 @@ def stream_command_collecting_output(
     *,
     cwd: Path,
     on_line: LogCallback | None,
+    on_silence: SilenceCallback | None = None,
+    silence_notification_interval_seconds: float = 30.0,
     timeout_seconds: int | None = None,
     env: Mapping[str, str] | None = None,
 ) -> tuple[int, tuple[str, ...]]:
     """Run one hidden subprocess while retaining merged stdout/stderr records."""
+
+    if on_silence is not None and silence_notification_interval_seconds <= 0:
+        raise ValueError("Silence notification interval must be positive.")
 
     process_cwd = operational_path(cwd)
     command_args = _process_command(command)
@@ -166,11 +185,22 @@ def stream_command_collecting_output(
     output_lines: list[str] = []
     try:
         if proc.stdout is not None:
-            for line in proc.stdout:
-                stripped = line.rstrip("\n")
-                output_lines.append(stripped)
-                if stripped and on_line is not None:
-                    on_line(stripped)
+            if on_silence is None:
+                _consume_output_lines(
+                    proc.stdout,
+                    output_lines=output_lines,
+                    on_line=on_line,
+                )
+            else:
+                _consume_output_lines_with_silence_feedback(
+                    proc.stdout,
+                    output_lines=output_lines,
+                    on_line=on_line,
+                    on_silence=on_silence,
+                    notification_interval_seconds=(
+                        silence_notification_interval_seconds
+                    ),
+                )
         proc.wait(timeout=timeout_seconds)
         return proc.returncode, tuple(output_lines)
     finally:
@@ -182,6 +212,86 @@ def creation_flags() -> int:
     """Return subprocess flags that avoid visible console windows on Windows."""
 
     return subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
+
+def _consume_output_lines(
+    stream: Iterable[str],
+    *,
+    output_lines: list[str],
+    on_line: LogCallback | None,
+) -> None:
+    """Consume merged process output without synthetic progress records."""
+
+    for line in stream:
+        _record_output_line(str(line), output_lines=output_lines, on_line=on_line)
+
+
+def _consume_output_lines_with_silence_feedback(
+    stream: Iterable[str],
+    *,
+    output_lines: list[str],
+    on_line: LogCallback | None,
+    on_silence: SilenceCallback,
+    notification_interval_seconds: float,
+) -> None:
+    """Report elapsed time while a live process emits no output records."""
+
+    events: Queue[object] = Queue()
+
+    def read_output() -> None:
+        """Transfer blocking stream iteration onto one bounded daemon reader."""
+
+        try:
+            for line in stream:
+                events.put(str(line))
+        except Exception as error:
+            events.put(_StreamReadFailure(error))
+        finally:
+            events.put(_STREAM_ENDED)
+
+    reader = Thread(
+        target=read_output,
+        name="hidden-process-output-reader",
+        daemon=True,
+    )
+    reader.start()
+    started_at = time.monotonic()
+    next_notification_at = started_at + notification_interval_seconds
+    while True:
+        wait_seconds = max(0.0, next_notification_at - time.monotonic())
+        try:
+            event = events.get(timeout=wait_seconds)
+        except Empty:
+            now = time.monotonic()
+            on_silence(max(0.0, now - started_at))
+            next_notification_at = now + notification_interval_seconds
+            continue
+        if event is _STREAM_ENDED:
+            reader.join()
+            return
+        if isinstance(event, _StreamReadFailure):
+            reader.join()
+            raise event.error
+        _record_output_line(
+            str(event),
+            output_lines=output_lines,
+            on_line=on_line,
+        )
+        next_notification_at = time.monotonic() + notification_interval_seconds
+
+
+def _record_output_line(
+    line: str,
+    *,
+    output_lines: list[str],
+    on_line: LogCallback | None,
+) -> None:
+    """Retain one exact output record and forward its visible text."""
+
+    stripped = line.rstrip("\n")
+    output_lines.append(stripped)
+    if stripped and on_line is not None:
+        on_line(stripped)
 
 
 def _command_label(command: Sequence[str]) -> str:
@@ -207,6 +317,7 @@ def _process_command(command: Sequence[str]) -> list[str]:
 __all__ = [
     "CommandResult",
     "LogCallback",
+    "SilenceCallback",
     "creation_flags",
     "run_command",
     "stream_command",

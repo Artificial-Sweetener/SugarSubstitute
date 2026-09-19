@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
@@ -43,6 +44,8 @@ class InstallLayout:
 
     root: Path
     target: LauncherTarget = field(default_factory=detect_launcher_target)
+    launcher_bundle_root: Path | None = None
+    release_root: Path | None = None
 
     @classmethod
     def from_root(
@@ -53,9 +56,23 @@ class InstallLayout:
     ) -> Self:
         """Create an install layout from a user-selected root path."""
 
+        resolved_root = operational_path(root).resolve()
+        resolved_target = target or detect_launcher_target()
+        bundle_root: Path | None = None
+        if bool(getattr(sys, "frozen", False)):
+            from sugarsubstitute_shared.launcher_update.bundle_paths import (
+                LauncherBundlePaths,
+            )
+            from sugarsubstitute_shared.launcher_update.targets import (
+                launcher_bundle_target_for_key,
+            )
+
+            bundle_root = LauncherBundlePaths(resolved_root).payload_for_executable(
+                Path(sys.executable),
+                launcher_bundle_target_for_key(resolved_target.key),
+            )
         return cls(
-            root=operational_path(root).resolve(),
-            target=target or detect_launcher_target(),
+            root=resolved_root, target=resolved_target, launcher_bundle_root=bundle_root
         )
 
     @property
@@ -68,15 +85,56 @@ class InstallLayout:
     def bundle_path(self) -> Path:
         """Return the installed launcher bundle root for this target."""
 
+        root = self.launcher_bundle_root or self.root
         if self.target.bundle_root == Path("."):
-            return self.root
-        return self.root / self.target.bundle_root
+            return root
+        return root / self.target.bundle_root
 
     @property
     def launcher_support_path(self) -> Path:
         """Return the installed launcher support directory for this target."""
 
-        return self.root / self.target.support_relative_path
+        return (
+            self.launcher_bundle_root or self.root
+        ) / self.target.support_relative_path
+
+    @property
+    def launcher_ui_executable_path(self) -> Path | None:
+        """Return the packaged Qt launcher child when the target provides one."""
+
+        relative_path = self.target.launcher_ui_executable_relative_path
+        if relative_path is None:
+            return None
+        return self.bundle_path / relative_path
+
+    @property
+    def crashpad_runtime_path(self) -> Path:
+        """Return the packaged native Crashpad runtime directory."""
+
+        return self.launcher_support_path / "crashpad"
+
+    @property
+    def crashpad_handler_path(self) -> Path:
+        """Return the platform Crashpad exception-handler executable."""
+
+        executable_name = (
+            "crashpad_handler.exe"
+            if self.target.operating_system is LauncherOperatingSystem.WINDOWS
+            else "crashpad_handler"
+        )
+        return self.crashpad_runtime_path / executable_name
+
+    @property
+    def crashpad_client_library_path(self) -> Path:
+        """Return the platform SugarSubstitute Crashpad client bridge."""
+
+        if self.target.operating_system is LauncherOperatingSystem.WINDOWS:
+            filename = "sugarsubstitute_crashpad_client.dll"
+        elif self.target.operating_system is LauncherOperatingSystem.MACOS:
+            filename = "sugarsubstitute_crashpad_client.dylib"
+        else:
+            filename = "sugarsubstitute_crashpad_client.so"
+        return self.crashpad_runtime_path / filename
 
     @property
     def launcher_dir(self) -> Path:
@@ -103,12 +161,6 @@ class InstallLayout:
         return self.launcher_dir / "installation.json"
 
     @property
-    def launcher_update_request_path(self) -> Path:
-        """Return the single pending launcher replacement request path."""
-
-        return self.launcher_dir / "updates" / "pending.json"
-
-    @property
     def logs_dir(self) -> Path:
         """Return the launcher log directory."""
 
@@ -127,16 +179,10 @@ class InstallLayout:
         return self.launcher_dir / "downloads"
 
     @property
-    def locks_dir(self) -> Path:
-        """Return the launcher lock directory."""
-
-        return self.launcher_dir / "locks"
-
-    @property
     def runtime_dir(self) -> Path:
         """Return the launcher-managed runtime directory."""
 
-        return self.root / RUNTIME_DIR_NAME
+        return self._selected_release_root() / RUNTIME_DIR_NAME
 
     @property
     def runtime_python(self) -> Path:
@@ -160,7 +206,7 @@ class InstallLayout:
     def app_dir(self) -> Path:
         """Return the replaceable source payload directory."""
 
-        return self.root / APP_DIR_NAME
+        return self._selected_release_root() / APP_DIR_NAME
 
     @property
     def app_entrypoint(self) -> Path:
@@ -189,12 +235,35 @@ class InstallLayout:
             self.logs_dir,
             self.cache_dir,
             self.downloads_dir,
-            self.locks_dir,
             self.runtime_dir,
             self.user_dir,
             self.appdata_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
+
+    def for_release_root(self, release_root: Path) -> InstallLayout:
+        """Return this installation with explicit candidate app/runtime ownership."""
+
+        resolved = release_root.expanduser().resolve()
+        if resolved != self.root and not resolved.is_relative_to(self.root):
+            raise ValueError("Application release root escapes its installation.")
+        return InstallLayout(
+            root=self.root,
+            target=self.target,
+            launcher_bundle_root=self.launcher_bundle_root,
+            release_root=resolved,
+        )
+
+    def _selected_release_root(self) -> Path:
+        """Resolve explicit preparation storage or the atomically selected release."""
+
+        if self.release_root is not None:
+            return self.release_root
+        from launcher.sugarsubstitute_launcher.application_release_selection import (
+            ApplicationReleaseSelection,
+        )
+
+        return ApplicationReleaseSelection(self.root).active_root()
 
 
 def default_install_root(

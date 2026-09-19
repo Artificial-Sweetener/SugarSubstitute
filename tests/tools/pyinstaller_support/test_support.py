@@ -23,10 +23,19 @@ from pathlib import Path
 
 import pytest
 
+from sugarsubstitute_shared.launcher_update.targets import (
+    LINUX_X64_BUNDLE,
+    MACOS_ARM64_BUNDLE,
+    WINDOWS_X64_BUNDLE,
+    LauncherBundleTarget,
+)
 from tools.pyinstaller_support import (
     build_launcher_data_files,
     exclude_foreign_windows_icu_binaries,
     resolve_uv_executable,
+)
+from sugarsubstitute_shared.presentation.installer_resources import (
+    INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH,
 )
 
 
@@ -45,10 +54,20 @@ def test_windows_bundle_excludes_path_discovered_icu_contract_binaries() -> None
     assert exclude_foreign_windows_icu_binaries(binaries) == [binaries[2]]
 
 
-def test_build_launcher_data_files_includes_every_localization_owner(
+@pytest.mark.parametrize(
+    ("target", "crashpad_directory"),
+    (
+        (WINDOWS_X64_BUNDLE, "windows-x64"),
+        (MACOS_ARM64_BUNDLE, "macos-arm64"),
+        (LINUX_X64_BUNDLE, "linux-x64"),
+    ),
+)
+def test_build_launcher_data_files_includes_every_runtime_owner(
     tmp_path: Path,
+    target: LauncherBundleTarget,
+    crashpad_directory: str,
 ) -> None:
-    """Bundle the language manifest and launcher catalogs on every platform."""
+    """Bundle localization and the matching Crashpad runtime on every target."""
 
     repo_root = tmp_path / "repo"
     icon_path = repo_root / "icon.ico"
@@ -57,11 +76,24 @@ def test_build_launcher_data_files_includes_every_localization_owner(
         repo_root=repo_root,
         app_icon_path=icon_path,
         uv_executable=str(tmp_path / "uv"),
+        target=target,
     )
 
     assert data_files == (
         (str(icon_path.resolve()), "launcher_assets"),
+        (
+            str(repo_root.resolve() / INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH),
+            "launcher_assets",
+        ),
         (str(tmp_path / "uv"), "launcher_assets"),
+        (
+            str(repo_root.resolve() / "launcher" / "launcher-contract.json"),
+            "launcher_assets",
+        ),
+        (
+            str(repo_root.resolve() / "launcher" / "release-trust-root.json"),
+            "launcher_assets",
+        ),
         (
             str(repo_root.resolve() / "launcher" / "sugarsubstitute_launcher" / "i18n"),
             "launcher/sugarsubstitute_launcher/i18n",
@@ -74,6 +106,16 @@ def test_build_launcher_data_files_includes_every_localization_owner(
                 / "resources"
             ),
             "sugarsubstitute_shared/localization/resources",
+        ),
+        (
+            str(
+                repo_root.resolve()
+                / "third_party"
+                / "bin"
+                / "crashpad"
+                / crashpad_directory
+            ),
+            "crashpad",
         ),
     )
 

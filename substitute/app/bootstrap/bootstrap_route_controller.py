@@ -28,7 +28,7 @@ from substitute.domain.onboarding import (
     ReadinessAssessment,
 )
 from substitute.app.bootstrap.startup_trace import trace_mark
-from substitute.shared.logging.logger import get_logger, log_exception
+from substitute.shared.logging.logger import get_logger, log_exception, log_warning
 
 _LOGGER = get_logger("app.bootstrap.bootstrap_route_controller")
 
@@ -60,6 +60,7 @@ class SplashCloseProtocol(Protocol):
 
 
 ShowBootstrapWindow = Callable[..., BootstrapRouteWindowProtocol]
+ScheduleAfterSurfacePaint = Callable[[object, Callable[[], None]], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +81,7 @@ class BootstrapRouteController:
         start_ready_app_process: Callable[[Sequence[str]], bool],
         launch_ready_shell: Callable[[InstallationContext], None],
         quit_app: Callable[[], None],
+        schedule_after_surface_paint: ScheduleAfterSurfacePaint,
     ) -> None:
         """Store ports needed to continue after onboarding or repair."""
 
@@ -87,6 +89,7 @@ class BootstrapRouteController:
         self._start_ready_app_process = start_ready_app_process
         self._launch_ready_shell = launch_ready_shell
         self._quit_app = quit_app
+        self._schedule_after_surface_paint = schedule_after_surface_paint
 
     def launch_after_onboarding_completion(self, completion: object) -> None:
         """Start a ready app process after setup saves configuration."""
@@ -124,9 +127,8 @@ class BootstrapRouteController:
         show_onboarding_window: ShowBootstrapWindow,
         show_repair_window: ShowBootstrapWindow,
     ) -> BootstrapRouteResult:
-        """Close splash, show the selected non-ready route, and wire signals."""
+        """Show the selected route and close its splash only after first paint."""
 
-        self._close_splash_before_route(splash)
         show_window = (
             show_onboarding_window
             if readiness_assessment.route is BootstrapRoute.ONBOARDING
@@ -142,17 +144,49 @@ class BootstrapRouteController:
             self.launch_after_onboarding_completion
         )
         onboarding_window.close_requested.connect(self._quit_app)
-        return BootstrapRouteResult(onboarding_window=onboarding_window, splash=None)
+        trace_mark(
+            "bootstrap_surface.shown",
+            route=readiness_assessment.route.value,
+        )
+        if splash is not None:
+            self._schedule_after_surface_paint(
+                onboarding_window,
+                lambda: self._complete_surface_handoff(
+                    splash=splash,
+                    route=readiness_assessment.route,
+                ),
+            )
+        return BootstrapRouteResult(
+            onboarding_window=onboarding_window,
+            splash=splash,
+        )
 
-    def _close_splash_before_route(self, splash: SplashCloseProtocol | None) -> None:
-        """Close the launch splash before showing onboarding or repair."""
+    def _complete_surface_handoff(
+        self,
+        *,
+        splash: SplashCloseProtocol,
+        route: BootstrapRoute,
+    ) -> None:
+        """Acknowledge replacement paint before asking the launch splash to close."""
 
-        if splash is None:
-            return
+        trace_mark("bootstrap_surface.first_paint", route=route.value)
         try:
-            splash.close()
+            close_result = splash.close()
         except Exception:
-            log_exception(_LOGGER, "Failed to close launch splash before routing")
+            log_exception(
+                _LOGGER,
+                "Failed to close launch splash after replacement surface paint",
+                route=route.value,
+            )
+            return
+        if close_result is False:
+            log_warning(
+                _LOGGER,
+                "Launch splash did not acknowledge closure after replacement surface paint",
+                route=route.value,
+            )
+            return
+        trace_mark("launch_splash.closed", route=route.value)
 
 
 def create_bootstrap_route_controller(
@@ -161,6 +195,7 @@ def create_bootstrap_route_controller(
     start_ready_app_process: Callable[[Sequence[str]], bool],
     launch_ready_shell: Callable[[InstallationContext], None],
     quit_app: Callable[[], None],
+    schedule_after_surface_paint: ScheduleAfterSurfacePaint,
 ) -> BootstrapRouteController:
     """Create the controller for non-ready bootstrap routes."""
 
@@ -169,6 +204,7 @@ def create_bootstrap_route_controller(
         start_ready_app_process=start_ready_app_process,
         launch_ready_shell=launch_ready_shell,
         quit_app=quit_app,
+        schedule_after_surface_paint=schedule_after_surface_paint,
     )
 
 

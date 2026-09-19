@@ -49,8 +49,8 @@ class StartupShellFlowAppProtocol(Protocol):
     def exec(self) -> int:
         """Run the application event loop."""
 
-    def quit(self) -> None:
-        """Request application shutdown."""
+    def request_quit(self) -> None:
+        """Queue application shutdown across event-loop startup phases."""
 
 
 def run_startup_shell_flow(
@@ -113,7 +113,7 @@ def run_startup_shell_flow(
         resolve_appearance=resolve_appearance,
         comfy_output_stream=comfy_output_stream,
         request_shell_shutdown=shell_runtime_graph.request_shell_shutdown,
-        quit_app=app.quit,
+        quit_app=app.request_quit,
         runtime_services=runtime_services,
         initial_workspace=initial_restore_plan.workspace,
         initial_shell_placement=initial_restore_plan.shell_placement,
@@ -135,7 +135,7 @@ def run_startup_shell_flow(
         show_repair_window=show_repair_window,
         start_ready_app_process=start_ready_app_process,
         launch_ready_shell=ready_shell_launch_controller.launch,
-        quit_app=app.quit,
+        quit_app=app.request_quit,
     )
     if route_flow_result.update_splash_reference:
         ready_shell_reference_state.set_splash(route_flow_result.splash)

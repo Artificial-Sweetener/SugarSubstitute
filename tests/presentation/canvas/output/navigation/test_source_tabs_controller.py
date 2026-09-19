@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import uuid4
 
@@ -73,6 +74,23 @@ def test_rebuild_source_tabs_skips_unchanged_tab_identity() -> None:
     assert tabbar.added == [("txt", "Text"), ("up", "Upscale")]
     assert tabbar.current == "up"
     assert synced == [None, None]
+
+
+def test_unchanged_source_projection_does_not_emit_user_tab_change() -> None:
+    """Programmatic source following should not look like manual navigation."""
+
+    tabbar = _Tabbar(width=222)
+    selected: list[str] = []
+    harness = _controller(
+        tabbar=tabbar,
+        sources=(OutputCanvasSourceGroup("txt", "Text", {}),),
+        selected=selected,
+    )
+
+    harness.controller.rebuild_source_tabs(active_source_key="txt")
+    harness.controller.rebuild_source_tabs(active_source_key="txt")
+
+    assert selected == []
 
 
 def test_rebuild_source_tabs_installs_tooltip_for_active_set_metadata() -> None:
@@ -160,14 +178,14 @@ class _Signal:
     def __init__(self) -> None:
         """Initialize an empty slot list."""
 
-        self._slots: list[object] = []
+        self._slots: list[Callable[[str], None]] = []
 
-    def connect(self, slot: object) -> None:
+    def connect(self, slot: Callable[[str], None]) -> None:
         """Record one connected slot."""
 
         self._slots.append(slot)
 
-    def disconnect(self, slot: object) -> None:
+    def disconnect(self, slot: Callable[[str], None]) -> None:
         """Disconnect one slot or mimic Qt's missing-slot RuntimeError."""
 
         if slot not in self._slots:
@@ -227,6 +245,8 @@ class _Tabbar:
         """Record the selected source-tab key."""
 
         self.current = key
+        for slot in tuple(self.currentItemChanged._slots):
+            slot(key)
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +268,7 @@ def _controller(
     active_set_index: int = 1,
     syncs: list[None] | None = None,
     installed: list[tuple[object, int]] | None = None,
+    selected: list[str] | None = None,
 ) -> _ControllerHarness:
     """Return a source-tab controller with deterministic collaborators."""
 
@@ -256,6 +277,7 @@ def _controller(
     tooltip_filter_map: dict[str, object] = {}
     active_syncs = syncs if syncs is not None else []
     active_installed = installed if installed is not None else []
+    active_selected = selected if selected is not None else []
 
     def set_signature(value: tuple[tuple[str, str], ...]) -> None:
         nonlocal signature
@@ -267,7 +289,7 @@ def _controller(
         set_cached_signature=set_signature,
         set_preferred_width=preferred_widths.append,
         tabbar=lambda: tabbar,
-        on_tab_changed=lambda _key: None,
+        on_tab_changed=active_selected.append,
         active_set_index=lambda: active_set_index,
         tooltip_filters=lambda: tooltip_filter_map,
         measure_preferred_width=lambda: tabbar.sizeHint().width(),

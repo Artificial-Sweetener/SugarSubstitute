@@ -34,6 +34,9 @@ from substitute.application.recipes.workflow_payload_nodes import (
 from substitute.application.generation.input_asset_source_resolver import (
     InputAssetSourceResolver,
 )
+from substitute.application.generation.canonical_cube_asset_projection import (
+    project_canonical_cube_asset_nodes,
+)
 from substitute.application.generation.input_asset_staging_postcondition import (
     enforce_input_asset_staging_postcondition,
 )
@@ -148,7 +151,12 @@ class ComfyAssetStagingService:
         """Stage local LoadImage assets and return an execution-only payload copy."""
 
         staged_payload = copy.deepcopy(workflow_payload)
-        prompt = _prompt_nodes(staged_payload)
+        canonical_projection = project_canonical_cube_asset_nodes(staged_payload)
+        prompt = (
+            canonical_projection.prompt
+            if canonical_projection is not None
+            else _prompt_nodes(staged_payload)
+        )
         if prompt is None:
             return ComfyAssetStagingResult(
                 workflow_payload=staged_payload,
@@ -309,6 +317,8 @@ class ComfyAssetStagingService:
             workflow_name=workflow_name,
             workflow=workflow,
         )
+        if canonical_projection is not None:
+            canonical_projection.commit_class_types()
         return ComfyAssetStagingResult(
             workflow_payload=staged_payload,
             staged_assets=tuple(staged_assets),

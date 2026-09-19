@@ -23,6 +23,10 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from tools.release_assets.zip_support import iter_directory_entries, write_path_to_zip
+from sugarsubstitute_shared.presentation.installer_resources import (
+    INSTALLER_WORDMARK_RUNTIME_RELATIVE_PATH,
+    INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH,
+)
 
 
 APP_PAYLOAD_PREFIX = "SugarSubstitute-app-v"
@@ -121,6 +125,10 @@ def iter_payload_entries(repo_root: Path) -> Iterable[tuple[Path, str]]:
             relative_path = file_path.relative_to(repo_root)
             if not is_excluded(relative_path):
                 yield file_path, relative_path.as_posix()
+    yield (
+        repo_root / INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH,
+        INSTALLER_WORDMARK_RUNTIME_RELATIVE_PATH.as_posix(),
+    )
 
 
 def inspect_payload_zip(zip_path: Path) -> list[str]:
@@ -138,6 +146,8 @@ def validate_repo_root(repo_root: Path) -> None:
         for root_name in RUNTIME_REQUIRED_ROOTS
         if not (repo_root / root_name).exists()
     ]
+    if not (repo_root / INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH).is_file():
+        missing_roots.append(INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH.as_posix())
     if missing_roots:
         raise FileNotFoundError(
             f"Repository root is missing payload roots: {', '.join(missing_roots)}"

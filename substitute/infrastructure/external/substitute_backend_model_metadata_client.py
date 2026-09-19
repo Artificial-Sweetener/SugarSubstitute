@@ -38,7 +38,6 @@ from substitute.domain.model_metadata import (
     BackendModelFile,
     BackendModelSource,
     BackendSidecar,
-    BackendSugarCompileCapabilities,
     BackendModelCatalogChangeEvent,
     BackendHashLookupStatus,
     FingerprintStatus,
@@ -101,9 +100,6 @@ class SubstituteBackendModelMetadataClient:
                 features=_read_str_tuple(payload, "features"),
                 cube_library=_parse_cube_library_capabilities(
                     payload.get("cubeLibrary")
-                ),
-                sugar_compile=_parse_sugar_compile_capabilities(
-                    payload.get("sugarCompile")
                 ),
             )
         except ValueError as error:
@@ -620,22 +616,6 @@ def _parse_cube_library_capabilities(
         sync_dependency_orchestration_supported=_read_bool(
             value, "syncDependencyOrchestrationSupported"
         ),
-    )
-
-
-def _parse_sugar_compile_capabilities(
-    value: object,
-) -> BackendSugarCompileCapabilities:
-    """Parse optional Sugar compile capability facts from top-level capabilities."""
-
-    if not isinstance(value, dict):
-        return BackendSugarCompileCapabilities()
-    return BackendSugarCompileCapabilities(
-        schema_version=_read_int(value, "schemaVersion") or 0,
-        available=_read_bool(value, "available"),
-        unavailable_reason=_read_str(value, "unavailableReason") or "",
-        compile_route=_read_str(value, "compileRoute") or "",
-        sugar_dsl_version=_read_str(value, "sugarDslVersion") or "",
     )
 
 

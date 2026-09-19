@@ -26,6 +26,7 @@ from substitute.domain.model_metadata import (
     ModelMetadataCacheRecord,
     ThumbnailAsset,
     ThumbnailSelectionStatus,
+    ThumbnailStoreResult,
 )
 from substitute.infrastructure.persistence.sqlite_model_metadata_store import (
     SqliteModelMetadataStore,
@@ -111,6 +112,11 @@ class ComposedModelMetadataRepository:
         """Return one prepared thumbnail asset by logical storage key."""
 
         return self._thumbnails.read_thumbnail_asset(storage_key)
+
+    def replace(self, sha256: str, thumbnail: ThumbnailStoreResult | None) -> None:
+        """Replace cached thumbnail variants for a suggestion hash."""
+
+        self._thumbnails.replace(sha256, thumbnail)
 
     def cache_summary(self) -> CivitaiCacheSummary:
         """Return combined provider metadata and thumbnail cache usage."""

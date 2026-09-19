@@ -66,6 +66,7 @@ class OutputPreviewCloseIdentity:
     client_id: str
     node_id: str
     list_index: int | None
+    batch_index: int | None
     scene_run_id: str | None
     scene_key: str | None
     scene_title: str | None
@@ -273,6 +274,7 @@ def _preview_close_identity(
         client_id=image_meta.client_id,
         node_id=image_meta.node_id,
         list_index=image_meta.list_index,
+        batch_index=image_meta.batch_index,
         scene_run_id=image_meta.scene_run_id or None,
         scene_key=image_meta.scene_key or None,
         scene_title=image_meta.scene_title or None,

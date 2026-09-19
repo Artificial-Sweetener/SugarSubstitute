@@ -27,7 +27,7 @@ from substitute.infrastructure.comfy.workspace_python_resolver import (
     attached_comfy_python_candidates,
 )
 
-_IMAGE_TEMPLATE_PACKAGE = "comfyui_workflow_templates_media_image"
+_WORKFLOW_TEMPLATE_PACKAGE = "comfyui_workflow_templates_json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,14 +79,14 @@ class ManagedComfyHarnessLayout:
             platform_name=active_platform,
         )
 
-    def image_template_root(self) -> Path:
-        """Return the installed image-workflow template directory."""
+    def workflow_template_root(self) -> Path:
+        """Return the installed workflow JSON template directory."""
 
         matches = tuple(
             sorted(
                 path
                 for path in self.environment_root.rglob("templates")
-                if path.is_dir() and path.parent.name == _IMAGE_TEMPLATE_PACKAGE
+                if path.is_dir() and path.parent.name == _WORKFLOW_TEMPLATE_PACKAGE
             )
         )
         if len(matches) != 1:

@@ -106,7 +106,7 @@ def test_run_emits_prompt_and_cube_timing_before_completion(
     assert [
         (item.cube_alias, item.source_key, item.duration_ms)
         for item in timing[0].cube_timings
-    ] == [("CubeA", "wf-1:3", 2500.0)]
+    ] == [("CubeA", "cube:CubeA", 2500.0)]
 
 
 def test_run_excludes_cached_nodes_from_cube_timing(

@@ -80,6 +80,7 @@ class LauncherTarget:
     architecture: LauncherArchitecture
     bundle_root: Path
     executable_relative_path: Path
+    launcher_ui_executable_relative_path: Path | None
     support_relative_path: Path
     runtime_python_relative_path: Path
     runtime_gui_python_relative_path: Path
@@ -88,6 +89,18 @@ class LauncherTarget:
     installer_payload_archive_prefix: str
     executable_install_root_parent: int
     icon_asset_name: str
+    repair_executable_relative_path: Path | None = None
+
+    def install_root_for_repair_executable(self, executable_path: Path) -> Path | None:
+        """Recognize the packaged repair entry point independently of extraction."""
+        relative = self.repair_executable_relative_path
+        if relative is None:
+            return None
+        executable = executable_path.expanduser().resolve()
+        if len(executable.parts) <= len(relative.parts):
+            return None
+        root = executable.parents[len(relative.parts) - 1]
+        return root if (root / relative).resolve() == executable else None
 
     @property
     def key(self) -> str:
@@ -151,6 +164,9 @@ WINDOWS_X64 = LauncherTarget(
     architecture=LauncherArchitecture.X64,
     bundle_root=WINDOWS_X64_BUNDLE.bundle_root,
     executable_relative_path=WINDOWS_X64_BUNDLE.executable_relative_path,
+    launcher_ui_executable_relative_path=(
+        WINDOWS_X64_BUNDLE.support_relative_path / "LauncherUi.exe"
+    ),
     support_relative_path=WINDOWS_X64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "Scripts" / "python.exe",
     runtime_gui_python_relative_path=Path(".venv") / "Scripts" / "pythonw.exe",
@@ -166,6 +182,7 @@ WINDOWS_X64 = LauncherTarget(
     ),
     executable_install_root_parent=0,
     icon_asset_name="app_icon.ico",
+    repair_executable_relative_path=WINDOWS_X64_BUNDLE.repair_executable_relative_path,
 )
 
 MACOS_ARM64 = LauncherTarget(
@@ -173,6 +190,7 @@ MACOS_ARM64 = LauncherTarget(
     architecture=LauncherArchitecture.ARM64,
     bundle_root=MACOS_ARM64_BUNDLE.bundle_root,
     executable_relative_path=MACOS_ARM64_BUNDLE.executable_relative_path,
+    launcher_ui_executable_relative_path=None,
     support_relative_path=MACOS_ARM64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "bin" / "python",
     runtime_gui_python_relative_path=Path(".venv") / "bin" / "python",
@@ -195,6 +213,7 @@ LINUX_X64 = LauncherTarget(
     architecture=LauncherArchitecture.X64,
     bundle_root=LINUX_X64_BUNDLE.bundle_root,
     executable_relative_path=LINUX_X64_BUNDLE.executable_relative_path,
+    launcher_ui_executable_relative_path=None,
     support_relative_path=LINUX_X64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "bin" / "python",
     runtime_gui_python_relative_path=Path(".venv") / "bin" / "python",

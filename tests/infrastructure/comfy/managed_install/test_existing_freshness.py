@@ -17,8 +17,6 @@
 """Verify existing workspace freshness and explicit repair behavior."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from collections.abc import Callable
 import json
 from pathlib import Path
@@ -32,6 +30,9 @@ from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_setup_freshness_cache
 from substitute.infrastructure.comfy import managed_torch_reconciliation
+from substitute.infrastructure.comfy.managed_environment_validator import (
+    ManagedEnvironmentValidationResult,
+)
 from substitute.infrastructure.comfy.hardware_models import AcceleratorClass
 from substitute.infrastructure.comfy.managed_validation import (
     workspace_python_path,
@@ -204,10 +205,10 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         refresh_core_nodepacks={CoreNodepackId.SUBSTITUTE_BACKEND},
     )
 
-    assert first == python_path
-    assert second == python_path
-    assert revalidated == python_path
-    assert refreshed == python_path
+    assert first.python_executable == python_path
+    assert second.python_executable == python_path
+    assert revalidated.python_executable == python_path
+    assert refreshed.python_executable == python_path
     assert calls == [
         "manager",
         "nodepacks",
@@ -232,6 +233,104 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         frozenset(),
         frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}),
     ]
+
+
+def test_current_setup_projects_validation_and_applies_requested_model_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A cached valid setup must remain valid while applying final configuration."""
+
+    configure_managed_install(monkeypatch, tmp_path)
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (python_path.parent.parent / "Lib" / "site-packages").mkdir(parents=True)
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
+    )
+    model_roots: list[Path | None] = []
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "configure_backend_model_root",
+        lambda *, workspace, python_executable, model_root: model_roots.append(
+            model_root
+        ),
+    )
+
+    managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+    freshness_path = managed_setup_record_path(tmp_path)
+    shipped_payload = json.loads(freshness_path.read_text(encoding="utf-8"))
+    shipped_payload["runtime_configuration"]["validation_status"] = "unknown"
+    shipped_payload["runtime_configuration"]["validation_detail"] = None
+    shipped_payload["runtime_configuration"]["last_validation_at"] = None
+    freshness_path.write_text(json.dumps(shipped_payload), encoding="utf-8")
+    selected_model_root = tmp_path / "models"
+
+    result = managed_install.ensure_managed_comfy_setup(
+        workspace=tmp_path,
+        managed_model_root=selected_model_root,
+        configure_model_root=True,
+    )
+
+    assert result.python_executable == python_path
+    assert model_roots == [selected_model_root]
+    assert result.runtime_configuration.validation_status.value == "valid"
+
+
+def test_incomplete_cached_validation_is_a_miss_not_authoritative_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Incomplete disposable evidence must trigger real validation and recover."""
+
+    configure_managed_install(monkeypatch, tmp_path)
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (python_path.parent.parent / "Lib" / "site-packages").mkdir(parents=True)
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
+    )
+    validation_calls = 0
+    validation = ManagedEnvironmentValidationResult(
+        success=True,
+        detail="Managed workspace validation succeeded.",
+        detected_backend="nvidia",
+        detected_torch_channel="nightly",
+        torch_version="2.9.0.dev",
+    )
+
+    def _record_validation(**kwargs: object) -> ManagedEnvironmentValidationResult:
+        """Count real backend validation after cache evidence becomes incomplete."""
+
+        nonlocal validation_calls
+        _ = kwargs
+        validation_calls += 1
+        return validation
+
+    monkeypatch.setattr(
+        managed_torch_reconciliation,
+        "validate_managed_environment",
+        _record_validation,
+    )
+
+    managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+    freshness_path = managed_setup_record_path(tmp_path)
+    payload = json.loads(freshness_path.read_text(encoding="utf-8"))
+    del payload["validation"]["detail"]
+    freshness_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    recovered = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    assert validation_calls == 2
+    assert recovered.runtime_configuration.validation_status.value == "valid"
 
 
 def test_existing_setup_repairs_torch_only_when_explicitly_authorized(
@@ -310,19 +409,28 @@ def test_existing_setup_repairs_torch_only_when_explicitly_authorized(
         repair_existing_runtime=True,
     )
 
-    assert first == python_path
-    assert second == python_path
+    assert first.python_executable == python_path
+    assert second.python_executable == python_path
     assert repair_calls == [tmp_path]
     freshness_payload = json.loads(freshness_path.read_text(encoding="utf-8"))
     assert freshness_payload["success"] is True
     assert freshness_payload["validation"]["torch_version"] == "2.13.1+cu130"
 
 
-def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
+@pytest.mark.parametrize(
+    "cache_error",
+    (
+        OSError("injected state commit failure"),
+        TypeError("injected serialization failure"),
+        RuntimeError("injected cache implementation failure"),
+    ),
+)
+def test_setup_remains_valid_when_freshness_cache_write_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    cache_error: Exception,
 ) -> None:
-    """A failed success-state commit should leave reconciliation retryable."""
+    """Disposable cache persistence must never reject validated setup state."""
 
     configure_managed_install(monkeypatch, tmp_path)
 
@@ -383,7 +491,7 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
         nonlocal commit_attempts
         commit_attempts += 1
         if commit_attempts == 1:
-            raise OSError("injected state commit failure")
+            raise cache_error
         atomic_write(path, payload)
 
     monkeypatch.setattr(
@@ -392,17 +500,18 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
         _fail_first_state_commit,
     )
 
-    with pytest.raises(OSError, match="injected state commit failure"):
-        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+    uncached = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
     freshness_path = managed_setup_record_path(tmp_path)
+    assert uncached.python_executable == python_path
+    assert uncached.runtime_configuration.validation_status.value == "valid"
     assert not freshness_path.exists()
 
     retried = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
     cached = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
-    assert retried == python_path
-    assert cached == python_path
+    assert retried.python_executable == python_path
+    assert cached.python_executable == python_path
     assert commit_attempts == 2
     assert reconciliation_calls == [
         "nodepacks",

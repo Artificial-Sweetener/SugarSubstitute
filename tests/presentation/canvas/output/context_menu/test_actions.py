@@ -124,7 +124,8 @@ def test_output_menu_preserves_the_original_icon_assignments() -> None:
     actions = {
         entry.action_id: entry for entry in model.entries if isinstance(entry, MenuItem)
     }
-    assert actions["output_canvas.compare_outputs"].icon is not None
+    assert actions["output_canvas.compare_outputs"].checkable is True
+    assert actions["output_canvas.compare_outputs"].icon is None
     assert actions["output_canvas.copy"].icon is FIF.COPY
     assert actions["output_canvas.open_current_external"].icon is FIF.PHOTO
     assert (

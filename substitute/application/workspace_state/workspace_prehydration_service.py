@@ -285,6 +285,7 @@ def _image_meta_from_snapshot(snapshot: ImageMetaSnapshot) -> ImageMeta:
         source_label=snapshot.source_label,
         node_id=snapshot.node_id,
         generation_run_id=snapshot.generation_run_id,
+        output_session_id=snapshot.output_session_id,
         prompt_id=snapshot.prompt_id,
         client_id=snapshot.client_id,
         list_index=snapshot.list_index,

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "delegation_protocol": 1,
+  "update_protocol": 1,
+  "minimum_direct_launcher_version": "0.23.0",
+  "supported_manifest_schema_versions": [1, 2],
+  "historical_boundaries": [
+    {
+      "id": "legacy-pid-only-handoff",
+      "representative_version": "0.12.2",
+      "route": "legacy_baseline_bridge",
+      "platforms": ["windows_x64"]
+    },
+    {
+      "id": "latest-pre-bootstrap",
+      "representative_version": "0.22.0",
+      "route": "legacy_baseline_bridge",
+      "platforms": ["windows_x64", "linux_x64", "macos_arm64"]
+    }
+  ],
+  "data_compatibility": {
+    "schema_epoch": 1,
+    "migrations": [
+      {
+        "id": "adopt-launcher-data-epoch-1",
+        "from_epoch": 0,
+        "to_epoch": 1
+      }
+    ],
+    "migration_boundaries": [
+      {
+        "id": "legacy-installed-state",
+        "representative_version": "0.12.2"
+      }
+    ]
+  }
+}

@@ -135,6 +135,27 @@ def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
     assert "PyInstaller" not in publication
 
 
+def test_release_candidate_authenticates_and_attests_exact_published_metadata() -> None:
+    """Bind runtime update trust and provenance to the qualified candidate bytes."""
+
+    candidate = workflow_text("release-candidate.yml")
+    publication = workflow_text("release-publication.yml")
+
+    assert "SUGAR_SUBSTITUTE_RELEASE_SIGNING_KEY" in candidate
+    assert "scripts\\sign-release-metadata.mjs" in candidate
+    assert "manifest.signed.json" in candidate
+    assert "actions/attest-build-provenance@" in candidate
+    assert "subject-path: .local-release-channel/*" in candidate
+    assert "attestations: write" in candidate
+    assert "id-token: write" in candidate
+    assert 'gh release upload canary-latest "$channel_dir/manifest.signed.json"' in (
+        publication
+    )
+    assert (
+        'cmp "$channel_dir/manifest.signed.json" "$readback_dir/manifest.signed.json"'
+    ) in publication
+
+
 def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
     """The flattened root release should publish directly from its existing tree."""
 
@@ -201,6 +222,80 @@ def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
         assert "shutil.which" not in spec_text
 
 
+def test_posix_launcher_specs_bundle_native_singleton_dependencies() -> None:
+    """Frozen launchers should retain dynamically selected native IPC adapters."""
+
+    launcher_root = PROJECT_ROOT / "launcher"
+    for name in (
+        "SugarSubstitute-Linux-x64.spec",
+        "SugarSubstitute-Setup-Linux-x64.spec",
+    ):
+        spec_text = (launcher_root / name).read_text(encoding="utf-8")
+        assert 'hiddenimports=["jeepney", "jeepney.io.blocking"]' in spec_text
+    for name in (
+        "SugarSubstitute-macOS-arm64.spec",
+        "SugarSubstitute-Setup-macOS-arm64.spec",
+    ):
+        spec_text = (launcher_root / name).read_text(encoding="utf-8")
+        assert 'hiddenimports=["AppKit"]' in spec_text
+
+
+def test_every_release_platform_builds_and_qualifies_crashpad_before_packaging() -> (
+    None
+):
+    """Block native packaging until the matching Crashpad runtime is proven."""
+
+    workflow = yaml.safe_load(
+        workflow_path("release-build.yml").read_text(encoding="utf-8")
+    )
+    expected_runtime_paths = {
+        "build-windows": "third_party\\bin\\crashpad\\windows-x64",
+        "build-macos": "third_party/bin/crashpad/macos-arm64",
+        "build-linux": "third_party/bin/crashpad/linux-x64",
+    }
+    for job_name, runtime_path in expected_runtime_paths.items():
+        job = workflow["jobs"][job_name]
+        steps = job["steps"]
+        crashpad_position = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("uses") == "./.github/actions/prepare-crashpad-runtime"
+        )
+        packaging_position = next(
+            index
+            for index, step in enumerate(steps)
+            if "PyInstaller" in step.get("run", "")
+        )
+        assert crashpad_position < packaging_position
+        assert steps[crashpad_position]["with"]["runtime-dir"] == runtime_path
+        evidence_step = next(
+            step
+            for step in job["steps"]
+            if "Crashpad qualification evidence" in step.get("name", "")
+        )
+        assert evidence_step["if"] == "always()"
+        assert evidence_step["with"]["if-no-files-found"] == "error"
+        assert evidence_step["with"]["retention-days"] == 1
+
+    crashpad_action = action_path("prepare-crashpad-runtime").read_text(
+        encoding="utf-8"
+    )
+    build_position = crashpad_action.index("tools/build_crashpad_runtime.py")
+    qualify_position = crashpad_action.index("tools/qualify_crashpad_runtime.py")
+    save_position = crashpad_action.index("actions/cache/save@")
+    assert build_position < qualify_position < save_position
+    assert "--with-probe" in crashpad_action
+
+    linux_script = action_path("setup-crashpad-linux").read_text(encoding="utf-8")
+    assert "./.github/actions/setup-crashpad-linux" in workflow_text(
+        "release-build.yml"
+    )
+    assert "libcurl4-openssl-dev" in linux_script
+    assert "zlib1g-dev" in linux_script
+    assert "dpkg-query" in linux_script
+    assert "missing_packages" in linux_script
+
+
 def test_windows_release_build_qualifies_packaged_single_instance_behavior() -> None:
     """Block release bytes unless the real launcher passes offscreen process proof."""
 
@@ -211,6 +306,20 @@ def test_windows_release_build_qualifies_packaged_single_instance_behavior() -> 
     assert "name: single-instance-qualification${{ inputs.artifact_suffix }}" in (
         build_text
     )
+
+
+def test_windows_release_build_qualifies_model_lifecycle() -> None:
+    """Block release inputs unless discovery and update lifecycles pass."""
+
+    build_text = workflow_text("release-build.yml")
+
+    assert "-m tools.qualify_empty_model_picker" in build_text
+    assert "-m tools.qualify_model_update_lifecycle" in build_text
+    assert "name: model-lifecycle-qualification${{ inputs.artifact_suffix }}" in (
+        build_text
+    )
+    assert "build/qualification/empty-model-picker" in build_text
+    assert "build/qualification/model-update-lifecycle" in build_text
 
 
 def test_linux_workflow_pins_appimagetool_and_builds_both_native_formats() -> None:
@@ -303,12 +412,7 @@ def test_release_publisher_includes_installer_and_managed_payload_artifacts() ->
     config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
     expected_fragments = (
         "SugarSubstitute-*-Windows-x64-Setup.exe",
-        "SugarSubstitute-*-macOS-Apple-Silicon.dmg",
-        "SugarSubstitute-*-Linux-x86_64.AppImage",
-        "SugarSubstitute-*-Linux-amd64.deb",
         "installer-payload-windows-x64-v*.zip",
-        "installer-payload-macos-arm64-v*.zip",
-        "installer-payload-linux-x64-v*.zip",
     )
     assert all(fragment in config for fragment in expected_fragments)
 
@@ -341,19 +445,19 @@ def test_release_notes_link_directly_to_tagged_platform_installers(
         "releases/download/v1.2.3"
     )
     assert f"{asset_root}/SugarSubstitute-1.2.3-Windows-x64-Setup.exe" in notes
-    assert f"{asset_root}/SugarSubstitute-1.2.3-macOS-Apple-Silicon.dmg" in notes
-    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-x86_64.AppImage" in notes
-    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-amd64.deb" in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-macOS-Apple-Silicon.dmg" not in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-x86_64.AppImage" not in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-amd64.deb" not in notes
     icon_root = (
         "https://raw.githubusercontent.com/Artificial-Sweetener/Substitute-Test/"
         "v1.2.3/docs/release/platforms"
     )
-    assert "Download the installer for your platform:" in notes
-    assert notes.count("<img ") == 3
+    assert "Linux and macOS support is temporarily suspended" in notes
+    assert notes.count("<img ") == 1
     assert f'{icon_root}/windows.svg"' in notes
-    assert f'{icon_root}/apple.svg"' in notes
-    assert f'{icon_root}/linux.svg"' in notes
+    assert f'{icon_root}/apple.svg"' not in notes
+    assert f'{icon_root}/linux.svg"' not in notes
     assert "Choose the installer for your platform." not in notes
-    assert "not notarized" in notes
+    assert "no restart date yet" in notes
     assert "checks for application updates when it starts" in notes
     assert "releases/latest/download" not in notes

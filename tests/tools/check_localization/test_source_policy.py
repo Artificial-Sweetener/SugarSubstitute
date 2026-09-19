@@ -47,6 +47,23 @@ def test_presentation_inputs_have_no_ascii_only_source_restrictions() -> None:
     assert find_ascii_input_restrictions(_PROJECT_ROOT) == ()
 
 
+def test_source_policy_skips_generated_qt_resource_modules(tmp_path: Path) -> None:
+    """Generated binary resource tables must not enter authored-source scans."""
+
+    presentation_root = tmp_path / "substitute" / "presentation"
+    presentation_root.mkdir(parents=True)
+    (presentation_root / "splash_poses_rc.py").write_text(
+        "value.isascii()\n",
+        encoding="utf-8",
+    )
+    (presentation_root / "authored.py").write_text(
+        "value.casefold()\n",
+        encoding="utf-8",
+    )
+
+    assert find_ascii_input_restrictions(tmp_path) == ()
+
+
 def test_all_tooltips_use_the_shared_qfluent_owner() -> None:
     """Native and competing tooltip paths must fail source policy."""
 
@@ -77,6 +94,50 @@ def test_tooltip_policy_rejects_indirect_native_property_writes(
     assert tuple(item.reason for item in violations) == (
         "indirect setToolTip access must use the shared QFluent owner",
         "tooltip property writes must use the shared QFluent owner",
+    )
+
+
+def test_tooltip_policy_exempts_only_the_authoritative_owner(tmp_path: Path) -> None:
+    """Localization adapters must delegate instead of becoming a second owner."""
+
+    owner_root = tmp_path / "sugarsubstitute_shared" / "presentation"
+    localization_root = owner_root / "localization"
+    localization_root.mkdir(parents=True)
+    (owner_root / "fluent_tooltips.py").write_text(
+        "target.setToolTip('owner-managed')\n",
+        encoding="utf-8",
+    )
+    (localization_root / "application_text.py").write_text(
+        "target.setToolTip('bypass')\n",
+        encoding="utf-8",
+    )
+
+    violations = find_non_fluent_tooltip_usage(tmp_path)
+
+    assert tuple((item.filename, item.reason) for item in violations) == (
+        (
+            "sugarsubstitute_shared/presentation/localization/application_text.py",
+            "setToolTip() must be routed through set_fluent_tooltip_text()",
+        ),
+    )
+
+
+def test_tooltip_policy_requires_the_authoritative_filter_installer(
+    tmp_path: Path,
+) -> None:
+    """Production code must not construct even the shared filter directly."""
+
+    source_root = tmp_path / "substitute" / "presentation"
+    source_root.mkdir(parents=True)
+    (source_root / "direct_filter.py").write_text(
+        "FluentToolTipFilter(widget)\n",
+        encoding="utf-8",
+    )
+
+    violations = find_non_fluent_tooltip_usage(tmp_path)
+
+    assert tuple(item.reason for item in violations) == (
+        "tooltip widgets and filters may only be created by the shared owner",
     )
 
 

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from uuid import UUID
 
@@ -43,6 +43,14 @@ from substitute.domain.workflow import ImageMeta, WorkflowState
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("application.workflows.output_generated_result_service")
+
+
+@dataclass(frozen=True, slots=True)
+class OutputRunHandoffResult:
+    """Describe an atomic handoff from an older Output run."""
+
+    accepted: bool
+    retired_image_ids: tuple[UUID, ...] = ()
 
 
 class OutputGeneratedResultService:
@@ -80,8 +88,36 @@ class OutputGeneratedResultService:
         if rejection_reason is not None:
             return self._rejected_result(event, rejection_reason)
 
+        handoff = self.begin_presentable_output_session(
+            workflows,
+            workflow_id,
+            output_session_id=_output_session_id(image_meta),
+        )
+        if not handoff.accepted:
+            return self._rejected_result(event, "missing_output_session")
+        result = self._output_state_service.register_output_image(
+            workflows,
+            workflow_id,
+            active_workflow_id,
+            image,
+            image_meta,
+        )
+        return replace(result, retired_image_ids=handoff.retired_image_ids)
+
+    def begin_presentable_output_session(
+        self,
+        workflows: Mapping[str, WorkflowState],
+        workflow_id: str,
+        *,
+        output_session_id: str,
+    ) -> OutputRunHandoffResult:
+        """Replace an older run when the first new visual can be presented."""
+
+        workflow = workflows.get(workflow_id)
+        if workflow is None or not output_session_id:
+            return OutputRunHandoffResult(accepted=False)
         retired_image_ids: tuple[UUID, ...] = ()
-        if self._starts_new_result(workflow, image_meta):
+        if self._starts_new_result(workflow, output_session_id):
             prune_result = self._output_state_service.clear_output_for_workflow(
                 workflows,
                 workflow_id,
@@ -90,30 +126,28 @@ class OutputGeneratedResultService:
         self._navigation_session_service.present_session_content(
             workflows,
             workflow_id,
-            _output_session_id(image_meta),
+            output_session_id,
         )
-        result = self._output_state_service.register_output_image(
-            workflows,
-            workflow_id,
-            active_workflow_id,
-            image,
-            image_meta,
+        return OutputRunHandoffResult(
+            accepted=True,
+            retired_image_ids=retired_image_ids,
         )
-        return replace(result, retired_image_ids=retired_image_ids)
 
     def _starts_new_result(
         self,
         workflow: WorkflowState,
-        incoming: ImageMeta,
+        output_session_id: str,
     ) -> bool:
         """Return whether no current Output belongs to the incoming result group."""
 
         if not workflow.output_image_uuids:
             return False
-        incoming_key = _result_group_key(incoming)
         for image_id in workflow.output_image_uuids:
             existing = self._image_registry.metadata_for(image_id)
-            if existing is not None and _result_group_key(existing) == incoming_key:
+            if (
+                existing is not None
+                and _output_session_id(existing) == output_session_id
+            ):
                 return False
         return True
 
@@ -148,18 +182,14 @@ class OutputGeneratedResultService:
         )
 
 
-def _result_group_key(image_meta: ImageMeta) -> tuple[str, str]:
-    """Return the overall result identity shared by scenes in one scene run."""
-
-    if image_meta.scene_run_id:
-        return "scene", image_meta.scene_run_id
-    return "generation", image_meta.generation_run_id
-
-
 def _output_session_id(image_meta: ImageMeta) -> str:
     """Return the generation-session identity carried by Output metadata."""
 
-    return image_meta.scene_run_id or image_meta.generation_run_id
+    return (
+        image_meta.output_session_id
+        or image_meta.scene_run_id
+        or image_meta.generation_run_id
+    )
 
 
 def _live_metadata_rejection_reason(
@@ -178,6 +208,8 @@ def _live_metadata_rejection_reason(
         return "client_id_mismatch"
     if image_meta.generation_run_id != event.identity.generation_run_id:
         return "generation_run_id_mismatch"
+    if _output_session_id(image_meta) != _event_output_session_id(event):
+        return "output_session_id_mismatch"
     if image_meta.node_id != event.node_id:
         return "node_id_mismatch"
     if image_meta.list_index != event.position.list_index:
@@ -214,4 +246,15 @@ def _live_metadata_rejection_reason(
     return None
 
 
-__all__ = ["OutputGeneratedResultService"]
+def _event_output_session_id(event: LiveFinalOutputEvent) -> str:
+    """Return current or legacy generation-session identity for one final."""
+
+    scene = event.identity.scene
+    return (
+        event.identity.output_session_id
+        or (scene.run_id if isinstance(scene, OutputSceneIdentity) else "")
+        or event.identity.generation_run_id
+    )
+
+
+__all__ = ["OutputGeneratedResultService", "OutputRunHandoffResult"]

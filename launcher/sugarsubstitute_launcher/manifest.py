@@ -65,6 +65,43 @@ class ReleaseAsset:
 
 
 @dataclass(frozen=True, slots=True)
+class ReleaseCompatibility:
+    """Declare updater and persisted-data protocol admission for one release."""
+
+    update_protocol: int
+    minimum_direct_launcher_version: str
+    data_schema_epoch: int
+
+    @classmethod
+    def from_json(
+        cls, payload: object, *, legacy_minimum_launcher_version: str
+    ) -> Self:
+        """Parse current metadata or normalize a legacy manifest contract."""
+
+        if payload is None:
+            return cls(
+                update_protocol=0,
+                minimum_direct_launcher_version=legacy_minimum_launcher_version,
+                data_schema_epoch=0,
+            )
+        if not isinstance(payload, dict):
+            raise ValueError("Manifest compatibility must be a JSON object.")
+        protocol = payload.get("update_protocol")
+        data_epoch = payload.get("data_schema_epoch")
+        if type(protocol) is not int or protocol <= 0:
+            raise ValueError("Manifest update_protocol must be a positive integer.")
+        if type(data_epoch) is not int or data_epoch <= 0:
+            raise ValueError("Manifest data_schema_epoch must be a positive integer.")
+        return cls(
+            update_protocol=protocol,
+            minimum_direct_launcher_version=_required_string(
+                payload, "minimum_direct_launcher_version"
+            ),
+            data_schema_epoch=data_epoch,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ReleaseManifest:
     """Represent one launcher release manifest."""
 
@@ -75,6 +112,13 @@ class ReleaseManifest:
     app: ReleaseAsset
     launchers: Mapping[str, ReleaseAsset]
     installers: Mapping[str, ReleaseAsset]
+    compatibility: ReleaseCompatibility = ReleaseCompatibility(
+        update_protocol=0,
+        minimum_direct_launcher_version="0.1.0",
+        data_schema_epoch=0,
+    )
+    signed_metadata_version: int | None = None
+    signed_metadata_digest: str | None = None
 
     def launcher_for(self, target: LauncherTarget) -> ReleaseAsset | None:
         """Return the installed-launcher asset for one supported target."""
@@ -125,19 +169,24 @@ class ReleaseManifest:
         schema_version = _required_schema_version(payload)
         if schema_version not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
             raise ValueError(f"Unsupported release manifest schema: {schema_version}")
+        minimum_launcher_version = _required_string(
+            payload,
+            "minimum_launcher_version",
+        )
         return cls(
             schema_version=schema_version,
             channel=_required_string(payload, "channel"),
             version=_required_string(payload, "version"),
-            minimum_launcher_version=_required_string(
-                payload,
-                "minimum_launcher_version",
-            ),
+            minimum_launcher_version=minimum_launcher_version,
             app=ReleaseAsset.from_json(payload.get("app")),
             launchers=_asset_map(payload=payload, key="launchers"),
             installers=_installer_asset_map(
                 payload=payload,
                 schema_version=schema_version,
+            ),
+            compatibility=ReleaseCompatibility.from_json(
+                payload.get("compatibility"),
+                legacy_minimum_launcher_version=minimum_launcher_version,
             ),
         )
 

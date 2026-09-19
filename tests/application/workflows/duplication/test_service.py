@@ -30,6 +30,7 @@ from substitute.domain.generation.seed_control import SeedControlState, SeedMode
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.cube_library import CubeUpdatePolicy
 from substitute.domain.workflow import CubeState, OutputFocusMode, WorkflowState
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 
 
 def _cube_state(alias: str) -> CubeState:
@@ -223,6 +224,42 @@ def test_duplicate_direct_workflow_copies_authoring_state_without_runtime() -> N
     assert duplicate.direct_workflow.buffer is not source_direct.buffer
     assert duplicate.direct_workflow.ui == {"expanded": {"1": True}}
     assert duplicate.direct_workflow.dirty is True
+
+
+def test_duplicate_graph_backed_workflow_clones_graph_and_cube_projections() -> None:
+    """Duplicate a graph-backed Cube workflow without mixing constructor sources."""
+
+    source = graph_backed_cube_workflow("First", "Second")
+    source.metadata = {"title": "Graph recipe"}
+    source.cubes["Second"].display_name = "Diffusion Upscale"
+    source.cubes["Second"].ui = {
+        **(source.cubes["Second"].ui or {}),
+        "cube_icon": {"kind": "image", "path": "icons/upscale.png"},
+    }
+
+    duplicate = WorkflowDuplicateService().duplicate_workflow(source)
+
+    assert duplicate.is_graph_backed_cube_workflow is True
+    assert duplicate.stack_order == ["First", "Second"]
+    assert duplicate.direct_workflow is not None
+    assert source.direct_workflow is not None
+    assert duplicate.direct_workflow is not source.direct_workflow
+    assert (
+        duplicate.direct_workflow.source_workflow
+        == source.direct_workflow.source_workflow
+    )
+    assert (
+        duplicate.direct_workflow.source_workflow
+        is not source.direct_workflow.source_workflow
+    )
+    assert duplicate.cubes["Second"] is not source.cubes["Second"]
+    assert duplicate.cubes["Second"].display_name == "Diffusion Upscale"
+    assert duplicate.cubes["Second"].ui is not source.cubes["Second"].ui
+    assert duplicate.cubes["Second"].ui is not None
+    assert duplicate.cubes["Second"].ui["cube_icon"] == {
+        "kind": "image",
+        "path": "icons/upscale.png",
+    }
 
 
 def test_duplicate_workflow_deep_copies_metadata_and_overrides() -> None:

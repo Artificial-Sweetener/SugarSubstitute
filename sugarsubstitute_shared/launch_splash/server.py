@@ -26,6 +26,7 @@ from typing import Protocol
 
 from sugarsubstitute_shared.launch_splash.protocol import (
     MAX_SPLASH_MESSAGE_BYTES,
+    SPLASH_MESSAGE_APPLIED_ACK,
     SplashSessionMessage,
     SplashSessionMessageError,
     decode_splash_session_message,
@@ -51,6 +52,7 @@ class _ServerContext:
     expected_token: str
     message_handler: SplashSessionMessageHandler
     on_invalid_message: Callable[[SplashSessionMessageError], None] | None
+    on_message_acknowledged: Callable[[SplashSessionMessage], None] | None
 
 
 class SplashSessionServer:
@@ -63,6 +65,7 @@ class SplashSessionServer:
         host: str = DEFAULT_SPLASH_HOST,
         token: str | None = None,
         on_invalid_message: Callable[[SplashSessionMessageError], None] | None = None,
+        on_message_acknowledged: Callable[[SplashSessionMessage], None] | None = None,
     ) -> None:
         """Create a stopped splash session server."""
 
@@ -79,6 +82,7 @@ class SplashSessionServer:
             expected_token=self._spec.token,
             message_handler=message_handler,
             on_invalid_message=on_invalid_message,
+            on_message_acknowledged=on_message_acknowledged,
         )
         self._thread: threading.Thread | None = None
 
@@ -125,7 +129,8 @@ class _SplashSessionRequestHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         """Read and dispatch one authenticated splash session message."""
 
-        raw_message = self.request.recv(MAX_SPLASH_MESSAGE_BYTES + 1)
+        with self.request.makefile("rb") as stream:
+            raw_message = stream.readline(MAX_SPLASH_MESSAGE_BYTES + 1)
         try:
             message = decode_splash_session_message(
                 raw_message,
@@ -136,3 +141,6 @@ class _SplashSessionRequestHandler(socketserver.BaseRequestHandler):
                 self.server.context.on_invalid_message(error)
             return
         self.server.context.message_handler.handle_message(message)
+        self.request.sendall(SPLASH_MESSAGE_APPLIED_ACK)
+        if self.server.context.on_message_acknowledged is not None:
+            self.server.context.on_message_acknowledged(message)

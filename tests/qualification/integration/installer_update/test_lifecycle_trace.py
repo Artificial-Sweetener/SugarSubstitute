@@ -24,11 +24,38 @@ from pathlib import Path
 import pytest
 
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.installer_ui_qualification import assert_startup_trace_sequence
+from tools.ci.installer_evidence_verification import assert_startup_trace_sequence
 
 
 def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -> None:
-    """The install proof should accept only the production reveal sequence."""
+    """The install proof should accept the painted-shell handoff sequence."""
+
+    trace_path = tmp_path / "startup-trace.jsonl"
+    trace_path.write_text(
+        "\n".join(
+            (
+                json.dumps({"event": "launch_splash.started"}),
+                json.dumps({"event": "main_shell.shown"}),
+                json.dumps(
+                    {
+                        "event": "startup.visibility.first_event",
+                        "fields": {
+                            "event_type": "Paint",
+                            "label": "shell_frame",
+                        },
+                    }
+                ),
+                json.dumps({"event": "launch_splash.closed"}),
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    assert_startup_trace_sequence(trace_path)
+
+
+def test_lifecycle_rejects_splash_close_before_shell_paint(tmp_path: Path) -> None:
+    """A splash must remain until its replacement shell has actually painted."""
 
     trace_path = tmp_path / "startup-trace.jsonl"
     trace_path.write_text(
@@ -43,7 +70,30 @@ def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -
         encoding="utf-8",
     )
 
-    assert_startup_trace_sequence(trace_path)
+    with pytest.raises(InstallerLifecycleError, match="splash-to-shell sequence"):
+        assert_startup_trace_sequence(trace_path)
+
+
+def test_lifecycle_rejects_unpainted_shell_before_splash_close(
+    tmp_path: Path,
+) -> None:
+    """Calling show is not proof that the replacement surface reached the user."""
+
+    trace_path = tmp_path / "startup-trace.jsonl"
+    trace_path.write_text(
+        "\n".join(
+            json.dumps({"event": event})
+            for event in (
+                "launch_splash.started",
+                "main_shell.shown",
+                "launch_splash.closed",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="splash-to-shell sequence"):
+        assert_startup_trace_sequence(trace_path)
 
 
 def test_lifecycle_rejects_main_shell_without_completed_splash(tmp_path: Path) -> None:

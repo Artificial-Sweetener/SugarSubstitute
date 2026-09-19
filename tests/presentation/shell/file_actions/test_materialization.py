@@ -169,6 +169,7 @@ def test_on_load_clicked_reuses_blank_default_workflow_and_restores_output(
         Callable[[str | None], None], loader_calls[0]["on_load_finished"]
     )
     finish_load("CubeA")
+    assert view._pending_cubes == {}
     assert busy_calls == [
         ("begin", (workflow_id, "Loading")),
         ("end", "busy-token"),

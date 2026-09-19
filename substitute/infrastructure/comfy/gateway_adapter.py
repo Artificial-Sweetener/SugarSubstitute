@@ -45,6 +45,9 @@ from substitute.infrastructure.comfy.prompt_gateway import (
     ListenerStartResult as InfraListenerStartResult,
     QueuePromptResult as InfraQueuePromptResult,
 )
+from substitute.infrastructure.comfy.native_cube_execution_client import (
+    NativeCubeExecutionClient,
+)
 
 
 class InfrastructureGateway(Protocol):
@@ -93,6 +96,7 @@ class InfrastructureComfyGatewayAdapter(ComfyGateway):
     """Bridge infrastructure transport payloads to application-facing DTOs."""
 
     gateway: InfrastructureGateway
+    native_cube_client: NativeCubeExecutionClient | None = None
 
     def queue_prompt(
         self,
@@ -120,6 +124,42 @@ class InfrastructureComfyGatewayAdapter(ComfyGateway):
             payload=result.payload,
             error=result.error,
             error_report=result.error_report,
+        )
+
+    def queue_cube_workflow(
+        self,
+        workflow: dict[str, object],
+        *,
+        client_id: str,
+        preview_method: str | None = None,
+        visual_context: QueueVisualRunContext,
+        persistence_sugar_script: str | None = None,
+    ) -> QueuePromptResult:
+        """Queue a canonical Cube graph through the dedicated SugarCubes client."""
+
+        client = self.native_cube_client
+        if client is None:
+            return QueuePromptResult(
+                status="error",
+                prompt_id=None,
+                payload=None,
+                error="SugarCubes native execution client is unavailable.",
+            )
+        result = client.queue(
+            workflow=workflow,
+            client_id=client_id,
+            visual_context=visual_context,
+            preview_method=preview_method,
+            persistence_sugar_script=persistence_sugar_script,
+        )
+        return QueuePromptResult(
+            status="queued" if result.prompt_id is not None else "error",
+            prompt_id=result.prompt_id,
+            payload=result.payload,
+            error=result.error,
+            output_sources=result.output_sources,
+            execution_sources=result.execution_sources,
+            execution_prompt=result.execution_prompt,
         )
 
     def connect_listener_session(

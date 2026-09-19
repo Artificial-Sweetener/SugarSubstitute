@@ -25,7 +25,7 @@ import pytest
 from substitute.domain.onboarding import ComfyEndpoint
 from substitute.infrastructure.external import SubstituteBackendModelMetadataClient
 
-from .support import _FakeResponse, _capabilities_payload
+from .support import _FakeResponse
 
 
 def test_backend_client_refresh_raises_when_model_catalog_unavailable() -> None:
@@ -80,41 +80,3 @@ def test_backend_client_warns_once_for_repeated_get_failures(
         logging.WARNING,
         logging.DEBUG,
     ]
-
-
-def test_backend_client_defaults_missing_sugar_compile_capabilities() -> None:
-    """Old Backends without Sugar compile facts should parse compatibly."""
-
-    payload = _capabilities_payload()
-    del payload["sugarCompile"]
-
-    client = SubstituteBackendModelMetadataClient(
-        ComfyEndpoint(host="10.0.0.2", port=8189),
-        http_get=lambda *_args, **_kwargs: _FakeResponse(payload),
-    )
-
-    capabilities = client.get_capabilities()
-
-    assert capabilities is not None
-    assert capabilities.sugar_compile.schema_version == 0
-    assert capabilities.sugar_compile.sugar_dsl_version == ""
-
-
-def test_backend_client_allows_missing_sugar_dsl_version() -> None:
-    """Backends can advertise Sugar compile before exposing Sugar-DSL version."""
-
-    payload = _capabilities_payload()
-    sugar_compile = payload["sugarCompile"]
-    assert isinstance(sugar_compile, dict)
-    del sugar_compile["sugarDslVersion"]
-
-    client = SubstituteBackendModelMetadataClient(
-        ComfyEndpoint(host="10.0.0.2", port=8189),
-        http_get=lambda *_args, **_kwargs: _FakeResponse(payload),
-    )
-
-    capabilities = client.get_capabilities()
-
-    assert capabilities is not None
-    assert capabilities.sugar_compile.available is True
-    assert capabilities.sugar_compile.sugar_dsl_version == ""

@@ -24,6 +24,7 @@ import pytest
 
 from substitute.presentation.shell.workflow_ui_factory import WorkflowUiFactory
 from substitute.presentation.workflows.cube_stack_view import CubeCloseButtonDisplayMode
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 from tests.presentation.shell.workflow_ui.support import (
     FakeCubeStack,
     build_workflow_shell,
@@ -75,3 +76,30 @@ def test_cube_stack_signal_handlers_are_intentional_noops() -> None:
 
     assert shell.connected_cube_stacks == []
     assert shell.layout_applied_stacks == []
+
+
+def test_graph_backed_linear_cube_stack_is_visible_and_movable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pure Cube graph should expose the stack that rewrites its topology."""
+
+    monkeypatch.setattr(
+        "substitute.presentation.shell.workflow_ui_factory.CubeStack",
+        lambda parent: FakeCubeStack(parent),
+    )
+    shell = build_workflow_shell()
+    shell.workflow_session_service.workflows["wf-1"] = graph_backed_cube_workflow(
+        "First",
+        "Second",
+    )
+    install_signal_binder(monkeypatch, shell)
+
+    stack = WorkflowUiFactory(shell).reconcile_cube_stack_surface(
+        "wf-1",
+        set_as_current=True,
+    )
+
+    assert isinstance(stack, FakeCubeStack)
+    assert stack.movable_calls == [True]
+    assert stack.reorder_segment_calls == [(("First", "Second"),)]
+    assert shell.cube_stack is stack

@@ -25,8 +25,10 @@ from typing import Protocol, cast
 from substitute.application.cubes import (
     build_cube_stack_tooltip_for_state,
     build_cube_tab_presentation,
+    cube_target_model,
 )
 from substitute.application.workflows import WorkflowIssueState
+from substitute.presentation.resources.cube_icon_resolver import CubeIconResolver
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("presentation.shell.cube_stack_presenter")
@@ -89,31 +91,6 @@ class CubeStackProtocol(Protocol):
         """Return one tab item."""
 
 
-class CubeIconFactoryProtocol(Protocol):
-    """Resolve cube metadata into a presentation-compatible icon object."""
-
-    def icon_for_cube(
-        self,
-        *,
-        cube_id: str,
-        display_name: str,
-        icon: object | None,
-        catalog_revision: str = "",
-        cube_content_hash: str = "",
-        render_size: int | None = None,
-    ) -> object:
-        """Return a concrete icon object for one cube tab."""
-
-
-@dataclass(frozen=True)
-class CubeTabIconResult:
-    """Describe the icon selected for one cube tab."""
-
-    icon: object
-    used_fallback_icon: bool
-    warnings: tuple[str, ...] = ()
-
-
 @dataclass(frozen=True)
 class CubeTabPresentationResult:
     """Describe presentation work applied to one cube-stack tab."""
@@ -134,102 +111,10 @@ class CubeStackPresentationResult:
     warnings: tuple[str, ...] = ()
 
 
-class CubeTabIconResolver:
-    """Resolve cube tab icons while always returning an immediate fallback."""
-
-    def __init__(
-        self,
-        *,
-        cube_icon_factory: CubeIconFactoryProtocol | None,
-        fallback_icon: object | None = None,
-    ) -> None:
-        """Store icon dependencies for deterministic tab icon resolution."""
-
-        self._cube_icon_factory = cube_icon_factory
-        self._fallback_icon = (
-            fallback_icon if fallback_icon is not None else _default_cube_icon()
-        )
-
-    def icon_for_cube_state(
-        self,
-        cube_state: object,
-        *,
-        workflow_id: str,
-        cube_alias: str,
-    ) -> CubeTabIconResult:
-        """Return a resolved cube icon or the deterministic fallback icon."""
-
-        cube_id = str(getattr(cube_state, "cube_id", cube_alias))
-        display_name = str(getattr(cube_state, "display_name", cube_alias))
-        return self.icon_for_cube_source(
-            workflow_id=workflow_id,
-            cube_alias=cube_alias,
-            cube_id=cube_id,
-            display_name=display_name,
-            icon=_cube_ui_value(cube_state, "cube_icon"),
-            catalog_revision=_cube_ui_text(cube_state, "catalog_revision"),
-            content_hash=_cube_ui_text(cube_state, "content_hash"),
-        )
-
-    def icon_for_cube_source(
-        self,
-        *,
-        workflow_id: str,
-        cube_alias: str,
-        cube_id: str,
-        display_name: str,
-        icon: object | None,
-        catalog_revision: str,
-        content_hash: str,
-    ) -> CubeTabIconResult:
-        """Return a resolved source icon or the deterministic fallback icon."""
-
-        if self._cube_icon_factory is None:
-            warning = "missing_cube_icon_factory"
-            log_warning(
-                _LOGGER,
-                "Fell back to default cube-stack icon because factory was missing",
-                workflow_id=workflow_id,
-                cube_alias=cube_alias,
-                cube_id=cube_id,
-            )
-            return CubeTabIconResult(
-                icon=self._fallback_icon,
-                used_fallback_icon=True,
-                warnings=(warning,),
-            )
-
-        try:
-            resolved_icon = self._cube_icon_factory.icon_for_cube(
-                cube_id=cube_id,
-                display_name=display_name,
-                icon=icon,
-                catalog_revision=catalog_revision,
-                cube_content_hash=content_hash,
-            )
-        except (RuntimeError, TypeError, ValueError) as error:
-            warning = "cube_icon_resolution_failed"
-            log_warning(
-                _LOGGER,
-                "Fell back to default cube-stack icon after resolution failure",
-                workflow_id=workflow_id,
-                cube_alias=cube_alias,
-                cube_id=cube_id,
-                error=repr(error),
-            )
-            return CubeTabIconResult(
-                icon=self._fallback_icon,
-                used_fallback_icon=True,
-                warnings=(warning,),
-            )
-
-        return CubeTabIconResult(icon=resolved_icon, used_fallback_icon=False)
-
-
 class CubeStackPresenter:
     """Apply complete cube-stack tab presentation from workflow cube state."""
 
-    def __init__(self, *, icon_resolver: CubeTabIconResolver) -> None:
+    def __init__(self, *, icon_resolver: CubeIconResolver) -> None:
         """Store presentation dependencies."""
 
         self._icon_resolver = icon_resolver
@@ -337,6 +222,7 @@ class CubeStackPresenter:
             alias=cube_alias,
             cube_id=str(getattr(cube_state, "cube_id", cube_alias)),
             version=str(getattr(cube_state, "version", "")),
+            target_model=cube_target_model(cube_state),
         )
         tooltip_text = build_cube_stack_tooltip_for_state(
             alias=cube_alias,
@@ -351,6 +237,11 @@ class CubeStackPresenter:
             workflow_id=workflow_id,
             cube_alias=cube_alias,
             warnings=warnings,
+        )
+        self._apply_target_model(
+            cube_stack,
+            tab_index,
+            target_model=presentation.target_model,
         )
         icon_result = self._icon_resolver.icon_for_cube_state(
             cube_state,
@@ -455,6 +346,7 @@ class CubeStackPresenter:
             alias=cube_alias,
             cube_id=str(getattr(cube_state, "cube_id", cube_alias)),
             version=str(getattr(cube_state, "version", "")),
+            target_model=cube_target_model(cube_state),
         )
         del workflow_id
         cube_stack.insertTab(
@@ -551,6 +443,22 @@ class CubeStackPresenter:
             set_text(tab_index, primary_text)
         return False
 
+    @staticmethod
+    def _apply_target_model(
+        cube_stack: CubeStackProtocol,
+        tab_index: int,
+        *,
+        target_model: str,
+    ) -> None:
+        """Apply the target-model pill independently from editable tab text."""
+
+        tab_item_at = getattr(cube_stack, "tabItem", None)
+        if not callable(tab_item_at):
+            return
+        set_target_model = getattr(tab_item_at(tab_index), "setTargetModel", None)
+        if callable(set_target_model):
+            set_target_model(target_model)
+
     def _apply_icon(
         self,
         cube_stack: CubeStackProtocol,
@@ -620,36 +528,9 @@ class CubeStackPresenter:
             )
 
 
-def _cube_ui_value(cube_state: object, key: str) -> object | None:
-    """Return one cube UI payload value when present."""
-
-    ui_payload = getattr(cube_state, "ui", None)
-    if isinstance(ui_payload, Mapping):
-        return ui_payload.get(key)
-    return None
-
-
-def _cube_ui_text(cube_state: object, key: str) -> str:
-    """Return one cube UI payload string when present."""
-
-    value = _cube_ui_value(cube_state, key)
-    return value if isinstance(value, str) else ""
-
-
-def _default_cube_icon() -> object:
-    """Return the deterministic app cube icon used for fallback presentation."""
-
-    from substitute.presentation.resources.app_icon import AppIcon
-
-    return AppIcon.CUBE_20_FILLED
-
-
 __all__ = [
-    "CubeIconFactoryProtocol",
     "CubeStackPresentationResult",
     "CubeStackPresenter",
     "CubeStackProtocol",
-    "CubeTabIconResolver",
-    "CubeTabIconResult",
     "CubeTabPresentationResult",
 ]

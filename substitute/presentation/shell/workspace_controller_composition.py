@@ -45,10 +45,10 @@ from substitute.presentation.shell.loaded_cube_surface_controller import (
 )
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
-    CubeTabIconResolver,
 )
-from substitute.presentation.shell.cube_duplication_link_reconciler import (
-    DeferredCubeDuplicationLinkReconciler,
+from substitute.presentation.resources.cube_icon_resolver import CubeIconResolver
+from substitute.presentation.shell.deferred_workflow_link_reconciler import (
+    DeferredWorkflowLinkReconciler,
 )
 from substitute.presentation.shell.cube_surface_projection_coordinator import (
     CubeSurfaceProjectionCoordinator,
@@ -204,14 +204,17 @@ def compose_workspace_controller_collaborators(
         ),
     )
     cube_duplication_service = CubeDuplicationService(
-        cube_stack_service=CubeStackService(),
-        link_reconciler=DeferredCubeDuplicationLinkReconciler(views.cube),
+        cube_stack_service=cast(
+            CubeStackService,
+            getattr(host, "cube_stack_service"),
+        ),
+        link_reconciler=DeferredWorkflowLinkReconciler(views.cube),
     )
     cube_stack_actions = WorkspaceCubeStackActions(
         cast(WorkspaceCubeStackActionView, views.cube),
         duplication_service=cube_duplication_service,
         stack_presenter=CubeStackPresenter(
-            icon_resolver=CubeTabIconResolver(
+            icon_resolver=CubeIconResolver(
                 cube_icon_factory=getattr(views.cube, "cube_icon_factory", None),
             )
         ),

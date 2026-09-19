@@ -26,6 +26,7 @@ class WorkflowDocumentKind(StrEnum):
 
     CUBE_STACK = "cube_stack"
     DIRECT_COMFY = "direct_comfy"
+    COMFY_CUBE_GRAPH = "comfy_cube_graph"
 
 
 __all__ = ["WorkflowDocumentKind"]

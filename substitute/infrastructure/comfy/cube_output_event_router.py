@@ -30,6 +30,9 @@ from substitute.infrastructure.comfy.cube_output_event import (
 from substitute.infrastructure.comfy.comfy_payload_fields import (
     list_index_rejection_reason,
 )
+from substitute.infrastructure.comfy.output_source_identity_resolver import (
+    OutputSourceIdentity,
+)
 
 CubeOutputDiagnosticLevel = Literal["debug", "info", "warning"]
 
@@ -41,16 +44,6 @@ class CubeOutputRouteContext:
     workflow_id: str
     generation_run_id: str
     prompt_id: str
-
-
-@dataclass(frozen=True)
-class CubeOutputSourceIdentity:
-    """Describe final-output source identity carried by a cube-output event."""
-
-    node_id: str
-    source_key: str
-    source_label: str
-    cube_alias: str
 
 
 @dataclass(frozen=True)
@@ -67,7 +60,7 @@ class CubeOutputRouteResult:
     """Describe the validated cube-output event selected for persistence."""
 
     cube_output: CubeOutputEvent | None = None
-    source_identity: CubeOutputSourceIdentity | None = None
+    source_identity: OutputSourceIdentity | None = None
     diagnostic: CubeOutputDiagnostic | None = None
 
 
@@ -174,7 +167,7 @@ def route_cube_output_event(
 
     return CubeOutputRouteResult(
         cube_output=cube_output,
-        source_identity=CubeOutputSourceIdentity(
+        source_identity=OutputSourceIdentity(
             node_id=cube_output.node_id,
             source_key=visual_identity.source_key,
             source_label=visual_identity.source_label,
@@ -198,6 +191,5 @@ __all__ = [
     "CubeOutputDiagnosticLevel",
     "CubeOutputRouteContext",
     "CubeOutputRouteResult",
-    "CubeOutputSourceIdentity",
     "route_cube_output_event",
 ]

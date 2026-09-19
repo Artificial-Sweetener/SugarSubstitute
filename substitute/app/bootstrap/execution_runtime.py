@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from threading import Lock
 from typing import TypeVar
 
@@ -38,6 +38,12 @@ from substitute.application.execution import (
 from substitute.app.bootstrap.canvas_execution_runtime import (
     CanvasExecutionRuntime,
 )
+from substitute.app.bootstrap.execution_lane_configs import (
+    DEFAULT_EXECUTION_LANE_CONFIGS,
+    ExecutionLaneConfig,
+    require_non_blank,
+    validate_lane_config,
+)
 from substitute.infrastructure.execution import (
     LongLivedTaskHandle,
 )
@@ -52,98 +58,6 @@ from substitute.shared.logging.logger import get_logger, log_info, log_warning
 TResult = TypeVar("TResult")
 
 _LOGGER = get_logger("app.bootstrap.execution_runtime")
-_QUEUE_CAPACITY_MULTIPLIER = 4
-
-
-@dataclass(frozen=True, slots=True)
-class ExecutionLaneConfig:
-    """Describe one process-lifetime short-task execution lane."""
-
-    name: str
-    max_workers: int
-    queue_capacity: int
-    thread_name_prefix: str
-
-
-def _require_non_blank(value: str, *, field_name: str) -> None:
-    """Reject blank runtime labels."""
-
-    if not value.strip():
-        raise ValueError(f"{field_name} must not be blank.")
-
-
-def _lane_config(name: str, *, max_workers: int) -> ExecutionLaneConfig:
-    """Build one default lane config."""
-
-    _require_non_blank(name, field_name="name")
-    if max_workers <= 0:
-        raise ValueError("max_workers must be positive.")
-    return ExecutionLaneConfig(
-        name=name,
-        max_workers=max_workers,
-        queue_capacity=max_workers * _QUEUE_CAPACITY_MULTIPLIER,
-        thread_name_prefix=f"substitute-{name.replace('_', '-')}",
-    )
-
-
-def _lane_config_with_capacity(
-    name: str,
-    *,
-    max_workers: int,
-    queue_capacity: int,
-) -> ExecutionLaneConfig:
-    """Build one lane config with explicit burst capacity."""
-
-    _require_non_blank(name, field_name="name")
-    if max_workers <= 0:
-        raise ValueError("max_workers must be positive.")
-    if queue_capacity <= 0:
-        raise ValueError("queue_capacity must be positive.")
-    return ExecutionLaneConfig(
-        name=name,
-        max_workers=max_workers,
-        queue_capacity=queue_capacity,
-        thread_name_prefix=f"substitute-{name.replace('_', '-')}",
-    )
-
-
-def _validate_lane_config(config: ExecutionLaneConfig) -> None:
-    """Validate one externally supplied execution lane config."""
-
-    _require_non_blank(config.name, field_name="name")
-    _require_non_blank(config.thread_name_prefix, field_name="thread_name_prefix")
-    if config.max_workers <= 0:
-        raise ValueError("max_workers must be positive.")
-    if config.queue_capacity <= 0:
-        raise ValueError("queue_capacity must be positive.")
-
-
-DEFAULT_EXECUTION_LANE_CONFIGS = (
-    _lane_config_with_capacity("prompt_editor", max_workers=2, queue_capacity=128),
-    _lane_config("settings_io", max_workers=2),
-    _lane_config("package_maintenance", max_workers=1),
-    _lane_config("onboarding_provisioning", max_workers=1),
-    _lane_config("onboarding_environment", max_workers=1),
-    _lane_config("generation_dispatch", max_workers=1),
-    _lane_config("generation_preparation", max_workers=1),
-    _lane_config("cube_load", max_workers=2),
-    _lane_config("cube_library_update", max_workers=1),
-    _lane_config("model_catalog", max_workers=1),
-    _lane_config("model_metadata", max_workers=1),
-    _lane_config("node_definition", max_workers=2),
-    _lane_config("recipe_model_resolution", max_workers=1),
-    _lane_config("danbooru_refresh", max_workers=2),
-    _lane_config("image_decode", max_workers=2),
-    _lane_config_with_capacity(
-        "thumbnail_decode",
-        max_workers=4,
-        queue_capacity=64,
-    ),
-    _lane_config("disk_io_low_priority", max_workers=1),
-    _lane_config("model_download", max_workers=2),
-    _lane_config("startup", max_workers=2),
-    _lane_config("shutdown", max_workers=1),
-)
 LONG_LIVED_EXECUTION_REGISTRIES = frozenset(
     {
         "backend_event_listener",
@@ -170,7 +84,7 @@ class ExecutionRuntime:
             raise ValueError("lane_configs must not be empty.")
         seen_names: set[str] = set()
         for config in lane_configs:
-            _validate_lane_config(config)
+            validate_lane_config(config)
             if config.name in seen_names:
                 raise ValueError("execution lane names must be unique.")
             seen_names.add(config.name)
@@ -342,7 +256,7 @@ class ExecutionRuntime:
     def lane(self, name: str) -> ExecutionLane:
         """Return one configured short-task lane by name."""
 
-        _require_non_blank(name, field_name="name")
+        require_non_blank(name, field_name="name")
         try:
             return self._lanes[name]
         except KeyError as error:
@@ -357,7 +271,7 @@ class ExecutionRuntime:
     ) -> "RuntimeExecutionScope":
         """Create one owner-scoped task scope for a named lane."""
 
-        _require_non_blank(owner_id, field_name="owner_id")
+        require_non_blank(owner_id, field_name="owner_id")
         lane = self.lane(name)
         key = (name, owner_id)
         with self._lock:
@@ -391,7 +305,7 @@ class ExecutionRuntime:
     ) -> "RuntimeExecutionSubmitter":
         """Create one owner-scoped submitter for caller-owned cancellation."""
 
-        _require_non_blank(owner_id, field_name="owner_id")
+        require_non_blank(owner_id, field_name="owner_id")
         lane = self.lane(name)
         key = (name, owner_id)
         with self._lock:
@@ -427,7 +341,7 @@ class ExecutionRuntime:
     ) -> LongLivedTaskHandle[TResult]:
         """Start and register one long-lived task after runtime acceptance."""
 
-        _require_non_blank(key, field_name="key")
+        require_non_blank(key, field_name="key")
         registry = self._long_lived_registry(registry_name)
         with self._lock:
             if self._is_shutdown:
@@ -452,7 +366,7 @@ class ExecutionRuntime:
     def stop_long_lived(self, registry_name: str, key: str, *, reason: str) -> None:
         """Stop and remove one registered long-lived task when present."""
 
-        _require_non_blank(reason, field_name="reason")
+        require_non_blank(reason, field_name="reason")
         registry = self._long_lived_registry(registry_name)
         with self._lock:
             handle = registry.pop(key, None)
@@ -462,7 +376,7 @@ class ExecutionRuntime:
     def shutdown_lane(self, name: str) -> None:
         """Shut down one short-task lane or long-lived registry."""
 
-        _require_non_blank(name, field_name="name")
+        require_non_blank(name, field_name="name")
         if name in self._lanes:
             self._lanes[name].shutdown(wait=False, cancel_futures=True)
             return
@@ -518,7 +432,7 @@ class ExecutionRuntime:
     ) -> dict[str, LongLivedTaskHandle[object]]:
         """Return one long-lived registry by name."""
 
-        _require_non_blank(registry_name, field_name="registry_name")
+        require_non_blank(registry_name, field_name="registry_name")
         try:
             return self._long_lived[registry_name]
         except KeyError as error:
@@ -692,9 +606,7 @@ def _as_object_long_lived_handle(
 
 
 __all__ = [
-    "DEFAULT_EXECUTION_LANE_CONFIGS",
     "LONG_LIVED_EXECUTION_REGISTRIES",
-    "ExecutionLaneConfig",
     "ExecutionRuntime",
     "RuntimeExecutionScope",
     "RuntimeExecutionSubmitter",

@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Protocol
 
 from substitute.domain.session import (
@@ -96,6 +97,12 @@ class SnapshotCapturePort(Protocol):
     def shell_layout_snapshot(self) -> ShellLayoutSnapshot | None:
         """Return restorable shell layout state."""
 
+    def workflow_document_dirty(self, workflow_id: str) -> bool:
+        """Return whether a workflow differs from its explicit save target."""
+
+    def workflow_document_source_path(self, workflow_id: str) -> Path | None:
+        """Return the last explicit save or load path for one workflow."""
+
 
 @dataclass(frozen=True, slots=True)
 class SnapshotCaptureService:
@@ -155,6 +162,11 @@ class SnapshotCaptureService:
                     input_masks=input_masks,
                     output_images=output_images,
                     editor_viewport=editor_viewport,
+                    document_dirty=_workflow_document_dirty(port, workflow_id),
+                    document_source_path=_workflow_document_source_path(
+                        port,
+                        workflow_id,
+                    ),
                 )
             )
         shell_layout = port.shell_layout_snapshot()
@@ -217,3 +229,23 @@ __all__ = [
     "SnapshotCapturePort",
     "SnapshotCaptureService",
 ]
+
+
+def _workflow_document_dirty(port: SnapshotCapturePort, workflow_id: str) -> bool:
+    """Read document dirty state with backwards-compatible clean fallback."""
+
+    read = getattr(port, "workflow_document_dirty", None)
+    return bool(read(workflow_id)) if callable(read) else False
+
+
+def _workflow_document_source_path(
+    port: SnapshotCapturePort,
+    workflow_id: str,
+) -> Path | None:
+    """Read document source identity when the presentation port exposes it."""
+
+    read = getattr(port, "workflow_document_source_path", None)
+    if not callable(read):
+        return None
+    value = read(workflow_id)
+    return Path(value) if value is not None else None

@@ -74,7 +74,7 @@ def test_run_saves_cube_output_artifact_to_project_image(
     assert len(output_events) == 1
     assert output_events[0].file_path == expected_path
     assert output_events[0].node_id == "output-node"
-    assert output_events[0].source_key == "wf-1:output-node"
+    assert output_events[0].source_key == "cube:CubeA"
     assert output_events[0].source_label == "CubeA"
     assert saved_paths == [str(expected_path)]
     assert png_text == [

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy import managed_listener_adoption
+
 from pathlib import Path
 from typing import cast
 import pytest
@@ -95,7 +97,7 @@ def test_background_start_uses_utf8_for_managed_output_stream(
     """Managed background launch should preserve raw Comfy stdout control codes."""
 
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: ManagedListenerProbeResult(
             status=ManagedListenerStatus.ABSENT,
@@ -164,7 +166,7 @@ def test_background_start_launches_force_cpu_runtime_with_comfy_cpu_flag(
         )
     )
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: ManagedListenerProbeResult(
             status=ManagedListenerStatus.ABSENT,
@@ -229,7 +231,7 @@ def test_background_start_preserves_historical_cpu_target_launch_contract(
         )
     )
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: ManagedListenerProbeResult(
             status=ManagedListenerStatus.ABSENT,
@@ -310,7 +312,7 @@ def test_background_start_traces_managed_startup_phases(
     monkeypatch.setattr(managed_launcher, "trace_mark", trace_mark)
     monkeypatch.setattr(managed_launcher, "trace_span", trace_span)
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: ManagedListenerProbeResult(
             status=ManagedListenerStatus.ABSENT,

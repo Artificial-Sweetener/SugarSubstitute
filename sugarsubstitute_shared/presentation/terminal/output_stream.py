@@ -68,6 +68,14 @@ class TerminalOutputStream(QObject):
             self._transcript.clear()
         self.cleared.emit()
 
+    def clear_transient_line(self) -> None:
+        """Remove only the active redraw row and preserve durable history."""
+
+        with self._lock:
+            mutation = self._transcript.clear_transient_line()
+        if mutation is not None:
+            self._emit_mutation(mutation)
+
     def snapshot(self) -> tuple[str, ...]:
         """Return the current buffered transcript in display order."""
 

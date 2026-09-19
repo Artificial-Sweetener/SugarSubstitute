@@ -25,7 +25,7 @@ from typing import Literal, TypeAlias, TypeVar, cast
 
 from PySide6.QtCore import QCoreApplication, QObject, QTimer, Qt, Slot
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QAbstractButton, QApplication, QWidget
 from qfluentwidgets import LineEdit, RadioButton  # type: ignore[import-untyped]
 
 from substitute.presentation.onboarding.onboarding_window import OnboardingWindow
@@ -149,36 +149,59 @@ class OnboardingQualificationDriver(QObject):
                 self._configure_remote_target()
             self._process_events()
             self._click("OnboardingPrimaryButton")
-            self._wait_for_page("OnboardingFolderSetupPage")
-            if self._plan.managed_model_root is not None:
+            if self._plan.target_mode != "remote":
+                self._wait_for_page("OnboardingExistingModelsQuestionPage")
+                self._click(
+                    "OnboardingYesExistingModelsButton"
+                    if self._plan.managed_model_root is not None
+                    else "OnboardingNoExistingModelsButton"
+                )
+            if (
+                self._plan.target_mode == "remote"
+                or self._plan.managed_model_root is not None
+            ):
+                self._wait_for_page("OnboardingFolderSetupPage")
+            if (
+                self._plan.target_mode != "remote"
+                and self._plan.managed_model_root is not None
+            ):
                 self._widget(LineEdit, "OnboardingManagedModelRootEdit").setText(
                     str(self._plan.managed_model_root)
                 )
                 self._process_events()
-            self._click("OnboardingPrimaryButton")
+            if (
+                self._plan.target_mode == "remote"
+                or self._plan.managed_model_root is not None
+            ):
+                self._click("OnboardingPrimaryButton")
+            if self._plan.target_mode != "remote":
+                self._wait_for_page("OnboardingModelRecommendationPage")
+                for _family_index in range(2):
+                    self._click("OnboardingOwnModelChoice")
+                    self._click("OnboardingPrimaryButton")
+                    if self._current_page() != "OnboardingModelRecommendationPage":
+                        break
             self._wait_for_page("OnboardingIntegrationsPage")
             self._click("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingProvisioningPage")
-            self._wait_until(
-                lambda: self._widget(
-                    QWidget,
-                    "OnboardingPrimaryButton",
-                ).isEnabled(),
-                "remote provisioning result",
-            )
-            if self._window._controller.completion is None:
-                raise RuntimeError("Remote setup did not reach its review action.")
-            self._click("OnboardingPrimaryButton")
-            self._wait_for_page("OnboardingCompletionPage")
-            if self._window._controller.completion is None:
-                raise RuntimeError(
-                    "Completion did not retain its ready application handoff."
-                )
+            self._wait_for_completion_page()
             self._plan.record("onboarding.completion.ready")
-            self._click("OnboardingPrimaryButton")
-            self._plan.record("onboarding.open_substitute.clicked")
+            self._click_terminal_action("OnboardingPrimaryButton")
         except Exception as error:
             self._record_failure(error)
+
+    def _wait_for_completion_page(self) -> None:
+        """Observe provisioning's automatic completion transition without advancing it."""
+
+        self._wait_until(
+            lambda: self._window._controller.completion is not None,
+            "onboarding completion",
+        )
+        self._wait_for_page("OnboardingCompletionPage")
+        if self._window._controller.completion is None:
+            raise RuntimeError(
+                "Completion did not retain its ready application handoff."
+            )
 
     def _configure_managed_target(self) -> None:
         """Enter the real managed workspace and endpoint selected for qualification."""
@@ -237,14 +260,42 @@ class OnboardingQualificationDriver(QObject):
     def _click(self, object_name: str) -> None:
         """Click one enabled, visible production control."""
 
+        control = self._clickable_control(object_name)
+        self._mouse_click(control)
+
+    def _click_terminal_action(self, object_name: str) -> None:
+        """Schedule the final action on the outer Qt event loop."""
+
+        self._wait_until(
+            lambda: self._control_is_clickable(object_name),
+            f"clickable control {object_name}",
+        )
+        control = self._widget(QAbstractButton, object_name)
+        QTimer.singleShot(0, lambda: self._activate_terminal_action(control))
+
+    def _activate_terminal_action(self, control: QAbstractButton) -> None:
+        """Record and activate the close-owning action after automation returns."""
+
+        self._plan.record("onboarding.open_substitute.clicked")
+        control.click()
+
+    def _clickable_control(self, object_name: str) -> QWidget:
+        """Return one enabled, visible production control for qualification."""
+
         control = self._widget(QWidget, object_name)
-        if not control.isEnabled() or not control.isVisible():
+        if not self._control_is_clickable(object_name):
             raise RuntimeError(
                 "Installed onboarding control is not clickable: "
                 f"{object_name} enabled={control.isEnabled()} "
                 f"visible={control.isVisible()}."
             )
-        self._mouse_click(control)
+        return control
+
+    def _control_is_clickable(self, object_name: str) -> bool:
+        """Return whether one production control has completed visibility changes."""
+
+        control = self._widget(QWidget, object_name)
+        return control.isEnabled() and control.isVisible()
 
     def _mouse_click(self, control: QWidget) -> None:
         """Send a real Qt mouse click and service resulting queued work."""

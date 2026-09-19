@@ -17,7 +17,14 @@
 """Expose direct Comfy workflow domain models and graph services."""
 
 from .api_graph_builder import ComfyApiGraphBuildError, ComfyApiGraphBuilder
-from .models import DirectWorkflowState, NodeActivationStorage
+from .cube_analysis import CanonicalCubeGraphAnalysis
+from .cube_reorder import apply_cached_cube_reorder
+from .cube_projection import (
+    CubeGraphInstance,
+    CubeGraphProjection,
+    CubeGraphSegment,
+)
+from .models import DirectWorkflowState, NodeActivationStorage, ProjectedCubeDocument
 from .node_classes import executable_node_classes
 from .node_roles import WorkflowNodeExecutionRole
 from .output_manifest import (
@@ -38,6 +45,11 @@ __all__ = [
     "ComfyOutputSocket",
     "ComfyWorkflowConversionError",
     "ComfyWorkflowConverter",
+    "CanonicalCubeGraphAnalysis",
+    "apply_cached_cube_reorder",
+    "CubeGraphInstance",
+    "CubeGraphProjection",
+    "CubeGraphSegment",
     "AuthoredImageSink",
     "DirectImageOutputSource",
     "DirectWorkflowGenerationPlan",
@@ -45,6 +57,7 @@ __all__ = [
     "DirectWorkflowState",
     "executable_node_classes",
     "NodeActivationStorage",
+    "ProjectedCubeDocument",
     "WorkflowNodeExecutionRole",
     "is_terminal_image_output_sink",
 ]

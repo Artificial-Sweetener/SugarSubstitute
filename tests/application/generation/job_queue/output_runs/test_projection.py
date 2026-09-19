@@ -343,7 +343,7 @@ def test_duplicate_visible_output_numbers_still_cancel_by_job_id() -> None:
         PreparedGenerationRequest(
             workflow_id="wf-today",
             workflow_name="Today",
-            sugar_script_text='use "cube" as Today',
+            persistence_sugar_script='use "cube" as Today',
             output_run_number=1,
             output_job_started_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
         )

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from threading import Event
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
@@ -38,8 +39,10 @@ class QtInstallationExecutor(QObject):
     """Run installation workers and publish results after deterministic cleanup."""
 
     log = Signal(str)
+    progress = Signal(object)
     initial_failed = Signal(str)
     initial_succeeded = Signal(object)
+    initial_presented_elsewhere = Signal()
     initial_finished = Signal()
     setup_failed = Signal(str, str)
     setup_succeeded = Signal()
@@ -59,6 +62,7 @@ class QtInstallationExecutor(QObject):
         self._initial_worker: InitialInstallWorker | None = None
         self._setup_thread: QThread | None = None
         self._setup_worker: SetupWorker | None = None
+        self._cancellation = Event()
 
     @property
     def initial_running(self) -> bool:
@@ -95,12 +99,14 @@ class QtInstallationExecutor(QObject):
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.log.connect(self.log.emit)
+        worker.progress.connect(self.progress.emit)
         worker.failed.connect(self.initial_failed.emit)
         worker.succeeded.connect(self.initial_succeeded.emit)
+        worker.presented_elsewhere.connect(self.initial_presented_elsewhere.emit)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._finish_initial)
+        thread.finished.connect(thread.deleteLater)
         self._initial_thread = thread
         self._initial_worker = worker
         thread.start()
@@ -116,38 +122,50 @@ class QtInstallationExecutor(QObject):
 
         if self._initial_thread is not None or self._setup_thread is not None:
             return False
+        self._cancellation.clear()
         thread = QThread(self)
         worker = SetupWorker(
             application=application,
             setup_command=setup_command,
             workflow_factory=self._workflow_factory,
+            cancellation=self._cancellation,
         )
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.log.connect(self.log.emit)
+        worker.progress.connect(self.progress.emit)
         worker.failed.connect(self.setup_failed.emit)
         worker.succeeded.connect(self.setup_succeeded.emit)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._finish_setup)
+        thread.finished.connect(thread.deleteLater)
         self._setup_thread = thread
         self._setup_worker = worker
         thread.start()
         return True
 
+    def request_cancel(self) -> None:
+        """Cancel owned runtime commands and prevent subsequent setup handoff."""
+
+        self._cancellation.set()
+
     @Slot()
     def _finish_initial(self) -> None:
-        """Release initial-install objects before publishing stage completion."""
+        """Join deferred native destruction before releasing initial-install wrappers."""
 
+        if self._initial_thread is not None:
+            self._initial_thread.wait()
         self._initial_thread = None
         self._initial_worker = None
         self.initial_finished.emit()
 
     @Slot()
     def _finish_setup(self) -> None:
-        """Release setup objects before publishing stage completion."""
+        """Join deferred native destruction before publishing setup completion."""
 
+        if self._setup_thread is not None:
+            self._setup_thread.wait()
         self._setup_thread = None
         self._setup_worker = None
         self.setup_finished.emit()

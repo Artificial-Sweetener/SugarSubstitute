@@ -22,6 +22,9 @@ from pathlib import Path
 from typing import cast
 
 from substitute.application.generation import ComfyAssetStagingService
+from substitute.application.generation.native_cube_workflow_builder import (
+    NativeCubeWorkflowBuilder,
+)
 from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingPlanService,
 )
@@ -38,6 +41,7 @@ from substitute.application.workflows import WorkflowAssetService
 from substitute.domain.common import JsonObject
 from substitute.domain.generation import ComfyStagedAsset
 from substitute.domain.workflow import CubeState, WorkflowState
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
 from substitute.domain.comfy_workflow import DirectWorkflowState
 
 
@@ -120,6 +124,88 @@ def test_stage_payload_rewrites_load_image_paths_without_mutating_authoring_payl
     assert stager.calls[0][0] == image_path
     assert stager.calls[0][1] == "substitute/wf-1"
     assert stager.calls[0][3] == "LoadImage"
+
+
+def test_stage_payload_rewrites_instance_assets_without_rewriting_flavor_presets(
+    tmp_path: Path,
+) -> None:
+    """Native execution should stage the instance value without mutating presets."""
+
+    image_path = tmp_path / "selected.png"
+    image_path.write_bytes(b"image")
+    cube_buffer: JsonObject = {
+        "nodes": {
+            "load": {
+                "class_type": "LoadImage",
+                "inputs": {"image": str(image_path)},
+            }
+        },
+        "inputs": {},
+        "outputs": {},
+        "layout": {},
+        "definitions": {},
+        "subgraphs": [],
+        "surface": {
+            "default_flavor_id": "default",
+            "controls": [
+                {
+                    "control_id": "load.image",
+                    "symbol": "load",
+                    "input_name": "image",
+                    "label": "image",
+                    "class_type": "LoadImage",
+                    "value_type": "string",
+                }
+            ],
+        },
+        "flavors": {
+            "authored": [
+                {
+                    "id": "default",
+                    "name": "Default",
+                    "values": {"load.image": str(image_path)},
+                }
+            ]
+        },
+    }
+    workflow = graph_backed_cube_workflow_from_states(
+        CubeState(
+            cube_id="test/Inpaint.cube",
+            version="1.0.0",
+            alias="Inpaint",
+            original_cube=cube_buffer,
+            buffer=cube_buffer,
+            ui={"canonical_cube": {"description": "", "metadata": {}}},
+        )
+    )
+    native_graph = NativeCubeWorkflowBuilder().build(workflow)
+
+    result = ComfyAssetStagingService(stager=_FakeStager()).stage_payload(
+        workflow_payload=native_graph,
+        workflow_id="wf-native",
+        workflow_name="Inpaint",
+        workflow=workflow,
+    )
+
+    definitions = cast(JsonObject, result.workflow_payload["definitions"])
+    subgraph = cast(list[JsonObject], definitions["subgraphs"])[0]
+    document = cast(
+        JsonObject, cast(JsonObject, subgraph["extra"])["sugarcubes_document"]
+    )
+    implementation = cast(JsonObject, document["implementation"])
+    node = cast(JsonObject, cast(JsonObject, implementation["nodes"])["load"])
+    assert cast(JsonObject, node["inputs"])["image"] == (
+        "substitute/wf-native/selected.png"
+    )
+    flavors = cast(JsonObject, document["flavors"])
+    authored = cast(list[JsonObject], flavors["authored"])
+    values = cast(JsonObject, authored[0]["values"])
+    assert values["load.image"] == str(image_path)
+    assert cast(JsonObject, cube_buffer["nodes"])["load"] == {
+        "class_type": "LoadImage",
+        "inputs": {"image": str(image_path)},
+    }
+    assert result.failures == ()
 
 
 def test_stage_payload_rewrites_only_execution_node_class_for_authorized_assets(

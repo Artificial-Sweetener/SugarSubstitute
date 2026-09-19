@@ -30,7 +30,7 @@ from substitute.app.bootstrap import startup_shell_flow
 from substitute.app.bootstrap.bootstrap_route_controller import (
     BootstrapRouteWindowProtocol,
 )
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.ready_shell_state import create_ready_shell_state_bundle
 from substitute.app.bootstrap.shell_reload_adapter import (
     create_startup_shell_reload_state,
@@ -150,6 +150,7 @@ def test_run_startup_shell_flow_routes_and_runs_event_loop(
         assert kwargs["shutdown_runtime"] is shutdown_runtime
         assert kwargs["shell_reload_adapter"] is shell_reload
         assert kwargs["request_shell_shutdown"] is request_shell_shutdown
+        assert kwargs["quit_app"] == app.request_quit
         assert kwargs["initial_workspace"] is initial_restore_plan.workspace
         assert kwargs["initial_shell_placement"] is initial_restore_plan.shell_placement
         assert (
@@ -173,6 +174,7 @@ def test_run_startup_shell_flow_routes_and_runs_event_loop(
         assert kwargs["initial_geometry"] == (1, 2, 3, 4)
         assert kwargs["splash"] is initial_splash
         assert kwargs["launch_ready_shell"] is launch_controller.launch
+        assert kwargs["quit_app"] == app.request_quit
         return StartupRouteFlowResult(
             onboarding_window=onboarding_window,
             route_controller=launch_controller,
@@ -324,8 +326,8 @@ class _App:
 
         return 0
 
-    def quit(self) -> None:
-        """Accept quit requests."""
+    def request_quit(self) -> None:
+        """Accept queued quit requests."""
 
 
 class _Splash:
@@ -394,6 +396,14 @@ class _RuntimeServices:
 
         self.execution_runtime = _ExecutionRuntime()
         self.persistent_cache_runtime = _CacheRuntime()
+        self.managed_comfy_runtime_owner = _ManagedComfyRuntimeOwner()
+
+
+class _ManagedComfyRuntimeOwner:
+    """Expose managed Comfy restart cleanup for shell-flow type checks."""
+
+    def close(self) -> None:
+        """Accept managed Comfy runtime cleanup."""
 
 
 class _CacheRuntime:

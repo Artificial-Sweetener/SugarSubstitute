@@ -22,6 +22,13 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
+from tools.splash_first_governance.contracts import (
+    SplashFirstContract,
+    SplashDependencyContract,
+    repository_contracts,
+    repository_dependency_contracts,
+)
+
 from tools.splash_first_governance.source_flow import (
     call_name,
     calls,
@@ -33,18 +40,6 @@ from tools.splash_first_governance.source_flow import (
 
 
 @dataclass(frozen=True, slots=True)
-class SplashFirstContract:
-    """Describe one executable function and its reviewed splash boundary."""
-
-    relative_path: Path
-    function_name: str
-    boundary_call: str
-    allowed_module_import_roots: frozenset[str]
-    allowed_pre_boundary_imports: frozenset[str]
-    allowed_pre_boundary_calls: frozenset[str]
-
-
-@dataclass(frozen=True, slots=True)
 class SplashFirstDiagnostic:
     """Identify one source location that violates splash-first startup."""
 
@@ -52,85 +47,6 @@ class SplashFirstDiagnostic:
     line: int
     code: str
     message: str
-
-
-def repository_contracts() -> tuple[SplashFirstContract, ...]:
-    """Return the authoritative executable startup contracts."""
-
-    stdlib_roots = frozenset(
-        {
-            "__future__",
-            "collections",
-            "logging",
-            "os",
-            "pathlib",
-            "sys",
-            "time",
-            "typing",
-        }
-    )
-    return (
-        SplashFirstContract(
-            relative_path=Path("main.py"),
-            function_name="main",
-            boundary_call="start_early_launch_splash",
-            allowed_module_import_roots=stdlib_roots,
-            allowed_pre_boundary_imports=frozenset(
-                {
-                    "substitute.app.bootstrap.early_launch_splash",
-                    "sugarsubstitute_shared.localization",
-                }
-            ),
-            allowed_pre_boundary_calls=frozenset(
-                {
-                    "Path",
-                    "Path.resolve",
-                    "_enter_application_launch_guard",
-                    "resolve",
-                    "resolve_early_startup_locale",
-                    "start_early_launch_splash",
-                    "system_ui_languages",
-                    "time.perf_counter",
-                }
-            ),
-        ),
-        SplashFirstContract(
-            relative_path=Path("launcher/sugarsubstitute_launcher/app.py"),
-            function_name="main",
-            boundary_call="start_launcher_splash_session",
-            allowed_module_import_roots=stdlib_roots,
-            allowed_pre_boundary_imports=frozenset(
-                {
-                    "launcher.sugarsubstitute_launcher.active_instance_dialog",
-                    "launcher.sugarsubstitute_launcher.application_launch",
-                    "launcher.sugarsubstitute_launcher.cli",
-                    "launcher.sugarsubstitute_launcher.localization",
-                    "launcher.sugarsubstitute_launcher.splash_session",
-                    "launcher.sugarsubstitute_launcher.startup_plan",
-                    "sugarsubstitute_shared.localization",
-                }
-            ),
-            allowed_pre_boundary_calls=frozenset(
-                {
-                    "Path",
-                    "Path.cwd",
-                    "_frozen_invocation_path",
-                    "_frozen_support_path",
-                    "_native_frozen_executable_path",
-                    "begin_installed_application_launch",
-                    "format_locale_argument",
-                    "launch_session.claim_application",
-                    "launch_session.release",
-                    "negotiate_active_application",
-                    "parse_launcher_args",
-                    "resolve_launcher_locale",
-                    "resolve_startup_candidate",
-                    "should_attempt_installed_app_launch",
-                    "start_launcher_splash_session",
-                }
-            ),
-        ),
-    )
 
 
 def validate_repository(repository_root: Path) -> tuple[SplashFirstDiagnostic, ...]:
@@ -154,7 +70,88 @@ def validate_repository(repository_root: Path) -> tuple[SplashFirstDiagnostic, .
         diagnostics.extend(
             validate_contract_source(source, contract=contract, path=path)
         )
-    return tuple(diagnostics)
+    for dependency_contract in repository_dependency_contracts():
+        path = repository_root / dependency_contract.relative_path
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as error:
+            diagnostics.append(
+                SplashFirstDiagnostic(
+                    path,
+                    1,
+                    "SPLASH001",
+                    f"cannot read protected splash dependency: {error}",
+                )
+            )
+            continue
+        diagnostics.extend(
+            validate_dependency_source(
+                source,
+                contract=dependency_contract,
+                path=path,
+            )
+        )
+    return tuple(sorted(diagnostics, key=lambda item: (item.line, item.message)))
+
+
+def validate_dependency_source(
+    source: str,
+    *,
+    contract: SplashDependencyContract,
+    path: Path,
+) -> tuple[SplashFirstDiagnostic, ...]:
+    """Reject heavyweight or full-shell imports from the pre-paint closure."""
+
+    module = ast.parse(source, filename=str(path))
+    diagnostics: list[SplashFirstDiagnostic] = []
+    inspected_nodes: list[ast.AST] = [
+        statement for statement in module.body if not _is_type_checking_block(statement)
+    ]
+    if contract.function_name is not None and contract.boundary_call is not None:
+        function = find_function(module, contract.function_name)
+        boundary_calls = (
+            ()
+            if function is None
+            else tuple(
+                call
+                for call in calls_without_nested_functions(function)
+                if call_name(call) == contract.boundary_call
+            )
+        )
+        if function is None or len(boundary_calls) != 1:
+            diagnostics.append(
+                SplashFirstDiagnostic(
+                    path,
+                    1 if function is None else function.lineno,
+                    "SPLASH001",
+                    (
+                        "protected dependency function must contain exactly one "
+                        f"{contract.boundary_call}() paint boundary"
+                    ),
+                )
+            )
+            return tuple(diagnostics)
+        inspected_nodes.extend(nodes_on_boundary_path(function, boundary_calls[0]))
+
+    seen_import_nodes: set[int] = set()
+    for imported_name, node in imports(inspected_nodes):
+        if id(node) in seen_import_nodes:
+            continue
+        seen_import_nodes.add(id(node))
+        if not any(
+            imported_name == prefix or imported_name.startswith(f"{prefix}.")
+            for prefix in contract.forbidden_import_prefixes
+        ):
+            continue
+        diagnostics.append(
+            SplashFirstDiagnostic(
+                path,
+                node.lineno,
+                "SPLASH006",
+                f"forbidden pre-paint dependency {imported_name!r}",
+            )
+        )
+    return tuple(sorted(diagnostics, key=lambda item: (item.line, item.message)))
 
 
 def validate_contract_source(
@@ -302,7 +299,9 @@ def _module_execution_diagnostics(
             continue
         if _is_type_checking_block(statement) or _is_main_dispatch(
             statement,
-            function_name=contract.function_name,
+            allowed_calls=(
+                contract.allowed_module_dispatch_calls | {contract.function_name}
+            ),
         ):
             continue
         for call in calls((statement,)):
@@ -330,13 +329,13 @@ def _is_type_checking_block(statement: ast.stmt) -> bool:
     )
 
 
-def _is_main_dispatch(statement: ast.stmt, *, function_name: str) -> bool:
+def _is_main_dispatch(statement: ast.stmt, *, allowed_calls: frozenset[str]) -> bool:
     """Return whether one statement only dispatches the protected entrypoint."""
 
     if not isinstance(statement, ast.If) or statement.orelse:
         return False
     statement_calls = tuple(calls(statement.body))
-    return len(statement_calls) == 1 and call_name(statement_calls[0]) == function_name
+    return len(statement_calls) == 1 and call_name(statement_calls[0]) in allowed_calls
 
 
 def _matches_import(imported_name: str, allowed_names: frozenset[str]) -> bool:
@@ -349,9 +348,8 @@ def _matches_import(imported_name: str, allowed_names: frozenset[str]) -> bool:
 
 
 __all__ = [
-    "SplashFirstContract",
     "SplashFirstDiagnostic",
-    "repository_contracts",
     "validate_contract_source",
+    "validate_dependency_source",
     "validate_repository",
 ]

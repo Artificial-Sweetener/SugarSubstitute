@@ -14,15 +14,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Test shared splash-host locale argument normalization."""
+"""Test shared splash-host argument parsing before first presentation."""
 
 from __future__ import annotations
 
 from substitute.app.bootstrap.shared_splash_host import _parse_args
 
 
-def test_splash_host_locale_argument_uses_shared_validation() -> None:
-    """Normalize the launcher or direct-app handoff before creating widgets."""
+def test_splash_host_defers_locale_resolution_until_after_first_paint() -> None:
+    """Preserve the raw locale without loading catalogs before presentation."""
 
-    assert _parse_args(["--locale=zh_CN"]).locale == "zh-Hans"
-    assert _parse_args(["--locale=ja-JP"]).locale == "ja"
+    assert _parse_args(["--locale=zh_CN"]).locale == "zh_CN"
+    assert _parse_args(["--locale=ja-JP"]).locale == "ja-JP"
+    assert _parse_args([]).locale is None
+
+
+def test_splash_host_has_no_slow_operation_lifetime_timeout_by_default() -> None:
+    """Production splash ownership should continue until completion or failure."""
+
+    assert _parse_args([]).maximum_lifetime_seconds == 0.0

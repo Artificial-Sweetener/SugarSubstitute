@@ -27,15 +27,15 @@ import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.splash_session import (
+    LauncherSplashSession,
     append_splash_session_args,
     start_launcher_splash_session,
 )
-from sugarsubstitute_shared.application_launch_guard import (
-    APPLICATION_LAUNCH_TOKEN_ENV,
-)
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
-    subprocess_working_directory,
+)
+from sugarsubstitute_shared.launch_splash.timing import (
+    SPLASH_HOST_EXIT_TIMEOUT_SECONDS,
 )
 
 
@@ -53,7 +53,6 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "token": "x" * 32,
         "host_pid": 1234,
     }
-    monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "app-only-token")
 
     def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
         """Record host process creation and return a ready fake process."""
@@ -63,8 +62,8 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
 
     session = start_launcher_splash_session(
         layout=layout,
-        locale_identifier="ja",
-        popen=cast(Any, _fake_popen),
+        locale_override="ja",
+        process_starter=cast(Any, _fake_popen),
     )
 
     assert session is not None
@@ -80,9 +79,16 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "substitute.app.bootstrap.shared_splash_host",
         "--locale=ja",
     ]
-    assert calls[0]["cwd"] == subprocess_working_directory(layout.root)
-    assert calls[0]["env"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
-    assert APPLICATION_LAUNCH_TOKEN_ENV not in calls[0]["env"]
+    assert calls[0]["cwd"] == layout.root
+    assert calls[0]["environment"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
+    assert (
+        int(
+            calls[0]["environment"][
+                "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
+            ]
+        )
+        > 0
+    )
 
 
 def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
@@ -103,8 +109,8 @@ def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
     assert (
         start_launcher_splash_session(
             layout=layout,
-            locale_identifier="en",
-            popen=cast(Any, _fake_popen),
+            locale_override="en",
+            process_starter=cast(Any, _fake_popen),
         )
         is None
     )
@@ -121,10 +127,73 @@ def test_append_splash_session_args_preserves_command_without_session() -> None:
     ]
 
 
-class _FakeProcess:
-    """Provide the subset of `Popen[str]` used by splash session startup tests."""
+def test_splash_cancellation_is_scoped_to_its_authenticated_session(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A different splash's cancellation cannot cancel this launch."""
+    import tempfile
+    from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
+    from sugarsubstitute_shared.launch_splash.session import (
+        SplashSessionSpec,
+        splash_cancel_signal_path,
+    )
 
-    def __init__(self, *, stdout: str) -> None:
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    spec = SplashSessionSpec(
+        host="127.0.0.1", port=49152, token="a" * 32, host_pid=1234
+    )
+    other = SplashSessionSpec(
+        host="127.0.0.1", port=49153, token="b" * 32, host_pid=1235
+    )
+    session = LauncherSplashSession(
+        client=SocketSplashSessionClient(spec),
+        app_arguments=(),
+        host_pid=1234,
+        process=cast(Any, _FakeProcess(stdout="")),
+    )
+    assert not session.cancellation_requested()
+    splash_cancel_signal_path(other).write_text("cancel\n", encoding="utf-8")
+    assert not session.cancellation_requested()
+    splash_cancel_signal_path(spec).write_text("cancel\n", encoding="utf-8")
+    assert session.cancellation_requested()
+
+
+def test_unacknowledged_splash_close_terminates_the_owned_process() -> None:
+    """An unresponsive splash can never survive its launcher-owned handoff."""
+
+    process = _FakeProcess(stdout="", wait_times_out_while_running=True)
+    session = LauncherSplashSession(
+        client=cast(Any, _UnresponsiveClient()),
+        app_arguments=(),
+        host_pid=1234,
+        process=cast(Any, process),
+    )
+
+    session.close()
+
+    assert process.terminated
+    assert process.wait_timeouts == [SPLASH_HOST_EXIT_TIMEOUT_SECONDS, 2.0]
+
+
+class _UnresponsiveClient:
+    """Reject the splash closure request without raising."""
+
+    def close(self) -> bool:
+        """Report that the GUI never applied closure."""
+
+        return False
+
+
+class _FakeProcess:
+    """Provide the process-control and text-pipe boundary used by splash startup."""
+
+    def __init__(
+        self,
+        *,
+        stdout: str,
+        wait_times_out_while_running: bool = False,
+    ) -> None:
         """Create fake text pipes."""
 
         self.stdout = StringIO(stdout)
@@ -132,6 +201,7 @@ class _FakeProcess:
         self.terminated = False
         self.killed = False
         self.wait_timeouts: list[float] = []
+        self.wait_times_out_while_running = wait_times_out_while_running
 
     def poll(self) -> int | None:
         """Report the fake process as running until it is terminated."""
@@ -153,4 +223,12 @@ class _FakeProcess:
 
         if timeout is not None:
             self.wait_timeouts.append(timeout)
+        if (
+            self.wait_times_out_while_running
+            and not self.terminated
+            and not self.killed
+        ):
+            import subprocess
+
+            raise subprocess.TimeoutExpired("splash", timeout or 0.0)
         return 0

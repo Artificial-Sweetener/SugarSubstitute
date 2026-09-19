@@ -214,7 +214,7 @@ class ManagedComfyDirectOutputHarness:
                 job_started_at=datetime.now().astimezone(),
             ),
             workflow_payload=projection.prompt,
-            sugar_script="",
+            persistence_sugar_script="",
             cube_numbers_by_alias={},
         )
         client_id = f"substitute-harness-{uuid4().hex}"
@@ -384,10 +384,10 @@ class ManagedComfyDirectOutputHarness:
             if isinstance(definition, Mapping)
         }
 
-    def image_template_root(self) -> Path:
-        """Return image workflow templates installed beside this Comfy runtime."""
+    def workflow_template_root(self) -> Path:
+        """Return workflow JSON templates installed beside this Comfy runtime."""
 
-        return self._layout.image_template_root()
+        return self._layout.workflow_template_root()
 
     def _wait_until_ready(self) -> None:
         """Wait for isolated Comfy startup or surface its complete log."""

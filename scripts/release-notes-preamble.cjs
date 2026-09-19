@@ -22,7 +22,7 @@ const DEFAULT_REPOSITORY = "Artificial-Sweetener/SugarSubstitute";
  * Build the installer guidance prepended to every GitHub Release description.
  *
  * @param {string} repository GitHub repository in owner/name form.
- * @param {string} version Semantic release version without a tag prefix.
+ * @param {string} version Release version without a tag prefix.
  * @param {string} channel Published release channel.
  * @returns {string} Markdown release guidance.
  */
@@ -53,13 +53,11 @@ function createInstallerReleaseNotes(repository, version, channel = "stable") {
     ...canaryWarning,
     heading,
     "",
-    "Download the installer for your platform:",
+    "Windows x64 is currently the only actively supported platform.",
     "",
     `- <img src="${iconRoot}/windows.svg" width="18" height="18" alt=""> [Windows x64 installer](${assetRoot}/SugarSubstitute-${normalizedVersion}-Windows-x64-Setup.exe)`,
-    `- <img src="${iconRoot}/apple.svg" width="18" height="18" alt=""> [macOS Apple Silicon installer](${assetRoot}/SugarSubstitute-${normalizedVersion}-macOS-Apple-Silicon.dmg)`,
-    `- <img src="${iconRoot}/linux.svg" width="18" height="18" alt=""> [Linux x86_64 AppImage installer](${assetRoot}/SugarSubstitute-${normalizedVersion}-Linux-x86_64.AppImage) or [Debian package](${assetRoot}/SugarSubstitute-${normalizedVersion}-Linux-amd64.deb)`,
     "",
-    "The macOS installer is ad-hoc signed but not notarized. macOS will warn that it cannot verify the developer, so allow it through Privacy & Security after downloading it from this repository.",
+    "**Linux and macOS support is temporarily suspended.** Builds and automated platform validation are paused because we do not currently have dedicated testers. We intend to resume support after maintainer validation; there is no restart date yet. Earlier Linux and macOS packages remain unvalidated and are not recommended for use.",
     "",
     updateGuidance,
     "",
@@ -97,13 +95,13 @@ function validateRepository(repository) {
 /**
  * Reject version values that cannot safely form the release tag and asset URLs.
  *
- * @param {string} version Candidate semantic version.
+ * @param {string} version Candidate release version.
  * @returns {string} Validated version without a tag prefix.
  */
 function validateVersion(version) {
   const normalized = String(version).trim().replace(/^v/, "");
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(normalized)) {
-    throw new Error(`Expected a semantic release version: ${version}`);
+  if (!/^\d+\.\d+\.\d+(?:\.\d+)*(?:-[0-9A-Za-z.-]+)?$/.test(normalized)) {
+    throw new Error(`Expected a release version: ${version}`);
   }
   return normalized;
 }

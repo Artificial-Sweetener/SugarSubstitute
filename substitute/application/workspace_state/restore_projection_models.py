@@ -25,7 +25,7 @@ from typing import Protocol
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import WorkflowDocumentKind
 
-RESTORE_PROJECTION_CACHE_SCHEMA_VERSION = 3
+RESTORE_PROJECTION_CACHE_SCHEMA_VERSION = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,10 +113,14 @@ class CachedWorkflowProjection:
     def __post_init__(self) -> None:
         """Reject cache records whose payload contradicts their document kind."""
 
-        expects_cube = self.document_kind is WorkflowDocumentKind.CUBE_STACK
+        expects_cube = self.document_kind in {
+            WorkflowDocumentKind.CUBE_STACK,
+            WorkflowDocumentKind.COMFY_CUBE_GRAPH,
+        }
+        expects_direct = self.document_kind is WorkflowDocumentKind.DIRECT_COMFY
         if expects_cube != (self.cube_stack is not None):
             raise ValueError("Cached workflow cube-stack payload is inconsistent.")
-        if expects_cube == (self.direct_workflow is not None):
+        if expects_direct != (self.direct_workflow is not None):
             raise ValueError("Cached workflow direct payload is inconsistent.")
 
 

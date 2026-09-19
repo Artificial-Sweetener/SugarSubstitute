@@ -62,6 +62,6 @@ def test_run_saves_prefixed_cube_output_with_short_source_label(
     assert output_events[0].file_path == (
         tmp_path / "2026-05-01" / "007_01_my_workflow_text_to_image.png"
     )
-    assert output_events[0].source_key == "wf-1:output-node"
+    assert output_events[0].source_key == "cube:Text to Image"
     assert output_events[0].source_label == "Text to Image"
     assert "sdxl_text_to_image" not in str(output_events[0].file_path)

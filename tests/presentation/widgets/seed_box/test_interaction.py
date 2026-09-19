@@ -47,7 +47,8 @@ def test_mode_menu_is_attached_to_toggle_aware_split_button() -> None:
     widget = SeedBox()
 
     assert isinstance(widget.split_button, ToggleSplitToolButton)
-    assert widget.split_button._attached_popup is widget.menu
+    assert widget.split_button._menu_controller is not None
+    assert widget.split_button._menu_controller.menu() is widget.menu
     assert widget.random_action.property("menuActionId") == "seed.randomize"
     assert widget.fixed_action.property("menuActionId") == "seed.use_current"
     destroy_qt_object(widget)

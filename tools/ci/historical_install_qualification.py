@@ -57,7 +57,11 @@ def prepare_portable_historical_install(
         command,
         cwd=installer_path.resolve().parent,
         environment=dict(os.environ if environment is None else environment),
-        timeout_seconds=_remaining_timeout(deadline, phase="historical installer"),
+        timeout_seconds=_remaining_timeout(
+            deadline,
+            phase="historical installer",
+            maximum_seconds=timeout_seconds,
+        ),
     )
     if result.returncode != 0:
         raise InstallerLifecycleError(
@@ -74,6 +78,7 @@ def prepare_portable_historical_install(
         timeout_seconds=_remaining_timeout(
             deadline,
             phase="historical managed configuration",
+            maximum_seconds=timeout_seconds,
         ),
     )
     print(
@@ -156,10 +161,15 @@ def _read_json(path: Path) -> dict[str, object]:
     return payload
 
 
-def _remaining_timeout(deadline: float, *, phase: str) -> float:
+def _remaining_timeout(
+    deadline: float,
+    *,
+    phase: str,
+    maximum_seconds: float,
+) -> float:
     """Return the positive budget remaining for one historical install phase."""
 
-    remaining = deadline - time.monotonic()
+    remaining = min(maximum_seconds, deadline - time.monotonic())
     if remaining <= 0:
         raise InstallerLifecycleError(
             f"Historical installation exhausted its timeout before {phase}."

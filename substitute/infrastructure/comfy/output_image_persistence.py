@@ -65,7 +65,7 @@ class OutputImagePersistence:
         *,
         output_save_plan: OutputSavePlan,
         workflow_payload: Mapping[str, object],
-        sugar_script: str,
+        persistence_sugar_script: str | None,
         cube_numbers_by_alias: Mapping[str, int],
         output_path_renderer: OutputPathTemplateRenderer | None = None,
         jpeg_encoder: JpegCompanionEncoder | None = None,
@@ -74,7 +74,7 @@ class OutputImagePersistence:
 
         self._output_save_plan = output_save_plan
         self._workflow_payload = workflow_payload
-        self._sugar_script = sugar_script
+        self._persistence_sugar_script = persistence_sugar_script
         self._cube_numbers_by_alias = dict(cube_numbers_by_alias)
         self._output_path_renderer = (
             output_path_renderer or OutputPathTemplateRenderer()
@@ -162,8 +162,11 @@ class OutputImagePersistence:
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             png_metadata = PngImagePlugin.PngInfo()
-            headered_script = f"# Project: {workflow_name}\n\n{self._sugar_script}"
-            png_metadata.add_text("sugar_script", headered_script)
+            if self._persistence_sugar_script:
+                headered_script = (
+                    f"# Project: {workflow_name}\n\n{self._persistence_sugar_script}"
+                )
+                png_metadata.add_text("sugar_script", headered_script)
             workflow_metadata = workflow_metadata_json(self._workflow_payload)
             if workflow_metadata is not None:
                 png_metadata.add_text("workflow", workflow_metadata)
@@ -261,12 +264,22 @@ class OutputImagePersistence:
 
 
 def workflow_metadata_json(workflow_payload: Mapping[str, object]) -> str | None:
-    """Return Comfy UI workflow metadata JSON from a wrapped Sugar payload."""
+    """Return Comfy UI workflow metadata from wrapped or canonical graph payloads."""
 
     workflow = workflow_payload.get("workflow")
+    if not isinstance(workflow, Mapping) and _is_canonical_workflow(workflow_payload):
+        workflow = workflow_payload
     if not isinstance(workflow, Mapping):
         return None
     return json.dumps(workflow, separators=(",", ":"))
+
+
+def _is_canonical_workflow(value: Mapping[str, object]) -> bool:
+    """Recognize a serialized Comfy workflow without confusing execution prompts."""
+
+    return isinstance(value.get("nodes"), list) and isinstance(
+        value.get("definitions"), Mapping
+    )
 
 
 def _reserve_png_jpeg_pair(path: Path, *, include_jpeg: bool) -> Path:

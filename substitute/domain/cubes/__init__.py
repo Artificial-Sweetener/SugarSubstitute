@@ -34,8 +34,12 @@ from substitute.domain.cubes.subgraph_wrappers import (
     UUID_CLASS_PATTERN,
     is_subgraph_wrapper_class_type,
 )
+from substitute.domain.cubes.editable_document import (
+    project_editable_cube_document,
+)
 
 __all__ = [
+    "project_editable_cube_document",
     "CubeAuthoringContract",
     "CubeAuthoringContractError",
     "CanonicalCubeDocument",

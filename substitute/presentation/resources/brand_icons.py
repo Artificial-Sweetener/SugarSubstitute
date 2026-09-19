@@ -21,6 +21,17 @@ from __future__ import annotations
 from pathlib import Path
 
 QT_LOGO_ICON_PATH = Path(__file__).resolve().parent / "icons" / "QtLogoNeon.png"
+CIVITAI_BADGE_ICON_PATH = Path(__file__).resolve().parent / "icons" / "CivitaiBadge.svg"
+
+
+def civitai_badge_icon_path() -> Path:
+    """Return the official CivitAI badge used for provider identification."""
+
+    if not CIVITAI_BADGE_ICON_PATH.is_file():
+        raise FileNotFoundError(
+            f"Missing CivitAI badge asset: {CIVITAI_BADGE_ICON_PATH}"
+        )
+    return CIVITAI_BADGE_ICON_PATH
 
 
 def qt_logo_icon_path() -> Path:
@@ -31,4 +42,9 @@ def qt_logo_icon_path() -> Path:
     return QT_LOGO_ICON_PATH
 
 
-__all__ = ["QT_LOGO_ICON_PATH", "qt_logo_icon_path"]
+__all__ = [
+    "CIVITAI_BADGE_ICON_PATH",
+    "QT_LOGO_ICON_PATH",
+    "civitai_badge_icon_path",
+    "qt_logo_icon_path",
+]

@@ -45,6 +45,13 @@ class SessionFinalizationControllerProtocol(Protocol):
         """Prepare and submit one terminal session save."""
 
 
+class UnsavedWorkControllerProtocol(Protocol):
+    """Authorize app shutdown after resolving dirty workflows."""
+
+    def confirm_shutdown(self) -> bool:
+        """Return whether shutdown may proceed."""
+
+
 class ShellSessionFinalizationAdapter:
     """Resolve terminal persistence through the currently authoritative shell."""
 
@@ -69,6 +76,21 @@ class ShellSessionFinalizationAdapter:
         return controller.prepare_session_finalization(
             SessionFinalizationReason.SHUTDOWN
         )
+
+    def confirm_shutdown(self, source_shell: object | None) -> bool:
+        """Resolve dirty workflows for window-close and external repair requests."""
+
+        shell = source_shell if source_shell is not None else self._current_shell()
+        if shell is None:
+            return True
+        main_window = self._main_window_for_shell(shell)
+        if main_window is None:
+            return True
+        controller = getattr(main_window, "unsaved_work_controller", None)
+        confirm = getattr(controller, "confirm_shutdown", None)
+        if not callable(confirm):
+            return True
+        return bool(confirm())
 
     def begin_gui_reload(
         self,

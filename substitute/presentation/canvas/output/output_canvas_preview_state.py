@@ -46,6 +46,7 @@ def output_revision_cache(host: object) -> OutputCanvasRevisionCache:
 
     cache = getattr(host, "_revision_cache", None)
     if isinstance(cache, OutputCanvasRevisionCache):
+        cache.session = getattr(host, "_output_session", None)
         return cache
     cache = OutputCanvasRevisionCache(
         registry=output_preview_registry(host),

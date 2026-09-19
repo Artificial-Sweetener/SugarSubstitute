@@ -32,8 +32,10 @@ class LauncherBundleTarget:
     bundle_root: Path
     executable_relative_path: Path
     support_relative_path: Path
+    required_file_relative_paths: tuple[Path, ...]
     replacement_roots: tuple[Path, ...]
     executable_mode: int | None
+    repair_executable_relative_path: Path | None = None
 
 
 WINDOWS_X64_BUNDLE = LauncherBundleTarget(
@@ -41,8 +43,17 @@ WINDOWS_X64_BUNDLE = LauncherBundleTarget(
     bundle_root=Path("."),
     executable_relative_path=Path("SugarSubstitute.exe"),
     support_relative_path=Path("launcher-bin"),
-    replacement_roots=(Path("SugarSubstitute.exe"), Path("launcher-bin")),
+    required_file_relative_paths=(
+        Path("SugarSubstitute.exe"),
+        Path("launcher-bin") / "LauncherUi.exe",
+        Path("launcher-bin") / "Repair.exe",
+    ),
+    replacement_roots=(
+        Path("SugarSubstitute.exe"),
+        Path("launcher-bin"),
+    ),
     executable_mode=None,
+    repair_executable_relative_path=Path("launcher-bin") / "Repair.exe",
 )
 MACOS_ARM64_BUNDLE = LauncherBundleTarget(
     key="macos_arm64",
@@ -51,6 +62,9 @@ MACOS_ARM64_BUNDLE = LauncherBundleTarget(
         Path("SugarSubstitute.app") / "Contents" / "MacOS" / "SugarSubstitute"
     ),
     support_relative_path=(Path("SugarSubstitute.app") / "Contents" / "Frameworks"),
+    required_file_relative_paths=(
+        Path("SugarSubstitute.app") / "Contents" / "MacOS" / "SugarSubstitute",
+    ),
     replacement_roots=(Path("SugarSubstitute.app"),),
     executable_mode=0o755,
 )
@@ -59,6 +73,7 @@ LINUX_X64_BUNDLE = LauncherBundleTarget(
     bundle_root=Path("."),
     executable_relative_path=Path("SugarSubstitute"),
     support_relative_path=Path("launcher-bin"),
+    required_file_relative_paths=(Path("SugarSubstitute"),),
     replacement_roots=(Path("SugarSubstitute"), Path("launcher-bin")),
     executable_mode=0o755,
 )

@@ -36,8 +36,10 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
 from substitute.application.workflows.output_preview_registry import (
-    OutputPreviewAcceptance,
     OutputPreviewRegistry,
+)
+from substitute.application.workflows.output_preview_results import (
+    OutputPreviewAcceptance,
 )
 from substitute.application.workflows.output_canvas_state_service import (
     OutputPreviewCloseIdentity,
@@ -75,6 +77,10 @@ class OutputCanvas(QWidget):
     scene_count: int
     set_count: int
     _output_projection: OutputCanvasProjection | None
+    _output_session: OutputCanvasSession | None
+    _preview_registry: OutputPreviewRegistry
+    _preview_navigation: Any
+    _document_navigation: Any
     _set_picker: Any
     _scene_picker: Any
     _source_picker: Any
@@ -172,6 +178,15 @@ class OutputCanvas(QWidget):
         ...
     def clear_previews(self, source_key: str | None = None) -> None:
         """Retire transient previews for one source or all sources."""
+        ...
+    def present_preview_selection(self, preview_id: UUID) -> None:
+        """Present one user-selected transient placeholder."""
+        ...
+    def present_preview_grid(self, image_ids: tuple[UUID, ...]) -> None:
+        """Present one user-selected grid containing a transient placeholder."""
+        ...
+    def release_preview_navigation(self) -> None:
+        """Return navigation ownership to durable final outputs."""
         ...
     def set_canvas_detached(self, detached: bool) -> None:
         """Set manager-owned canvas attachment state."""

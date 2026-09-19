@@ -23,10 +23,15 @@ from pathlib import Path
 from typing import cast
 from uuid import UUID
 
+from PySide6.QtWidgets import QWidget
+
 from substitute.domain.common import MaskAssociationKey
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
+)
+from substitute.presentation.editor.panel.panel_workflow_projection import (
+    workflow_for_panel,
 )
 
 type _MaskColorProvider = Callable[[int, int], object]
@@ -42,6 +47,7 @@ class InputMaterializationPresenter:
         *,
         input_document: object,
         active_workflow: Callable[[], WorkflowState | None],
+        active_panel: Callable[[], object | None],
         mask_color: _MaskColorProvider,
         refresh_scalar_mask: _ScalarMaskRefresh,
         refresh_ordered_mask: _OrderedMaskRefresh,
@@ -52,6 +58,7 @@ class InputMaterializationPresenter:
 
         self._input_document = input_document
         self._active_workflow = active_workflow
+        self._active_panel = active_panel
         self._mask_color = mask_color
         self._refresh_scalar_mask = refresh_scalar_mask
         self._refresh_ordered_mask = refresh_ordered_mask
@@ -61,16 +68,26 @@ class InputMaterializationPresenter:
     def apply(self, result: object, *, projects_dir: Path | None = None) -> None:
         """Apply one materialization result without assuming widget-local paths."""
 
+        workflow = self._active_workflow()
+        panel = self._active_panel()
+        panel_owns_workflow = (
+            workflow is not None
+            and isinstance(panel, QWidget)
+            and workflow_for_panel(panel) is workflow
+        )
         live_mask_previews = (
-            frozenset()
-            if self._preview_coordinator is None
-            else self._preview_coordinator.bind_materialization(result)
+            self._preview_coordinator.bind_materialization(
+                result, panel=cast(QWidget, panel)
+            )
+            if self._preview_coordinator is not None
+            and panel is not None
+            and panel_owns_workflow
+            else frozenset()
         )
         raw_mask_results = getattr(result, "mask_results", ())
         mask_results = (
             tuple(raw_mask_results) if isinstance(raw_mask_results, Iterable) else ()
         )
-        workflow = self._active_workflow()
         association_keys: set[MaskAssociationKey] = set()
         for index, mask_result in enumerate(mask_results):
             mask_id = getattr(mask_result, "mask_id", None)

@@ -41,7 +41,10 @@ from substitute.application.generation import (
     VisualAuthorizationService,
     WorkflowProgressService,
 )
-from substitute.application.workflows import WorkflowSessionService
+from substitute.application.workflows import (
+    OutputSceneRunService,
+    WorkflowSessionService,
+)
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
@@ -62,9 +65,10 @@ from substitute.presentation.shell.generation_feedback_presenter import (
 from substitute.presentation.shell.generation_feedback_sink import (
     ShellGenerationFeedbackSink,
 )
-from substitute.presentation.shell.main_window_composition import (
+from substitute.presentation.shell.main_window_output_composition import (
     compose_output_canvas_controllers,
 )
+
 from substitute.presentation.shell.main_window_dependencies import (
     InstallationPathBundle,
 )
@@ -153,7 +157,7 @@ class _HarnessShell(QMainWindow):
         self.editor_busy = SimpleNamespace(
             refresh_active_surface=lambda *_args, **_kwargs: None
         )
-        self.output_scene_run_service = SimpleNamespace(run_for_id=lambda _run_id: None)
+        self.output_scene_run_service = OutputSceneRunService()
         self._comfy_output_stream = TerminalOutputStream(max_lines=50)
         self._taskbar_progress_presenter = SimpleNamespace(
             clear_progress=lambda: None,
@@ -351,6 +355,7 @@ class _CanvasIoService:
         list_index: int | None = None,
         batch_index: int | None = None,
         generation_run_id: str | None = None,
+        output_session_id: str | None = None,
         prompt_id: str | None = None,
         client_id: str | None = None,
         scene_run_id: str | None = None,
@@ -374,6 +379,9 @@ class _CanvasIoService:
             source_label=source_label,
             node_id=node_id,
             generation_run_id=generation_run_id or "",
+            output_session_id=(
+                output_session_id or scene_run_id or generation_run_id or ""
+            ),
             prompt_id=prompt_id or "",
             client_id=client_id or "",
             scene_run_id=scene_run_id or "",

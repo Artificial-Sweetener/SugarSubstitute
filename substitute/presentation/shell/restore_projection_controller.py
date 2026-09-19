@@ -401,10 +401,10 @@ class RestoreProjectionController:
         def finish_projection() -> None:
             """Bind document entries only after their production node widgets exist."""
 
-            presenter = getattr(self._shell, "input_canvas_presenter", None)
-            bind_previews = getattr(presenter, "bind_active_node_previews", None)
+            coordinator = getattr(self._shell, "input_node_preview_coordinator", None)
+            bind_previews = getattr(coordinator, "bind_panel", None)
             if callable(bind_previews):
-                bind_previews()
+                bind_previews(self._shell.active_editor_panel)
             on_complete()
 
         self._shell.active_workflow_surface_refresher.refresh_active_workflow_surface(

@@ -18,8 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.recipes.sugar_ast import (
-    GlobalOverrideSerializationScope,
     LoadedRecipeDocument,
     ParsedSugarScript,
     RecipeSourceKind,
@@ -41,6 +41,7 @@ from substitute.domain.recipes.sugar_script_parser import (
     parse_sugar_script_document,
 )
 from substitute.domain.recipes.sugar_script_serializer import (
+    SugarScriptCubeConnection,
     SugarScriptLabelResolver,
     SugarScriptSerializationError,
     SugarScriptSerializationRequest,
@@ -49,7 +50,7 @@ from substitute.domain.recipes.sugar_script_serializer import (
 
 __all__ = [
     "ParsedSugarScript",
-    "GlobalOverrideSerializationScope",
+    "GlobalOverrideScope",
     "LoadedRecipeDocument",
     "RecipeSourceKind",
     "SugarBuffer",
@@ -63,6 +64,7 @@ __all__ = [
     "restore_recipe_cube_state",
     "strip_recipe_buffers",
     "SugarScriptLabelResolver",
+    "SugarScriptCubeConnection",
     "SugarScriptSerializationError",
     "SugarScriptSerializationRequest",
     "SugarScriptSerializer",

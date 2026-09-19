@@ -32,6 +32,7 @@ from launcher.sugarsubstitute_launcher.platforms import (
     detect_launcher_target,
 )
 from sugarsubstitute_shared.windows_long_paths import operational_path
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 
 
 _MAX_PACKAGED_ROOT_ANCESTORS = 6
@@ -45,6 +46,7 @@ class LauncherStartupPlan:
     installed_config_found: bool
     installed_config_valid: bool
     config_error: str | None = None
+    runtime_setup_pending: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,17 +109,31 @@ def resolve_startup_candidate(
     invocation_path: Path | None = None,
     native_executable_path: Path | None = None,
     working_directory_path: Path | None = None,
+    launcher_ui_child: bool = False,
 ) -> LauncherStartupCandidate:
-    """Find a possible installed layout without reading its configuration."""
+    """Find configuration or recoverable installation work without reading either."""
 
     if explicit_install_root is not None:
         layout = InstallLayout.from_root(explicit_install_root)
         return LauncherStartupCandidate(
             layout=layout,
-            installed_config_found=False,
+            installed_config_found=(
+                (
+                    launcher_ui_child
+                    or _matches_installed_executable(executable_path, layout.target)
+                )
+                and layout.config_path.is_file()
+            ),
         )
 
     target = detect_launcher_target()
+    repair_root = target.install_root_for_repair_executable(executable_path)
+    if repair_root is not None:
+        layout = InstallLayout.from_root(repair_root, target=target)
+        return LauncherStartupCandidate(
+            layout=layout,
+            installed_config_found=layout.config_path.is_file(),
+        )
     candidate_roots: list[Path] = []
     installed_invocation = _matches_installed_executable(invocation_path, target)
     installed_native_executable = _matches_installed_executable(
@@ -160,10 +176,13 @@ def resolve_startup_candidate(
         if candidate_layout.root in checked_roots:
             continue
         checked_roots.add(candidate_layout.root)
-        if candidate_layout.config_path.is_file():
+        if (
+            candidate_layout.config_path.is_file()
+            or InstallationRecovery(candidate_layout).pending
+        ):
             return LauncherStartupCandidate(
                 layout=candidate_layout,
-                installed_config_found=True,
+                installed_config_found=candidate_layout.config_path.is_file(),
             )
 
     return LauncherStartupCandidate(
@@ -260,6 +279,7 @@ def _resolve_installed_config_plan(layout: InstallLayout) -> LauncherStartupPlan
         layout=layout,
         installed_config_found=True,
         installed_config_valid=True,
+        runtime_setup_pending=config.runtime_setup_pending,
     )
 
 
@@ -275,6 +295,7 @@ def should_launch_installed_app(
     return (
         startup_plan.installed_config_found
         and startup_plan.installed_config_valid
+        and not startup_plan.runtime_setup_pending
         and is_installed_app_launchable(startup_plan.layout)
     )
 
@@ -300,6 +321,13 @@ def should_show_repair(
     if args.repair or app_launch_error is not None:
         return True
     if args.continue_install:
+        return False
+    if (
+        startup_plan.installed_config_valid
+        and startup_plan.runtime_setup_pending
+        and startup_plan.layout.app_entrypoint.is_file()
+        and (startup_plan.layout.app_dir / "requirements.txt").is_file()
+    ):
         return False
     return startup_plan.installed_config_found
 

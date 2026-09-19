@@ -38,8 +38,13 @@ def _seed_sources(
         harness.activate_workflow(alias)
     harness.show_canvas("Output")
     expected_count = 0
+    output_session_id = f"scene-run-{alias}"
     for scene_index in range(3):
-        run = harness.start_run(alias, run_index=scene_index + 1)
+        run = harness.start_run(
+            alias,
+            run_index=scene_index + 1,
+            output_session_id=output_session_id,
+        )
         scene = SceneSpec(
             run_id=f"scene-run-{alias}",
             key=f"scene{scene_index + 1}",
@@ -173,17 +178,23 @@ def _enter_source_grid(
     """Enter a scene grid through its rendered tile and source tabs."""
 
     alias = source_key.partition(":")[0]
-    harness.click_canvas_image(harness.output_representative_id_for_scene("scene3"))
-    harness.wait_until(
-        lambda: (
-            harness.fingerprint().workflow_output_routes[
-                harness.workflows[alias].workflow_id
-            ][:2]
-            == ("scene3", False)
+    route = harness.fingerprint().workflow_output_routes[
+        harness.workflows[alias].workflow_id
+    ]
+    if route[1]:
+        harness.click_canvas_image(harness.output_representative_id_for_scene("scene3"))
+        harness.wait_until(
+            lambda: (
+                harness.fingerprint().workflow_output_routes[
+                    harness.workflows[alias].workflow_id
+                ][:2]
+                == ("scene3", False)
+            )
         )
-    )
     if harness.fingerprint().active_source_tab_key != source_key:
         harness.click_output_source_tab(source_key)
+    if harness.shell.output_canvas.active_set_index != 0:
+        harness.select_output_set(0)
     harness.wait_until(
         lambda: (
             {placement[1] for placement in harness.fingerprint().grid_target_frames}

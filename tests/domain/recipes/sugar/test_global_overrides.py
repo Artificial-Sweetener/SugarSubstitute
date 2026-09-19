@@ -22,7 +22,7 @@ from collections import OrderedDict
 from substitute.domain.recipes.sugar_script_parser import (
     parse_sugar_script_document,
 )
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from tests.domain.recipes.sugar.serialization_support import serialize_sugar_script
 
 
@@ -143,7 +143,7 @@ def test_partial_global_override_scope_emits_metadata_and_participant_set_lines(
         ordered,
         global_overrides={"sampler_name": {"value": "heun", "mode": "global"}},
         global_override_scopes={
-            "sampler_name": GlobalOverrideSerializationScope(
+            "sampler_name": GlobalOverrideScope(
                 override_key="sampler_name",
                 value="heun",
                 mode="global",

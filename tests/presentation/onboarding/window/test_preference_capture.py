@@ -48,7 +48,6 @@ def test_onboarding_window_reads_folder_fields_before_navigation(
     """Folder setup should store custom roots before leaving the page."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -66,7 +65,7 @@ def test_onboarding_window_reads_folder_fields_before_navigation(
     )
     monkeypatch.setattr(window, "_show_page", lambda _page_id: None)
     window._current_page = OnboardingPageId.FOLDERS
-    model_root = tmp_path / "Models"
+    model_root = tmp_path / "WebUI" / "models"
     output_root = tmp_path / "Images"
 
     window.folder_setup_page.managed_model_root_edit.setText(str(model_root))
@@ -89,7 +88,6 @@ def test_onboarding_window_collects_integration_toggles_and_api_key(
     """Integration setup should collect toggles and keep the API key short-lived."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -135,7 +133,6 @@ def test_managed_runtime_preferences_survive_draft_refresh_during_advance(
     """Managed advanced choices should be captured before controller refreshes."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

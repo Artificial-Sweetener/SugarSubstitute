@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol, cast
+from typing import Literal, Protocol
 from uuid import uuid4
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -38,12 +38,29 @@ from substitute.application.execution import (
 from substitute.application.generation.failure_summary import (
     summarize_generation_failure,
 )
+from substitute.application.generation.dispatch_availability import (
+    GenerationDispatchAvailability,
+)
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
     GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
+)
+from substitute.application.generation.queued_generation_request_factory import (
+    prepared_request_from_queue_snapshot,
+)
+from substitute.application.generation.queue_models import (
+    GenerationJobLifecycleAction,
+    GenerationJobLifecycleEvent,
+    GenerationJobLifecycleObserver,
+    GenerationQueueBatchEntry,
+    GenerationQueueChangeKind,
+    GenerationQueueStateChange,
+    QueueObserver,
+    QueueBatchContext,
+    QueueProjectionCacheKey,
 )
 from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
@@ -73,9 +90,6 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning,
 )
-
-if TYPE_CHECKING:
-    from substitute.application.recipes.recipe_io_service import WorkflowLike
 
 _LOGGER = get_logger("application.generation.job_queue_service")
 ACTIVE_GENERATION_JOB_STATUSES = frozenset({"dispatching", "comfy_pending", "running"})
@@ -117,67 +131,6 @@ class OutputRunProjectionCacheKeyProvider(Protocol):
 
     def output_run_projection_cache_key(self, *, now: datetime) -> Hashable:
         """Return a key that changes when pending output projection may change."""
-
-
-GenerationQueueChangeKind = Literal["structural", "progress"]
-QueueObserver = Callable[["GenerationQueueStateChange"], None]
-GenerationJobLifecycleAction = Literal[
-    "enqueued",
-    "dispatching",
-    "running",
-    "output",
-    "completed",
-    "failed",
-    "skipped",
-    "cancelled",
-]
-
-
-@dataclass(frozen=True, slots=True)
-class GenerationJobLifecycleEvent:
-    """Describe one queue lifecycle transition with its generation snapshot."""
-
-    action: GenerationJobLifecycleAction
-    job: GenerationQueueJob
-
-
-@dataclass(frozen=True, slots=True)
-class GenerationQueueStateChange:
-    """Describe one queue publication for UI and action projection."""
-
-    jobs: tuple[GenerationQueueJob, ...]
-    change_kind: GenerationQueueChangeKind
-    changed_job_id: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class QueueProjectionCacheKey:
-    """Identify one valid projected queue state."""
-
-    queue_revision: int
-    output_projection_key: Hashable
-
-
-@dataclass(frozen=True, slots=True)
-class GenerationQueueBatchEntry:
-    """Pair one prepared snapshot with its queue callbacks for batched insertion."""
-
-    snapshot: GenerationJobSnapshot
-    callbacks: GenerationCallbacks
-
-
-@dataclass(frozen=True, slots=True)
-class QueueBatchContext:
-    """Describe one queue insertion transaction for logging and diagnostics."""
-
-    snapshot_count: int
-    scene_run_id: str | None
-    scene_count: int | None
-    workflow_id: str | None
-    workflow_name: str | None
-
-
-GenerationJobLifecycleObserver = Callable[[GenerationJobLifecycleEvent], None]
 
 
 class GenerationJobQueueService:
@@ -242,6 +195,13 @@ class GenerationJobQueueService:
         self._active_job_id: str | None = None
         self._dispatch_tokens_by_job_id: dict[str, str] = {}
         self._dispatch_request_id = 0
+        self._dispatch_availability = GenerationDispatchAvailability(
+            resume_dispatch=self._schedule_dispatch_next_if_idle,
+            pending_job_count=lambda: sum(
+                job.status == "pending" for job in self._jobs
+            ),
+            active_job_id=lambda: self._active_job_id,
+        )
         self._is_shutdown = False
 
     def add_observer(self, observer: QueueObserver) -> None:
@@ -254,6 +214,16 @@ class GenerationJobQueueService:
                 change_kind="structural",
             )
         )
+
+    def set_dispatch_available(self, available: bool) -> None:
+        """Hold pending work while Comfy cannot accept generation requests."""
+
+        self._dispatch_availability.set_available(available)
+
+    def set_connection_lost_handler(self, handler: Callable[[], None]) -> None:
+        """Bind the outage transition that must precede listener failure advance."""
+
+        self._dispatch_availability.bind_connection_lost_handler(handler)
 
     def remove_observer(self, observer: QueueObserver) -> None:
         """Unregister one queue observer when a shell surface is disposed."""
@@ -608,7 +578,6 @@ class GenerationJobQueueService:
         self._queue_projection_revision += 1
         self._projected_jobs_cache = None
         self._projected_jobs_cache_key = None
-        pass
 
     def cube_execution_duration_ms(
         self,
@@ -922,6 +891,8 @@ class GenerationJobQueueService:
 
         if self._is_shutdown:
             return
+        if not self._dispatch_availability.available:
+            return
         if self._active_job_id is not None:
             return
         next_job = next(
@@ -952,19 +923,10 @@ class GenerationJobQueueService:
         )
         self._notify_structural_observers(changed_job_id=committed_job.job_id)
         self._notify_lifecycle(committed_job.job_id, "dispatching")
-        request = PreparedGenerationRequest(
-            workflow_id=committed_job.snapshot.workflow_id,
-            workflow_name=committed_job.snapshot.workflow_name,
-            sugar_script_text=committed_job.snapshot.sugar_script_text,
-            direct_workflow_plan=committed_job.snapshot.direct_workflow_plan,
-            workflow=cast("WorkflowLike | None", committed_job.snapshot.workflow),
+        request = prepared_request_from_queue_snapshot(
+            committed_job.snapshot,
             output_run_number=committed_job.output_run_number,
-            output_job_started_at=job_started_at,
-            scene_run_id=committed_job.snapshot.scene_run_id,
-            scene_key=committed_job.snapshot.scene_key,
-            scene_title=committed_job.snapshot.scene_title,
-            scene_order=committed_job.snapshot.scene_order,
-            scene_count=committed_job.snapshot.scene_count,
+            job_started_at=job_started_at,
         )
         wrapped_callbacks = self._wrap_callbacks(committed_job.job_id, callbacks)
         if self._dispatch_scope is not None:
@@ -1341,6 +1303,9 @@ class GenerationJobQueueService:
         job = self._job_by_id(job_id)
         if job is None or job.status in TERMINAL_GENERATION_JOB_STATUSES:
             return
+        self._dispatch_availability.report_listener_failure(
+            connection_lost=failure.connection_lost
+        )
         self._mark_failed(job_id, failure.message, detail=failure.detail)
         callbacks.on_failure(failure)
 

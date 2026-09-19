@@ -89,6 +89,13 @@ class StartupExecutionRuntimeProtocol(Protocol):
         """Release execution runtime resources."""
 
 
+class StartupManagedComfyRuntimeProtocol(Protocol):
+    """Expose managed Comfy restart orchestration shutdown."""
+
+    def close(self) -> None:
+        """Cancel pending managed Comfy restart orchestration."""
+
+
 class StartupCacheRuntimeProtocol(Protocol):
     """Expose process-lifetime cache fallback cleanup."""
 
@@ -102,6 +109,10 @@ class StartupRuntimeServicesProtocol(Protocol):
     @property
     def execution_runtime(self) -> StartupExecutionRuntimeProtocol:
         """Return the process-lifetime execution runtime."""
+
+    @property
+    def managed_comfy_runtime_owner(self) -> StartupManagedComfyRuntimeProtocol:
+        """Return the process-lifetime managed Comfy runtime owner."""
 
     @property
     def persistent_cache_runtime(self) -> StartupCacheRuntimeProtocol:
@@ -127,6 +138,7 @@ def run_startup_event_loop_and_shutdown(
     trace_mark("startup.event_loop.exit", exit_code=exit_code)
     close_launch_splash_for_shutdown(splash)
     startup_resources.shutdown_all()
+    close_managed_comfy_runtime(runtime_services.managed_comfy_runtime_owner)
     trace_mark("startup.shutdown.cleanup.start")
     shutdown_runtime.cleanup()
     trace_mark("startup.shutdown.cleanup.end")
@@ -159,6 +171,17 @@ def shutdown_execution_runtime(
         log_exception(_LOGGER, "Failed to shut down execution runtime")
 
 
+def close_managed_comfy_runtime(
+    runtime_owner: StartupManagedComfyRuntimeProtocol,
+) -> None:
+    """Cancel managed restart work before shutting down its execution lane."""
+
+    try:
+        runtime_owner.close()
+    except Exception:
+        log_exception(_LOGGER, "Failed to close managed Comfy runtime owner")
+
+
 def close_persistent_cache_runtime(
     cache_runtime: StartupCacheRuntimeProtocol,
 ) -> None:
@@ -186,11 +209,13 @@ __all__ = [
     "StartupCacheRuntimeProtocol",
     "StartupResourceRegistryProtocol",
     "StartupExecutionRuntimeProtocol",
+    "StartupManagedComfyRuntimeProtocol",
     "StartupRuntimeServicesProtocol",
     "StartupShellReloadProtocol",
     "StartupShutdownRuntimeProtocol",
     "StartupSplashProtocol",
     "close_launch_splash_for_shutdown",
+    "close_managed_comfy_runtime",
     "close_persistent_cache_runtime",
     "run_startup_event_loop_and_shutdown",
 ]

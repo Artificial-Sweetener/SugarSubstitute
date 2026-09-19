@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -31,8 +31,9 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 )
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.field_actions import FieldActionContext
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     create_prompt_editor,
@@ -40,6 +41,7 @@ from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     process_events,
 )
 from tests.support.prompt_editor.projection_engine_support import surface_for
+from substitute.presentation.widgets.menu_model import MenuItem
 
 pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
 
@@ -73,6 +75,47 @@ class _RecordingClipboardActions:
         self.calls.append("select_all")
 
 
+def test_prompt_field_actions_exclude_generic_editing_commands(
+    prompt_widgets: list[QWidget],
+) -> None:
+    """The node-menu contribution should contain prompt-domain actions only."""
+
+    editor = create_prompt_editor(prompt_widgets)
+    editor.setPlainText("alpha beta")
+    cursor = editor.textCursor()
+    cursor.setPosition(5)
+    editor.setTextCursor(cursor)
+
+    assert editor.field_actions_available() is True
+    entries = editor.field_action_entries(FieldActionContext(QPoint(20, 30)))
+    action_ids = {entry.action_id for entry in entries if isinstance(entry, MenuItem)}
+
+    assert "prompt.rich_rendering.toggle" in action_ids
+    assert action_ids.isdisjoint(
+        {
+            "prompt.undo",
+            "prompt.redo",
+            "prompt.cut",
+            "prompt.copy",
+            "prompt.paste",
+            "prompt.select_all",
+        }
+    )
+    insert_state = cast(Any, editor)._shell_context_menu.consume_context_insert_state()
+    assert insert_state.insert_position == 5
+    assert insert_state.should_replace_selection is False
+
+    cursor.setPosition(0)
+    cursor.setPosition(5, QTextCursor.MoveMode.KeepAnchor)
+    editor.setTextCursor(cursor)
+    editor.field_action_entries(FieldActionContext(QPoint(20, 30)))
+    selection_state = cast(
+        Any, editor
+    )._shell_context_menu.consume_context_insert_state()
+    assert selection_state.insert_position is None
+    assert selection_state.should_replace_selection is True
+
+
 def test_prompt_editor_context_menu_select_all_selects_full_source(
     monkeypatch: pytest.MonkeyPatch,
     prompt_widgets: list[QWidget],
@@ -89,7 +132,7 @@ def test_prompt_editor_context_menu_select_all_selects_full_source(
 
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     select_all_action = next(
@@ -105,8 +148,8 @@ def test_prompt_editor_context_menu_owns_clipboard_rows_without_qfluent_text_men
 ):
     """Prompt clipboard rows should not inherit QFluent's text-edit menu behavior."""
 
-    assert issubclass(_PromptEditorTextEditMenu, RoundMenu)
-    assert not issubclass(_PromptEditorTextEditMenu, TextEditMenu)
+    assert issubclass(PromptTextMenu, RoundMenu)
+    assert not issubclass(PromptTextMenu, TextEditMenu)
 
 
 def test_prompt_editor_context_menu_clipboard_rows_use_shared_controller(
@@ -137,7 +180,7 @@ def test_prompt_editor_context_menu_clipboard_rows_use_shared_controller(
     monkeypatch.setattr(PromptEditor, "paste", fail_parent_clipboard_method)
     monkeypatch.setattr(PromptEditor, "selectAll", fail_parent_clipboard_method)
 
-    menu = _PromptEditorTextEditMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     actions = {action.text(): action for action in menu.menuActions()}
 
@@ -192,7 +235,7 @@ def test_prompt_editor_context_menu_clipboard_row_clicks_call_the_shared_actions
     QApplication.clipboard().setText("omega")
     clipboard_actions = _RecordingClipboardActions()
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         clipboard_actions=clipboard_actions,
@@ -251,7 +294,7 @@ def test_prompt_editor_context_menu_clipboard_click_and_shortcut_share_controlle
 
     monkeypatch.setattr(controller_type, method_name, record_controller_call)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = _PromptEditorTextEditMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     action = next(action for action in menu.menuActions() if action.text() == row_text)
     item = next(
@@ -377,7 +420,7 @@ def test_prompt_editor_context_menu_undo_redo_follow_custom_stack(
 
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
 
     clean_menu = menu_type(editor, schedule_lora=lambda: None)
     clean_menu.exec(editor.mapToGlobal(editor.rect().center()))
@@ -420,7 +463,7 @@ def test_prompt_editor_context_menu_copy_restores_exclusive_selection_end(
     cursor.setPosition(len("see-through dres"), QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,

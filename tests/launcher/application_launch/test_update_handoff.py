@@ -14,36 +14,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify update decisions at the launcher-to-application handoff boundary."""
+"""Verify update decisions remain inside the elected supervisor lifetime."""
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
-from unittest.mock import ANY
-from unittest.mock import Mock
+from typing import Any, cast
 
 import pytest
 
-from launcher.sugarsubstitute_launcher import app as launcher_app
-from launcher.sugarsubstitute_launcher import installed_app_handoff
-from launcher.sugarsubstitute_launcher import splash_session as splash_session_module
-from launcher.sugarsubstitute_launcher.application_launch import (
-    InstalledApplicationLaunchSession,
+from launcher.sugarsubstitute_launcher import (
+    application_launch,
+    installed_application_supervisor,
+    installed_app_handoff,
 )
-from launcher.sugarsubstitute_launcher.config import (
-    DEFAULT_RELEASE_MANIFEST_URL,
-    LauncherConfig,
+from launcher.sugarsubstitute_launcher.application_release_selection import (
+    ApplicationReleaseSelection,
 )
+from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
-from launcher.sugarsubstitute_launcher.update_activation import (
-    PendingUpdateActivation,
-)
-from sugarsubstitute_shared.application_launch_guard import (
-    APPLICATION_LAUNCH_TOKEN_ENV,
+from launcher.sugarsubstitute_launcher.update_orchestrator import (
+    PreLaunchUpdateResult,
 )
 from sugarsubstitute_shared.application_runtime_mode import (
     APPLICATION_RUNTIME_MODE_ENV,
@@ -52,284 +47,293 @@ from sugarsubstitute_shared.application_runtime_mode import (
 from sugarsubstitute_shared.startup_remote_access import (
     STARTUP_REMOTE_DEGRADED_ENV,
 )
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
-from tests.launcher.support import write_launcher_executable
 
 
-@pytest.mark.parametrize(
-    ("failure_reason", "expected_degraded_value"),
-    [(None, None), ("URLError", "1")],
-)
-def test_launcher_main_runs_pre_launch_update_before_app_handoff(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    failure_reason: str | None,
-    expected_degraded_value: str | None,
-) -> None:
-    """Installed launches should hand update degradation to the app child."""
+class _Broker:
+    """Authorize child environments and expose deterministic restart state."""
+
+    def __init__(self, restarts: Sequence[bool] = ()) -> None:
+        """Store the restart decisions consumed after child exits."""
+
+        self._restarts = iter(restarts)
+
+    def bind_startup_presenter(self, presenter: object) -> None:
+        """Accept presentation registration at the broker boundary."""
+
+    def child_environment(self, environment: Mapping[str, str]) -> dict[str, str]:
+        """Mark one environment as authenticated by the supervisor."""
+
+        child = dict(environment)
+        child["TEST_INSTANCE_BROKER"] = "connected"
+        return child
+
+    def consume_restart_request(self) -> bool:
+        """Return the next prepared restart decision."""
+
+        return next(self._restarts, False)
+
+
+def _layout(tmp_path: Path) -> InstallLayout:
+    """Create the configuration needed by installed handoff orchestration."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    write_launcher_executable(layout)
-    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
-    layout.app_entrypoint.write_text("", encoding="utf-8")
-    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
-    layout.runtime_python.write_text("", encoding="utf-8")
-    calls: list[str] = []
-    child_environments: list[dict[str, str]] = []
-    progress_client = object()
-    splash_session = SimpleNamespace(
-        client=progress_client,
-        app_arguments=("--splash-session-endpoint=127.0.0.1:49152",),
+    LauncherConfig.from_layout(layout=layout, release_source=None).save(
+        layout.config_path
+    )
+    return layout
+
+
+def test_application_child_environment_replaces_legacy_release_paths(
+    tmp_path: Path,
+) -> None:
+    """Bind Python startup to the selected generation after a launcher handoff."""
+
+    layout = _layout(tmp_path)
+    generation = "a" * 32
+    selection = ApplicationReleaseSelection(layout.root)
+    release_root = selection.prepare(generation=generation, version="2.0.0")
+    candidate_app = release_root / "app"
+    candidate_package = candidate_app / "fixture_package"
+    candidate_package.mkdir(parents=True)
+    (candidate_app / "sitecustomize.py").write_text(
+        "import fixture_package\n", encoding="utf-8"
+    )
+    (candidate_package / "__init__.py").write_text("", encoding="utf-8")
+    (candidate_package / "candidate_only.py").write_text("", encoding="utf-8")
+    (release_root / "runtime").mkdir()
+    selection.activate(generation=generation)
+    legacy_app = layout.root / "app"
+    legacy_package = legacy_app / "fixture_package"
+    legacy_package.mkdir(parents=True)
+    (legacy_app / "sitecustomize.py").write_text(
+        "import fixture_package\n", encoding="utf-8"
+    )
+    (legacy_package / "__init__.py").write_text("", encoding="utf-8")
+
+    environment = application_launch.installed_application_environment(
+        _Broker(),  # type: ignore[arg-type]
+        layout=layout,
+        remote_failure_reason=None,
+        environment={"PYTHONPATH": str(legacy_app)},
     )
 
-    def record_app_start(
-        command: Sequence[str],
-        *,
-        environment: Mapping[str, str],
-    ) -> None:
-        """Record launch ordering and the app child's private environment."""
+    assert environment["PYTHONPATH"] == str(release_root / "app")
+    assert environment["VIRTUAL_ENV"] == str(release_root / "runtime" / ".venv")
+    assert environment["PYTHONPATH"] != str(legacy_app)
+    import_probe = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", "import fixture_package.candidate_only"],
+        cwd=layout.root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60.0,
+    )
+    assert import_probe.returncode == 0, import_probe.stderr
 
-        calls.extend(["launch", *command])
-        child_environments.append(dict(environment))
 
-    class _FakeUpdateOrchestrator:
-        """Record pre-launch update orchestration."""
+def test_normal_handoff_supervises_restarts_with_the_same_broker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A child restart should create another child, never another launcher."""
 
-        def run(self, **kwargs: object) -> object:
-            """Record update arguments before app launch."""
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
+    layout = _layout(tmp_path)
+    broker = _Broker((True, False))
+    environments: list[dict[str, str]] = []
 
-            calls.append("update")
-            assert kwargs["layout"] == layout
-            assert isinstance(kwargs["config"], LauncherConfig)
-            assert isinstance(kwargs["release_source"], GitHubReleaseSource)
-            assert kwargs["release_source"].manifest_url == DEFAULT_RELEASE_MANIFEST_URL
-            assert kwargs["release_source"].timeout_seconds == 3.0
-            assert kwargs["no_update_check"] is False
-            assert kwargs["progress"] is progress_client
-            from launcher.sugarsubstitute_launcher.update_orchestrator import (
-                PreLaunchUpdateResult,
-            )
+    class _NoUpdate:
+        """Skip remote work while retaining normal launch orchestration."""
+
+        def run(self, **_kwargs: object) -> PreLaunchUpdateResult:
+            """Return a normal no-update result."""
+
+            return PreLaunchUpdateResult(False, False, skipped_reason="disabled")
+
+    class _Supervisor:
+        """Record each full child lifetime."""
+
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
+
+        def supervise(self, **kwargs: object) -> int:
+            """Capture the authenticated environment."""
+
+            environment = kwargs["environment"]
+            assert isinstance(environment, Mapping)
+            environments.append(dict(environment))
+            return 0
+
+    monkeypatch.setattr(installed_app_handoff, "LauncherUpdateOrchestrator", _NoUpdate)
+    monkeypatch.setattr(
+        installed_application_supervisor, "ApplicationLifecycleSupervisor", _Supervisor
+    )
+
+    installed_app_handoff.complete_installed_app_handoff(
+        layout=layout,
+        broker=broker,  # type: ignore[arg-type]
+        locale_argument="--locale=en",
+        no_update_check=True,
+        splash_session=None,
+        handoff_geometry=None,
+    )
+
+    assert len(environments) == 2
+    assert all(item["TEST_INSTANCE_BROKER"] == "connected" for item in environments)
+    assert all(
+        item[APPLICATION_RUNTIME_MODE_ENV] == PACKAGED_APPLICATION_RUNTIME_MODE
+        for item in environments
+    )
+
+
+def test_update_failure_state_is_forwarded_without_a_lock_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Carry sticky remote degradation through the broker-owned child channel."""
+
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
+    layout = _layout(tmp_path)
+    captured: list[dict[str, str]] = []
+
+    class _FailedUpdate:
+        """Represent a best-effort pre-launch network failure."""
+
+        def run(self, **_kwargs: object) -> PreLaunchUpdateResult:
+            """Return the degradation reason handed to the child."""
 
             return PreLaunchUpdateResult(
                 checked_manifest=True,
                 installed_update=False,
-                failure_reason=failure_reason,
+                failure_reason="URLError",
+                connectivity_failure=True,
             )
 
-    def record_splash_start(**_kwargs: object) -> object:
-        """Record that visibility precedes logging, updates, and app handoff."""
+    class _Supervisor:
+        """Capture the single degraded child environment."""
 
-        calls.append("splash")
-        return splash_session
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
 
-    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
-    monkeypatch.setenv(STARTUP_REMOTE_DEGRADED_ENV, "1")
+        def supervise(self, **kwargs: object) -> int:
+            """Record the environment and finish the child lifetime."""
+
+            environment = kwargs["environment"]
+            assert isinstance(environment, Mapping)
+            captured.append(dict(environment))
+            return 0
+
     monkeypatch.setattr(
         installed_app_handoff,
         "LauncherUpdateOrchestrator",
-        _FakeUpdateOrchestrator,
+        _FailedUpdate,
     )
     monkeypatch.setattr(
-        splash_session_module,
-        "start_launcher_splash_session",
-        record_splash_start,
-    )
-    monkeypatch.setattr(
-        launcher_app,
-        "_configure_normal_logging",
-        lambda _startup_plan: calls.append("logging"),
-    )
-    monkeypatch.setattr(
-        installed_app_handoff,
-        "start_detached",
-        record_app_start,
-    )
-    monkeypatch.setattr(
-        InstalledApplicationLaunchSession,
-        "wait_for_application_owner",
-        lambda self: pytest.fail(
-            "A completed handoff must not be reclassified through a late lease probe."
-        ),
-        raising=False,
-    )
-    monkeypatch.setattr(
-        launcher_app,
-        "LauncherMainWindow",
-        lambda **_kwargs: pytest.fail("Installed launch must not show setup UI."),
+        installed_application_supervisor, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
-    assert launcher_app.main([]) == 0
-    assert calls == [
-        "splash",
-        "logging",
-        "update",
-        "launch",
-        subprocess_path(layout.runtime_python),
-        subprocess_path(layout.app_entrypoint),
-        f"--install-root={subprocess_path(layout.root)}",
-        "--locale=en",
-        "--splash-session-endpoint=127.0.0.1:49152",
-    ]
-    assert len(child_environments) == 1
-    assert APPLICATION_LAUNCH_TOKEN_ENV in child_environments[0]
-    assert (
-        child_environments[0][APPLICATION_RUNTIME_MODE_ENV]
-        == PACKAGED_APPLICATION_RUNTIME_MODE
-    )
-    assert (
-        child_environments[0].get(STARTUP_REMOTE_DEGRADED_ENV)
-        == expected_degraded_value
+    installed_app_handoff.complete_installed_app_handoff(
+        layout=layout,
+        broker=_Broker(),  # type: ignore[arg-type]
+        locale_argument="--locale=en",
+        no_update_check=False,
+        splash_session=None,
+        handoff_geometry=None,
     )
 
+    assert captured[0][STARTUP_REMOTE_DEGRADED_ENV] == "1"
 
-def test_launcher_accepts_completed_candidate_handoff_without_late_lease_probe(
+
+@pytest.mark.parametrize("schedule_failure", [False, True])
+def test_launcher_update_handoff_preserves_app_until_helper_starts(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    schedule_failure: bool,
 ) -> None:
-    """A proven update must not become a launcher repair after its handoff."""
+    """Transfer ownership only after helper creation; otherwise retain the app."""
 
-    from launcher.sugarsubstitute_launcher.update_orchestrator import (
-        PreLaunchUpdateResult,
-    )
-
-    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    write_launcher_executable(layout)
-    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
-    layout.app_entrypoint.write_text("", encoding="utf-8")
-    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
-    layout.runtime_python.write_text("", encoding="utf-8")
-    activation = Mock(spec=PendingUpdateActivation)
-    candidate_launches: list[dict[str, object]] = []
-
-    class _PreparedUpdateOrchestrator:
-        """Return an application update awaiting candidate activation."""
-
-        def run(self, **_kwargs: object) -> PreLaunchUpdateResult:
-            """Return one prepared update to the installed handoff owner."""
-
-            return PreLaunchUpdateResult(
-                checked_manifest=True,
-                installed_update=True,
-                pending_activation=activation,
-                attempted_version="0.22.1",
-            )
-
-    def record_candidate_launch(**kwargs: object) -> None:
-        """Represent a candidate whose visible-shell proof already completed."""
-
-        candidate_launches.append(kwargs)
-
-    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
-        installed_app_handoff,
-        "LauncherUpdateOrchestrator",
-        _PreparedUpdateOrchestrator,
-    )
-    monkeypatch.setattr(
-        installed_app_handoff,
-        "launch_prepared_update",
-        record_candidate_launch,
-    )
-    monkeypatch.setattr(
-        splash_session_module,
+        installed_application_supervisor,
         "start_launcher_splash_session",
-        lambda **_kwargs: None,
+        lambda **_: None,
     )
-    monkeypatch.setattr(
-        InstalledApplicationLaunchSession,
-        "wait_for_application_owner",
-        lambda self: pytest.fail(
-            "A completed candidate must not be reclassified by a late lease probe."
-        ),
-        raising=False,
-    )
-    monkeypatch.setattr(
-        launcher_app,
-        "LauncherMainWindow",
-        lambda **_kwargs: pytest.fail("A proven candidate must not open repair UI."),
-    )
-
-    assert launcher_app.main([]) == 0
-    assert len(candidate_launches) == 1
-    assert candidate_launches[0]["layout"] == layout
-    assert candidate_launches[0]["attempted_version"] == "0.22.1"
-    assert candidate_launches[0]["activation"] is activation
-
-
-def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """A staged launcher update should replace, relaunch, then start the app."""
-
-    from launcher.sugarsubstitute_launcher.update_orchestrator import (
-        PreLaunchUpdateResult,
-    )
-
-    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
-    write_launcher_executable(layout)
-    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
-    layout.app_entrypoint.write_text("", encoding="utf-8")
-    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
-    layout.runtime_python.write_text("", encoding="utf-8")
+    layout = _layout(tmp_path)
     closed: list[bool] = []
-    splash_session = SimpleNamespace(
+    scheduled: list[dict[str, object]] = []
+    splash = SimpleNamespace(
         client=SimpleNamespace(close=lambda: closed.append(True)),
         app_arguments=(),
+        close=lambda: closed.append(True),
     )
-    scheduled: list[dict[str, object]] = []
 
-    def schedule_update(**kwargs: object) -> int:
-        """Record the detached launcher update handoff."""
-
-        scheduled.append(kwargs)
-        return 1234
-
-    class _FakeUpdateOrchestrator:
-        """Return one pending launcher request."""
+    class _LauncherUpdate:
+        """Return one staged launcher replacement request."""
 
         def run(self, **_kwargs: object) -> PreLaunchUpdateResult:
-            """Return the staged update result."""
+            """Stop app handoff at the stable launcher replacement boundary."""
 
             return PreLaunchUpdateResult(
                 checked_manifest=True,
                 installed_update=True,
-                launcher_update_request_path=str(layout.launcher_update_request_path),
+                launcher_update_request_path=str(
+                    (layout.launcher_dir / "updates" / "fixture-request.json")
+                ),
             )
 
-    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
         installed_app_handoff,
         "LauncherUpdateOrchestrator",
-        _FakeUpdateOrchestrator,
-    )
-    monkeypatch.setattr(
-        splash_session_module,
-        "start_launcher_splash_session",
-        lambda *, layout, locale_identifier: splash_session,
-    )
-    monkeypatch.setattr(
-        installed_app_handoff,
-        "schedule_launcher_update",
-        schedule_update,
-    )
-    monkeypatch.setattr(
-        installed_app_handoff,
-        "start_detached",
-        lambda _command: pytest.fail("The old launcher must not start the app."),
+        _LauncherUpdate,
     )
 
-    assert launcher_app.main([]) == 0
-    assert closed == [True]
-    assert scheduled == [
-        {
-            "request_path": layout.launcher_update_request_path,
-            "runtime_python": layout.runtime_python,
-            "app_dir": layout.app_dir,
-            "relaunch": True,
-            "wait_pid": ANY,
-        }
-    ]
+    def schedule(**kwargs: object) -> int:
+        """Inject an OS launch denial before any updater owns the installation."""
+        scheduled.append(kwargs)
+        if schedule_failure:
+            raise PermissionError("The operating system denied helper creation")
+        return 42
+
+    continued: list[bool] = []
+
+    class InstalledSupervisor:
+        """Observe the installed application boundary after optional update failure."""
+
+        def __init__(self, **kwargs: object) -> None:
+            """Retain failure attribution for normal application startup."""
+            assert kwargs["remote_failure_reason"] is None
+
+        def supervise(self, **kwargs: object) -> None:
+            """Require the original splash to remain usable for normal startup."""
+            assert schedule_failure
+            assert kwargs["splash_session"] is splash
+            assert closed == []
+            continued.append(True)
+
+    monkeypatch.setattr(installed_app_handoff, "schedule_launcher_update", schedule)
+    monkeypatch.setattr(
+        installed_app_handoff, "InstalledApplicationSupervisor", InstalledSupervisor
+    )
+
+    installed_app_handoff.complete_installed_app_handoff(
+        layout=layout,
+        broker=_Broker(),  # type: ignore[arg-type]
+        locale_argument="--locale=en",
+        no_update_check=False,
+        splash_session=cast(Any, splash),
+        handoff_geometry=None,
+    )
+
+    assert closed == ([] if schedule_failure else [True])
+    assert continued == ([True] if schedule_failure else [])
+    assert scheduled[0]["request_path"] == (
+        layout.launcher_dir / "updates" / "fixture-request.json"
+    )

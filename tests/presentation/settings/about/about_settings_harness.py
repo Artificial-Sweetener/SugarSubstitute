@@ -192,18 +192,6 @@ def about_snapshot(qpane_version: str) -> AboutInfoSnapshot:
                 ),
             ),
             AboutVersionRow(
-                component_key="SugarDSL",
-                label="Sugar-DSL",
-                value="0.2.0",
-                status=AboutVersionStatus.AVAILABLE,
-                subtitle=(
-                    "The scripting language for composing ComfyUI workflows "
-                    "with SugarCubes"
-                ),
-                authors="Artificial Sweetener",
-                external_url="https://github.com/Artificial-Sweetener/Sugar-DSL",
-            ),
-            AboutVersionRow(
                 component_key="QPane",
                 label="QPane",
                 value=qpane_version,

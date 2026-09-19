@@ -30,7 +30,7 @@ from substitute.presentation.dialogs.full_window_modal import (
     FullWindowModalBase,
     resolve_full_window_modal_owner,
 )
-import substitute.presentation.dialogs.full_window_modal_titlebar_bridge as titlebar_bridge_module
+import sugarsubstitute_shared.presentation.full_window_modal_titlebar_bridge as titlebar_bridge_module
 from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 
 

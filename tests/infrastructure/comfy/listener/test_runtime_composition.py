@@ -133,7 +133,7 @@ def test_listener_runtime_composition_builds_default_connection_context() -> Non
     assert runtime.progress_context.client_id == "client-1"
     assert runtime.cube_output_node_ids == {"2"}
     assert source_identity.node_id == "2"
-    assert source_identity.source_key == "wf-1:2"
+    assert source_identity.source_key == "cube:CubeA"
     assert source_identity.cube_alias == "CubeA"
 
 
@@ -192,7 +192,7 @@ def _request(workflow_payload: dict[str, object]) -> ListenerStartRequest:
         ),
         output_dir=Path("out"),
         workflow_payload=workflow_payload,
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         workflow_id="wf-1",
         workflow_name="Workflow",
     )

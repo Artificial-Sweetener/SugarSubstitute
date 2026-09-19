@@ -26,6 +26,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tests.launcher.installation_workflow.support import (
+    advance_to_install_location,
     close_and_delete_launcher_window,
     release_source_for_test,
     wait_for_launcher_condition,
@@ -95,13 +96,14 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
         ),
     )
 
+    advance_to_install_location(window)
     window.view.primary_button.click()
     window.view.primary_button.click()
     wait_for_launcher_condition(
         application,
         lambda: (
             "Could not install the Python runtime."
-            in window.view.progress_log.log_view.toPlainText()
+            in window.view.status_panel.progress_log.log_view.toPlainText()
             and not window.execution.setup_running
         ),
         state=lambda: {
@@ -109,15 +111,17 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
             "primary_text": window.view.primary_button.text(),
             "initial_running": window.execution.initial_running,
             "setup_running": window.execution.setup_running,
-            "log": window.view.progress_log.log_view.toPlainText(),
+            "log": window.view.status_panel.progress_log.log_view.toPlainText(),
         },
     )
 
     assert handoff_commands == []
+    assert window.view.status_panel.progress_bar.value() == 2
+    assert window.view.status_panel.progress_bar.maximum() == 4
     assert window.view.primary_button.text() == "Install runtime"
     assert window.view.primary_button.isEnabled() is True
     assert (
         "Could not install the Python runtime."
-        in window.view.progress_log.log_view.toPlainText()
+        in window.view.status_panel.progress_log.log_view.toPlainText()
     )
     close_and_delete_launcher_window(window)

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QCoreApplication, QObject, QTimer, Qt, Slot
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QAbstractButton
 
 from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
@@ -56,7 +57,33 @@ class InstallerQualificationDriver(QObject):
     def schedule(self) -> None:
         """Queue automation after the installer has entered the Qt event loop."""
 
-        QTimer.singleShot(0, self._click_install)
+        QTimer.singleShot(0, self._accept_language)
+
+    @Slot()
+    def _accept_language(self) -> None:
+        """Accept the visible manifest-backed language before install choices."""
+
+        try:
+            button = self._window.view.primary_button
+            selector = self._window.view.language_combo
+            if (
+                self._window.ui_state is not LauncherUiState.SELECT_LANGUAGE
+                or not selector.isVisible()
+                or not button.isEnabled()
+            ):
+                raise RuntimeError("Installer did not open on language selection.")
+            self._plan.record(
+                "installer.language.ready",
+                selected_language=selector.currentData(),
+            )
+            QTest.mouseClick(
+                button,
+                Qt.MouseButton.LeftButton,
+                pos=button.rect().center(),
+            )
+            QTimer.singleShot(0, self._click_install)
+        except Exception as error:
+            self._record_driver_failure(error)
 
     @Slot()
     def _click_install(self) -> None:
@@ -86,19 +113,25 @@ class InstallerQualificationDriver(QObject):
                 title=self._window.windowTitle(),
                 primary_action=button.text(),
             )
-            QTest.mouseClick(
-                button,
-                Qt.MouseButton.LeftButton,
-                pos=button.rect().center(),
-            )
-            self._plan.record("installer.install.clicked")
+            QTimer.singleShot(0, lambda: self._activate_install_action(button))
         except Exception as error:
-            self._plan.record(
-                "installer.qualification.failed",
-                error_type=type(error).__name__,
-                error=str(error),
-            )
-            QCoreApplication.exit(1)
+            self._record_driver_failure(error)
+
+    def _activate_install_action(self, control: QAbstractButton) -> None:
+        """Record and activate the handoff-owning action outside a mouse event."""
+
+        self._plan.record("installer.install.clicked")
+        control.click()
+
+    def _record_driver_failure(self, error: Exception) -> None:
+        """Record one automation-contract failure and stop qualification."""
+
+        self._plan.record(
+            "installer.qualification.failed",
+            error_type=type(error).__name__,
+            error=str(error),
+        )
+        QCoreApplication.exit(1)
 
     @Slot()
     def _record_handoff(self) -> None:

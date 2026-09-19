@@ -27,17 +27,21 @@ import pytest
 from launcher.sugarsubstitute_launcher.config import LauncherConfig, UpdateCheckConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
-from launcher.sugarsubstitute_launcher.payload import AppPayloadInstallResult
+from launcher.sugarsubstitute_launcher.payload_models import (
+    AppPayloadInstallResult,
+    StagedAppPayload,
+)
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
-    LauncherMinimumVersionError,
     LauncherUpdateOrchestrator,
 )
+from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.update_rollback_report import (
     UpdateRollbackReportStore,
     UpdateRollbackStage,
 )
+from sugarsubstitute_shared.launch_splash import SplashActivity
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
 
@@ -87,7 +91,10 @@ def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     assert result.checked_manifest is True
     assert result.installed_update is True
     assert installer.installed_layouts == [layout]
-    assert runtime_reconciler.reconciled_layouts == [layout]
+    assert len(runtime_reconciler.reconciled_layouts) == 1
+    reconciled_layout = runtime_reconciler.reconciled_layouts[0]
+    assert reconciled_layout.root == layout.root
+    assert reconciled_layout.release_root is not None
     assert not layout.state_path.exists()
     assert result.pending_activation is not None
     assert result.attempted_version == "0.4.0"
@@ -95,10 +102,17 @@ def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
     assert progress.lines == [
         "Checking for SugarSubstitute updates.",
-        "Installing SugarSubstitute 0.4.0.",
-        "Preparing SugarSubstitute runtime.",
         "Installed SugarSubstitute 0.4.0.",
     ]
+    assert [activity.initial_text for activity in progress.activities] == [
+        "Installing SugarSubstitute 0.4.0",
+        "Installing SugarSubstitute dependencies",
+    ]
+    assert all(
+        "longer than usual" in activity.long_wait_text
+        for activity in progress.activities
+    )
+    assert progress.clear_activity_calls == 1
 
 
 def test_pre_launch_update_skips_current_manifest_and_records_check(
@@ -215,6 +229,7 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     config = LauncherConfig.from_layout(layout=layout)
+    progress = _Progress()
 
     result = LauncherUpdateOrchestrator(
         payload_installer=_PayloadInstaller(version="0.4.0"),
@@ -225,6 +240,7 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
         config=config,
         release_source=_ReleaseSource(_manifest(version="0.4.0")),
         no_update_check=False,
+        progress=progress,
     )
 
     assert result.checked_manifest is True
@@ -236,6 +252,11 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
     assert rollback_report.attempted_version == "0.4.0"
     assert rollback_report.stage is UpdateRollbackStage.PREPARATION
     assert rollback_report.exception_type == "RuntimeError"
+    assert [activity.initial_text for activity in progress.activities] == [
+        "Installing SugarSubstitute 0.4.0",
+        "Installing SugarSubstitute dependencies",
+    ]
+    assert progress.clear_activity_calls == 1
 
 
 def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
@@ -263,7 +284,7 @@ def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
         launchers={layout.target.key: launcher_asset},
         installers={},
     )
-    stager = _LauncherStager(layout.launcher_update_request_path)
+    stager = _LauncherStager((layout.launcher_dir / "updates" / "fixture-request.json"))
 
     result = LauncherUpdateOrchestrator(
         payload_installer=_PayloadInstaller(version="0.11.0"),
@@ -279,7 +300,7 @@ def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
     )
 
     assert result.launcher_update_request_path == str(
-        layout.launcher_update_request_path
+        (layout.launcher_dir / "updates" / "fixture-request.json")
     )
     assert stager.versions == ["0.11.0"]
     assert stager.assets == [
@@ -292,10 +313,10 @@ def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
     ]
 
 
-def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
+def test_pre_launch_update_preserves_app_below_unavailable_remote_minimum(
     tmp_path: Path,
 ) -> None:
-    """A manifest minimum must fail closed when its launcher asset is absent."""
+    """Withhold an incompatible remote payload while retaining the installed app."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     config = LauncherConfig.from_layout(layout=layout)
@@ -310,18 +331,23 @@ def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
         installers={},
     )
 
-    with pytest.raises(LauncherMinimumVersionError):
-        LauncherUpdateOrchestrator(
-            payload_installer=_PayloadInstaller(version="0.11.0"),
-            runtime_reconciler=_RuntimeReconciler(),
-            launcher_version="0.10.0",
-            now=_fixed_now,
-        ).run(
-            layout=layout,
-            config=config,
-            release_source=_ReleaseSource(manifest),
-            no_update_check=False,
-        )
+    installer = _PayloadInstaller(version="0.11.0")
+    result = LauncherUpdateOrchestrator(
+        payload_installer=installer,
+        runtime_reconciler=_RuntimeReconciler(),
+        launcher_version="0.10.0",
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(manifest),
+        no_update_check=False,
+    )
+    assert result.failure_reason == "LauncherMinimumVersionError"
+    assert result.remote_failure_reason is None
+    assert result.launcher_update_request_path is None
+    assert not result.installed_update
+    assert installer.installed_layouts == []
     assert not layout.state_path.exists()
 
 
@@ -366,6 +392,7 @@ def test_required_launcher_network_failure_still_launches_installed_app(
     )
 
     assert result.failure_reason == "URLError"
+    assert result.remote_failure_reason == "URLError"
     assert result.launcher_update_request_path is None
 
 
@@ -429,13 +456,19 @@ class _PayloadInstaller:
     def install(
         self,
         *,
-        layout: InstallLayout,
+        activation: PendingUpdateActivation,
         manifest: ReleaseManifest,
     ) -> AppPayloadInstallResult:
         """Record one install and return a successful result."""
 
-        self.installed_layouts.append(layout)
-        return AppPayloadInstallResult(version=self._version, app_dir=layout.app_dir)
+        self.installed_layouts.append(activation.layout)
+        activation.staging_directory.mkdir(parents=True)
+        return activation.promote_app(
+            StagedAppPayload(
+                version=self._version,
+                staging_dir=activation.staging_directory,
+            )
+        )
 
 
 class _RuntimeReconciler:
@@ -485,11 +518,23 @@ class _Progress:
         """Create an empty progress log."""
 
         self.lines: list[str] = []
+        self.activities: list[SplashActivity] = []
+        self.clear_activity_calls = 0
 
     def append_log(self, line: str) -> None:
         """Record one progress line."""
 
         self.lines.append(line)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Record one active update operation."""
+
+        self.activities.append(activity)
+
+    def clear_activity(self) -> None:
+        """Record one active update cleanup."""
+
+        self.clear_activity_calls += 1
 
 
 class _LauncherStager:
@@ -526,3 +571,28 @@ class _OfflineLauncherStager:
         """Raise the urllib connectivity error used by the production downloader."""
 
         raise URLError("offline")
+
+
+def test_busy_mutation_owner_does_not_fall_back_to_launch(tmp_path: Path) -> None:
+    """Propagate ownership contention instead of launching files being replaced."""
+    from concurrent.futures import ThreadPoolExecutor
+    from sugarsubstitute_shared.installation_mutation import (
+        InstallationMutationBusyError,
+        installation_mutation,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    config = LauncherConfig.from_layout(layout=layout)
+    source = _ReleaseSource(_manifest(version="0.4.0"))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with installation_mutation(layout.root):
+            result = pool.submit(
+                LauncherUpdateOrchestrator().run,
+                layout=layout,
+                config=config,
+                release_source=source,
+                no_update_check=False,
+            )
+            with pytest.raises(InstallationMutationBusyError):
+                result.result(timeout=10)
+    assert not layout.state_path.exists()

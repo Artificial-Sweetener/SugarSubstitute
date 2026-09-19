@@ -270,8 +270,7 @@ class PromptAutocompleteQueryService:
             return None
 
         closing_index = text.find("}", cursor_position, line_end)
-        trailing_end = closing_index if closing_index >= 0 else line_end
-        if text[cursor_position:trailing_end].strip():
+        if closing_index >= 0 and text[cursor_position:closing_index].strip():
             _log_autocomplete_resolution(
                 "wildcard_autocomplete_query_at_cursor",
                 started_at=started_at,

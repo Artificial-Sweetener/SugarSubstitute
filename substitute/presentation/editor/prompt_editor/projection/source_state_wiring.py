@@ -56,6 +56,7 @@ from .prompt_state_applier import (
 from .projection_build_context import PromptProjectionBuildContext
 from .prompt_state_projection_strategy import PromptStateProjectionStrategy
 from .semantic_transition_strategy import PromptSemanticTransitionStrategy
+from .wildcard_edit_expansion import PromptWildcardEditExpansion
 from .semantic_remap import PromptProjectionSemanticRemapper
 from .session import PromptProjectionSession
 from .source_line_chrome import PromptSourceLineChrome
@@ -213,6 +214,7 @@ def build_prompt_projection_source_state_owners(
         trailing_strategy=trailing_strategy,
         reflow_strategy=reflow_strategy,
         publication=publication,
+        wildcard_edit_expansion=PromptWildcardEditExpansion(bindings.session),
     )
     prompt_state_applier = PromptProjectionPromptStateApplier(
         bindings.prompt_state_host,

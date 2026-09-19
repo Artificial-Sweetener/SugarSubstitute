@@ -253,7 +253,6 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         mask_color_provider=lambda _index, _total: QColor("red"),
         regional_mask_presenter=RegionalMaskCollectionPresenter(
             input_document=document,
-            active_workflow=lambda: workflow,
             active_panel=lambda: panel,
             mask_color=lambda _index, _total: QColor("red"),
         ),

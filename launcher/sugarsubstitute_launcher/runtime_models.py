@@ -30,6 +30,10 @@ class RuntimeProvisioningError(RuntimeError):
     """Report that the launcher-managed runtime cannot be prepared."""
 
 
+class RuntimeCommandCancelled(RuntimeProvisioningError):
+    """Report cancellation only after the admitted runtime command is reclaimed."""
+
+
 class RuntimeCommandRunner(Protocol):
     """Run one runtime provisioning subprocess command."""
 

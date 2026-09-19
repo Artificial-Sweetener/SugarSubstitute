@@ -30,6 +30,10 @@ from tests.presentation.shell.generation.snapshots.support import (
     SeedRandomizationRecorder,
     replace_seed_randomizer,
 )
+from tests.support.native_cube_workflow import (
+    native_cube_workflow_input,
+    native_cube_workflow_stub,
+)
 from substitute.presentation.shell import workspace_controller as mod
 
 
@@ -39,35 +43,28 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
     """Queued Generate should serialize one materialized workflow per scene."""
 
     order: list[str] = []
-    workflow = SimpleNamespace(
-        stack_order=["Text"],
-        cubes={
-            "Text": SimpleNamespace(
-                buffer={
-                    "nodes": {
-                        "positive_prompt": {
-                            "class_type": "String",
-                            "inputs": {
-                                "prompt_template": (
-                                    "quality\n\n"
-                                    "**portrait\n"
-                                    "studio portrait\n\n"
-                                    "**cafe\n"
-                                    "sitting in a cafe"
-                                ),
-                            },
-                        },
-                        "negative_prompt": {
-                            "class_type": "String",
-                            "inputs": {
-                                "prompt_template": (
-                                    "bad anatomy\n\n**portrait\nextra fingers"
-                                ),
-                            },
-                        },
+    workflow = native_cube_workflow_stub(
+        buffer={
+            "nodes": {
+                "positive_prompt": {
+                    "class_type": "String",
+                    "inputs": {
+                        "prompt_template": (
+                            "quality\n\n"
+                            "**portrait\n"
+                            "studio portrait\n\n"
+                            "**cafe\n"
+                            "sitting in a cafe"
+                        ),
                     },
                 },
-            ),
+                "negative_prompt": {
+                    "class_type": "String",
+                    "inputs": {
+                        "prompt_template": ("bad anatomy\n\n**portrait\nextra fingers"),
+                    },
+                },
+            },
         },
     )
     behavior_snapshot = EditorBehaviorSnapshot(
@@ -188,7 +185,7 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["reconcile", "capture", "randomize", "serialize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize"]
     assert [snapshot.workflow_name for snapshot in snapshots] == [
         "Recipe - portrait",
         "Recipe - cafe",
@@ -219,12 +216,27 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
         "quality studio portrait",
         "quality sitting in a cafe",
     ]
-    assert serialized_prompts == [
+    assert serialized_prompts == []
+    assert [
+        (
+            native_cube_workflow_input(
+                snapshot.cube_workflow,
+                node_name="positive_prompt",
+                input_name="prompt_template",
+            ),
+            native_cube_workflow_input(
+                snapshot.cube_workflow,
+                node_name="negative_prompt",
+                input_name="prompt_template",
+            ),
+        )
+        for snapshot in snapshots
+    ] == [
         ("quality\n\nstudio portrait", "bad anatomy\n\nextra fingers"),
         ("quality\n\nsitting in a cafe", "bad anatomy"),
     ]
     assert (
-        workflow.cubes["Text"]
+        cast(Any, workflow.cubes["Text"])
         .buffer["nodes"]["positive_prompt"]["inputs"]["prompt_template"]
         .startswith("quality\n\n**portrait")
     )

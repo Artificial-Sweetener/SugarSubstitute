@@ -260,6 +260,17 @@ def build_generation_settings_page(
                             parent,
                         ),
                     ),
+                    SettingsControlEntry(
+                        "generation.missing_models.update_notices",
+                        "Notify me about updates to models I use",
+                        "Check CivitAI for compatible updates only after a model is used for Generate.",
+                        _MODEL_KEYWORDS + _API_KEYWORDS,
+                        30,
+                        lambda parent: _civitai_model_update_notifications_row(
+                            context.civitai_preference_service,
+                            parent,
+                        ),
+                    ),
                 ),
             ),
             SettingsSectionEntry(
@@ -766,6 +777,24 @@ def _civitai_downloads_row(
         ),
         checked=service.load_preferences().downloads_enabled,
         on_changed=service.set_downloads_enabled,
+    )
+
+
+def _civitai_model_update_notifications_row(
+    service: CivitaiPreferenceService,
+    parent: QWidget,
+) -> SettingsCard:
+    """Create the opt-in usage-aware model update notice row."""
+
+    return _switch_row(
+        parent=parent,
+        icon=AppIcon.BOOK_ARROW_CLOCKWISE_20_REGULAR,
+        title=app_text("Notify me about updates to models I use"),
+        description=app_text(
+            "Check CivitAI for compatible updates only after a model is used for Generate."
+        ),
+        checked=(service.load_preferences().model_update_notifications_enabled),
+        on_changed=service.set_model_update_notifications_enabled,
     )
 
 

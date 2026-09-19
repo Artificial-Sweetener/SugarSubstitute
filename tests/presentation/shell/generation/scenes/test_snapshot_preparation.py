@@ -77,7 +77,7 @@ def test_build_scene_generation_snapshots_from_context_prepares_and_tracks_run()
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A - portrait",
-            sugar_script_text="# portrait",
+            persistence_sugar_script="# portrait",
             scene_key="portrait",
             scene_title="Portrait",
             scene_order=0,
@@ -85,7 +85,7 @@ def test_build_scene_generation_snapshots_from_context_prepares_and_tracks_run()
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A - cafe",
-            sugar_script_text="# cafe",
+            persistence_sugar_script="# cafe",
             scene_key="cafe",
             scene_title="Cafe",
             scene_order=1,
@@ -186,7 +186,7 @@ def test_build_scene_generation_snapshot_from_context_validates_and_prepares_sce
     snapshot = GenerationJobSnapshot(
         workflow_id="workflow-a",
         workflow_name="Recipe A - cafe",
-        sugar_script_text="# cafe",
+        persistence_sugar_script="# cafe",
         scene_key="cafe",
         scene_title="Cafe",
         scene_order=1,

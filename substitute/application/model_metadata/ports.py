@@ -178,6 +178,7 @@ class ModelThumbnailRepository(Protocol):
         source_path: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        selection_policy: str = "user_selected_output_canvas",
     ) -> ThumbnailStoreResult | None:
         """Cache a local image as the selected thumbnail for one model."""
 

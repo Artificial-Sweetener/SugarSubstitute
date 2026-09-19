@@ -34,7 +34,6 @@ from substitute.domain.generation.seed_control import SeedControlState
 SugarBuffer: TypeAlias = OrderedDict[str, JsonValue]
 SugarBufferMap: TypeAlias = OrderedDict[str, SugarBuffer]
 RecipeSourceKind = Literal["text", "png"]
-GlobalOverrideFieldKey: TypeAlias = tuple[str, str, str]
 RecipeModelFieldKey: TypeAlias = tuple[str, str, str]
 
 
@@ -67,21 +66,8 @@ class ParsedSugarScript:
     project_name: str | None
 
 
-@dataclass(frozen=True)
-class GlobalOverrideSerializationScope:
-    """Describe how one active global override should be emitted to SugarScript."""
-
-    override_key: str
-    value: object
-    mode: str
-    full_participation: bool
-    participant_fields: frozenset[GlobalOverrideFieldKey]
-
-
 __all__ = [
     "LoadedRecipeDocument",
-    "GlobalOverrideFieldKey",
-    "GlobalOverrideSerializationScope",
     "ParsedSugarScript",
     "RecipeSourceKind",
     "RecipeModelFieldKey",

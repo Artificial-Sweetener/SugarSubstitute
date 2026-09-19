@@ -48,7 +48,7 @@ def test_app_orb_override_button_opens_attached_menu() -> None:
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
 
     cluster.override_button.click()
 
@@ -66,7 +66,7 @@ def test_app_orb_override_button_closes_open_menu_on_second_click() -> None:
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
 
     cluster.override_button.click()
     cluster.override_button.click()
@@ -86,7 +86,7 @@ def test_app_orb_override_button_second_mouse_click_consumes_reopen_signal() -> 
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     clicked_states: list[bool] = []
     cluster.override_button.clicked.connect(
         lambda checked: clicked_states.append(bool(checked))
@@ -119,7 +119,7 @@ def test_app_orb_override_button_popup_grabbed_owner_press_closes_without_reopen
     app()
     cluster = AppOrbActionCluster()
     menu = _WidgetMenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     clicked_states: list[bool] = []
     cluster.override_button.clicked.connect(
         lambda checked: clicked_states.append(bool(checked))
@@ -150,7 +150,7 @@ def test_app_orb_override_button_does_not_reopen_after_popup_owner_press(
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     cluster.show()
     activate_widget_layouts(cluster)
 
@@ -176,7 +176,7 @@ def test_app_orb_override_button_does_not_reopen_after_system_hide_on_owner() ->
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     cluster.show()
     activate_widget_layouts(cluster)
 
@@ -203,7 +203,7 @@ def test_app_orb_override_button_owner_suppression_uses_hit_shape(
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     cluster.show()
     activate_widget_layouts(cluster)
 
@@ -232,7 +232,7 @@ def test_app_orb_override_button_opens_after_elsewhere_release_clears_owner_igno
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     cluster.show()
     activate_widget_layouts(cluster)
 
@@ -267,7 +267,7 @@ def test_app_orb_override_button_failed_open_stays_unclicked_visual() -> None:
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe(open_on_exec=False)
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
 
     cluster.override_button.click()
 
@@ -288,7 +288,7 @@ def test_app_orb_override_button_external_close_repaints_unclicked_visual() -> N
     app()
     cluster = AppOrbActionCluster()
     menu = _MenuProbe()
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
 
     cluster.override_button.click()
 
@@ -310,7 +310,7 @@ def test_app_orb_override_button_positions_menu_left_anchored() -> None:
     app()
     cluster = AppOrbActionCluster()
     menu = _QFluentMenuProbe(left_margin=7)
-    cluster.override_button.setMenu(menu)
+    cluster.override_button.set_popup_menu(menu)
     cluster.show()
     activate_widget_layouts(cluster)
 

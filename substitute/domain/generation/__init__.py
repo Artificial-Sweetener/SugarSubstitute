@@ -50,6 +50,11 @@ from substitute.domain.generation.output_organization import (
     OutputRunBucket,
 )
 from substitute.domain.generation.output_position import OutputResultPosition
+from substitute.domain.generation.output_source_key import (
+    canonical_output_source_key,
+    output_source_key_for_cube,
+    output_source_key_for_node,
+)
 from substitute.domain.generation.output_preferences import (
     default_output_preferences,
     effective_output_transfer_format,
@@ -102,6 +107,9 @@ __all__ = [
     "OutputPathToken",
     "OutputRunBucket",
     "OutputResultPosition",
+    "canonical_output_source_key",
+    "output_source_key_for_cube",
+    "output_source_key_for_node",
     "SUPPORTED_OUTPUT_PATH_TOKEN_NAMES",
     "SUPPORTED_OUTPUT_PATH_TOKENS",
     "SeedControlState",

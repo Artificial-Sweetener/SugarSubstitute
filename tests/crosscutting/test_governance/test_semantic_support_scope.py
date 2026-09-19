@@ -38,7 +38,7 @@ def test_discovery_rejects_manual_qt_event_polling_in_test_support_roots(
     """Test-owned tools must use bounded owner conditions instead of manual pumps."""
 
     write_fixture(tmp_path)
-    policy_path = tmp_path / "TEST_POLICY.toml"
+    policy_path = tmp_path / "governance/testing/policy.toml"
     write(
         tmp_path / "tools/test_support/settling.py",
         """def risky_wait(app: object) -> None:
@@ -69,7 +69,7 @@ def test_discovery_rejects_returning_a_port_after_its_socket_closes(
     """A numeric port is not a reservation after its owning context exits."""
 
     write_fixture(tmp_path)
-    policy_path = tmp_path / "TEST_POLICY.toml"
+    policy_path = tmp_path / "governance/testing/policy.toml"
     write(
         tmp_path / "tools/test_support/ports.py",
         """import socket

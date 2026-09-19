@@ -26,8 +26,8 @@ from typing import TypeVar, cast
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
     CubeStackProtocol,
-    CubeTabIconResolver,
 )
+from substitute.presentation.resources.cube_icon_resolver import CubeIconResolver
 from substitute.shared.logging.logger import get_logger, log_debug, log_info, log_timing
 
 _LOGGER = get_logger("presentation.shell.loaded_cube_surface_controller")
@@ -238,7 +238,7 @@ def refresh_active_cube_stack_tab_for_view(
     if tab_index is None:
         return False
     result = CubeStackPresenter(
-        icon_resolver=CubeTabIconResolver(
+        icon_resolver=CubeIconResolver(
             cube_icon_factory=getattr(cube_view, "cube_icon_factory", None),
             fallback_icon=getattr(cube_view, "cube_tab_fallback_icon", None),
         ),

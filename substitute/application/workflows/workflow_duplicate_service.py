@@ -23,7 +23,7 @@ from copy import deepcopy
 from time import perf_counter
 
 from substitute.application.cubes import CubeStateDuplicator
-from substitute.domain.workflow import WorkflowState
+from substitute.domain.workflow import WorkflowCanvasState, WorkflowState
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
     get_logger,
@@ -66,22 +66,28 @@ class WorkflowDuplicateService:
             source_canvas_mask_count=len(source.canvas.mask_entries),
             source_output_count=len(source.output_image_uuids),
         )
+        duplicated_cubes = {
+            alias: self._cube_state_duplicator.duplicate_as(cube_state, alias)
+            for alias, cube_state in source.cubes.items()
+        }
         duplicate = WorkflowState(
-            cubes={
-                alias: self._cube_state_duplicator.duplicate_as(cube_state, alias)
-                for alias, cube_state in source.cubes.items()
-            },
-            stack_order=list(source.stack_order),
             metadata=deepcopy(source.metadata),
             global_overrides=deepcopy(source.global_overrides),
             override_control_states=deepcopy(source.override_control_states),
             global_override_selections=deepcopy(source.global_override_selections),
-            direct_workflow=(
-                source.direct_workflow.duplicate()
-                if source.direct_workflow is not None
-                else None
+            canvas=WorkflowCanvasState(
+                mask_visual_opacities=deepcopy(source.canvas.mask_visual_opacities),
+                active_canvas_route=source.canvas.active_canvas_route,
             ),
         )
+        if source.direct_workflow is None:
+            duplicate.cubes = duplicated_cubes
+            duplicate.stack_order = list(source.stack_order)
+        else:
+            duplicate.install_canonical_graph(
+                source.direct_workflow.duplicate(),
+                projection_sources=duplicated_cubes,
+            )
         elapsed_ms = elapsed_ms_since(started_at, clock=self._clock)
         log_context = {
             "elapsed_ms": f"{elapsed_ms:.3f}",

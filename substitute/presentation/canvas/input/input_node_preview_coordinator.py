@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from typing import TypeGuard
 from uuid import UUID
 
@@ -29,6 +29,9 @@ from substitute.presentation.editor.panel.widgets.fields.load_image import Image
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
 from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
     RegionalMaskBatchEditor,
+)
+from substitute.presentation.editor.panel.panel_workflow_projection import (
+    workflow_for_panel,
 )
 
 from .input_node_preview_widget import InputNodePreviewWidget
@@ -42,13 +45,16 @@ class InputNodePreviewCoordinator:
         self,
         *,
         bindings: InputDocumentPreviewBindings,
-        active_panel: Callable[[], QWidget | None],
     ) -> None:
-        """Capture the document binding owner and active panel resolver."""
+        """Capture the document binding owner."""
         self._bindings = bindings
-        self._active_panel = active_panel
 
-    def bind_materialization(self, result: object) -> frozenset[tuple[str, str]]:
+    def bind_materialization(
+        self,
+        result: object,
+        *,
+        panel: QWidget,
+    ) -> frozenset[tuple[str, str]]:
         """Bind one result and return mask-node identities now backed by live views."""
         bound_masks: set[tuple[str, str]] = set()
         image_id = getattr(result, "image_id", None)
@@ -61,17 +67,17 @@ class InputNodePreviewCoordinator:
         ):
             binding = self._bindings.image(image_id)
             if binding is not None:
-                self._bind_image(section_key, surface_key, binding)
+                self._bind_image(panel, section_key, surface_key, binding)
         raw_masks = getattr(result, "mask_results", ())
         mask_results = tuple(raw_masks) if isinstance(raw_masks, Iterable) else ()
         for mask_result in mask_results:
-            if self.bind_mask_result(mask_result):
+            if self.bind_mask_result(mask_result, panel=panel):
                 association_key = getattr(mask_result, "association_key", None)
                 if _association_key(association_key):
                     bound_masks.add(association_key)
         return frozenset(bound_masks)
 
-    def bind_mask_result(self, result: object) -> bool:
+    def bind_mask_result(self, result: object, *, panel: QWidget) -> bool:
         """Bind one materialized mask result to its graph node picker."""
         image_id = getattr(result, "image_id", None)
         mask_id = getattr(result, "mask_id", None)
@@ -86,16 +92,25 @@ class InputNodePreviewCoordinator:
         if binding is None:
             return False
         cube_alias, node_name = association_key
-        return self._bind_mask(cube_alias, node_name, binding)
+        return self._bind_mask(panel, cube_alias, node_name, binding)
 
-    def bind_workflow(
+    def bind_panel(self, panel: object) -> frozenset[tuple[str, str]]:
+        """Bind one panel exclusively from the workflow that owns that panel."""
+
+        if not isinstance(panel, QWidget):
+            return frozenset()
+        workflow = workflow_for_panel(panel)
+        if workflow is None:
+            return frozenset()
+        return self._bind_workflow(panel, workflow)
+
+    def _bind_workflow(
         self,
+        panel: QWidget,
         workflow: WorkflowState,
     ) -> frozenset[tuple[str, str]]:
-        """Project restored active-workflow associations into the current panel."""
-        panel = self._active_panel()
-        if panel is None:
-            return frozenset()
+        """Project one ownership-verified workflow into its exact panel."""
+
         canvas = workflow.canvas
         for image_picker in panel.findChildren(ImagePicker):
             identity = _metadata_identity(image_picker.property("input_metadata"))
@@ -107,7 +122,7 @@ class InputNodePreviewCoordinator:
                 continue
             binding = self._bindings.image(image_entry.image_id)
             if binding is not None:
-                self._bind_image(cube_alias, node_name, binding)
+                self._bind_image(panel, cube_alias, node_name, binding)
         bound_masks: set[tuple[str, str]] = set()
         for mask_picker in panel.findChildren(MaskPicker):
             identity = _metadata_identity(mask_picker.property("input_metadata"))
@@ -120,24 +135,35 @@ class InputNodePreviewCoordinator:
                 mask_entry.image_id,
                 mask_entry.mask_id,
             )
-            if binding is not None and self._bind_mask(*identity, binding):
+            if binding is not None and self._bind_mask(panel, *identity, binding):
                 bound_masks.add(identity)
         for editor in panel.findChildren(RegionalMaskBatchEditor):
             association_key = (editor.cube_alias, editor.node_name)
-            if self.bind_regional_collection(workflow, association_key):
+            if self._bind_regional_collection(panel, workflow, association_key):
                 bound_masks.add(association_key)
         return frozenset(bound_masks)
 
     def bind_regional_collection(
         self,
+        association_key: tuple[str, str],
+        *,
+        panel: QWidget,
+    ) -> bool:
+        """Bind one panel from the regional collection owned by that panel."""
+
+        workflow = workflow_for_panel(panel)
+        return workflow is not None and self._bind_regional_collection(
+            panel, workflow, association_key
+        )
+
+    def _bind_regional_collection(
+        self,
+        panel: QWidget,
         workflow: WorkflowState,
         association_key: tuple[str, str],
     ) -> bool:
-        """Bind every materialized ordered mask to its matching batch row."""
+        """Bind every ownership-verified mask to its matching batch row."""
 
-        panel = self._active_panel()
-        if panel is None:
-            return False
         collection = workflow.canvas.regional_mask_collection(association_key)
         if collection is None:
             return False
@@ -176,14 +202,12 @@ class InputNodePreviewCoordinator:
 
     def _bind_image(
         self,
+        panel: QWidget,
         cube_alias: str,
         node_name: str,
         binding: InputPreviewBinding,
     ) -> bool:
         """Replace the matching Load Image thumbnail with a live document view."""
-        panel = self._active_panel()
-        if panel is None:
-            return False
         for picker in panel.findChildren(ImagePicker):
             metadata = picker.property("input_metadata")
             if _matches(metadata, cube_alias, node_name):
@@ -204,14 +228,12 @@ class InputNodePreviewCoordinator:
 
     def _bind_mask(
         self,
+        panel: QWidget,
         cube_alias: str,
         node_name: str,
         binding: InputPreviewBinding,
     ) -> bool:
         """Replace the matching Load Mask thumbnail with live grayscale coverage."""
-        panel = self._active_panel()
-        if panel is None:
-            return False
         for picker in panel.findChildren(MaskPicker):
             metadata = picker.property("input_metadata")
             if _matches(metadata, cube_alias, node_name):
@@ -230,10 +252,14 @@ class InputNodePreviewCoordinator:
                 return True
         return False
 
-    def mask_preview_mounted(self, cube_alias: str, node_name: str) -> bool:
+    def mask_preview_mounted(
+        self,
+        panel: object,
+        cube_alias: str,
+        node_name: str,
+    ) -> bool:
         """Return whether one mask picker already owns a live document viewport."""
-        panel = self._active_panel()
-        if panel is None:
+        if not isinstance(panel, QWidget):
             return False
         for picker in panel.findChildren(MaskPicker):
             if _matches(picker.property("input_metadata"), cube_alias, node_name):

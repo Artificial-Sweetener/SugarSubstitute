@@ -163,7 +163,7 @@ class SeedBox(QWidget):
         )
 
         self.split_button = ToggleSplitToolButton(_RANDOM_SEED_ICON, self)
-        self.split_button.setFlyout(cast(Any, self.menu))
+        self.split_button.set_popup_flyout(cast(Any, self.menu))
         set_localized_tooltip(self.split_button, "Seed options")
         self.split_button.setEnabled(True)
         self._connect_primary_button()

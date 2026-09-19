@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       candidate_version:
-        description: "Exact semantic version contained in candidate assets"
+        description: "Exact release version contained in candidate assets"
         required: true
         type: string
       candidate_tag:
@@ -204,7 +204,7 @@ jobs:
           } else {
             @()
           }
-          python tools/ci/verify_installer_lifecycle.py upgrade `
+          python -u tools/ci/verify_installer_lifecycle.py upgrade `
             --historical-installer "$env:HISTORICAL_INSTALLER" `
             --install-root "${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}" `
             --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.history.tag }}/manifest.json" `

@@ -44,11 +44,13 @@ from substitute.application.execution import (
 )
 from substitute.app.bootstrap.launch_splash import (
     LaunchSplashCancelRelay,
-    LaunchSplashClient,
-    NullLaunchSplashClient,
     ProcessPumpTaskHandle,
     ProcessPumpWork,
     decode_splash_helper_event,
+)
+from substitute.app.bootstrap.launch_splash_client import (
+    LaunchSplashClient,
+    NullLaunchSplashClient,
 )
 from substitute.app.bootstrap.early_splash_text import translate_early_splash_text
 from substitute.app.bootstrap.standalone_long_lived_execution import (

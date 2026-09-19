@@ -163,7 +163,7 @@ def test_persist_output_image_uses_reserved_run_number_and_png_metadata(
             job_started_at=datetime(2026, 5, 1, 14, 32, 9),
         ),
         workflow_payload={"workflow": ui_workflow},
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         cube_numbers_by_alias={"CubeA": 4},
     )
 
@@ -223,7 +223,7 @@ def test_persist_output_image_allocates_lazy_run_and_source_ordinals(
             job_started_at=datetime(2026, 5, 1, 14, 32, 9),
         ),
         workflow_payload={},
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         cube_numbers_by_alias={},
     )
     source_identity = OutputSourceIdentity(
@@ -277,7 +277,7 @@ def test_persist_output_image_allocates_folder_image_number(
             job_started_at=datetime(2026, 5, 1, 14, 32, 9),
         ),
         workflow_payload={},
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         cube_numbers_by_alias={},
     )
 

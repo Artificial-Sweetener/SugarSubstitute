@@ -1,0 +1,27 @@
+name: Set up Linux Crashpad build dependencies
+description: Install native Crashpad build dependencies only when the runner lacks them.
+
+runs:
+  using: composite
+  steps:
+    - name: Install missing Linux Crashpad build packages
+      shell: bash
+      run: |
+        set -euo pipefail
+        packages=(
+          libcurl4-openssl-dev
+          zlib1g-dev
+        )
+        missing_packages=()
+        for package in "${packages[@]}"; do
+          if ! dpkg-query --show --showformat='${db:Status-Abbrev}' "$package" 2>/dev/null | grep --quiet '^ii '; then
+            missing_packages+=("$package")
+          fi
+        done
+        if (( ${#missing_packages[@]} == 0 )); then
+          echo "The runner image already contains the Crashpad build dependencies."
+          exit 0
+        fi
+        echo "Installing missing Crashpad packages: ${missing_packages[*]}"
+        sudo apt-get update
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing_packages[@]}"

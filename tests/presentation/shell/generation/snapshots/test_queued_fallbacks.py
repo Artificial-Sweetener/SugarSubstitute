@@ -30,6 +30,7 @@ from tests.presentation.shell.generation.snapshots.support import (
     SeedRandomizationRecorder,
     replace_seed_randomizer,
 )
+from tests.support.native_cube_workflow import native_cube_workflow_stub
 from substitute.presentation.shell import workspace_controller as mod
 
 
@@ -39,7 +40,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
     """Queued Generate should preserve normal snapshot behavior without scenes."""
 
     order: list[str] = []
-    workflow = SimpleNamespace(seed="original")
+    workflow = native_cube_workflow_stub(seed="original")
 
     def _serialize_workflow_to_sugar_script(candidate: object) -> str:
         order.append("serialize")
@@ -115,10 +116,10 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["reconcile", "capture", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize"]
     assert len(snapshots) == 1
     assert snapshots[0].workflow_name == "Recipe"
-    assert snapshots[0].sugar_script_text == "# sugar randomized"
+    assert snapshots[0].persistence_sugar_script is None
     assert snapshots[0].scene_run_id is None
     assert snapshots[0].scene_key is None
     assert snapshots[0].scene_title is None
@@ -132,23 +133,16 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
     """Queued Generate should fan out only when multiple scenes are runnable."""
 
     order: list[str] = []
-    workflow = SimpleNamespace(
-        stack_order=["Text"],
-        cubes={
-            "Text": SimpleNamespace(
-                buffer={
-                    "nodes": {
-                        "positive_prompt": {
-                            "class_type": "String",
-                            "inputs": {
-                                "prompt_template": (
-                                    "quality\n\n**portrait\nstudio portrait"
-                                ),
-                            },
-                        },
+    workflow = native_cube_workflow_stub(
+        buffer={
+            "nodes": {
+                "positive_prompt": {
+                    "class_type": "String",
+                    "inputs": {
+                        "prompt_template": ("quality\n\n**portrait\nstudio portrait"),
                     },
                 },
-            ),
+            },
         },
     )
     behavior_snapshot = EditorBehaviorSnapshot(
@@ -244,7 +238,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["reconcile", "capture", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize"]
     assert len(snapshots) == 1
     assert snapshots[0].workflow_name == "Recipe"
     assert "Recipe - portrait" not in snapshots[0].workflow_name

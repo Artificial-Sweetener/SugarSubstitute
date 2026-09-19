@@ -45,6 +45,7 @@ from launcher.sugarsubstitute_launcher.runtime_models import (  # noqa: E402
 from launcher.sugarsubstitute_launcher.runtime_reconciliation import (  # noqa: E402
     RuntimeReconciliationProgress,
 )
+from sugarsubstitute_shared.launch_splash import SplashActivity  # noqa: E402
 
 DEFAULT_HARNESS_ROOT = REPO_ROOT.parent / "SugarSubstitute-update-harness"
 OPENSSL_CONFIG_NAME = "localhost-openssl.cnf"
@@ -101,11 +102,23 @@ class RecordingProgress:
         """Create an empty progress log."""
 
         self.lines: list[str] = []
+        self.activities: list[SplashActivity] = []
+        self.clear_activity_calls = 0
 
     def append_log(self, line: str) -> None:
         """Record one progress line."""
 
         self.lines.append(line)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Record one launcher update activity."""
+
+        self.activities.append(activity)
+
+    def clear_activity(self) -> None:
+        """Record one launcher update activity cleanup."""
+
+        self.clear_activity_calls += 1
 
 
 class RecordingHttpsServer:
@@ -252,7 +265,7 @@ def run_https_update_harness(
                 no_update_check=False,
                 progress=progress,
             )
-            _assert_prepared_update(
+            previous_app = _assert_prepared_update(
                 result=result,
                 layout=layout,
                 runtime_reconciler=runtime_reconciler,
@@ -264,7 +277,7 @@ def run_https_update_harness(
                     "Update did not preserve a pending activation."
                 )
             result.pending_activation.commit()
-            _assert_committed_update(layout)
+            _assert_committed_update(layout, previous_app)
             return HttpsUpdateHarnessResult(
                 harness_root=resolved_root,
                 install_root=install_root,
@@ -420,10 +433,16 @@ def _assert_prepared_update(
     runtime_reconciler: RecordingRuntimeReconciler,
     progress: RecordingProgress,
     request_paths: tuple[str, ...],
-) -> None:
+) -> Path:
     """Validate the downloaded update before first-launch activation."""
 
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.application_release_selection import (
+        ApplicationReleaseSelection,
+    )
+    from launcher.sugarsubstitute_launcher.update_activation_journal import (
+        load_update_journal,
+    )
     from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 
     if not isinstance(layout, InstallLayout):
@@ -445,31 +464,69 @@ def _assert_prepared_update(
     main_text = (layout.app_dir / "main.py").read_text(encoding="utf-8")
     if f"new {NEW_VERSION}" not in main_text:
         raise HttpsUpdateHarnessError("Installed app payload was not promoted.")
-    previous_text = (layout.root / "app_previous" / "main.py").read_text(
-        encoding="utf-8"
+    journal = load_update_journal(layout)
+    if journal is None:
+        raise HttpsUpdateHarnessError("Prepared update has no recovery journal.")
+    selection = ApplicationReleaseSelection(layout.root).load()
+    if selection.previous is None:
+        raise HttpsUpdateHarnessError("Prepared update has no retained prior release.")
+    previous_app = (
+        ApplicationReleaseSelection(layout.root).release_root(selection.previous)
+        / "app"
     )
+    previous_text = (previous_app / "main.py").read_text(encoding="utf-8")
     if f"old {OLD_VERSION}" not in previous_text:
         raise HttpsUpdateHarnessError("Previous payload was not preserved.")
     expected_progress = [
         "Checking for SugarSubstitute updates.",
-        f"Installing SugarSubstitute {NEW_VERSION}.",
-        "Preparing SugarSubstitute runtime.",
         f"Installed SugarSubstitute {NEW_VERSION}.",
     ]
     if progress.lines != expected_progress:
         raise HttpsUpdateHarnessError(f"Unexpected progress lines: {progress.lines}")
+    expected_activity_copy = [
+        (
+            f"Installing SugarSubstitute {NEW_VERSION}",
+            f"Installing SugarSubstitute {NEW_VERSION} is taking longer than usual",
+            "Still installing SugarSubstitute "
+            f"{NEW_VERSION}—network, slow storage, or package installation may be "
+            "causing the delay",
+        ),
+        (
+            "Installing SugarSubstitute dependencies",
+            "Installing SugarSubstitute dependencies is taking longer than usual",
+            "Still installing SugarSubstitute dependencies—network, slow storage, or "
+            "package installation may be causing the delay",
+        ),
+    ]
+    activity_copy = [
+        (
+            activity.initial_text,
+            activity.long_wait_text,
+            activity.extended_wait_text,
+        )
+        for activity in progress.activities
+    ]
+    if activity_copy != expected_activity_copy:
+        raise HttpsUpdateHarnessError(
+            f"Unexpected update activity copy: {activity_copy}"
+        )
+    if progress.clear_activity_calls != 1:
+        raise HttpsUpdateHarnessError(
+            "Update activity was not cleared after runtime preparation."
+        )
+    return previous_app
 
 
-def _assert_committed_update(layout: InstallLayout) -> None:
-    """Validate state advancement and backup retirement after activation."""
+def _assert_committed_update(layout: InstallLayout, previous_app: Path) -> None:
+    """Validate state advancement and last-known-good retention after activation."""
 
     from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 
     state = LauncherUpdateState.load(layout.state_path)
     if state.installed_app_version != NEW_VERSION:
         raise HttpsUpdateHarnessError(f"Unexpected committed state version: {state}")
-    if (layout.root / "app_previous").exists():
-        raise HttpsUpdateHarnessError("Committed app backup was not retired.")
+    if not previous_app.is_dir():
+        raise HttpsUpdateHarnessError("Committed update lost its prior app release.")
 
 
 def _fixed_now() -> datetime:

@@ -65,6 +65,9 @@ class _FakeApp:
     def quit(self) -> None:
         """Accept an unexpected shutdown request from the route boundary."""
 
+    def request_quit(self) -> None:
+        """Accept a phase-safe shutdown request from the route boundary."""
+
 
 class _Signal:
     """Accept callbacks registered by routed windows."""

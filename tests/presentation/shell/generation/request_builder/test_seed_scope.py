@@ -27,7 +27,7 @@ from substitute.application.generation import (
     SeedRandomizationResult,
     SeedValueChange,
 )
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.presentation.shell.workspace_generation_request_builder import (
     synchronize_generation_request_seed_scopes,
 )
@@ -46,7 +46,7 @@ SOURCE_PATH = (
 def test_synchronize_generation_request_seed_scopes_uses_randomized_value() -> None:
     """Randomized global seeds should replace stale request-scope values."""
 
-    original_scope = GlobalOverrideSerializationScope(
+    original_scope = GlobalOverrideScope(
         override_key="seed",
         value=7,
         mode="global",
@@ -76,9 +76,7 @@ def test_synchronize_generation_request_seed_scopes_uses_randomized_value() -> N
     assert synchronized is not request
     assert request.global_override_scopes == {"seed": original_scope}
     assert synchronized.global_override_scopes is not None
-    assert synchronized.global_override_scopes[
-        "seed"
-    ] == GlobalOverrideSerializationScope(
+    assert synchronized.global_override_scopes["seed"] == GlobalOverrideScope(
         override_key="seed",
         value=41,
         mode="global",

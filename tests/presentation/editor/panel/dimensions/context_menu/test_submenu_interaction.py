@@ -21,7 +21,9 @@ from __future__ import annotations
 from PySide6.QtCore import QEvent, QObject
 from PySide6.QtWidgets import QApplication
 
-import substitute.presentation.editor.panel.menus.dimension_row_actions as dimension_row_actions
+from substitute.presentation.widgets.qfluent_submenu_interaction import (
+    QFluentSubmenuClickOpener,
+)
 from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 
@@ -75,7 +77,7 @@ def test_click_is_consumed_and_opens_submenu(
     _ = qt_application_owner
     parent_menu = _ClickableMenuDouble()
     submenu = _SubmenuDouble()
-    opener = dimension_row_actions._SubmenuClickOpener(
+    opener = QFluentSubmenuClickOpener(
         parent_menu,
         submenu,
         parent_menu,

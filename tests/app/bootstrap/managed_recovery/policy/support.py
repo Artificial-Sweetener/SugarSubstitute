@@ -51,6 +51,7 @@ from substitute.application.backend_compatibility import (
     BackendCompatibilityResult,
     RuntimeCompatibilityStatus,
 )
+from substitute.application.launch_activity import LocalizedSplashActivity
 
 
 from substitute.domain.onboarding import (
@@ -274,8 +275,11 @@ class _ControllerAdapters:
 class _StartupAdapters:
     """Expose fake startup-facing recovery adapter ports."""
 
-    def append_recovery_message(self, _message: str) -> None:
-        """Ignore recovery messages."""
+    def start_recovery_activity(self, _activity: LocalizedSplashActivity) -> None:
+        """Ignore recovery activities."""
+
+    def clear_recovery_activity(self) -> None:
+        """Ignore recovery activity clear requests."""
 
     def emit_recovery_log(self, _line: str) -> None:
         """Ignore recovery log lines."""
@@ -337,6 +341,7 @@ def _recovery_controller_for_finish(
     state: ManagedCompatibilityRecoveryControllerState,
     readiness_state: _ReadinessState | None = None,
     set_comfy_state: Callable[[object | None], None] = lambda _state: None,
+    clear_recovery_activity: Callable[[], None] = lambda: None,
     handle_recovery_failure: Callable[
         [BackendCompatibilityResult, Exception], None
     ] = lambda _compatibility, _error: None,
@@ -356,7 +361,8 @@ def _recovery_controller_for_finish(
         current_comfy_state=lambda: None,
         set_comfy_state=set_comfy_state,
         set_backend_state=lambda _state: None,
-        append_recovery_message=lambda _message: None,
+        start_recovery_activity=lambda _activity: None,
+        clear_recovery_activity=clear_recovery_activity,
         emit_recovery_log=lambda _line: None,
         cleanup_state=lambda _state: _CleanupResult(
             managed_resource_present=False,

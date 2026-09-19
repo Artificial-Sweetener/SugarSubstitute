@@ -23,6 +23,7 @@ from pathlib import Path
 
 from PySide6.QtGui import QImage
 
+from substitute.application.ports import GenerationVisualIdentity
 from substitute.application.workflows.output_visual_events import LiveFinalOutputEvent
 from substitute.domain.generation import OutputResultPosition
 
@@ -46,6 +47,7 @@ class OutputImageCommitRequest:
     artifact_width: int | None = None
     artifact_height: int | None = None
     live_event: LiveFinalOutputEvent | None = None
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
@@ -76,8 +78,39 @@ class FailedOutputImagePreparation:
     detail: str | None = None
 
 
+def generation_visual_identity_for_commit(
+    request: OutputImageCommitRequest,
+) -> GenerationVisualIdentity | None:
+    """Return strict authorization identity for a prepared live output."""
+
+    if (
+        not request.generation_run_id
+        or not request.prompt_id
+        or not request.client_id
+        or not request.source_key
+        or not request.source_label
+    ):
+        return None
+    return GenerationVisualIdentity(
+        workflow_id=request.workflow_id,
+        generation_run_id=request.generation_run_id,
+        prompt_id=request.prompt_id,
+        client_id=request.client_id,
+        source_key=request.source_key,
+        source_label=request.source_label,
+        output_session_id=request.output_session_id,
+        scene_run_id=request.scene_run_id,
+        scene_key=request.scene_key,
+        scene_title=request.scene_title,
+        scene_order=request.scene_order,
+        scene_count=request.scene_count,
+        node_id=request.node_id,
+    )
+
+
 __all__ = [
     "FailedOutputImagePreparation",
     "OutputImageCommitRequest",
     "PreparedOutputImage",
+    "generation_visual_identity_for_commit",
 ]

@@ -64,9 +64,11 @@ def open_generation_job_as_workflow_for_view(
             operation="open_generation_job_as_workflow",
         )
         return
+    if legacy_snapshot.persistence_sugar_script is None:
+        return
     file_actions.open_sugar_snapshot_as_new_workflow(
         workflow_name=legacy_snapshot.workflow_name,
-        sugar_script_text=legacy_snapshot.sugar_script_text,
+        sugar_script_text=legacy_snapshot.persistence_sugar_script,
     )
 
 

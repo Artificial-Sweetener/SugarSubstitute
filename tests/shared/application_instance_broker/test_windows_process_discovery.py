@@ -1,0 +1,248 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Verify recovery discovery is scoped to one earlier installed Windows instance."""
+
+from __future__ import annotations
+
+from sugarsubstitute_shared.application_process_scope import ExactExecutableProcessScope
+
+from dataclasses import dataclass
+from collections.abc import Sequence
+import os
+from pathlib import Path
+
+import psutil  # type: ignore[import-untyped]
+import pytest
+
+from sugarsubstitute_shared import windows_application_processes as discovery
+from sugarsubstitute_shared import windows_process_security
+from sugarsubstitute_shared.process_identity import ProcessIdentity
+from sugarsubstitute_shared.windows_process_security import (
+    process_session_id,
+    process_user_sid,
+)
+
+
+@dataclass
+class _Process:
+    """Supply controlled kernel observations without creating or ending processes."""
+
+    pid: int
+    executable: Path
+    created: float
+    user: str = "user-a"
+    session: int = 1
+    running: bool = True
+    inaccessible: bool = False
+
+    def exe(self) -> str:
+        """Return a controlled image path or an access failure."""
+        if self.inaccessible:
+            raise psutil.AccessDenied(self.pid)
+        return str(self.executable)
+
+    def create_time(self) -> float:
+        """Return this process incarnation's creation timestamp."""
+        return self.created
+
+    def is_running(self) -> bool:
+        """Model the final PID-reuse and process-exit check."""
+        return self.running
+
+    def cmdline(self) -> list[str]:
+        """Return this fixture's default launcher invocation."""
+        return [str(self.executable)]
+
+    def cwd(self) -> str:
+        """Resolve relative installation arguments against this process directory."""
+        return str(self.executable.parent)
+
+
+def _install_processes(
+    monkeypatch: pytest.MonkeyPatch, processes: list[_Process]
+) -> None:
+    """Replace only the external process and token query boundaries."""
+    by_pid = {process.pid: process for process in processes}
+    monkeypatch.setattr(psutil, "pids", lambda: list(by_pid))
+    monkeypatch.setattr(psutil, "Process", lambda pid: by_pid[pid])
+    monkeypatch.setattr(
+        windows_process_security, "process_user_sid", lambda pid: by_pid[pid].user
+    )
+    monkeypatch.setattr(
+        windows_process_security, "process_session_id", lambda pid: by_pid[pid].session
+    )
+
+
+def test_discovery_applies_invocation_scope_after_image_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A recognized image running an unrelated operation must never become a target."""
+    executable = tmp_path / "SugarSubstitute.exe"
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), executable, 100.0),
+            _Process(1, executable, 1.0),
+        ],
+    )
+
+    class RejectedOperation(ExactExecutableProcessScope):
+        """Reject a valid image through the operation policy boundary."""
+
+        def accepts_invocation(
+            self, image: Path, arguments: Sequence[str], working_directory: Path
+        ) -> bool:
+            """Observe the actual kernel image independently of command-line spelling."""
+            assert image == executable
+            assert arguments == (str(executable),)
+            return False
+
+    assert (
+        discovery.find_previous_application_process(RejectedOperation((executable,)))
+        is None
+    )
+
+
+def test_discovery_selects_oldest_matching_earlier_instance(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Ignore unrelated installations, accounts, replacements and recycled PIDs."""
+    executable = tmp_path / "installed" / "SugarSubstitute.exe"
+    caller = _Process(os.getpid(), executable, 100.0)
+    processes = [
+        caller,
+        _Process(1, executable, 30.0),
+        _Process(2, executable, 20.0),
+        _Process(3, tmp_path / "other" / "SugarSubstitute.exe", 1.0),
+        _Process(4, executable, 1.0, user="user-b"),
+        _Process(5, executable, 25.0, session=2),
+        _Process(6, executable, 1.0, running=False),
+        _Process(7, executable, 1.0, inaccessible=True),
+        _Process(8, executable, 101.0),
+        _Process(9, executable, 100.0),
+    ]
+    _install_processes(monkeypatch, processes)
+    assert discovery.find_previous_application_process(
+        ExactExecutableProcessScope((executable,))
+    ) == ProcessIdentity(2, 20.0)
+
+
+@pytest.mark.parametrize("owner_session", [1, 2])
+def test_discovery_keeps_same_account_owner_recoverable_across_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, owner_session: int
+) -> None:
+    """Find the same installation owner even after the user changes desktop sessions."""
+    executable = tmp_path / "SugarSubstitute.exe"
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), executable, 100.0, session=1),
+            _Process(1, executable, 20.0, session=owner_session),
+            _Process(2, executable, 10.0, user="other-user", session=owner_session),
+        ],
+    )
+    assert discovery.find_previous_application_process(
+        ExactExecutableProcessScope((executable,))
+    ) == ProcessIdentity(1, 20.0)
+
+
+@pytest.mark.parametrize("caller_is_repair", [False, True])
+def test_discovery_recognizes_both_installed_owner_roles(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caller_is_repair: bool
+) -> None:
+    """Normal and repair launchers can recover one another without admitting other installs."""
+    main = tmp_path / "installation" / "SugarSubstitute.exe"
+    repair = main.parent / "launcher-bin" / "Repair.exe"
+    caller_executable, owner_executable = (
+        (repair, main) if caller_is_repair else (main, repair)
+    )
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), caller_executable, 100.0),
+            _Process(1, owner_executable, 20.0),
+            _Process(2, tmp_path / "other" / "launcher-bin" / "Repair.exe", 1.0),
+            _Process(3, repair, 1.0, user="other"),
+            _Process(4, repair, 25.0, session=2),
+        ],
+    )
+    assert discovery.find_previous_application_process(
+        ExactExecutableProcessScope((main, repair))
+    ) == ProcessIdentity(1, 20.0)
+
+
+@pytest.mark.parametrize(
+    "mismatch", ["executable", "user", "newer", "exited", "access"]
+)
+def test_discovery_never_offers_an_ineligible_process(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mismatch: str,
+) -> None:
+    """A candidate must independently satisfy every scope and lifetime requirement."""
+    executable = tmp_path / "SugarSubstitute.exe"
+    caller = _Process(os.getpid(), executable, 100.0)
+    candidate = _Process(1, executable, 1.0)
+    if mismatch == "executable":
+        candidate.executable = tmp_path / "other" / "SugarSubstitute.exe"
+    elif mismatch == "user":
+        candidate.user = "other-user"
+    elif mismatch == "newer":
+        candidate.created = 101.0
+    elif mismatch == "exited":
+        candidate.running = False
+    else:
+        candidate.inaccessible = True
+    _install_processes(monkeypatch, [caller, candidate])
+    assert (
+        discovery.find_previous_application_process(
+            ExactExecutableProcessScope((executable,))
+        )
+        is None
+    )
+
+
+def test_source_interpreter_cannot_discover_installed_recovery_targets(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Do not use a claimed packaged path as authority to inspect other instances."""
+    executable = tmp_path / "SugarSubstitute.exe"
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), tmp_path / "python.exe", 100.0),
+            _Process(1, executable, 1.0),
+        ],
+    )
+    assert (
+        discovery.find_previous_application_process(
+            ExactExecutableProcessScope((executable,))
+        )
+        is None
+    )
+
+
+@pytest.mark.platforms("windows")
+def test_native_process_security_identity_matches_current_token() -> None:
+    """Read the actual process token and Windows session without application IPC."""
+    assert process_user_sid(None) == process_user_sid(os.getpid())
+    assert process_user_sid(None).startswith("S-1-")
+    assert process_session_id(os.getpid()) >= 0
+    with pytest.raises(OSError):
+        process_session_id(0xFFFFFFFF)

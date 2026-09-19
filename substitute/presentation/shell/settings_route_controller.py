@@ -24,6 +24,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from substitute.presentation.settings.settings_workspace import (
+    COMFYUI_SECTION_ID,
     GENERATION_SECTION_ID,
     MODEL_SOURCES_SECTION_ID,
     create_settings_workspace,
@@ -195,6 +196,15 @@ class SettingsRouteController:
         self.project_settings_workspace()
         self._shell.settings_workspace_panel.select_page(
             MODEL_SOURCES_SECTION_ID,
+            animated=False,
+        )
+
+    def project_comfyui_settings(self) -> None:
+        """Project Settings directly to ComfyUI connection configuration."""
+
+        self.project_settings_workspace()
+        self._shell.settings_workspace_panel.select_page(
+            COMFYUI_SECTION_ID,
             animated=False,
         )
 

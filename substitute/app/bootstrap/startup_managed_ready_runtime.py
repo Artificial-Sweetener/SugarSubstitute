@@ -17,13 +17,15 @@
 """Own managed-ready startup runtime resource composition."""
 
 from __future__ import annotations
+from substitute.app.bootstrap.startup_splash_progress import StartupProgressSplash
+
 
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.startup_warmup_controller import (
     NonessentialStartupWarmupRuntime,
     StartupWarmupState,
@@ -79,7 +81,6 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellActivationStateProtocol,
     ReadyShellBackendStateUpdater,
     ReadyShellBuildTask,
-    ReadyShellFailureQueue,
     ReadyShellHydrationStateProtocol,
     ReadyShellInitialWorkspacePrehydrationTask,
     ReadyShellLocalEditorWarmupAdapter,
@@ -98,7 +99,6 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellTargetActivationTask,
     create_bound_ready_shell_post_show_controller,
     create_ready_shell_build_task,
-    create_ready_shell_failure_queue,
     create_ready_shell_initial_workspace_prehydration_task,
     create_ready_shell_local_editor_warmup_adapter,
     create_ready_shell_managed_startup_prelude,
@@ -108,6 +108,10 @@ from substitute.app.bootstrap.ready_shell_controller import (
     create_ready_shell_show_gate_task,
     create_ready_shell_startup_diagnostics_update_adapter,
     create_ready_shell_target_activation_task,
+)
+from substitute.app.bootstrap.ready_shell_failure_queue import (
+    ReadyShellFailureQueue,
+    create_ready_shell_failure_queue,
 )
 from substitute.app.bootstrap import ready_shell_reveal
 from substitute.app.bootstrap.ready_shell_startup_tasks import (
@@ -120,7 +124,6 @@ from substitute.app.bootstrap.pre_show_restore_projection import (
     PreShowRestoreProjectionState,
 )
 from substitute.app.bootstrap.startup_failure_controller import (
-    SplashCloseProtocol,
     create_startup_managed_failure_report_adapter,
 )
 from substitute.app.bootstrap.startup_signal_bridges import (
@@ -219,7 +222,7 @@ class ReadyShellFailureQueueFactory(Protocol):
         is_startup_cancelled: Callable[[], bool],
         mark_startup_cancelled: Callable[[], None],
         managed_comfy_state: Callable[[], object | None],
-        splash: Callable[[], SplashCloseProtocol | None],
+        splash: Callable[[], StartupProgressSplash | None],
         cleanup: Callable[[], object],
         quit_app: Callable[[], None],
         trace_fields: Callable[[], dict[str, object]],
@@ -587,7 +590,7 @@ def create_startup_managed_ready_runtime_resources(
         is_startup_cancelled: Callable[[], bool],
         mark_startup_cancelled: Callable[[], None],
         managed_comfy_state: Callable[[], object | None],
-        splash: Callable[[], SplashCloseProtocol | None],
+        splash: Callable[[], StartupProgressSplash | None],
         cleanup: Callable[[], object],
         quit_app: Callable[[], None],
         trace_fields: Callable[[], dict[str, object]],

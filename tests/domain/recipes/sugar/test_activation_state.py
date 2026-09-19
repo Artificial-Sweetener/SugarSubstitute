@@ -35,8 +35,8 @@ from tests.domain.recipes.sugar.persistence_support import (
 )
 
 
-def test_bypassed_cube_serializes_as_comments_and_bridges_active_connections() -> None:
-    """Bypassed cubes should round-trip while active connects skip over them."""
+def test_bypassed_cube_serializes_without_inventing_explicit_connections() -> None:
+    """Bypassed Cubes round-trip while SugarCubes reconstructs proximity later."""
 
     ordered = ["A", "B", "C"]
     cubes = {
@@ -89,9 +89,7 @@ def test_bypassed_cube_serializes_as_comments_and_bridges_active_connections() -
 
     assert '# bypass use "Owner/Repo/b.cube"@1.0.0 as B' in script
     assert '# bypass set B.prompt.text = "kept while muted"' in script
-    assert "connect A.output.image to C.input.image" in script
-    assert "connect A.output.image to B.input.image" not in script
-    assert "connect B.output.image to C.input.image" not in script
+    assert "connect " not in script
     assert parsed.buffers["B"]["bypassed"] is True
     assert (
         _nested_value(parsed.buffers["B"], "nodes", "prompt", "inputs", "text")

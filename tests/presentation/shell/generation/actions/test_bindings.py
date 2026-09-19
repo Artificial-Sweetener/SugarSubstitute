@@ -29,11 +29,14 @@ from substitute.application.generation import (
 )
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.generation.seed_control import SeedControlState, SeedMode
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.workspace_generation_action_adapter import (
     GenerationActionBindingView,
     build_generation_action_bindings,
+)
+from substitute.presentation.shell.workspace_generation_controller import (
+    QueuedGenerationPreparationJob,
 )
 
 
@@ -106,7 +109,9 @@ def test_build_generation_action_bindings_routes_feedback_and_randomizes_request
             build_generation_request=lambda: request,
             randomize_generation_request_seeds=_randomize,
             build_queued_generation_snapshots=lambda: (),
-            capture_queued_generation_preparation=lambda: object(),
+            capture_queued_generation_preparation=lambda: cast(
+                QueuedGenerationPreparationJob, object()
+            ),
         ),
     )
 
@@ -146,7 +151,7 @@ def test_locking_after_generation_reuses_the_submitted_seed() -> None:
             workflow_name="Recipe A",
             workflow=cast(Any, workflow),
             global_override_scopes={
-                "seed": GlobalOverrideSerializationScope(
+                "seed": GlobalOverrideScope(
                     override_key="seed",
                     value=seed_value,
                     mode="global",
@@ -176,7 +181,9 @@ def test_locking_after_generation_reuses_the_submitted_seed() -> None:
             build_generation_request=_build_request,
             randomize_generation_request_seeds=_randomize,
             build_queued_generation_snapshots=lambda: (),
-            capture_queued_generation_preparation=lambda: object(),
+            capture_queued_generation_preparation=lambda: cast(
+                QueuedGenerationPreparationJob, object()
+            ),
         ),
     )
 

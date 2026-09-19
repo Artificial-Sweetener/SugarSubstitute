@@ -27,8 +27,8 @@ from substitute.application.workspace_state import WorkspaceAppendService
 from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnapshot
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
-    CubeTabIconResolver,
 )
+from substitute.presentation.resources.cube_icon_resolver import CubeIconResolver
 from substitute.presentation.shell.main_window_startup_trace import (
     workflow_snapshot_trace_fields,
 )
@@ -429,7 +429,7 @@ class RestoredWorkflowMaterializer:
             cube_count=len(snapshot.workflow.cubes),
         )
         result = CubeStackPresenter(
-            icon_resolver=CubeTabIconResolver(
+            icon_resolver=CubeIconResolver(
                 cube_icon_factory=getattr(self._shell, "cube_icon_factory", None),
             ),
         ).rebuild_stack(

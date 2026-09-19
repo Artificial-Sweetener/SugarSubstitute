@@ -72,8 +72,7 @@ def test_duplicate_workflow_tab_clones_registers_and_schedules_rehydration(
     cloned_workflow = SimpleNamespace(stack_order=["CubeA", "CubeB"], cubes={})
     duplicate_calls: list[object] = []
     workspace_calls: list[dict[str, object]] = []
-    materialized: list[tuple[str, str]] = []
-    scheduled_callbacks: list[object] = []
+    rehydrated: list[tuple[str, str]] = []
 
     def duplicate_workflow(candidate: object) -> object:
         """Record the clone candidate and return cloned workflow state."""
@@ -123,10 +122,9 @@ def test_duplicate_workflow_tab_clones_registers_and_schedules_rehydration(
         ),
         workflow_workspace=SimpleNamespace(duplicate_workflow=register_workflow),
         workflow_id="wf-a",
-        materialize_loaded_cube_input_canvas=lambda workflow_id, cube_alias: (
-            materialized.append((workflow_id, cube_alias))
+        rehydrate_duplicated_input_canvas=lambda source_id, target_id: (
+            rehydrated.append((source_id, target_id))
         ),
-        schedule_rehydration=scheduled_callbacks.append,
     )
 
     assert duplicate_calls == [workflow]
@@ -137,16 +135,7 @@ def test_duplicate_workflow_tab_clones_registers_and_schedules_rehydration(
             "base_label": "Recipe",
         }
     ]
-    assert materialized == []
-    assert len(scheduled_callbacks) == 1
-    callback = scheduled_callbacks.pop(0)
-    assert callable(callback)
-    callback()
-    while scheduled_callbacks:
-        next_callback = scheduled_callbacks.pop(0)
-        assert callable(next_callback)
-        next_callback()
-    assert materialized == [("wf-copy", "CubeA"), ("wf-copy", "CubeB")]
+    assert rehydrated == [("wf-a", "wf-copy")]
     assert "Workflow duplicate requested" in caplog.text
     assert "Workflow duplicate clone phase completed" in caplog.text
     assert "Workflow duplicate registration completed" in caplog.text
@@ -161,7 +150,7 @@ def test_duplicate_workflow_tab_missing_workflow_is_noop(
 
     clone_calls: list[object] = []
     workspace_calls: list[object] = []
-    scheduled_callbacks: list[object] = []
+    rehydrated: list[tuple[str, str]] = []
     caplog.set_level(
         logging.INFO,
         logger="sugarsubstitute.presentation.shell.workflow_duplicate_controller",
@@ -183,13 +172,14 @@ def test_duplicate_workflow_tab_missing_workflow_is_noop(
             )
         ),
         workflow_id="missing",
-        materialize_loaded_cube_input_canvas=lambda *_args: None,
-        schedule_rehydration=scheduled_callbacks.append,
+        rehydrate_duplicated_input_canvas=lambda source_id, target_id: (
+            rehydrated.append((source_id, target_id))
+        ),
     )
 
     assert clone_calls == []
     assert workspace_calls == []
-    assert scheduled_callbacks == []
+    assert rehydrated == []
     assert (
         "Workflow duplicate skipped because source workflow was missing" in caplog.text
     )

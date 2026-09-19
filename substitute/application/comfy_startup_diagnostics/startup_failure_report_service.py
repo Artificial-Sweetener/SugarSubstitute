@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from traceback import format_exception
+
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 
 from substitute.application.errors import (
@@ -34,6 +36,31 @@ from substitute.domain.comfy_startup_diagnostics import (
     build_startup_incident_fingerprint,
 )
 from substitute.domain.onboarding import InstallationContext
+
+
+def build_startup_launch_exception_incident(
+    *, workspace: str, error: Exception
+) -> ComfyStartupIncident:
+    """Describe a launch failure even when no process or output stream exists."""
+
+    message = app_text("ComfyUI failed to start")
+    exception_type = type(error).__name__
+    return ComfyStartupIncident(
+        kind=ComfyStartupIncidentKind.LAUNCH_EXCEPTION,
+        severity=ComfyStartupIncidentSeverity.FATAL,
+        title=message,
+        message=message,
+        source=workspace,
+        exception_type=exception_type,
+        fingerprint=build_startup_incident_fingerprint(
+            kind=ComfyStartupIncidentKind.LAUNCH_EXCEPTION,
+            source=workspace,
+            exception_type=exception_type,
+            message=str(error).strip() or exception_type,
+        ),
+        traceback=tuple("".join(format_exception(error)).splitlines()),
+        values={"workspace": workspace},
+    )
 
 
 def build_startup_failure_report(

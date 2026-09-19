@@ -22,6 +22,7 @@ import ast
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 import subprocess
+import sys
 from typing import Any
 
 import pytest
@@ -143,6 +144,84 @@ def test_stream_command_collecting_output_retains_blank_lines(
     assert emitted == ["first", "second"]
 
 
+def test_collecting_process_reports_silence_until_real_output_arrives(
+    tmp_path: Path,
+) -> None:
+    """Report a live silent child without inventing child output records."""
+
+    release_marker = tmp_path / "release-child"
+    heartbeats: list[float] = []
+
+    def release_on_first_heartbeat(elapsed_seconds: float) -> None:
+        """Record the heartbeat and release the synchronized child process."""
+
+        heartbeats.append(elapsed_seconds)
+        release_marker.touch()
+
+    script = "\n".join(
+        (
+            "import pathlib, sys, time",
+            "marker = pathlib.Path(sys.argv[1])",
+            "while not marker.exists():",
+            "    time.sleep(0.001)",
+            "print('child output')",
+        )
+    )
+    exit_code, output_lines = hidden_process_runner.stream_command_collecting_output(
+        [sys.executable, "-c", script, str(release_marker)],
+        cwd=tmp_path,
+        on_line=None,
+        on_silence=release_on_first_heartbeat,
+        silence_notification_interval_seconds=0.02,
+        timeout_seconds=5,
+    )
+
+    assert exit_code == 0
+    assert heartbeats
+    assert heartbeats[0] >= 0.02
+    assert output_lines == ("child output",)
+
+
+def test_collecting_process_propagates_background_stream_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Return reader failures to the process-owning caller thread."""
+
+    process = _FakeProcess(returncode=0, lines=())
+    process.stdout = _FailingStdout(())
+    monkeypatch.setattr(
+        "substitute.infrastructure.process.hidden_process_runner.subprocess.Popen",
+        lambda *args, **kwargs: process,
+    )
+
+    with pytest.raises(OSError, match="stream failed"):
+        hidden_process_runner.stream_command_collecting_output(
+            ["python", "-m", "cm_cli"],
+            cwd=tmp_path,
+            on_line=None,
+            on_silence=lambda elapsed_seconds: None,
+            silence_notification_interval_seconds=0.02,
+        )
+
+    assert process.stdout.closed is True
+
+
+def test_collecting_process_rejects_nonpositive_silence_interval(
+    tmp_path: Path,
+) -> None:
+    """Reject an interval that would spin the caller thread continuously."""
+
+    with pytest.raises(ValueError, match="must be positive"):
+        hidden_process_runner.stream_command_collecting_output(
+            ["python", "-m", "cm_cli"],
+            cwd=tmp_path,
+            on_line=None,
+            on_silence=lambda elapsed_seconds: None,
+            silence_notification_interval_seconds=0,
+        )
+
+
 def test_run_command_check_raises_on_nonzero_exit(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -185,6 +264,15 @@ class _FakeStdout:
         """Record stream closure."""
 
         self.closed = True
+
+
+class _FailingStdout(_FakeStdout):
+    """Stdout stream that fails while the reader iterates it."""
+
+    def __iter__(self) -> Iterator[str]:
+        """Raise the simulated process-pipe read failure."""
+
+        raise OSError("stream failed")
 
 
 class _FakeProcess:

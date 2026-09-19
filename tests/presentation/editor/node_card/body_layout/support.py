@@ -60,17 +60,20 @@ def mount_body_card(
     node_type: str,
     inputs: dict[str, object],
     definitions: Mapping[str, Mapping[str, object]] | None = None,
+    node_metadata: Mapping[str, object] | None = None,
+    ui: dict[str, object] | None = None,
 ) -> MountedBodyCard:
     """Build and visibly mount one card with simple field widgets."""
 
     ensure_qapp()
     active_definitions = dict(definitions or {})
-    nodes: dict[str, dict[str, object]] = {
-        node_name: {"class_type": node_type, "inputs": inputs}
-    }
+    node_payload: dict[str, object] = {"class_type": node_type, "inputs": inputs}
+    node_payload.update(node_metadata or {})
+    nodes: dict[str, dict[str, object]] = {node_name: node_payload}
     cube_state = SimpleNamespace(
         buffer={"nodes": nodes, "definitions": active_definitions},
-        ui={},
+        ui=ui if ui is not None else {},
+        dirty=False,
     )
     panel = WidgetPanel()
     panel._stack_order = ["A"]

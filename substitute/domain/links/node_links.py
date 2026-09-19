@@ -219,14 +219,14 @@ class NodeLinkEndpointIndex:
         cube_alias: str,
         identity: NodeLinkIdentity,
     ) -> tuple[NodeLinkEndpoint, ...]:
-        """Return linkable same-identity endpoints before the requested cube."""
+        """Return every other linkable same-identity endpoint in display order."""
 
-        try:
-            cube_index = stack_order.index(cube_alias)
-        except ValueError:
+        if cube_alias not in stack_order:
             return ()
         targets: list[NodeLinkEndpoint] = []
-        for alias in stack_order[:cube_index]:
+        for alias in stack_order:
+            if alias == cube_alias:
+                continue
             endpoint = self.endpoint_for(alias, identity)
             if endpoint is not None:
                 targets.append(endpoint)
@@ -315,9 +315,13 @@ def plan_normalization(
             anchor_node = _endpoint_node(all_buffers, group.anchor)
             if anchor_node is None:
                 continue
-            if _raw_node_link(anchor_node) is not None:
+            if _raw_node_link(anchor_node) is not None or (
+                len(group.members) > 1 and "node_link" not in anchor_node
+            ):
                 mutations.append(_mutation_for(group.anchor, node_link=None))
-            for member in group.members[1:]:
+            for member in group.members:
+                if member == group.anchor:
+                    continue
                 member_node = _endpoint_node(all_buffers, member)
                 if member_node is None:
                     continue
@@ -364,8 +368,14 @@ def plan_transition_reconciliation(
             removed_members = {member.cube_alias for member in group.members} - {
                 member.cube_alias for member in surviving_members
             }
-            new_anchor = surviving_members[0]
-            anchor_changed = new_anchor.cube_alias != group.anchor.cube_alias
+            surviving_by_alias = {
+                member.cube_alias: member for member in surviving_members
+            }
+            new_anchor = surviving_by_alias.get(
+                group.anchor.cube_alias,
+                surviving_members[0],
+            )
+            anchor_changed = group.anchor.cube_alias not in surviving_by_alias
             if anchor_changed:
                 mutations.append(
                     _mutation_for(
@@ -375,7 +385,9 @@ def plan_transition_reconciliation(
                     )
                 )
                 preserve_linked_locals = bool(removed_members)
-                for member in surviving_members[1:]:
+                for member in surviving_members:
+                    if member == new_anchor:
+                        continue
                     updates = (
                         _UNCHANGED
                         if preserve_linked_locals
@@ -394,9 +406,14 @@ def plan_transition_reconciliation(
                 continue
 
             anchor_node = _endpoint_node(current_buffers, group.anchor)
-            if anchor_node is not None and _raw_node_link(anchor_node) is not None:
+            if anchor_node is not None and (
+                _raw_node_link(anchor_node) is not None
+                or (len(group.members) > 1 and "node_link" not in anchor_node)
+            ):
                 mutations.append(_mutation_for(group.anchor, node_link=None))
-            for member in surviving_members[1:]:
+            for member in surviving_members:
+                if member == group.anchor:
+                    continue
                 member_node = _endpoint_node(current_buffers, member)
                 if member_node is None:
                     continue
@@ -428,16 +445,12 @@ def normalize_node_link_groups(
         )
         for endpoint in members
     }
-    index_by_alias = {
-        endpoint.cube_alias: index for index, endpoint in enumerate(members)
-    }
     endpoint_by_alias = {endpoint.cube_alias: endpoint for endpoint in members}
     groups_by_anchor: dict[NodeLinkEndpoint, list[NodeLinkEndpoint]] = {}
     for endpoint in members:
         anchor = _resolve_anchor_endpoint(
             endpoint=endpoint,
             nodes_by_endpoint=nodes_by_endpoint,
-            index_by_alias=index_by_alias,
             endpoint_by_alias=endpoint_by_alias,
             identity=identity,
         )
@@ -594,14 +607,18 @@ def _resolve_anchor_endpoint(
     *,
     endpoint: NodeLinkEndpoint,
     nodes_by_endpoint: Mapping[tuple[str, str], dict[str, Any] | None],
-    index_by_alias: Mapping[str, int],
     endpoint_by_alias: Mapping[str, NodeLinkEndpoint],
     identity: NodeLinkIdentity,
 ) -> NodeLinkEndpoint:
-    """Return the normalized anchor endpoint for one member in one node-link group."""
+    """Resolve one relation anchor independently of Cube presentation order."""
 
     current = endpoint
+    visited: set[tuple[str, str]] = set()
     while True:
+        current_key = (current.cube_alias, current.node_name)
+        if current_key in visited:
+            return endpoint
+        visited.add(current_key)
         node = nodes_by_endpoint.get((current.cube_alias, current.node_name))
         if node is None:
             return endpoint
@@ -619,12 +636,6 @@ def _resolve_anchor_endpoint(
             or target_endpoint.node_name != target.from_node
             or target_endpoint.identity != identity
         ):
-            return current
-        target_index = index_by_alias.get(target_endpoint.cube_alias)
-        current_index = index_by_alias.get(current.cube_alias)
-        if target_index is None or current_index is None:
-            return current
-        if target_index >= current_index:
             return current
         current = target_endpoint
 

@@ -54,6 +54,15 @@ class NativeWidgetDecoding:
 
     values: dict[str, object]
     definition: dict[str, object]
+    value_indexes: dict[str, int]
+
+
+@dataclass(frozen=True, slots=True)
+class _TakenWidgetValue:
+    """Carry one decoded widget value and its serialized array position."""
+
+    value: object
+    index: int
 
 
 class _WidgetValueCursor:
@@ -65,7 +74,7 @@ class _WidgetValueCursor:
         self._values = tuple(values)
         self._index = 0
 
-    def take(self, field_definition: object) -> object | None:
+    def take(self, field_definition: object) -> _TakenWidgetValue | None:
         """Return the next compatible value and advance past numeric companions."""
 
         if self._index >= len(self._values):
@@ -81,10 +90,11 @@ class _WidgetValueCursor:
         ):
             self._index += 1
             value = self._values[self._index]
+        value_index = self._index
         self._index += 1
         if _is_numeric_field(field_definition) and self._is_numeric_companion_next():
             self._index += 1
-        return deepcopy(value)
+        return _TakenWidgetValue(deepcopy(value), value_index)
 
     def discard(self, count: int) -> None:
         """Advance past serialized frontend-only widget values."""
@@ -108,13 +118,19 @@ def decode_native_widget_values(
 
     cursor = _WidgetValueCursor(serialized)
     values: dict[str, object] = {}
+    value_indexes: dict[str, int] = {}
     normalized = _walk_definition(
         definition,
         selected_values=values,
+        value_indexes=value_indexes,
         cursor=cursor,
         prefix="",
     )
-    return NativeWidgetDecoding(values=values, definition=normalized)
+    return NativeWidgetDecoding(
+        values=values,
+        definition=normalized,
+        value_indexes=value_indexes,
+    )
 
 
 def normalize_native_widget_definition(
@@ -126,6 +142,7 @@ def normalize_native_widget_definition(
     return _walk_definition(
         definition,
         selected_values=dict(selected_values),
+        value_indexes=None,
         cursor=None,
         prefix="",
     )
@@ -135,6 +152,7 @@ def _walk_definition(
     definition: Mapping[str, object] | None,
     *,
     selected_values: dict[str, object],
+    value_indexes: dict[str, int] | None,
     cursor: _WidgetValueCursor | None,
     prefix: str,
 ) -> dict[str, object]:
@@ -156,6 +174,7 @@ def _walk_definition(
             section,
             target=normalized_section,
             selected_values=selected_values,
+            value_indexes=value_indexes,
             cursor=cursor,
             prefix=prefix,
         )
@@ -173,6 +192,7 @@ def _walk_section(
     *,
     target: dict[str, object],
     selected_values: dict[str, object],
+    value_indexes: dict[str, int] | None,
     cursor: _WidgetValueCursor | None,
     prefix: str,
 ) -> None:
@@ -186,15 +206,19 @@ def _walk_section(
         if field_type == _DYNAMIC_COMBO_TYPE:
             selector = selected_values.get(field_name)
             if cursor is not None:
-                selector = cursor.take(field_definition)
-                if selector is not None:
-                    selected_values[field_name] = selector
+                taken = cursor.take(field_definition)
+                if taken is not None:
+                    selector = taken.value
+                    selected_values[field_name] = taken.value
+                    if value_indexes is not None:
+                        value_indexes[field_name] = taken.index
             target[field_name] = _normalized_dynamic_selector(field_definition)
             option_inputs = _selected_dynamic_inputs(field_definition, selector)
             if option_inputs is not None:
                 nested = _walk_definition(
                     {"input": option_inputs},
                     selected_values=selected_values,
+                    value_indexes=value_indexes,
                     cursor=cursor,
                     prefix=f"{field_name}.",
                 )
@@ -217,9 +241,11 @@ def _walk_section(
         if not _is_widget_field(normalized_field_definition):
             continue
         if cursor is not None:
-            value = cursor.take(normalized_field_definition)
-            if value is not None:
-                selected_values[field_name] = value
+            taken = cursor.take(normalized_field_definition)
+            if taken is not None:
+                selected_values[field_name] = taken.value
+                if value_indexes is not None:
+                    value_indexes[field_name] = taken.index
 
 
 def _merge_nested_sections(

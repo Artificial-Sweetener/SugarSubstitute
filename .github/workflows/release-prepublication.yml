@@ -86,7 +86,9 @@ on:
 
 permissions:
   actions: read
+  attestations: write
   contents: read
+  id-token: write
 
 jobs:
   tests:
@@ -95,7 +97,7 @@ jobs:
     uses: ./.github/workflows/tests.yml
 
   determine-version:
-    name: Resolve semantic release version
+    name: Resolve release version
     needs: tests
     if: >-
       always() && (
@@ -141,6 +143,7 @@ jobs:
         inputs.release_input_run_id != ''
       )
     uses: ./.github/workflows/release-candidate.yml
+    secrets: inherit
     with:
       version: ${{ inputs.qualification_candidate_version || needs.determine-version.outputs.version }}
       channel: ${{ needs.determine-version.outputs.channel }}

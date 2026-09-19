@@ -33,7 +33,11 @@ def configure_theme(
 ) -> None:
     """Apply Substitute's requested QFluent theme mode and accent color."""
 
-    from qfluentwidgets import Theme, setTheme, setThemeColor  # type: ignore[import-untyped]
+    from qfluentwidgets.common.config import Theme  # type: ignore[import-untyped]
+    from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
+        setTheme,
+        setThemeColor,
+    )
 
     setTheme(_qfluent_theme_value(theme_mode=theme_mode, theme_namespace=Theme))
     setThemeColor(QColor(accent_color))
@@ -42,9 +46,30 @@ def configure_theme(
 def configure_accent_color(*, accent_color: str) -> None:
     """Apply only Substitute's requested QFluent accent color."""
 
-    from qfluentwidgets import setThemeColor
+    from qfluentwidgets.common.style_sheet import (
+        setThemeColor,
+    )
 
     setThemeColor(QColor(accent_color))
+
+
+def schedule_splash_theme(*, theme_mode: str | None, accent_color: str | None) -> None:
+    """Defer Fluent setup until the lightweight paint callback has returned."""
+    from functools import partial
+    from PySide6.QtCore import QTimer
+
+    QTimer.singleShot(
+        0,
+        partial(
+            configure_theme,
+            theme_mode=(
+                AppearanceThemeMode.LIGHT
+                if theme_mode == AppearanceThemeMode.LIGHT.value
+                else AppearanceThemeMode.DARK
+            ),
+            accent_color=accent_color or DEFAULT_CUSTOM_ACCENT_COLOR,
+        ),
+    )
 
 
 def _qfluent_theme_value(
@@ -63,4 +88,4 @@ def _qfluent_theme_value(
     return getattr(theme_namespace, mapping[theme_mode])
 
 
-__all__ = ["configure_accent_color", "configure_theme"]
+__all__ = ["configure_accent_color", "schedule_splash_theme", "configure_theme"]

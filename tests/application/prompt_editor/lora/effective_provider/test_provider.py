@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -122,47 +121,6 @@ class _StaticPromptLoraCatalog:
         return None
 
 
-class _StaticRecipeIoService:
-    """Return deterministic Sugar script text for graph tests."""
-
-    def __init__(self, text: str) -> None:
-        """Store serialized script text."""
-
-        self._text = text
-        self.calls = 0
-
-    def serialize_workflow_to_sugar_script(self, workflow: object) -> str:
-        """Return configured script text after touching the workflow shape."""
-
-        self.calls += 1
-        assert hasattr(workflow, "stack_order")
-        assert hasattr(workflow, "cubes")
-        assert hasattr(workflow, "global_overrides")
-        return self._text
-
-
-class _StaticWorkflowExportService:
-    """Return deterministic compiled workflow payloads."""
-
-    def __init__(self, payload: dict[str, Any]) -> None:
-        """Store compiled payload."""
-
-        self.calls = 0
-        self._payload = payload
-
-    def compile_workflow_payload(
-        self,
-        *,
-        sugar_script_text: str,
-        output_dir: object,
-    ) -> dict[str, Any]:
-        """Return configured graph payload and record compilation."""
-
-        _ = (sugar_script_text, output_dir)
-        self.calls += 1
-        return self._payload
-
-
 def _model_item(
     *,
     kind: str = "loras",
@@ -229,12 +187,10 @@ def _provider(
     *,
     model_items: tuple[ModelCatalogItem, ...],
     prompt_lora_items: tuple[PromptLoraCatalogItem, ...],
-    workflow_payload: dict[str, Any] | None = None,
     definitions_by_class: Mapping[str, dict[str, Any]] | None = None,
-) -> tuple[EffectiveScheduledLoraProvider, _StaticWorkflowExportService]:
+) -> EffectiveScheduledLoraProvider:
     """Return a provider with deterministic collaborators."""
 
-    export_service = _StaticWorkflowExportService(workflow_payload or {})
     live_definitions = definitions_by_class
     if live_definitions is None:
         live_definitions = {
@@ -247,8 +203,6 @@ def _provider(
             }
         }
     provider = EffectiveScheduledLoraProvider(
-        recipe_io_service=_StaticRecipeIoService("stack script"),
-        workflow_export_service=export_service,
         prompt_scheduled_lora_service=PromptScheduledLoraService(),
         prompt_lora_catalog_service=_StaticPromptLoraCatalog(prompt_lora_items),
         rich_choice_resolver=RichChoiceResolver(
@@ -257,9 +211,8 @@ def _provider(
             )
         ),
         node_definition_gateway=_StaticNodeDefinitionGateway(live_definitions),
-        output_dir=Path("."),
     )
-    return provider, export_service
+    return provider
 
 
 def _field_spec(value: str, *, field_key: str = "lora_name") -> ResolvedFieldSpec:
@@ -283,11 +236,17 @@ def _workflow_context(
     snapshot: EditorBehaviorSnapshot | None,
     *,
     cache_token: tuple[str, ...] = (),
+    workflow_nodes: Mapping[str, object] | None = None,
 ) -> WorkflowPromptContext:
     """Return one minimal workflow prompt context."""
 
     return WorkflowPromptContext(
-        cube_states={"Cube": SimpleNamespace(cube_id="text_to_image", buffer={})},
+        cube_states={
+            "Cube": SimpleNamespace(
+                cube_id="text_to_image",
+                buffer={"nodes": dict(workflow_nodes or {})},
+            )
+        },
         stack_order=("Cube",),
         workflow_overrides={},
         behavior_snapshot=snapshot,
@@ -311,7 +270,7 @@ def test_effective_provider_resolves_enriched_lora_list_fields() -> None:
         hidden_field_keys_by_alias={},
         reveal_entries_by_alias={},
     )
-    provider, _export_service = _provider(
+    provider = _provider(
         model_items=(model_item,),
         prompt_lora_items=(prompt_item,),
     )
@@ -354,7 +313,7 @@ def test_effective_provider_ignores_checkpoint_and_vae_list_fields() -> None:
         hidden_field_keys_by_alias={},
         reveal_entries_by_alias={},
     )
-    provider, _export_service = _provider(
+    provider = _provider(
         model_items=(checkpoint_item,),
         prompt_lora_items=(),
     )
@@ -398,7 +357,7 @@ def test_effective_provider_ignores_compact_dynamic_list_without_live_options() 
         hidden_field_keys_by_alias={},
         reveal_entries_by_alias={},
     )
-    provider, _export_service = _provider(
+    provider = _provider(
         model_items=(model_item,),
         prompt_lora_items=(_prompt_lora_item(),),
         definitions_by_class={
@@ -420,48 +379,42 @@ def test_effective_provider_ignores_compact_dynamic_list_without_live_options() 
 
 
 def test_effective_provider_collects_graph_effective_loras_for_prompt_branch() -> None:
-    """Compiled graph LoRA nodes feeding the prompt branch should count as scheduled."""
+    """Editable graph LoRA nodes feeding the prompt branch should count as scheduled."""
 
     prompt_item = _prompt_lora_item()
-    workflow_payload: dict[str, Any] = {
-        "prompt": {
-            "1": {
-                "class_type": "CheckpointLoaderSimple",
-                "inputs": {},
-                "_meta": {"title": "Base.checkpoint"},
-            },
-            "2": {
-                "class_type": "PCLazyLoraLoader",
-                "inputs": {
-                    "model": ["1", 0],
-                    "clip": ["1", 1],
-                    "lora_name": prompt_item.backend_value,
-                },
-                "_meta": {"title": "Cube.schedule_lora"},
-            },
-            "3": {
-                "class_type": "CLIPTextEncode",
-                "inputs": {"clip": ["2", 1], "text": "portrait"},
-                "_meta": {"title": "Cube.prompt"},
+    workflow_nodes: dict[str, Any] = {
+        "checkpoint": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {},
+        },
+        "schedule_lora": {
+            "class_type": "PCLazyLoraLoader",
+            "inputs": {
+                "model": ["checkpoint", 0],
+                "clip": ["checkpoint", 1],
+                "lora_name": prompt_item.backend_value,
             },
         },
-        "workflow": {"nodes": []},
+        "prompt": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {"clip": ["schedule_lora", 1], "text": "portrait"},
+        },
     }
-    provider, export_service = _provider(
+    provider = _provider(
         model_items=(),
         prompt_lora_items=(prompt_item,),
-        workflow_payload=workflow_payload,
     )
+    context = _workflow_context(None, workflow_nodes=workflow_nodes)
 
     scheduled_loras = provider.scheduled_loras_for_prompt_context(
-        workflow_context=_workflow_context(None),
+        workflow_context=context,
         cube_alias="Cube",
         prompt_node_name="prompt",
         prompt_field_key="text",
         prompt_text="portrait",
     )
     scheduled_again = provider.scheduled_loras_for_prompt_context(
-        workflow_context=_workflow_context(None),
+        workflow_context=context,
         cube_alias="Cube",
         prompt_node_name="prompt",
         prompt_field_key="text",
@@ -472,41 +425,31 @@ def test_effective_provider_collects_graph_effective_loras_for_prompt_branch() -
         ("characters/midna.safetensors", "graph_effective")
     ]
     assert scheduled_again == scheduled_loras
-    assert export_service.calls == 1
 
 
 def test_effective_provider_reuses_context_cache_for_graph_loras() -> None:
-    """Context-token graph cache should avoid repeated workflow serialization."""
+    """Context-token graph cache should return the prior graph analysis."""
 
     prompt_item = _prompt_lora_item()
-    workflow_payload: dict[str, Any] = {
-        "2": {
+    workflow_nodes: dict[str, Any] = {
+        "schedule_lora": {
             "class_type": "PCLazyLoraLoader",
             "inputs": {"lora_name": prompt_item.backend_value},
-            "_meta": {"title": "Cube.schedule_lora"},
         },
-        "3": {
+        "prompt": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"clip": ["2", 1], "text": "portrait"},
-            "_meta": {"title": "Cube.prompt"},
+            "inputs": {"clip": ["schedule_lora", 1], "text": "portrait"},
         },
     }
-    recipe_service = _StaticRecipeIoService("stack script")
-    export_service = _StaticWorkflowExportService(workflow_payload)
-    provider = EffectiveScheduledLoraProvider(
-        recipe_io_service=recipe_service,
-        workflow_export_service=export_service,
-        prompt_scheduled_lora_service=PromptScheduledLoraService(),
-        prompt_lora_catalog_service=_StaticPromptLoraCatalog((prompt_item,)),
-        rich_choice_resolver=RichChoiceResolver(
-            catalog_index=ModelChoiceCatalogIndex(
-                model_catalog=_StaticModelCatalog({"loras": ()})
-            )
-        ),
-        node_definition_gateway=_StaticNodeDefinitionGateway({}),
-        output_dir=Path("."),
+    provider = _provider(
+        model_items=(),
+        prompt_lora_items=(prompt_item,),
     )
-    context = _workflow_context(None, cache_token=("workflow", "one"))
+    context = _workflow_context(
+        None,
+        cache_token=("workflow", "one"),
+        workflow_nodes=workflow_nodes,
+    )
 
     first = provider.scheduled_loras_for_prompt_context(
         workflow_context=context,
@@ -524,49 +467,35 @@ def test_effective_provider_reuses_context_cache_for_graph_loras() -> None:
     )
 
     assert second == first
-    assert recipe_service.calls == 1
-    assert export_service.calls == 1
 
 
-def test_effective_provider_reuses_compiled_payload_for_distinct_prompt_fields() -> (
-    None
-):
-    """One Sugar script should compile once across prompt-field graph analysis."""
+def test_effective_provider_analyzes_distinct_prompt_fields_from_same_cube() -> None:
+    """Each prompt field should traverse its exact editable graph branch."""
 
     prompt_item = _prompt_lora_item()
-    workflow_payload: dict[str, Any] = {
-        "2": {
+    workflow_nodes: dict[str, Any] = {
+        "schedule_lora": {
             "class_type": "PCLazyLoraLoader",
             "inputs": {"lora_name": prompt_item.backend_value},
-            "_meta": {"title": "Cube.schedule_lora"},
         },
-        "3": {
+        "positive_prompt": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"clip": ["2", 1], "text": "portrait"},
-            "_meta": {"title": "Cube.positive_prompt"},
+            "inputs": {"clip": ["schedule_lora", 1], "text": "portrait"},
         },
-        "4": {
+        "negative_prompt": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"clip": ["2", 1], "text": "background"},
-            "_meta": {"title": "Cube.negative_prompt"},
+            "inputs": {"clip": ["schedule_lora", 1], "text": "background"},
         },
     }
-    recipe_service = _StaticRecipeIoService("stack script")
-    export_service = _StaticWorkflowExportService(workflow_payload)
-    provider = EffectiveScheduledLoraProvider(
-        recipe_io_service=recipe_service,
-        workflow_export_service=export_service,
-        prompt_scheduled_lora_service=PromptScheduledLoraService(),
-        prompt_lora_catalog_service=_StaticPromptLoraCatalog((prompt_item,)),
-        rich_choice_resolver=RichChoiceResolver(
-            catalog_index=ModelChoiceCatalogIndex(
-                model_catalog=_StaticModelCatalog({"loras": ()})
-            )
-        ),
-        node_definition_gateway=_StaticNodeDefinitionGateway({}),
-        output_dir=Path("."),
+    provider = _provider(
+        model_items=(),
+        prompt_lora_items=(prompt_item,),
     )
-    context = _workflow_context(None, cache_token=("workflow", "one"))
+    context = _workflow_context(
+        None,
+        cache_token=("workflow", "one"),
+        workflow_nodes=workflow_nodes,
+    )
 
     positive = provider.scheduled_loras_for_prompt_context(
         workflow_context=context,
@@ -587,59 +516,60 @@ def test_effective_provider_reuses_compiled_payload_for_distinct_prompt_fields()
         ("characters/midna.safetensors", "graph_effective")
     ]
     assert negative == positive
-    assert recipe_service.calls == 2
-    assert export_service.calls == 1
 
 
 def test_effective_provider_invalidates_context_cache_when_token_changes() -> None:
     """Changing workflow context tokens should recompute graph-effective LoRAs."""
 
     prompt_item = _prompt_lora_item()
-    workflow_payload: dict[str, Any] = {
-        "2": {
+    workflow_nodes: dict[str, Any] = {
+        "schedule_lora": {
             "class_type": "PCLazyLoraLoader",
             "inputs": {"lora_name": prompt_item.backend_value},
-            "_meta": {"title": "Cube.schedule_lora"},
         },
-        "3": {
+        "prompt": {
             "class_type": "CLIPTextEncode",
-            "inputs": {"clip": ["2", 1], "text": "portrait"},
-            "_meta": {"title": "Cube.prompt"},
+            "inputs": {"clip": ["schedule_lora", 1], "text": "portrait"},
         },
     }
-    recipe_service = _StaticRecipeIoService("stack script")
-    export_service = _StaticWorkflowExportService(workflow_payload)
-    provider = EffectiveScheduledLoraProvider(
-        recipe_io_service=recipe_service,
-        workflow_export_service=export_service,
-        prompt_scheduled_lora_service=PromptScheduledLoraService(),
-        prompt_lora_catalog_service=_StaticPromptLoraCatalog((prompt_item,)),
-        rich_choice_resolver=RichChoiceResolver(
-            catalog_index=ModelChoiceCatalogIndex(
-                model_catalog=_StaticModelCatalog({"loras": ()})
-            )
+    provider = _provider(
+        model_items=(),
+        prompt_lora_items=(prompt_item,),
+    )
+    first_context = _workflow_context(
+        None,
+        cache_token=("workflow", "one"),
+        workflow_nodes=workflow_nodes,
+    )
+    provider.scheduled_loras_for_prompt_context(
+        workflow_context=first_context,
+        cube_alias="Cube",
+        prompt_node_name="prompt",
+        prompt_field_key="text",
+        prompt_text="portrait",
+    )
+    workflow_nodes["schedule_lora"]["inputs"]["lora_name"] = "missing.safetensors"
+    cached = provider.scheduled_loras_for_prompt_context(
+        workflow_context=first_context,
+        cube_alias="Cube",
+        prompt_node_name="prompt",
+        prompt_field_key="text",
+        prompt_text="portrait",
+    )
+    refreshed = provider.scheduled_loras_for_prompt_context(
+        workflow_context=_workflow_context(
+            None,
+            cache_token=("workflow", "two"),
+            workflow_nodes=workflow_nodes,
         ),
-        node_definition_gateway=_StaticNodeDefinitionGateway({}),
-        output_dir=Path("."),
-    )
-
-    provider.scheduled_loras_for_prompt_context(
-        workflow_context=_workflow_context(None, cache_token=("workflow", "one")),
-        cube_alias="Cube",
-        prompt_node_name="prompt",
-        prompt_field_key="text",
-        prompt_text="portrait",
-    )
-    provider.scheduled_loras_for_prompt_context(
-        workflow_context=_workflow_context(None, cache_token=("workflow", "two")),
         cube_alias="Cube",
         prompt_node_name="prompt",
         prompt_field_key="text",
         prompt_text="portrait",
     )
 
-    assert recipe_service.calls == 2
-    assert export_service.calls == 1
+    assert len(cached) == 1
+    assert refreshed == ()
 
 
 def test_effective_provider_reuses_context_cache_for_cube_field_loras() -> None:
@@ -666,8 +596,6 @@ def test_effective_provider_reuses_context_cache_for_cube_field_loras() -> None:
         }
     )
     provider = EffectiveScheduledLoraProvider(
-        recipe_io_service=_StaticRecipeIoService("stack script"),
-        workflow_export_service=_StaticWorkflowExportService({}),
         prompt_scheduled_lora_service=PromptScheduledLoraService(),
         prompt_lora_catalog_service=_StaticPromptLoraCatalog((prompt_item,)),
         rich_choice_resolver=RichChoiceResolver(
@@ -676,7 +604,6 @@ def test_effective_provider_reuses_context_cache_for_cube_field_loras() -> None:
             )
         ),
         node_definition_gateway=node_gateway,
-        output_dir=Path("."),
     )
     context = _workflow_context(snapshot, cache_token=("workflow", "one"))
 

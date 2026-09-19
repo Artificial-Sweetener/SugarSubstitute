@@ -91,7 +91,7 @@ from substitute.presentation.widgets.menu_model import (
     MenuSeparator,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.workflows.reorderable_tabs_base import (
     ReorderableCloseButtonDisplayMode,
     ReorderableTabBarBase,

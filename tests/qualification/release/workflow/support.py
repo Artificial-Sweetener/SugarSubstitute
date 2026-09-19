@@ -30,8 +30,10 @@ ACTION_ROOT = PROJECT_ROOT / ".github" / "actions"
 EXPECTED_ACTIONS = frozenset(
     {
         "actions/checkout",
+        "actions/attest-build-provenance",
         "actions/cache",
         "actions/cache/restore",
+        "actions/cache/save",
         "actions/dependency-review-action",
         "actions/download-artifact",
         "actions/setup-node",

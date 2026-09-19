@@ -48,6 +48,7 @@ def build_preview_image_update(
         real_node_id=real_node_id,
         source_key=visual_identity.source_key,
         source_label=visual_identity.source_label,
+        output_session_id=visual_identity.output_session_id,
         scene_run_id=visual_identity.scene_run_id,
         scene_key=visual_identity.scene_key,
         scene_title=visual_identity.scene_title,

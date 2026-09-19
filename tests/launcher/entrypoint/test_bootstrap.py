@@ -24,6 +24,21 @@ import sys
 import pytest
 
 from launcher.sugarsubstitute_launcher import __main__ as launcher_bootstrap
+from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
+
+
+class _RecordingCrashRuntime:
+    """Record whether a supervised launcher child authenticates completion."""
+
+    def __init__(self) -> None:
+        """Create a runtime with no terminal outcome."""
+
+        self.clean_exit_outcome: CleanExitOutcome | None = None
+
+    def request_clean_exit(self, outcome: CleanExitOutcome) -> None:
+        """Record the one controlled terminal outcome."""
+
+        self.clean_exit_outcome = outcome
 
 
 def test_launcher_bootstrap_returns_success_without_diagnostics(
@@ -39,6 +54,22 @@ def test_launcher_bootstrap_returns_success_without_diagnostics(
 
     assert launcher_bootstrap.run_launcher(lambda: 0) == 0
     assert not (launcher_dir / "logs" / "launcher-bootstrap.log").exists()
+
+
+def test_supervised_launcher_child_authenticates_only_normal_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The parent may trust a launcher UI exit only after bootstrap returns."""
+
+    runtime = _RecordingCrashRuntime()
+    monkeypatch.setattr(
+        launcher_bootstrap,
+        "_install_supervised_crash_runtime",
+        lambda: runtime,
+    )
+
+    assert launcher_bootstrap.run_launcher(lambda: 7) == 7
+    assert runtime.clean_exit_outcome is CleanExitOutcome.CLOSED
 
 
 def test_launcher_bootstrap_records_installed_pre_main_failure(
@@ -61,6 +92,13 @@ def test_launcher_bootstrap_records_installed_pre_main_failure(
 
         raise RuntimeError("packaged bootstrap exploded")
 
+    runtime = _RecordingCrashRuntime()
+    monkeypatch.setattr(
+        launcher_bootstrap,
+        "_install_supervised_crash_runtime",
+        lambda: runtime,
+    )
+
     with pytest.raises(RuntimeError, match="packaged bootstrap exploded"):
         launcher_bootstrap.run_launcher(fail_before_main)
 
@@ -70,3 +108,4 @@ def test_launcher_bootstrap_records_installed_pre_main_failure(
     assert "RuntimeError: packaged bootstrap exploded" in failure
     assert "fail_before_main" in failure
     assert "RuntimeError: packaged bootstrap exploded" in capsys.readouterr().err
+    assert runtime.clean_exit_outcome is None

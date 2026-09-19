@@ -44,6 +44,9 @@ from substitute.application.workflows.output_visual_events import (
     LiveFinalOutputEvent,
     LivePreviewEvent,
 )
+from substitute.presentation.shell.generation_visual_run_registration import (
+    register_generation_visual_run,
+)
 from substitute.shared.logging.logger import get_logger, log_debug
 
 _LOGGER = get_logger("presentation.shell.generation_feedback_coalescer")
@@ -206,13 +209,7 @@ class GenerationFeedbackCoalescer:
             prompt_id=event.prompt_id,
             client_id=event.client_id,
         )
-        if self._visual_authorization is not None:
-            self._visual_authorization.register_run(
-                workflow_id=event.workflow_id,
-                generation_run_id=event.generation_run_id,
-                prompt_id=event.prompt_id,
-                client_id=event.client_id,
-            )
+        register_generation_visual_run(self._visual_authorization, event)
         log_debug(
             _LOGGER,
             "Generation feedback run registered",

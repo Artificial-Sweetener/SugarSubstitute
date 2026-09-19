@@ -29,7 +29,7 @@ from substitute.domain.onboarding import LocalComfyProcess
 from substitute.infrastructure.comfy.local_process_gateway import (
     PsutilLocalComfyProcessGateway,
 )
-from substitute.infrastructure.comfy.managed_process_probe import is_endpoint_listening
+from substitute.infrastructure.comfy.managed_readiness import is_endpoint_listening
 from substitute.infrastructure.comfy.managed_process_query import get_listener_pid
 
 

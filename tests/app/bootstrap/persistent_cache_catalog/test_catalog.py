@@ -16,6 +16,7 @@
 
 """Verify the authoritative application persistent-cache inventory."""
 
+import shutil
 from pathlib import Path
 
 from substitute.app.bootstrap import persistent_cache_catalog
@@ -30,9 +31,11 @@ from substitute.app.bootstrap.persistent_cache_catalog import (
     CACHE_ID_MODEL_METADATA,
     CACHE_ID_MODEL_THUMBNAILS,
     CACHE_ID_RESTORE_PROJECTION,
+    RESTORE_PROJECTION_SEMANTIC_SOURCES,
     build_persistent_cache_catalog,
 )
 from substitute.application.cache_lifecycle import CacheDataClass
+from substitute.infrastructure.cache_lifecycle import SemanticSourceFingerprintService
 
 _EXPECTED_CACHE_IDS = {
     CACHE_ID_RESTORE_PROJECTION,
@@ -85,6 +88,38 @@ def test_rendered_caches_declare_runtime_compatibility() -> None:
         CACHE_ID_MODEL_THUMBNAILS,
     }
     assert all(item.compatibility.runtime_fingerprint for item in rendered)
+
+
+def test_restore_projection_compatibility_tracks_only_declared_semantics(
+    tmp_path: Path,
+) -> None:
+    """Invalidate presentation changes while ignoring unrelated source edits."""
+
+    project_root = _project_root()
+    for relative in RESTORE_PROJECTION_SEMANTIC_SOURCES:
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(project_root / relative, destination)
+    sources = tuple(Path(relative) for relative in RESTORE_PROJECTION_SEMANTIC_SOURCES)
+    fingerprints = SemanticSourceFingerprintService()
+    baseline = fingerprints.fingerprint(source_root=tmp_path, python_sources=sources)
+
+    unrelated = tmp_path / "substitute" / "unrelated.py"
+    unrelated.write_text("VALUE = 1\n", encoding="utf-8")
+    assert (
+        fingerprints.fingerprint(source_root=tmp_path, python_sources=sources)
+        == baseline
+    )
+
+    presentation_source = (
+        tmp_path / "substitute/application/cubes/cube_tab_presentation.py"
+    )
+    with presentation_source.open("a", encoding="utf-8") as stream:
+        stream.write("\nCACHE_SEMANTICS_PROOF = 1\n")
+    assert (
+        fingerprints.fingerprint(source_root=tmp_path, python_sources=sources)
+        != baseline
+    )
 
 
 def _project_root() -> Path:

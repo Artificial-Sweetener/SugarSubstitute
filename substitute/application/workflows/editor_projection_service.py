@@ -48,6 +48,11 @@ class WorkflowEditorProjectionService:
         cubes = getattr(workflow, "cubes", {})
         stack_order = getattr(workflow, "stack_order", ())
         if direct_workflow is not None:
+            if getattr(workflow, "is_graph_backed_cube_workflow", False) is True:
+                if not isinstance(cubes, Mapping):
+                    raise TypeError("Workflow cube state must be a mapping.")
+                order = tuple(str(alias) for alias in stack_order)
+                return WorkflowEditorProjection(states=cubes, order=order)
             if cubes or stack_order:
                 raise ValueError("Direct Comfy workflows cannot be mixed with cubes.")
             return WorkflowEditorProjection(

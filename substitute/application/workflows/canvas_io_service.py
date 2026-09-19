@@ -298,6 +298,7 @@ class CanvasIoService:
         source_label: str = "",
         node_id: str = "",
         generation_run_id: str | None = None,
+        output_session_id: str | None = None,
         prompt_id: str | None = None,
         client_id: str | None = None,
         scene_run_id: str | None = None,
@@ -332,6 +333,9 @@ class CanvasIoService:
             source_label=source_label or cube_alias_body(cube_name),
             node_id=node_id,
             generation_run_id=generation_run_id or "",
+            output_session_id=(
+                output_session_id or scene_run_id or generation_run_id or ""
+            ),
             prompt_id=prompt_id or "",
             client_id=client_id or "",
             scene_run_id=scene_run_id or "",

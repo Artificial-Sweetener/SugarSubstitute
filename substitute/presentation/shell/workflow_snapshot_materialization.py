@@ -31,6 +31,10 @@ from typing import Protocol
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 
 from substitute.domain.generation.seed_control import SeedControlState
+from substitute.domain.comfy_workflow import (
+    CanonicalCubeGraphAnalysis,
+    DirectWorkflowState,
+)
 from substitute.presentation.shell.cube_loader import (
     CubeLoadPresentationIntent,
     CubeLoadUiCallbacks,
@@ -38,6 +42,9 @@ from substitute.presentation.shell.cube_loader import (
 )
 from substitute.presentation.shell.editor_busy_coordinator import (
     EditorBusyControllerProtocol,
+)
+from substitute.presentation.shell.workflow_surface_commit import (
+    DeferredWorkflowSurfaceCommit,
 )
 from substitute.shared.logging.logger import get_logger, log_debug
 
@@ -71,6 +78,9 @@ class WorkflowStateProtocol(Protocol):
     global_override_selections: dict[str, bool]
     override_control_states: dict[str, SeedControlState]
     cubes: dict[str, object]
+
+    def install_canonical_graph(self, document: DirectWorkflowState) -> None:
+        """Replace legacy Cube state with its normalized native graph owner."""
 
 
 class CubeStackProtocol(Protocol):
@@ -179,6 +189,8 @@ class WorkflowSnapshotMaterializer:
         override_control_states: Mapping[str, SeedControlState] | None = None,
         icon_provider: CubeIconProviderProtocol = FIF,
         cube_loader: CubeLoaderProtocol = load_cube_async,
+        cube_graph_analysis: CanonicalCubeGraphAnalysis | None = None,
+        source_path: Path | None = None,
     ) -> None:
         """Load parsed buffers into an existing active workflow tab."""
 
@@ -252,6 +264,30 @@ class WorkflowSnapshotMaterializer:
         )
         busy_token = view.editor_busy.begin(workflow_id, message=app_text("Loading"))
         busy_finished = False
+        graph_installed = False
+
+        def install_canonical_graph() -> None:
+            """Install SugarCubes output once after every Cube surface exists."""
+
+            nonlocal graph_installed
+            if graph_installed or cube_graph_analysis is None:
+                return
+            target_workflow.install_canonical_graph(
+                DirectWorkflowState(
+                    source_path=source_path or Path(),
+                    source_workflow=cube_graph_analysis.workflow,
+                    buffer={"nodes": {}},
+                    cube_analysis=cube_graph_analysis,
+                )
+            )
+            graph_installed = True
+            log_debug(
+                _LOGGER,
+                "Workflow snapshot installed canonical Cube graph",
+                workflow_id=workflow_id,
+                workflow_name=workflow_name,
+                cube_count=len(target_workflow.cubes),
+            )
 
         def finish_busy_state() -> None:
             """Clear recipe-load busy state at most once."""
@@ -291,6 +327,39 @@ class WorkflowSnapshotMaterializer:
                 },
             )
 
+        def complete_deferred_surface_commit(
+            resolved_aliases: tuple[str, ...],
+        ) -> None:
+            """Finish recipe loading after canonical surfaces and masks exist."""
+
+            finish_busy_state()
+            if not is_batch_load or not resolved_aliases:
+                return
+            activate_loaded_cube = getattr(
+                cube_load_callbacks,
+                "activate_loaded_cube",
+                None,
+            )
+            if callable(activate_loaded_cube):
+                activate_loaded_cube(workflow_id, resolved_aliases[-1])
+
+        deferred_surface_commit = (
+            DeferredWorkflowSurfaceCommit(
+                callbacks=cube_load_callbacks,
+                workflow_id=workflow_id,
+                source_aliases=tuple(alias for alias, _buffer in loaded_buffer_items),
+                install_authority=install_canonical_graph,
+                on_complete=complete_deferred_surface_commit,
+            )
+            if cube_graph_analysis is not None
+            else None
+        )
+        loading_callbacks = (
+            deferred_surface_commit.loading_callbacks
+            if deferred_surface_commit is not None
+            else cube_load_callbacks
+        )
+
         def finish_batch_cube_load(
             source_alias: str,
             resolved_alias: str | None,
@@ -298,6 +367,7 @@ class WorkflowSnapshotMaterializer:
             """Activate one deterministic cube after a recipe-load batch finishes."""
 
             nonlocal remaining_loads
+            view._pending_cubes.pop(source_alias, None)
             apply_field_control_states(source_alias, resolved_alias)
             log_debug(
                 _LOGGER,
@@ -310,8 +380,13 @@ class WorkflowSnapshotMaterializer:
             if resolved_alias is not None:
                 completed_aliases.append(resolved_alias)
             remaining_loads -= 1
+            if deferred_surface_commit is not None:
+                deferred_surface_commit.record_loaded(source_alias, resolved_alias)
+                return
             if remaining_loads > 0:
                 return
+            if len(completed_aliases) == len(loaded_buffer_items):
+                install_canonical_graph()
             finish_busy_state()
             if not completed_aliases:
                 return
@@ -337,7 +412,13 @@ class WorkflowSnapshotMaterializer:
         ) -> None:
             """Apply parsed cube control state and clear busy state."""
 
+            view._pending_cubes.pop(source_alias, None)
             apply_field_control_states(source_alias, resolved_alias)
+            if deferred_surface_commit is not None:
+                deferred_surface_commit.record_loaded(source_alias, resolved_alias)
+                return
+            if resolved_alias is not None:
+                install_canonical_graph()
             finish_busy_state()
 
         def batch_load_finished_callback(
@@ -394,7 +475,7 @@ class WorkflowSnapshotMaterializer:
                 )
                 if is_batch_load:
                     cube_loader(
-                        cube_load_callbacks,
+                        loading_callbacks,
                         cube_id=str(buffer_data["cube_id"]),
                         alias_name=alias,
                         placeholder_index=placeholder_index,
@@ -405,7 +486,7 @@ class WorkflowSnapshotMaterializer:
                     )
                 else:
                     cube_loader(
-                        cube_load_callbacks,
+                        loading_callbacks,
                         cube_id=str(buffer_data["cube_id"]),
                         alias_name=alias,
                         placeholder_index=placeholder_index,

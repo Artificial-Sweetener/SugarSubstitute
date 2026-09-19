@@ -49,6 +49,7 @@ from .menu_model import (
     MenuSeparator,
     MenuSubmenu,
 )
+from .action_menu import ActionMenu
 
 
 class QFluentMenuRenderer:
@@ -64,10 +65,9 @@ class QFluentMenuRenderer:
     def render(self, model: MenuModel) -> RoundMenu:
         """Return a QFluent menu populated from ``model``."""
 
-        menu = (
-            RoundMenu(render_application_text(model.title), self._parent)
-            if model.title
-            else RoundMenu(parent=self._parent)
+        menu = ActionMenu(
+            title=render_application_text(model.title),
+            parent=self._parent,
         )
         if model.object_name is not None:
             menu.setObjectName(model.object_name)
@@ -131,7 +131,10 @@ class QFluentMenuRenderer:
     ) -> RoundMenu:
         """Return an eagerly populated submenu for one model entry."""
 
-        submenu = RoundMenu(render_application_text(entry.label), parent_menu)
+        submenu = ActionMenu(
+            title=render_application_text(entry.label),
+            parent=parent_menu,
+        )
         self._bind_text(submenu.setTitle, entry.label)
         submenu.setEnabled(
             entry.enabled and menu_entries_have_enabled_action(entry.entries)
@@ -209,7 +212,7 @@ def menu_entries_have_enabled_action(entries: Iterable[MenuEntry]) -> bool:
     return False
 
 
-class _LazyQFluentSubmenu(RoundMenu):  # type: ignore[misc]
+class _LazyQFluentSubmenu(ActionMenu):
     """Populate a QFluent submenu only when it is opened."""
 
     def __init__(

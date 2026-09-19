@@ -119,6 +119,15 @@ class _FakeInputDocument:
 
         return (image_id, mask_id) in self.archived_masks
 
+    def export_mask_image(self, mask_id: uuid.UUID) -> object | None:
+        """Return one deterministic payload for an admitted test mask."""
+
+        return (
+            object()
+            if any(mask_id == item[1] for item in self.archived_masks)
+            else None
+        )
+
     def set_mask_visual_opacity(self, mask_id: uuid.UUID, opacity: float) -> bool:
         """Accept opacity only for a mask in the currently routed composition."""
 

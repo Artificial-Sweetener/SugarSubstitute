@@ -19,8 +19,11 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import shutil
 from pathlib import Path
+from uuid import uuid4
+from tempfile import TemporaryDirectory
 
 from sugarsubstitute_shared.launcher_version import safe_launcher_version
 from sugarsubstitute_shared.launcher_update.archive import safe_extract_zip
@@ -29,14 +32,17 @@ from sugarsubstitute_shared.launcher_update.downloader import (
 )
 from sugarsubstitute_shared.launcher_update.models import (
     LauncherBundleAsset,
-    LauncherUpdateRequest,
+)
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.bundle_validation import (
+    LauncherBundleValidationError,
+    validate_launcher_bundle,
 )
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
+from sugarsubstitute_shared.launcher_update.delegation_contract import (
+    validate_launcher_successor,
+)
 from sugarsubstitute_shared.windows_long_paths import operational_path
-
-
-class LauncherBundleValidationError(RuntimeError):
-    """Report a launcher bundle that does not match its target contract."""
 
 
 class LauncherBundleStager:
@@ -63,49 +69,72 @@ class LauncherBundleStager:
 
         resolved_root = operational_path(install_root).resolve()
         update_root = resolved_root / "launcher" / "updates"
-        version_root = update_root / "staging" / safe_launcher_version(version)
-        archive_path = update_root / "downloads" / asset.filename
-        self._downloader.download(asset=asset, destination=archive_path)
-        _verify_sha256(archive_path, expected=asset.sha256)
-        if version_root.exists():
-            shutil.rmtree(version_root)
-        safe_extract_zip(zip_path=archive_path, destination_dir=version_root)
-        normalize_staged_bundle_permissions(bundle_dir=version_root, target=target)
-        validate_staged_bundle(bundle_dir=version_root, target=target)
-        request_path = update_root / "pending.json"
-        LauncherUpdateRequest(
-            install_root=resolved_root,
-            version=version,
-            target_key=target.key,
-            staged_bundle_dir=version_root,
-            relaunch=False,
-        ).save(request_path)
-        return request_path
-
-
-def validate_staged_bundle(
-    *,
-    bundle_dir: Path,
-    target: LauncherBundleTarget,
-) -> None:
-    """Validate required paths and reject unexpected top-level content."""
-
-    if not (bundle_dir / target.executable_relative_path).is_file():
-        raise LauncherBundleValidationError(
-            "Launcher bundle is missing its target executable."
+        attempt_root = (
+            update_root / "staging" / safe_launcher_version(version) / uuid4().hex
         )
-    if not (bundle_dir / target.support_relative_path).is_dir():
-        raise LauncherBundleValidationError(
-            "Launcher bundle is missing its runtime support directory."
-        )
-    allowed_roots = {path.parts[0] for path in target.replacement_roots}
-    unexpected = sorted(
-        child.name for child in bundle_dir.iterdir() if child.name not in allowed_roots
-    )
-    if unexpected:
-        raise LauncherBundleValidationError(
-            f"Launcher bundle contains unexpected roots: {', '.join(unexpected)}"
-        )
+        attempt_root.mkdir(parents=True)
+        try:
+            version_root = self.stage_bundle(
+                install_root=resolved_root,
+                version=version,
+                target=target,
+                asset=asset,
+                destination_dir=attempt_root / "payload",
+            )
+            validate_launcher_successor(
+                baseline=resolved_root, candidate=version_root, target=target
+            )
+            request_path = attempt_root / "request.json"
+            LauncherUpdateRequest(
+                install_root=resolved_root,
+                version=version,
+                target_key=target.key,
+                staged_bundle_dir=version_root,
+                relaunch=False,
+            ).save(request_path)
+            return request_path
+        except BaseException:
+            try:
+                shutil.rmtree(attempt_root)
+            except OSError:
+                logging.getLogger(__name__).exception(
+                    "Failed launcher staging could not be removed | attempt=%s",
+                    attempt_root,
+                )
+            raise
+
+    def stage_bundle(
+        self,
+        *,
+        install_root: Path,
+        version: str,
+        target: LauncherBundleTarget,
+        asset: LauncherBundleAsset,
+        destination_dir: Path,
+    ) -> Path:
+        """Download and validate a bundle without creating a promotion request."""
+
+        resolved_root = operational_path(install_root).resolve()
+        destination = operational_path(destination_dir).resolve()
+        if destination == resolved_root or not destination.is_relative_to(
+            resolved_root
+        ):
+            raise LauncherBundleValidationError(
+                f"Launcher staging path escapes its installation: {destination}"
+            )
+        update_root = resolved_root / "launcher" / "updates"
+        download_root = update_root / "downloads"
+        download_root.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(prefix="bundle-", dir=download_root) as temporary:
+            archive_path = Path(temporary) / "bundle.zip"
+            self._downloader.download(asset=asset, destination=archive_path)
+            _verify_sha256(archive_path, expected=asset.sha256)
+            if destination.exists():
+                shutil.rmtree(destination)
+            safe_extract_zip(zip_path=archive_path, destination_dir=destination)
+            normalize_staged_bundle_permissions(bundle_dir=destination, target=target)
+            validate_launcher_bundle(bundle_dir=destination, target=target)
+        return destination
 
 
 def normalize_staged_bundle_permissions(
@@ -137,7 +166,5 @@ def _verify_sha256(path: Path, *, expected: str) -> None:
 
 __all__ = [
     "LauncherBundleStager",
-    "LauncherBundleValidationError",
     "normalize_staged_bundle_permissions",
-    "validate_staged_bundle",
 ]

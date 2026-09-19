@@ -20,13 +20,21 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+import os
+import subprocess
+import sys
+from launcher.sugarsubstitute_launcher.payload_models import StagedAppPayload
 
 import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_activation import (
     PendingUpdateActivation,
+)
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
     UpdateRecoveryError,
+)
+from launcher.sugarsubstitute_launcher.update_activation_recovery import (
     recover_interrupted_update,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
@@ -49,8 +57,10 @@ def test_pending_update_rolls_back_app_runtime_and_state(tmp_path: Path) -> None
         layout=layout,
         successful_state=_updated_state(),
     )
-    layout.app_dir.replace(layout.root / "app_previous")
-    _write(layout.app_dir / "version.txt", "candidate-app")
+    _write(activation.staging_directory / "version.txt", "candidate-app")
+    activation.promote_app(
+        StagedAppPayload(version="0.4.0", staging_dir=activation.staging_directory)
+    )
     activation.prepare_runtime()
     _write(layout.runtime_dir / "version.txt", "candidate-runtime")
 
@@ -74,8 +84,10 @@ def test_pending_update_commit_advances_state_and_removes_backups(
         layout=layout,
         successful_state=_updated_state(),
     )
-    layout.app_dir.replace(layout.root / "app_previous")
-    _write(layout.app_dir / "version.txt", "candidate-app")
+    _write(activation.staging_directory / "version.txt", "candidate-app")
+    activation.promote_app(
+        StagedAppPayload(version="0.4.0", staging_dir=activation.staging_directory)
+    )
     activation.prepare_runtime()
     _write(layout.runtime_dir / "version.txt", "candidate-runtime")
     rollback_store = UpdateRollbackReportStore(layout.root)
@@ -106,14 +118,7 @@ def test_interrupted_update_is_recovered_from_durable_journal(
     layout = InstallLayout.from_root(tmp_path / "install")
     _write(layout.app_dir / "version.txt", "old-app")
     _write(layout.runtime_dir / "version.txt", "old-runtime")
-    activation = PendingUpdateActivation.begin(
-        layout=layout,
-        successful_state=_updated_state(),
-    )
-    layout.app_dir.replace(layout.root / "app_previous")
-    _write(layout.app_dir / "version.txt", "candidate-app")
-    activation.prepare_runtime()
-    _write(layout.runtime_dir / "version.txt", "candidate-runtime")
+    _crash_activation(layout, "preparing")
 
     assert recover_interrupted_update(layout) is True
 
@@ -123,7 +128,6 @@ def test_interrupted_update_is_recovered_from_durable_journal(
 
 
 def test_interrupted_commit_finishes_proven_update(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """A crash after the commit marker should finish rather than roll back."""
@@ -131,26 +135,7 @@ def test_interrupted_commit_finishes_proven_update(
     layout = InstallLayout.from_root(tmp_path / "install")
     _write(layout.app_dir / "version.txt", "old-app")
     _write(layout.runtime_dir / "version.txt", "old-runtime")
-    activation = PendingUpdateActivation.begin(
-        layout=layout,
-        successful_state=_updated_state(),
-    )
-    layout.app_dir.replace(layout.root / "app_previous")
-    _write(layout.app_dir / "version.txt", "candidate-app")
-    activation.prepare_runtime()
-    _write(layout.runtime_dir / "version.txt", "candidate-runtime")
-    original_save = LauncherUpdateState.save
-
-    def fail_state_save(_state: LauncherUpdateState, _path: Path) -> None:
-        """Simulate termination after the durable commit marker is written."""
-
-        raise OSError("process terminated")
-
-    monkeypatch.setattr(LauncherUpdateState, "save", fail_state_save)
-
-    with pytest.raises(OSError, match="process terminated"):
-        activation.commit()
-    monkeypatch.setattr(LauncherUpdateState, "save", original_save)
+    _crash_activation(layout, "committed")
 
     assert recover_interrupted_update(layout) is True
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
@@ -168,6 +153,77 @@ def test_corrupt_recovery_journal_fails_closed(tmp_path: Path) -> None:
         recover_interrupted_update(layout)
 
 
+@pytest.mark.parametrize("interrupted", [False, True])
+@pytest.mark.parametrize("backup", ["app", "runtime", "staging"])
+def test_proven_update_remains_available_when_backup_cleanup_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    interrupted: bool,
+    backup: str,
+) -> None:
+    """Keep disposal of old files from rejecting a durably accepted application."""
+    import shutil
+
+    from launcher.sugarsubstitute_launcher.update_activation_journal import (
+        load_update_journal,
+        previous_app_dir,
+        previous_runtime_dir,
+        staged_app_dir,
+        update_journal_path,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    _write(layout.app_dir / "version.txt", "old-app")
+    _write(layout.runtime_dir / "version.txt", "old-runtime")
+    activation = None
+    if interrupted:
+        _crash_activation(layout, "committed")
+    else:
+        activation = PendingUpdateActivation.begin(
+            layout=layout, successful_state=_updated_state()
+        )
+        _write(activation.staging_directory / "version.txt", "candidate-app")
+        activation.promote_app(
+            StagedAppPayload(version="0.4.0", staging_dir=activation.staging_directory)
+        )
+        activation.prepare_runtime()
+        _write(layout.runtime_dir / "version.txt", "candidate-runtime")
+    journal = load_update_journal(layout)
+    assert journal is not None
+    _write(staged_app_dir(layout, journal) / "obsolete.txt", "staging remainder")
+    blocked = {
+        "app": previous_app_dir,
+        "runtime": previous_runtime_dir,
+        "staging": staged_app_dir,
+    }[backup](layout, journal)
+    remove = shutil.rmtree
+
+    def reject_backup(path: Path) -> None:
+        """Model a native sharing failure only for an obsolete owned directory."""
+        if path == blocked:
+            raise PermissionError("obsolete backup is still open")
+        remove(path)
+
+    try:
+        with monkeypatch.context() as fault:
+            fault.setattr(shutil, "rmtree", reject_backup)
+            if activation is None:
+                assert recover_interrupted_update(layout)
+            else:
+                activation.commit()
+        assert blocked.exists()
+        assert (layout.app_dir / "version.txt").read_text() == "candidate-app"
+        assert (layout.runtime_dir / "version.txt").read_text() == "candidate-runtime"
+        assert (
+            LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
+        )
+        assert not update_journal_path(layout).exists()
+        assert not recover_interrupted_update(layout)
+    finally:
+        if activation is not None:
+            activation.rollback()
+
+
 def _updated_state() -> LauncherUpdateState:
     """Return the deterministic state committed after readiness."""
 
@@ -178,8 +234,88 @@ def _updated_state() -> LauncherUpdateState:
     )
 
 
+@pytest.mark.platforms("windows")
+@pytest.mark.parametrize("backup", ["app", "runtime"])
+def test_startup_recovers_committed_update_with_native_backup_reader(
+    tmp_path: Path, backup: str
+) -> None:
+    """Finish startup recovery while Windows denies deletion of an old backup."""
+    import ctypes
+    from ctypes import wintypes
+
+    from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupCandidate
+    from launcher.sugarsubstitute_launcher.startup_recovery import (
+        recover_startup_candidate,
+    )
+    from launcher.sugarsubstitute_launcher.update_activation_journal import (
+        load_update_journal,
+        previous_app_dir,
+        previous_runtime_dir,
+        update_journal_path,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    _write(layout.app_dir / "version.txt", "old-app")
+    _write(layout.runtime_dir / "version.txt", "old-runtime")
+    _crash_activation(layout, "committed")
+    journal = load_update_journal(layout)
+    assert journal is not None
+    blocked = (previous_app_dir if backup == "app" else previous_runtime_dir)(
+        layout, journal
+    ) / "version.txt"
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    reader = kernel.CreateFileW(str(blocked), 0x80000000, 3, None, 3, 0x80, None)
+    assert reader != ctypes.c_void_p(-1).value, ctypes.WinError(ctypes.get_last_error())
+    try:
+        with pytest.raises(PermissionError):
+            blocked.unlink()
+        candidate = recover_startup_candidate(LauncherStartupCandidate(layout, False))
+        assert candidate.layout == layout
+        assert blocked.read_text() == f"old-{backup}"
+        assert (layout.app_dir / "version.txt").read_text() == "candidate-app"
+        assert (layout.runtime_dir / "version.txt").read_text() == "candidate-runtime"
+        assert (
+            LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
+        )
+        assert not update_journal_path(layout).exists()
+        assert recover_startup_candidate(candidate) is candidate
+    finally:
+        assert kernel.CloseHandle(reader), ctypes.WinError(ctypes.get_last_error())
+
+
 def _write(path: Path, content: str) -> None:
     """Write one fixture file and its parent directories."""
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _crash_activation(layout: InstallLayout, phase: str) -> None:
+    """Terminate a hidden fixture owner at a durable activation boundary."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "tests.launcher.update_activation.payload_crash_process",
+            str(layout.root),
+            phase,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+    )
+    assert result.returncode == 73, result.stderr

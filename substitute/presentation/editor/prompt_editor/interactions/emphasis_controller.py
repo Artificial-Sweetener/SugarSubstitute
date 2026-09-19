@@ -210,11 +210,12 @@ class PromptEmphasisController:
 
         self._host = host
         self._document_service = document_service
+        self._action_in_progress = False
 
     def modify_emphasis(self, delta: float) -> None:
         """Apply one keyboard emphasis adjustment to the current editor selection."""
 
-        if not self._host.emphasis_feature_enabled:
+        if self._action_in_progress or not self._host.emphasis_feature_enabled:
             return
         self._host.clear_autocomplete_for_emphasis()
         session = self._host.emphasis_adjustment_session()
@@ -338,6 +339,31 @@ class PromptEmphasisController:
         cursor_policy: PromptWeightCursorPolicy = "preserve_cursor",
     ) -> None:
         """Apply one emphasis-shaped syntax action through the command route."""
+
+        if self._action_in_progress:
+            return
+        self._action_in_progress = True
+        try:
+            self._apply_emphasis_syntax_action(
+                action,
+                owner=owner,
+                clear_autocomplete=clear_autocomplete,
+                restore_focus=restore_focus,
+                cursor_policy=cursor_policy,
+            )
+        finally:
+            self._action_in_progress = False
+
+    def _apply_emphasis_syntax_action(
+        self,
+        action: PromptEmphasisSyntaxAction,
+        *,
+        owner: PromptEmphasisAdjustmentOwner | None,
+        clear_autocomplete: bool,
+        restore_focus: bool,
+        cursor_policy: PromptWeightCursorPolicy,
+    ) -> None:
+        """Publish one non-reentrant emphasis mutation and its presentation state."""
 
         if clear_autocomplete:
             self._host.clear_autocomplete_for_emphasis()

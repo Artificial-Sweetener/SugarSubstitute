@@ -97,6 +97,7 @@ def test_campaign_repeats_scenarios_and_writes_assistant_readable_report(
         seed=41,
         frame_budget_ms=16.667,
         artifact_root=tmp_path,
+        revision="test",
         deep_trace=False,
         scenario_runner=fake_runner,
         platform_name=lambda: "offscreen-test",
@@ -106,6 +107,7 @@ def test_campaign_repeats_scenarios_and_writes_assistant_readable_report(
     payload = json.loads(report_path.read_text(encoding="utf-8"))
 
     assert calls == [("fake", 0, False), ("fake", 1, False)]
+    assert report.revision == "test"
     assert report.correctness_passed
     assert report.structural_performance_passed
     assert report.timing_target_passed

@@ -34,9 +34,11 @@ from substitute.application.generation.seed_randomization_service import (
 )
 from substitute.application.prompt_wildcards import PromptWildcardPreprocessingService
 from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.common import JsonObject
 from substitute.infrastructure.persistence.file_prompt_wildcard_catalog_gateway import (
     FilePromptWildcardCatalogGateway,
 )
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
 
 _CANDIDATES = ("first", "second", "third")
 _PROMPT_LOCATOR = ("Text", "positive_prompt", "text")
@@ -143,7 +145,9 @@ class HeadlessWildcardGenerationHarness:
             recipe_io_service=_PromptRecordingSerializer(),
             prompt_wildcard_preprocessing_service=self._preprocessor,
         ).prepare_queued_snapshots(request=captured)
-        prepared_prompt = result.snapshots[0].sugar_script_text.removeprefix("prompt=")
+        native_workflow = result.snapshots[0].cube_workflow
+        assert native_workflow is not None
+        prepared_prompt = _native_prompt(native_workflow)
         expected_candidate = random.Random(seed).choice(_CANDIDATES)
         return WildcardGenerationObservation(
             requested_seed=seed,
@@ -151,6 +155,19 @@ class HeadlessWildcardGenerationHarness:
             expected_prompt=f"portrait {expected_candidate}",
             prepared_prompt=prepared_prompt,
         )
+
+
+def _native_prompt(workflow: JsonObject) -> str:
+    """Read the prepared prompt from one detached native Cube graph."""
+
+    definitions = cast(dict[str, object], workflow["definitions"])
+    subgraphs = cast(list[dict[str, object]], definitions["subgraphs"])
+    extra = cast(dict[str, object], subgraphs[0]["extra"])
+    document = cast(dict[str, object], extra["sugarcubes_document"])
+    implementation = cast(dict[str, object], document["implementation"])
+    nodes = cast(dict[str, dict[str, object]], implementation["nodes"])
+    inputs = cast(dict[str, object], nodes["positive_prompt"]["inputs"])
+    return cast(str, inputs["text"])
 
 
 class _PromptRecordingSerializer:
@@ -226,11 +243,12 @@ def _workflow() -> WorkflowState:
         },
         buffer={"nodes": {"ksampler": {"inputs": {"seed": 1}}}},
     )
-    return WorkflowState(
-        cubes={"Text": prompt_cube, "Diffusion Upscale": downstream_cube},
-        stack_order=["Text", "Diffusion Upscale"],
-        global_overrides={"seed": {"value": 0, "mode": "global"}},
+    workflow = graph_backed_cube_workflow_from_states(
+        prompt_cube,
+        downstream_cube,
     )
+    workflow.global_overrides = {"seed": {"value": 0, "mode": "global"}}
+    return workflow
 
 
 __all__ = [

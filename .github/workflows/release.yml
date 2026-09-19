@@ -26,6 +26,7 @@ on:
           - full
           - canary-fast
           - qualification-all
+          - qualification-windows
           - clean-all
           - clean-windows
           - clean-linux
@@ -71,7 +72,9 @@ on:
 
 permissions:
   actions: read
+  attestations: write
   contents: read
+  id-token: write
 
 concurrency:
   group: release-publication
@@ -79,19 +82,20 @@ concurrency:
 
 jobs:
   prepare-release:
-    name: Test, build, stage, and qualify release
+    name: Verify, build, stage, and qualify release
     uses: ./.github/workflows/release-prepublication.yml
+    secrets: inherit
     with:
       channel: ${{ github.ref_name == 'canary' && 'canary' || 'stable' }}
       canary_run_number: ${{ github.ref_name == 'canary' && github.run_number || '' }}
       qualification_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && github.ref_name != 'canary' && format('9999.0.{0}', github.run_number) || '' }}
-      run_tests: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' || github.event.inputs.qualification_scope == 'full' }}
+      run_tests: ${{ (github.event_name != 'push' || github.ref_name != 'canary') && (github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' || github.event.inputs.qualification_scope == 'full') }}
       force_candidate: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
       release_input_run_id: ${{ inputs.release_input_run_id }}
       qualification_candidate_run_id: ${{ inputs.qualification_candidate_run_id }}
       qualification_candidate_version: ${{ inputs.qualification_candidate_version }}
       candidate_artifact_name: ${{ inputs.candidate_artifact_name || 'non-release-candidate-channel' }}
-      qualification_scope: ${{ github.ref_name == 'canary' && 'canary-fast' || inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
+      qualification_scope: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope != '' && inputs.qualification_scope || github.ref_name == 'canary' && 'qualification-windows' || 'all' }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
 

@@ -406,7 +406,7 @@ class NodeLinkWidgetController:
     def _delete_widget(widget: object | None) -> None:
         """Detach and schedule deletion for a widget-like object."""
 
-        if widget is None:
+        if not NodeLinkWidgetController._is_live_widget(widget):
             return
         set_parent = getattr(widget, "setParent", None)
         if callable(set_parent):

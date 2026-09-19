@@ -22,7 +22,7 @@ from pathlib import Path
 import tempfile
 
 from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
-from launcher.sugarsubstitute_launcher.payload import verify_sha256
+from launcher.sugarsubstitute_launcher.payload_staging import verify_sha256
 from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
 from sugarsubstitute_shared.launcher_update.downloader import LauncherBundleDownloader

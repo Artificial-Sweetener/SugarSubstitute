@@ -21,6 +21,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
+from qfluentwidgets import PrimaryPushButton  # type: ignore[import-untyped]
 
 from substitute.presentation.widgets.model_picker import ModelPickerField
 from substitute.presentation.widgets.model_picker.model_picker_field import (
@@ -98,6 +99,62 @@ def test_model_picker_field_mouse_drag_can_select_search_text() -> None:
     assert surface.hasSelectedText() is True
     assert surface._should_paint_search_caret() is False
     destroy_qt_object(host)
+
+
+def test_empty_model_picker_routes_to_discovery_without_opening_blank_popup() -> None:
+    """Clicking an empty picker should offer discovery instead of a blank wall."""
+
+    calls: list[str] = []
+    field = ModelPickerField(
+        choice_source=_FakeModelCatalog(()),
+        empty_model_action=lambda: calls.append("discover"),
+    )
+
+    field.open_picker()
+
+    assert calls == ["discover"]
+    assert field._popup is None
+    destroy_qt_object(field)
+
+
+def test_empty_model_picker_is_visibly_rendered_as_discovery_button() -> None:
+    """A safely discoverable empty picker should not resemble a blank combo."""
+
+    app = ensure_qapp()
+    calls: list[str] = []
+    field = ModelPickerField(
+        choice_source=_FakeModelCatalog(()),
+        empty_model_action=lambda: calls.append("discover"),
+    )
+    field.show()
+    app.processEvents()
+
+    assert field.is_empty_action_visible()
+    assert field.displayText() == "Find models"
+    button = field.findChild(PrimaryPushButton, "modelPickerEmptyActionButton")
+    assert button is not None
+    assert button.size() == field.contentsRect().size()
+    button.click()
+    assert calls == ["discover"]
+    destroy_qt_object(field)
+
+
+def test_missing_persisted_value_never_becomes_discovery_button() -> None:
+    """An unavailable authored value must remain visible and authoritative."""
+
+    app = ensure_qapp()
+    field = ModelPickerField(
+        choice_source=_FakeModelCatalog(()),
+        current_value="Anima/missing.safetensors",
+        empty_model_action=lambda: None,
+    )
+    field.show()
+    app.processEvents()
+
+    assert not field.is_empty_action_visible()
+    assert field.currentText() == "Anima/missing.safetensors"
+    assert field.displayText() == "missing"
+    destroy_qt_object(field)
 
 
 def _open_field(host: QWidget) -> ModelPickerField:

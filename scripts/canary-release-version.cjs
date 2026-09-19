@@ -17,11 +17,11 @@
 const CORE_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 /**
- * Add a monotonically increasing Canary identifier to the next Stable version.
+ * Add a legacy-launcher-compatible Canary identifier to the next Stable version.
  *
  * @param {string} nextStableVersion Exact semantic version expected for Stable.
  * @param {string} runNumber Positive GitHub Actions run number.
- * @returns {string} Canary semantic prerelease version.
+ * @returns {string} Dotted numeric Canary release version.
  */
 function createCanaryVersion(nextStableVersion, runNumber) {
   const normalizedVersion = String(nextStableVersion).trim();
@@ -32,7 +32,7 @@ function createCanaryVersion(nextStableVersion, runNumber) {
   if (!/^[1-9]\d*$/.test(normalizedRunNumber)) {
     throw new Error(`Expected a positive Canary run number: ${runNumber}`);
   }
-  return `${normalizedVersion}-canary.${normalizedRunNumber}`;
+  return `${normalizedVersion}.${normalizedRunNumber}`;
 }
 
 /**

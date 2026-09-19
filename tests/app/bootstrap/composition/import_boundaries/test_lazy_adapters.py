@@ -185,18 +185,13 @@ def test_lazy_scheduled_lora_provider_defers_effective_lora_imports() -> None:
         """
         import json
         import sys
-        from pathlib import Path
-
         from substitute.app.bootstrap.composition import _LazyScheduledLoraProvider
 
         provider = _LazyScheduledLoraProvider(
-            recipe_io_service=object(),
-            workflow_export_service=object(),
             prompt_scheduled_lora_service=object(),
             prompt_lora_catalog_service=object(),
             rich_choice_resolver=object(),
             node_definition_gateway=object(),
-            output_dir=Path("."),
         )
         module_name = (
             "substitute.application.prompt_editor.lora.effective_provider"

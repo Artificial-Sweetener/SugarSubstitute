@@ -215,7 +215,11 @@ def test_initial_plan_protects_local_work_and_prefers_registry(
             False,
             CoreNodepackAction.INSTALL_FALLBACK,
         ),
-        (RegistryInstallOutcome.FAILED, False, CoreNodepackAction.FAIL),
+        (
+            RegistryInstallOutcome.FAILED,
+            False,
+            CoreNodepackAction.INSTALL_FALLBACK,
+        ),
     ),
 )
 def test_registry_result_requires_disk_evidence_before_completion(
@@ -224,7 +228,7 @@ def test_registry_result_requires_disk_evidence_before_completion(
     matches: bool,
     expected: CoreNodepackAction,
 ) -> None:
-    """Use inspected CNR state as authority and fallback only on availability failures."""
+    """Use inspected CNR state as authority before applying the trusted fallback."""
 
     assert (
         plan_after_registry_attempt(

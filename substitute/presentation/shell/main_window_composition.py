@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, cast
 
 from substitute.application.generation import (
@@ -45,19 +44,29 @@ from substitute.application.workflows.output_scene_run_service import (
 from substitute.application.workflows.workflow_activity_service import (
     WorkflowActivityService,
 )
+from substitute.application.workflows.unsaved_work_service import UnsavedWorkService
 from substitute.application.cubes import CubeStackService
+from substitute.application.cubes.graph_backed_cube_stack_service import (
+    GraphBackedCubeStackService,
+)
 from substitute.presentation.editor.panel.lora_metadata_refresh_controller import (
     PanelLoraMetadataRefreshController,
 )
 from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
-from substitute.presentation.restart_requirements import RestartRequirementUiController
 from substitute.infrastructure.comfy.workflow_document_repository import (
     ComfyWorkflowDocumentRepository,
+)
+from substitute.infrastructure.external.sugarcubes_workflow_analysis_client import (
+    SugarCubesWorkflowAnalysisClient,
 )
 
 from .canvas_route_controller import canvas_route_controller_for
 from .comfy_runtime_actions import ComfyRuntimeActions
+from .comfy_connection_composition import (
+    ComfyConnectionRuntimeComposition,
+    compose_comfy_connection_runtime,
+)
 from .cube_library_update_controller import CubeLibraryUpdateController
 from .cube_stack_presentation_controller import (
     CubeStackMaterialSurface,
@@ -81,24 +90,20 @@ from .generation_result_workspace_materializer import (
 from .initial_workspace_controller import InitialWorkspaceController
 from .main_window_signal_binder import MainWindowSignalBinder
 from .generation_feedback_sink import ShellGenerationFeedbackSink
-from .generation_progress_strip_registry import GenerationProgressStripRegistry
 from .main_window_dependencies import MainWindowDependencies
 from .main_window_startup_trace import startup_phase
 from .model_catalog_update_controller import ModelCatalogUpdateController
+from .model_update_notification_controller import ModelUpdateNotificationController
+from .model_discovery_composition import compose_empty_model_picker_discovery
 from .model_metadata_surface_refresh_controller import (
     ModelMetadataSurfaceRefreshController,
 )
 from .node_definition_refresh_controller import NodeDefinitionRefreshController
-from .output_image_pipeline import (
-    OutputCanvasProjectionCoordinatorProtocol,
-    OutputImagePipeline,
-)
-from .output_image_preparation_dispatcher import (
-    CanvasIoOutputImageLoader,
-    OutputImagePreparationDispatcher,
-)
 from .progress_overlay_controller import ProgressOverlayController
 from .restore_projection_controller import RestoreProjectionController
+from .restart_requirement_composition import (
+    compose_restart_requirement_ui_controller,
+)
 from .restored_workflow_materializer import RestoredWorkflowMaterializer
 from .search_overlay_controller import SearchOverlayController
 from .session_autosave_controller import SessionAutosaveController
@@ -129,21 +134,9 @@ from .workspace_restore_controller import WorkspaceRestoreController
 from .workspace_restore_image_adapter import WorkspaceRestoreImageAdapter
 from .workspace_splitter_controller import WorkspaceSplitterController
 from .workspace_layout_controller import WorkspaceLayoutController
-from substitute.presentation.canvas.output.output_transfer_composition import (
-    OutputTransferLifecycle,
-    compose_output_transfer_lifecycle,
-)
-from substitute.presentation.canvas.output.output_context_menu_composition import (
-    compose_output_context_menu,
-)
-from substitute.presentation.canvas.output.output_transfer_failure_presenter import (
-    OutputTransferFailurePresenter,
-)
-from substitute.presentation.canvas.output.output_transfer_clipboard_publisher import (
-    publish_output_transfer_mime_data,
-)
+from .unsaved_work_controller import UnsavedWorkController
 from substitute.shared.startup_trace import trace_mark
-from substitute.shared.logging.logger import get_logger, log_warning
+from substitute.shared.logging.logger import get_logger
 
 _LOGGER = get_logger("presentation.shell.main_window_composition")
 
@@ -186,6 +179,7 @@ class MainWindowControllerComposition:
     workspace_layout_controller: WorkspaceLayoutController
     session_snapshot_capture_adapter: Any
     session_autosave_controller: Any
+    unsaved_work_controller: UnsavedWorkController
     workspace_restore_controller: Any
     restored_workflow_materializer: Any
     workspace_restore_image_adapter: Any
@@ -216,15 +210,6 @@ class MainWindowControllerComposition:
 
 
 @dataclass(frozen=True)
-class MainWindowOutputCanvasComposition:
-    """Hold output-canvas collaborators composed after canvas widgets exist."""
-
-    output_image_pipeline: Any
-    generation_progress_strip_registry: Any
-    output_transfer_lifecycle: OutputTransferLifecycle
-
-
-@dataclass(frozen=True)
 class MainWindowEditorBusyComposition:
     """Hold editor busy collaborators composed after workspace widgets exist."""
 
@@ -248,8 +233,11 @@ class MainWindowRuntimeControllerComposition:
     error_presenter: Any
     cube_library_update_controller: Any
     model_catalog_update_controller: Any
+    model_update_notification_controller: Any
+    empty_model_picker_discovery_controller: Any
     settings_route_controller: Any
     restart_requirement_ui_controller: Any
+    comfy_connection: ComfyConnectionRuntimeComposition
 
 
 @dataclass(frozen=True)
@@ -310,6 +298,12 @@ def capture_dependencies(
     shell.workspace_generation_controller = dependencies.workspace_generation_controller
     shell.path_bundle = dependencies.path_bundle
     shell.node_definition_gateway = dependencies.node_definition_gateway
+    shell.cube_graph_gateway = SugarCubesWorkflowAnalysisClient(
+        dependencies.comfy_target.endpoint
+    )
+    shell.cube_stack_service = CubeStackService(
+        GraphBackedCubeStackService(shell.cube_graph_gateway)
+    )
     shell.prompt_autocomplete_gateway = dependencies.prompt_autocomplete_gateway
     shell.prompt_wildcard_catalog_gateway = dependencies.prompt_wildcard_catalog_gateway
     shell.danbooru_url_import_service = dependencies.danbooru_url_import_service
@@ -369,6 +363,7 @@ def capture_dependencies(
     shell._comfy_settings_webview_dialog = None
     shell.comfy_environment_service = dependencies.comfy_environment_service
     shell.cube_library_management_service = dependencies.cube_library_management_service
+    shell.model_update_service = dependencies.model_update_service
     shell.generation_preview_preference_service = (
         dependencies.generation_preview_preference_service
     )
@@ -399,6 +394,7 @@ def capture_dependencies(
     workflow_progress_service = WorkflowProgressService()
     output_scene_run_service = OutputSceneRunService()
     output_preview_registry = OutputPreviewRegistry()
+    shell.unsaved_work_service = UnsavedWorkService()
     workspace_controller = WorkspaceController(shell)
     generation_feedback_sink = ShellGenerationFeedbackSink(shell)
     generation_feedback_dispatcher = GenerationFeedbackDispatcher(
@@ -432,6 +428,7 @@ def capture_dependencies(
     direct_workflow_repository = ComfyWorkflowDocumentRepository()
     direct_workflow_load_service = DirectWorkflowLoadService(
         direct_workflow_repository,
+        shell.cube_graph_gateway,
         node_definition_gateway=shell.node_definition_gateway,
     )
     direct_workflow_file_actions = DirectWorkflowFileActions(
@@ -560,143 +557,6 @@ def compose_editor_busy_controller(shell: Any) -> MainWindowEditorBusyCompositio
     return composition
 
 
-def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasComposition:
-    """Create Output canvas pipeline and progress-strip collaborators."""
-
-    preparation_dispatcher = _output_image_preparation_dispatcher(shell)
-    shell.shell_resource_lifecycle.register(
-        "output_image_preparation",
-        preparation_dispatcher.shutdown,
-    )
-    pipeline_kwargs: dict[str, Any] = {
-        "workflow_session_service": shell.workflow_session_service,
-        "canvas_io_service": shell.canvas_io_service,
-        "output_commit_handler": shell.workspace_canvas_actions,
-        "output_canvas_projection_coordinator": cast(
-            OutputCanvasProjectionCoordinatorProtocol,
-            shell.output_canvas_projection_coordinator,
-        ),
-        "canvas_host": shell.canvas_host,
-        "generation_timing_lookup": shell.generation_job_queue_service,
-        "prompt_interaction_active": (
-            shell.prompt_interaction_activity_tracker.is_prompt_interaction_active
-        ),
-        "prompt_interaction_elapsed_ms": (
-            shell.prompt_interaction_activity_tracker.ms_since_last_prompt_interaction
-        ),
-        "preparation_dispatcher": preparation_dispatcher,
-        "parent": shell,
-    }
-    output_image_pipeline = OutputImagePipeline(**pipeline_kwargs)
-    output_transfer_lifecycle = _compose_output_transfer_lifecycle(shell)
-    generation_progress_strip_registry = GenerationProgressStripRegistry(shell)
-    shell.output_floating_chrome_factory.set_progress_strip_registry(
-        generation_progress_strip_registry
-    )
-    composition = MainWindowOutputCanvasComposition(
-        output_image_pipeline=output_image_pipeline,
-        generation_progress_strip_registry=generation_progress_strip_registry,
-        output_transfer_lifecycle=output_transfer_lifecycle,
-    )
-    shell.output_image_pipeline = composition.output_image_pipeline
-    shell.generation_progress_strip_registry = (
-        composition.generation_progress_strip_registry
-    )
-    shell.output_transfer_lifecycle = composition.output_transfer_lifecycle
-    return composition
-
-
-def _compose_output_transfer_lifecycle(shell: Any) -> OutputTransferLifecycle:
-    """Install the Output workspace's captured-subject outbound transfer provider."""
-
-    output_canvas = shell.canvas_host.canvas_for("Output")
-    if output_canvas is None:
-        raise RuntimeError("Canvas tabs must include an Output canvas.")
-    drag_submitter = shell.execution_runtime.submitter(
-        "image_decode",
-        owner_id=f"output_transfer_drag_{id(shell):x}",
-        dispatcher=QtOwnerThreadDispatcher(shell),
-    )
-    clipboard_submitter = shell.execution_runtime.submitter(
-        "image_decode",
-        owner_id=f"output_transfer_clipboard_{id(shell):x}",
-        dispatcher=QtOwnerThreadDispatcher(shell),
-    )
-    failure_presenter = OutputTransferFailurePresenter(output_canvas)
-    lifecycle = compose_output_transfer_lifecycle(
-        document=output_canvas.document,
-        is_image_authorized=output_canvas.route_projector.is_image_allowed_for_transfer,
-        preference_service=shell.output_preference_service,
-        drag_submitter=drag_submitter,
-        close_drag_submitter=drag_submitter.close,
-        clipboard_submitter=clipboard_submitter,
-        close_clipboard_submitter=clipboard_submitter.close,
-        publish_clipboard_mime_data=publish_output_transfer_mime_data,
-        report_clipboard_failure=lambda message: _report_output_transfer_failure(
-            failure_presenter.report_copy_failure,
-            message,
-            operation="output_transfer_clipboard",
-        ),
-        staging_directory=Path(shell.path_bundle.user_dir)
-        / "cache"
-        / "output-transfer",
-    )
-    output_canvas.install_transfer_drag_provider(lifecycle.drag_provider)
-    output_canvas.workspace.outboundDragFailed.connect(
-        lambda _subject, message: _report_output_transfer_failure(
-            failure_presenter.report_drag_failure,
-            message,
-            operation="output_transfer_drag",
-        )
-    )
-    shell.output_context_menu = compose_output_context_menu(
-        output_canvas,
-        request_copy=lifecycle.clipboard_controller.copy,
-    )
-    shell.shell_resource_lifecycle.register("output_transfer", lifecycle.close)
-    return lifecycle
-
-
-def _report_output_transfer_failure(
-    present: Callable[[str], None],
-    message: str,
-    *,
-    operation: str,
-) -> None:
-    """Log technical transfer failure context before localized user feedback."""
-
-    log_warning(
-        _LOGGER,
-        "Output transfer failed",
-        operation=operation,
-        reason=message,
-    )
-    present(message)
-
-
-def _output_image_preparation_dispatcher(
-    shell: Any,
-) -> OutputImagePreparationDispatcher:
-    """Create the runtime route for output image preparation."""
-
-    execution_runtime = getattr(shell, "execution_runtime", None)
-    if execution_runtime is None:
-        raise RuntimeError(
-            "execution_runtime is required for output image preparation."
-        )
-    submitter = execution_runtime.submitter(
-        "image_decode",
-        owner_id=f"output_image_preparation_{id(shell):x}",
-        dispatcher=QtOwnerThreadDispatcher(shell),
-    )
-    return OutputImagePreparationDispatcher(
-        loader=CanvasIoOutputImageLoader(shell.canvas_io_service),
-        submitter=submitter,
-        close_submitter=submitter.close,
-        parent=shell,
-    )
-
-
 def compose_editor_metadata_controllers(
     shell: Any,
 ) -> MainWindowEditorMetadataComposition:
@@ -785,12 +645,13 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     workspace_layout_controller = WorkspaceLayoutController(shell)
     composition = MainWindowControllerComposition(
         workflow_issue_state=WorkflowIssueState(),
-        cube_stack_service=CubeStackService(),
+        cube_stack_service=cast(CubeStackService, shell.cube_stack_service),
         shell_chrome_controller=ShellChromeController(shell),
         shell_layout_restore_controller=ShellLayoutRestoreController(shell),
         workspace_layout_controller=workspace_layout_controller,
         session_snapshot_capture_adapter=SessionSnapshotCaptureAdapter(shell),
         session_autosave_controller=SessionAutosaveController(shell),
+        unsaved_work_controller=UnsavedWorkController(shell),
         workspace_restore_controller=WorkspaceRestoreController(shell),
         restored_workflow_materializer=RestoredWorkflowMaterializer(shell),
         workspace_restore_image_adapter=WorkspaceRestoreImageAdapter(shell),
@@ -832,6 +693,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
         composition.session_snapshot_capture_adapter
     )
     shell.session_autosave_controller = composition.session_autosave_controller
+    shell.unsaved_work_controller = composition.unsaved_work_controller
     shell.workspace_restore_controller = composition.workspace_restore_controller
     shell.restored_workflow_materializer = composition.restored_workflow_materializer
     shell.workspace_restore_image_adapter = composition.workspace_restore_image_adapter
@@ -949,13 +811,32 @@ def compose_runtime_controllers(
         "model_catalog_updates",
         model_catalog_update_controller.stop,
     )
+    model_update_notification_controller = ModelUpdateNotificationController(
+        parent_widget=shell,
+        preferences=dependencies.civitai_preference_service,
+        updates=dependencies.model_update_service,
+        model_root=dependencies.model_update_model_root,
+        acquisition=dependencies.model_update_acquisition_service,
+    )
+    shell.shell_resource_lifecycle.register(
+        "model_update_notifications",
+        model_update_notification_controller.close,
+    )
+    empty_model_picker_discovery_controller = compose_empty_model_picker_discovery(
+        parent_widget=shell,
+        dependencies=dependencies,
+        lifecycle=shell.shell_resource_lifecycle,
+    )
     shell._initial_workspace_hydrated = False
     settings_route_controller = SettingsRouteController(
         shell,
         error_presenter=error_presenter,
     )
-    restart_requirement_ui_controller = _compose_restart_requirement_ui_controller(
-        shell
+    restart_requirement_ui_controller = compose_restart_requirement_ui_controller(shell)
+    comfy_connection = compose_comfy_connection_runtime(
+        shell,
+        dependencies=dependencies,
+        settings_route_controller=settings_route_controller,
     )
     composition = MainWindowRuntimeControllerComposition(
         generation_job_queue_observer=generation_job_queue_observer,
@@ -963,8 +844,13 @@ def compose_runtime_controllers(
         error_presenter=error_presenter,
         cube_library_update_controller=cube_library_update_controller,
         model_catalog_update_controller=model_catalog_update_controller,
+        model_update_notification_controller=model_update_notification_controller,
+        empty_model_picker_discovery_controller=(
+            empty_model_picker_discovery_controller
+        ),
         settings_route_controller=settings_route_controller,
         restart_requirement_ui_controller=restart_requirement_ui_controller,
+        comfy_connection=comfy_connection,
     )
     shell._generation_job_queue_observer = composition.generation_job_queue_observer
     shell.generation_interrupt_failure_presenter = (
@@ -972,41 +858,17 @@ def compose_runtime_controllers(
     )
     shell.cube_library_update_controller = composition.cube_library_update_controller
     shell.model_catalog_update_controller = composition.model_catalog_update_controller
+    shell.model_update_notification_controller = (
+        composition.model_update_notification_controller
+    )
+    shell.empty_model_picker_discovery_controller = (
+        composition.empty_model_picker_discovery_controller
+    )
     shell.settings_route_controller = composition.settings_route_controller
     shell.restart_requirement_ui_controller = (
         composition.restart_requirement_ui_controller
     )
-    settings_route_controller.create_settings_workspace()
     return composition
-
-
-def _compose_restart_requirement_ui_controller(shell: Any) -> object | None:
-    """Attach the restart cart controller to the toolbar button when available."""
-
-    button = getattr(shell, "pendingRestartButton", None)
-    service = getattr(shell, "restart_requirement_service", None)
-    actions = getattr(shell, "comfy_runtime_actions", None)
-    restart_full_app = getattr(actions, "request_comfy_restart", None)
-    if button is None or service is None or not callable(restart_full_app):
-        return None
-    return cast(
-        object,
-        RestartRequirementUiController(
-            service=service,
-            button=button,
-            restart_full_app=restart_full_app,
-            restart_window=lambda: _request_shell_gui_reload(shell),
-            parent=shell,
-        ),
-    )
-
-
-def _request_shell_gui_reload(shell: Any) -> None:
-    """Invoke the current shell GUI reload callback when the restart cart asks."""
-
-    reload_gui = getattr(shell, "request_full_gui_reload", None)
-    if callable(reload_gui):
-        reload_gui()
 
 
 def connect_shell_signals(
@@ -1091,13 +953,11 @@ __all__ = [
     "MainWindowEditorBusyComposition",
     "MainWindowEditorMetadataComposition",
     "MainWindowInitialComposition",
-    "MainWindowOutputCanvasComposition",
     "MainWindowRuntimeControllerComposition",
     "MainWindowWorkflowLifecycleComposition",
     "capture_dependencies",
     "compose_editor_busy_controller",
     "compose_editor_metadata_controllers",
-    "compose_output_canvas_controllers",
     "compose_runtime_controllers",
     "compose_shell_controllers",
     "compose_workflow_lifecycle_services",

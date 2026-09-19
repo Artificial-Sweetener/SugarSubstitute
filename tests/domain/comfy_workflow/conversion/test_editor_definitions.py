@@ -56,6 +56,29 @@ def test_converter_builds_workflow_local_definitions_for_regular_widgets() -> No
     }
 
 
+def test_converter_preserves_node_advanced_disclosure_state() -> None:
+    """Keep Comfy's serialized Nodes 2.0 disclosure state as editor metadata."""
+
+    workflow = {
+        "nodes": [
+            {
+                "id": 7,
+                "type": "AdvancedNode",
+                "showAdvanced": True,
+                "inputs": [],
+                "outputs": [],
+                "widgets_values": [],
+            }
+        ],
+        "links": [],
+    }
+
+    graph = ComfyWorkflowConverter().convert(workflow)
+
+    node = graph["nodes"]["7"]  # type: ignore[index]
+    assert node["_workflow"]["show_advanced_inputs"] is True
+
+
 def test_converter_decodes_dynamic_combo_and_nested_widget_values() -> None:
     """Keep nested selector values from shifting later scalar values."""
     definitions: dict[str, Mapping[str, object]] = {

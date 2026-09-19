@@ -39,6 +39,7 @@ from tests.presentation.shell.generation.controller.support import (
     _BindingRecorder,
     _build_bindings,
     _snapshot,
+    _without_output_sessions,
     _bindings_with_snapshots,
 )
 
@@ -105,7 +106,12 @@ def test_continuous_skip_requeues_when_cycle_is_empty() -> None:
 
     assert controller.is_continuous_active is True
     assert fake_queue.skip_calls == 1
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [
         _snapshot("First"),
         _snapshot("Second"),
     ]
@@ -132,7 +138,12 @@ def test_continuous_skip_does_not_requeue_when_cycle_work_remains() -> None:
 
     assert controller.is_continuous_active is True
     assert fake_queue.skip_calls == 1
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [
         first_scene,
         second_scene,
     ]

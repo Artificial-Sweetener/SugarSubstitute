@@ -96,7 +96,6 @@ def test_nonessential_startup_warmup_launcher_uses_live_startup_ports() -> None:
         model_metadata_service_factory=lambda: service,
         model_metadata_refresh_handle_factory=handle_factory,
         comfy_output_stream=cast(Any, stream),
-        scheduler=lambda _delay_ms, _callback: None,
         trace_fields=lambda: {"workflow_id": "wf-a"},
         backend_editor_warmup=lambda **kwargs: calls.append(("backend", kwargs)),
         cube_icon_warmup=lambda **kwargs: calls.append(("cube", kwargs)),
@@ -137,7 +136,6 @@ def test_create_nonessential_startup_warmup_launcher_returns_launcher() -> None:
         model_metadata_service_factory=lambda: object(),
         model_metadata_refresh_handle_factory=_MetadataRefreshHandleFactory(),
         comfy_output_stream=cast(Any, object()),
-        scheduler=lambda _delay_ms, _callback: None,
         trace_fields=lambda: {},
     )
 

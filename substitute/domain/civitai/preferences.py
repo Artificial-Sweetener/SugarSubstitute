@@ -25,7 +25,7 @@ from substitute.domain.civitai.download_organization import (
     DEFAULT_CIVITAI_DOWNLOAD_PATH_PATTERN,
 )
 
-CIVITAI_PREFERENCES_SCHEMA_VERSION = "2"
+CIVITAI_PREFERENCES_SCHEMA_VERSION = "3"
 
 
 class CivitaiThumbnailSafetyPolicy(str, Enum):
@@ -48,6 +48,7 @@ class CivitaiPreferences:
     thumbnail_safety_policy: CivitaiThumbnailSafetyPolicy
     downloads_enabled: bool
     download_path_pattern: str
+    model_update_notifications_enabled: bool = False
 
     def with_metadata_lookup_enabled(self, enabled: bool) -> CivitaiPreferences:
         """Return a copy with metadata lookup policy updated."""
@@ -60,6 +61,7 @@ class CivitaiPreferences:
             thumbnail_safety_policy=self.thumbnail_safety_policy,
             downloads_enabled=self.downloads_enabled,
             download_path_pattern=self.download_path_pattern,
+            model_update_notifications_enabled=self.model_update_notifications_enabled,
         )
 
     def with_missing_model_lookup_enabled(self, enabled: bool) -> CivitaiPreferences:
@@ -73,6 +75,7 @@ class CivitaiPreferences:
             thumbnail_safety_policy=self.thumbnail_safety_policy,
             downloads_enabled=self.downloads_enabled,
             download_path_pattern=self.download_path_pattern,
+            model_update_notifications_enabled=self.model_update_notifications_enabled,
         )
 
     def with_thumbnail_downloads_enabled(self, enabled: bool) -> CivitaiPreferences:
@@ -86,6 +89,7 @@ class CivitaiPreferences:
             thumbnail_safety_policy=self.thumbnail_safety_policy,
             downloads_enabled=self.downloads_enabled,
             download_path_pattern=self.download_path_pattern,
+            model_update_notifications_enabled=self.model_update_notifications_enabled,
         )
 
     def with_thumbnail_safety_policy(
@@ -102,6 +106,7 @@ class CivitaiPreferences:
             thumbnail_safety_policy=policy,
             downloads_enabled=self.downloads_enabled,
             download_path_pattern=self.download_path_pattern,
+            model_update_notifications_enabled=self.model_update_notifications_enabled,
         )
 
     def with_downloads_enabled(self, enabled: bool) -> CivitaiPreferences:
@@ -115,6 +120,7 @@ class CivitaiPreferences:
             thumbnail_safety_policy=self.thumbnail_safety_policy,
             downloads_enabled=enabled,
             download_path_pattern=self.download_path_pattern,
+            model_update_notifications_enabled=self.model_update_notifications_enabled,
         )
 
     def with_download_path_pattern(self, pattern: str) -> CivitaiPreferences:
@@ -128,6 +134,24 @@ class CivitaiPreferences:
             thumbnail_safety_policy=self.thumbnail_safety_policy,
             downloads_enabled=self.downloads_enabled,
             download_path_pattern=pattern,
+            model_update_notifications_enabled=self.model_update_notifications_enabled,
+        )
+
+    def with_model_update_notifications_enabled(
+        self,
+        enabled: bool,
+    ) -> CivitaiPreferences:
+        """Return a copy with usage-aware model update notices updated."""
+
+        return CivitaiPreferences(
+            schema_version=self.schema_version,
+            metadata_lookup_enabled=self.metadata_lookup_enabled,
+            missing_model_lookup_enabled=self.missing_model_lookup_enabled,
+            thumbnail_downloads_enabled=self.thumbnail_downloads_enabled,
+            thumbnail_safety_policy=self.thumbnail_safety_policy,
+            downloads_enabled=self.downloads_enabled,
+            download_path_pattern=self.download_path_pattern,
+            model_update_notifications_enabled=enabled,
         )
 
 
@@ -142,6 +166,7 @@ def default_civitai_preferences() -> CivitaiPreferences:
         thumbnail_safety_policy=CivitaiThumbnailSafetyPolicy.SFW_ONLY,
         downloads_enabled=True,
         download_path_pattern=DEFAULT_CIVITAI_DOWNLOAD_PATH_PATTERN,
+        model_update_notifications_enabled=False,
     )
 
 
