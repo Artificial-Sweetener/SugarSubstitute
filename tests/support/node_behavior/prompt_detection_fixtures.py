@@ -58,7 +58,7 @@ def managed_prompt_detection_fixtures(
     return (
         PromptDetectionFixture(
             name="managed_sdxl_primitive_prompts",
-            path=layout.image_template_root() / "sdxl_simple_example.json",
+            path=layout.workflow_template_root() / "sdxl_simple_example.json",
             node_definitions=_core_image_definitions(),
             expected_prompts=(
                 ExpectedPromptField("50", "text", PromptRole.NEGATIVE),

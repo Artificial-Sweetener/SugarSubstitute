@@ -64,7 +64,7 @@ def run_real_comfy_template_planning_harness(
     repository_root = repository_root.resolve()
     results: list[BundledWorkflowPlanningResult] = []
     with ManagedComfyDirectOutputHarness(repository_root) as managed_comfy:
-        template_root = managed_comfy.image_template_root()
+        template_root = managed_comfy.workflow_template_root()
         corpus = HeadlessComfyWorkflowCorpusHarness(
             template_root=template_root,
             node_definitions=managed_comfy.node_definitions(),

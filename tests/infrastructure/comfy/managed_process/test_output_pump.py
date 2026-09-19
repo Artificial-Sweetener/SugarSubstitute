@@ -18,14 +18,15 @@
 
 from __future__ import annotations
 
-from __future__ import annotations
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 from io import BytesIO
 from pathlib import Path
 import threading
 from typing import IO, cast
 import pytest
 from substitute.infrastructure.comfy import (
-    managed_launcher,
+    managed_output_pump,
 )
 from substitute.infrastructure.comfy.managed_process_registry import (
     ManagedProcessRegistry,
@@ -71,7 +72,7 @@ def test_iter_output_records_preserves_carriage_return_progress_updates() -> Non
     """Managed output parsing should preserve in-place redraw records."""
 
     records = tuple(
-        managed_launcher._iter_output_records(
+        managed_output_pump._iter_output_records(
             BytesIO(
                 (
                     b"FETCH ComfyRegistry Data: 5/133\r"
@@ -96,7 +97,7 @@ def test_iter_output_records_preserves_interleaved_carriage_return_and_newline_r
     """Managed output parsing should preserve mixed redraw and stable records."""
 
     records = tuple(
-        managed_launcher._iter_output_records(
+        managed_output_pump._iter_output_records(
             BytesIO(
                 (
                     b"  0%|          | 0/28 [00:00<?, ?it/s]\r"
@@ -123,12 +124,7 @@ def test_managed_output_pump_emits_harness_timing_diagnostic(
 
     monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
     records: list[str] = []
-    state = managed_launcher.ManagedComfyState(
-        registry=ManagedProcessRegistry(tmp_path)
-    )
-
-    task = managed_launcher._start_output_pump_task(
-        state=state,
+    task = managed_output_pump.start_output_pump_task(
         request_id=1,
         task_factory=_managed_task_factory,
         stdout_stream=BytesIO(b"Starting server\nTo see the GUI go to: http://x\n"),
@@ -158,13 +154,10 @@ def test_managed_request_stop_preserves_live_output_stream(
     """Startup cancellation must not close Comfy's process-owned output pipe."""
 
     records: list[str] = []
-    state = managed_launcher.ManagedComfyState(
-        registry=ManagedProcessRegistry(tmp_path)
-    )
+    state = ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
     stdout_stream = _ControlledOutputStream(b"  0%|          | 0/28\r")
 
-    task = managed_launcher._start_output_pump_task(
-        state=state,
+    task = managed_output_pump.start_output_pump_task(
         request_id=1,
         task_factory=_managed_task_factory,
         stdout_stream=cast(IO[bytes], stdout_stream),
@@ -198,10 +191,7 @@ def test_managed_output_pump_survives_log_consumer_failure(
             raise RuntimeError("consumer disposed")
         records.append(record)
 
-    task = managed_launcher._start_output_pump_task(
-        state=managed_launcher.ManagedComfyState(
-            registry=ManagedProcessRegistry(tmp_path)
-        ),
+    task = managed_output_pump.start_output_pump_task(
         request_id=1,
         task_factory=_managed_task_factory,
         stdout_stream=BytesIO(b"first\rsecond\n"),

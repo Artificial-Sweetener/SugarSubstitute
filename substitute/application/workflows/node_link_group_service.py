@@ -212,10 +212,7 @@ class NodeLinkGroupService:
             )
             return
 
-        try:
-            target_index = stack_order.index(target.cube_alias)
-            cube_index = stack_order.index(cube_alias)
-        except ValueError:
+        if target.cube_alias not in stack_order or cube_alias not in stack_order:
             node["node_link"] = {"from_cube": None, "from_node": None}
             log_warning(
                 _LOGGER,
@@ -225,20 +222,6 @@ class NodeLinkGroupService:
                 from_cube=from_cube,
                 from_node=from_node,
                 stack_order=tuple(stack_order),
-            )
-            return
-
-        if target_index >= cube_index:
-            node["node_link"] = {"from_cube": None, "from_node": None}
-            log_warning(
-                _LOGGER,
-                "Rejected node-link manual selection with downstream target",
-                cube_alias=endpoint.cube_alias,
-                node_name=endpoint.node_name,
-                from_cube=target.cube_alias,
-                from_node=target.node_name,
-                target_index=target_index,
-                cube_index=cube_index,
             )
             return
         node["node_link"] = {

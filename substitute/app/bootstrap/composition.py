@@ -43,6 +43,10 @@ from substitute.application.appearance.appearance_preference_service import (
     AppearancePreferenceService,
 )
 from substitute.app.bootstrap.appearance_runtime import AppearanceRuntimeController
+from substitute.app.bootstrap.backend_event_listener_composition import (
+    build_comfy_connection_monitor_factory,
+    start_backend_event_listener_task,
+)
 from substitute.app.bootstrap.localization_composition import (
     build_application_localization_runtime,
     build_node_presentation_service,
@@ -62,6 +66,7 @@ from substitute.application.ports.startup_diagnostics_ignore_repository import (
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
+    ComfyTargetMode,
     InstallationContext,
     ReadinessAssessment,
 )
@@ -84,6 +89,9 @@ from substitute.app.bootstrap.prompt_editor_execution import (
 )
 from substitute.app.bootstrap.settings_execution import (
     create_settings_task_runner_factory,
+)
+from substitute.app.bootstrap.shell_resource_qt_binding import (
+    bind_shell_resource_lifecycle,
 )
 from substitute.app.bootstrap.startup_timing import StartupTimer
 from substitute.app.bootstrap.startup_trace import (
@@ -117,7 +125,6 @@ from sugarsubstitute_shared.presentation.terminal.output_stream import (
 )
 from substitute.shared.logging.logger import (
     get_logger,
-    log_debug,
     log_exception,
     log_warning,
 )
@@ -174,9 +181,7 @@ if TYPE_CHECKING:
         PromptLoraCatalogLookup,
     )
     from substitute.application.prompt_editor.lora.effective_provider import (
-        RecipeWorkflowSerializer,
         ScheduledLoraProvider,
-        WorkflowPayloadCompiler,
         WorkflowPromptContext,
     )
     from substitute.application.prompt_editor.lora.scheduled import (
@@ -205,7 +210,7 @@ if TYPE_CHECKING:
         ModelCatalogEventListener,
     )
     from substitute.presentation.onboarding import OnboardingWindow
-    from substitute.presentation.shell.window_frame import ShellBackdropMode
+    from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 class _ShellMainWindowProtocol(Protocol):
@@ -284,6 +289,25 @@ class _LazyComfyGateway:
             visual_context=visual_context,
         )
 
+    def queue_cube_workflow(
+        self,
+        workflow: dict[str, object],
+        *,
+        client_id: str,
+        preview_method: str | None = None,
+        visual_context: "QueueVisualRunContext",
+        persistence_sugar_script: str | None = None,
+    ) -> "QueuePromptResult":
+        """Queue one canonical Cube graph through SugarCubes on first use."""
+
+        return self._resolve().queue_cube_workflow(
+            workflow,
+            client_id=client_id,
+            preview_method=preview_method,
+            visual_context=visual_context,
+            persistence_sugar_script=persistence_sugar_script,
+        )
+
     def start_listener(
         self,
         request: "ListenerStartRequest",
@@ -323,13 +347,17 @@ class _LazyComfyGateway:
             from substitute.infrastructure.comfy.prompt_gateway import (
                 ComfyPromptGateway,
             )
+            from substitute.infrastructure.comfy.native_cube_execution_client import (
+                NativeCubeExecutionClient,
+            )
 
             self._gateway = InfrastructureComfyGatewayAdapter(
-                ComfyPromptGateway(
+                gateway=ComfyPromptGateway(
                     endpoint=self._endpoint,
                     listener_task_factory=self._listener_task_factory,
                     listener_preview_image_decoder=self._listener_preview_image_decoder,
-                )
+                ),
+                native_cube_client=NativeCubeExecutionClient(endpoint=self._endpoint),
             )
         return self._gateway
 
@@ -584,23 +612,17 @@ class _LazyScheduledLoraProvider:
     def __init__(
         self,
         *,
-        recipe_io_service: "RecipeWorkflowSerializer",
-        workflow_export_service: "WorkflowPayloadCompiler",
         prompt_scheduled_lora_service: "PromptScheduledLoraService",
         prompt_lora_catalog_service: "PromptLoraCatalogLookup",
         rich_choice_resolver: "RichChoiceResolver",
         node_definition_gateway: "NodeDefinitionGateway",
-        output_dir: Path,
     ) -> None:
         """Store dependencies needed by the concrete scheduled-LoRA provider."""
 
-        self._recipe_io_service = recipe_io_service
-        self._workflow_export_service = workflow_export_service
         self._prompt_scheduled_lora_service = prompt_scheduled_lora_service
         self._prompt_lora_catalog_service = prompt_lora_catalog_service
         self._rich_choice_resolver = rich_choice_resolver
         self._node_definition_gateway = node_definition_gateway
-        self._output_dir = output_dir
         self._provider: ScheduledLoraProvider | None = None
 
     def scheduled_loras_for_prompt_context(
@@ -633,13 +655,10 @@ class _LazyScheduledLoraProvider:
             )
 
             self._provider = EffectiveScheduledLoraProvider(
-                recipe_io_service=self._recipe_io_service,
-                workflow_export_service=self._workflow_export_service,
                 prompt_scheduled_lora_service=self._prompt_scheduled_lora_service,
                 prompt_lora_catalog_service=self._prompt_lora_catalog_service,
                 rich_choice_resolver=self._rich_choice_resolver,
                 node_definition_gateway=self._node_definition_gateway,
-                output_dir=self._output_dir,
             )
         return self._provider
 
@@ -915,61 +934,15 @@ def _create_generation_listener_task(
     )
 
 
-def _create_backend_event_listener_task(
-    *,
-    runtime_services: ApplicationRuntimeServices,
-    registry_key: str,
-    identity: TaskIdentity,
-    context: ExecutionContext,
-    work: LongLivedWork[None],
-    thread_name: str,
-) -> LongLivedTaskHandle[None]:
-    """Create and register one long-lived backend event listener task."""
-
-    return runtime_services.execution_runtime.start_long_lived(
-        "backend_event_listener",
-        registry_key,
-        identity=identity,
-        context=context,
-        work=work,
-        dispatcher=DirectExecutionDispatcher(),
-        thread_name=thread_name,
-    )
-
-
-class _SettingsModelMetadataProgressSink:
-    """Log Settings-triggered metadata refresh progress without touching widgets."""
-
-    def __init__(self, on_model_updated: Callable[[], None]) -> None:
-        """Store the model-catalog invalidation callback."""
-
-        self._on_model_updated = on_model_updated
-
-    def emit_line(self, line: str) -> None:
-        """Log one refresh progress line."""
-
-        log_debug(_LOGGER, "Settings CivitAI metadata refresh progress", line=line)
-
-    def emit_progress(self, line: str) -> None:
-        """Log transient refresh progress."""
-
-        log_debug(_LOGGER, "Settings CivitAI metadata refresh progress", line=line)
-
-    def emit_model_updated(self, event: object) -> None:
-        """Invalidate model catalog snapshots after a metadata update."""
-
-        log_debug(
-            _LOGGER,
-            "Settings CivitAI metadata refresh updated model",
-            event=repr(event),
-        )
-        self._on_model_updated()
-
-
 def create_application(argv: Sequence[str]) -> QApplication:
     """Create and configure the QApplication instance."""
+
+    from substitute.app.bootstrap.crash_aware_application import (
+        CrashAwareApplication,
+    )
+
     configure_windows_app_user_model_id()
-    app = QApplication(list(argv))
+    app = CrashAwareApplication(list(argv))
     app.setWindowIcon(application_icon())
     try:
         app.setQuitOnLastWindowClosed(True)
@@ -1189,6 +1162,17 @@ def _build_main_window_dependencies(
     record_dependency_phase("imports.application.generation.result_snapshot")
 
     from substitute.application.generation.generation_service import GenerationService
+    from substitute.application.model_updates import GenerationModelUsageRecorder
+    from substitute.infrastructure.model_updates.file_repository import (
+        FileModelUsageRepository,
+    )
+    from sugarsubstitute_shared.model_discovery.civitai_client import (
+        CivitaiDiscoveryClient,
+    )
+    from sugarsubstitute_shared.model_updates import (
+        CivitaiCompatibleUpdateGateway,
+        ModelUpdateService,
+    )
     from substitute.application.direct_workflows import (
         DirectWorkflowGenerationPlanService,
     )
@@ -1285,6 +1269,7 @@ def _build_main_window_dependencies(
     from substitute.application.recipes import (
         CachedPromptLoraHashLookup,
         CachedRecipeModelHashLookup,
+        RecipeGraphLoader,
         RecipeIoService,
         RecipeModelDownloadResolutionService,
         RecipeModelLoadResolver,
@@ -1375,12 +1360,11 @@ def _build_main_window_dependencies(
 
     record_dependency_phase("imports.infrastructure.external.preview_assets")
 
-    from substitute.infrastructure.external.substitute_backend_sugar_compile_client import (
-        BackendSugarWorkflowPayloadCompiler,
-        SubstituteBackendSugarCompileClient,
+    from substitute.infrastructure.external.sugarcubes_sugarscript_compile_client import (
+        SugarCubesSugarScriptWorkflowCompiler,
     )
 
-    record_dependency_phase("imports.infrastructure.external.sugar_compile")
+    record_dependency_phase("imports.infrastructure.external.sugarscript_authoring")
 
     from substitute.infrastructure.onboarding import (
         FileComfyTargetConfigurationRepository,
@@ -1551,11 +1535,8 @@ def _build_main_window_dependencies(
     cube_icon_asset_client = SubstituteBackendCubeIconAssetClient(
         context.comfy_target.endpoint
     )
-    sugar_compile_client = SubstituteBackendSugarCompileClient(
+    workflow_payload_compiler = SugarCubesSugarScriptWorkflowCompiler(
         context.comfy_target.endpoint
-    )
-    workflow_payload_compiler = BackendSugarWorkflowPayloadCompiler(
-        client=sugar_compile_client
     )
     cube_repository = BackendCubeRepository(client=cube_library_backend)
     progress_service = ProgressService()
@@ -1903,6 +1884,49 @@ def _build_main_window_dependencies(
         metadata_catalog=model_metadata_store,
         snapshot_store=model_caches.snapshots,
     )
+    model_update_service = ModelUpdateService(
+        usage=FileModelUsageRepository(context.user_settings_dir),
+        updates=CivitaiCompatibleUpdateGateway(
+            CivitaiDiscoveryClient(
+                api_key_provider=civitai_credential_service.load_api_key,
+            )
+        ),
+    )
+    from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
+    from sugarsubstitute_shared.model_updates import ModelUpdateAcquisitionService
+
+    model_update_model_root = (
+        context.comfy_target.workspace_path / "models"
+        if context.comfy_target.mode is ComfyTargetMode.MANAGED_LOCAL
+        and context.comfy_target.workspace_path is not None
+        else None
+    )
+    model_update_acquisition_service = (
+        ModelUpdateAcquisitionService(
+            model_root=model_update_model_root,
+            acquisition=ModelAcquisitionService(
+                allowed_roots=(model_update_model_root,),
+                api_key_provider=civitai_credential_service.load_api_key,
+            ),
+        )
+        if model_update_model_root is not None
+        else None
+    )
+    from substitute.app.bootstrap.model_suggestion_composition import (
+        compose_model_suggestion_service,
+    )
+
+    empty_model_picker_discovery_service = compose_model_suggestion_service(
+        model_root=model_update_model_root,
+        credentials=civitai_credential_service,
+        preferences=civitai_preference_service,
+        thumbnails=model_thumbnail_store,
+        thumbnail_assets=model_metadata_store,
+    )
+    generation_model_usage_recorder = GenerationModelUsageRecorder(
+        catalog=model_catalog_service,
+        usage=model_update_service,
+    )
     prompt_lora_catalog_service = PromptLoraCatalogService(
         model_catalog=model_catalog_service,
     )
@@ -1924,12 +1948,20 @@ def _build_main_window_dependencies(
             prompt_lora_catalog=prompt_lora_catalog_service,
             model_hash_lookup=model_hash_lookup,
         ),
+        recipe_graph_loader=RecipeGraphLoader(
+            workflow_payload_compiler,
+        ),
     )
     record_dependency_checkpoint(
         "model_catalog_recipe_services.recipe_services",
         model_recipe_step_started_at,
     )
     record_dependency_phase("model_catalog_recipe_services")
+    from substitute.app.bootstrap.settings_model_metadata_progress import (
+        SettingsModelMetadataProgressSink,
+    )
+
+    manual_model_metadata_update_bridge = ModelMetadataUpdateBridge()
     settings_metadata_refreshes: list[StartupModelMetadataRefreshHandle] = []
     settings_metadata_refresh_request_id = 0
 
@@ -1974,8 +2006,9 @@ def _build_main_window_dependencies(
                 context,
                 runtime_services.persistent_cache_runtime.prepared,
             ),
-            progress_sink=_SettingsModelMetadataProgressSink(
-                model_catalog_service.invalidate
+            progress_sink=SettingsModelMetadataProgressSink(
+                invalidate_catalog=model_catalog_service.invalidate,
+                publish_update=manual_model_metadata_update_bridge.emit_model_updated,
             ),
             submitter=settings_metadata_submitter,
             close_submitter=settings_metadata_submitter.close,
@@ -2024,13 +2057,10 @@ def _build_main_window_dependencies(
         preference_service=prompt_editor_preference_service,
     )
     scheduled_lora_provider = _LazyScheduledLoraProvider(
-        recipe_io_service=recipe_io_service,
-        workflow_export_service=workflow_export_service,
         prompt_scheduled_lora_service=prompt_scheduled_lora_service,
         prompt_lora_catalog_service=prompt_lora_catalog_service,
         rich_choice_resolver=model_choice_resolver,
         node_definition_gateway=node_definition_gateway,
-        output_dir=context.projects_dir,
     )
     record_dependency_phase("prompt_editor_services")
     node_behavior_service = NodeBehaviorService(
@@ -2041,12 +2071,12 @@ def _build_main_window_dependencies(
     entrypoint_path = resolve_app_layout(context.install_root).entrypoint_path
     generation_service = GenerationService(
         recipe_io_service=recipe_io_service,
-        workflow_export_service=workflow_export_service,
         comfy_gateway=comfy_gateway,
         asset_staging_service=comfy_asset_staging_service,
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
         preview_method_resolver=generation_preview_preference_service,
         output_preference_service=output_preference_service,
+        model_usage_recorder=generation_model_usage_recorder,
         direct_workflow_graph_service=DirectWorkflowGenerationPlanService(
             node_definition_hydrator=node_definition_gateway,
             node_definition_gateway=node_definition_gateway,
@@ -2081,7 +2111,6 @@ def _build_main_window_dependencies(
     )
     generation_result_snapshot_service = GenerationResultSnapshotService(
         live_results=generation_job_queue_service,
-        recipe_parser=recipe_io_service,
     )
     workspace_generation_controller = WorkspaceGenerationController(
         generation_service,
@@ -2238,7 +2267,6 @@ def _build_main_window_dependencies(
             else CivitaiThumbnailSafetyPolicy.DISABLED
         )
 
-    manual_model_metadata_update_bridge = ModelMetadataUpdateBridge()
     manual_model_metadata_submitter = runtime_services.execution_runtime.submitter(
         "model_metadata",
         owner_id="manual_model_metadata_context_actions",
@@ -2374,8 +2402,8 @@ def _build_main_window_dependencies(
                 reason="cube_library_event_received",
             ),
             task_factory=lambda identity, task_context, work, thread_name: (
-                _create_backend_event_listener_task(
-                    runtime_services=runtime_services,
+                start_backend_event_listener_task(
+                    execution_runtime=runtime_services.execution_runtime,
                     registry_key="cube_library",
                     identity=identity,
                     context=task_context,
@@ -2403,8 +2431,8 @@ def _build_main_window_dependencies(
             ),
             latest_change_provider=model_metadata_backend.get_latest_model_catalog_change,
             task_factory=lambda identity, task_context, work, thread_name: (
-                _create_backend_event_listener_task(
-                    runtime_services=runtime_services,
+                start_backend_event_listener_task(
+                    execution_runtime=runtime_services.execution_runtime,
                     registry_key="model_catalog",
                     identity=identity,
                     context=task_context,
@@ -2414,6 +2442,12 @@ def _build_main_window_dependencies(
             ),
         )
 
+    create_comfy_connection_monitor = build_comfy_connection_monitor_factory(
+        endpoint=context.comfy_target.endpoint,
+        execution_runtime=runtime_services.execution_runtime,
+        qt_owner=generation_queue_transition_relay,
+    )
+
     record_dependency_phase("listener_factories")
 
     dependencies = MainWindowDependencies(
@@ -2421,6 +2455,9 @@ def _build_main_window_dependencies(
         cube_library_client=cube_library_backend,
         create_cube_library_event_listener=create_cube_library_event_listener,
         create_model_catalog_event_listener=create_model_catalog_event_listener,
+        create_comfy_connection_monitor=create_comfy_connection_monitor,
+        comfy_target=context.comfy_target,
+        managed_comfy_restart_requester=(runtime_services.managed_comfy_runtime_owner),
         create_scoped_metadata_refresh_service=create_scoped_metadata_refresh_service,
         cube_icon_factory=cube_icon_factory,
         invalidate_cube_catalog_cache=cube_repository.invalidate_cache,
@@ -2520,6 +2557,10 @@ def _build_main_window_dependencies(
         prompt_feature_profile_service=prompt_feature_profile_service,
         user_preset_service=user_preset_service,
         model_catalog_service=model_catalog_service,
+        model_update_service=model_update_service,
+        model_update_model_root=model_update_model_root,
+        model_update_acquisition_service=model_update_acquisition_service,
+        empty_model_picker_discovery_service=(empty_model_picker_discovery_service),
         model_choice_resolver=model_choice_resolver,
         thumbnail_asset_repository=model_metadata_store,
         model_metadata_context_action_handler=model_metadata_context_action_handler,
@@ -2691,11 +2732,11 @@ def build_main_window(
         "composition.build_main_window.enter",
         runtime_services_supplied=runtime_services is not None,
     )
+    application = QApplication.instance()
+    if not isinstance(application, QApplication):
+        raise RuntimeError("QApplication is required before shell composition.")
     if runtime_services is None:
         appearance_runtime = build_appearance_runtime(context)
-        application = QApplication.instance()
-        if not isinstance(application, QApplication):
-            raise RuntimeError("QApplication is required before shell composition.")
         localization_runtime = build_application_localization_runtime(
             application,
             context,
@@ -2729,7 +2770,11 @@ def build_main_window(
             )
             set_localized_window_title(frame, "Sugar Substitute")
             frame.setWindowIcon(application_icon())
-            frame.destroyed.connect(dependencies.shell_resource_lifecycle.shutdown)
+            frame._shell_resource_qt_binding = bind_shell_resource_lifecycle(
+                application=application,
+                shell=frame,
+                lifecycle=dependencies.shell_resource_lifecycle,
+            )
 
     _apply_main_window_geometry(frame)
 
@@ -2760,6 +2805,14 @@ def build_main_window(
             main_window,
             startup_diagnostics_ignore_repository=startup_diagnostics_ignore_repository,
         )
+    from substitute.presentation.shell.shell_info_bar_lifecycle import (
+        ShellInfoBarLifecycle,
+    )
+
+    shell_info_bars = ShellInfoBarLifecycle(frame)
+    dependencies.shell_resource_lifecycle.register(
+        "fluent_info_bars", shell_info_bars.shutdown
+    )
     _install_startup_visibility_filters(frame, main_window)
     _wire_shell_close_button(frame)
     trace_mark("composition.build_main_window.end", **_widget_geometry_fields(frame))
@@ -3083,7 +3136,7 @@ def _resolved_shell_backdrop_mode(
     """Resolve the current persisted appearance backdrop into shell-frame terms."""
 
     from substitute.domain.appearance import AppearanceBackdropMode
-    from substitute.presentation.shell.window_frame import ShellBackdropMode
+    from substitute.presentation.shell.window_effects import ShellBackdropMode
 
     resolved = appearance_runtime.resolve_preferences()
     if resolved.effective_backdrop_mode is AppearanceBackdropMode.ACRYLIC:

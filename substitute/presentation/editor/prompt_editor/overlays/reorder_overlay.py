@@ -29,7 +29,6 @@ from PySide6.QtCore import (
     Signal,
 )
 from PySide6.QtGui import (
-    QCloseEvent,
     QEnterEvent,
     QMouseEvent,
     QResizeEvent,
@@ -91,6 +90,7 @@ from .reorder_held_drag_context import (
     PromptReorderHeldDragContextOwner,
 )
 from .reorder_visual_style import PromptReorderVisualStyle
+from .reorder_visual_lifetime import PromptReorderVisualLifetime
 from .reorder_overlay_visual_lifecycle import (
     PromptReorderOverlayVisualLifecycleOwner,
 )
@@ -567,6 +567,9 @@ class SegmentReorderOverlay(QWidget):
             refresh_geometry=lambda reason: self.refresh_geometry(reason=reason),
         )
         self._visual_lifecycle.apply_current_theme_style()
+        self._visual_lifetime = PromptReorderVisualLifetime(
+            self, self._visual_lifecycle, drag_proxy
+        )
         self._session_activation = PromptReorderOverlaySessionActivationOwner(
             interaction_metrics=self._interaction_metrics,
             animation=self._animation_presentation,
@@ -647,12 +650,6 @@ class SegmentReorderOverlay(QWidget):
             self._view.setGeometry(self.rect())
             return
         self.refresh_geometry(reason="overlay_show")
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        """Dispose the floating drag proxy when the overlay itself closes."""
-
-        self._visual_lifecycle.close()
-        super().closeEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Route a press through overlay-owned semantic chip hit testing."""

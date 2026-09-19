@@ -48,7 +48,9 @@ from substitute.domain.model_metadata import (
     ModelMetadataCacheRecord,
     ThumbnailSelectionStatus,
 )
-from substitute.infrastructure.cache_lifecycle import FilePersistentCacheStorage
+from substitute.infrastructure.cache_lifecycle.file_storage import (
+    FilePersistentCacheStorage,
+)
 from substitute.infrastructure.persistence.danbooru_cache_store import (
     SqliteDanbooruMetadataStore,
 )

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import os
 import sys
+import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -27,9 +29,11 @@ import pytest
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import (
-    ProcessStartupError,
     build_app_launch_command,
     build_continue_install_command,
+)
+from launcher.sugarsubstitute_launcher.process_execution import (
+    ProcessStartupError,
     start_detached,
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
@@ -49,6 +53,7 @@ from tests.launcher.installation_workflow.first_run.support import (
 
 @pytest.mark.platforms("windows")
 def test_first_run_installs_launcher_bundle_and_builds_continue_command(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """The permanent onedir launcher bundle is installed into the chosen root."""
@@ -61,16 +66,31 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
     write_manifest(
         release_root / "manifest.json", app_zip=app_zip, launcher_zip=launcher_zip
     )
+    release_source = LocalFolderReleaseSource(release_root)
+    unsigned_manifest = release_source.load_manifest()
+    signed_digest = "b" * 64
+    monkeypatch.setattr(
+        LocalFolderReleaseSource,
+        "load_manifest",
+        lambda _self: replace(
+            unsigned_manifest,
+            signed_metadata_version=42,
+            signed_metadata_digest=signed_digest,
+        ),
+    )
     started_commands: list[list[str]] = []
 
     result = FirstRunInstaller(
         process_starter=record_command(started_commands)
     ).install_downloaded_launcher(
         install_root=tmp_path / "Programs" / "SugarSubstitute",
-        release_source=LocalFolderReleaseSource(release_root),
+        release_source=release_source,
     )
 
     assert result.layout.executable_path.read_bytes() == b"launcher"
+    assert (
+        result.layout.launcher_support_path / "Repair.exe"
+    ).read_bytes() == b"repair launcher"
     assert (
         result.layout.root / "launcher-bin" / "python312.dll"
     ).read_bytes() == b"dll"
@@ -81,6 +101,15 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
     assert LauncherInstallationRecord.load(
         result.layout.launcher_installation_path
     ) == LauncherInstallationRecord(version="0.4.0", target_key="windows_x64")
+    assert json.loads(
+        (result.layout.launcher_dir / "trusted-metadata.json").read_text(
+            encoding="utf-8"
+        )
+    ) == {
+        "metadata_version": 42,
+        "schema_version": 1,
+        "signed_digest": signed_digest,
+    }
 
 
 def test_continue_install_command_carries_handoff_geometry(tmp_path: Path) -> None:
@@ -126,6 +155,23 @@ def test_start_detached_reports_immediate_app_startup_exit(tmp_path: Path) -> No
     startup_log = layout.logs_dir / "app-startup.log"
     assert startup_log.is_file()
     assert "RuntimeError: boom" in startup_log.read_text(encoding="utf-8")
+
+
+def test_start_detached_uses_install_logs_for_setup_child(tmp_path: Path) -> None:
+    """A setup child writes diagnostics outside its read-only launch location."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    setup_child = tmp_path / "mounted-image" / "setup_child.py"
+    write_file(setup_child, "raise RuntimeError('setup boom')\n")
+
+    with pytest.raises(ProcessStartupError, match="exited before the setup window"):
+        start_detached(
+            [sys.executable, str(setup_child), f"--install-root={layout.root}"]
+        )
+
+    startup_log = layout.logs_dir / "app-startup.log"
+    assert startup_log.is_file()
+    assert "RuntimeError: setup boom" in startup_log.read_text(encoding="utf-8")
 
 
 def test_child_process_environment_removes_pyinstaller_runtime_state(

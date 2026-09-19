@@ -67,10 +67,12 @@ from substitute.application.model_metadata.prompt_preset_scope_resolver import (
     prompt_preset_listing_associations_for_catalog_item,
     prompt_preset_scope_options_for_catalog_item,
 )
+from substitute.application.model_metadata.refresh_summary import (
+    ModelMetadataRefreshSummary,
+)
 from substitute.application.model_metadata.refresh_service import (
     DEFAULT_MODEL_KINDS,
     ModelMetadataRefreshService,
-    ModelMetadataRefreshSummary,
 )
 from substitute.application.model_metadata.manual_refresh_service import (
     ManualModelMetadataRefreshRequest,

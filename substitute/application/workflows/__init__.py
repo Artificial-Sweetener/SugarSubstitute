@@ -144,13 +144,15 @@ if TYPE_CHECKING:
         OutputCompareState,
     )
     from substitute.application.workflows.output_preview_registry import (
-        OutputPreviewAcceptance,
-        OutputPreviewCloseResult,
         OutputPreviewLane,
         OutputPreviewLaneKey,
         OutputPreviewLanePlacement,
         OutputPreviewRegistry,
         OutputPreviewRejectionReason,
+    )
+    from substitute.application.workflows.output_preview_results import (
+        OutputPreviewAcceptance,
+        OutputPreviewCloseResult,
     )
     from substitute.application.workflows.output_scene_run_service import (
         OutputSceneRunService,
@@ -213,6 +215,11 @@ if TYPE_CHECKING:
         normalize_default_workflow_tab_label,
         workflow_tab_display_text,
     )
+    from substitute.application.workflows.unsaved_work_service import (
+        UnsavedWorkDecision,
+        UnsavedWorkService,
+        WorkflowDocumentState,
+    )
     from substitute.domain.links import (
         NodeLinkEndpoint,
         NodeLinkEndpointIndex,
@@ -232,6 +239,9 @@ if TYPE_CHECKING:
     )
 
 _EXPORT_MODULES = {
+    "UnsavedWorkDecision": "substitute.application.workflows.unsaved_work_service",
+    "UnsavedWorkService": "substitute.application.workflows.unsaved_work_service",
+    "WorkflowDocumentState": "substitute.application.workflows.unsaved_work_service",
     "DIRECT_WORKFLOW_SECTION_KEY": (
         "substitute.application.workflows.editor_projection_service"
     ),
@@ -392,12 +402,8 @@ _EXPORT_MODULES = {
     "OutputPreviewCloseIdentity": (
         "substitute.application.workflows.output_canvas_state_service"
     ),
-    "OutputPreviewAcceptance": (
-        "substitute.application.workflows.output_preview_registry"
-    ),
-    "OutputPreviewCloseResult": (
-        "substitute.application.workflows.output_preview_registry"
-    ),
+    "OutputPreviewAcceptance": "substitute.application.workflows.output_preview_results",
+    "OutputPreviewCloseResult": "substitute.application.workflows.output_preview_results",
     "OutputPreviewLane": "substitute.application.workflows.output_preview_registry",
     "OutputPreviewLaneKey": (
         "substitute.application.workflows.output_preview_registry"
@@ -661,6 +667,9 @@ __all__ = [
     "WorkflowLinkReconciliationService",
     "WorkflowTabCreation",
     "WorkflowTabService",
+    "UnsavedWorkService",
+    "UnsavedWorkDecision",
+    "WorkflowDocumentState",
     "build_output_canvas_projection",
     "bind_output_canvas_session",
     "default_output_compare_state",

@@ -56,17 +56,33 @@ def validate_repository(
     """Return every architecture diagnostic for the current repository."""
 
     try:
-        policy = load_policy(policy_path or root / "ARCHITECTURE_POLICY.toml")
+        policy = load_policy(
+            policy_path or root / "governance/architecture/policy.toml"
+        )
         state = load_state(root, policy)
     except (OSError, TypeError, ValueError) as error:
-        return [Diagnostic("STATE001", "ARCHITECTURE_POLICY.toml", str(error))]
+        return [
+            Diagnostic("STATE001", "governance/architecture/policy.toml", str(error))
+        ]
     current_date = today or datetime.now(UTC).date()
     diagnostics = [
         *_validate_policy(root, policy),
         *_validate_state(root, policy, state, current_date),
     ]
     diagnostics.extend(_validate_structure(root, policy, state, current_date))
-    diagnostics.extend(validate_system_git_policy(root))
+    diagnostics.extend(
+        validate_system_git_policy(root, excluded_paths=policy.excluded_paths)
+    )
+    from tools.architecture_governance.crash_boundary_policy import (
+        validate_crash_boundary_policy,
+    )
+
+    diagnostics.extend(validate_crash_boundary_policy(root, policy))
+    from tools.architecture_governance.menu_button_policy import (
+        validate_menu_button_policy,
+    )
+
+    diagnostics.extend(validate_menu_button_policy(root, policy))
     if (root / "substitute/app/bootstrap/persistent_cache_catalog.py").is_file():
         from tools.cache_governance.validation import validate_cache_governance
 
@@ -93,7 +109,7 @@ def _validate_policy(root: Path, policy: ArchitecturePolicy) -> list[Diagnostic]
         diagnostics.append(
             Diagnostic(
                 "POLICY001",
-                "ARCHITECTURE_POLICY.toml",
+                "governance/architecture/policy.toml",
                 "soft_lines must be lower than hard_lines",
             )
         )
@@ -102,7 +118,7 @@ def _validate_policy(root: Path, policy: ArchitecturePolicy) -> list[Diagnostic]
             diagnostics.append(
                 Diagnostic(
                     "POLICY002",
-                    "ARCHITECTURE_POLICY.toml",
+                    "governance/architecture/policy.toml",
                     f"source root {source_root.as_posix()} does not exist",
                 )
             )
@@ -111,7 +127,7 @@ def _validate_policy(root: Path, policy: ArchitecturePolicy) -> list[Diagnostic]
             diagnostics.append(
                 Diagnostic(
                     "POLICY004",
-                    "ARCHITECTURE_POLICY.toml",
+                    "governance/architecture/policy.toml",
                     f"source file {source_file.as_posix()} does not exist",
                 )
             )
@@ -119,7 +135,7 @@ def _validate_policy(root: Path, policy: ArchitecturePolicy) -> list[Diagnostic]
             diagnostics.append(
                 Diagnostic(
                     "POLICY005",
-                    "ARCHITECTURE_POLICY.toml",
+                    "governance/architecture/policy.toml",
                     f"source file {source_file.as_posix()} has an ungoverned extension",
                 )
             )
@@ -128,7 +144,7 @@ def _validate_policy(root: Path, policy: ArchitecturePolicy) -> list[Diagnostic]
             diagnostics.append(
                 Diagnostic(
                     "POLICY003",
-                    "ARCHITECTURE_POLICY.toml",
+                    "governance/architecture/policy.toml",
                     f"excluded source {excluded_path} does not exist",
                 )
             )
@@ -211,7 +227,7 @@ def _validate_unique_state(state: ArchitectureState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "STATE002",
-                    "ARCHITECTURE_POLICY.toml",
+                    "governance/architecture/policy.toml",
                     f"architecture record id {identifier} is not unique",
                 )
             )
@@ -221,7 +237,7 @@ def _validate_unique_state(state: ArchitectureState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "STATE003",
-                    "ARCHITECTURE_POLICY.toml",
+                    "governance/architecture/policy.toml",
                     f"source path {path} has multiple structural dispositions",
                 )
             )
@@ -231,7 +247,7 @@ def _validate_unique_state(state: ArchitectureState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "STATE004",
-                    "ARCHITECTURE_DEBT.toml",
+                    "governance/architecture/debt.toml",
                     f"source path {path} appears in multiple debt records",
                 )
             )
@@ -243,7 +259,7 @@ def _validate_unique_state(state: ArchitectureState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "WAIVER011",
-                    "ARCHITECTURE_WAIVERS.toml",
+                    "governance/architecture/waivers.toml",
                     "structural waiver rationales must be unique and file-specific",
                 )
             )

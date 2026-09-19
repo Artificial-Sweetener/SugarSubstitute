@@ -39,6 +39,7 @@ from tests.presentation.shell.generation.controller.support import (
     _BindingRecorder,
     _build_bindings,
     _snapshot,
+    _without_output_sessions,
 )
 
 
@@ -154,9 +155,12 @@ def test_handle_generate_clicked_stops_batch_after_snapshot_preflight_failure() 
     controller.handle_generate_clicked(current_mode="generate", bindings=bindings)
 
     assert build_calls == 2
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
-        _snapshot("Before failure")
-    ]
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [_snapshot("Before failure")]
     assert len(recorder.failures) == 1
     assert recorder.failures[0].message == "batch preflight failed"
 

@@ -17,17 +17,24 @@
 """Expose repository splash-first startup governance."""
 
 from tools.splash_first_governance.checker import (
-    SplashFirstContract,
     SplashFirstDiagnostic,
-    repository_contracts,
     validate_contract_source,
+    validate_dependency_source,
     validate_repository,
 )
 
+from tools.splash_first_governance.contracts import (
+    SplashDependencyContract,
+    SplashFirstContract,
+    repository_contracts,
+)
+
 __all__ = [
+    "SplashDependencyContract",
     "SplashFirstContract",
     "SplashFirstDiagnostic",
     "repository_contracts",
     "validate_contract_source",
+    "validate_dependency_source",
     "validate_repository",
 ]

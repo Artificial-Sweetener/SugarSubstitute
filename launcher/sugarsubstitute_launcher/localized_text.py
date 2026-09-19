@@ -24,9 +24,12 @@ _CONTEXT = "LauncherMainWindow"
 def launcher_text(source_text: str, *arguments: object) -> str:
     """Translate fixed copy and substitute ordered `%1`-style arguments."""
 
-    from PySide6.QtCore import QCoreApplication
-
-    translated = QCoreApplication.translate(_CONTEXT, source_text)
+    try:
+        from PySide6.QtCore import QCoreApplication
+    except ImportError:
+        translated = source_text
+    else:
+        translated = QCoreApplication.translate(_CONTEXT, source_text)
     for index, argument in enumerate(arguments, start=1):
         translated = translated.replace(f"%{index}", str(argument))
     return translated

@@ -35,13 +35,10 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
-from sugarsubstitute_shared.application_launch_guard import (  # noqa: E402
-    application_launch_lock_path,
-)
 from tools.ci.historical_release_contract import (  # noqa: E402
     HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
 )
-from tools.ci.installer_ui_qualification import diagnostic_tail  # noqa: E402
+from tools.ci.installer_evidence_verification import diagnostic_tail  # noqa: E402
 
 _UI_PHASE_TIMEOUT_SECONDS = 60.0
 _PROVISIONING_TIMEOUT_SECONDS = 1_800.0
@@ -378,6 +375,12 @@ def _complete_historical_onboarding(
     )
     _wait_for_visible_control(
         onboarding,
+        "OnboardingYesExistingModelsButton",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_choice(onboarding, "OnboardingYesExistingModelsButton")
+    _wait_for_visible_control(
+        onboarding,
         "OnboardingManagedModelRootEdit",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
@@ -392,6 +395,12 @@ def _complete_historical_onboarding(
     )
     _wait_for_visible_control(
         onboarding,
+        "OnboardingFindOwnModelsButton",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_choice(onboarding, "OnboardingFindOwnModelsButton")
+    _wait_for_visible_control(
+        onboarding,
         "OnboardingCivitaiApiKeyEdit",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
@@ -404,19 +413,10 @@ def _complete_historical_onboarding(
         "OnboardingProgressStatus",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
-    _wait_for_primary_action(
-        onboarding,
-        "Review setup",
-        _phase_deadline(deadline, _PROVISIONING_TIMEOUT_SECONDS),
-    )
-    _invoke_primary(
-        onboarding,
-        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
-    )
     _wait_for_visible_control(
         onboarding,
         "OnboardingCompletionSurface",
-        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+        _phase_deadline(deadline, _PROVISIONING_TIMEOUT_SECONDS),
     )
     _wait_for_primary_action(
         onboarding,
@@ -653,7 +653,7 @@ def _historical_startup_diagnostics(install_root: Path) -> str:
         layout.appdata_dir / "diagnostics" / "logs" / "sugarsubstitute.log",
         layout.appdata_dir / "runtime_state" / "managed_comfy_process.json",
         layout.root / HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
-        application_launch_lock_path(layout.root),
+        layout.launcher_dir / "locks" / "application-launch.lock",
     )
     return "\n\n".join(f"{path}:\n{diagnostic_tail(path)}" for path in paths)
 

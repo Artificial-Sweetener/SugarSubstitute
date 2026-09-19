@@ -27,6 +27,9 @@ from substitute.domain.recipes.sugar_links import (
 from substitute.domain.recipes.sugar_script_parser import (
     parse_sugar_script_document,
 )
+from substitute.domain.recipes.sugar_script_serializer import (
+    SugarScriptCubeConnection,
+)
 from tests.domain.recipes.sugar.serialization_support import serialize_sugar_script
 from tests.domain.recipes.sugar.persistence_support import (
     _nested_mapping,
@@ -148,7 +151,14 @@ def test_connect_lines_and_quoting() -> None:
         ),
         "To/Cube": OrderedDict(cube_id="Y", nodes={}, inputs={"in name": True}),
     }
-    script = serialize_sugar_script(stripped, ordered_aliases, None)
+    script = serialize_sugar_script(
+        stripped,
+        ordered_aliases,
+        None,
+        explicit_connections=(
+            SugarScriptCubeConnection("From Cube", "out name", "To/Cube", "in name"),
+        ),
+    )
     assert 'connect "From Cube"."out name" to "To/Cube"."in name"' in script
 
 
@@ -170,10 +180,92 @@ def test_connect_lines_with_standardized_io_names() -> None:
             inputs={"diffusion_upscale.input.image": True},
         ),
     }
-    script = serialize_sugar_script(stripped, ordered_aliases, None)
+    script = serialize_sugar_script(
+        stripped,
+        ordered_aliases,
+        None,
+        explicit_connections=(
+            SugarScriptCubeConnection(
+                "Text_to_Image",
+                "text_to_image.output.image",
+                "Diffusion_Upscale",
+                "diffusion_upscale.input.image",
+            ),
+        ),
+    )
     assert (
         "connect Text_to_Image.output.image to Diffusion_Upscale.input.image" in script
     )
+
+
+def test_connect_lines_match_typed_boundaries_without_cartesian_expansion() -> None:
+    """Sugar persistence must record the same automatic edges as execution."""
+
+    ordered_aliases = ["Prompt_by_Region", "Diffusion_Upscale"]
+    stripped = {
+        "Prompt_by_Region": OrderedDict(
+            cube_id="Prompt by Region",
+            nodes={
+                "image": {"class_type": "ImageSource"},
+                "mask": {"class_type": "MaskSource"},
+            },
+            outputs={
+                "output.image": ["image", 0],
+                "output.mask": ["mask", 0],
+            },
+            inputs={},
+            definitions={
+                "ImageSource": {"output": ["IMAGE"]},
+                "MaskSource": {"output": ["MASK"]},
+            },
+            subgraphs=[],
+        ),
+        "Diffusion_Upscale": OrderedDict(
+            cube_id="Diffusion Upscale",
+            nodes={
+                "upscale": {"class_type": "Upscale"},
+                "sampler": {"class_type": "Sampler"},
+            },
+            inputs={
+                "input.value": {"targets": [["upscale", "image"]]},
+                "input.mask": {"targets": [["sampler", "region_masks"]]},
+            },
+            outputs={},
+            definitions={
+                "Upscale": {"input": {"required": {"image": ["IMAGE", {}]}}},
+                "Sampler": {"input": {"optional": {"region_masks": ["MASK", {}]}}},
+            },
+            subgraphs=[],
+        ),
+    }
+
+    script = serialize_sugar_script(
+        stripped,
+        ordered_aliases,
+        None,
+        explicit_connections=(
+            SugarScriptCubeConnection(
+                "Prompt_by_Region",
+                "output.image",
+                "Diffusion_Upscale",
+                "input.value",
+            ),
+            SugarScriptCubeConnection(
+                "Prompt_by_Region",
+                "output.mask",
+                "Diffusion_Upscale",
+                "input.mask",
+            ),
+        ),
+    )
+
+    connect_lines = [
+        line for line in script.splitlines() if line.startswith("connect ")
+    ]
+    assert connect_lines == [
+        "connect Prompt_by_Region.output.image to Diffusion_Upscale.input.value",
+        "connect Prompt_by_Region.output.mask to Diffusion_Upscale.input.mask",
+    ]
 
 
 def test_prompt_link_with_quoted_alias_names() -> None:

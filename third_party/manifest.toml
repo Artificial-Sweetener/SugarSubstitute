@@ -12,6 +12,7 @@ source_paths = [
   "assets/Circle/SVG/ic_fluent_circle_20_regular.svg",
   "assets/Circle Half Fill/SVG/ic_fluent_circle_half_fill_20_regular.svg",
   "assets/Cursor/SVG/ic_fluent_cursor_24_regular.svg",
+  "assets/Settings/SVG/ic_fluent_settings_20_regular.svg",
   "assets/Hand Left/SVG/ic_fluent_hand_left_20_regular.svg",
   "assets/Lasso/SVG/ic_fluent_lasso_20_regular.svg",
   "assets/Paint Brush/SVG/ic_fluent_paint_brush_20_regular.svg",
@@ -72,6 +73,8 @@ vendored_files = [
   "substitute/presentation/resources/icons/DocumentText20Regular_white.svg",
   "substitute/presentation/resources/icons/Eraser20Regular_black.svg",
   "substitute/presentation/resources/icons/Eraser20Regular_white.svg",
+  "substitute/presentation/resources/icons/Settings20Regular_black.svg",
+  "substitute/presentation/resources/icons/Settings20Regular_white.svg",
   "substitute/presentation/resources/icons/FolderOpen20Regular_black.svg",
   "substitute/presentation/resources/icons/FolderOpen20Regular_white.svg",
   "substitute/presentation/resources/icons/GlobeDesktop20Regular_black.svg",
@@ -202,6 +205,21 @@ vendored_files = [
 ]
 
 [[component]]
+name = "CivitAI Badge"
+license = "Apache-2.0"
+license_file = "third_party/licenses/civitai.LICENSE.txt"
+source = "https://github.com/civitai/civitai"
+revision = "e695de5aae91508df8a4465a86200d5cfa9c05f5"
+source_paths = [
+  "packages/civitai-brand/src/paths.ts",
+  "packages/civitai-brand/src/gradients.ts",
+  "packages/civitai-brand/src/svg.ts",
+]
+vendored_files = [
+  "substitute/presentation/resources/icons/CivitaiBadge.svg",
+]
+
+[[component]]
 name = "Font Awesome Free Brand Icons"
 license = "CC BY 4.0"
 license_file = "third_party/licenses/font-awesome-free.LICENSE.txt"
@@ -236,4 +254,30 @@ vendored_files = [
   "third_party/bin/7zip/windows-x64/7za.exe",
   "third_party/bin/7zip/linux-x64/7za",
   "third_party/bin/7zip/macos-arm64/7za",
+]
+
+[[component]]
+name = "Crashpad native crash reporting runtime"
+license = "Apache-2.0 with bundled BSD-3-Clause, zlib, and public-domain components"
+license_file = "third_party/licenses/crashpad.LICENSE.txt"
+additional_license_files = [
+  "third_party/licenses/mini-chromium.LICENSE.txt",
+  "third_party/licenses/crashpad-zlib.LICENSE.txt",
+  "third_party/licenses/crashpad-getopt.LICENSE.txt",
+]
+source = "https://chromium.googlesource.com/crashpad/crashpad"
+revision = "60dd943f48d77dc8d05dabc04badbd8561d0b8c4"
+source_paths = [
+  "client/",
+  "handler/",
+  "minidump/",
+  "snapshot/",
+  "util/",
+  "third_party/mini_chromium/",
+  "third_party/zlib/",
+  "third_party/getopt/",
+]
+vendored_files = [
+  "third_party/bin/crashpad/windows-x64/crashpad_handler.exe",
+  "third_party/bin/crashpad/windows-x64/sugarsubstitute_crashpad_client.dll",
 ]

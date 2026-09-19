@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from cutecanvas import (
@@ -119,6 +120,15 @@ def _panel() -> tuple[QWidget, ImagePicker, MaskPicker]:
     layout.addWidget(image_picker)
     layout.addWidget(mask_picker)
     return panel, image_picker, mask_picker
+
+
+def _own_panel(panel: QWidget, workflow: WorkflowState) -> None:
+    """Assign one workflow as the panel's authoritative owner."""
+
+    panel.mainwindow = SimpleNamespace(  # type: ignore[attr-defined]
+        editor_panels={"workflow": panel},
+        workflow_session_service=SimpleNamespace(workflows={"workflow": workflow}),
+    )
 
 
 def _result(image_id: UUID, mask_id: UUID) -> InputCanvasMaterializationResult:
@@ -255,10 +265,7 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding(
     panel, image_picker, mask_picker = _panel()
     panel.resize(460, 900)
     panel.show()
-    coordinator = InputNodePreviewCoordinator(
-        bindings=document.preview_bindings,
-        active_panel=lambda: panel,
-    )
+    coordinator = InputNodePreviewCoordinator(bindings=document.preview_bindings)
     first_image_id = uuid4()
     second_image_id = uuid4()
     try:
@@ -276,7 +283,7 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding(
         )
         assert first_mask_id is not None
         assert coordinator.bind_materialization(
-            _result(first_image_id, first_mask_id)
+            _result(first_image_id, first_mask_id), panel=panel
         ) == frozenset({("cube", "load_mask")})
         app.processEvents()
 
@@ -353,9 +360,15 @@ def test_live_node_previews_share_authority_and_survive_erratic_rebinding(
         )
         assert second_mask_id is not None
         for _ in range(20):
-            coordinator.bind_materialization(_result(second_image_id, second_mask_id))
-            coordinator.bind_materialization(_result(first_image_id, first_mask_id))
-        coordinator.bind_materialization(_result(second_image_id, second_mask_id))
+            coordinator.bind_materialization(
+                _result(second_image_id, second_mask_id), panel=panel
+            )
+            coordinator.bind_materialization(
+                _result(first_image_id, first_mask_id), panel=panel
+            )
+        coordinator.bind_materialization(
+            _result(second_image_id, second_mask_id), panel=panel
+        )
         app.processEvents()
 
         replacement_image = image_picker.live_preview()
@@ -416,13 +429,10 @@ def test_large_raster_mask_preview_renders_authoritative_coverage(
         )
         mask_id = document.load_mask_from_file(image_id, mask_path)
         assert mask_id is not None
-        coordinator = InputNodePreviewCoordinator(
-            bindings=document.preview_bindings,
-            active_panel=lambda: panel,
-        )
-        assert coordinator.bind_materialization(_result(image_id, mask_id)) == (
-            frozenset({("cube", "load_mask")})
-        )
+        coordinator = InputNodePreviewCoordinator(bindings=document.preview_bindings)
+        assert coordinator.bind_materialization(
+            _result(image_id, mask_id), panel=panel
+        ) == frozenset({("cube", "load_mask")})
         preview = mask_picker.live_preview()
         assert isinstance(preview, InputNodePreviewWidget)
 
@@ -441,11 +451,8 @@ def test_restored_workflow_binds_once_and_path_refresh_preserves_live_previews(
     """Late panel projection and generation refresh must retain one presentation."""
     app = _app()
     document = input_document_factory()
-    active_panel: list[QWidget | None] = [None]
-    coordinator = InputNodePreviewCoordinator(
-        bindings=document.preview_bindings,
-        active_panel=lambda: active_panel[0],
-    )
+    coordinator = InputNodePreviewCoordinator(bindings=document.preview_bindings)
+    panel: QWidget | None = None
     image_id = uuid4()
     image = _image("royalblue")
     image_path = tmp_path / "image.png"
@@ -464,13 +471,15 @@ def test_restored_workflow_binds_once_and_path_refresh_preserves_live_previews(
         workflow.canvas.bind_image("cube:load_image", image_id)
         workflow.canvas.bind_mask(("cube", "load_mask"), mask_id, image_id)
 
-        assert coordinator.bind_workflow(workflow) == frozenset()
+        unowned_panel = QWidget()
+        assert coordinator.bind_panel(unowned_panel) == frozenset()
+        destroy_qt_object(unowned_panel)
         panel, image_picker, mask_picker = _panel()
-        active_panel[0] = panel
+        _own_panel(panel, workflow)
         panel.resize(460, 900)
         panel.show()
 
-        assert coordinator.bind_workflow(workflow) == frozenset({("cube", "load_mask")})
+        assert coordinator.bind_panel(panel) == frozenset({("cube", "load_mask")})
         image_preview = image_picker.live_preview()
         mask_preview = mask_picker.live_preview()
         assert isinstance(image_preview, InputNodePreviewWidget)
@@ -489,14 +498,13 @@ def test_restored_workflow_binds_once_and_path_refresh_preserves_live_previews(
         assert mask_preview.sizeHint() == QSize(192, 144)
         QTest.mouseClick(mask_picker.preview_surface, Qt.MouseButton.LeftButton)
         assert mask_clicks.count() == 1
-        assert coordinator.bind_workflow(workflow) == frozenset({("cube", "load_mask")})
+        assert coordinator.bind_panel(panel) == frozenset({("cube", "load_mask")})
         assert image_picker.live_preview() is image_preview
         assert mask_picker.live_preview() is mask_preview
     finally:
-        active_panel_widget = active_panel[0]
-        if active_panel_widget is not None:
-            active_panel_widget.close()
-            destroy_qt_object(active_panel_widget)
+        if panel is not None:
+            panel.close()
+            destroy_qt_object(panel)
         document.close()
 
 
@@ -515,11 +523,8 @@ def test_live_picker_content_uses_shared_rounded_highlight_surface(
         assert document.ensure_image_cached(image_id, _image("cyan"), None)
         mask_id = document.create_blank_mask(image_id, QSize(160, 120))
         assert mask_id is not None
-        coordinator = InputNodePreviewCoordinator(
-            bindings=document.preview_bindings,
-            active_panel=lambda: panel,
-        )
-        coordinator.bind_materialization(_result(image_id, mask_id))
+        coordinator = InputNodePreviewCoordinator(bindings=document.preview_bindings)
+        coordinator.bind_materialization(_result(image_id, mask_id), panel=panel)
         app.processEvents()
 
         for picker in (image_picker, mask_picker):
@@ -597,12 +602,10 @@ def test_regional_mask_rows_share_cutecanvas_previews_at_selected_and_compact_si
         first = collection.add_region(image_id, mask_id=first_mask_id)
         collection.add_region(image_id, mask_id=second_mask_id)
         collection.select(first.region_id)
-        coordinator = InputNodePreviewCoordinator(
-            bindings=document.preview_bindings,
-            active_panel=lambda: panel,
-        )
+        coordinator = InputNodePreviewCoordinator(bindings=document.preview_bindings)
+        _own_panel(panel, workflow)
 
-        assert coordinator.bind_workflow(workflow) == frozenset({("Region", "masks")})
+        assert coordinator.bind_panel(panel) == frozenset({("Region", "masks")})
         app.processEvents()
         first_preview = editor.live_preview(0)
         second_preview = editor.live_preview(1)

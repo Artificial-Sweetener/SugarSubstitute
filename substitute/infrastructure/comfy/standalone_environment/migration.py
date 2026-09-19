@@ -30,6 +30,9 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneArtifactError,
     StandaloneEnvironmentRelease,
 )
+from substitute.infrastructure.comfy.standalone_environment.hydration_state import (
+    StandaloneHydrationState,
+)
 
 
 class StandaloneWorkspaceMigrator:
@@ -59,6 +62,7 @@ class StandaloneWorkspaceMigrator:
                 extracted.manifest,
                 metadata_dir / "standalone-environment.json",
             )
+            StandaloneHydrationState(prepared).begin()
             if workspace.exists():
                 workspace.rmdir()
             prepared.replace(workspace)

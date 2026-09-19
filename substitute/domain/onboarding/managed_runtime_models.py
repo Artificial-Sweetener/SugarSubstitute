@@ -89,7 +89,27 @@ class ManagedRuntimeConfiguration:
         return replace(self, workspace_path=str(Path(workspace).resolve()))
 
 
+@dataclass(frozen=True, slots=True)
+class ManagedComfySetupResult:
+    """Carry one completely validated managed Comfy setup result."""
+
+    python_executable: Path
+    runtime_configuration: ManagedRuntimeConfiguration
+
+    def __post_init__(self) -> None:
+        """Reject incomplete results at the provisioning boundary."""
+
+        if (
+            self.runtime_configuration.validation_status
+            is not ManagedRuntimeValidationStatus.VALID
+        ):
+            raise ValueError("Managed Comfy setup result must be validated.")
+        if self.runtime_configuration.workspace_path is None:
+            raise ValueError("Managed Comfy setup result must identify its workspace.")
+
+
 __all__ = [
+    "ManagedComfySetupResult",
     "ManagedRuntimeConfiguration",
     "ManagedRuntimeLaunchStatus",
     "ManagedRuntimeStability",

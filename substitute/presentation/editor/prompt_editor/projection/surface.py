@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from .exact_weight_editor import PromptExactWeightEditor, PromptExactWeightEditorHost
+
 from typing import Callable, cast
 
 from PySide6.QtCore import (
@@ -38,7 +40,6 @@ from PySide6.QtGui import (
     QDragMoveEvent,
     QDropEvent,
     QFocusEvent,
-    QFontMetricsF,
     QHideEvent,
     QInputMethodEvent,
     QKeyEvent,
@@ -270,7 +271,6 @@ from .tokens import (
     PromptLoraInlineObjectRenderer,
     PromptProjectionInlineObjectRendererRegistry,
     PromptWildcardInlineObjectRenderer,
-    emphasis_weight_font,
 )
 from .transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
@@ -333,6 +333,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         thumbnail_cache = lora_thumbnail_cache or PromptLoraThumbnailCache()
         self._session = PromptProjectionSession()
+        self.exact_weight_editor = PromptExactWeightEditor(
+            cast(PromptExactWeightEditorHost, self)
+        )
         self._display_mode = PromptProjectionDisplayMode.PROJECTED
         self._exact_source_editing_enabled = False
         self._layout = PromptLayoutEditToFrameCoordinator(
@@ -2434,102 +2437,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             anchor_state=boundary_state,
         )
         return True
-
-    def start_exact_weight_edit(self, token: PromptProjectionToken) -> None:
-        """Start one projection-owned exact edit session for a weighted token."""
-
-        if (
-            token.kind
-            not in {
-                PromptProjectionTokenKind.EMPHASIS,
-                PromptProjectionTokenKind.LORA,
-            }
-            or token.value_text is None
-            or token.content_start is None
-            or token.content_end is None
-        ):
-            return
-        slot_width = self._exact_weight_edit_slot_width(token)
-        self._session.start_exact_weight_edit(
-            token_id=token.token_id,
-            synthetic=token.synthetic,
-            outer_start=token.source_start,
-            outer_end=token.source_end,
-            content_start=token.content_start,
-            content_end=token.content_end,
-            original_value_text=token.value_text,
-            buffer_text=token.value_text,
-            slot_width=slot_width,
-            caret_index=len(token.value_text),
-            select_all=True,
-        )
-        self._rebuild_projection()
-
-    def update_exact_weight_edit(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Update the active projection-owned exact weight buffer and rebuild immediately."""
-
-        if self._session.exact_weight_edit is None:
-            return
-        self._session.update_exact_weight_edit(
-            buffer_text=buffer_text,
-            caret_index=caret_index,
-            select_all=select_all,
-        )
-        self._rebuild_projection()
-
-    def clear_exact_weight_edit(self) -> None:
-        """Clear any active projection-owned exact weight edit session."""
-
-        if self._session.exact_weight_edit is None:
-            return
-        self._session.clear_exact_weight_edit()
-        self._rebuild_projection()
-
-    def exact_weight_edit_token(self) -> PromptProjectionToken | None:
-        """Return the currently projected weighted token that owns exact edit mode."""
-
-        token_id = self._session.exact_weight_edit_token_id()
-        if token_id is not None:
-            token = self._editor_state.projection.document.token_by_id(token_id)
-            if token is not None:
-                return token
-        edit_state = self._session.exact_weight_edit
-        if edit_state is None:
-            return None
-        return next(
-            (
-                token
-                for token in self._editor_state.projection.document.tokens
-                if token.kind
-                in {
-                    PromptProjectionTokenKind.EMPHASIS,
-                    PromptProjectionTokenKind.LORA,
-                }
-                and token.content_start == edit_state.content_start
-                and token.content_end == edit_state.content_end
-            ),
-            None,
-        )
-
-    def exact_weight_edit_active(self) -> bool:
-        """Return whether the surface currently owns an exact weight edit session."""
-
-        return self._session.exact_weight_edit is not None
-
-    def _exact_weight_edit_slot_width(self, token: PromptProjectionToken) -> float:
-        """Capture the rendered width visible when exact edit begins."""
-
-        weight_rect = self.token_weight_text_rect(token)
-        if weight_rect is not None and weight_rect.width() > 0.0:
-            return weight_rect.width()
-        weight_metrics = QFontMetricsF(emphasis_weight_font(self.font()))
-        return max(0.0, weight_metrics.horizontalAdvance(token.value_text or ""))
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_REFRESH_GEOMETRY)
     def refresh_geometry(self) -> None:

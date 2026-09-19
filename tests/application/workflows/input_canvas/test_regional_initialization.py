@@ -23,10 +23,10 @@ from substitute.application.workflows import (
     WorkflowInputCanvasService,
 )
 from substitute.domain.common import JsonObject
-from substitute.domain.workflow import CubeState
+from substitute.domain.workflow import CubeState, ProjectMaskAssetRef
 from substitute.domain.workflow import WorkflowState
 from typing import cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
     _FakeImage,
@@ -258,6 +258,154 @@ def test_prompt_by_region_materializes_initial_ordered_mask_at_latent_size(
     mask_node = cast(dict[str, object], nodes["load_mask_batch"])
     inputs = cast(dict[str, object], mask_node["inputs"])
     assert inputs["image"] == ["region.png"]
+
+
+def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
+    tmp_path: Path,
+) -> None:
+    """Workflow duplication must not collapse a persisted mask batch to one region."""
+
+    workflow = WorkflowState()
+    workflow.cubes["Prompt by Region"] = CubeState(
+        cube_id="Prompt by Region.cube",
+        version="4.3.0",
+        alias="Prompt by Region",
+        original_cube={"nodes": {}},
+        buffer={
+            "nodes": {
+                "load_mask_batch": {
+                    "class_type": "SimpleSyrup.LoadMaskBatch",
+                    "inputs": {
+                        "image": ["left.png", "right.png"],
+                        "channel": "alpha",
+                    },
+                },
+                "latent_dimensions": {
+                    "class_type": "EmptyLatentImage",
+                    "inputs": {"width": 960, "height": 1344, "batch_size": 1},
+                },
+                "ksampler": {
+                    "class_type": "SimpleSyrup.KSamplerPromptByRegion",
+                    "inputs": {
+                        "region_masks": ["load_mask_batch", 0],
+                        "latent_image": ["latent_dimensions", 0],
+                    },
+                },
+            }
+        },
+    )
+    workflow.stack_order.append("Prompt by Region")
+    definitions: dict[str, JsonObject] = {
+        "SimpleSyrup.LoadMaskBatch": {
+            "input": {
+                "required": {
+                    "image": ["LIST", {"image_upload": True, "allow_batch": True}],
+                    "channel": ["LIST"],
+                }
+            },
+            "output": ["MASK"],
+        },
+        "EmptyLatentImage": {
+            "input": {
+                "required": {
+                    "width": ["INT", {}],
+                    "height": ["INT", {}],
+                    "batch_size": ["INT", {}],
+                }
+            },
+            "output": ["LATENT"],
+        },
+        "SimpleSyrup.KSamplerPromptByRegion": {
+            "input": {
+                "required": {
+                    "region_masks": ["MASK", {}],
+                    "latent_image": ["LATENT", {}],
+                }
+            },
+            "output": ["LATENT"],
+        },
+    }
+    image_id = uuid4()
+
+    class DistinctMaskStateService(_FakeInputCanvasStateService):
+        """Allocate a distinct fake mask identity for every authored path."""
+
+        def load_mask_from_file(
+            self,
+            workflow_id: str,
+            active_workflow: WorkflowState,
+            association_key: tuple[str, str],
+            image_id: UUID,
+            path: Path,
+        ) -> UUID:
+            """Bind and return one fresh layer identity."""
+
+            _ = workflow_id
+            mask_id = uuid4()
+            self.loaded_masks.append((association_key, path))
+            active_workflow.canvas.replace_mask_entry(
+                association_key,
+                mask_id,
+                image_id,
+            )
+            return mask_id
+
+    state_service = DistinctMaskStateService(image_id=image_id, mask_id=uuid4())
+    mask_root = tmp_path / "Recipe" / "masks"
+    mask_root.mkdir(parents=True)
+    left_path = mask_root / "left.png"
+    right_path = mask_root / "right.png"
+    left_path.write_bytes(b"left")
+    right_path.write_bytes(b"right")
+    service = WorkflowInputCanvasService(
+        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_canvas_state_service=state_service,
+        canvas_io_service=_FakeCanvasIoService(
+            image=_FakeImage(size_value=_FakeSize(960, 1344)),
+            expected_mask_path=mask_root / "unused.png",
+            dimensions_by_path={
+                left_path: (960, 1344),
+                right_path: (960, 1344),
+            },
+            created_destinations=[],
+        ),
+    )
+
+    results = service.materialize_loaded_section(
+        workflows={"workflow": workflow},
+        workflow_id="workflow",
+        section_key="Prompt by Region",
+        workflow_name="Recipe",
+        projects_dir=tmp_path,
+    )
+
+    collection = workflow.canvas.regional_mask_collection(
+        ("Prompt by Region", "load_mask_batch")
+    )
+    assert len(results) == 1
+    assert collection is not None
+    assert len(collection.entries) == 2
+    asset_refs = [entry.asset_ref for entry in collection.entries]
+    assert all(isinstance(asset_ref, ProjectMaskAssetRef) for asset_ref in asset_refs)
+    assert [
+        asset_ref.relative_path
+        for asset_ref in asset_refs
+        if isinstance(asset_ref, ProjectMaskAssetRef)
+    ] == [
+        "left.png",
+        "right.png",
+    ]
+    assert [path for _key, path in state_service.loaded_masks] == [
+        left_path,
+        right_path,
+    ]
+    nodes = workflow.cubes["Prompt by Region"].buffer["nodes"]
+    assert isinstance(nodes, dict)
+    mask_node = nodes["load_mask_batch"]
+    assert isinstance(mask_node, dict)
+    inputs = mask_node["inputs"]
+    assert isinstance(inputs, dict)
+    assert inputs["image"] == ["left.png", "right.png"]
 
 
 def test_prompt_by_region_first_add_materializes_synthetic_surface(

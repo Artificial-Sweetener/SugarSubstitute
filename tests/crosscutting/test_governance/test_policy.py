@@ -73,7 +73,7 @@ def bind(listener: object) -> None:
         'SERIAL_TEST_MODULES = frozenset({"tests/test_candidate.py"})\n',
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = discover_test_candidates(tmp_path, policy)
     rules = {candidate.rule for candidate in candidates}
 
@@ -111,7 +111,7 @@ def test_aliases() -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = discover_test_candidates(tmp_path, policy)
 
     assert {candidate.rule for candidate in candidates} == {
@@ -142,7 +142,7 @@ def ready() -> bool:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = discover_test_candidates(tmp_path, policy)
 
     assert [candidate.rule for candidate in candidates] == ["POLL001"]
@@ -175,7 +175,7 @@ def bounded_barrier(timeout_ms: int = 3000) -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -206,7 +206,7 @@ def test_consumer() -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -247,7 +247,7 @@ def test_platform_owned() -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -283,7 +283,7 @@ def bounded(worker: object, barrier: object) -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -315,7 +315,7 @@ def delegated() -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -347,7 +347,7 @@ def use_owned_or_unrelated_process() -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -382,7 +382,7 @@ def observable() -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -419,7 +419,7 @@ def replayable() -> object:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = discover_test_candidates(tmp_path, policy)
 
     assert (
@@ -452,7 +452,7 @@ def contact_service() -> None:
     _write(tmp_path / "tests/capability/test_network.py", source)
     _write(tmp_path / "tests/qualification/capability/test_network.py", source)
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -489,7 +489,7 @@ def test_exact_classification_waiver_satisfies_one_current_candidate(
         tmp_path / source_path,
         'import os\nVALUE = os.getenv("PYTEST_XDIST_WORKER")\n',
     )
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidate = next(
         item
         for item in discover_test_candidates(tmp_path, policy)
@@ -507,7 +507,7 @@ def test_exact_classification_waiver_satisfies_one_current_candidate(
         "moving it would fragment the one collection-time contract."
     )
     _write(
-        tmp_path / "TEST_WAIVERS.toml",
+        tmp_path / "governance/testing/waivers.toml",
         "schema_version = 1\n[[waivers]]\n"
         'id = "TEST-WAIVER-001"\nowner = "test infrastructure"\n'
         'kind = "classification"\ndisposition = "framework_infrastructure"\n'
@@ -529,7 +529,7 @@ def test_debt_requires_an_identical_linked_remediation_waiver(tmp_path: Path) ->
     _write_fixture(tmp_path)
     source_path = "tests/test_candidate.py"
     _write(tmp_path / source_path, "VALUE = 1\n")
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidate = discover_test_candidates(tmp_path, policy)[0]
     fingerprint = reviewed_state_fingerprint(
         tmp_path,
@@ -544,7 +544,7 @@ def test_debt_requires_an_identical_linked_remediation_waiver(tmp_path: Path) ->
         'issue = "chore:TEST-DEBT-001"\nreview_by = 2026-12-15\n'
     )
     _write(
-        tmp_path / "TEST_DEBT.toml",
+        tmp_path / "governance/testing/debt.toml",
         "schema_version = 1\n[[debts]]\n"
         'id = "TEST-DEBT-001"\nowner = "candidate capability"\n'
         + common
@@ -557,7 +557,7 @@ def test_debt_requires_an_identical_linked_remediation_waiver(tmp_path: Path) ->
         "support imports and targeted execution path."
     )
     _write(
-        tmp_path / "TEST_WAIVERS.toml",
+        tmp_path / "governance/testing/waivers.toml",
         "schema_version = 1\n[[waivers]]\n"
         'id = "TEST-REMEDIATION-001"\nowner = "candidate capability"\n'
         'kind = "remediation"\ndisposition = "debt"\n'
@@ -578,7 +578,7 @@ def test_source_change_forces_reassessment_of_a_reviewed_candidate(
     _write_fixture(tmp_path)
     source_path = "tests/capability/test_candidate.py"
     _write(tmp_path / source_path, "import time\ntime.sleep(0.1)\n")
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidate = discover_test_candidates(tmp_path, policy)[0]
     fingerprint = reviewed_state_fingerprint(
         tmp_path,
@@ -592,7 +592,7 @@ def test_source_change_forces_reassessment_of_a_reviewed_candidate(
         "the decision and requires another human assessment."
     )
     _write(
-        tmp_path / "TEST_WAIVERS.toml",
+        tmp_path / "governance/testing/waivers.toml",
         "schema_version = 1\n[[waivers]]\n"
         'id = "TEST-WAIVER-STALE"\nowner = "test infrastructure"\n'
         'kind = "classification"\ndisposition = "framework_infrastructure"\n'

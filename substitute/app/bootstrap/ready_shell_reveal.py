@@ -21,16 +21,29 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import ContextManager, Protocol
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization.application_message import (
+    render_application_text,
+)
 
-from substitute.app.bootstrap.application_readiness import (
+from sugarsubstitute_shared.qt_surface_readiness import (
     schedule_main_shell_readiness_receipt,
+)
+from substitute.app.bootstrap.main_shell_qualification import (
+    schedule_main_shell_qualification,
 )
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.app.bootstrap.startup_warmup_controller import (
     StartupWarmupState,
     connect_restore_finalized_warmups,
 )
-from substitute.shared.logging.logger import get_logger, log_exception, log_info
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_exception,
+    log_info,
+    log_warning,
+)
 
 
 _LOGGER = get_logger("app.bootstrap.ready_shell_reveal")
@@ -49,8 +62,23 @@ class ReadyShellRevealTimerProtocol(Protocol):
 class ReadyShellSplashProtocol(Protocol):
     """Close the launch splash when the ready shell becomes visible."""
 
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Publish replacement-surface readiness before closing startup feedback."""
+
     def close(self) -> object:
-        """Close the splash surface."""
+        """Close the splash surface and optionally report acknowledgement."""
+
+
+class ReadyShellReadinessSchedulerProtocol(Protocol):
+    """Schedule an ordered post-paint handoff and readiness receipt."""
+
+    def __call__(
+        self,
+        window: object,
+        *,
+        before_publish: Callable[[], None] | None = None,
+    ) -> bool:
+        """Schedule readiness after the optional prerequisite completes."""
 
 
 ReadyShellSplashProvider = Callable[[], ReadyShellSplashProtocol | None]
@@ -79,27 +107,14 @@ def reveal_ready_shell_main_window(
     request_startup_diagnostics_update: Callable[[], object],
     schedule_post_show_hydration: Callable[[], object],
     trace_fields: Callable[[], Mapping[str, object]],
-    schedule_readiness_receipt: Callable[[], bool] = (
+    schedule_readiness_receipt: ReadyShellReadinessSchedulerProtocol = (
         schedule_main_shell_readiness_receipt
     ),
+    on_splash_closed: Callable[[], None] | None = None,
 ) -> ReadyShellRevealResult:
-    """Close splash, show the ready shell, and publish post-event-loop readiness."""
+    """Reveal the shell before closing splash and publish visible readiness."""
 
     active_splash = splash
-    try:
-        if active_splash is not None:
-            with startup_timer.phase("startup.close_launch_splash"):
-                with trace_span("launch_splash.close"):
-                    active_splash.close()
-            active_splash = None
-            startup_timer.mark("splash_closed")
-            trace_mark("launch_splash.closed", **dict(trace_fields()))
-    except Exception:
-        log_exception(
-            _LOGGER,
-            "Failed to close splash after readiness check",
-        )
-
     with startup_timer.phase("startup.show_main_window"):
         with trace_span("main_shell.show"):
             revealed_shell_frame = show_built_main_window(
@@ -109,7 +124,23 @@ def reveal_ready_shell_main_window(
     set_current_shell(revealed_shell_frame)
     startup_timer.mark("main_shell_shown")
     trace_mark("main_shell.shown", **dict(trace_fields()))
-    schedule_readiness_receipt()
+    close_splash = (
+        (
+            lambda: _close_splash_after_surface_paint(
+                splash=active_splash,
+                startup_timer=startup_timer,
+                trace_fields=trace_fields,
+                on_splash_closed=on_splash_closed,
+            )
+        )
+        if active_splash is not None
+        else None
+    )
+    schedule_readiness_receipt(
+        revealed_shell_frame,
+        before_publish=close_splash,
+    )
+    schedule_main_shell_qualification(revealed_shell_frame)
     update_backend_state("ready" if comfy_http_ready else "starting")
     log_info(
         _LOGGER,
@@ -192,6 +223,7 @@ class ReadyShellRevealTask:
             ),
             schedule_post_show_hydration=self._schedule_post_show_hydration,
             trace_fields=self._trace_fields,
+            on_splash_closed=lambda: self._set_splash(None),
         )
         self._set_shell_frame(reveal_result.shell_frame)
         self._set_splash(reveal_result.splash)
@@ -237,6 +269,43 @@ def create_ready_shell_reveal_task(
     )
 
 
+def _close_splash_after_surface_paint(
+    *,
+    splash: ReadyShellSplashProtocol,
+    startup_timer: ReadyShellRevealTimerProtocol,
+    trace_fields: Callable[[], Mapping[str, object]],
+    on_splash_closed: Callable[[], None] | None,
+) -> None:
+    """Close the splash only after the replacement shell has painted."""
+
+    try:
+        splash.set_progress(
+            SplashProgress(1, 1),
+            status=render_application_text(app_text("Starting SugarSubstitute.")),
+        )
+    except Exception:
+        log_exception(_LOGGER, "Failed to publish splash completion after shell paint")
+    try:
+        with startup_timer.phase("startup.close_launch_splash"):
+            with trace_span("launch_splash.close"):
+                close_result = splash.close()
+        if close_result is False:
+            log_warning(
+                _LOGGER,
+                "Launch splash did not acknowledge closure after shell paint",
+            )
+            return
+        startup_timer.mark("splash_closed")
+        trace_mark("launch_splash.closed", **dict(trace_fields()))
+        if on_splash_closed is not None:
+            on_splash_closed()
+    except Exception:
+        log_exception(
+            _LOGGER,
+            "Failed to close splash after shell paint",
+        )
+
+
 def connect_ready_shell_restore_finalized_warmups(
     *,
     state: StartupWarmupState,
@@ -256,6 +325,7 @@ def connect_ready_shell_restore_finalized_warmups(
 
 __all__ = [
     "ReadyShellRevealResult",
+    "ReadyShellReadinessSchedulerProtocol",
     "ReadyShellRevealTask",
     "ReadyShellRevealTimerProtocol",
     "ReadyShellSplashProvider",

@@ -40,6 +40,7 @@ from substitute.domain.onboarding.models import (
     RuntimeConfiguration,
 )
 from substitute.domain.onboarding.managed_runtime_models import (
+    ManagedComfySetupResult,
     ManagedRuntimeConfiguration,
     ManagedRuntimeLaunchStatus,
     ManagedRuntimeStability,
@@ -74,6 +75,7 @@ __all__ = [
     "ComfyTargetMode",
     "InstallationConfiguration",
     "InstallationContext",
+    "ManagedComfySetupResult",
     "ManagedRuntimeConfiguration",
     "ManagedRuntimeLaunchStatus",
     "ManagedRuntimeStability",

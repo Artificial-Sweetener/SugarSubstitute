@@ -28,6 +28,10 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
 
 
+class InstallationAlreadyPresented(RuntimeError):
+    """End installation after its target's existing owner presents a usable window."""
+
+
 class InstallationPreparation(Enum):
     """Identify how an application installation obtains its layout."""
 

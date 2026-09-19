@@ -32,7 +32,7 @@ def write_fixture(root: Path) -> None:
     """Write a minimal valid test-governance repository."""
 
     write(
-        root / "TEST_POLICY.toml",
+        root / "governance/testing/policy.toml",
         """schema_version = 1
 [scope]
 test_root = "tests"
@@ -50,8 +50,8 @@ wall_clock_calls = ["monotonic", "perf_counter", "time.monotonic", "time.perf_co
 xdist_environment_name = "PYTEST_XDIST_WORKER"
 repository_scratch_name = ".pytest-tmp"
 [registries]
-debt = "TEST_DEBT.toml"
-waivers = "TEST_WAIVERS.toml"
+debt = "governance/testing/debt.toml"
+waivers = "governance/testing/waivers.toml"
 """,
     )
     write(root / "tests/__init__.py", "\n")
@@ -61,8 +61,10 @@ waivers = "TEST_WAIVERS.toml"
         root / "tests/ci_test_policy.py",
         "ISOLATED_TEST_MODULES = frozenset()\nSERIAL_TEST_MODULES = frozenset()\n",
     )
-    write(root / "TEST_DEBT.toml", "schema_version = 1\ndebts = []\n")
-    write(root / "TEST_WAIVERS.toml", "schema_version = 1\nwaivers = []\n")
+    write(root / "governance/testing/debt.toml", "schema_version = 1\ndebts = []\n")
+    write(
+        root / "governance/testing/waivers.toml", "schema_version = 1\nwaivers = []\n"
+    )
 
 
 __all__ = ["write", "write_fixture"]

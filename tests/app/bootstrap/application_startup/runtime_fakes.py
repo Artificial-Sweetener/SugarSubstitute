@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -50,6 +51,34 @@ class _PersistentCacheRuntime:
         """Finish the no-op cache runtime."""
 
 
+class _ManagedComfyRuntimeOwner:
+    """Accept managed Comfy owner teardown for route-level startup proof."""
+
+    def __init__(self) -> None:
+        """Initialize empty managed state and no observer."""
+
+        self.state: object | None = None
+        self._observer: Callable[[object | None], None] | None = None
+
+    def bind_state_observer(
+        self,
+        observer: Callable[[object | None], None],
+    ) -> None:
+        """Capture the ready-shell state mirror."""
+
+        self._observer = observer
+
+    def set_state(self, state: object | None) -> None:
+        """Publish managed state through the ready-shell mirror."""
+
+        self.state = state
+        if self._observer is not None:
+            self._observer(state)
+
+    def close(self) -> None:
+        """Finish the no-op managed Comfy runtime owner."""
+
+
 class _SessionFinalizationService:
     """Accept route shutdown persistence without writing a session."""
 
@@ -63,6 +92,7 @@ class StartupRuntimeServicesFake:
 
     execution_runtime: _ExecutionRuntime
     persistent_cache_runtime: _PersistentCacheRuntime
+    managed_comfy_runtime_owner: _ManagedComfyRuntimeOwner
     session_finalization_service: _SessionFinalizationService
     session_persistence_submitter: _RuntimeSubmitter
 
@@ -73,6 +103,7 @@ def build_startup_runtime_services_fake() -> StartupRuntimeServicesFake:
     return StartupRuntimeServicesFake(
         execution_runtime=_ExecutionRuntime(),
         persistent_cache_runtime=_PersistentCacheRuntime(),
+        managed_comfy_runtime_owner=_ManagedComfyRuntimeOwner(),
         session_finalization_service=_SessionFinalizationService(),
         session_persistence_submitter=_RuntimeSubmitter(),
     )

@@ -18,23 +18,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Protocol
 
 import pytest
 
 from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from sugarsubstitute_shared.launch_splash import SplashActivity
 
 import substitute.presentation.shell.splash_window as splash_window
+import substitute.presentation.splash_animation as splash_animation
+import substitute.presentation.shell.window_effects as window_effects
 from substitute.presentation.splash_animation import (
     SplashPaperFlipWidget,
     SplashPoseLibraryError,
 )
-from substitute.presentation.shell.window_frame import (
-    ShellBackdropMode,
-)
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.shell.splash_window import SplashWindow
 from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition
@@ -42,7 +43,7 @@ from tests.support.qt.semantic_wait import wait_for_qt_condition
 _MAX_BOTTOM_CHROME_GAP_PX = 8
 _EXPECTED_SPLASH_SIZE = (558, 558)
 _EXPECTED_MASCOT_GEOMETRY = (83, 7, 387, 386)
-_EXPECTED_CONSOLE_GEOMETRY = (6, 358, 546, 193)
+_EXPECTED_CONSOLE_GEOMETRY = (24, 356, 510, 178)
 
 
 class SplashWindowFactory(Protocol):
@@ -52,6 +53,8 @@ class SplashWindowFactory(Protocol):
         self,
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
+        activity_clock: Callable[[], float] | None = None,
+        defer_animation_until_first_paint: bool = False,
     ) -> SplashWindow:
         """Return one tracked production splash window."""
 
@@ -65,8 +68,21 @@ def splash_window_factory() -> Iterator[SplashWindowFactory]:
     def create(
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
+        activity_clock: Callable[[], float] | None = None,
+        defer_animation_until_first_paint: bool = False,
     ) -> SplashWindow:
-        window = SplashWindow(backdrop_mode=backdrop_mode)
+        window = (
+            SplashWindow(
+                backdrop_mode=backdrop_mode,
+                defer_animation_until_first_paint=defer_animation_until_first_paint,
+            )
+            if activity_clock is None
+            else SplashWindow(
+                backdrop_mode=backdrop_mode,
+                activity_clock=activity_clock,
+                defer_animation_until_first_paint=defer_animation_until_first_paint,
+            )
+        )
         windows.append(window)
         return window
 
@@ -74,6 +90,46 @@ def splash_window_factory() -> Iterator[SplashWindowFactory]:
 
     for window in reversed(windows):
         destroy_qt_object(window)
+
+
+def test_deferred_animation_starts_only_after_the_bootstrap_pose_paints(
+    monkeypatch: pytest.MonkeyPatch,
+    splash_window_factory: SplashWindowFactory,
+) -> None:
+    """Keep full pose-resource loading outside the first-frame critical path."""
+
+    animation_builds: list[str] = []
+
+    def build_animation(_self: SplashWindow, parent: QWidget) -> QWidget:
+        """Record deferred construction and return a visible replacement."""
+
+        animation_builds.append("animation")
+        replacement = QLabel(parent)
+        replacement.setObjectName("CompleteSplashAnimation")
+        return replacement
+
+    monkeypatch.setattr(
+        SplashWindow,
+        "_build_animated_splash_visual",
+        build_animation,
+    )
+    splash = splash_window_factory(
+        backdrop_mode=None,
+        defer_animation_until_first_paint=True,
+    )
+    first_frames: list[str] = []
+    splash.firstFramePainted.connect(lambda: first_frames.append("painted"))
+
+    assert animation_builds == []
+    assert splash._visual.objectName() == "SplashBootstrapPose"
+
+    splash.show()
+    wait_for_qt_condition(
+        lambda: first_frames == ["painted"] and animation_builds == ["animation"],
+        description="bootstrap frame followed by full animation construction",
+    )
+
+    assert splash._visual.objectName() == "CompleteSplashAnimation"
 
 
 def _end_of_document_bottom_gap(splash: SplashWindow) -> int:
@@ -167,11 +223,40 @@ def test_splash_window_routes_append_log_through_shared_terminal_view(
 
     terminal_section = splash.findChild(QWidget, "SplashTerminalSection")
     assert terminal_section is not None
-    assert terminal_section.minimumHeight() == terminal_section.maximumHeight()
-    assert terminal_section.minimumHeight() >= 150
+    assert not splash._feedback.details_visible
     assert splash.log_view.minimumHeight() == 0
     assert splash.log_view.maximumHeight() == 16777215
     assert splash.log_view.toPlainText() == "Starting"
+
+
+def test_splash_window_keeps_activity_visible_around_durable_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    splash_window_factory: SplashWindowFactory,
+) -> None:
+    """The production splash should retain one animated tail around durable output."""
+
+    monkeypatch.setattr(SplashWindow, "center_on_screen", lambda self: None)
+    splash = splash_window_factory(activity_clock=lambda: 0.0)
+    activity = SplashActivity(
+        initial_text="Updating SugarCubes",
+        long_wait_text="Updating SugarCubes is taking longer than usual",
+        extended_wait_text="Still updating SugarCubes—network may be slow",
+    )
+
+    splash.start_activity(activity)
+    QApplication.processEvents()
+    assert splash.log_view.toPlainText() == "Updating SugarCubes."
+
+    splash.append_log("Downloaded package metadata.\n")
+    QApplication.processEvents()
+    assert splash.log_view.toPlainText().splitlines() == [
+        "Downloaded package metadata.",
+        "Updating SugarCubes.",
+    ]
+
+    splash.clear_activity()
+    QApplication.processEvents()
+    assert splash.log_view.toPlainText() == "Downloaded package metadata."
 
 
 def test_splash_window_acrylic_uses_caption_fix_helper(
@@ -182,7 +267,7 @@ def test_splash_window_acrylic_uses_caption_fix_helper(
 
     acrylic_calls: list[object] = []
     monkeypatch.setattr(
-        splash_window,
+        window_effects,
         "apply_acrylic_effect",
         lambda window: acrylic_calls.append(window),
     )
@@ -246,10 +331,12 @@ def test_splash_window_uses_psd_fixed_layout_geometry(
     monkeypatch: pytest.MonkeyPatch,
     splash_window_factory: SplashWindowFactory,
 ) -> None:
-    """Splash window should match the fixed PSD layer geometry."""
+    """Expanded splash should preserve the established mascot and console placement."""
 
     monkeypatch.setattr(SplashWindow, "center_on_screen", lambda self: None)
     splash = splash_window_factory()
+
+    splash._feedback.set_details_visible(True)
 
     visual = splash.findChild(SplashPaperFlipWidget, "SplashPaperFlipWidget")
     terminal_section = splash.findChild(QWidget, "SplashTerminalSection")
@@ -278,7 +365,7 @@ def test_splash_window_falls_back_to_static_icon_when_animation_fails(
 
     monkeypatch.setattr(SplashWindow, "center_on_screen", lambda self: None)
     monkeypatch.setattr(
-        splash_window,
+        splash_animation,
         "load_splash_pose_library",
         lambda: (_ for _ in ()).throw(SplashPoseLibraryError("missing poses")),
     )
@@ -316,6 +403,13 @@ def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
     splash = splash_window_factory()
     splash.show()
 
+    from substitute.presentation.shell.splash_progress_panel import SplashProgressPanel
+
+    panel = splash.findChild(SplashProgressPanel)
+    assert panel is not None
+    panel.set_details_visible(not panel.details_visible)
+    assert panel.details.isVisible()
+
     wrapped_line = "wrapped splash output " + ("0123456789 " * 20)
     for index in range(25):
         splash.append_log(f"{index:02d}: {wrapped_line}\n")
@@ -331,3 +425,29 @@ def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
     assert splash.log_view.toPlainText().splitlines()[-1] == f"24: {wrapped_line}"
     assert splash.log_view.toPlainText().endswith("\n") is False
     assert _end_of_document_bottom_gap(splash) <= _MAX_BOTTOM_CHROME_GAP_PX
+
+
+@pytest.mark.parametrize("theme_mode", ["dark", "light"])
+def test_deferred_splash_applies_material_before_first_frame(
+    monkeypatch: pytest.MonkeyPatch, theme_mode: str
+) -> None:
+    """Prepare native appearance while hidden and never switch material after paint."""
+    events: list[tuple[str, bool]] = []
+
+    def apply_backdrop(window: SplashWindow) -> None:
+        """Observe the native material boundary without invoking the compositor."""
+        events.append(("backdrop", window.isVisible()))
+        assert window._dark_theme_enabled == (theme_mode == "dark")
+
+    monkeypatch.setattr(SplashWindow, "_apply_backdrop", apply_backdrop)
+    splash = SplashWindow(theme_mode=theme_mode, defer_animation_until_first_paint=True)
+    try:
+        assert events == [("backdrop", False)]
+        splash.firstFramePainted.connect(
+            lambda: events.append(("paint", splash.isVisible()))
+        )
+        splash.show()
+        wait_for_qt_condition(lambda: not splash._defer_animation_until_first_paint)
+        assert events == [("backdrop", False), ("paint", True)]
+    finally:
+        destroy_qt_object(splash)

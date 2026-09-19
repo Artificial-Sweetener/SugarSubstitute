@@ -21,14 +21,14 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.platforms import (
-    LauncherOperatingSystem,
-    LauncherTarget,
-)
-from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandRunner
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+
+if TYPE_CHECKING:
+    from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.platforms import LauncherTarget
+    from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandRunner
 
 
 DEFAULT_PYTHON_VERSION = "3.13.12"
@@ -60,10 +60,14 @@ def runtime_requirements_command(
     return command
 
 
-def runtime_environment(*, layout: InstallLayout) -> dict[str, str]:
+def runtime_environment(
+    *,
+    layout: InstallLayout,
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     """Build the environment that keeps uv and Python state deterministic."""
 
-    env = dict(os.environ)
+    env = dict(os.environ if environment is None else environment)
     env.pop("UV_EXCLUDE_NEWER", None)
     env["UV_CACHE_DIR"] = subprocess_path(layout.cache_dir / "uv")
     env["UV_PYTHON_INSTALL_DIR"] = subprocess_path(layout.runtime_dir / "python")
@@ -121,6 +125,8 @@ def verify_runtime_imports(
 
 def _torch_backend_arguments(target: LauncherTarget) -> list[str]:
     """Select a portable PyTorch distribution for the app support runtime."""
+
+    from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
 
     if target.operating_system is LauncherOperatingSystem.LINUX:
         return ["--torch-backend", "cpu"]

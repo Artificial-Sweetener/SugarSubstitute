@@ -194,18 +194,10 @@ class _FakeThumbnails:
         source_path: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        selection_policy: str = "local_default",
     ) -> ThumbnailStoreResult | None:
         """Ignore local thumbnail requests in manual provider refresh tests."""
 
-        _ = (
-            sha256,
-            image,
-            source,
-            source_label,
-            source_path,
-            source_width,
-            source_height,
-        )
         return None
 
 

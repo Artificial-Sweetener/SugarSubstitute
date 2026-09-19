@@ -28,10 +28,8 @@ from substitute.presentation.shell.chrome_style import (
     body_material_wash_rgba,
     workflow_chrome_wash_rgba,
 )
-from substitute.presentation.shell.window_frame import (
-    ShellBackdropMode,
-    SubstituteWindowFrame,
-)
+from substitute.presentation.shell.window_effects import ShellBackdropMode
+from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from tests.support.qt.lifecycle import ensure_qt_application
 
 

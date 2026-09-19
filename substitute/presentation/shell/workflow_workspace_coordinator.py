@@ -51,12 +51,15 @@ from substitute.domain.workspace_snapshot import (
     InputMaskReference,
     OutputImageReference,
     WorkflowSnapshot,
+    WorkspaceSnapshot,
 )
+from substitute.domain.workspace_snapshot.models import (
+    WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
+)
+from substitute.presentation.resources import cube_icon_resolver
 from substitute.presentation.shell.cube_stack_presenter import (
-    CubeIconFactoryProtocol,
     CubeStackPresenter,
     CubeStackProtocol,
-    CubeTabIconResolver,
 )
 from substitute.presentation.shell.workflow_surface_refresh_scheduler import (
     WorkflowSurfaceRefreshScheduler,
@@ -67,12 +70,6 @@ from substitute.presentation.shell.workflow_route_projector import (
 from substitute.presentation.shell.main_window_canvas_route_adapter import (
     MainWindowCanvasRouteAdapter,
 )
-from substitute.presentation.shell.main_window_editor_surface_adapter import (
-    MainWindowEditorSurfaceAdapter,
-)
-from substitute.presentation.shell.main_window_generation_availability_adapter import (
-    MainWindowGenerationAvailabilityAdapter,
-)
 from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
 )
@@ -82,8 +79,8 @@ from substitute.presentation.shell.main_window_workflow_activity_adapter import 
 from substitute.presentation.shell.main_window_workflow_route_adapter import (
     MainWindowWorkflowRouteAdapter,
 )
-from substitute.presentation.shell.main_window_workflow_session_state_adapter import (
-    MainWindowWorkflowSessionStateAdapter,
+from substitute.presentation.shell.main_window_workflow_surface_composition import (
+    build_main_window_workflow_surface_reconciler,
 )
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
@@ -416,6 +413,18 @@ class GenerationProgressProjectionProtocol(Protocol):
         """Project selected workflow progress onto shell progress surfaces."""
 
 
+class WorkspaceRestoreControllerProtocol(Protocol):
+    """Describe canonical runtime hydration required when reopening a workflow."""
+
+    def hydrate_restored_workspace_snapshot(
+        self,
+        snapshot: WorkspaceSnapshot,
+        *,
+        operation: str,
+    ) -> WorkspaceSnapshot:
+        """Rebuild graph-derived runtime state in one restored workspace."""
+
+
 class CanvasRouteControllerProtocol(Protocol):
     """Describe attached canvas route availability projection."""
 
@@ -437,10 +446,11 @@ class WorkflowWorkspaceView(Protocol):
     output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol
     input_canvas_state_service: InputCanvasStateServiceProtocol
     session_snapshot_capture_adapter: WorkflowSnapshotCaptureProtocol
+    workspace_restore_controller: WorkspaceRestoreControllerProtocol
     cube_stacks: dict[str, WorkflowCubeStackProtocol]
     editor_panels: dict[str, LifecycleWidgetProtocol]
     override_managers: dict[str, OverrideManagerProtocol | None]
-    cube_icon_factory: CubeIconFactoryProtocol
+    cube_icon_factory: cube_icon_resolver.CubeIconFactoryProtocol
     cube_stack_container: WidgetContainerProtocol
     editor_panel_container: WidgetContainerProtocol
 
@@ -529,13 +539,14 @@ class WorkflowWorkspaceCoordinator:
             surface_registry=self._surface_registry,
             surface_invalidation_service=self._surface_invalidation_service,
         )
-        self._surface_reconciler = surface_reconciler or WorkflowSurfaceReconciler(
-            MainWindowWorkflowSessionStateAdapter(view),
-            canvas_port=canvas_adapter,
-            editor_port=MainWindowEditorSurfaceAdapter(view),
-            override_port=override_adapter,
-            generation_port=MainWindowGenerationAvailabilityAdapter(view),
-            surface_invalidation_service=self._surface_invalidation_service,
+        self._surface_reconciler = (
+            surface_reconciler
+            or build_main_window_workflow_surface_reconciler(
+                view,
+                canvas_port=canvas_adapter,
+                override_port=override_adapter,
+                surface_invalidation_service=self._surface_invalidation_service,
+            )
         )
 
     def activate_workflow(
@@ -1096,6 +1107,23 @@ class WorkflowWorkspaceCoordinator:
             )
             self._sync_reopen_closed_workflow_action()
             return False
+        hydrated_workspace = (
+            view.workspace_restore_controller.hydrate_restored_workspace_snapshot(
+                WorkspaceSnapshot(
+                    schema_version=WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
+                    workflows=(snapshot,),
+                    tab_order=(snapshot.workflow_id,),
+                    active_route=snapshot.workflow_id,
+                    active_workflow_id=snapshot.workflow_id,
+                ),
+                operation="reopen_closed_workflow",
+            )
+        )
+        if len(hydrated_workspace.workflows) != 1:
+            raise RuntimeError(
+                "Closed workflow hydration returned an invalid workspace."
+            )
+        snapshot = hydrated_workspace.workflows[0]
         workflow_id = self._unique_reopened_workflow_id(snapshot.workflow_id)
         if workflow_id != snapshot.workflow_id:
             log_info(
@@ -1338,6 +1366,10 @@ class WorkflowWorkspaceCoordinator:
             cube_count=len(getattr(cloned_workflow, "cubes", {}) or {}),
             stack_order_count=len(getattr(cloned_workflow, "stack_order", []) or []),
         )
+        unsaved_work_service = getattr(view, "unsaved_work_service", None)
+        mark_document_dirty = getattr(unsaved_work_service, "mark_dirty", None)
+        if callable(mark_document_dirty):
+            mark_document_dirty(transition.workflow_id)
         return transition.workflow_id
 
     def _materialize_workflow_cube_stack(
@@ -1380,7 +1412,7 @@ class WorkflowWorkspaceCoordinator:
         if resolved_active_cube_alias not in stack_order:
             resolved_active_cube_alias = stack_order[-1] if stack_order else None
         result = CubeStackPresenter(
-            icon_resolver=CubeTabIconResolver(
+            icon_resolver=cube_icon_resolver.CubeIconResolver(
                 cube_icon_factory=getattr(view, "cube_icon_factory", None),
             ),
         ).rebuild_stack(
@@ -1402,6 +1434,10 @@ class WorkflowWorkspaceCoordinator:
         """Close one workflow and project the selected successor exactly once."""
 
         view = self._view
+        unsaved_controller = getattr(view, "unsaved_work_controller", None)
+        confirm_close = getattr(unsaved_controller, "confirm_workflow_close", None)
+        if callable(confirm_close) and not confirm_close(workflow_id):
+            return
         ordered_ids = self._workflow_ids_in_order()
         close_push_result = self._buffer_closed_workflow(
             workflow_id,
@@ -1413,6 +1449,10 @@ class WorkflowWorkspaceCoordinator:
         )
         self._dispose_workflow_ui(workflow_id)
         self._surface_invalidation_service.remove_workflow(workflow_id)
+        unsaved_work_service = getattr(view, "unsaved_work_service", None)
+        remove_document_state = getattr(unsaved_work_service, "remove", None)
+        if callable(remove_document_state):
+            remove_document_state(workflow_id)
         workflow_progress_service = getattr(view, "workflow_progress_service", None)
         remove_workflow_progress = getattr(
             workflow_progress_service,
@@ -1485,6 +1525,13 @@ class WorkflowWorkspaceCoordinator:
             old_workflow_id,
             decision.workflow_id,
         )
+        unsaved_work_service = getattr(view, "unsaved_work_service", None)
+        rename_document_state = getattr(unsaved_work_service, "rename", None)
+        if callable(rename_document_state):
+            rename_document_state(old_workflow_id, decision.workflow_id)
+        mark_document_dirty = getattr(unsaved_work_service, "mark_dirty", None)
+        if callable(mark_document_dirty):
+            mark_document_dirty(decision.workflow_id)
         workflow_progress_service = getattr(view, "workflow_progress_service", None)
         rename_workflow_progress = getattr(
             workflow_progress_service,

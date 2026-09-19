@@ -20,15 +20,21 @@ from __future__ import annotations
 
 import socket
 
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 from sugarsubstitute_shared.launch_splash.protocol import (
+    SPLASH_MESSAGE_APPLIED_ACK,
     SplashSessionMessage,
     encode_splash_session_message,
 )
 from sugarsubstitute_shared.launch_splash.session import SplashSessionSpec
+from sugarsubstitute_shared.launch_splash.timing import (
+    SPLASH_CLOSE_ACK_TIMEOUT_SECONDS,
+)
 
 
 DEFAULT_SPLASH_CLIENT_TIMEOUT_SECONDS = 2.0
-DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = 0.1
+DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = SPLASH_CLOSE_ACK_TIMEOUT_SECONDS
 
 
 class SocketSplashSessionClient:
@@ -39,11 +45,13 @@ class SocketSplashSessionClient:
         spec: SplashSessionSpec,
         *,
         timeout_seconds: float = DEFAULT_SPLASH_CLIENT_TIMEOUT_SECONDS,
+        close_timeout_seconds: float = DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS,
     ) -> None:
         """Store the authenticated session endpoint."""
 
         self._spec = spec
         self._timeout_seconds = timeout_seconds
+        self._close_timeout_seconds = close_timeout_seconds
 
     @property
     def spec(self) -> SplashSessionSpec:
@@ -61,31 +69,54 @@ class SocketSplashSessionClient:
 
         self._send("status", line=line)
 
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Publish completed units while retaining status-only host compatibility."""
+        self._send("status", line=status, progress=progress)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Start or replace one independently animated splash activity."""
+
+        self._send("activity", line=None, activity=activity)
+
+    def clear_activity(self) -> None:
+        """Stop the active splash activity and remove its transient row."""
+
+        self._send("clear_activity", line=None)
+
     def fatal(self, line: str) -> None:
         """Send one fatal startup line to the shared splash."""
 
         self._send("fatal", line=line)
 
-    def close(self) -> None:
-        """Close the shared splash session."""
+    def activate(self) -> bool:
+        """Bring the shared splash forward and report confirmed application."""
+
+        try:
+            self._send("activate", line=None)
+        except OSError:
+            return False
+        return True
+
+    def close(self) -> bool:
+        """Close the shared splash session and report confirmed application."""
 
         try:
             self._send(
                 "close",
                 line=None,
-                timeout_seconds=min(
-                    self._timeout_seconds,
-                    DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS,
-                ),
+                timeout_seconds=self._close_timeout_seconds,
             )
         except OSError:
-            return
+            return False
+        return True
 
     def _send(
         self,
         message_type: str,
         *,
         line: str | None,
+        activity: SplashActivity | None = None,
+        progress: SplashProgress | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
         """Send one message and wait until the local host consumes it."""
@@ -94,6 +125,8 @@ class SocketSplashSessionClient:
             message_type=message_type,
             token=self._spec.token,
             line=line,
+            activity=activity,
+            progress=progress,
         )
         with socket.create_connection(
             (self._spec.host, self._spec.port),
@@ -103,4 +136,23 @@ class SocketSplashSessionClient:
         ) as connection:
             connection.sendall(encode_splash_session_message(message))
             connection.shutdown(socket.SHUT_WR)
-            connection.recv(1)
+            acknowledgement = _receive_exact(
+                connection,
+                len(SPLASH_MESSAGE_APPLIED_ACK),
+            )
+            if acknowledgement != SPLASH_MESSAGE_APPLIED_ACK:
+                raise OSError("Splash host did not acknowledge message application.")
+
+
+def _receive_exact(connection: socket.socket, size: int) -> bytes:
+    """Read one complete acknowledgement or return the truncated payload."""
+
+    chunks: list[bytes] = []
+    remaining = size
+    while remaining:
+        chunk = connection.recv(remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)

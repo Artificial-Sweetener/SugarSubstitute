@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from PySide6.QtGui import QColor
 import pytest
-import qfluentwidgets  # type: ignore[import-untyped]  # QFluent has no typing metadata.
+from qfluentwidgets.common import config as qfluent_config  # type: ignore[import-untyped]
+from qfluentwidgets.common import style_sheet as qfluent_style
 
 from substitute.app.bootstrap import theme
 from substitute.domain.appearance import AppearanceThemeMode
@@ -33,12 +34,12 @@ def test_configure_theme_applies_requested_theme_and_accent(
 
     calls: list[tuple[str, object]] = []
     monkeypatch.setattr(
-        qfluentwidgets,
+        qfluent_style,
         "setTheme",
         lambda value: calls.append(("theme", value)),
     )
     monkeypatch.setattr(
-        qfluentwidgets,
+        qfluent_style,
         "setThemeColor",
         lambda value: calls.append(("accent", value)),
     )
@@ -49,7 +50,7 @@ def test_configure_theme_applies_requested_theme_and_accent(
     )
 
     assert calls == [
-        ("theme", qfluentwidgets.Theme.LIGHT),
+        ("theme", qfluent_config.Theme.LIGHT),
         ("accent", QColor("#123456")),
     ]
 
@@ -73,7 +74,9 @@ def test_configure_accent_color_applies_only_requested_accent(
 
     calls: list[tuple[str, object]] = []
     monkeypatch.setattr(
-        qfluentwidgets, "setThemeColor", lambda value: calls.append(("accent", value))
+        qfluent_style,
+        "setThemeColor",
+        lambda value: calls.append(("accent", value)),
     )
 
     theme.configure_accent_color(accent_color="#654321")

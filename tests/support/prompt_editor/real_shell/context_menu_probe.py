@@ -73,7 +73,7 @@ class PromptContextMenuProbe:
             RoundMenu,
         )
         from substitute.presentation.editor.prompt_editor.shell import (
-            context_menu_controller as prompt_context_menu_module,
+            prompt_text_menu as prompt_context_menu_module,
         )
 
         editor = field.editor
@@ -89,9 +89,7 @@ class PromptContextMenuProbe:
         captured_trigger_actions: list[QAction] = []
         triggered_action_text: str | None = None
         original_exec = RoundMenu.exec
-        text_menu_class = cast(
-            Any, prompt_context_menu_module
-        )._PromptEditorTextEditMenu
+        text_menu_class = cast(Any, prompt_context_menu_module).PromptTextMenu
         original_text_menu_exec = text_menu_class.exec
         event_dispatch_elapsed_ms = 0.0
         menu_exec_elapsed_ms = 0.0

@@ -63,6 +63,21 @@ def upstream_node_ids(
     )
 
 
+def upstream_node_ids_from_nodes(
+    *,
+    workflow_nodes: Mapping[str, JsonValue],
+    start_node_id: str,
+    visited: set[str],
+) -> tuple[str, ...]:
+    """Return upstream ids from an already-normalized editable node map."""
+
+    return _upstream_node_ids(
+        workflow_payload=workflow_nodes,
+        start_node_id=start_node_id,
+        visited=visited,
+    )
+
+
 def _upstream_node_ids(
     *,
     workflow_payload: Mapping[str, JsonValue],
@@ -159,4 +174,5 @@ __all__ = [
     "node_title",
     "prompt_node_ids",
     "upstream_node_ids",
+    "upstream_node_ids_from_nodes",
 ]

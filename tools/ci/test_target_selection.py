@@ -25,7 +25,9 @@ from typing import Final
 import tomllib
 
 
-_DEFAULT_POLICY_PATH: Final[PurePosixPath] = PurePosixPath("TEST_TARGET_POLICY.toml")
+_DEFAULT_POLICY_PATH: Final[PurePosixPath] = PurePosixPath(
+    "governance/testing/targets.toml"
+)
 _TEST_ROOT: Final[PurePosixPath] = PurePosixPath("tests")
 
 
@@ -65,7 +67,7 @@ def load_test_target_policy(policy_path: Path) -> TestTargetPolicy:
     with policy_path.open("rb") as policy_file:
         payload = tomllib.load(policy_file)
     if payload.get("schema_version") != 1:
-        raise ValueError("TEST_TARGET_POLICY.toml must use schema_version = 1.")
+        raise ValueError("governance/testing/targets.toml must use schema_version = 1.")
 
     scope = _mapping(payload.get("scope"), "scope")
     test_root = _relative_path(scope.get("test_root"), "scope.test_root")

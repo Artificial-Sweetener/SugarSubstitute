@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Any, cast
@@ -25,6 +27,9 @@ from typing import Any, cast
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
 
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
@@ -33,6 +38,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
+from launcher.sugarsubstitute_launcher.ui.installer_presentation import LauncherUiState
 from tests.support.qt.semantic_wait import wait_for_qt_condition, wait_for_qt_signal
 
 
@@ -67,6 +73,15 @@ def close_and_delete_launcher_window(window: LauncherMainWindow) -> None:
     wait_for_qt_signal(destroyed)
 
 
+def advance_to_install_location(window: LauncherMainWindow) -> None:
+    """Accept the language-first page before exercising installation behavior."""
+
+    assert window.ui_state.name == LauncherUiState.SELECT_LANGUAGE.name
+    window.view.primary_button.click()
+    assert window.ui_state is LauncherUiState.PREPARE_INSTALL
+    assert window.view.page_stack.currentWidget() is window.view.install_location_page
+
+
 def release_source_for_test() -> GitHubReleaseSource:
     """Return a non-networking source identity for launcher window tests."""
 
@@ -88,7 +103,10 @@ def workflow_factory(
     artifact_installer: object | None = None,
     runtime_provisioner: object | None = None,
     process_starter: Callable[[Sequence[str]], None] = lambda _command: None,
-) -> Callable[[Callable[[str], None]], InstallationWorkflow]:
+    admit_installation: Callable[[InstallLayout], bool] | None = None,
+) -> Callable[
+    [Callable[[str], None], InstallationProgressObserver, Event], InstallationWorkflow
+]:
     """Build test workflows from explicit installer boundary doubles."""
 
     resolved_layout_preparer = layout_preparer or LayoutInstaller()
@@ -99,6 +117,8 @@ def workflow_factory(
 
     def create_workflow(
         _output_callback: Callable[[str], None],
+        progress_observer: InstallationProgressObserver,
+        _cancellation: Event,
     ) -> InstallationWorkflow:
         """Return one workflow using the configured test boundaries."""
 
@@ -107,6 +127,8 @@ def workflow_factory(
             artifact_installer=cast(Any, resolved_artifact_installer),
             runtime_provisioner=cast(Any, resolved_runtime_provisioner),
             process_starter=process_starter,
+            progress_observer=progress_observer,
+            admit_installation=admit_installation,
         )
 
     return create_workflow

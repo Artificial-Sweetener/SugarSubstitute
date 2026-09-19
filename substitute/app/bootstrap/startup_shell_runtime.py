@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 from substitute.app.bootstrap.ready_shell_state import ReadyShellRuntimeState
 from substitute.app.bootstrap.shell_session_finalization_adapter import (
@@ -105,12 +105,22 @@ def create_startup_shell_runtime_graph(
         persist_session=runtime_services.session_finalization_service.persist,
         cleanup_managed_comfy=shutdown_runtime.cleanup,
     )
+    shutdown_request_kwargs: dict[str, object] = {
+        "app": app,
+        "cleanup": shutdown_finalization.run,
+        "before_cleanup": shutdown_finalization.prepare,
+        "cleanup_bypass": shutdown_runtime.cleanup_bypass,
+        "cleanup_submitter": runtime_services.session_persistence_submitter,
+    }
+    authorize_shutdown = getattr(
+        session_finalization_adapter,
+        "confirm_shutdown",
+        None,
+    )
+    if callable(authorize_shutdown):
+        shutdown_request_kwargs["authorize_shutdown"] = authorize_shutdown
     shutdown_request_ports = create_startup_shutdown_request_ports(
-        app=app,
-        cleanup=shutdown_finalization.run,
-        before_cleanup=shutdown_finalization.prepare,
-        cleanup_bypass=shutdown_runtime.cleanup_bypass,
-        cleanup_submitter=runtime_services.session_persistence_submitter,
+        **cast(Any, shutdown_request_kwargs)
     )
     request_shell_shutdown = shutdown_request_ports.request_shell_shutdown
     shell_reload_adapter = create_bound_shell_reload_adapter(

@@ -173,6 +173,7 @@ class BootstrapReadinessService:
                 target=target,
                 managed_runtime=managed_runtime,
                 issues=issues,
+                require_validation=False,
             )
 
         if target is not None:
@@ -205,6 +206,7 @@ class BootstrapReadinessService:
                 target=target,
                 managed_runtime=managed_runtime,
                 issues=issues,
+                require_validation=True,
             )
         self._assess_backend_compatibility(
             target=target,
@@ -492,6 +494,7 @@ class BootstrapReadinessService:
         target: ComfyTargetConfiguration,
         managed_runtime: ManagedRuntimeConfiguration | None,
         issues: list[ReadinessIssue],
+        require_validation: bool,
     ) -> str | None:
         """Append managed-local workspace readiness issues."""
 
@@ -505,9 +508,10 @@ class BootstrapReadinessService:
                 )
             )
             return None
-        if managed_runtime is None or (
-            managed_runtime.validation_status is ManagedRuntimeValidationStatus.UNKNOWN
-        ):
+        validation_is_complete = managed_runtime is not None and (
+            managed_runtime.validation_status is ManagedRuntimeValidationStatus.VALID
+        )
+        if require_validation and not validation_is_complete:
             issues.append(
                 ReadinessIssue(
                     code=ReadinessIssueCode.MANAGED_WORKSPACE_NOT_VALIDATED,
@@ -518,7 +522,7 @@ class BootstrapReadinessService:
                     ),
                 )
             )
-        elif (
+        elif managed_runtime is not None and (
             managed_runtime.validation_status
             is ManagedRuntimeValidationStatus.INVALID_BACKEND
         ):
@@ -530,7 +534,9 @@ class BootstrapReadinessService:
                     or "The installed managed backend does not match the detected hardware.",
                 )
             )
-        elif not _managed_runtime_claims_workspace(managed_runtime, workspace_path):
+        elif managed_runtime is not None and not _managed_runtime_claims_workspace(
+            managed_runtime, workspace_path
+        ):
             issues.append(
                 ReadinessIssue(
                     code=ReadinessIssueCode.MANAGED_WORKSPACE_NOT_INSTALLED,

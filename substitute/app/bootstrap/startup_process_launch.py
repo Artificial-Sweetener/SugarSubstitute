@@ -20,20 +20,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-import subprocess
-import sys
-from typing import Any
 
-from substitute.shared.logging.logger import get_logger, log_error, log_exception
+from substitute.shared.logging.logger import get_logger, log_error
 from substitute.shared.startup_trace import trace_mark
-from sugarsubstitute_shared.application_launch_guard import (
-    cancel_restart_application_launch_environment,
-    restart_application_launch_environment,
+from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
+from sugarsubstitute_shared.crash_reporting.runtime import (
+    active_process_crash_runtime,
 )
-from sugarsubstitute_shared.windows_long_paths import (
-    operational_path,
-    subprocess_working_directory,
-)
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 _LOGGER = get_logger("app.bootstrap.startup_process_launch")
 
@@ -43,51 +37,23 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
 
     if not command:
         return False
-    startupinfo: Any | None = None
-    creationflags = 0
-    if sys.platform == "win32":
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = 0
-        creationflags = subprocess.CREATE_NO_WINDOW
-
     working_directory = launch_command_working_directory(command)
-    restart_environment = restart_application_launch_environment(command)
-    if restart_environment is None:
+    from sugarsubstitute_shared.qt_application_instance_control import (
+        request_supervised_application_restart,
+    )
+
+    if not request_supervised_application_restart():
         log_error(
             _LOGGER,
-            "Rejected fresh app process without a controlled restart handoff",
+            "Rejected application restart without an active supervisor",
             executable_name=_command_executable_name(command),
             argument_count=len(command),
             working_directory_present=working_directory is not None,
         )
         return False
-    try:
-        subprocess.Popen(  # noqa: S603
-            list(command),
-            cwd=(
-                subprocess_working_directory(working_directory)
-                if working_directory is not None
-                else None
-            ),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            close_fds=True,
-            creationflags=creationflags,
-            startupinfo=startupinfo,
-            env=restart_environment,
-        )
-    except OSError:
-        cancel_restart_application_launch_environment(command, restart_environment)
-        log_exception(
-            _LOGGER,
-            "Failed to start fresh app process",
-            executable_name=_command_executable_name(command),
-            argument_count=len(command),
-            working_directory_present=working_directory is not None,
-        )
-        return False
+    crash_runtime = active_process_crash_runtime()
+    if crash_runtime is not None:
+        crash_runtime.request_clean_exit(CleanExitOutcome.RESTART)
     trace_mark(
         "ready_app_process.started",
         executable_name=_command_executable_name(command),
@@ -116,4 +82,7 @@ def _command_executable_name(command: Sequence[str]) -> str:
     return Path(command[0]).name
 
 
-__all__ = ["launch_command_working_directory", "start_ready_app_process"]
+__all__ = [
+    "launch_command_working_directory",
+    "start_ready_app_process",
+]

@@ -24,13 +24,16 @@ import zipfile
 
 import pytest
 
-from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
     LINUX_X64_BUNDLE,
     MACOS_ARM64_BUNDLE,
 )
 from sugarsubstitute_shared.launcher_update.transaction import LauncherUpdateTransaction
+from sugarsubstitute_shared.launcher_update.bundle_selection import (
+    LauncherBundleSelection,
+)
 
 from .support import _asset
 
@@ -116,7 +119,7 @@ def test_transaction_preserves_macos_symlinks_during_promotion(tmp_path: Path) -
     )
     LauncherUpdateTransaction(wait_timeout_seconds=0).apply(request_path=request_path)
     promoted_link = (
-        install_root
+        LauncherBundleSelection(install_root, MACOS_ARM64_BUNDLE).resolve().root
         / "SugarSubstitute.app"
         / "Contents"
         / "Frameworks"

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.real_shell.exact_weight_state import (
+    exact_weight_input_snapshot,
+)
+
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -530,6 +534,7 @@ class PromptEditorSnapshotCapture:
             observed_event_start_index=observed_event_start_index,
             observed_event_end_index=len(self._observed_events),
             recent_observed_events=recent_observed_events,
+            exact_weight_input=exact_weight_input_snapshot(editor),
         )
 
 

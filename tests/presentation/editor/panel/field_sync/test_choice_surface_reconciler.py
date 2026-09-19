@@ -36,7 +36,7 @@ from substitute.presentation.editor.panel.field_registry import EditorFieldRegis
 from substitute.presentation.editor.panel.field_state_controller import (
     EditorFieldBinding,
 )
-from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
+from substitute.presentation.editor.panel.model_choice_snapshots import (
     PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotKind,
 )

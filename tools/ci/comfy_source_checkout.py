@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from tools.ci.comfy_probe_support import git_output, run_checked
+from tools.ci.comfy_git import git_output, run_git
 from tools.ci.comfy_support_matrix import (
     COMFY_RELEASE_CONTRACTS,
     ComfySupportMatrixEntry,
@@ -66,16 +66,13 @@ def prepare_checkout(
             f"expected {entry.commit_sha!r}."
         )
     resolved_workspace.parent.mkdir(parents=True, exist_ok=True)
-    run_checked(
-        [
-            "git",
-            "clone",
-            "--no-checkout",
-            "--no-hardlinks",
-            str(resolved_source_repository),
-            str(resolved_workspace),
-        ],
-        cwd=resolved_workspace.parent,
+    run_git(
+        resolved_workspace.parent,
+        "clone",
+        "--no-checkout",
+        "--no-hardlinks",
+        str(resolved_source_repository),
+        str(resolved_workspace),
         timeout_seconds=60,
     )
     checkout_tag(resolved_workspace, tag, contracts=contracts)
@@ -91,11 +88,7 @@ def checkout_tag(
 
     resolved_workspace = workspace.resolve()
     entry = _contract_for_tag(tag, contracts)
-    run_checked(
-        ["git", "checkout", "--detach", tag],
-        cwd=resolved_workspace,
-        timeout_seconds=60,
-    )
+    run_git(resolved_workspace, "checkout", "--detach", tag, timeout_seconds=60)
     actual_commit = git_output(resolved_workspace, "rev-parse", "HEAD")
     if actual_commit != entry.commit_sha:
         raise RuntimeError(

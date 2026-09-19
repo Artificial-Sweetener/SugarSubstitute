@@ -35,7 +35,7 @@ from substitute.application.node_behavior import (
     resolve_choice_inventory_for_field,
 )
 from substitute.application.ports import NodeDefinitionGateway
-from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
+from substitute.presentation.editor.panel.model_choice_snapshots import (
     PanelModelChoiceSnapshot,
 )
 from substitute.presentation.editor.panel.choice_items import (
@@ -53,6 +53,7 @@ from substitute.presentation.widgets.model_picker import (
     ModelPickerField,
     ModelPickerThumbnailPreloadRoute,
 )
+from substitute.presentation.model_discovery import EmptyModelPickerAction
 
 _EDITOR_COMBO_MAX_HINT_WIDTH = 360
 
@@ -70,6 +71,7 @@ class ChoiceFieldBuildRequest:
     model_choice_snapshot: PanelModelChoiceSnapshot | None = None
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
+    empty_model_picker_action: EmptyModelPickerAction | None = None
     node_definition_gateway: NodeDefinitionGateway | None = None
     thumbnail_preload_route_factory: (
         Callable[[QWidget], ModelPickerThumbnailPreloadRoute] | None
@@ -99,6 +101,7 @@ class ChoiceFieldFactory:
                 model_choice_snapshot=request.model_choice_snapshot,
                 thumbnail_asset_repository=request.thumbnail_asset_repository,
                 model_metadata_action_handler=request.model_metadata_action_handler,
+                empty_model_picker_action=request.empty_model_picker_action,
                 thumbnail_preload_route_factory=request.thumbnail_preload_route_factory,
             )
 
@@ -118,6 +121,7 @@ class ChoiceFieldFactory:
                 model_choice_snapshot=request.model_choice_snapshot,
                 thumbnail_asset_repository=request.thumbnail_asset_repository,
                 model_metadata_action_handler=request.model_metadata_action_handler,
+                empty_model_picker_action=request.empty_model_picker_action,
                 thumbnail_preload_route_factory=request.thumbnail_preload_route_factory,
             )
 
@@ -162,6 +166,7 @@ def _build_prepared_model_picker(
     model_choice_snapshot: PanelModelChoiceSnapshot | None,
     thumbnail_asset_repository: ThumbnailAssetRepository | None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None,
+    empty_model_picker_action: EmptyModelPickerAction | None,
     thumbnail_preload_route_factory: (
         Callable[[QWidget], ModelPickerThumbnailPreloadRoute] | None
     ),
@@ -171,6 +176,15 @@ def _build_prepared_model_picker(
     if model_choice_snapshot is None or model_choice_snapshot.choice_source is None:
         raise RuntimeError(f"Model picker field {key} requires a prepared snapshot.")
     picker_started_at = panel_projection_observability_started_at()
+    picker: ModelPickerField
+
+    def request_empty_model() -> None:
+        """Open discovery and bind its verified result to this exact field."""
+
+        context = model_choice_snapshot.suggestion_context
+        if empty_model_picker_action is not None and context is not None:
+            empty_model_picker_action(context, picker.setCurrentText)
+
     picker = ModelPickerField(
         parent,
         choice_source=model_choice_snapshot.choice_source,
@@ -178,6 +192,12 @@ def _build_prepared_model_picker(
         current_value=str(value) if value is not None else "",
         search_placeholder=model_choice_snapshot.search_placeholder,
         metadata_action_handler=model_metadata_action_handler,
+        empty_model_action=(
+            request_empty_model
+            if empty_model_picker_action is not None
+            and model_choice_snapshot.can_offer_suggestions
+            else None
+        ),
         thumbnail_preload_route_factory=thumbnail_preload_route_factory,
     )
     log_panel_projection_timing(

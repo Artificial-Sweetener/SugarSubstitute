@@ -23,7 +23,7 @@ from typing import cast
 import pytest
 
 from substitute.app.bootstrap import composition
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 def test_reload_shell_frame_reuses_existing_main_window_and_geometry(

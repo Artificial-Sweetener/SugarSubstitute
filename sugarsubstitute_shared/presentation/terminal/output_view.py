@@ -20,18 +20,21 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from types import MethodType
+from typing import cast
 from weakref import ReferenceType, WeakMethod, ref
 
 from PySide6.QtCore import QTimer, Qt, Slot
 from PySide6.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
-from PySide6.QtWidgets import QApplication, QFrame, QSizePolicy, QVBoxLayout, QWidget
-from qfluentwidgets import PlainTextEdit  # type: ignore[import-untyped]
-from qfluentwidgets import qconfig
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QPlainTextEdit,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 from shiboken6 import isValid as _shiboken_is_valid
 
-from sugarsubstitute_shared.presentation.widgets.scrolling import (
-    configure_qfluent_scroll_surface,
-)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -43,6 +46,7 @@ from sugarsubstitute_shared.presentation.terminal.output_style import (
     build_terminal_output_log_stylesheet,
     build_terminal_output_stylesheet,
     create_terminal_output_font,
+    TerminalOutputAppearance,
 )
 from sugarsubstitute_shared.presentation.terminal.output_transcript import (
     TerminalOutputMutation,
@@ -60,14 +64,19 @@ class TerminalOutputView(QFrame):
         *,
         min_height: int | None = None,
         max_height: int | None = None,
+        appearance: TerminalOutputAppearance | None = None,
+        use_qfluent_chrome: bool = True,
+        observe_qfluent_theme: bool = True,
     ) -> None:
-        """Build the terminal view as one shared terminal surface."""
+        """Build the terminal view with optional deferred QFluent integration."""
 
         super().__init__(parent)
         self._stream: TerminalOutputStream | None = None
         self._direct_transcript = TerminalOutputTranscript(max_lines=None)
         self._follow_tail_enabled = True
         self._follow_tail_update_pending = False
+        self._appearance = appearance
+        self._use_qfluent_chrome = use_qfluent_chrome
 
         self.setObjectName("TerminalOutputView")
         self.setMinimumWidth(0)
@@ -80,7 +89,7 @@ class TerminalOutputView(QFrame):
         root_layout.setContentsMargins(1, 1, 1, 1)
         root_layout.setSpacing(0)
 
-        self._log_view = PlainTextEdit(self)
+        self._log_view = self._build_log_view()
         self._log_view.setObjectName("TerminalOutputLog")
         self._log_view.setMinimumWidth(0)
         self._log_view.setSizePolicy(
@@ -91,19 +100,22 @@ class TerminalOutputView(QFrame):
         self._log_view.setReadOnly(True)
         self._log_view.setUndoRedoEnabled(False)
         self._log_view.setCursorWidth(0)
-        self._log_view.setLineWrapMode(PlainTextEdit.LineWrapMode.WidgetWidth)
+        self._log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self._log_view.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self._log_view.setViewportMargins(0, 0, 0, 2)
-        self._disable_smooth_scrolling()
+        if self._use_qfluent_chrome:
+            self._disable_smooth_scrolling()
         terminal_layer = getattr(self._log_view, "layer", None)
         if terminal_layer is not None:
             terminal_layer.hide()
         # Keep the transcript visually close to the viewport bottom.
         self._log_view.document().setDocumentMargin(0)
         self._log_view.setFont(create_terminal_output_font())
-        self._log_view.setStyleSheet(build_terminal_output_log_stylesheet())
+        self._log_view.setStyleSheet(
+            build_terminal_output_log_stylesheet(self._appearance)
+        )
         if min_height is not None:
             self._log_view.setMinimumHeight(min_height)
         if max_height is not None:
@@ -117,13 +129,25 @@ class TerminalOutputView(QFrame):
             self._handle_vertical_range_changed
         )
         self._apply_theme_styles()
-        connect_theme_refresh(self, self._apply_theme_styles)
+        if observe_qfluent_theme:
+            connect_theme_refresh(self, self._apply_theme_styles)
 
     @property
-    def log_view(self) -> PlainTextEdit:
+    def log_view(self) -> QPlainTextEdit:
         """Return the underlying text widget for host wrappers and tests."""
 
         return self._log_view
+
+    def _build_log_view(self) -> QPlainTextEdit:
+        """Create the selected text widget without eager QFluent imports."""
+
+        if not self._use_qfluent_chrome:
+            return QPlainTextEdit(self)
+        from qfluentwidgets.components.widgets.line_edit import (  # type: ignore[import-untyped]
+            PlainTextEdit,
+        )
+
+        return cast(QPlainTextEdit, PlainTextEdit(self))
 
     def set_stream(self, stream: TerminalOutputStream | None) -> None:
         """Bind this view to one terminal stream and replay existing history."""
@@ -194,11 +218,17 @@ class TerminalOutputView(QFrame):
     def _apply_theme_styles(self) -> None:
         """Reapply direct terminal styles after theme or accent changes."""
 
-        self._log_view.setStyleSheet(build_terminal_output_log_stylesheet())
-        self.setStyleSheet(build_terminal_output_stylesheet())
+        self._log_view.setStyleSheet(
+            build_terminal_output_log_stylesheet(self._appearance)
+        )
+        self.setStyleSheet(build_terminal_output_stylesheet(self._appearance))
 
     def _disable_smooth_scrolling(self) -> None:
         """Disable QFluent wheel smoothing so terminal output tracks immediately."""
+
+        from sugarsubstitute_shared.presentation.widgets.scrolling import (
+            configure_qfluent_scroll_surface,
+        )
 
         configure_qfluent_scroll_surface(self._log_view)
 
@@ -219,9 +249,35 @@ class TerminalOutputView(QFrame):
             self._append_visible_line(mutation.styled_line)
         elif mutation.kind is TerminalOutputMutationKind.REPLACE_LAST_LINE:
             self._replace_last_visible_line(mutation.styled_line)
+        elif mutation.kind is TerminalOutputMutationKind.REMOVE_LAST_LINE:
+            self._remove_last_visible_line()
         else:
             raise ValueError(f"Unsupported terminal output mutation: {mutation.kind!r}")
         self._request_follow_tail_update()
+
+    def _remove_last_visible_line(self) -> None:
+        """Remove the rendered tail row without rebuilding durable history."""
+
+        if not self._log_view.toPlainText():
+            return
+        document = self._log_view.document()
+        last_block = document.lastBlock()
+        cursor = QTextCursor(document)
+        if last_block.previous().isValid():
+            cursor.setPosition(last_block.previous().position())
+            cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock)
+            cursor.movePosition(
+                QTextCursor.MoveOperation.End,
+                QTextCursor.MoveMode.KeepAnchor,
+            )
+        else:
+            cursor.setPosition(last_block.position())
+            cursor.movePosition(
+                QTextCursor.MoveOperation.EndOfBlock,
+                QTextCursor.MoveMode.KeepAnchor,
+            )
+        cursor.removeSelectedText()
+        self._log_view.setTextCursor(cursor)
 
     def _append_visible_line(self, line: TerminalStyledLine) -> None:
         """Append one rendered line without rebuilding the whole document."""
@@ -293,6 +349,8 @@ def connect_theme_refresh(
     refresh: Callable[[], None],
 ) -> None:
     """Connect one live-widget refresh callback to QFluent theme changes."""
+
+    from qfluentwidgets.common.config import qconfig  # type: ignore[import-untyped]
 
     widget_ref = _weak_ref_or_none(widget)
     refresh_ref = _weak_method_or_none(refresh)

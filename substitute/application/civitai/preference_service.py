@@ -130,6 +130,16 @@ class CivitaiPreferenceService:
             self.load_preferences().with_downloads_enabled(enabled)
         )
 
+    def set_model_update_notifications_enabled(
+        self,
+        enabled: bool,
+    ) -> CivitaiPreferences:
+        """Persist explicit consent for usage-aware model update checks."""
+
+        return self.save_preferences(
+            self.load_preferences().with_model_update_notifications_enabled(enabled)
+        )
+
     def supported_download_path_token_descriptions(
         self,
     ) -> tuple[CivitaiDownloadPathToken, ...]:
@@ -207,6 +217,9 @@ class CivitaiPreferenceService:
             download_path_pattern=(
                 preferences.download_path_pattern
                 or DEFAULT_CIVITAI_DOWNLOAD_PATH_PATTERN
+            ),
+            model_update_notifications_enabled=(
+                preferences.model_update_notifications_enabled
             ),
         )
 

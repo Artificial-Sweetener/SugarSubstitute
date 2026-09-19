@@ -24,7 +24,7 @@ from dataclasses import replace
 from typing import cast
 
 from substitute.application.workflows import WorkflowLinkReconciliationService
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.workflow import WorkflowState
 
 
@@ -90,7 +90,7 @@ class WorkflowIssuePruningService:
         omitted_aliases = set(errored_aliases)
         pruned: dict[str, object] = {}
         for key, scope in scopes.items():
-            if not isinstance(scope, GlobalOverrideSerializationScope):
+            if not isinstance(scope, GlobalOverrideScope):
                 pruned[key] = scope
                 continue
             if scope.full_participation:

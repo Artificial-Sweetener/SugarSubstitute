@@ -26,7 +26,14 @@ from pathlib import Path
 import subprocess
 import sys
 from threading import Event, Lock
-from typing import IO, Any, Protocol
+from typing import IO, Protocol
+
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+from substitute.app.bootstrap.launch_splash_client import (
+    LaunchSplashClient,
+    NullLaunchSplashClient,
+)
 
 from substitute.application.execution import (
     CancellationSource,
@@ -111,47 +118,6 @@ class LaunchSplashCancelRelay:
         """Wait for the splash helper to request cancellation."""
 
         return self._cancellation_event.wait(timeout)
-
-
-class LaunchSplashClient(Protocol):
-    """Describe the narrow launch-splash surface used by startup."""
-
-    def append_log(self, line: str) -> None:
-        """Append one status or log line to the launch splash."""
-
-    def close(self) -> None:
-        """Close the launch splash if it is still available."""
-
-
-class NullLaunchSplashClient:
-    """Ignore launch-splash calls when the helper is unavailable."""
-
-    def append_log(self, line: str) -> None:
-        """Discard one splash line."""
-
-        _ = line
-
-    def close(self) -> None:
-        """Complete a no-op close."""
-
-
-class InProcessLaunchSplashClient:
-    """Adapt an existing in-process splash widget to the launch-splash protocol."""
-
-    def __init__(self, splash_window: Any) -> None:
-        """Store the concrete splash widget used by fallback and tests."""
-
-        self._splash_window = splash_window
-
-    def append_log(self, line: str) -> None:
-        """Append one line to the in-process splash widget."""
-
-        self._splash_window.append_log(line)
-
-    def close(self) -> None:
-        """Close the in-process splash widget."""
-
-        self._splash_window.close()
 
 
 class LaunchSplashProcessClient:
@@ -294,6 +260,34 @@ class LaunchSplashProcessClient:
         """Send one log line to the helper process."""
 
         self._send({"type": "log", "line": line})
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Carry completion as optional fields on the legacy status envelope."""
+        self._send(
+            {
+                "type": "status",
+                "line": status,
+                "completed": str(progress.completed),
+                "total": str(progress.total),
+            }
+        )
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Send all localized activity stages to the helper process."""
+
+        self._send(
+            {
+                "type": "activity",
+                "initial": activity.initial_text,
+                "long_wait": activity.long_wait_text,
+                "extended_wait": activity.extended_wait_text,
+            }
+        )
+
+    def clear_activity(self) -> None:
+        """Stop the helper process activity."""
+
+        self._send({"type": "clear_activity"})
 
     def close(self) -> None:
         """Ask the helper to close, then clean up if it does not exit promptly."""
@@ -506,11 +500,8 @@ def _terminate_process(process: subprocess.Popen[str]) -> None:
 
 
 __all__ = [
-    "InProcessLaunchSplashClient",
     "LaunchSplashCancelRelay",
-    "LaunchSplashClient",
     "LaunchSplashProcessClient",
-    "NullLaunchSplashClient",
     "decode_splash_helper_event",
     "encode_splash_message",
     "start_launch_splash",

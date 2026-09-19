@@ -31,7 +31,7 @@ StatusCallback = Callable[[str], None]
 _READY_PATH = "/system_stats"
 _REQUEST_TIMEOUT_SECONDS = 0.35
 _RETRY_DELAY_SECONDS = 1.0
-_LOOPBACK_BINDABLE_HOSTS = frozenset({"127.0.0.1", "::1"})
+_TCP_PREFLIGHT_TIMEOUT_SECONDS = 0.005
 
 
 def wait_for_ready(
@@ -59,12 +59,6 @@ def wait_for_ready(
 def probe_http_ready(*, host: str, port: int) -> bool:
     """Return whether ComfyUI responds successfully to one readiness request."""
 
-    if _can_probe_local_port_availability(host) and _local_port_is_available(
-        host=host,
-        port=port,
-    ):
-        return False
-
     connection = http.client.HTTPConnection(
         host,
         port,
@@ -81,22 +75,20 @@ def probe_http_ready(*, host: str, port: int) -> bool:
         connection.close()
 
 
-def _can_probe_local_port_availability(host: str) -> bool:
-    """Return whether bind availability is authoritative for one literal host."""
+def is_endpoint_listening(host: str, port: int, *, timeout: float = 0.35) -> bool:
+    """Check the HTTP endpoint without acquiring the server's listening address.
 
-    return host in _LOOPBACK_BINDABLE_HOSTS
-
-
-def _local_port_is_available(*, host: str, port: int) -> bool:
-    """Return whether one literal loopback port can be bound immediately."""
-
-    family = socket.AF_INET6 if host == "::1" else socket.AF_INET
+    Use a bounded client connection to reject absent endpoints quickly. Binding
+    the destination port would race the server that this observer is awaiting.
+    """
     try:
-        with socket.socket(family, socket.SOCK_STREAM) as sock:
-            sock.bind((host, port))
+        with socket.create_connection(
+            (host, port), timeout=min(timeout, _TCP_PREFLIGHT_TIMEOUT_SECONDS)
+        ):
+            pass
     except OSError:
         return False
-    return True
+    return probe_http_ready(host=host, port=port)
 
 
-__all__ = ["probe_http_ready", "wait_for_ready"]
+__all__ = ["is_endpoint_listening", "probe_http_ready", "wait_for_ready"]

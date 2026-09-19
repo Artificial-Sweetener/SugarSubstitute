@@ -45,7 +45,7 @@ environment.environ["OWNER"] = "capability"
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = discover_test_candidates(tmp_path, policy)
 
     assert [candidate.rule for candidate in candidates] == [
@@ -75,7 +75,7 @@ def observe() -> bool:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -100,7 +100,7 @@ fluent.setThemeColor(color())
     _write(tmp_path / "tests/capability/test_theme.py", source)
     _write(tmp_path / "tests/presentation/theme/support.py", source)
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)
@@ -129,7 +129,7 @@ def fixture_owned(monkeypatch: object, path: str) -> None:
 """,
     )
 
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    policy = load_test_policy(tmp_path / "governance/testing/policy.toml")
     candidates = [
         candidate
         for candidate in discover_test_candidates(tmp_path, policy)

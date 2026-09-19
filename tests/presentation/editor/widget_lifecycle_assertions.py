@@ -31,7 +31,7 @@ APPROVED_TOP_LEVEL_CLASS_NAMES = frozenset(
         "CheckableMenu",
         "ToolTip",
         "TeachingTip",
-        "_PromptEditorTextEditMenu",
+        "PromptTextMenu",
     }
 )
 

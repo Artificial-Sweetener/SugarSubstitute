@@ -25,12 +25,12 @@ from typing import Protocol
 
 from sugarsubstitute_shared.localization import app_text, render_source_application_text
 
-from substitute.application.onboarding.managed_runtime_state_recorder import (
-    ManagedRuntimeStateRecorder,
-)
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.comfy_manager import ComfyManagerRuntime
-from substitute.domain.onboarding import ManagedRuntimeValidationStatus
+from substitute.domain.onboarding import (
+    ManagedComfySetupResult,
+    ManagedRuntimeConfiguration,
+)
 from substitute.infrastructure.comfy.hardware_models import HardwareDetectionResult
 from substitute.infrastructure.comfy.install_strategy import ManagedInstallStrategy
 from substitute.infrastructure.comfy.managed_environment_validator import (
@@ -41,14 +41,14 @@ from substitute.infrastructure.comfy.managed_startup_remote_steps import (
 )
 from substitute.infrastructure.comfy.managed_runtime_configuration_codec import (
     managed_runtime_configuration_from_strategy,
+    validated_managed_runtime_configuration,
 )
 from substitute.infrastructure.comfy.managed_setup_freshness_cache import (
+    fresh_installed_setup_record,
     fresh_installed_setup_record_without_hardware_probe,
-    installed_setup_freshness_is_current,
-    load_installed_setup_freshness,
-    record_cached_installed_setup_success,
+    try_write_installed_setup_freshness,
+    validated_runtime_configuration_from_installed_setup_record,
     validation_from_installed_setup_record,
-    write_installed_setup_freshness,
 )
 from substitute.infrastructure.comfy.managed_setup_freshness_inputs import (
     installed_setup_freshness_key,
@@ -171,14 +171,13 @@ class ExistingManagedSetupRequest:
     prefer_edge_comfy_channel: bool
     repair_existing_runtime: bool
     refresh_core_nodepacks: Collection[CoreNodepackId]
-    runtime_recorder: ManagedRuntimeStateRecorder
     managed_env: Mapping[str, str]
 
 
 def reconcile_existing_managed_setup(
     request: ExistingManagedSetupRequest,
     operations: ExistingManagedSetupOperations,
-) -> Path:
+) -> ManagedComfySetupResult:
     """Converge an updated managed checkout before committing success evidence."""
 
     workspace = request.workspace
@@ -200,12 +199,12 @@ def reconcile_existing_managed_setup(
             refresh_core_nodepacks=request.refresh_core_nodepacks,
         )
     if fast_record is not None:
-        record_cached_installed_setup_success(
-            runtime_recorder=request.runtime_recorder,
-            record=fast_record,
+        cached_configuration = (
+            validated_runtime_configuration_from_installed_setup_record(fast_record)
         )
+        assert cached_configuration is not None
         operations.emit_status("Managed ComfyUI setup is current.")
-        return python_executable
+        return ManagedComfySetupResult(python_executable, cached_configuration)
 
     operations.emit_status(
         render_source_application_text(
@@ -249,73 +248,66 @@ def reconcile_existing_managed_setup(
         prefer_edge_torch=request.prefer_edge_torch,
         prefer_edge_comfy_channel=request.prefer_edge_comfy_channel,
     )
-    request.runtime_recorder.record_selection(runtime_configuration)
     freshness_key = installed_setup_freshness_key(
         workspace=workspace,
         strategy=strategy,
     )
-    setup_is_current = (
-        not request.repair_existing_runtime
-        and installed_setup_freshness_is_current(
+    current_record = (
+        fresh_installed_setup_record(
             record_path=request.setup_cache_record_path,
             key=freshness_key,
             refresh_core_nodepacks=request.refresh_core_nodepacks,
         )
+        if not request.repair_existing_runtime
+        else None
     )
-    if setup_is_current:
-        existing_record = load_installed_setup_freshness(
-            request.setup_cache_record_path
+    if current_record is not None:
+        if request.configure_model_root:
+            _configure_model_root(request, operations)
+        existing_validation = validation_from_installed_setup_record(current_record)
+        cached_configuration = (
+            validated_runtime_configuration_from_installed_setup_record(current_record)
         )
-        existing_validation = (
-            validation_from_installed_setup_record(existing_record)
-            if existing_record is not None
-            else None
-        )
+        assert existing_validation is not None
+        assert cached_configuration is not None
         if existing_validation is not None and not remote_steps.degraded:
-            write_installed_setup_freshness(
+            try_write_installed_setup_freshness(
                 record_path=request.setup_cache_record_path,
                 key=freshness_key,
                 request=freshness_request,
-                runtime_configuration=runtime_configuration,
+                runtime_configuration=cached_configuration,
                 validation=existing_validation,
             )
         operations.emit_status("Managed ComfyUI setup is current.")
-        return python_executable
+        return ManagedComfySetupResult(python_executable, cached_configuration)
 
-    if not setup_is_current:
-        if not remote_steps.degraded:
-            operations.emit_status("Installing Substitute Comfy nodepacks.")
-        remote_steps.run(
-            operation="ensure_nodepacks",
-            action=lambda: _ensure_nodepacks(
-                operations=operations,
-                request=request,
-                manager_runtime=manager_runtime,
-            ),
-        )
-        if not remote_steps.degraded:
-            operations.emit_status("Preparing Base-Cubes dependencies.")
-        remote_steps.run(
-            operation="sugarcubes_baseline",
-            action=lambda: _prepare_sugarcubes(
-                operations=operations,
-                workspace=workspace,
-                managed_env=request.managed_env,
-            ),
-        )
+    if not remote_steps.degraded:
+        operations.emit_status("Installing Substitute Comfy nodepacks.")
+    remote_steps.run(
+        operation="ensure_nodepacks",
+        action=lambda: _ensure_nodepacks(
+            operations=operations,
+            request=request,
+            manager_runtime=manager_runtime,
+        ),
+    )
+    if not remote_steps.degraded:
+        operations.emit_status("Preparing Base-Cubes dependencies.")
+    remote_steps.run(
+        operation="sugarcubes_baseline",
+        action=lambda: _prepare_sugarcubes(
+            operations=operations,
+            workspace=workspace,
+            managed_env=request.managed_env,
+        ),
+    )
     if request.configure_model_root:
-        with trace_span("managed_setup.existing.configure_model_root"):
-            operations.configure_model_root(
-                workspace,
-                python_executable,
-                request.managed_model_root,
-            )
+        _configure_model_root(request, operations)
     with trace_span("managed_setup.existing.validate_torch"):
         resolved_backend, validation = operations.validate_torch(
             workspace,
             strategy.torch_policy,
         )
-    _record_torch_outcome(request.runtime_recorder, resolved_backend, validation)
     if (
         not validation.success
         and request.repair_existing_runtime
@@ -332,13 +324,13 @@ def reconcile_existing_managed_setup(
         )
         if repair.completed and repair.value is not None:
             resolved_backend, validation = repair.value
-            _record_torch_outcome(
-                request.runtime_recorder,
-                resolved_backend,
-                validation,
-            )
-    if not validation.success and not remote_steps.degraded:
+    if not validation.success:
         raise RuntimeError(validation.detail)
+    validated_configuration = _validated_runtime_configuration(
+        runtime_configuration,
+        resolved_backend,
+        validation,
+    )
     remote_steps.run(
         operation="reconcile_acceleration",
         action=lambda: _reconcile_acceleration(
@@ -353,14 +345,14 @@ def reconcile_existing_managed_setup(
         strategy=strategy,
     )
     if not remote_steps.degraded:
-        write_installed_setup_freshness(
+        try_write_installed_setup_freshness(
             record_path=request.setup_cache_record_path,
             key=freshness_key,
             request=freshness_request,
-            runtime_configuration=runtime_configuration,
+            runtime_configuration=validated_configuration,
             validation=validation,
         )
-    return python_executable
+    return ManagedComfySetupResult(python_executable, validated_configuration)
 
 
 def _reconcile_dependencies(
@@ -420,6 +412,20 @@ def _prepare_sugarcubes(
         operations.prepare_sugarcubes(workspace, managed_env)
 
 
+def _configure_model_root(
+    request: ExistingManagedSetupRequest,
+    operations: ExistingManagedSetupOperations,
+) -> None:
+    """Apply the requested model root before reporting setup completion."""
+
+    with trace_span("managed_setup.existing.configure_model_root"):
+        operations.configure_model_root(
+            request.workspace,
+            request.python_executable,
+            request.managed_model_root,
+        )
+
+
 def _reconcile_acceleration(
     *,
     operations: ExistingManagedSetupOperations,
@@ -433,29 +439,23 @@ def _reconcile_acceleration(
         operations.reconcile_acceleration(workspace, detection, managed_env)
 
 
-def _record_torch_outcome(
-    recorder: ManagedRuntimeStateRecorder,
+def _validated_runtime_configuration(
+    configuration: ManagedRuntimeConfiguration,
     backend: ResolvedTorchBackendContract,
     validation: ManagedEnvironmentValidationResult,
-) -> None:
-    """Record one torch resolution and validation result consistently."""
+) -> ManagedRuntimeConfiguration:
+    """Return one complete configuration from successful validation."""
 
     release_channel = getattr(backend.release_channel, "value", None)
     if not isinstance(release_channel, str):
         raise RuntimeError("Resolved torch release channel is invalid.")
-    recorder.record_torch_resolution(
+    return validated_managed_runtime_configuration(
+        configuration,
         backend_policy=backend.backend_key,
         torch_release_channel=release_channel,
         torch_selection_reason=backend.selection_reason,
         torch_fallback_used=backend.fallback_used,
-    )
-    recorder.record_validation(
-        status=(
-            ManagedRuntimeValidationStatus.VALID
-            if validation.success
-            else ManagedRuntimeValidationStatus.INVALID_BACKEND
-        ),
-        detail=validation.detail,
+        validation_detail=validation.detail,
     )
 
 

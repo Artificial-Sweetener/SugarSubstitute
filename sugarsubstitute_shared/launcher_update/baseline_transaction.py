@@ -1,0 +1,285 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Install the durable launcher baseline and recover older replacement journals."""
+
+from __future__ import annotations
+
+from sugarsubstitute_shared.repair_recovery.execution import recover_interrupted_repair
+
+from sugarsubstitute_shared.installation_mutation import (
+    InstallationMutationOwnership,
+    installation_mutation,
+)
+
+from sugarsubstitute_shared.launcher_update.process import relaunch_updated_launcher
+
+import logging
+from pathlib import Path
+import shutil
+import time
+
+from sugarsubstitute_shared.launcher_update.models import (
+    LauncherInstallationRecord,
+)
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.persistence import write_json_atomic
+from sugarsubstitute_shared.process_identity import wait_for_process_exit
+from sugarsubstitute_shared.launcher_update.bundle_validation import (
+    validate_launcher_bundle,
+)
+from sugarsubstitute_shared.launcher_update.targets import (
+    LauncherBundleTarget,
+    launcher_bundle_target_for_key,
+)
+from sugarsubstitute_shared.windows_long_paths import (
+    operational_path,
+)
+
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class LauncherBaselineTransactionError(RuntimeError):
+    """Report an update that could not be promoted or rolled back safely."""
+
+
+class LauncherBaselineTransaction:
+    """Install the baseline from an independent installer and recover older journals."""
+
+    def __init__(
+        self,
+        *,
+        wait_timeout_seconds: float = 120.0,
+        retry_interval_seconds: float = 0.1,
+    ) -> None:
+        """Store bounded process and filesystem retry timing."""
+
+        self._wait_timeout_seconds = wait_timeout_seconds
+        self._retry_interval_seconds = retry_interval_seconds
+
+    def recover(
+        self,
+        *,
+        install_root: Path,
+        target: LauncherBundleTarget,
+        ownership: InstallationMutationOwnership | None = None,
+    ) -> None:
+        """Restore a baseline interrupted by an earlier destructive updater."""
+        with installation_mutation(install_root, ownership=ownership) as operation:
+            recover_interrupted_repair(install_root, ownership=operation)
+            update_root = install_root / "launcher" / "updates"
+            self._recover_interrupted_transaction(
+                install_root=install_root,
+                target=target,
+                backup_root=update_root / "backup",
+                journal_path=update_root / "transaction.json",
+            )
+
+    def apply(
+        self,
+        *,
+        request_path: Path,
+        ownership: InstallationMutationOwnership | None = None,
+    ) -> None:
+        """Apply one persisted request and relaunch exactly when requested."""
+
+        request_path = operational_path(request_path)
+        request = LauncherUpdateRequest.load(request_path)
+        target = launcher_bundle_target_for_key(request.target_key)
+        install_root = operational_path(request.install_root).resolve()
+        _require_descendant(request_path.resolve(), install_root / "launcher")
+        staged_dir = operational_path(request.staged_bundle_dir).resolve()
+        _require_descendant(staged_dir, install_root / "launcher" / "updates")
+        validate_launcher_bundle(bundle_dir=staged_dir, target=target)
+        outgoing = request.wait_identity
+        if outgoing is not None:
+            wait_for_process_exit(outgoing, timeout_seconds=self._wait_timeout_seconds)
+        with installation_mutation(install_root, ownership=ownership) as operation:
+            recover_interrupted_repair(install_root, ownership=operation)
+            update_root = install_root / "launcher" / "updates"
+            backup_root = update_root / "backup"
+            journal_path = update_root / "transaction.json"
+            self._recover_interrupted_transaction(
+                install_root=install_root,
+                target=target,
+                backup_root=backup_root,
+                journal_path=journal_path,
+            )
+            self._promote_with_retries(
+                install_root=install_root,
+                target=target,
+                staged_dir=staged_dir,
+                backup_root=backup_root,
+                journal_path=journal_path,
+            )
+            LauncherInstallationRecord(
+                version=request.version,
+                target_key=request.target_key,
+            ).save(install_root / "launcher" / "installation.json")
+            request_path.unlink(missing_ok=True)
+            shutil.rmtree(backup_root, ignore_errors=True)
+            shutil.rmtree(staged_dir, ignore_errors=True)
+            journal_path.unlink(missing_ok=True)
+        if request.relaunch:
+            relaunch_updated_launcher(install_root / target.executable_relative_path)
+
+    def _promote_with_retries(
+        self,
+        *,
+        install_root: Path,
+        target: LauncherBundleTarget,
+        staged_dir: Path,
+        backup_root: Path,
+        journal_path: Path,
+    ) -> None:
+        """Retry transient file locks without weakening transactional rollback."""
+
+        deadline = time.monotonic() + self._wait_timeout_seconds
+        while True:
+            try:
+                self._promote(
+                    install_root=install_root,
+                    target=target,
+                    staged_dir=staged_dir,
+                    backup_root=backup_root,
+                    journal_path=journal_path,
+                )
+                return
+            except OSError as error:
+                self._rollback(
+                    install_root=install_root,
+                    target=target,
+                    backup_root=backup_root,
+                )
+                if time.monotonic() >= deadline:
+                    raise LauncherBaselineTransactionError(
+                        "Launcher files remained locked during replacement."
+                    ) from error
+                time.sleep(self._retry_interval_seconds)
+            except Exception:
+                self._rollback(
+                    install_root=install_root,
+                    target=target,
+                    backup_root=backup_root,
+                )
+                raise
+
+    def _promote(
+        self,
+        *,
+        install_root: Path,
+        target: LauncherBundleTarget,
+        staged_dir: Path,
+        backup_root: Path,
+        journal_path: Path,
+    ) -> None:
+        """Move the old bundle aside, then copy the complete staged bundle."""
+
+        shutil.rmtree(backup_root, ignore_errors=True)
+        backup_root.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(
+            journal_path,
+            {"phase": "promoting", "target_key": target.key},
+        )
+        for relative_path in target.replacement_roots:
+            destination = install_root / relative_path
+            backup = backup_root / relative_path
+            source = staged_dir / relative_path
+            if destination.exists():
+                backup.parent.mkdir(parents=True, exist_ok=True)
+                destination.replace(backup)
+            else:
+                absence_marker = _absence_marker(backup_root, relative_path)
+                absence_marker.parent.mkdir(parents=True, exist_ok=True)
+                absence_marker.touch()
+            _copy_path(source=source, destination=destination)
+
+    def _recover_interrupted_transaction(
+        self,
+        *,
+        install_root: Path,
+        target: LauncherBundleTarget,
+        backup_root: Path,
+        journal_path: Path,
+    ) -> None:
+        """Restore a bundle left behind by a terminated prior helper."""
+
+        if not journal_path.exists() or not backup_root.exists():
+            return
+        _LOGGER.warning("Recovering interrupted launcher update transaction.")
+        self._rollback(
+            install_root=install_root,
+            target=target,
+            backup_root=backup_root,
+        )
+        journal_path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _rollback(
+        *,
+        install_root: Path,
+        target: LauncherBundleTarget,
+        backup_root: Path,
+    ) -> None:
+        """Restore every backed-up target and remove partial replacements."""
+
+        for relative_path in reversed(target.replacement_roots):
+            destination = install_root / relative_path
+            backup = backup_root / relative_path
+            if backup.exists():
+                _remove_path(destination)
+                backup.parent.mkdir(parents=True, exist_ok=True)
+                backup.replace(destination)
+            elif _absence_marker(backup_root, relative_path).exists():
+                _remove_path(destination)
+
+
+def _copy_path(*, source: Path, destination: Path) -> None:
+    """Copy one staged target while preserving its bundle shape."""
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if source.is_dir():
+        shutil.copytree(source, destination, symlinks=True)
+    else:
+        shutil.copy2(source, destination)
+
+
+def _remove_path(path: Path) -> None:
+    """Remove one file or tree when it exists."""
+
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink(missing_ok=True)
+
+
+def _require_descendant(path: Path, parent: Path) -> None:
+    """Reject persisted paths outside the install-owned update tree."""
+
+    if not path.is_relative_to(parent.resolve()):
+        raise LauncherBaselineTransactionError(
+            f"Launcher update path escapes its owner: {path}"
+        )
+
+
+def _absence_marker(backup_root: Path, relative_path: Path) -> Path:
+    """Return the marker proving a target was absent before modification."""
+
+    return backup_root / ".absent" / relative_path
+
+
+__all__ = ["LauncherBaselineTransaction", "LauncherBaselineTransactionError"]

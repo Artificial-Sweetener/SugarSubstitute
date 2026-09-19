@@ -18,26 +18,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from copy import deepcopy
+from collections.abc import Callable
 from dataclasses import dataclass
-from inspect import signature
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Protocol
 
 from substitute.application.generation import (
     CapturedGenerationRequest,
     GenerationJobSnapshot,
     GenerationPreparationResult,
     GenerationRequest,
-    positive_prompt_preview_from_workflow,
-)
-from substitute.presentation.shell.workspace_generation_request_builder import (
-    activation_node_keys_by_alias,
 )
 
 if TYPE_CHECKING:
     from substitute.application.node_behavior import EditorBehaviorSnapshot
-    from substitute.domain.workflow import WorkflowState
 
 
 class QueuedSnapshotPreparationService(Protocol):
@@ -74,163 +67,6 @@ class QueuedSnapshotPreparation:
     on_prepared: Callable[
         [GenerationPreparationResult], tuple[GenerationJobSnapshot, ...]
     ]
-
-
-def serialize_generation_workflow(
-    *,
-    recipe_io_service: object,
-    workflow: object,
-    behavior_snapshot: object | None,
-    global_override_scopes: Mapping[str, object] | None = None,
-    serialization_context: object | None = None,
-    serialization_plan: object | None = None,
-    prompt_field_overrides: Mapping[tuple[str, str, str], object] | None = None,
-) -> str:
-    """Serialize a generation workflow while applying activation overrides."""
-
-    serialize = getattr(recipe_io_service, "serialize_workflow_to_sugar_script")
-    enabled_node_keys_by_alias, disabled_node_keys_by_alias = (
-        activation_node_keys_by_alias(behavior_snapshot, workflow)
-    )
-    try:
-        serialize_parameters = signature(serialize).parameters
-    except (TypeError, ValueError):
-        accepts_enabled_nodes = False
-        accepts_disabled_nodes = False
-        accepts_global_override_scopes = False
-        accepts_serialization_context = False
-        accepts_serialization_plan = False
-        accepts_prompt_field_overrides = False
-    else:
-        accepts_enabled_nodes = "enabled_node_keys_by_alias" in serialize_parameters
-        accepts_disabled_nodes = "disabled_node_keys_by_alias" in serialize_parameters
-        accepts_global_override_scopes = (
-            "global_override_scopes" in serialize_parameters
-        )
-        accepts_serialization_context = "serialization_context" in serialize_parameters
-        accepts_serialization_plan = "serialization_plan" in serialize_parameters
-        accepts_prompt_field_overrides = (
-            "prompt_field_overrides" in serialize_parameters
-        )
-    kwargs: dict[str, object] = {}
-    if accepts_disabled_nodes:
-        kwargs["disabled_node_keys_by_alias"] = disabled_node_keys_by_alias
-        if accepts_enabled_nodes:
-            kwargs["enabled_node_keys_by_alias"] = enabled_node_keys_by_alias
-    if accepts_global_override_scopes and global_override_scopes is not None:
-        kwargs["global_override_scopes"] = global_override_scopes
-    if accepts_serialization_context and serialization_context is not None:
-        kwargs["serialization_context"] = serialization_context
-    if accepts_serialization_plan and serialization_plan is not None:
-        kwargs["serialization_plan"] = serialization_plan
-    if accepts_prompt_field_overrides and prompt_field_overrides is not None:
-        kwargs["prompt_field_overrides"] = prompt_field_overrides
-    if kwargs:
-        return cast(str, serialize(workflow, **kwargs))
-    return cast(str, serialize(workflow))
-
-
-def create_recipe_serialization_context(recipe_io_service: object) -> object | None:
-    """Return a request-scoped recipe serialization context when supported."""
-
-    create_context = getattr(recipe_io_service, "create_serialization_context", None)
-    if not callable(create_context):
-        return None
-    return cast("object | None", create_context())
-
-
-def build_recipe_serialization_plan(
-    *,
-    recipe_io_service: object,
-    workflow: object,
-    behavior_snapshot: object | None,
-    serialization_context: object | None,
-) -> object | None:
-    """Return a reusable recipe serialization plan when supported."""
-
-    build_plan = getattr(recipe_io_service, "build_serialization_plan", None)
-    if not callable(build_plan):
-        return None
-    enabled_node_keys_by_alias, disabled_node_keys_by_alias = (
-        activation_node_keys_by_alias(behavior_snapshot, workflow)
-    )
-    try:
-        plan_parameters = signature(build_plan).parameters
-    except (TypeError, ValueError):
-        return cast("object | None", build_plan(workflow))
-    kwargs: dict[str, object] = {}
-    if "enabled_node_keys_by_alias" in plan_parameters:
-        kwargs["enabled_node_keys_by_alias"] = enabled_node_keys_by_alias
-    if "disabled_node_keys_by_alias" in plan_parameters:
-        kwargs["disabled_node_keys_by_alias"] = disabled_node_keys_by_alias
-    if "serialization_context" in plan_parameters and serialization_context is not None:
-        kwargs["serialization_context"] = serialization_context
-    return cast("object | None", build_plan(workflow, **kwargs))
-
-
-def preprocess_generation_workflow(
-    *,
-    prompt_wildcard_preprocessing_service: object | None,
-    workflow: object,
-    workflow_id: str,
-    wildcard_context: object | None = None,
-    prompt_endpoint_index: object | None = None,
-) -> object:
-    """Resolve generation-only prompt preprocessors for a workflow snapshot."""
-
-    preprocess_workflow = getattr(
-        prompt_wildcard_preprocessing_service, "preprocess_workflow", None
-    )
-    if callable(preprocess_workflow):
-        return cast(
-            object,
-            preprocess_workflow(
-                workflow=workflow,
-                workflow_id=workflow_id,
-                wildcard_context=wildcard_context,
-                prompt_endpoint_index=prompt_endpoint_index,
-            ),
-        )
-    return workflow
-
-
-def generation_snapshot_from_request(
-    *,
-    request: GenerationRequest,
-    behavior_snapshot: "EditorBehaviorSnapshot | None",
-    recipe_io_service: object,
-    prompt_wildcard_preprocessing_service: object | None,
-) -> GenerationJobSnapshot:
-    """Capture one queued Sugar script snapshot from a generation request."""
-
-    workflow = cast(
-        "WorkflowState",
-        preprocess_generation_workflow(
-            prompt_wildcard_preprocessing_service=prompt_wildcard_preprocessing_service,
-            workflow=deepcopy(request.workflow),
-            workflow_id=request.workflow_id,
-            prompt_endpoint_index=None
-            if behavior_snapshot is None
-            else behavior_snapshot.prompt_endpoint_index,
-        ),
-    )
-    positive_prompt_preview = positive_prompt_preview_from_workflow(
-        workflow=workflow,
-        behavior_snapshot=behavior_snapshot,
-    )
-    sugar_script_text = serialize_generation_workflow(
-        recipe_io_service=recipe_io_service,
-        workflow=workflow,
-        behavior_snapshot=behavior_snapshot,
-        global_override_scopes=request.global_override_scopes,
-    )
-    return GenerationJobSnapshot(
-        workflow_id=request.workflow_id,
-        workflow_name=request.workflow_name,
-        sugar_script_text=sugar_script_text,
-        workflow=workflow,
-        positive_prompt_preview=positive_prompt_preview,
-    )
 
 
 def capture_queued_snapshot_preparation(
@@ -274,13 +110,8 @@ def capture_queued_snapshot_preparation(
 
 
 __all__ = [
-    "build_recipe_serialization_plan",
     "capture_queued_snapshot_preparation",
-    "create_recipe_serialization_context",
-    "generation_snapshot_from_request",
-    "preprocess_generation_workflow",
     "QueuedSnapshotPreparation",
     "QueuedSnapshotPreparationService",
     "SceneRunPreparedCallback",
-    "serialize_generation_workflow",
 ]

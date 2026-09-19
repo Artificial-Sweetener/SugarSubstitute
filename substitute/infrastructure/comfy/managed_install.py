@@ -23,11 +23,11 @@ import os
 from pathlib import Path
 from typing import Callable
 
-from substitute.application.onboarding.managed_runtime_state_recorder import (
-    ManagedRuntimeStateRecorder,
-    NoOpManagedRuntimeStateRecorder,
+from substitute.domain.onboarding import ManagedComfySetupResult
+from substitute.domain.onboarding.workspace_conflicts import (
+    ManagedWorkspaceConflict,
+    ManagedWorkspaceConflictError,
 )
-from substitute.domain.onboarding import ManagedRuntimeValidationStatus
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy.hardware_detection import detect_hardware
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
@@ -45,12 +45,13 @@ from substitute.infrastructure.comfy.managed_install_scratch import (
 )
 from substitute.infrastructure.comfy.managed_runtime_configuration_codec import (
     managed_runtime_configuration_from_strategy,
+    validated_managed_runtime_configuration,
 )
 from substitute.infrastructure.comfy.managed_setup_cache_storage import (
     prepare_managed_setup_cache,
 )
 from substitute.infrastructure.comfy.managed_setup_freshness_cache import (
-    write_installed_setup_freshness,
+    try_write_installed_setup_freshness,
 )
 from substitute.infrastructure.comfy.managed_setup_freshness_inputs import (
     installed_setup_freshness_key,
@@ -85,8 +86,12 @@ from substitute.infrastructure.comfy.managed_workspace_provisioning import (
     provision_verified_standalone_workspace,
 )
 from substitute.infrastructure.comfy.managed_validation import (
+    is_workspace_installed,
     workspace_main_path,
     workspace_python_path,
+)
+from substitute.infrastructure.comfy.standalone_environment.recovery import (
+    StandaloneEnvironmentRecovery,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 from substitute.shared.startup_trace import trace_mark, trace_span
@@ -124,8 +129,7 @@ def ensure_managed_comfy_setup(
     refresh_core_nodepacks: Collection[CoreNodepackId] = frozenset(),
     on_status: StatusCallback | None = None,
     on_log: LogCallback | None = None,
-    state_recorder: ManagedRuntimeStateRecorder | None = None,
-) -> Path:
+) -> ManagedComfySetupResult:
     """Ensure ComfyUI and runtime dependencies are installed and ready."""
 
     scratch = allocate_managed_install_scratch(workspace)
@@ -143,7 +147,6 @@ def ensure_managed_comfy_setup(
             refresh_core_nodepacks=refresh_core_nodepacks,
             on_status=on_status,
             on_log=on_log,
-            state_recorder=state_recorder,
             managed_env=managed_env,
         )
     finally:
@@ -171,23 +174,17 @@ def _ensure_managed_comfy_setup(
     refresh_core_nodepacks: Collection[CoreNodepackId],
     on_status: StatusCallback | None,
     on_log: LogCallback | None,
-    state_recorder: ManagedRuntimeStateRecorder | None,
     managed_env: dict[str, str],
-) -> Path:
+) -> ManagedComfySetupResult:
     """Run managed ComfyUI setup with a prepared subprocess environment."""
 
-    runtime_recorder = state_recorder or NoOpManagedRuntimeStateRecorder()
     workspace.parent.mkdir(parents=True, exist_ok=True)
     if migrate_nested_workspace_layout(workspace):
         emit_log(on_log, f"Migrated legacy nested ComfyUI layout in {workspace}.")
+    StandaloneEnvironmentRecovery().resume(workspace)
     force_install = os.getenv("SUGARSUB_FORCE_COMFY_INSTALL") == "1"
     venv_python = workspace_python_path(workspace)
-    if (
-        venv_python.exists()
-        and workspace.exists()
-        and workspace_main_path(workspace).exists()
-        and not force_install
-    ):
+    if is_workspace_installed(workspace) and not force_install:
         setup_cache = prepare_managed_setup_cache(workspace)
         try:
             return reconcile_existing_managed_setup(
@@ -202,7 +199,6 @@ def _ensure_managed_comfy_setup(
                     prefer_edge_comfy_channel=prefer_edge_comfy_channel,
                     repair_existing_runtime=repair_existing_runtime,
                     refresh_core_nodepacks=refresh_core_nodepacks,
-                    runtime_recorder=runtime_recorder,
                     managed_env=managed_env,
                 ),
                 ManagedExistingSetupOperations(
@@ -224,16 +220,18 @@ def _ensure_managed_comfy_setup(
             and not workspace_main_path(workspace).exists()
             and any(workspace.iterdir())
         ):
-            raise RuntimeError(
-                "The selected ComfyUI folder already contains files. Clear that folder "
-                "or choose a different empty folder before trying again."
+            raise ManagedWorkspaceConflictError(
+                ManagedWorkspaceConflict.OCCUPIED_FOLDER,
+                "The selected ComfyUI folder already contains files. "
+                "Choose a different empty folder before trying again.",
             )
         if workspace.exists() and workspace_main_path(workspace).exists():
-            raise RuntimeError(
+            raise ManagedWorkspaceConflictError(
+                ManagedWorkspaceConflict.EXISTING_INSTALLATION,
                 "The managed ComfyUI folder contains an existing installation but "
                 "does not contain Substitute's managed Python environment. Choose "
                 "Use My Current ComfyUI for this folder, or choose an empty folder "
-                "for managed setup."
+                "for managed setup.",
             )
 
         trace_mark("managed_setup.detect_hardware.start")
@@ -256,8 +254,6 @@ def _ensure_managed_comfy_setup(
             prefer_edge_torch=prefer_edge_torch,
             prefer_edge_comfy_channel=prefer_edge_comfy_channel,
         )
-        runtime_recorder.record_selection(runtime_configuration)
-
         emit_status(on_status, "Preparing the managed ComfyUI install strategy.")
         emit_log(
             on_log,
@@ -346,22 +342,16 @@ def _ensure_managed_comfy_setup(
                 on_log=on_log,
                 env=managed_env,
             )
-        runtime_recorder.record_torch_resolution(
+        if not validation.success:
+            raise RuntimeError(validation.detail)
+        validated_configuration = validated_managed_runtime_configuration(
+            runtime_configuration,
             backend_policy=resolved_backend.backend_key,
             torch_release_channel=resolved_backend.release_channel.value,
             torch_selection_reason=resolved_backend.selection_reason,
             torch_fallback_used=resolved_backend.fallback_used,
+            validation_detail=validation.detail,
         )
-        runtime_recorder.record_validation(
-            status=(
-                ManagedRuntimeValidationStatus.VALID
-                if validation.success
-                else ManagedRuntimeValidationStatus.INVALID_BACKEND
-            ),
-            detail=validation.detail,
-        )
-        if not validation.success:
-            raise RuntimeError(validation.detail)
         trace_mark("managed_setup.acceleration.start")
         with trace_span("managed_setup.acceleration"):
             reconcile_managed_acceleration_stack(
@@ -375,7 +365,7 @@ def _ensure_managed_comfy_setup(
         try:
             trace_mark("managed_setup.freshness_receipt.start")
             with trace_span("managed_setup.freshness_receipt"):
-                write_installed_setup_freshness(
+                try_write_installed_setup_freshness(
                     record_path=setup_cache.record_path,
                     key=installed_setup_freshness_key(
                         workspace=workspace,
@@ -386,15 +376,17 @@ def _ensure_managed_comfy_setup(
                         prefer_edge_torch=prefer_edge_torch,
                         prefer_edge_comfy_channel=prefer_edge_comfy_channel,
                     ),
-                    runtime_configuration=runtime_configuration,
+                    runtime_configuration=validated_configuration,
                     validation=validation,
                 )
         finally:
             setup_cache.close()
-        return venv_python
+        return ManagedComfySetupResult(venv_python, validated_configuration)
     except Exception as error:
-        runtime_recorder.record_failure(
-            status=ManagedRuntimeValidationStatus.INSTALL_FAILED,
-            detail=str(error).strip() or type(error).__name__,
+        log_warning(
+            _LOGGER,
+            "Managed ComfyUI setup did not complete.",
+            workspace=workspace,
+            error=repr(error),
         )
         raise

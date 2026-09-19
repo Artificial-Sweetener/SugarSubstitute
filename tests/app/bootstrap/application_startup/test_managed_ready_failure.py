@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -57,7 +59,6 @@ from substitute.domain.onboarding import (
 )
 
 from .runtime_fakes import build_startup_runtime_services_fake
-from substitute.infrastructure.comfy import process_manager
 from substitute.infrastructure.comfy.managed_process_registry import (
     ManagedProcessRegistry,
 )
@@ -93,6 +94,11 @@ class _FakeApp:
         """Record application shutdown after fatal startup failure."""
 
         self.quit_calls += 1
+
+    def request_quit(self) -> None:
+        """Model the queued application-exit boundary."""
+
+        self.quit()
 
 
 class _FakeSignal:
@@ -327,7 +333,7 @@ def test_ready_startup_closes_splash_and_reports_fatal_managed_failure(
         log_excerpt=("Traceback (most recent call last):", "RuntimeError: boom"),
         values={"pid": 123, "exit_code": 1},
     )
-    state = process_manager.ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
+    state = ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
     state.startup_result = ManagedStartupReadinessResult(
         ready=False,
         fatal_incident=incident,

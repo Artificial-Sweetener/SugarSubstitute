@@ -229,10 +229,11 @@ def wait_for_dense_pixels(
         plan = pane.calculateRenderPlan()
         assert plan is not None
         assert len(plan.render_items) == 2
-        assert all(_uses_dense_tile_product(item) for item in plan.render_items)
         frame = pane.grab().toImage()
         mismatch = _first_mismatch(plan, frame, sources, horizontal=horizontal)
         assert mismatch is None, mismatch
+        if not all(_uses_dense_tile_product(item) for item in plan.render_items):
+            return False
         return all(_visible_tiles_complete(item) for item in plan.render_items)
 
     wait_for_qt_condition(dense_pixels_are_complete, timeout_ms=5_000)

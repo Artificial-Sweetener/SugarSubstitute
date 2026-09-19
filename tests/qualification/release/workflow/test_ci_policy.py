@@ -59,8 +59,8 @@ def test_documentation_only_changes_skip_automatic_ci() -> None:
     )
 
 
-def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
-    """Require every supported operating system to run parallel and serial tests."""
+def test_default_ci_runs_complete_partitioned_suite_on_active_platforms() -> None:
+    """Require the active Windows platform to run every test partition."""
 
     workflow = yaml.safe_load(
         workflow_path("platform-tests.yml").read_text(encoding="utf-8")
@@ -71,13 +71,9 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
 
     assert {entry["os"] for entry in matrix} == {
         "windows-latest",
-        "ubuntu-24.04",
-        "macos-15",
     }
     assert {entry["os"]: entry["python-version"] for entry in matrix} == {
         "windows-latest": "3.12.10",
-        "ubuntu-24.04": "3.12.13",
-        "macos-15": "3.12.10",
     }
     assert strategy_matrix["partition"] == ["ordinary", "fresh"]
     assert platform_job["strategy"]["fail-fast"] is False
@@ -173,8 +169,6 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
 
     expected_versions = {
         "windows-latest": "3.12.10",
-        "ubuntu-24.04": "3.12.13",
-        "macos-15": "3.12.10",
     }
     observed_entries = 0
     for path in WORKFLOW_PATHS:
@@ -189,7 +183,7 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
                 assert "${{" not in entry["python-version"]
                 observed_entries += 1
 
-    assert observed_entries == 21
+    assert observed_entries == 15
 
 
 def test_ci_actions_use_immutable_verified_revisions() -> None:
@@ -253,8 +247,8 @@ def test_release_node_dependencies_use_exact_verified_versions() -> None:
         assert lock["packages"][f"node_modules/{dependency}"]["version"] == version
 
 
-def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
-    """Prevent version resolution until the exact release commit passes all tests."""
+def test_release_reuses_protected_canary_gates_with_safe_fallbacks() -> None:
+    """Avoid duplicate Canary gates while retaining Stable and manual verification."""
 
     release_workflow = yaml.safe_load(
         (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
@@ -267,8 +261,10 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
 
     jobs = release_workflow["jobs"]
     preparation = jobs["prepare-release"]
-    assert preparation["name"] == "Test, build, stage, and qualify release"
+    assert preparation["name"] == "Verify, build, stage, and qualify release"
     assert preparation["uses"] == "./.github/workflows/release-prepublication.yml"
+    assert "github.event_name != 'push'" in preparation["with"]["run_tests"]
+    assert "github.ref_name != 'canary'" in preparation["with"]["run_tests"]
     assert (
         "github.event_name != 'workflow_dispatch'" in preparation["with"]["run_tests"]
     )

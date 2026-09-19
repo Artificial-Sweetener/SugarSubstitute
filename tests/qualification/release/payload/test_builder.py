@@ -60,19 +60,19 @@ def test_release_builder_rejects_launcher_unsafe_version(tmp_path: Path) -> None
         )
 
 
-def test_release_builder_accepts_semantic_prerelease_version(tmp_path: Path) -> None:
-    """Canary semantic versions must remain safe for release payload paths."""
+def test_release_builder_accepts_dotted_numeric_canary_version(tmp_path: Path) -> None:
+    """Canary versions remain safe for legacy launcher and payload paths."""
 
     repo_root = _write_fixture_repo(tmp_path)
 
     result = build_local_release_channel(
         repo_root=repo_root,
         output_dir=repo_root / ".local-release-channel",
-        version="0.21.0-canary.42",
+        version="0.21.0.42",
     )
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.21.0-canary.42"
+    assert manifest["version"] == "0.21.0.42"
 
 
 def test_release_payload_cli_runs_by_file_path(tmp_path: Path) -> None:
@@ -115,6 +115,9 @@ def test_release_payload_contains_required_runtime_roots(tmp_path: Path) -> None
     assert "substitute/app/__init__.py" in archive_names
     assert "substitute/app/bootstrap/startup.py" in archive_names
     assert "sugarsubstitute_shared/__init__.py" in archive_names
+    assert (
+        "sugarsubstitute_shared/presentation/resources/sugarsubstitute-logo.svg"
+    ) in archive_names
     assert "third_party/manifest.toml" in archive_names
     assert set(RUNTIME_REQUIRED_ROOTS).issuperset(
         {archive_name.split("/", maxsplit=1)[0] for archive_name in archive_names}
@@ -162,14 +165,18 @@ def test_local_release_channel_writes_manifest_and_checksums(tmp_path: Path) -> 
         output_dir=output_dir,
         version="0.4.0",
         channel="stable",
-        minimum_launcher_version="0.1.0",
     )
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema_version"] == 2
     assert manifest["channel"] == "stable"
     assert manifest["version"] == "0.4.0"
-    assert manifest["minimum_launcher_version"] == "0.1.0"
+    assert manifest["minimum_launcher_version"] == "0.23.0"
+    assert manifest["compatibility"] == {
+        "data_schema_epoch": 1,
+        "minimum_direct_launcher_version": "0.23.0",
+        "update_protocol": 1,
+    }
     assert manifest["app"]["filename"] == "SugarSubstitute-app-v0.4.0.zip"
     assert manifest["app"]["url"] == result.app_zip_path.as_uri()
     assert manifest["app"]["sha256"] == sha256_file(result.app_zip_path)
@@ -239,7 +246,13 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
     )
     with zipfile.ZipFile(launcher_zip) as archive:
         assert "SugarSubstitute.exe" in archive.namelist()
+        assert "launcher-bin/LauncherUi.exe" in archive.namelist()
+        assert "launcher-bin/Repair.exe" in archive.namelist()
         assert "launcher-bin/python312.dll" in archive.namelist()
+        assert {name.split("/", maxsplit=1)[0] for name in archive.namelist()} == {
+            "SugarSubstitute.exe",
+            "launcher-bin",
+        }
     assert result.installer_assets["windows_x64_exe"].filename == installer_exe.name
     assert installer_exe.read_text(encoding="utf-8") == "setup"
     assert macos_launcher["filename"] == (
@@ -466,8 +479,8 @@ def test_project_requirements_pin_cutecanvas_as_the_canvas_boundary() -> None:
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "cutecanvas[sam]==1.0.6" in requirements
-    assert "qpane==3.0.4" in requirements
+    assert "cutecanvas[sam]==1.0.9" in requirements
+    assert "qpane==3.0.5" in requirements
     assert "ferrastra==1.0.2" in requirements
 
 
@@ -483,12 +496,47 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
         repo_root / "sugarsubstitute_shared" / "__init__.py",
         '"""Shared infrastructure package."""\n',
     )
+    _write_file(
+        repo_root / "docs" / "readme" / "sugarsubstitute-logo.svg",
+        "<svg/>\n",
+    )
     _write_file(repo_root / "substitute" / "app" / "__init__.py", '"""Bootstrap."""\n')
     _write_file(
         repo_root / "substitute" / "app" / "bootstrap" / "startup.py",
         "VALUE = 1\n",
     )
     _write_file(repo_root / "third_party" / "manifest.toml", "[[component]]\n")
+    _write_file(
+        repo_root / "launcher" / "launcher-contract.json",
+        json.dumps(
+            {
+                "schema_version": 1,
+                "delegation_protocol": 1,
+                "update_protocol": 1,
+                "minimum_direct_launcher_version": "0.23.0",
+                "supported_manifest_schema_versions": [1, 2],
+                "historical_boundaries": [
+                    {
+                        "id": "legacy",
+                        "representative_version": "0.12.2",
+                        "route": "legacy_baseline_bridge",
+                        "platforms": ["windows_x64"],
+                    }
+                ],
+                "data_compatibility": {
+                    "schema_epoch": 1,
+                    "migrations": [
+                        {
+                            "id": "adopt-epoch-1",
+                            "from_epoch": 0,
+                            "to_epoch": 1,
+                        }
+                    ],
+                    "migration_boundaries": [],
+                },
+            }
+        ),
+    )
     return repo_root
 
 
@@ -496,6 +544,8 @@ def _write_fixture_launcher_bundle(root: Path) -> Path:
     """Write a minimal PyInstaller onedir launcher bundle fixture."""
 
     _write_file(root / "SugarSubstitute.exe", "launcher")
+    _write_file(root / "LauncherUi.exe", "launcher UI")
+    _write_file(root / "Repair.exe", "repair launcher")
     _write_file(root / "launcher-bin" / "python312.dll", "dll")
     return root
 

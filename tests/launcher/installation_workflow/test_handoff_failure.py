@@ -27,6 +27,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tests.launcher.installation_workflow.support import (
+    advance_to_install_location,
     close_and_delete_launcher_window,
     release_source_for_test,
     wait_for_launcher_condition,
@@ -100,6 +101,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
         ),
     )
 
+    advance_to_install_location(window)
     window.view.primary_button.click()
     window.view.primary_button.click()
     wait_for_launcher_condition(
@@ -111,7 +113,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
     assert window.view.primary_button.isEnabled() is True
     assert (
         "Could not start SugarSubstitute setup."
-        in window.view.progress_log.log_view.toPlainText()
+        in window.view.status_panel.progress_log.log_view.toPlainText()
     )
     wait_for_launcher_condition(
         application,

@@ -32,13 +32,13 @@ from PySide6.QtWidgets import QApplication
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationStatus,
 )
 from substitute.infrastructure.comfy.process_manager import (
-    ManagedComfyState,
     ManagedComfyStateCleanupResult,
 )
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
 from substitute.shared.logging.logger import (
     get_logger,
     log_exception,

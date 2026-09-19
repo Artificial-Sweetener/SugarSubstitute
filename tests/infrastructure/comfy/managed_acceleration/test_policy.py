@@ -18,6 +18,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+import sys
+
+import pytest
+
 from substitute.infrastructure.comfy.hardware_models import (
     AcceleratorClass,
     HardwareAdapterInfo,
@@ -30,6 +36,56 @@ from substitute.infrastructure.comfy.managed_acceleration_policy import (
     managed_acceleration_policy_fingerprint,
     resolve_managed_acceleration_policy,
 )
+
+
+@pytest.mark.parametrize("diffusers_state", ["absent", "healthy", "broken"])
+def test_transformers_verification_respects_optional_diffusers(
+    tmp_path: Path, diffusers_state: str
+) -> None:
+    """Accept absent optional integration while exposing a broken installed one."""
+
+    transformers = tmp_path / "transformers"
+    transformers.mkdir()
+    (transformers / "__init__.py").write_text("", encoding="utf-8")
+    (transformers / "utils.py").write_text(
+        "def is_flash_attn_2_available():\n    return False\n", encoding="utf-8"
+    )
+    if diffusers_state != "absent":
+        (tmp_path / "diffusers.py").write_text(
+            "raise ImportError('broken installed integration')\n"
+            if diffusers_state == "broken"
+            else "import transformers\n",
+            encoding="utf-8",
+        )
+    policy = resolve_managed_acceleration_policy(
+        detection=_detection(ManagedPlatform.WINDOWS, "blackwell"),
+        runtime=_runtime(machine="amd64", capability=(12, 0)),
+    )
+    package = next(
+        package
+        for package in policy.packages
+        if package.distribution_name == "transformers"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            f"import sys; sys.path.insert(0, {str(tmp_path)!r})\n"
+            + package.verification_code,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+
+    if diffusers_state == "broken":
+        assert result.returncode != 0
+        assert "broken installed integration" in result.stderr
+    else:
+        assert result.returncode == 0, result.stderr
 
 
 def test_windows_blackwell_policy_selects_complete_verified_stack() -> None:

@@ -26,8 +26,8 @@ from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.shell.app_orb_renderer import AppOrbRenderer
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
-from substitute.presentation.shell.menu_button_controller import (
-    ShellMenuButtonController,
+from substitute.presentation.widgets.menu_button_controller import (
+    MenuButtonController,
 )
 from substitute.presentation.widgets.menu_model import (
     MenuItem,
@@ -79,7 +79,7 @@ class AppOrbMenuButton(QAbstractButton):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._app_icon = application_icon()
         self._orb_renderer = AppOrbRenderer(self._app_icon)
-        self._menu_controller = ShellMenuButtonController(
+        self._menu_controller = MenuButtonController(
             self,
             menu_position=lambda: self.mapToGlobal(
                 QPoint(0, self.height() - APP_ORB_MENU_OVERLAP_PX)
@@ -88,7 +88,6 @@ class AppOrbMenuButton(QAbstractButton):
         )
         self._configure_menu()
         self._menu_controller.set_menu(self._menu)
-        self.clicked.connect(self._show_menu)
         connect_theme_refresh(self, self._refresh_orb_theme)
 
     def hitButton(self, pos: QPoint) -> bool:
@@ -204,11 +203,6 @@ class AppOrbMenuButton(QAbstractButton):
         self._save_action.setEnabled(enabled)
         self._save_as_action.setEnabled(enabled)
         self._export_action.setEnabled(enabled)
-
-    def _show_menu(self, _checked: bool = False) -> None:
-        """Open the application command menu below the orb."""
-
-        self._menu_controller.handle_button_clicked(_checked)
 
     def _refresh_orb_theme(self) -> None:
         """Refresh cached orb art after the Fluent theme or accent changes."""

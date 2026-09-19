@@ -34,7 +34,7 @@ from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 from .choice_items import prepare_choice_items, selected_choice_label
 from .field_registry import EditorFieldIdentity, EditorFieldRegistry
 from .field_state_controller import EditorFieldBinding
-from .model_choice_snapshot_controller import (
+from .model_choice_snapshots import (
     PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotRequest,
 )
@@ -199,6 +199,9 @@ class ChoiceFieldSurfaceReconciler:
                             field_info=field_spec.field_info,
                             node_definition_gateway=self._host.node_definition_gateway,
                             cube_alias=cube_alias,
+                            target_model=str(
+                                field_spec.meta_info.get("target_model", "")
+                            ),
                             thumbnail_repository_available=self._thumbnail_repository_available,
                         )
                     )

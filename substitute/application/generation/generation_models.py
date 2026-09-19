@@ -18,8 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -29,36 +29,57 @@ from substitute.application.errors import ErrorReport
 from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
     ListenerCompleted,
+    ListenerFailure,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
-from substitute.domain.common import WorkflowId
+from substitute.domain.common import JsonObject, WorkflowId
 from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
 
 if TYPE_CHECKING:
     from substitute.application.recipes.recipe_io_service import (
         WorkflowLike as RecipeWorkflowLike,
     )
+    from substitute.domain.common import GlobalOverrideScope
 
 
 @dataclass(frozen=True)
 class PreparedGenerationRequest:
-    """Capture generation-ready recipe text independent from live workflow state."""
+    """Capture a detached generation graph and persistence metadata."""
 
     workflow_id: WorkflowId
     workflow_name: str
-    sugar_script_text: str
+    cube_workflow: JsonObject | None = None
+    persistence_sugar_script: str | None = None
     direct_workflow_plan: DirectWorkflowGenerationPlan | None = None
     workflow: RecipeWorkflowLike | None = None
     output_run_number: int | None = None
     output_job_started_at: datetime | None = None
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
     scene_order: int | None = None
     scene_count: int | None = None
+
+
+@dataclass(frozen=True)
+class GenerationRequest:
+    """Capture immutable request inputs for one generation dispatch."""
+
+    workflow_id: WorkflowId
+    workflow_name: str
+    workflow: RecipeWorkflowLike
+    enabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
+        default_factory=dict
+    )
+    disabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
+        default_factory=dict
+    )
+    global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None
+    output_session_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,11 +89,32 @@ class GenerationFailure:
     stage: str
     workflow_id: WorkflowId
     message: ApplicationText
+    connection_lost: bool = False
     generation_run_id: str | None = None
     prompt_id: str | None = None
     client_id: str | None = None
     detail: str | None = None
     error_report: ErrorReport | None = None
+
+
+def generation_failure_from_listener(
+    failure: ListenerFailure,
+    *,
+    client_id: str,
+) -> GenerationFailure:
+    """Translate one infrastructure-neutral listener failure for generation users."""
+
+    return GenerationFailure(
+        stage="listen",
+        workflow_id=failure.workflow_id,
+        generation_run_id=failure.generation_run_id,
+        prompt_id=failure.prompt_id,
+        client_id=client_id,
+        message=failure.error,
+        connection_lost=failure.connection_lost,
+        detail=failure.detail,
+        error_report=failure.error_report,
+    )
 
 
 @dataclass(frozen=True)
@@ -84,6 +126,7 @@ class GenerationRunStarted:
     output_session_id: str
     prompt_id: str
     client_id: str
+    preview_source_keys: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -118,4 +161,5 @@ __all__ = [
     "GenerationRunStarted",
     "GenerationStartResult",
     "PreparedGenerationRequest",
+    "generation_failure_from_listener",
 ]

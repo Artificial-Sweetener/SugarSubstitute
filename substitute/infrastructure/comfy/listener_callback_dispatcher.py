@@ -79,6 +79,7 @@ class ListenerCallbackDispatcher:
                 generation_run_id=self.request.generation_run_id,
                 prompt_id=self.request.prompt_id,
                 error=str(error),
+                connection_lost=self.is_disconnect_error(error),
                 detail=_error_detail(error),
                 error_report=_error_report(error),
             )

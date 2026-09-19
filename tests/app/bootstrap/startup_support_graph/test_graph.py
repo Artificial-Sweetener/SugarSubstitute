@@ -26,7 +26,7 @@ from typing import TypeVar, cast
 import pytest
 
 from substitute.app.bootstrap import startup_support_graph
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.ready_shell_state import ReadyShellStateBundle
 from substitute.app.bootstrap.shell_reload_adapter import StartupShellReloadState
 from substitute.app.bootstrap.startup_cancellation import StartupCancellationState

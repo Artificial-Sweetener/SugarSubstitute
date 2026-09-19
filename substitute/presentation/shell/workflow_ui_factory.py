@@ -34,7 +34,9 @@ from substitute.presentation.shell.main_window_signal_binder import (
 from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.presentation.workflows.cube_stack_view import (
     CubeCloseButtonDisplayMode,
-    CubeStack,
+)
+from substitute.presentation.workflows.segmented_cube_stack import (
+    SegmentedCubeStack as CubeStack,
 )
 from substitute.shared.startup_trace import trace_mark, trace_span
 
@@ -88,6 +90,9 @@ class WorkflowUiFactory:
                 model_metadata_action_handler=(
                     self._shell.model_metadata_context_action_handler
                 ),
+                empty_model_picker_action=(
+                    self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
+                ),
                 node_behavior_service=self._shell.node_behavior_service,
                 node_presentation_service=self._shell.node_presentation_service,
                 user_preset_service=self._shell.user_preset_service,
@@ -129,7 +134,23 @@ class WorkflowUiFactory:
             workflow_id=workflow_id,
         )
         cube_stack = CubeStack(self._shell)
-        cube_stack.setMovable(True)
+        workflow = self._workflow(workflow_id)
+        movable = True
+        if workflow.is_graph_backed_cube_workflow:
+            direct_workflow = workflow.direct_workflow
+            if direct_workflow is None:
+                raise RuntimeError("Graph-backed workflow has no Comfy document.")
+            projection = direct_workflow.cube_projection
+            reorderable_segments = tuple(
+                tuple(instance.alias for instance in segment.instances)
+                for segment in projection.segments
+                if segment.reorderable
+            )
+            movable = bool(reorderable_segments)
+            configure_segments = getattr(cube_stack, "setReorderSegments", None)
+            if callable(configure_segments):
+                configure_segments(reorderable_segments)
+        cube_stack.setMovable(movable)
         cube_stack.setTabMaximumWidth(220)
         cube_stack.setCloseButtonDisplayMode(CubeCloseButtonDisplayMode.ON_HOVER)
         cube_stack.cubeMoved.connect(self.handle_cube_moved)
@@ -193,6 +214,9 @@ class WorkflowUiFactory:
                 thumbnail_asset_repository=self._shell.thumbnail_asset_repository,
                 model_metadata_action_handler=(
                     self._shell.model_metadata_context_action_handler
+                ),
+                empty_model_picker_action=(
+                    self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
                 ),
             )
         manager.override_dropdown_btn = self._shell.override_dropdown_btn

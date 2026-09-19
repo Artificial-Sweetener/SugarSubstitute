@@ -383,6 +383,15 @@ class _FakeCanvasIoService:
         destination.write_bytes(b"blank")
         return True
 
+    def save_mask_image(self, *, destination: Path, image: object) -> bool:
+        """Persist one exact fake mask payload for duplication tests."""
+
+        _ = image
+        self._created_destinations.append(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"mask-image")
+        return True
+
     def save_resampled_mask(
         self,
         source: Path,

@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "Exact semantic version embedded into the staged channel"
+        description: "Exact release version embedded into the staged channel"
         required: true
         type: string
       channel:
@@ -31,6 +31,10 @@ on:
         required: false
         default: "non-release-candidate-channel"
         type: string
+    secrets:
+      SUGAR_SUBSTITUTE_RELEASE_SIGNING_KEY:
+        description: "Ed25519 private key for release metadata"
+        required: true
     outputs:
       candidate_artifact_name:
         description: "Private artifact containing the complete candidate channel"
@@ -50,7 +54,9 @@ on:
 
 permissions:
   actions: read
+  attestations: write
   contents: read
+  id-token: write
 
 env:
   NODE_VERSION: "22.22.2"
@@ -91,7 +97,8 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download Apple Silicon release inputs
-        if: inputs.existing_candidate_run_id == ''
+        # Temporarily suspended pending dedicated platform validation.
+        if: ${{ false }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-macos${{ inputs.release_input_artifact_suffix }}
@@ -100,7 +107,8 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download Linux release inputs
-        if: inputs.existing_candidate_run_id == ''
+        # Temporarily suspended pending dedicated platform validation.
+        if: ${{ false }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-linux${{ inputs.release_input_artifact_suffix }}
@@ -116,6 +124,15 @@ jobs:
           SUGAR_SUBSTITUTE_RELEASE_CHANNEL: ${{ inputs.channel }}
         run: node scripts\prepare-release-assets.mjs ${{ inputs.version }}
 
+      - name: Sign immutable release metadata
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        env:
+          SUGAR_SUBSTITUTE_RELEASE_SIGNING_KEY: ${{ secrets.SUGAR_SUBSTITUTE_RELEASE_SIGNING_KEY }}
+        run: |
+          $sourceDateEpoch = git show -s --format=%ct HEAD
+          node scripts\sign-release-metadata.mjs .local-release-channel\manifest.json .local-release-channel\manifest.signed.json ${{ github.run_number }} $sourceDateEpoch
+
       - name: Prepare installer release notes
         if: inputs.existing_candidate_run_id == ''
         shell: pwsh
@@ -125,6 +142,12 @@ jobs:
         if: inputs.existing_candidate_run_id == ''
         shell: pwsh
         run: Copy-Item build\release-notes.md .local-release-channel\.release-notes.md
+
+      - name: Attest the private candidate artifact set
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: .local-release-channel/*
 
       - name: Upload private non-release candidate channel
         if: inputs.existing_candidate_run_id == ''

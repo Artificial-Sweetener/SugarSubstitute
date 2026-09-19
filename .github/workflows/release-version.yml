@@ -19,7 +19,7 @@ on:
         type: string
     outputs:
       version:
-        description: "Resolved semantic release version"
+        description: "Resolved release version"
         value: ${{ jobs.resolve.outputs.version }}
       should_release:
         description: "Whether the source contains a releasable change"
@@ -39,7 +39,7 @@ env:
 
 jobs:
   resolve:
-    name: Resolve semantic release version
+    name: Resolve release version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.release-version.outputs.version }}

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any, cast
 
 import pytest
 from PySide6.QtCore import QObject, Qt
@@ -132,6 +133,24 @@ def test_terminal_output_view_replays_stream_history_and_redraws_in_place(
     assert view.log_view.toPlainText().splitlines() == ["booting", "100%"]
 
 
+def test_terminal_output_view_removes_activity_tail_without_removing_logs(
+    owned_qt_objects: list[QObject],
+) -> None:
+    """Removing a transient activity should leave durable document blocks intact."""
+
+    stream = TerminalOutputStream(max_lines=4)
+    view = TerminalOutputView()
+    owned_qt_objects.append(view)
+    view.set_stream(stream)
+
+    stream.append_line("download complete\n")
+    stream.append_line("Updating SugarCubes...\r")
+    stream.clear_transient_line()
+
+    assert stream.snapshot() == ("download complete",)
+    assert view.log_view.toPlainText() == "download complete"
+
+
 def test_terminal_output_view_renders_ansi_sgr_spans_from_stream_history(
     owned_qt_objects: list[QObject],
 ) -> None:
@@ -212,7 +231,7 @@ def test_terminal_output_view_disables_qfluent_smooth_scrolling(
 
     view = TerminalOutputView()
     owned_qt_objects.append(view)
-    scroll_delegate = view.log_view.scrollDelegate
+    scroll_delegate = cast(Any, view.log_view).scrollDelegate
 
     assert scroll_delegate.useAni is False
     assert scroll_delegate.verticalSmoothScroll.smoothMode is SmoothMode.NO_SMOOTH

@@ -25,6 +25,7 @@ import pytest
 
 from sugarsubstitute_shared.launch_splash import (
     SocketSplashSessionClient,
+    SplashActivity,
     SplashSessionMessage,
     SplashSessionMessageError,
     SplashSessionServer,
@@ -118,15 +119,31 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
 
     received: list[SplashSessionMessage] = []
     delivered = Event()
+    acknowledged = Event()
     handler = _RecordingHandler(received, delivered)
-    server = SplashSessionServer(message_handler=handler, token="x" * 32)
+    server = SplashSessionServer(
+        message_handler=handler,
+        token="x" * 32,
+        on_message_acknowledged=lambda message: (
+            acknowledged.set() if message.message_type == "close" else None
+        ),
+    )
     server.start()
     try:
         client = SocketSplashSessionClient(server.spec)
         client.append_log("Checking for updates.")
         client.set_status("Installing update.")
-        client.close()
+        activity = SplashActivity(
+            initial_text="Updating SugarCubes",
+            long_wait_text="Updating SugarCubes is taking longer than usual",
+            extended_wait_text="Still updating SugarCubes—network may be slow",
+        )
+        client.start_activity(activity)
+        client.clear_activity()
+        assert client.activate()
+        assert client.close()
         assert delivered.wait(timeout=2.0)
+        assert acknowledged.wait(timeout=2.0)
     finally:
         server.close()
 
@@ -141,14 +158,21 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
             token="x" * 32,
             line="Installing update.",
         ),
+        SplashSessionMessage(
+            message_type="activity",
+            token="x" * 32,
+            activity=activity,
+        ),
+        SplashSessionMessage(message_type="clear_activity", token="x" * 32),
+        SplashSessionMessage(message_type="activate", token="x" * 32),
         SplashSessionMessage(message_type="close", token="x" * 32),
     ]
 
 
-def test_socket_splash_session_close_ignores_unresponsive_session(
+def test_socket_splash_session_close_reports_unresponsive_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Shutdown splash close should not raise when the local session is gone."""
+    """Shutdown splash close should expose when the local session is gone."""
 
     spec = create_splash_session_spec(
         host="127.0.0.1",
@@ -171,7 +195,7 @@ def test_socket_splash_session_close_ignores_unresponsive_session(
 
     monkeypatch.setattr("socket.create_connection", _raise_timeout)
 
-    SocketSplashSessionClient(spec).close()
+    assert not SocketSplashSessionClient(spec).close()
 
     assert timeouts == [DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS]
 
@@ -223,7 +247,8 @@ def test_splash_session_server_reports_invalid_messages() -> None:
             token="y" * 32,
             host_pid=server.spec.host_pid,
         )
-        SocketSplashSessionClient(wrong_spec).append_log("Unauthorized.")
+        with pytest.raises(OSError, match="acknowledge"):
+            SocketSplashSessionClient(wrong_spec).append_log("Unauthorized.")
     finally:
         server.close()
 

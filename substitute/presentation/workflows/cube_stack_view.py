@@ -601,6 +601,7 @@ class CubeStack(ReorderableTabBarBase):
             range(len(slot_centers)),
             key=lambda i: abs(slot_centers[i] - dragged_center),
         )
+        target_index = self._constrain_drag_target_index(index, target_index)
 
         if target_index != index:
             item_widget = cast(QWidget, item)
@@ -622,6 +623,11 @@ class CubeStack(ReorderableTabBarBase):
             y += stack_item.height()
 
         self.isDraging = True
+
+    def _constrain_drag_target_index(self, index: int, target_index: int) -> int:
+        """Return the target allowed by a specialized stack's reorder policy."""
+
+        return target_index
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Finalize drag order and emit post-drag synchronization signals."""

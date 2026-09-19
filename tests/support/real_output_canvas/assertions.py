@@ -95,6 +95,7 @@ def collect_canvas_fingerprint(shell: Any) -> CanvasFingerprint:
             "completed": pending_counts.completed_count,
         },
         pending_commit_count=_pending_commit_count(shell.output_image_pipeline),
+        output_preparation_state=_output_preparation_state(shell.output_image_pipeline),
         pending_projection_workflows=_pending_projection_workflows(
             shell.output_image_pipeline
         ),
@@ -222,6 +223,32 @@ def _pending_projection_workflows(output_image_pipeline: object) -> tuple[str, .
     if isinstance(deferred, Mapping):
         workflow_ids.update(str(workflow_id) for workflow_id in deferred)
     return tuple(sorted(workflow_ids))
+
+
+def _output_preparation_state(output_image_pipeline: object) -> Mapping[str, object]:
+    """Identify retained preparation and delivery state without advancing Qt work."""
+
+    dispatcher = getattr(output_image_pipeline, "_preparation_dispatcher", None)
+    if dispatcher is None:
+        return {}
+    queued = getattr(dispatcher, "_queued_preparations")
+    settled = getattr(dispatcher, "_settled_preparations")
+    scope = getattr(dispatcher, "_task_scope")
+    retry_timer = getattr(dispatcher, "_submission_retry_timer")
+    commit_queue = getattr(output_image_pipeline, "_commit_queue")
+    commit_timer = getattr(commit_queue, "_timer")
+    return {
+        "queued_sequences": tuple(item.sequence for item in queued),
+        "settled_sequences": tuple(sorted(settled)),
+        "next_publication_sequence": dispatcher._next_publication_sequence,
+        "inflight_preparations": dispatcher._inflight_preparations,
+        "dispatcher_shutdown": dispatcher._is_shutdown,
+        "scope_closed": scope.is_closed,
+        "scope_has_pending_work": scope.has_pending_work(),
+        "retry_timer_active": retry_timer.isActive(),
+        "commit_timer_active": commit_timer.isActive(),
+        "available_prepared_slots": commit_queue.available_prepared_slots(),
+    }
 
 
 __all__: list[str] = []

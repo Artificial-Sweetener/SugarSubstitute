@@ -71,6 +71,7 @@ class PreparedOutputCommitQueue(QObject):
         self._failed: deque[FailedOutputImagePreparation] = deque()
         self._batch_size = max(1, int(batch_size))
         self._max_prepared = max(1, int(max_prepared))
+        self._is_shutdown = False
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(max(0, int(interval_ms)))
@@ -79,6 +80,8 @@ class PreparedOutputCommitQueue(QObject):
     def enqueue_prepared(self, output: PreparedOutputImage) -> None:
         """Queue one prepared output for GUI-thread commit."""
 
+        if self._is_shutdown:
+            return
         if not self.available_prepared_slots():
             raise RuntimeError("prepared output queue capacity was not reserved")
         self._prepared.append(output)
@@ -87,12 +90,16 @@ class PreparedOutputCommitQueue(QObject):
     def enqueue_failed(self, failure: FailedOutputImagePreparation) -> None:
         """Queue one failed preparation for GUI-thread error presentation."""
 
+        if self._is_shutdown:
+            return
         self._failed.append(failure)
         self._schedule()
 
     def drain_once(self) -> None:
         """Commit one bounded batch and reschedule when work remains."""
 
+        if self._is_shutdown:
+            return
         failed_pending_before = len(self._failed)
         prepared_pending_before = len(self._prepared)
         committed = 0
@@ -121,9 +128,21 @@ class PreparedOutputCommitQueue(QObject):
 
         return len(self._prepared) + len(self._failed)
 
+    def shutdown(self) -> None:
+        """Retire queued presentation work before its target document closes."""
+
+        if self._is_shutdown:
+            return
+        self._is_shutdown = True
+        self._timer.stop()
+        self._prepared.clear()
+        self._failed.clear()
+
     def available_prepared_slots(self) -> int:
         """Return decoded-image slots available for dispatcher reservation."""
-        return max(0, self._max_prepared - len(self._prepared))
+        return (
+            0 if self._is_shutdown else max(0, self._max_prepared - len(self._prepared))
+        )
 
     def _schedule(self) -> None:
         """Start the commit timer if it is idle."""

@@ -26,6 +26,7 @@ from threading import Event
 from typing import Any, cast
 
 import pytest
+from sugarsubstitute_shared.launch_splash import SplashActivity
 
 from substitute.application.execution import (
     CancellationSource,
@@ -42,12 +43,13 @@ from substitute.app.bootstrap.launch_splash import (
 )
 from substitute.app.bootstrap import splash_process
 from substitute.app.bootstrap import shared_splash_host
+from substitute.app.bootstrap.splash_arguments import backdrop_mode_from_argument
+from substitute.app.bootstrap.splash_cancel import encode_splash_helper_event
 from substitute.app.bootstrap.splash_process import (
     decode_splash_message,
-    encode_splash_helper_event,
     parent_process_is_alive,
 )
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 class _FakeProcess:
@@ -160,8 +162,8 @@ def test_decode_splash_helper_event_accepts_cancel_only() -> None:
     assert decode_splash_helper_event('{"type":"log","line":"ignored"}') is None
 
 
-def test_launch_splash_process_client_sends_log_and_close_messages() -> None:
-    """Process client should write log and close messages to helper stdin."""
+def test_launch_splash_process_client_sends_activity_lifecycle_messages() -> None:
+    """Process client should carry activity, log, cleanup, and close to its helper."""
 
     fake_process = _FakeProcess()
     fake_process.stdin = _NonClosingStringIO()
@@ -171,14 +173,47 @@ def test_launch_splash_process_client_sends_log_and_close_messages() -> None:
         process_pump_task_factory=_process_pump_task_factory,
     )
 
+    client.start_activity(
+        SplashActivity(
+            initial_text="Updating SugarCubes",
+            long_wait_text="Updating SugarCubes is taking longer than usual",
+            extended_wait_text="Still updating SugarCubes—network may be slow",
+        )
+    )
     client.append_log("Preparing interface.")
+    client.clear_activity()
     client.close()
 
     assert fake_process.stdin.getvalue().splitlines() == [
+        '{"type":"activity","initial":"Updating SugarCubes",'
+        '"long_wait":"Updating SugarCubes is taking longer than usual",'
+        '"extended_wait":"Still updating SugarCubes\\u2014network may be slow"}',
         '{"type":"log","line":"Preparing interface."}',
+        '{"type":"clear_activity"}',
         '{"type":"close"}',
     ]
     assert fake_process.wait_calls == [2.0]
+
+
+def test_launch_splash_process_client_preserves_progress_units() -> None:
+    """Deliver measured units through the pipe without interpreting logs as progress."""
+    from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
+    process = _FakeProcess()
+    process.stdin = _NonClosingStringIO()
+    client = LaunchSplashProcessClient(
+        process=cast(subprocess.Popen[str], process),
+        stdin=process.stdin,
+        process_pump_task_factory=_process_pump_task_factory,
+    )
+    client.set_progress(SplashProgress(2, 5), status="Preparing interface")
+    client.close()
+    assert decode_splash_message(process.stdin.getvalue().splitlines()[0]) == {
+        "type": "status",
+        "line": "Preparing interface",
+        "completed": "2",
+        "total": "5",
+    }
 
 
 def test_launch_splash_process_client_dispatches_helper_cancel_event() -> None:
@@ -302,12 +337,14 @@ def test_launch_splash_cancel_relay_forwards_attached_cancel() -> None:
     assert callbacks == ["cancel"]
 
 
-def test_splash_process_configures_theme_before_constructing_splash() -> None:
-    """Helper process must apply QFluent theme before creating SplashWindow."""
+def test_splash_process_passes_resolved_theme_without_qfluent_bootstrap() -> None:
+    """Helper construction should receive theme values without loading QFluent."""
 
     source = inspect.getsource(splash_process.main)
 
-    assert source.index("configure_theme(") < source.index("SplashWindow")
+    assert "configure_theme(" not in source
+    assert "theme_mode=theme_mode_from_argument(args.theme_mode)" in source
+    assert "accent_color=args.accent_color" in source
 
 
 def test_splash_process_sets_app_icon_before_constructing_splash() -> None:
@@ -333,8 +370,6 @@ def test_splash_hosts_center_before_revealing_the_window(splash_host: object) ->
 def test_splash_process_maps_mica_alt_backdrop_arg_to_plain_mica() -> None:
     """Splash helper should downgrade Mica Alt requests to plain Mica."""
 
-    assert splash_process._backdrop_mode_from_arg("mica_alt") is ShellBackdropMode.MICA
-    assert splash_process._backdrop_mode_from_arg("mica") is ShellBackdropMode.MICA
-    assert splash_process._backdrop_mode_from_arg("acrylic") is (
-        ShellBackdropMode.ACRYLIC
-    )
+    assert backdrop_mode_from_argument("mica_alt") is ShellBackdropMode.MICA
+    assert backdrop_mode_from_argument("mica") is ShellBackdropMode.MICA
+    assert backdrop_mode_from_argument("acrylic") is (ShellBackdropMode.ACRYLIC)

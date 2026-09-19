@@ -34,6 +34,9 @@ from substitute.application.node_behavior.models import EditorBehaviorSnapshot
 from substitute.presentation.editor.panel.node_card.accordion_motion import (
     AccordionContentClip,
 )
+from substitute.presentation.editor.panel.field_sync_controller import (
+    EditorPanelFieldSyncController,
+)
 from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
 
 
@@ -130,6 +133,9 @@ class WidgetPanel(QWidget):
         self._hidden_field_keys: set[object] = set()
         self._field_search_active = False
         self._search_field_match_keys: set[object] | None = None
+        self.advanced_field_keys: set[object] = set()
+        self.shown_advanced_input_nodes: set[tuple[str, str]] = set()
+        self._field_sync_controller = EditorPanelFieldSyncController(self)
         self.input_widgets_by_field_key: dict[tuple[str, str, str], QWidget] = {}
         self.node_behavior_service = ActivationService()
         self.refresh_reasons: list[str] = []

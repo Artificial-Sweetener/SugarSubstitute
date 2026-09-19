@@ -333,14 +333,14 @@ def test_projection_surface_projects_exact_weight_edit_state_into_the_live_token
     baseline_weight_rect = surface.token_weight_text_rect(token)
     assert baseline_weight_rect is not None
 
-    surface.start_exact_weight_edit(token)
-    surface.update_exact_weight_edit(
+    surface.exact_weight_editor.start(token)
+    surface.exact_weight_editor.update_buffer(
         buffer_text="1.20",
         caret_index=2,
         select_all=False,
     )
 
-    exact_edit_token = surface.exact_weight_edit_token()
+    exact_edit_token = surface.exact_weight_editor.token()
     assert exact_edit_token is not None
     assert exact_edit_token.editing_value_text == "1.20"
     assert exact_edit_token.editing_slot_width == pytest.approx(
@@ -367,14 +367,14 @@ def test_projection_surface_exact_weight_rect_tracks_edit_buffer_width_without_m
     assert baseline_weight_rect is not None
     assert baseline_anchor_rect is not None
 
-    surface.start_exact_weight_edit(token)
-    surface.update_exact_weight_edit(
+    surface.exact_weight_editor.start(token)
+    surface.exact_weight_editor.update_buffer(
         buffer_text="1.234",
         caret_index=5,
         select_all=False,
     )
 
-    exact_edit_token = surface.exact_weight_edit_token()
+    exact_edit_token = surface.exact_weight_editor.token()
     assert exact_edit_token is not None
     updated_weight_rect = surface.token_weight_text_rect(exact_edit_token)
     updated_anchor_rect = surface.token_anchor_rect(exact_edit_token)
@@ -406,14 +406,14 @@ def test_projection_surface_exact_weight_rect_does_not_shrink_below_entry_width(
     assert baseline_weight_rect is not None
     assert baseline_anchor_rect is not None
 
-    surface.start_exact_weight_edit(token)
-    surface.update_exact_weight_edit(
+    surface.exact_weight_editor.start(token)
+    surface.exact_weight_editor.update_buffer(
         buffer_text="",
         caret_index=0,
         select_all=False,
     )
 
-    exact_edit_token = surface.exact_weight_edit_token()
+    exact_edit_token = surface.exact_weight_editor.token()
     assert exact_edit_token is not None
     updated_weight_rect = surface.token_weight_text_rect(exact_edit_token)
     updated_anchor_rect = surface.token_anchor_rect(exact_edit_token)

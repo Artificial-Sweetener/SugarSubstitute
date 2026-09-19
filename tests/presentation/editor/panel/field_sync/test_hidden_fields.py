@@ -294,3 +294,61 @@ def test_apply_hidden_field_keys_preserves_policy_hidden_cards() -> None:
     mod.EditorPanelFieldSyncController(panel).apply_hidden_field_keys(set())
 
     assert card.visible is False
+
+
+def test_advanced_fields_follow_card_disclosure_without_becoming_policy_hidden() -> (
+    None
+):
+    """Advanced disclosure should compose beside the behavior-owned hidden set."""
+
+    mod = _import_module()
+    normal_key = ("CubeA", "sampler", "steps")
+    advanced_key = ("CubeA", "sampler", "control_after_generate")
+    normal_row = _Widget()
+    advanced_row = _Widget()
+    panel = SimpleNamespace(
+        _hidden_field_keys=set(),
+        _field_search_active=False,
+        _search_field_match_keys=None,
+        advanced_field_keys={advanced_key},
+        shown_advanced_input_nodes=set(),
+        row_widgets={
+            normal_key: (_Widget(), normal_row),
+            advanced_key: (_Widget(), advanced_row),
+        },
+        col_widgets={},
+        card_wrappers={},
+    )
+    controller = mod.EditorPanelFieldSyncController(panel)
+
+    controller.apply_hidden_field_keys(set())
+    assert normal_row.visible is True
+    assert advanced_row.visible is False
+    assert panel._hidden_field_keys == set()
+
+    panel.shown_advanced_input_nodes.add(("CubeA", "sampler"))
+    controller.apply_hidden_field_keys(set())
+    assert advanced_row.visible is True
+
+
+def test_field_search_temporarily_reveals_matching_advanced_field() -> None:
+    """Search should reveal a matched advanced row without persisting disclosure."""
+
+    mod = _import_module()
+    advanced_key = ("CubeA", "sampler", "control_after_generate")
+    advanced_row = _Widget()
+    panel = SimpleNamespace(
+        _hidden_field_keys=set(),
+        _field_search_active=True,
+        _search_field_match_keys={advanced_key},
+        advanced_field_keys={advanced_key},
+        shown_advanced_input_nodes=set(),
+        row_widgets={advanced_key: (_Widget(), advanced_row)},
+        col_widgets={},
+        card_wrappers={},
+    )
+
+    mod.EditorPanelFieldSyncController(panel).apply_hidden_field_keys(set())
+
+    assert advanced_row.visible is True
+    assert panel.shown_advanced_input_nodes == set()

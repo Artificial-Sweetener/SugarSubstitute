@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.real_shell.exact_weight_state import (
+    ExactWeightInputSnapshot,
+)
+
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -442,6 +446,7 @@ class PromptEditorStateSnapshot:
     observed_event_start_index: int
     observed_event_end_index: int
     recent_observed_events: tuple[PromptEditorObservedEvent, ...]
+    exact_weight_input: ExactWeightInputSnapshot | None = None
 
 
 @dataclass(frozen=True, slots=True)

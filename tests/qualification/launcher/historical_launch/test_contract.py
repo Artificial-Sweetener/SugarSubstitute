@@ -87,16 +87,23 @@ def test_historical_shell_requires_ordered_trace_and_live_handoff_process(
     trace_path.parent.mkdir(parents=True)
     trace_path.write_text(
         "".join(
-            json.dumps({"event": event}) + "\n"
-            for event in (
-                "launch_splash.started",
-                "launch_splash.closed",
-                "main_shell.shown",
+            json.dumps(payload) + "\n"
+            for payload in (
+                {"event": "launch_splash.started"},
+                {"event": "main_shell.shown"},
+                {
+                    "event": "startup.visibility.first_event",
+                    "fields": {
+                        "event_type": "Paint",
+                        "label": "shell_frame",
+                    },
+                },
+                {"event": "launch_splash.closed"},
             )
         ),
         encoding="utf-8",
     )
-    lock_path = layout.locks_dir / "application-launch.lock"
+    lock_path = layout.launcher_dir / "locks" / "application-launch.lock"
     lock_path.parent.mkdir(parents=True)
     lock_path.write_text(
         json.dumps(
@@ -135,16 +142,23 @@ def test_historical_shell_rejects_trace_without_live_app_owner(
     trace_path.parent.mkdir(parents=True)
     trace_path.write_text(
         "".join(
-            json.dumps({"event": event}) + "\n"
-            for event in (
-                "launch_splash.started",
-                "launch_splash.closed",
-                "main_shell.shown",
+            json.dumps(payload) + "\n"
+            for payload in (
+                {"event": "launch_splash.started"},
+                {"event": "main_shell.shown"},
+                {
+                    "event": "startup.visibility.first_event",
+                    "fields": {
+                        "event_type": "Paint",
+                        "label": "shell_frame",
+                    },
+                },
+                {"event": "launch_splash.closed"},
             )
         ),
         encoding="utf-8",
     )
-    lock_path = layout.locks_dir / "application-launch.lock"
+    lock_path = layout.launcher_dir / "locks" / "application-launch.lock"
     lock_path.parent.mkdir(parents=True)
     lock_path.write_text(json.dumps({"pid": 456}), encoding="utf-8")
     monkeypatch.setattr(

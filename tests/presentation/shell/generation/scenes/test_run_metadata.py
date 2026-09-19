@@ -54,7 +54,7 @@ def test_scene_run_entries_from_snapshots_orders_scene_metadata() -> None:
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A - later",
-            sugar_script_text="# later",
+            persistence_sugar_script="# later",
             scene_key="later",
             scene_title="Later",
             scene_order=3,
@@ -62,7 +62,7 @@ def test_scene_run_entries_from_snapshots_orders_scene_metadata() -> None:
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A - missing-order",
-            sugar_script_text="# missing",
+            persistence_sugar_script="# missing",
             scene_key="missing-order",
             scene_title=None,
             scene_order=None,
@@ -70,7 +70,7 @@ def test_scene_run_entries_from_snapshots_orders_scene_metadata() -> None:
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A - first",
-            sugar_script_text="# first",
+            persistence_sugar_script="# first",
             scene_key="first",
             scene_title="First",
             scene_order=0,
@@ -78,7 +78,7 @@ def test_scene_run_entries_from_snapshots_orders_scene_metadata() -> None:
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A",
-            sugar_script_text="# no scene",
+            persistence_sugar_script="# no scene",
         ),
     )
 
@@ -100,7 +100,7 @@ def test_register_output_scene_run_updates_scene_metadata() -> None:
         GenerationJobSnapshot(
             workflow_id="workflow-a",
             workflow_name="Recipe A - portrait",
-            sugar_script_text="# portrait",
+            persistence_sugar_script="# portrait",
             scene_run_id="scene-run-a",
             scene_key="portrait",
             scene_title="Portrait",

@@ -40,11 +40,32 @@ from substitute.application.ports import (
 )
 from substitute.application.errors import RuntimeReportContext
 from substitute.domain.common import JsonObject
-from substitute.infrastructure.comfy import listener_event_runtime
+from substitute.infrastructure.comfy import (
+    listener_event_runtime,
+    listener_output_pipeline,
+)
+
+
+class _PromptHistoryReaderDouble:
+    """Return deterministic empty history without crossing the network boundary."""
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        """Accept the production reader construction surface."""
+
+    def read(self, _prompt_id: str) -> dict[str, object]:
+        """Return a valid history miss for listener contract tests."""
+
+        return {}
 
 
 def _import_listener_module(monkeypatch: MonkeyPatch) -> Any:
     """Import the listener behind deterministic external-boundary doubles."""
+
+    monkeypatch.setattr(
+        listener_output_pipeline,
+        "ComfyPromptHistoryReader",
+        _PromptHistoryReaderDouble,
+    )
 
     websocket_mod: Any = types.ModuleType("websocket")
     websocket_mod.WebSocket = type("WebSocket", (), {})
@@ -216,7 +237,7 @@ def _build_request(
         ),
         output_dir=output_dir,
         workflow_payload=workflow_payload,
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         workflow_id=workflow_id,
         workflow_name=workflow_name,
         output_run_number=output_run_number,

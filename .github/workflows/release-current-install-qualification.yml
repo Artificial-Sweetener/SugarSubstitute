@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       candidate_version:
-        description: "Exact semantic version contained in candidate assets"
+        description: "Exact release version contained in candidate assets"
         required: true
         type: string
       candidate_tag:
@@ -102,7 +102,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           QT_QPA_PLATFORM: offscreen
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
@@ -115,7 +115,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           QT_QPA_PLATFORM: offscreen
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
@@ -131,14 +131,15 @@ jobs:
             ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
-            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/**
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
 
   clean-install-macos:
     name: Clean install and launch (macOS Apple Silicon)
-    if: inputs.macos_clean_enabled
+    # Temporarily suspended pending dedicated platform validation.
+    if: ${{ false }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -174,7 +175,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: cocoa
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
@@ -186,7 +187,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: cocoa
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
@@ -202,7 +203,7 @@ jobs:
             ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
-            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/**
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7

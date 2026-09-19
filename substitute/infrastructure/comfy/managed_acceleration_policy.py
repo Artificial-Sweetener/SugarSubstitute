@@ -31,6 +31,7 @@ from substitute.infrastructure.comfy.hardware_models import (
 
 _TRANSFORMERS_VERIFICATION = r"""
 import importlib.machinery
+import importlib.util
 import sys
 import types
 
@@ -44,7 +45,8 @@ import transformers
 from transformers.utils import is_flash_attn_2_available
 
 is_flash_attn_2_available()
-import diffusers
+if importlib.util.find_spec("diffusers") is not None:
+    import diffusers
 """
 _TRITON_VERIFICATION = "import triton; import triton.language"
 _SAGEATTENTION_VERIFICATION = (

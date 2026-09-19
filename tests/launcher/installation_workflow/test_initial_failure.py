@@ -25,6 +25,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tests.launcher.installation_workflow.support import (
+    advance_to_install_location,
     close_and_delete_launcher_window,
     release_source_for_test,
     wait_for_launcher_condition,
@@ -59,7 +60,7 @@ def test_initial_install_failure_restores_editable_retry_state(
             raise OSError("launcher copy failed")
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window._current_frozen_executable",
+        "launcher.sugarsubstitute_launcher.ui.main_window.current_frozen_executable_path",
         lambda: tmp_path / "SugarSubstitute-Setup-Windows-x64.exe",
     )
     window = LauncherMainWindow(
@@ -72,7 +73,10 @@ def test_initial_install_failure_restores_editable_retry_state(
             artifact_installer=_FailingFirstRunInstaller(),
         ),
     )
+    window.show()
+    application.processEvents()
 
+    advance_to_install_location(window)
     window.view.primary_button.click()
     wait_for_launcher_condition(
         application,
@@ -84,5 +88,13 @@ def test_initial_install_failure_restores_editable_retry_state(
     assert window.view.install_path_edit.isEnabled() is True
     assert window.view.browse_button is not None
     assert window.view.browse_button.isEnabled() is True
-    assert "launcher copy failed" in (window.view.progress_log.log_view.toPlainText())
+    assert "launcher copy failed" in (
+        window.view.status_panel.progress_log.log_view.toPlainText()
+    )
+    dialog = window.failure_presenter.active_dialog
+    assert dialog is not None
+    assert dialog.isVisible()
+    assert "launcher copy failed" in dialog.content._report_text
+    dialog.content._copy_button.click()
+    assert application.clipboard().text() == dialog.content._report_text
     close_and_delete_launcher_window(window)

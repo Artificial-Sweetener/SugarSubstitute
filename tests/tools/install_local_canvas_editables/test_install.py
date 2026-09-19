@@ -50,7 +50,7 @@ def test_install_uses_one_cohesive_no_dependency_editable_overlay(
         "-m",
         "pip",
         "install",
-        "PySide6==6.11.1",
+        "PySide6==6.11.2",
     )
     assert not any(
         requirement.startswith(("ferrastra", "qpane", "cutecanvas"))

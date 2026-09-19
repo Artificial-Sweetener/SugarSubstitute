@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import ctypes
 from dataclasses import dataclass
 import json
 import os
@@ -26,8 +25,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
-
-import psutil  # type: ignore[import-untyped]
+from time import sleep
 
 from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
@@ -39,31 +37,45 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
 )
+from sugarsubstitute_shared.launcher_update.attempt_status import (
+    LauncherUpdateAttemptPhase,
+    LauncherUpdateAttemptStore,
+)
 from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
     InstallerQualificationTarget,
 )
+from tools.ci.installer_evidence_verification import (
+    assert_qualification_event_sequence,
+    assert_startup_trace_sequence,
+    diagnostic_tail,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_process_diagnostics import process_tree_diagnostics
+from tools.ci.installer_terminal_event_reader import (
+    read_terminal_qualification_failure,
+    read_terminal_startup_failure,
+)
+from tools.ci.installed_application_shutdown import (
+    assert_no_new_crash_incidents,
+    crash_incident_ids,
+    request_clean_qualification_shutdown,
+    wait_for_clean_qualification_shutdown,
+)
 from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
+from tools.ci.owned_process_runner import terminate_owned_process_tree
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
-_MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
-_TERMINAL_STARTUP_FAILURE_EVENTS = frozenset(
+_INSTALLER_HANDOFF_SURFACES = frozenset(
     {
-        "startup.gui_task.failure",
-        "startup.managed.failure",
+        ApplicationReadinessSurface.LAUNCHER_WINDOW,
+        ApplicationReadinessSurface.ONBOARDING,
     }
 )
-_PROCESS_TERMINATION_TIMEOUT_SECONDS = 10.0
-_REQUIRED_STARTUP_EVENTS = (
-    "launch_splash.started",
-    "launch_splash.closed",
-    "main_shell.shown",
-)
+_MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
 _FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
     "PYTHONHOME",
     "PYTHONPATH",
@@ -89,6 +101,7 @@ class InstallerQualificationEvidence:
     event_log_path: Path
     token: str
     plan: InstallerQualificationPlan
+    crash_incident_ids: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +111,7 @@ class InstalledCandidateLaunch:
     process: subprocess.Popen[bytes]
     output_path: Path
     progress_baselines: tuple[tuple[Path, tuple[bool, int]], ...] = ()
+    update_attempt_baseline: bytes | None = None
 
 
 def prepare_qualification_evidence(
@@ -142,6 +156,7 @@ def prepare_qualification_evidence(
         ),
         force_cpu_mode=target_mode == "managed_local" and sys.platform != "darwin",
     )
+    plan.main_shell_shutdown_request_path.unlink(missing_ok=True)
     environment = dict(os.environ)
     environment[READINESS_PATH_ENV] = str(readiness_path)
     environment[READINESS_TOKEN_ENV] = token
@@ -157,77 +172,8 @@ def prepare_qualification_evidence(
         event_log_path=event_log_path,
         token=token,
         plan=plan,
+        crash_incident_ids=crash_incident_ids(layout.root),
     )
-
-
-def run_current_installer_ui(
-    *,
-    installer_path: Path,
-    install_root: Path,
-    manifest_url: str | None,
-    environment: dict[str, str],
-    timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
-) -> None:
-    """Launch packaged setup normally and let its real Install action run."""
-
-    command = [
-        str(installer_path.resolve()),
-        f"--install-root={install_root.resolve()}",
-    ]
-    if manifest_url is not None:
-        command.append(f"--manifest-url={manifest_url}")
-    try:
-        result = subprocess.run(
-            command,
-            cwd=installer_path.resolve().parent,
-            env=environment,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_seconds,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as error:
-        diagnostics = _installer_failure_diagnostics(
-            install_root=install_root,
-            environment=environment,
-        )
-        raise InstallerLifecycleError(
-            f"Installer UI did not complete within {timeout_seconds:g} seconds.\n"
-            f"stdout:\n{_timeout_output(error.stdout)}\n"
-            f"stderr:\n{_timeout_output(error.stderr)}\n"
-            f"{diagnostics}"
-        ) from error
-    if result.returncode != 0:
-        diagnostics = _installer_failure_diagnostics(
-            install_root=install_root,
-            environment=environment,
-        )
-        raise InstallerLifecycleError(
-            f"Installer UI exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}\n"
-            f"{diagnostics}"
-        )
-
-
-def _installer_failure_diagnostics(
-    *,
-    install_root: Path,
-    environment: dict[str, str],
-) -> str:
-    """Expose token-bound UI events and launcher logs after a failed install."""
-
-    plan = InstallerQualificationPlan.from_environment(environment)
-    event_log = (
-        diagnostic_tail(plan.event_log_path)
-        if plan is not None
-        else "Qualification plan was not inherited."
-    )
-    launcher_log = diagnostic_tail(
-        InstallLayout.from_root(install_root).logs_dir / "launcher.log"
-    )
-    return f"qualification events:\n{event_log}\nlauncher log:\n{launcher_log}"
 
 
 def launch_installed_candidate(
@@ -251,6 +197,7 @@ def launch_installed_candidate(
     progress_baselines = tuple(
         (path, _path_signature(path)) for path in observed_progress_paths
     )
+    attempt_store = LauncherUpdateAttemptStore(layout.root)
     with output_path.open("wb") as output:
         process = subprocess.Popen(
             [str(layout.executable_path)],
@@ -266,6 +213,7 @@ def launch_installed_candidate(
         process=process,
         output_path=output_path,
         progress_baselines=progress_baselines,
+        update_attempt_baseline=_read_optional_bytes(attempt_store.path),
     )
 
 
@@ -302,6 +250,7 @@ def verify_main_shell_evidence(
         evidence.plan.timeout_seconds if timeout_seconds is None else timeout_seconds
     )
     verification_deadline = time.monotonic() + verification_timeout
+    clean_shutdown_completed = False
     try:
         receipt = _wait_for_readiness_receipt(
             readiness_path=evidence.readiness_path,
@@ -309,12 +258,15 @@ def verify_main_shell_evidence(
             timeout_seconds=verification_timeout,
             candidate_launch=candidate_launch,
             trace_path=evidence.trace_path,
+            qualification_event_path=evidence.event_log_path,
             diagnostic_paths=_evidence_diagnostic_paths(
                 install_root=install_root,
                 evidence=evidence,
                 candidate_launch=candidate_launch,
                 additional_paths=additional_diagnostic_paths,
             ),
+            update_attempt_store=LauncherUpdateAttemptStore(install_root),
+            expected_update_version=expected_version,
         )
         if expected_main_pid is not None and receipt.pid != expected_main_pid:
             raise InstallerLifecycleError(
@@ -339,145 +291,48 @@ def verify_main_shell_evidence(
                 plan=evidence.plan,
                 require_governed_setup_record=require_governed_setup_record,
             )
-    finally:
-        if receipt is not None:
-            terminate_verified_process(receipt.pid)
-        if candidate_launch is not None and candidate_launch.process.poll() is None:
-            terminate_verified_process(candidate_launch.process.pid)
-
-
-def assert_qualification_event_sequence(
-    event_log_path: Path,
-    *,
-    token: str,
-    required_events: tuple[str, ...],
-) -> None:
-    """Require token-bound production UI interactions in their expected order."""
-
-    try:
-        lines = event_log_path.read_text(
-            encoding="utf-8",
-            errors="replace",
-        ).splitlines()
-    except OSError as error:
-        raise InstallerLifecycleError(
-            f"Installer did not write its UI qualification log: {event_log_path}."
-        ) from error
-    events: list[str] = []
-    for line in lines:
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise InstallerLifecycleError(
-                f"Installer wrote malformed UI qualification JSON: {event_log_path}."
-            ) from error
-        if not isinstance(payload, dict) or payload.get("token") != token:
-            raise InstallerLifecycleError(
-                "Installer UI qualification evidence did not match this CI run."
-            )
-        event = payload.get("event")
-        if isinstance(event, str):
-            events.append(event)
-    if not _contains_ordered_events(events, required_events):
-        raise InstallerLifecycleError(
-            "Installer UI did not complete the required interaction sequence: "
-            + " -> ".join(required_events)
-            + ".\n"
-            + diagnostic_tail(event_log_path)
+        request_clean_qualification_shutdown(evidence.plan)
+        wait_for_clean_qualification_shutdown(
+            install_root=install_root,
+            receipt=receipt,
+            candidate_process=(
+                candidate_launch.process if candidate_launch is not None else None
+            ),
+            timeout_seconds=max(0.0, verification_deadline - time.monotonic()),
         )
+        assert_qualification_event_sequence(
+            evidence.event_log_path,
+            token=evidence.token,
+            required_events=(
+                *required_qualification_events,
+                "main_shell.shutdown.requested",
+            ),
+        )
+        assert_no_new_crash_incidents(
+            install_root=install_root,
+            baseline=evidence.crash_incident_ids,
+        )
+        clean_shutdown_completed = True
+    finally:
+        if receipt is not None and not clean_shutdown_completed:
+            terminate_verified_process(receipt.pid)
+        if (
+            candidate_launch is not None
+            and not clean_shutdown_completed
+            and candidate_launch.process.poll() is None
+        ):
+            terminate_verified_process(candidate_launch.process.pid)
 
 
 def terminate_verified_process(pid: int) -> None:
     """Terminate only the token-verified app process and its child processes."""
 
-    if os.name == "nt":
-        result = subprocess.run(
-            ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode not in {0, 128} and _windows_process_exists(pid):
-            raise InstallerLifecycleError(
-                f"Could not terminate verified app process {pid}: "
-                + result.stderr.decode("utf-8", errors="replace")
-            )
-        return
-    _terminate_posix_process_tree(pid)
-
-
-def _terminate_posix_process_tree(pid: int) -> None:
-    """Stop and reap one verified POSIX process tree before the next launch."""
-
     try:
-        root = psutil.Process(pid)
-    except psutil.NoSuchProcess:
-        return
-    except psutil.AccessDenied as error:
+        terminate_owned_process_tree(pid)
+    except RuntimeError as error:
         raise InstallerLifecycleError(
-            f"Could not inspect verified app process {pid} for cleanup."
+            f"Could not terminate verified app process {pid}: {error}"
         ) from error
-
-    try:
-        processes = tuple(root.children(recursive=True)) + (root,)
-    except psutil.NoSuchProcess:
-        return
-    except psutil.AccessDenied as error:
-        raise InstallerLifecycleError(
-            f"Could not inspect children of verified app process {pid}."
-        ) from error
-
-    inaccessible: list[int] = []
-    for process in processes:
-        try:
-            process.terminate()
-        except psutil.NoSuchProcess:
-            continue
-        except psutil.AccessDenied:
-            inaccessible.append(process.pid)
-    _, alive = psutil.wait_procs(
-        processes,
-        timeout=_PROCESS_TERMINATION_TIMEOUT_SECONDS / 2,
-    )
-    for process in alive:
-        try:
-            process.kill()
-        except psutil.NoSuchProcess:
-            continue
-        except psutil.AccessDenied:
-            inaccessible.append(process.pid)
-    _, remaining = psutil.wait_procs(
-        alive,
-        timeout=_PROCESS_TERMINATION_TIMEOUT_SECONDS / 2,
-    )
-    if inaccessible or remaining:
-        unresolved = sorted(
-            set(inaccessible).union(process.pid for process in remaining)
-        )
-        raise InstallerLifecycleError(
-            "Could not terminate verified app process tree: "
-            + ", ".join(str(process_id) for process_id in unresolved)
-            + "."
-        )
-
-
-def diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
-    """Return a bounded diagnostic suffix when a qualification step fails."""
-
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return f"<missing diagnostics: {path}>"
-    return "\n".join(lines[-maximum_lines:])
-
-
-def _timeout_output(output: bytes | str | None) -> str:
-    """Render bounded subprocess timeout output without losing byte diagnostics."""
-
-    if output is None:
-        return "<no output>"
-    if isinstance(output, bytes):
-        return output.decode("utf-8", errors="replace")
-    return output
 
 
 def _wait_for_readiness_receipt(
@@ -487,7 +342,10 @@ def _wait_for_readiness_receipt(
     timeout_seconds: float,
     candidate_launch: InstalledCandidateLaunch | None = None,
     trace_path: Path | None = None,
+    qualification_event_path: Path | None = None,
     diagnostic_paths: tuple[Path, ...] = (),
+    update_attempt_store: LauncherUpdateAttemptStore | None = None,
+    expected_update_version: str | None = None,
 ) -> ApplicationReadinessReceipt:
     """Wait for a token-bound main-shell receipt or surface diagnostics."""
 
@@ -498,7 +356,31 @@ def _wait_for_readiness_receipt(
         started_at + _LAUNCH_PROGRESS_TIMEOUT_SECONDS,
     )
     trace_offset = 0
+    qualification_event_offset = 0
     while (now := time.monotonic()) < deadline:
+        if update_attempt_store is not None and candidate_launch is not None:
+            current_attempt = _read_optional_bytes(update_attempt_store.path)
+            if current_attempt != candidate_launch.update_attempt_baseline:
+                try:
+                    status = update_attempt_store.load()
+                except (OSError, ValueError) as error:
+                    raise InstallerLifecycleError(
+                        "Launcher wrote an invalid update attempt status."
+                    ) from error
+                if (
+                    status is not None
+                    and status.phase is LauncherUpdateAttemptPhase.FAILED
+                    and (
+                        expected_update_version is None
+                        or status.version == expected_update_version
+                    )
+                ):
+                    raise InstallerLifecycleError(
+                        "Launcher reported a terminal update failure before the "
+                        "main-shell receipt: "
+                        f"route={status.route}; error={status.error_type}; "
+                        f"message={status.error_message}."
+                    )
         if candidate_launch is not None:
             return_code = candidate_launch.process.poll()
             if return_code not in {None, 0}:
@@ -524,7 +406,7 @@ def _wait_for_readiness_receipt(
                     f"process tree:\n{process_diagnostics}\n\n{diagnostics}"
                 )
         if trace_path is not None:
-            trace_offset, terminal_event = _read_terminal_startup_failure(
+            trace_offset, terminal_event = read_terminal_startup_failure(
                 trace_path,
                 offset=trace_offset,
             )
@@ -534,6 +416,22 @@ def _wait_for_readiness_receipt(
                 )
                 raise InstallerLifecycleError(
                     "Application reported a terminal startup failure before the "
+                    f"main-shell receipt: {terminal_event}.\n{diagnostics}"
+                )
+        if qualification_event_path is not None:
+            qualification_event_offset, terminal_event = (
+                read_terminal_qualification_failure(
+                    qualification_event_path,
+                    offset=qualification_event_offset,
+                    token=token,
+                )
+            )
+            if terminal_event is not None:
+                diagnostics = "\n\n".join(
+                    f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
+                )
+                raise InstallerLifecycleError(
+                    "Installer automation reported a terminal failure before the "
                     f"main-shell receipt: {terminal_event}.\n{diagnostics}"
                 )
         if readiness_path.is_file():
@@ -548,8 +446,8 @@ def _wait_for_readiness_receipt(
                 raise InstallerLifecycleError(
                     "Application readiness receipt did not match this CI launch."
                 )
-            if receipt.surface is ApplicationReadinessSurface.ONBOARDING:
-                time.sleep(0.1)
+            if receipt.surface in _INSTALLER_HANDOFF_SURFACES:
+                sleep(0.1)
                 continue
             if receipt.surface is not ApplicationReadinessSurface.MAIN_SHELL:
                 raise InstallerLifecycleError(
@@ -557,7 +455,7 @@ def _wait_for_readiness_receipt(
                     f"{receipt.surface.value} != main_shell."
                 )
             return receipt
-        time.sleep(0.1)
+        sleep(0.1)
     diagnostics = "\n\n".join(
         f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
     )
@@ -565,31 +463,6 @@ def _wait_for_readiness_receipt(
         "Application did not reveal a post-splash window before timeout.\n"
         + diagnostics
     )
-
-
-def _read_terminal_startup_failure(
-    trace_path: Path,
-    *,
-    offset: int,
-) -> tuple[int, str | None]:
-    """Read new trace records and return the first terminal failure event."""
-
-    try:
-        with trace_path.open(encoding="utf-8", errors="replace") as trace:
-            trace.seek(offset)
-            while True:
-                line = trace.readline()
-                if not line:
-                    return trace.tell(), None
-                try:
-                    payload = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                event = payload.get("event") if isinstance(payload, dict) else None
-                if event in _TERMINAL_STARTUP_FAILURE_EVENTS:
-                    return trace.tell(), str(event)
-    except OSError:
-        return offset, None
 
 
 def _evidence_diagnostic_paths(
@@ -644,77 +517,22 @@ def _path_signature(path: Path) -> tuple[bool, int]:
         return False, 0
 
 
-def assert_startup_trace_sequence(trace_path: Path) -> None:
-    """Require splash start, splash close, then main-shell reveal in that order."""
+def _read_optional_bytes(path: Path) -> bytes | None:
+    """Read one small status file or return absence without racing publication."""
 
     try:
-        lines = trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError as error:
-        raise InstallerLifecycleError(
-            f"Button-launched child did not write its startup trace: {trace_path}."
-        ) from error
-    events: list[str] = []
-    for line in lines:
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise InstallerLifecycleError(
-                f"Button-launched child wrote malformed startup trace JSON: {trace_path}."
-            ) from error
-        if isinstance(payload, dict) and isinstance(payload.get("event"), str):
-            events.append(payload["event"])
-    if not _contains_ordered_events(events, _REQUIRED_STARTUP_EVENTS):
-        raise InstallerLifecycleError(
-            "Open Substitute did not complete the required splash-to-shell sequence: "
-            + " -> ".join(_REQUIRED_STARTUP_EVENTS)
-            + ".\n"
-            + diagnostic_tail(trace_path)
-        )
-
-
-def _contains_ordered_events(
-    events: list[str],
-    required_events: tuple[str, ...],
-) -> bool:
-    """Return whether every required event appears in order."""
-
-    if not required_events:
-        return True
-    next_index = 0
-    for event in events:
-        if event == required_events[next_index]:
-            next_index += 1
-            if next_index == len(required_events):
-                return True
-    return False
-
-
-def _windows_process_exists(pid: int) -> bool:
-    """Return whether a Windows process still owns the supplied identifier."""
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
-    kernel32.OpenProcess.restype = ctypes.c_void_p
-    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
-    kernel32.CloseHandle.restype = ctypes.c_int
-    handle = kernel32.OpenProcess(0x1000, 0, pid)
-    if handle:
-        kernel32.CloseHandle(handle)
-        return True
-    return ctypes.get_last_error() == 5
+        return path.read_bytes()
+    except OSError:
+        return None
 
 
 __all__ = [
     "InstalledCandidateLaunch",
     "InstallerQualificationEvidence",
-    "assert_qualification_event_sequence",
-    "assert_startup_trace_sequence",
-    "diagnostic_tail",
     "installed_launch_has_progress",
     "launch_installed_candidate",
     "prepare_qualification_evidence",
     "process_tree_diagnostics",
-    "run_current_installer_ui",
     "terminate_verified_process",
     "verify_main_shell_evidence",
 ]

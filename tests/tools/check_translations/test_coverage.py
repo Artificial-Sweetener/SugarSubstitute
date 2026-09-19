@@ -27,6 +27,7 @@ from sugarsubstitute_shared.localization import (
     load_language_manifest,
 )
 from tools.check_translations import translation_coverage_failures
+from tools.localization_catalog import extract_application_messages
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -103,6 +104,64 @@ def test_new_owned_source_automatically_requires_every_existing_locale(
     )
 
     assert "app_zh_CN.ts: missing: AppText:New message" in failures
+
+
+def test_catalog_extraction_skips_generated_qt_resource_modules(
+    tmp_path: Path,
+) -> None:
+    """Generated resource byte tables must not become localization sources."""
+
+    presentation_root = tmp_path / "substitute" / "presentation"
+    presentation_root.mkdir(parents=True)
+    (presentation_root / "splash_poses_rc.py").write_text(
+        "app_text('Generated payload')\n",
+        encoding="utf-8",
+    )
+    (presentation_root / "authored.py").write_text(
+        "app_text('Authored message')\n",
+        encoding="utf-8",
+    )
+
+    assert tuple(
+        message.source for message in extract_application_messages(tmp_path)
+    ) == ("Authored message",)
+
+
+def test_shared_report_copy_is_required_in_launcher_apptext_context(
+    tmp_path: Path,
+) -> None:
+    """Shared crash copy must ship in both independently packaged executables."""
+
+    shared_root = tmp_path / "sugarsubstitute_shared" / "presentation"
+    shared_root.mkdir(parents=True)
+    (shared_root / "crash_dialog.py").write_text(
+        "app_text('Shared crash action')\n",
+        encoding="utf-8",
+    )
+    translations_root = tmp_path / "translations"
+    translations_root.mkdir()
+    _write_catalog(
+        translations_root / "app_zh_CN.ts",
+        language="zh_CN",
+        context="AppText",
+        source="Shared crash action",
+        translation="共享崩溃操作",
+    )
+    _write_catalog(
+        translations_root / "launcher_zh_CN.ts",
+        language="zh_CN",
+        context="LauncherMainWindow",
+        source=None,
+        translation=None,
+    )
+
+    failures = translation_coverage_failures(
+        tmp_path,
+        manifest=_minimal_manifest(),
+        validate_compiled_catalogs=False,
+    )
+
+    assert "launcher_zh_CN.ts: missing: AppText:Shared crash action" in failures
 
 
 def _minimal_manifest() -> LanguageManifest:

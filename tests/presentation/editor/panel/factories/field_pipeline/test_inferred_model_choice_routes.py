@@ -81,7 +81,7 @@ def test_build_widget_for_field_behavior_builds_rich_picker_for_lora_list(
 def test_build_widget_for_field_behavior_keeps_unverified_model_list_as_combo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A model-like field name should not create a picker without catalog evidence."""
+    """An unknown node's model-like field requires exact catalog evidence."""
 
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     catalog = _FakeModelCatalog(())
@@ -98,7 +98,7 @@ def test_build_widget_for_field_behavior_keeps_unverified_model_list_as_combo(
         prompt_wildcard_catalog_gateway=_wildcard_gateway(),
         model_choice_snapshot_controller=_model_choice_controller(catalog, resolver),
         field_type="LIST",
-        node_type="CheckpointLoaderSimple",
+        node_type="UnverifiedCustomLoader",
         field_info=[
             ["base-a.safetensors", "base-b.safetensors"],
             {},
@@ -112,10 +112,10 @@ def test_build_widget_for_field_behavior_keeps_unverified_model_list_as_combo(
     ]
 
 
-def test_model_list_becomes_picker_after_catalog_evidence_is_prepared(
+def test_declared_model_picker_enriches_after_catalog_evidence_is_prepared(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A later projection should use a picker once exact catalog evidence exists."""
+    """Catalog readiness must enrich a declared picker without changing widget type."""
 
     monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
@@ -166,7 +166,9 @@ def test_model_list_becomes_picker_after_catalog_evidence_is_prepared(
         ],
     )
 
-    assert isinstance(first_widget, _FakeComboBox)
+    assert isinstance(first_widget, _FakeModelPickerField)
+    assert first_widget.resolution.enriched_count == 0
+    assert first_widget.currentText() == "base-a.safetensors"
     assert isinstance(second_widget, _FakeModelPickerField)
     assert second_widget.resolution.matched_kinds == ("checkpoints",)
     assert second_widget.resolution.enriched_count == 2

@@ -17,9 +17,12 @@
 """Provide deterministic managed-recovery adapter test collaborators."""
 
 from __future__ import annotations
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
 import ast
 from pathlib import Path
 from typing import Any
+from sugarsubstitute_shared.launch_splash import SplashActivity
 from substitute.application.backend_compatibility import (
     BackendCompatibilityResult,
     RuntimeCompatibilityStatus,
@@ -67,7 +70,21 @@ FORBIDDEN_ADAPTER_IMPORT_PREFIXES = (
 class _DisposedSplash:
     """Raise when late recovery output reaches a disposed splash."""
 
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Reject progress after the fake presentation surface is disposed."""
+        raise RuntimeError("disposed")
+
     def append_log(self, _line: str) -> None:
+        """Simulate a disposed splash client."""
+
+        raise RuntimeError("disposed")
+
+    def start_activity(self, _activity: SplashActivity) -> None:
+        """Simulate a disposed splash client."""
+
+        raise RuntimeError("disposed")
+
+    def clear_activity(self) -> None:
         """Simulate a disposed splash client."""
 
         raise RuntimeError("disposed")
@@ -125,11 +142,26 @@ class _Splash:
         """Initialize empty splash log capture."""
 
         self.lines: list[str] = []
+        self.activities: list[SplashActivity] = []
+        self.clear_activity_calls = 0
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Accept producer progress through the complete splash contract."""
 
     def append_log(self, line: str) -> None:
         """Record one splash line."""
 
         self.lines.append(line)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Record one splash activity."""
+
+        self.activities.append(activity)
+
+    def clear_activity(self) -> None:
+        """Record one splash activity clear request."""
+
+        self.clear_activity_calls += 1
 
     def close(self) -> None:
         """Satisfy the launch splash protocol."""

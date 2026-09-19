@@ -402,6 +402,25 @@ def test_prompt_document_service_wildcard_query_replaces_existing_closer() -> No
     assert query.replacement_end == len(text)
 
 
+def test_prompt_document_service_builds_unclosed_inline_wildcard_query() -> None:
+    """Later prompt text must not suppress an unfinished wildcard at the caret."""
+
+    document_service = PromptDocumentService()
+    text = "1girl, {hair, black dress"
+    cursor_position = text.index(", black dress")
+
+    query = document_service.wildcard_autocomplete_query_at_cursor(
+        text=text,
+        cursor_position=cursor_position,
+        has_selection=False,
+    )
+
+    assert query is not None
+    assert query.prefix == "hair"
+    assert query.opener_start == text.index("{")
+    assert query.replacement_end == cursor_position
+
+
 def test_autocomplete_replacement_text_formats_prompt_safe_inserted_tag_text() -> None:
     """Autocomplete replacement text should normalize booru tags into prompt-safe text."""
 

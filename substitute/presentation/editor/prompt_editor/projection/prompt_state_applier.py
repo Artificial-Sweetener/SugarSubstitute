@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from .exact_weight_editor import PromptExactWeightEditor
+
 from dataclasses import dataclass
 from typing import Protocol, cast
 
@@ -57,7 +59,6 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
     PromptProjectionDocument,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
-    PromptProjectionToken,
     PromptProjectionTokenKind,
 )
 from .session import PromptProjectionSession
@@ -137,6 +138,8 @@ class PromptProjectionPromptStateHost(Protocol):
     ) -> None:
         """Emit one projection state diagnostic event."""
 
+    exact_weight_editor: PromptExactWeightEditor
+
     def _ensure_caret_visible(self) -> None:
         """Ensure the committed caret is visible."""
 
@@ -145,18 +148,6 @@ class PromptProjectionPromptStateHost(Protocol):
 
     def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
         """Rebuild the active projection document after committed state changes."""
-
-    def start_exact_weight_edit(self, token: PromptProjectionToken) -> None:
-        """Start exact weight editing for one projected token."""
-
-    def update_exact_weight_edit(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Update the active exact weight edit buffer."""
 
 
 class PromptProjectionPromptStateApplier:
@@ -585,6 +576,8 @@ class PromptProjectionPromptStateApplier:
                     document_view=document_view,
                     render_plan=render_plan,
                     previous_render_plan=previous_fast_render_plan,
+                    selection_start=min(host.cursor_position, host.anchor_position),
+                    selection_end=max(host.cursor_position, host.anchor_position),
                 )
             if not fast_insert_applied and not scheduled_incremental_applied:
                 host._rebuild_projection()
@@ -664,8 +657,8 @@ class PromptProjectionPromptStateApplier:
                 0,
                 min(len(token.value_text), pending.cursor_position - weight_start),
             )
-            host.start_exact_weight_edit(token)
-            host.update_exact_weight_edit(
+            host.exact_weight_editor.start(token)
+            host.exact_weight_editor.update_buffer(
                 buffer_text=token.value_text,
                 caret_index=caret_index,
                 select_all=False,

@@ -94,6 +94,24 @@ class SessionSnapshotCaptureAdapter:
             return workflow_id
         return workflow_tab_source_text(item)
 
+    def workflow_document_dirty(self, workflow_id: str) -> bool:
+        """Return authoritative explicit-save dirty state for one workflow."""
+
+        service = getattr(self._shell, "unsaved_work_service", None)
+        state_for = getattr(service, "state_for", None)
+        if not callable(state_for):
+            return False
+        return bool(state_for(workflow_id).dirty)
+
+    def workflow_document_source_path(self, workflow_id: str) -> Path | None:
+        """Return the last explicit save or load path for one workflow."""
+
+        service = getattr(self._shell, "unsaved_work_service", None)
+        state_for = getattr(service, "state_for", None)
+        if not callable(state_for):
+            return None
+        return cast(Path | None, state_for(workflow_id).source_path)
+
     def active_cube_alias(self, workflow_id: str) -> str | None:
         """Return the active cube alias for one workflow."""
 
@@ -238,6 +256,7 @@ class SessionSnapshotCaptureAdapter:
                         source_label=image_meta.source_label,
                         node_id=image_meta.node_id,
                         generation_run_id=image_meta.generation_run_id,
+                        output_session_id=image_meta.output_session_id,
                         prompt_id=image_meta.prompt_id,
                         client_id=image_meta.client_id,
                         list_index=image_meta.list_index,

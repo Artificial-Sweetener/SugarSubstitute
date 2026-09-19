@@ -39,6 +39,12 @@ except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
 
 from substitute.application.overrides.link_policy import apply_choice_selection
 from substitute.domain.generation.seed_control import SeedControlState
+from substitute.presentation.editor.panel.current_field_state_resolver import (
+    CurrentEditorFieldStateResolver,
+)
+from substitute.presentation.editor.panel.prompt_editor_field_preferences import (
+    PromptEditorFieldPreferences,
+)
 from substitute.presentation.editor.panel.seed_field_state_controller import (
     SeedFieldStateController,
 )
@@ -108,8 +114,6 @@ except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
 
 _LOGGER = get_logger("presentation.editor.panel.field_state_controller")
 NODE_STATE_KEYS = frozenset({"enabled"})
-_PROMPT_EDITOR_MANUAL_HEIGHTS_UI_KEY = "prompt_editor_manual_heights"
-_PROMPT_EDITOR_RICH_RENDERING_UI_KEY = "prompt_editor_rich_rendering"
 _DISPLAY_FALLBACK_VALUE_SOURCES = frozenset({"first_option", "live_default"})
 
 FieldStorageKind = Literal["input", "node"]
@@ -226,6 +230,10 @@ class EditorPanelFieldStateController:
         self._host = host
         self._field_value_changed = field_value_changed
         self._seed_field_state = SeedFieldStateController(self._mark_cube_state_dirty)
+        self._current_state_resolver = CurrentEditorFieldStateResolver(host)
+        self._prompt_preferences = PromptEditorFieldPreferences(
+            self._mark_cube_state_dirty
+        )
 
     def bind_node_widget_state(
         self,
@@ -405,7 +413,11 @@ class EditorPanelFieldStateController:
                     widget_type=widget.__class__.__name__,
                 )
                 return
-            self.set_field_value(cube_state, binding, out_value)
+            self.set_field_value(
+                self._current_state_resolver.resolve(cube_state, binding.cube_alias),
+                binding,
+                out_value,
+            )
 
         self._connect_signal(signal, on_changed)
 
@@ -441,6 +453,19 @@ class EditorPanelFieldStateController:
     ) -> bool:
         """Persist one field value and mark the cube dirty only on change."""
 
+        canonical_setter = getattr(cube_state, "set_editor_value", None)
+        if callable(canonical_setter):
+            changed = bool(
+                canonical_setter(
+                    binding.node_name,
+                    field_key=binding.field_key,
+                    value=value,
+                    storage_kind=binding.storage_kind,
+                )
+            )
+            if changed:
+                self._notify_field_value_changed(binding, value)
+            return changed
         node = self._mutable_node_payload(cube_state, binding)
         if node is None:
             return False
@@ -499,7 +524,7 @@ class EditorPanelFieldStateController:
             binding.prompt_field_identity,
             changed_callback=manual_height_changed,
         )
-        stored_height = self._stored_prompt_editor_manual_height(
+        stored_height = self._prompt_preferences.manual_height(
             cube_state,
             binding.prompt_field_identity,
         )
@@ -514,8 +539,11 @@ class EditorPanelFieldStateController:
             def persist_manual_height(height: object) -> None:
                 """Store one changed prompt height and notify the shell."""
 
-                changed = self._store_prompt_editor_manual_height(
-                    cube_state,
+                changed = self._prompt_preferences.store_manual_height(
+                    self._current_state_resolver.resolve(
+                        cube_state,
+                        binding.cube_alias,
+                    ),
                     binding.prompt_field_identity or "",
                     height,
                 )
@@ -655,7 +683,15 @@ class EditorPanelFieldStateController:
         binding = EditorFieldBinding.from_widget(seedbox)
         if binding is None or binding.node_name is None:
             return
-        self._seed_field_state.bind_mode(seedbox, cube_state, binding)
+        self._seed_field_state.bind_mode(
+            seedbox,
+            cube_state,
+            binding,
+            state_resolver=lambda: self._current_state_resolver.resolve(
+                cube_state,
+                binding.cube_alias,
+            ),
+        )
 
     def wire_imagepicker_state(
         self,
@@ -710,7 +746,11 @@ class EditorPanelFieldStateController:
             """Persist the selected mask path from the picker signal."""
 
             path = args[-1] if args else maskpicker.current_file_path()
-            self.set_field_value(cube_state, binding, str(path))
+            self.set_field_value(
+                self._current_state_resolver.resolve(cube_state, binding.cube_alias),
+                binding,
+                str(path),
+            )
 
         self._connect_signal(maskpicker.maskSelected, on_mask_selected)
 
@@ -742,9 +782,18 @@ class EditorPanelFieldStateController:
             def on_literal_changed(text: str) -> None:
                 """Persist a literal selection and clear the active link."""
 
-                if not text.startswith("🔗 ") and link_key in node:
-                    del node[link_key]
-                self.set_field_value(cube_state, binding, text)
+                current_state = self._current_state_resolver.resolve(
+                    cube_state,
+                    binding.cube_alias,
+                )
+                current_node = self._mutable_node_payload(current_state, binding)
+                if (
+                    current_node is not None
+                    and not text.startswith("🔗 ")
+                    and link_key in current_node
+                ):
+                    del current_node[link_key]
+                self.set_field_value(current_state, binding, text)
 
             self._connect_signal(
                 self._string_signal(combo.currentTextChanged), on_literal_changed
@@ -759,19 +808,26 @@ class EditorPanelFieldStateController:
         def on_changed(text: str) -> None:
             """Persist the selected literal or link through the field-state owner."""
 
+            current_state = self._current_state_resolver.resolve(
+                cube_state,
+                binding.cube_alias,
+            )
+            current_node = self._mutable_node_payload(current_state, binding)
+            if current_node is None:
+                return
             selected_value = label_to_value.get(text)
-            before = deepcopy(node)
+            before = deepcopy(current_node)
             apply_choice_selection(
-                node,
+                current_node,
                 literal_key=binding.field_key,
                 link_key=link_key,
                 selected_value=selected_value,
             )
-            if node != before:
-                self._mark_cube_state_dirty(cube_state)
+            if current_node != before:
+                self._mark_cube_state_dirty(current_state)
                 self._notify_field_value_changed(
                     binding,
-                    self.field_value(cube_state, binding),
+                    self.field_value(current_state, binding),
                 )
 
         self._connect_signal(self._string_signal(combo.currentTextChanged), on_changed)
@@ -841,7 +897,7 @@ class EditorPanelFieldStateController:
     ) -> None:
         """Apply stored rich-rendering state without marking the cube dirty."""
 
-        stored_enabled = self._stored_prompt_editor_rich_rendering_enabled(
+        stored_enabled = self._prompt_preferences.rich_rendering_enabled(
             cube_state,
             field_identity,
         )
@@ -872,8 +928,11 @@ class EditorPanelFieldStateController:
         def persist_rich_rendering(enabled: object) -> None:
             """Store one changed prompt rich-rendering preference."""
 
-            changed = self._store_prompt_editor_rich_rendering_enabled(
-                cube_state,
+            changed = self._prompt_preferences.store_rich_rendering_enabled(
+                self._current_state_resolver.resolve_for_field_identity(
+                    cube_state,
+                    field_identity,
+                ),
                 field_identity,
                 enabled,
             )
@@ -881,159 +940,6 @@ class EditorPanelFieldStateController:
                 changed_callback()
 
         self._connect_signal(rich_rendering_changed, persist_rich_rendering)
-
-    @staticmethod
-    def _stored_prompt_editor_manual_height(
-        cube_state: object,
-        field_identity: str,
-    ) -> int | None:
-        """Return one valid stored prompt editor height."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if not isinstance(ui_payload, dict):
-            return None
-        heights = ui_payload.get(_PROMPT_EDITOR_MANUAL_HEIGHTS_UI_KEY)
-        if not isinstance(heights, dict):
-            return None
-        value = heights.get(field_identity)
-        if type(value) is int and value > 0:
-            return value
-        return None
-
-    @staticmethod
-    def _stored_prompt_editor_rich_rendering_enabled(
-        cube_state: object,
-        field_identity: str,
-    ) -> bool | None:
-        """Return one valid stored prompt rich-rendering preference."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if not isinstance(ui_payload, dict):
-            return None
-        preferences = ui_payload.get(_PROMPT_EDITOR_RICH_RENDERING_UI_KEY)
-        if not isinstance(preferences, dict):
-            return None
-        value = preferences.get(field_identity)
-        if value is None:
-            return None
-        if type(value) is bool:
-            return value
-        log_warning(
-            _LOGGER,
-            "Ignored invalid prompt editor rich-rendering preference",
-            field_identity=field_identity,
-            enabled=repr(value),
-        )
-        return None
-
-    def _store_prompt_editor_manual_height(
-        self,
-        cube_state: object,
-        field_identity: str,
-        height: object,
-    ) -> bool:
-        """Persist one prompt editor manual height in cube UI metadata."""
-
-        if height is None:
-            return self._clear_prompt_editor_manual_height(cube_state, field_identity)
-        if type(height) is not int or height <= 0:
-            log_warning(
-                _LOGGER,
-                "Ignored invalid prompt editor manual height",
-                field_identity=field_identity,
-                height=repr(height),
-            )
-            return False
-        ui_payload = self._mutable_cube_ui_payload(cube_state)
-        heights = ui_payload.get(_PROMPT_EDITOR_MANUAL_HEIGHTS_UI_KEY)
-        if not isinstance(heights, dict):
-            heights = {}
-            ui_payload[_PROMPT_EDITOR_MANUAL_HEIGHTS_UI_KEY] = heights
-        if heights.get(field_identity) == height:
-            return False
-        heights[field_identity] = height
-        self._mark_cube_state_dirty(cube_state)
-        return True
-
-    def _clear_prompt_editor_manual_height(
-        self,
-        cube_state: object,
-        field_identity: str,
-    ) -> bool:
-        """Remove one stored prompt editor manual height when present."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if not isinstance(ui_payload, dict):
-            return False
-        heights = ui_payload.get(_PROMPT_EDITOR_MANUAL_HEIGHTS_UI_KEY)
-        if not isinstance(heights, dict) or field_identity not in heights:
-            return False
-        del heights[field_identity]
-        if not heights:
-            ui_payload.pop(_PROMPT_EDITOR_MANUAL_HEIGHTS_UI_KEY, None)
-        self._mark_cube_state_dirty(cube_state)
-        return True
-
-    def _store_prompt_editor_rich_rendering_enabled(
-        self,
-        cube_state: object,
-        field_identity: str,
-        enabled: object,
-    ) -> bool:
-        """Persist one prompt rich-rendering preference in cube UI metadata."""
-
-        if type(enabled) is not bool:
-            log_warning(
-                _LOGGER,
-                "Ignored invalid prompt editor rich-rendering preference change",
-                field_identity=field_identity,
-                enabled=repr(enabled),
-            )
-            return False
-        if enabled:
-            return self._clear_prompt_editor_rich_rendering_enabled(
-                cube_state,
-                field_identity,
-            )
-        ui_payload = self._mutable_cube_ui_payload(cube_state)
-        preferences = ui_payload.get(_PROMPT_EDITOR_RICH_RENDERING_UI_KEY)
-        if not isinstance(preferences, dict):
-            preferences = {}
-            ui_payload[_PROMPT_EDITOR_RICH_RENDERING_UI_KEY] = preferences
-        if preferences.get(field_identity) is False:
-            return False
-        preferences[field_identity] = False
-        self._mark_cube_state_dirty(cube_state)
-        return True
-
-    def _clear_prompt_editor_rich_rendering_enabled(
-        self,
-        cube_state: object,
-        field_identity: str,
-    ) -> bool:
-        """Remove one stored prompt rich-rendering preference when present."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if not isinstance(ui_payload, dict):
-            return False
-        preferences = ui_payload.get(_PROMPT_EDITOR_RICH_RENDERING_UI_KEY)
-        if not isinstance(preferences, dict) or field_identity not in preferences:
-            return False
-        del preferences[field_identity]
-        if not preferences:
-            ui_payload.pop(_PROMPT_EDITOR_RICH_RENDERING_UI_KEY, None)
-        self._mark_cube_state_dirty(cube_state)
-        return True
-
-    @staticmethod
-    def _mutable_cube_ui_payload(cube_state: object) -> dict[str, object]:
-        """Return mutable cube UI metadata, creating it when absent."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if not isinstance(ui_payload, dict):
-            ui_payload = {}
-            setattr(cube_state, "ui", ui_payload)
-        return ui_payload
 
     @staticmethod
     def _mark_cube_state_dirty(cube_state: object) -> None:

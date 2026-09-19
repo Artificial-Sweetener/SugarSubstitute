@@ -37,6 +37,7 @@ from substitute.presentation.shell.workflow_surface_reconciler import (
 
 from tests.presentation.shell.workflow_surface.reconciler_fakes import (
     _CanvasPort,
+    _CubeStackPort,
     _EditorPort,
     _GenerationPort,
     _OverridePort,
@@ -61,12 +62,14 @@ def _build_reconciler(
     calls: list[str] = []
     canvas = _CanvasPort(calls)
     editor = _EditorPort(calls)
+    cube_stack = _CubeStackPort(calls)
     overrides = _OverridePort(calls)
     generation = _GenerationPort(calls)
     reconciler = WorkflowSurfaceReconciler(
         _SessionPort(active_workflow_id),
         canvas_port=canvas,
         editor_port=editor,
+        cube_stack_port=cube_stack,
         override_port=overrides,
         generation_port=generation,
         surface_invalidation_service=invalidation,

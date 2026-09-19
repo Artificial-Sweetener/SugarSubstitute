@@ -53,6 +53,7 @@ class SubstituteVisualIdentity:
     client_id: str
     source_key: str
     source_label: str
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
@@ -153,6 +154,7 @@ def parse_substitute_visual_identity(
         client_id=client_id,
         source_key=source_key,
         source_label=source_label,
+        output_session_id=_optional_string(value.get("outputSessionId")),
         scene_run_id=_optional_string(value.get("sceneRunId")),
         scene_key=_optional_string(value.get("sceneKey")),
         scene_title=_optional_string(value.get("sceneTitle")),

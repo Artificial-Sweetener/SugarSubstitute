@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       candidate_version:
-        description: "Exact semantic version already staged for qualification"
+        description: "Exact release version already staged for qualification"
         required: true
         type: string
       candidate_tag:
@@ -45,7 +45,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_version:
-        description: "Exact semantic version already staged for qualification"
+        description: "Exact release version already staged for qualification"
         required: true
         type: string
       candidate_tag:
@@ -80,6 +80,7 @@ on:
           - all
           - canary-fast
           - qualification-all
+          - qualification-windows
           - clean-all
           - clean-windows
           - clean-linux
@@ -134,20 +135,23 @@ jobs:
         run: |
           $scope = $env:QUALIFICATION_SCOPE
           $supportedScopes = @(
-            "all", "canary-fast", "qualification-all", "clean-all",
+            "all", "canary-fast", "qualification-all", "qualification-windows", "clean-all",
             "clean-windows", "clean-linux", "clean-macos", "updates-all",
             "updates-windows", "updates-linux", "updates-macos", "managed-comfy"
           )
           if ($scope -notin $supportedScopes) {
             throw "Unsupported qualification_scope: $scope"
           }
+          if ($scope -in @("clean-linux", "clean-macos", "updates-linux", "updates-macos")) {
+            throw "Linux and macOS qualification is temporarily suspended pending dedicated validation."
+          }
           $cleanPlatforms = switch ($scope) {
-            { $_ -in @("all", "qualification-all", "clean-all") } { @("windows", "linux"); break }
-            "clean-windows" { @("windows"); break }
-            "clean-linux" { @("linux"); break }
+            { $_ -in @("all", "qualification-all", "clean-all") } { @("windows"); break }
+            { $_ -in @("qualification-windows", "clean-windows") } { @("windows"); break }
+            "clean-linux" { @(); break }
             default { @() }
           }
-          $cleanMatrix = @($cleanPlatforms | ForEach-Object {
+          $cleanMatrix = ConvertTo-Json -Compress -InputObject @($cleanPlatforms | ForEach-Object {
             if ($_ -eq "windows") {
               @{
                 name = "Windows x64"
@@ -163,23 +167,23 @@ jobs:
                 asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
               }
             }
-          }) | ConvertTo-Json -Compress -AsArray
+          })
           $updatePlatforms = switch ($scope) {
-            { $_ -in @("all", "qualification-all", "updates-all") } { @("windows", "linux", "macos"); break }
-            "updates-windows" { @("windows"); break }
-            "updates-linux" { @("linux"); break }
-            "updates-macos" { @("macos"); break }
+            { $_ -in @("all", "qualification-all", "updates-all") } { @("windows"); break }
+            { $_ -in @("qualification-windows", "updates-windows") } { @("windows"); break }
+            "updates-linux" { @(); break }
+            "updates-macos" { @(); break }
             default { @() }
           }
           $cleanEnabled = if ($cleanPlatforms.Count -gt 0) { "true" } else { "false" }
-          $macosCleanEnabled = if ($scope -in @("all", "qualification-all", "clean-all", "clean-macos")) { "true" } else { "false" }
+          $macosCleanEnabled = "false"
           $updatesEnabled = if ($updatePlatforms.Count -gt 0) { "true" } else { "false" }
           $managedComfyEnabled = if ($scope -eq "managed-comfy") { "true" } else { "false" }
           "clean_enabled=$cleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
           "clean_matrix=$cleanMatrix" | Out-File $env:GITHUB_OUTPUT -Append
           "macos_clean_enabled=$macosCleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
           "updates_enabled=$updatesEnabled" | Out-File $env:GITHUB_OUTPUT -Append
-          "update_platforms=$($updatePlatforms | ConvertTo-Json -Compress -AsArray)" | Out-File $env:GITHUB_OUTPUT -Append
+          "update_platforms=$(ConvertTo-Json -Compress -InputObject @($updatePlatforms))" | Out-File $env:GITHUB_OUTPUT -Append
           "managed_comfy_enabled=$managedComfyEnabled" | Out-File $env:GITHUB_OUTPUT -Append
 
   resolve-upgrades:
@@ -196,7 +200,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.LINUX_PYTHON_VERSION }}
-      - name: Select latest three releases and fixed canary
+      - name: Select declared compatibility boundaries
         id: sources
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -224,7 +228,7 @@ jobs:
           if (-not [double]::TryParse($env:QUALIFICATION_TIMEOUT_SECONDS, [ref]$timeout) -or $timeout -le 0) {
             throw "qualification_timeout_seconds must be a positive number."
           }
-          $fullQualification = $env:QUALIFICATION_SCOPE -in @("all", "qualification-all")
+          $fullQualification = $env:QUALIFICATION_SCOPE -in @("all", "qualification-all", "qualification-windows")
           if (($published -or $fullQualification) -and $timeout -ne 3600.0) {
             throw "Published and full qualification require the canonical 3600-second timeout."
           }

@@ -46,6 +46,41 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # This shutdown owner exercises real worker-to-Qt queued delivery and
+        # repeatedly creates QObject timer cycles. PySide can segfault while a
+        # reused Linux xdist worker collects an earlier coordinator during a
+        # later nested event loop; a fresh process retains the full contract.
+        "tests/app/bootstrap/shutdown_coordinator/test_coordinator.py",
+        # This real broker contract enters the macOS Core Foundation election
+        # and loopback transport from one process. It can crash after unrelated
+        # native work in a reused xdist worker; the shipped supervisor and this
+        # bounded lane both own a fresh process for that native lifecycle.
+        "tests/shared/application_instance_broker/test_broker.py",
+        # This native election contract fans out simultaneous supervised child
+        # processes. Fresh workers preserve the process-family and IPC lifetime,
+        # while repeated four-way overlap proves it remains parallel-safe.
+        "tests/shared/application_instance_broker/test_concurrent_election.py",
+        # This real model-discovery modal can deadlock in qfluentwidgets style
+        # application after unrelated native Qt work in a reused Windows xdist
+        # worker. A fresh bounded process preserves the full modal contract and
+        # leaves attributable timeout evidence if native construction stalls.
+        "tests/presentation/shell/model_discovery/test_empty_picker_controller.py",
+        # This production update-notification contract owns QWidget roots,
+        # QThreads, and the real review modal in one application lifecycle. It
+        # can crash after unrelated native Qt work in a reused Linux xdist
+        # worker; a fresh bounded process matches the shipped application.
+        "tests/presentation/shell/model_updates/test_notification_controller.py",
+        # This widget page owns a qfluentwidgets expander and immediate task
+        # callbacks whose teardown can abort after unrelated Qt work in a
+        # reused Windows worker. A fresh process makes its lifecycle explicit.
+        "tests/presentation/settings/cube_library/test_add_pack.py",
+        # This Windows native splash timing qualification requires a fresh
+        # process so unrelated xdist pressure cannot distort its latency budget.
+        "tests/qualification/startup_splash/test_source_first_paint.py",
+        # This complete installer matrix renders 142 production checkpoints.
+        # A fresh process bounds its native image and widget lifetime without
+        # retaining those resources in a reused xdist worker.
+        "tests/qualification/installer/test_experience_smoke_matrix.py",
         # This real-shell restore qualification can abort after prior native Qt
         # work in one xdist process, while fresh concurrent processes are stable.
         "tests/qualification/prompt_editor/abuse/test_restored_mounts.py",
@@ -270,6 +305,7 @@ ISOLATED_TEST_MODULES = frozenset(
         "tests/presentation/workflows/cube_stack/test_scroll_and_indicator.py",
         # These real-shell Output contracts can abort after prior native Qt work
         # in one xdist process, while concurrent fresh processes are stable.
+        "tests/presentation/canvas/output/real_shell/test_hierarchy_navigation.py",
         "tests/presentation/canvas/output/real_shell/test_hierarchy_persistence.py",
         "tests/presentation/canvas/output/real_shell/test_workflow_lifecycle.py",
         # This floating Output rehosting contract can stop receiving layout
@@ -299,6 +335,19 @@ ISOLATED_TEST_MODULES = frozenset(
         "tests/presentation/editor/prompt_editor/projection/paint_cache/test_cache.py",
         "tests/shared/presentation/localization/test_qfluent_font_adapter.py",
         "tests/presentation/widgets/qfluent_menu_renderer/test_renderer.py",
+        # This real prompt-card layout owner is stable in a fresh native Qt
+        # process but can abort after unrelated Qt work in one reused worker.
+        "tests/presentation/editor/node_card/prompt_mode/test_card_contract.py",
+        # This launcher setup owner is stable in a fresh native Qt process but
+        # can abort after unrelated Qt work in one reused worker.
+        "tests/launcher/installation_workflow/test_successful_setup.py",
+        # These launcher failure-surface owners construct the production Fluent
+        # report modal after worker-thread completion. They are stable in fresh
+        # native Qt processes but can stall after unrelated Qt work in a reused
+        # xdist worker; concurrent fresh processes remain independent.
+        "tests/launcher/installation_workflow/test_handoff_failure.py",
+        "tests/launcher/installation_workflow/test_initial_failure.py",
+        "tests/launcher/installation_workflow/test_runtime_failure.py",
         # This real mouse-interaction owner is stable in a fresh native Qt
         # process but can lose delivery after unrelated Qt work in one worker.
         "tests/presentation/cube_picker/test_staging_removal.py",
@@ -308,6 +357,17 @@ ISOLATED_TEST_MODULES = frozenset(
         # This real placeholder-card click is stable in a fresh native Qt
         # process but can lose pointer delivery after unrelated Qt work.
         "tests/presentation/cubes/placeholder_card/test_card.py",
+        # This kernel-owned process-family qualification deliberately creates a
+        # 21-process descendant tree. A reused worker can exhaust Windows commit
+        # while the ordinary Qt partition retains native image allocations;
+        # fresh bounded processes preserve the complete lifetime assertion.
+        "tests/launcher/application_readiness/test_process_family_lifetime.py",
+        # These Output document owners allocate multi-megapixel native images
+        # and asynchronous tiles. Reused workers can retain earlier Qt image
+        # allocations until process exit, while concurrent fresh processes keep
+        # the same behavior checks inside the qualified resource envelope.
+        "tests/presentation/canvas/output/document/test_comparison_tiling.py",
+        "tests/presentation/canvas/output/document/test_document_state.py",
     }
 )
 

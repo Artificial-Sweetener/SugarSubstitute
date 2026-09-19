@@ -22,6 +22,12 @@ governed by the Qt Trademark Usage Guidelines.
 
 Qt is a registered trademark of The Qt Company Ltd. and its subsidiaries.
 
+## CivitAI Badge
+
+The CivitAI badge is adapted from CivitAI's official brand package under the
+Apache License 2.0. CivitAI's mark identifies the linked model provider and
+does not imply endorsement.
+
 ## Font Awesome Free Brand Icons
 
 The Windows, Apple, and Linux SVG marks used in installation guidance are
@@ -38,3 +44,10 @@ Native 7-Zip command-line binaries are distributed through the `7zip-bin`
 package and bundled for responsive standalone-environment extraction. 7-Zip is
 Copyright (C) Igor Pavlov and is distributed under its LGPL, BSD, and unRAR
 terms. The `7zip-bin` package wrapper is distributed under the MIT License.
+
+## Crashpad
+
+Crashpad is bundled as SugarSubstitute's native out-of-process crash capture
+runtime. Crashpad is Copyright The Crashpad Authors and distributed under the
+Apache License 2.0. Its linked mini_chromium, zlib, and getopt components retain
+their accompanying BSD, zlib, and public-domain notices.

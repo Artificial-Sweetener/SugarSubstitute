@@ -47,6 +47,18 @@ TESTS_ROOT = PROJECT_ROOT / "tests"
 OUTPUT_NAVIGATION_CONTRACT_MODULE = (
     "tests/presentation/canvas/output/navigation/test_cross_layer_contract.py"
 )
+EMPTY_PICKER_MODAL_CONTRACT_MODULE = (
+    "tests/presentation/shell/model_discovery/test_empty_picker_controller.py"
+)
+MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE = (
+    "tests/presentation/shell/model_updates/test_notification_controller.py"
+)
+APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE = (
+    "tests/shared/application_instance_broker/test_broker.py"
+)
+SHUTDOWN_COORDINATOR_CONTRACT_MODULE = (
+    "tests/app/bootstrap/shutdown_coordinator/test_coordinator.py"
+)
 PROJECTION_LAYOUT_CONTRACT_MODULES = frozenset(
     {
         "tests/presentation/editor/prompt_editor/layout/contracts/test_canonical_wrapping.py",
@@ -172,7 +184,7 @@ def test_platform_skip_reason_reports_applicability() -> None:
 def test_constrained_inventory_covers_existing_xdist_sensitive_modules() -> None:
     """Keep actual xdist environment readers out of the xdist partition."""
 
-    policy = load_test_policy(PROJECT_ROOT / "TEST_POLICY.toml")
+    policy = load_test_policy(PROJECT_ROOT / "governance/testing/policy.toml")
     discovered = frozenset(
         candidate.path
         for candidate in discover_test_candidates(PROJECT_ROOT, policy)
@@ -194,6 +206,38 @@ def test_projection_layout_contracts_use_bounded_fresh_process_lane() -> None:
 
     assert PROJECTION_LAYOUT_CONTRACT_MODULES <= ISOLATED_TEST_MODULES
     assert PROJECTION_LAYOUT_CONTRACT_MODULES.isdisjoint(SERIAL_TEST_MODULES)
+
+
+def test_empty_picker_modal_contract_uses_bounded_fresh_process_lane() -> None:
+    """Keep real Fluent modal construction out of reused native Qt workers."""
+
+    assert (PROJECT_ROOT / EMPTY_PICKER_MODAL_CONTRACT_MODULE).is_file()
+    assert EMPTY_PICKER_MODAL_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert EMPTY_PICKER_MODAL_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+
+
+def test_model_update_notification_contract_uses_bounded_fresh_process_lane() -> None:
+    """Match update review and transfer qualification to one application process."""
+
+    assert (PROJECT_ROOT / MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE).is_file()
+    assert MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+
+
+def test_application_instance_broker_contract_uses_fresh_process_lane() -> None:
+    """Match native broker qualification to the supervisor process topology."""
+
+    assert (PROJECT_ROOT / APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE).is_file()
+    assert APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+
+
+def test_shutdown_coordinator_contract_uses_fresh_process_lane() -> None:
+    """Keep threaded Qt shutdown lifecycle out of reused native workers."""
+
+    assert (PROJECT_ROOT / SHUTDOWN_COORDINATOR_CONTRACT_MODULE).is_file()
+    assert SHUTDOWN_COORDINATOR_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert SHUTDOWN_COORDINATOR_CONTRACT_MODULE not in SERIAL_TEST_MODULES
 
 
 def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:

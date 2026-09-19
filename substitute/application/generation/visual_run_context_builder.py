@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Mapping
 
 from substitute.application.cubes import cube_alias_body
@@ -29,6 +30,10 @@ from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
 from substitute.domain.common import WorkflowId
+from substitute.domain.generation import (
+    output_source_key_for_cube,
+    output_source_key_for_node,
+)
 
 
 class VisualRunContextBuilder:
@@ -41,6 +46,7 @@ class VisualRunContextBuilder:
         workflow_id: WorkflowId,
         generation_run_id: str,
         client_id: str,
+        output_session_id: str | None = None,
         scene_run_id: str | None,
         scene_key: str | None,
         scene_title: str | None,
@@ -51,7 +57,7 @@ class VisualRunContextBuilder:
         """Return Backend routing metadata with explicit sources taking priority."""
 
         prompt_nodes = executable_prompt_nodes(workflow_payload)
-        node_to_output_source = _node_to_cube_output_source(prompt_nodes, workflow_id)
+        node_to_output_source = _node_to_cube_output_source(prompt_nodes)
         explicit_by_node = {
             source.node_id: {
                 "sourceKey": source.source_key,
@@ -68,7 +74,7 @@ class VisualRunContextBuilder:
             if source is None:
                 label = _source_label_for_prompt_node(node_id, node_data)
                 source = {
-                    "sourceKey": f"{workflow_id}:{node_id}",
+                    "sourceKey": output_source_key_for_node(node_id),
                     "sourceLabel": label,
                     "cubeAlias": label,
                 }
@@ -79,6 +85,7 @@ class VisualRunContextBuilder:
             workflow_id=workflow_id,
             generation_run_id=generation_run_id,
             client_id=client_id,
+            output_session_id=output_session_id,
             scene_run_id=scene_run_id,
             scene_key=scene_key,
             scene_title=scene_title,
@@ -103,12 +110,11 @@ def _source_label_for_prompt_node(node_id: str, node_data: dict[str, object]) ->
 
 def _node_to_cube_output_source(
     prompt_nodes: Mapping[str, object],
-    workflow_id: WorkflowId,
 ) -> dict[str, dict[str, str]]:
-    """Map upstream executable nodes to their unambiguous cube-output source."""
+    """Map executable nodes to their nearest unambiguous cube-output source."""
 
     output_sources: dict[str, dict[str, str]] = {}
-    candidate_sources_by_node: dict[str, list[dict[str, str]]] = {}
+    candidates_by_node: dict[str, list[tuple[int, dict[str, str]]]] = {}
     for node_id, node_data in prompt_nodes.items():
         if not isinstance(node_data, dict):
             continue
@@ -116,45 +122,57 @@ def _node_to_cube_output_source(
             continue
         label = _source_label_for_prompt_node(node_id, node_data)
         source = {
-            "sourceKey": f"{workflow_id}:{node_id}",
+            "sourceKey": output_source_key_for_cube(
+                cube_alias=label,
+                node_id=node_id,
+            ),
             "sourceLabel": label,
             "cubeAlias": label,
         }
         output_sources[node_id] = source
-        for upstream_node_id in _upstream_node_ids(prompt_nodes, node_id):
-            candidate_sources_by_node.setdefault(upstream_node_id, []).append(source)
+        for upstream_node_id, distance in _upstream_node_distances(
+            prompt_nodes,
+            node_id,
+        ).items():
+            candidates_by_node.setdefault(upstream_node_id, []).append(
+                (distance, source)
+            )
     for node_id, source in output_sources.items():
-        candidate_sources_by_node[node_id] = [source]
-    return {
-        node_id: sources[0]
-        for node_id, sources in candidate_sources_by_node.items()
-        if len({source["sourceKey"] for source in sources}) == 1
-    }
+        candidates_by_node[node_id] = [(0, source)]
+    resolved_sources: dict[str, dict[str, str]] = {}
+    for node_id, candidates in candidates_by_node.items():
+        nearest_distance = min(distance for distance, _source in candidates)
+        nearest_sources = [
+            source for distance, source in candidates if distance == nearest_distance
+        ]
+        if len({source["sourceKey"] for source in nearest_sources}) == 1:
+            resolved_sources[node_id] = nearest_sources[0]
+    return resolved_sources
 
 
-def _upstream_node_ids(
+def _upstream_node_distances(
     prompt_nodes: Mapping[str, object],
     start_node_id: str,
-) -> set[str]:
-    """Return executable node ids that feed one output node."""
+) -> dict[str, int]:
+    """Return the shortest upstream distance from one output to each feeder."""
 
-    visited: set[str] = set()
-    pending = [start_node_id]
+    distances: dict[str, int] = {}
+    pending = deque(((start_node_id, 0),))
     while pending:
-        node_id = pending.pop()
-        if node_id in visited:
+        node_id, distance = pending.popleft()
+        previous_distance = distances.get(node_id)
+        if previous_distance is not None and previous_distance <= distance:
             continue
-        visited.add(node_id)
+        distances[node_id] = distance
         node_data = prompt_nodes.get(node_id)
         if not isinstance(node_data, dict):
             continue
         inputs = node_data.get("inputs")
         if not isinstance(inputs, Mapping):
             continue
-        for upstream_node_id in _linked_node_ids(inputs.values()):
-            if upstream_node_id not in visited:
-                pending.append(upstream_node_id)
-    return visited
+        for upstream_node_id in _linked_node_ids(tuple(inputs.values())):
+            pending.append((upstream_node_id, distance + 1))
+    return distances
 
 
 def _linked_node_ids(values: object) -> tuple[str, ...]:

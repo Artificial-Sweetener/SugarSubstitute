@@ -34,8 +34,10 @@ from substitute.application.model_metadata import (
 from substitute.application.node_behavior import FieldBehavior, FieldPresentation
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
-    PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotController,
+)
+from substitute.presentation.editor.panel.model_choice_snapshots import (
+    PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotRequest,
 )
 import substitute.presentation.editor.panel.factories.choice_factory as choice_factory
@@ -118,6 +120,7 @@ class _FakeModelPickerField:
         current_value: str = "",
         search_placeholder: str = "Search models",
         metadata_action_handler: object | None = None,
+        empty_model_action: object | None = None,
         thumbnail_preload_route_factory: object | None = None,
     ) -> None:
         """Store picker inputs for assertions."""
@@ -129,6 +132,7 @@ class _FakeModelPickerField:
         self.current_value = current_value
         self.search_placeholder = search_placeholder
         self.metadata_action_handler = metadata_action_handler
+        self.empty_model_action = empty_model_action
         self.thumbnail_preload_route_factory = thumbnail_preload_route_factory
 
     def currentText(self) -> str:
@@ -311,6 +315,7 @@ def _model_choice_snapshot(
     field_info: object = None,
     catalog: _FakeModelCatalog | None = None,
     resolver: RichChoiceResolver | None = None,
+    target_model: str = "",
 ) -> PanelModelChoiceSnapshot:
     """Return a prepared model-choice snapshot for one test field."""
 
@@ -327,6 +332,7 @@ def _model_choice_snapshot(
             field_type=field_type,
             field_info=field_info,
             node_definition_gateway=None,
+            target_model=target_model,
         )
     )
 
@@ -429,7 +435,7 @@ def test_model_choice_snapshot_uses_local_metadata_bootstrap_for_thumbnails() ->
 def test_choice_factory_keeps_unverified_model_list_as_combo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A model-like field name should remain a combo without catalog evidence."""
+    """An unknown node's model-like field name alone must not select a picker."""
 
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     field_behavior = FieldBehavior(field_key="ckpt_name")
@@ -447,14 +453,14 @@ def test_choice_factory_keeps_unverified_model_list_as_combo(
                 node_name="checkpoint",
                 key="ckpt_name",
                 value="base-a.safetensors",
-                node_type="CheckpointLoaderSimple",
+                node_type="UnverifiedCustomLoader",
                 field_type="LIST",
                 field_info=[["base-a.safetensors", "base-b.safetensors"], {}],
                 catalog=_FakeModelCatalog(()),
                 resolver=_rich_choice_resolver(_FakeModelCatalog(())),
             ),
             field_type="LIST",
-            node_type="CheckpointLoaderSimple",
+            node_type="UnverifiedCustomLoader",
             field_info=[["base-a.safetensors", "base-b.safetensors"], {}],
         )
     )

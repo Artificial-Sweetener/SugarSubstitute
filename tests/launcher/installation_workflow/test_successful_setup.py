@@ -26,6 +26,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tests.launcher.installation_workflow.support import (
+    advance_to_install_location,
     close_and_delete_launcher_window,
     release_source_for_test,
     wait_for_launcher_condition,
@@ -100,7 +101,7 @@ def test_frozen_setup_installs_in_current_window(
             return SimpleNamespace(python_executable=layout.runtime_python)
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window._current_frozen_executable",
+        "launcher.sugarsubstitute_launcher.ui.main_window.current_frozen_executable_path",
         lambda: downloaded_exe,
     )
     monkeypatch.setattr(
@@ -121,6 +122,7 @@ def test_frozen_setup_installs_in_current_window(
         ),
     )
 
+    advance_to_install_location(window)
     window.view.primary_button.click()
     wait_for_launcher_condition(
         application,
@@ -151,10 +153,13 @@ def test_frozen_setup_installs_in_current_window(
     assert window.view.install_path_edit.isEnabled() is False
     assert window.view.browse_button is not None
     assert window.view.browse_button.isEnabled() is False
-    assert "Installed launcher:" in window.view.progress_log.log_view.toPlainText()
+    assert (
+        "Installed launcher:"
+        in window.view.status_panel.progress_log.log_view.toPlainText()
+    )
     assert (
         "Starting installed launcher."
-        not in window.view.progress_log.log_view.toPlainText()
+        not in window.view.status_panel.progress_log.log_view.toPlainText()
     )
     close_and_delete_launcher_window(window)
 
@@ -310,6 +315,7 @@ def test_launcher_continue_installs_app_once(
     )
     window.handoff_completed.connect(lambda: _record_close_call(close_calls_ref))
 
+    advance_to_install_location(window)
     window.view.primary_button.click()
     window.view.primary_button.click()
     window.view.primary_button.click()

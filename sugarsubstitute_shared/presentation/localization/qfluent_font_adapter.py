@@ -23,6 +23,7 @@ from typing import cast
 
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QWidget
+from shiboken6 import isValid
 
 FontFamilyState = tuple[str, ...]
 _FontFamiliesGetter = Callable[[], list[str]]
@@ -80,7 +81,8 @@ class QFluentFontFamilyAdapter:
         set_font_families(list(families), False)
         update_style_sheet(False)
         for widget in matching_widgets:
-            _replace_widget_font_families(widget, families)
+            if isValid(widget):
+                _replace_widget_font_families(widget, families)
 
 
 def _qfluent_font_api() -> tuple[

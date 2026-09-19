@@ -18,14 +18,14 @@
 
 from __future__ import annotations
 
-from __future__ import annotations
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 from pathlib import Path
 from typing import cast
 import pytest
 from substitute.app.bootstrap import lifecycle
 from substitute.app.bootstrap.lifecycle import ManagedComfyCleanupOutcome
 from substitute.infrastructure.comfy import (
-    managed_launcher,
     process_manager,
 )
 from substitute.infrastructure.comfy.managed_process_metadata import (
@@ -37,7 +37,7 @@ from substitute.infrastructure.comfy.managed_process_registry import (
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
 )
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationResult,
     ManagedProcessTerminationStatus,
 )
@@ -61,12 +61,10 @@ def _managed_state(
     *,
     process: ManagedProcessHandle | None,
     metadata: ManagedProcessMetadata | None,
-) -> managed_launcher.ManagedComfyState:
+) -> ManagedComfyState:
     """Build one concrete managed state for lifecycle tests."""
 
-    state = managed_launcher.ManagedComfyState(
-        registry=ManagedProcessRegistry(tmp_path)
-    )
+    state = ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
     state.proc = process
     state.metadata = metadata
     state.containment_handle = None
@@ -89,7 +87,7 @@ def test_cleanup_handler_requests_stop_and_kills_owned_process_once(
             workspace_path=tmp_path / "comfyui",
         ),
     )
-    killed_states: list[managed_launcher.ManagedComfyState | None] = []
+    killed_states: list[ManagedComfyState | None] = []
     cleanup = lifecycle.create_cleanup_handler(
         lambda: state,
         lambda current_state: _record_cleanup_state(killed_states, current_state),
@@ -220,7 +218,7 @@ def test_cleanup_handler_maps_unexpected_exception_to_failure(tmp_path: Path) ->
     )
 
     def _raise_failure(
-        current_state: managed_launcher.ManagedComfyState | None,
+        current_state: ManagedComfyState | None,
     ) -> process_manager.ManagedComfyStateCleanupResult:
         _ = current_state
         raise RuntimeError("boom")
@@ -247,7 +245,7 @@ def test_kill_comfyui_state_clears_registry_when_process_dies(
             workspace_path=tmp_path / "comfyui",
         )
     )
-    state = managed_launcher.ManagedComfyState(registry=registry)
+    state = ManagedComfyState(registry=registry)
     state.metadata = metadata
     state.containment_mode = metadata.containment_mode
     monkeypatch.setattr(
@@ -287,7 +285,7 @@ def test_kill_comfyui_state_keeps_registry_when_termination_is_not_verified(
             workspace_path=tmp_path / "comfyui",
         )
     )
-    state = managed_launcher.ManagedComfyState(registry=registry)
+    state = ManagedComfyState(registry=registry)
     state.metadata = metadata
     state.containment_mode = metadata.containment_mode
     monkeypatch.setattr(
@@ -318,8 +316,8 @@ def test_kill_comfyui_state_keeps_registry_when_termination_is_not_verified(
 
 
 def _record_cleanup_state(
-    calls: list[managed_launcher.ManagedComfyState | None],
-    current_state: managed_launcher.ManagedComfyState | None,
+    calls: list[ManagedComfyState | None],
+    current_state: ManagedComfyState | None,
     *,
     termination_status: ManagedProcessTerminationStatus = (
         ManagedProcessTerminationStatus.TERMINATED_CONFIRMED

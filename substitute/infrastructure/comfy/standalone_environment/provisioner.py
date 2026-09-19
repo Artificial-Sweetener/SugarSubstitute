@@ -131,7 +131,6 @@ class StandaloneEnvironmentProvisioner:
                 )
         except StandaloneArtifactError:
             shutil.rmtree(extraction_root, ignore_errors=True)
-            shutil.rmtree(workspace, ignore_errors=True)
             raise
 
     @staticmethod

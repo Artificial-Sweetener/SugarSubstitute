@@ -25,13 +25,21 @@ from substitute.application.ports.comfy_gateway import (
     ListenerOutputSource,
     OutputImageUpdate,
 )
-from substitute.infrastructure.comfy.final_image_event import FinalImageScene
+from substitute.infrastructure.comfy.final_image_event import (
+    FinalImageEvent,
+    FinalImageScene,
+    FinalImageSource,
+)
 from substitute.infrastructure.comfy.final_image_event_handler import (
     FinalImageEventHandler,
 )
 from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 from substitute.infrastructure.comfy.output_source_identity_resolver import (
     OutputSourceIdentity,
+)
+from substitute.infrastructure.comfy.prompt_history_output_recovery import (
+    PromptHistoryOutputRecovery,
+    PromptHistoryRecoveryContext,
 )
 from substitute.infrastructure.comfy.standard_executed_image_handler import (
     StandardExecutedImageContext,
@@ -159,3 +167,154 @@ def test_standard_handler_ignores_foreign_nodes_and_prompts() -> None:
     assert handler.handle({"prompt_id": "prompt", "node": "other"}) is False
     assert handler.handle({"prompt_id": "other", "node": "recover"}) is False
     assert updates == []
+
+
+def test_shared_final_handler_deduplicates_transport_replays() -> None:
+    """Cube-output and standard executed delivery may report the same artifact once."""
+
+    fetched: list[ComfyImageArtifact] = []
+    persisted: list[tuple[bytes, OutputSourceIdentity]] = []
+    updates: list[OutputImageUpdate] = []
+    final_handler = FinalImageEventHandler(
+        artifact_fetcher=_Fetcher(fetched),
+        output_persistence=_Persistence(persisted),
+        on_output_image=updates.append,
+    )
+    handler = StandardExecutedImageHandler(
+        context=StandardExecutedImageContext(
+            workflow_id="wf",
+            generation_run_id="run",
+            prompt_id="prompt",
+            client_id="client",
+            workflow_payload={},
+            scene=FinalImageScene(),
+        ),
+        sources_by_node={
+            "recover": ListenerOutputSource("recover", "cube:cube-a", "Cube A")
+        },
+        final_image_handler=final_handler,
+    )
+    event = {
+        "prompt_id": "prompt",
+        "node": "recover",
+        "output": {
+            "images": [{"filename": "same.png", "subfolder": "", "type": "temp"}]
+        },
+    }
+
+    assert handler.handle(event) is True
+    assert handler.handle(event) is True
+    assert len(fetched) == 1
+    assert len(persisted) == 1
+    assert len(updates) == 1
+
+
+def test_shared_final_handler_deduplicates_conflicting_transport_source_labels() -> (
+    None
+):
+    """One node artifact must survive transport disagreement as one final image."""
+
+    fetched: list[ComfyImageArtifact] = []
+    persisted: list[tuple[bytes, OutputSourceIdentity]] = []
+    updates: list[OutputImageUpdate] = []
+    handler = FinalImageEventHandler(
+        artifact_fetcher=_Fetcher(fetched),
+        output_persistence=_Persistence(persisted),
+        on_output_image=updates.append,
+    )
+    artifact = ComfyImageArtifact(
+        filename="same.png",
+        subfolder="",
+        type="temp",
+        media_kind="image",
+    )
+
+    for source_key in ("direct:1:0", "cube:1"):
+        handler.handle(
+            FinalImageEvent(
+                workflow_id="wf",
+                generation_run_id="run",
+                prompt_id="prompt",
+                client_id="client",
+                workflow_payload={},
+                source=FinalImageSource(
+                    node_id="recover",
+                    source_key=source_key,
+                    source_label="1",
+                    cube_alias="1",
+                ),
+                artifacts=(artifact,),
+                list_index=0,
+                scene=FinalImageScene(),
+            )
+        )
+
+    assert len(fetched) == 1
+    assert len(persisted) == 1
+    assert [update.source_key for update in updates] == ["direct:1:0"]
+
+
+def test_live_and_history_delivery_share_one_artifact_identity() -> None:
+    """History recovery must fill cached gaps without duplicating live finals."""
+
+    fetched: list[ComfyImageArtifact] = []
+    persisted: list[tuple[bytes, OutputSourceIdentity]] = []
+    updates: list[OutputImageUpdate] = []
+    final_handler = FinalImageEventHandler(
+        artifact_fetcher=_Fetcher(fetched),
+        output_persistence=_Persistence(persisted),
+        on_output_image=updates.append,
+    )
+    source = ListenerOutputSource("recover", "cube:cube-a", "Cube A")
+    handler = StandardExecutedImageHandler(
+        context=StandardExecutedImageContext(
+            workflow_id="wf",
+            generation_run_id="run",
+            prompt_id="prompt",
+            client_id="client",
+            workflow_payload={},
+            scene=FinalImageScene(),
+        ),
+        sources_by_node={"recover": source},
+        final_image_handler=final_handler,
+    )
+    output = {"images": [{"filename": "same.png", "subfolder": "", "type": "temp"}]}
+
+    assert handler.handle({"prompt_id": "prompt", "node": "recover", "output": output})
+    PromptHistoryOutputRecovery(
+        history_reader=_StaticHistoryReader(
+            {"prompt": {"outputs": {"recover": output}}}
+        ),
+        context=PromptHistoryRecoveryContext(
+            workflow_id="wf",
+            generation_run_id="run",
+            prompt_id="prompt",
+            client_id="client",
+            workflow_payload={},
+        ),
+        output_node_ids=frozenset({"recover"}),
+        source_resolver=lambda node_id: OutputSourceIdentity(
+            node_id=node_id,
+            source_key=source.source_key,
+            source_label=source.source_label,
+            cube_alias=source.source_label,
+        ),
+        final_image_handler=final_handler,
+    ).recover()
+
+    assert len(fetched) == 1
+    assert len(persisted) == 1
+    assert len(updates) == 1
+
+
+@dataclass(frozen=True)
+class _StaticHistoryReader:
+    """Return one static prompt-history payload."""
+
+    payload: dict[str, object]
+
+    def read(self, prompt_id: str) -> dict[str, object]:
+        """Return the configured payload for the expected prompt."""
+
+        assert prompt_id == "prompt"
+        return self.payload

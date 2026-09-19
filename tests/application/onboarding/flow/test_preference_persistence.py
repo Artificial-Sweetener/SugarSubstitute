@@ -31,6 +31,7 @@ from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyTargetMode,
+    ManagedComfySetupResult,
     ReadinessAssessment,
 )
 
@@ -45,6 +46,7 @@ from .runtime_support import (
     _StaticOnboardingService,
     _StaticReadinessService,
     _build_context,
+    _managed_setup_result,
 )
 
 
@@ -55,6 +57,7 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
 
     context = _build_context(tmp_path, ComfyTargetMode.MANAGED_LOCAL)
     preference_setup = _PreferenceSetupService()
+    transaction_service = _FakeSetupTransactionService(context)
     bundle = _Bundle(
         onboarding_service=_StaticOnboardingService(context),
         runtime_service=_FakeRuntimeLaunchService(),
@@ -62,16 +65,18 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
             ReadinessAssessment(route=BootstrapRoute.READY, issues=())
         ),
         managed_runtime_service=_StaticManagedRuntimeService(),
-        setup_transaction_service=_FakeSetupTransactionService(context),
+        setup_transaction_service=transaction_service,
         preference_setup_service=preference_setup,
     )
     provisioner_kwargs: list[dict[str, object]] = []
 
-    def _record_provisioning(**kwargs: object) -> Path:
+    def _record_provisioning(**kwargs: object) -> ManagedComfySetupResult:
         """Record managed provisioning arguments."""
 
         provisioner_kwargs.append(kwargs)
-        return tmp_path / "unused"
+        workspace = kwargs["workspace"]
+        assert isinstance(workspace, Path)
+        return _managed_setup_result(workspace)
 
     service = OnboardingFlowService(
         service_bundle_factory=lambda _root: bundle,
@@ -106,6 +111,13 @@ def test_flow_service_saves_preferences_model_root_and_credentials(
         restart_required=False,
         on_status=lambda message: None,
         on_log=logs.append,
+    )
+
+    assert transaction_service.transaction is not None
+    assert transaction_service.transaction.managed_runtime is not None
+    assert (
+        transaction_service.transaction.managed_runtime.validation_status.value
+        == "valid"
     )
 
     assert preference_setup.saved_preferences == [

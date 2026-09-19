@@ -67,7 +67,7 @@ def test_capture_queued_snapshot_preparation_uses_detached_request() -> None:
     snapshot = GenerationJobSnapshot(
         workflow_id="workflow-a",
         workflow_name="Recipe A",
-        sugar_script_text="# sugar",
+        persistence_sugar_script="# sugar",
     )
 
     class _PreparationService:
@@ -122,7 +122,7 @@ def test_capture_queued_snapshot_preparation_applies_scene_run_bookkeeping() -> 
     snapshot = GenerationJobSnapshot(
         workflow_id="workflow-a",
         workflow_name="Recipe A - Scene",
-        sugar_script_text="# scene",
+        persistence_sugar_script="# scene",
         scene_run_id="scene-run-a",
         scene_key="scene-a",
         scene_count=2,

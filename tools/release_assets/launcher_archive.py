@@ -24,6 +24,9 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.platforms import LauncherTarget
 from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
+from sugarsubstitute_shared.launcher_update.targets import (
+    launcher_bundle_target_for_key,
+)
 from tools.release_assets.zip_support import iter_directory_entries, write_path_to_zip
 
 
@@ -47,18 +50,20 @@ def build_installed_launcher_zip(
     ) as archive:
         for source_path in iter_directory_entries(resolved_bundle_dir):
             relative_path = source_path.relative_to(resolved_bundle_dir)
+            archive_path = _archive_relative_path(relative_path, target=target)
             executable_permissions = (
                 0o755
-                if relative_path == target.executable_relative_path
+                if archive_path == target.executable_relative_path
                 and target.operating_system is not LauncherOperatingSystem.WINDOWS
                 else None
             )
             write_path_to_zip(
                 archive=archive,
                 source_path=source_path,
-                archive_name=relative_path.as_posix(),
+                archive_name=archive_path.as_posix(),
                 permissions=executable_permissions,
             )
+    validate_installed_launcher_archive(resolved_output_path, target=target)
     return resolved_output_path
 
 
@@ -107,10 +112,33 @@ def validate_installed_launcher_bundle(
             "Installed launcher bundle must include "
             f"{target.support_relative_path}: {launcher_bundle_dir}"
         )
+    bundle_target = launcher_bundle_target_for_key(target.key)
+    replacement_roots = bundle_target.replacement_roots
+    required_source_files = tuple(
+        _source_relative_path(path, target=target)
+        for path in bundle_target.required_file_relative_paths
+    )
+    missing_files = [
+        str(path)
+        for path in required_source_files
+        if not (launcher_bundle_dir / path).is_file()
+    ]
+    if missing_files:
+        raise FileNotFoundError(
+            "Installed launcher build is missing required files "
+            f"{', '.join(missing_files)}: {launcher_bundle_dir}"
+        )
     allowed_roots = {
-        target.executable_relative_path.parts[0],
-        target.support_relative_path.parts[0],
+        replacement_root.parts[0] for replacement_root in replacement_roots
     }
+    allowed_roots.update(path.parts[0] for path in required_source_files)
+    for replacement_root in replacement_roots:
+        replacement_path = launcher_bundle_dir / replacement_root
+        if not replacement_path.exists():
+            raise FileNotFoundError(
+                f"Installed launcher bundle is missing {replacement_root}: "
+                f"{launcher_bundle_dir}"
+            )
     unexpected_roots = sorted(
         child.name
         for child in launcher_bundle_dir.iterdir()
@@ -134,6 +162,8 @@ def validate_installed_launcher_archive(
         names = set(archive.namelist())
     executable_name = target.executable_relative_path.as_posix()
     support_prefix = target.support_relative_path.as_posix().rstrip("/") + "/"
+    bundle_target = launcher_bundle_target_for_key(target.key)
+    replacement_roots = bundle_target.replacement_roots
     if executable_name not in names:
         raise FileNotFoundError(
             f"Launcher archive is missing {executable_name}: {archive_path}"
@@ -142,3 +172,63 @@ def validate_installed_launcher_archive(
         raise FileNotFoundError(
             f"Launcher archive is missing {support_prefix}: {archive_path}"
         )
+    missing_roots = [
+        replacement_root.as_posix()
+        for replacement_root in replacement_roots
+        if replacement_root.as_posix() not in names
+        and not any(
+            name.startswith(replacement_root.as_posix().rstrip("/") + "/")
+            for name in names
+        )
+    ]
+    if missing_roots:
+        raise FileNotFoundError(
+            "Launcher archive is missing replacement roots "
+            f"{', '.join(missing_roots)}: {archive_path}"
+        )
+    missing_files = [
+        path.as_posix()
+        for path in bundle_target.required_file_relative_paths
+        if path.as_posix() not in names
+    ]
+    if missing_files:
+        raise FileNotFoundError(
+            "Launcher archive is missing required files "
+            f"{', '.join(missing_files)}: {archive_path}"
+        )
+    allowed_roots = {path.parts[0] for path in replacement_roots}
+    unexpected_roots = sorted(
+        {
+            Path(name).parts[0]
+            for name in names
+            if Path(name).parts and Path(name).parts[0] not in allowed_roots
+        }
+    )
+    if unexpected_roots:
+        raise ValueError(
+            "Launcher archive contains unexpected roots: " + ", ".join(unexpected_roots)
+        )
+
+
+def _archive_relative_path(relative_path: Path, *, target: LauncherTarget) -> Path:
+    """Map Windows helper builds into the legacy-authorized support root."""
+
+    if (
+        target.operating_system is LauncherOperatingSystem.WINDOWS
+        and relative_path.parent == Path(".")
+        and relative_path.name in {"LauncherUi.exe", "Repair.exe"}
+    ):
+        return target.support_relative_path / relative_path.name
+    return relative_path
+
+
+def _source_relative_path(relative_path: Path, *, target: LauncherTarget) -> Path:
+    """Map an installed archive path back to its PyInstaller build location."""
+
+    if (
+        target.operating_system is LauncherOperatingSystem.WINDOWS
+        and relative_path.parent == target.support_relative_path
+        and relative_path.name in {"LauncherUi.exe", "Repair.exe"}
+    ):
+        return Path(relative_path.name)
+    return relative_path

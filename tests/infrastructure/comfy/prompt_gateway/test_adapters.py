@@ -426,7 +426,7 @@ def test_start_listener_submits_long_lived_listener_task() -> None:
         ),
         output_dir=Path("."),
         workflow_payload={"N1": {"class_type": "KSampler"}},
-        sugar_script='use "cube" as A',
+        persistence_sugar_script='use "cube" as A',
         workflow_id="wf-1",
         workflow_name="Workflow 1",
     )

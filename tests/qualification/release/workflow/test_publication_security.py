@@ -82,7 +82,7 @@ def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None
     )
 
     assert result.returncode != 0
-    assert "Expected a semantic release version" in result.stderr
+    assert "Expected a release version" in result.stderr
     assert not output_path.exists()
 
 
@@ -118,14 +118,8 @@ def test_readme_routes_beta_downloads_and_explains_automatic_updates() -> None:
         '### <img src="docs/release/platforms/windows.svg" width="22" '
         'height="22" alt=""> Windows x64'
     ) in readme
-    assert (
-        '### <img src="docs/release/platforms/apple.svg" width="22" '
-        'height="22" alt=""> macOS Apple Silicon'
-    ) in readme
-    assert (
-        '### <img src="docs/release/platforms/linux.svg" width="22" '
-        'height="22" alt=""> Linux x64'
-    ) in readme
+    assert "Linux and macOS — temporarily suspended" in readme
+    assert "no restart date yet" in readme
     assert '- <img src="docs/release/platforms/' not in readme
 
 
@@ -173,7 +167,7 @@ def test_readme_explains_comfy_setup_modes_and_remote_requirements() -> None:
     setup_link = (
         "[choose how SugarSubstitute should use ComfyUI](#choose-your-comfyui-setup)"
     )
-    assert readme.count(setup_link) == 3
+    assert readme.count(setup_link) == 1
     assert "### Choose your ComfyUI setup" in readme
     assert "#### Let SugarSubstitute set up ComfyUI" in readme
     assert "#### Use your existing local ComfyUI" in readme

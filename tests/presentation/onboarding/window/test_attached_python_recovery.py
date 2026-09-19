@@ -66,7 +66,6 @@ def test_onboarding_window_reads_attached_workspace_before_draft_reset(
     """Attached-local save should capture the edited workspace before draft_changed resets the form."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
@@ -111,7 +110,6 @@ def _show_attached_python_choice(
     """Build a rendered window at the attached-Python decision page."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     workspace = tmp_path / "UnusualComfyUI"
     draft = OnboardingDraft(
         installation_root=tmp_path,

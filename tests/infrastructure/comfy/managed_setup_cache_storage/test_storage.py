@@ -87,6 +87,23 @@ def test_setup_evidence_treats_corrupt_legacy_data_as_a_cache_miss(
     assert legacy_path.read_text(encoding="utf-8") == "{not-json"
 
 
+def test_setup_evidence_treats_non_utf8_legacy_data_as_a_cache_miss(
+    tmp_path: Path,
+) -> None:
+    """Treat undecodable legacy evidence as disposable without blocking setup."""
+
+    legacy_path = tmp_path / ".substitute" / "managed_setup_freshness.json"
+    legacy_path.parent.mkdir(parents=True)
+    legacy_path.write_bytes(b"\xff\xfe\xfa")
+
+    session = prepare_managed_setup_cache(tmp_path)
+    try:
+        assert not session.record_path.exists()
+    finally:
+        session.close()
+    assert legacy_path.read_bytes() == b"\xff\xfe\xfa"
+
+
 def test_setup_evidence_registration_declares_semantics_and_retention() -> None:
     """Declare source-based compatibility and bounded generation retention."""
 

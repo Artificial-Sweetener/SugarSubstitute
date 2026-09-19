@@ -28,14 +28,13 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
     default_install_root,
 )
-from sugarsubstitute_shared.application_launch_guard import (
-    application_launch_lock_path,
-)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.installer_ui_qualification import (
-    InstalledCandidateLaunch,
+from tools.ci.installer_evidence_verification import (
     assert_startup_trace_sequence,
     diagnostic_tail,
+)
+from tools.ci.installer_ui_qualification import (
+    InstalledCandidateLaunch,
     installed_launch_has_progress,
     process_tree_diagnostics,
 )
@@ -52,6 +51,16 @@ _TERMINAL_EVENTS = frozenset(
         "startup.managed.failure",
     }
 )
+
+
+def application_launch_lock_path(install_root: Path) -> Path:
+    """Return the ownership record used only by qualified historical releases."""
+
+    return (
+        InstallLayout.from_root(install_root).launcher_dir
+        / "locks"
+        / "application-launch.lock"
+    )
 
 
 def wait_for_historical_main_shell(

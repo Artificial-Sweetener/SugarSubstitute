@@ -93,6 +93,43 @@ def test_rebuild_removes_columns_missing_from_current_card(
         scenario.destroy(initial_wrapper, rebuilt_wrapper)
 
 
+def test_model_loader_rebuild_cleans_existing_advanced_field_registration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rebuild a restored model card after it registered advanced fields."""
+
+    scenario = create_rebuild_scenario(
+        monkeypatch,
+        node_name="models",
+        node_type="SimpleLoadAnima",
+    )
+    definitions = {
+        "SimpleLoadAnima": {
+            "input": {
+                "required": {
+                    "model": ["STRING", {"default": "Anima/model.safetensors"}],
+                    "weight_dtype": ["STRING", {"default": "default"}],
+                }
+            }
+        }
+    }
+    inputs: dict[str, object] = {
+        "model": "Anima/model.safetensors",
+        "weight_dtype": "default",
+    }
+    first_wrapper = scenario.build(inputs=inputs, definitions=definitions)
+    advanced_key = ("A", "models", "weight_dtype")
+    unrelated_key = ("A", "sampler", "scheduler")
+    scenario.panel.advanced_field_keys.update({advanced_key, unrelated_key})
+
+    second_wrapper = scenario.build(inputs=inputs, definitions=definitions)
+    try:
+        assert advanced_key not in scenario.panel.advanced_field_keys
+        assert unrelated_key in scenario.panel.advanced_field_keys
+    finally:
+        scenario.destroy(first_wrapper, second_wrapper)
+
+
 def test_rebuild_applies_partial_global_override_visibility(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

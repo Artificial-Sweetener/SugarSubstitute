@@ -17,13 +17,15 @@
 """Assemble per-launch managed-ready startup state and runtime resources."""
 
 from __future__ import annotations
+from substitute.app.bootstrap.startup_splash_progress import StartupProgressSplash
+
 
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 
 from substitute.application.backend_compatibility import BackendCompatibilityResult
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.managed_compatibility_recovery import (
     ManagedCompatibilityRecoveryController,
 )
@@ -35,7 +37,6 @@ from substitute.app.bootstrap.ready_shell_trace_fields import (
 )
 from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellBuildTask,
-    ReadyShellFailureQueue,
     ReadyShellInitialWorkspacePrehydrationTask,
     ReadyShellLocalEditorWarmupAdapter,
     ReadyShellManagedStartupPrelude,
@@ -49,8 +50,8 @@ from substitute.app.bootstrap.ready_shell_controller import (
     StartupSplashLogProtocol,
     StartupPhaseTimerProtocol,
 )
+from substitute.app.bootstrap.ready_shell_failure_queue import ReadyShellFailureQueue
 from substitute.app.bootstrap import ready_shell_reveal
-from substitute.app.bootstrap.startup_failure_controller import SplashCloseProtocol
 from substitute.app.bootstrap.startup_managed_ready_runtime import (
     StartupManagedReadyRuntimeResources,
     create_startup_managed_ready_runtime_resources as _create_runtime_resources,
@@ -117,7 +118,7 @@ class StartupManagedReadyLaunchRuntime:
         is_startup_cancelled: Callable[[], bool],
         mark_startup_cancelled: Callable[[], None],
         managed_comfy_state: Callable[[], object | None],
-        splash: Callable[[], SplashCloseProtocol | None],
+        splash: Callable[[], StartupProgressSplash | None],
         cleanup: Callable[[], object],
         quit_app: Callable[[], None],
         trace_fields: Callable[[], dict[str, object]],

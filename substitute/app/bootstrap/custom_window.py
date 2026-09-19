@@ -24,10 +24,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.presentation.shell.window_frame import (
-    ShellBackdropMode,
-    SubstituteWindowFrame,
-)
+from substitute.presentation.shell.window_effects import ShellBackdropMode
+from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from substitute.shared.logging.logger import get_logger, log_exception
 
 if TYPE_CHECKING:

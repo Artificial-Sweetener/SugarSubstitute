@@ -17,6 +17,8 @@
 """Provide deterministic managed-ready runtime composition support."""
 
 from __future__ import annotations
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager, nullcontext
@@ -24,6 +26,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from sugarsubstitute_shared.launch_splash import SplashActivity
 
 from substitute.app.bootstrap import startup_managed_ready_runtime
 from substitute.app.bootstrap.startup_readiness_resources import (
@@ -337,10 +340,19 @@ class _Splash:
 
         self.lines: list[str] = []
 
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Accept producer progress through the complete splash contract."""
+
     def append_log(self, line: str) -> None:
         """Record one launch-splash line."""
 
         self.lines.append(line)
+
+    def start_activity(self, _activity: SplashActivity) -> None:
+        """Accept activity calls from recovery adapters."""
+
+    def clear_activity(self) -> None:
+        """Accept activity cleanup from recovery adapters."""
 
     def close(self) -> None:
         """Close the fake splash."""

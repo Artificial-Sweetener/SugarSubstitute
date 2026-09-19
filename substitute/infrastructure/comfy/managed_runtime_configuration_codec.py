@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 from substitute.domain.onboarding import (
@@ -112,6 +114,30 @@ def managed_runtime_configuration_payload(
     }
 
 
+def validated_managed_runtime_configuration(
+    configuration: ManagedRuntimeConfiguration,
+    *,
+    backend_policy: str,
+    torch_release_channel: str,
+    torch_selection_reason: str,
+    torch_fallback_used: bool,
+    validation_detail: str,
+    validated_at: str | None = None,
+) -> ManagedRuntimeConfiguration:
+    """Return the complete authoritative configuration for a validated setup."""
+
+    return replace(
+        configuration,
+        backend_policy=backend_policy,
+        torch_release_channel=torch_release_channel,
+        torch_selection_reason=torch_selection_reason,
+        torch_fallback_used=torch_fallback_used,
+        validation_status=ManagedRuntimeValidationStatus.VALID,
+        validation_detail=validation_detail,
+        last_validation_at=validated_at or datetime.now(UTC).isoformat(),
+    )
+
+
 def managed_runtime_configuration_from_payload(
     payload: object,
 ) -> ManagedRuntimeConfiguration | None:
@@ -182,4 +208,5 @@ __all__ = [
     "managed_runtime_configuration_from_payload",
     "managed_runtime_configuration_from_strategy",
     "managed_runtime_configuration_payload",
+    "validated_managed_runtime_configuration",
 ]

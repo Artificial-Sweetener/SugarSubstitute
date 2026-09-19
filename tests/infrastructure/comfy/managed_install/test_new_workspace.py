@@ -141,7 +141,7 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
     )
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
-    assert result == workspace_python
+    assert result.python_executable == workspace_python
     assert install_steps == ["torch", "requirements"]
     assert repo_sync_calls == [tmp_path]
     assert provision_calls == [tmp_path]
@@ -248,7 +248,7 @@ def test_new_stable_workspace_uses_verified_standalone_environment(
 
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
-    assert result == workspace_python
+    assert result.python_executable == workspace_python
     assert provisioned == [StandaloneVariantId.WINDOWS_NVIDIA]
     assert trace_events == [
         "span:start:managed_setup.scratch.create",
@@ -380,7 +380,7 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
         workspace=tmp_path,
     )
 
-    assert result == workspace_python
+    assert result.python_executable == workspace_python
     assert install_arguments_seen == [("torch-nightly",), ("torch",)]
 
 
@@ -467,7 +467,7 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
         configure_model_root=True,
     )
 
-    assert result == workspace_python
+    assert result.python_executable == workspace_python
     assert repo_sync_calls == [tmp_path]
     assert model_root_calls == [(tmp_path, workspace_python, tmp_path / "models")]
     assert workspace_main_path(tmp_path).exists()

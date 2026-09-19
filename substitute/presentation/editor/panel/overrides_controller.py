@@ -74,6 +74,7 @@ from substitute.application.model_metadata import (
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_discovery import EmptyModelPickerAction
 from substitute.presentation.widgets.menu_model import MenuItem
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 from substitute.presentation.workflows.workflow_tabs_view import (
@@ -100,6 +101,9 @@ from substitute.presentation.editor.panel.override_control_identity import (
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
+)
+from substitute.presentation.editor.panel.override_model_picker_reconciler import (
+    reconcile_model_override_picker,
 )
 from substitute.shared.logging.logger import (
     log_debug,
@@ -152,6 +156,7 @@ class GlobalOverridesManager:
         | None = None,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        empty_model_picker_action: EmptyModelPickerAction | None = None,
     ) -> None:
         """Initialize the toolbar renderer with explicit application dependencies."""
 
@@ -168,6 +173,7 @@ class GlobalOverridesManager:
         self._model_choice_snapshot_controller = model_choice_snapshot_controller
         self._thumbnail_asset_repository = thumbnail_asset_repository
         self._model_metadata_action_handler = model_metadata_action_handler
+        self._empty_model_picker_action = empty_model_picker_action
         self._global_overrides: OverrideMap = {}
         self._global_override_selections: OverrideSelectionMap = {}
         self._global_override_controls: dict[str, tuple[Any, Any]] = {}
@@ -852,46 +858,13 @@ class GlobalOverridesManager:
     ) -> None:
         """Refresh a model-backed override picker without replacing its widget."""
 
-        spec = control.spec
-        reconcile_choice_source = getattr(widget, "reconcile_choice_source", None)
-        if not callable(reconcile_choice_source):
-            return
-        if (
-            model_kind_for_field(
-                class_type=spec.class_type,
-                input_key=spec.field_key,
-            )
-            is None
-        ):
-            return
-        snapshot_controller = self._model_choice_snapshot_controller
-        if snapshot_controller is None:
-            return
-        from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
-            PanelModelChoiceSnapshotRequest,
+        reconcile_model_override_picker(
+            control=control,
+            widget=widget,
+            snapshots=self._model_choice_snapshot_controller,
+            node_definitions=self._node_definition_gateway,
+            thumbnail_repository_available=self._thumbnail_asset_repository is not None,
         )
-
-        snapshot = snapshot_controller.snapshot_for_field(
-            PanelModelChoiceSnapshotRequest(
-                field_behavior=spec.field_behavior,
-                node_name=spec.node_name,
-                key=spec.field_key,
-                value=control.value,
-                node_type=spec.class_type,
-                field_type=spec.field_type,
-                field_info=spec.field_info,
-                node_definition_gateway=self._node_definition_gateway,
-                cube_alias=spec.cube_alias,
-                thumbnail_repository_available=(
-                    self._thumbnail_asset_repository is not None
-                ),
-            )
-        )
-        if snapshot.choice_source is not None:
-            reconcile_choice_source(
-                snapshot.choice_source,
-                str(control.value or ""),
-            )
 
     def _refresh_restart_toolbar_spacing(self) -> None:
         """Ask the restart toolbar control to absorb slack after override changes."""
@@ -971,6 +944,7 @@ class GlobalOverridesManager:
                     ),
                     thumbnail_asset_repository=self._thumbnail_asset_repository,
                     model_metadata_action_handler=self._model_metadata_action_handler,
+                    empty_model_picker_action=self._empty_model_picker_action,
                     node_definition_gateway=self._node_definition_gateway,
                 ),
             )

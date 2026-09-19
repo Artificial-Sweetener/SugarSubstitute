@@ -127,6 +127,65 @@ def test_build_snapshot_exposes_comfy_tooltip_metadata() -> None:
     assert field_spec.meta_info["tooltip"] == "Number of denoise steps."
 
 
+def test_build_snapshot_exposes_cube_target_model_to_field_projection() -> None:
+    """Every field should derive compatibility from its cube's canonical model."""
+
+    cube = cube_state(
+        nodes={
+            "loader": {
+                "class_type": "SimpleLoadAnima",
+                "inputs": {"unet_name": ""},
+            }
+        },
+        ui={"canonical_cube": {"metadata": {"target_model": "Anima"}}},
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"Anima/Text to Image": cube},
+        stack_order=["Anima/Text to Image"],
+        definitions_by_class={
+            "SimpleLoadAnima": {"input": {"required": {"unet_name": ["STRING", {}]}}}
+        },
+    )
+
+    field = snapshot.field_specs_by_alias["Anima/Text to Image"]["loader"]["unet_name"]
+    assert field.meta_info["target_model"] == "Anima"
+
+
+def test_build_snapshot_preserves_live_advanced_metadata() -> None:
+    """Live Comfy advanced metadata should survive the behavior boundary unchanged."""
+
+    cube = cube_state(
+        nodes={
+            "sampler": {
+                "class_type": "KSampler",
+                "inputs": {"control_after_generate": "randomize"},
+            }
+        }
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={
+            "KSampler": {
+                "input": {
+                    "optional": {
+                        "control_after_generate": [
+                            ["fixed", "increment", "decrement", "randomize"],
+                            {"advanced": True},
+                        ]
+                    }
+                }
+            }
+        },
+    )
+
+    field_spec = snapshot.field_specs_by_alias["A"]["sampler"]["control_after_generate"]
+    assert field_spec.meta_info["advanced"] is True
+    assert field_spec.is_advanced is True
+
+
 @pytest.mark.parametrize("description", ["", "   ", {"text": "not renderable"}])
 def test_build_snapshot_ignores_blank_or_invalid_comfy_node_tooltips(
     description: object,

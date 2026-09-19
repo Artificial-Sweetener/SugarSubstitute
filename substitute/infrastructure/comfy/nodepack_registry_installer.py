@@ -32,10 +32,11 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
     CoreComfyNodepack,
 )
-from substitute.shared.logging.logger import get_logger, log_info
+from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.nodepack_registry_installer")
+_REGISTRY_SILENCE_FEEDBACK_SECONDS = 30.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +74,14 @@ class ComfyNodepackRegistryInstaller:
         process_result = command_runner.install_registry_nodepack(
             node_spec=f"{nodepack.registry_id}@{nodepack.required_version}",
             on_line=on_log,
+            on_silence=lambda elapsed_seconds: self._emit(
+                on_log,
+                _registry_wait_message(
+                    nodepack=nodepack,
+                    elapsed_seconds=elapsed_seconds,
+                ),
+            ),
+            silence_notification_interval_seconds=(_REGISTRY_SILENCE_FEEDBACK_SECONDS),
             timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
         )
         if process_result is None:
@@ -85,10 +94,17 @@ class ComfyNodepackRegistryInstaller:
                 output,
             )
         exit_code, output = process_result
-        return RegistryInstallResult(
-            _classify_registry_result(exit_code=exit_code, output=output),
-            output,
-        )
+        outcome = _classify_registry_result(exit_code=exit_code, output=output)
+        if outcome is RegistryInstallOutcome.FAILED:
+            log_warning(
+                _LOGGER,
+                "Comfy Registry exact install failed",
+                nodepack=nodepack.registry_id,
+                required_version=nodepack.required_version,
+                exit_code=exit_code,
+                output_tail=_bounded_output_tail(output),
+            )
+        return RegistryInstallResult(outcome, output)
 
     @staticmethod
     def _emit(callback: LogCallback | None, message: str) -> None:
@@ -132,6 +148,37 @@ def _classify_registry_result(
     if any(marker in combined for marker in unreachable_markers):
         return RegistryInstallOutcome.REGISTRY_UNREACHABLE
     return RegistryInstallOutcome.FAILED
+
+
+def _bounded_output_tail(output: tuple[str, ...]) -> str:
+    """Return bounded Registry diagnostics suitable for durable failure logs."""
+
+    combined = " | ".join(line.strip() for line in output[-5:] if line.strip())
+    return combined[-2_000:] or "<no output>"
+
+
+def _registry_wait_message(
+    *,
+    nodepack: CoreComfyNodepack,
+    elapsed_seconds: float,
+) -> str:
+    """Describe one still-running silent Registry operation."""
+
+    return (
+        "[ComfyNodepacks] Registry install still running for "
+        f"{nodepack.registry_id}@{nodepack.required_version} "
+        f"(elapsed={_format_elapsed(elapsed_seconds)})."
+    )
+
+
+def _format_elapsed(elapsed_seconds: float) -> str:
+    """Format elapsed process time as compact diagnostic output."""
+
+    whole_seconds = max(0, round(elapsed_seconds))
+    minutes, seconds = divmod(whole_seconds, 60)
+    if minutes == 0:
+        return f"{seconds}s"
+    return f"{minutes}m {seconds:02d}s"
 
 
 __all__ = ["ComfyNodepackRegistryInstaller", "RegistryInstallResult"]

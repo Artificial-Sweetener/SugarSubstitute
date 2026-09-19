@@ -27,8 +27,9 @@ from substitute.domain.common import (
 )
 from substitute.domain.generation.seed_control import SeedControlState
 from substitute.domain.recipes.authored_inputs import AuthoredRecipeInput
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.recipes.sugar_script_serializer import (
+    SugarScriptCubeConnection,
     SugarScriptLabelResolver,
     SugarScriptSerializationRequest,
     SugarScriptSerializer,
@@ -42,8 +43,7 @@ def serialize_sugar_script(
     global_override_selections: GlobalOverrideSelectionMap | None = None,
     enabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None,
     disabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None,
-    global_override_scopes: Mapping[str, GlobalOverrideSerializationScope]
-    | None = None,
+    global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
     label_resolver: SugarScriptLabelResolver | None = None,
     model_hashes_by_field: Mapping[tuple[str, str, str], str] | None = None,
     prompt_lora_hashes_by_field: Mapping[tuple[str, str, str], Mapping[str, str]]
@@ -54,6 +54,7 @@ def serialize_sugar_script(
     ]
     | None = None,
     override_control_states: Mapping[str, SeedControlState] | None = None,
+    explicit_connections: tuple[SugarScriptCubeConnection, ...] = (),
 ) -> str:
     """Serialize test state through the production typed request boundary."""
 
@@ -72,6 +73,7 @@ def serialize_sugar_script(
             prompt_lora_hashes_by_field=prompt_lora_hashes_by_field,
             field_control_states_by_alias=field_control_states_by_alias,
             override_control_states=override_control_states,
+            explicit_connections=explicit_connections,
         )
     )
 

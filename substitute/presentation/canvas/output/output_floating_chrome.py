@@ -35,7 +35,7 @@ from substitute.presentation.shell.generation_titlebar_control_registry import (
     GenerationTitleBarControlRegistry,
 )
 from substitute.presentation.shell.titlebar_buttons import GenerationClusterRevealHost
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 class OutputFloatingChromeFactory:

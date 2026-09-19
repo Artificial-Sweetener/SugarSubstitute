@@ -24,12 +24,20 @@ from pathlib import Path
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+    ApplicationReadinessError,
     ApplicationReadinessSupervisor,
-    CandidateProcess,
     stop_candidate_process,
 )
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    ApplicationStartupCancelled,
+    CandidateProcess,
+)
+from launcher.sugarsubstitute_launcher.crash_supervisor import (
+    ClassifiedProcessExit,
+    ApplicationCrashSupervisor,
+    PreparedCrashRun,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.process import start_detached
 from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
     record_update_rollback,
 )
@@ -55,18 +63,8 @@ class CandidateUpdateActivation(Protocol):
     def rollback(self) -> None:
         """Restore the prior update state."""
 
-
-class CandidateLaunchGuard(Protocol):
-    """Authorize one application process handoff."""
-
-    def initial_handoff_environment(
-        self,
-        environment: Mapping[str, str] | None = None,
-    ) -> dict[str, str]:
-        """Return the authorized child environment."""
-
-    def release(self) -> None:
-        """Release launch ownership."""
+    def reject(self, reason: str) -> None:
+        """Restore the prior state and quarantine a failed target."""
 
 
 class CandidateReadinessSupervisor(Protocol):
@@ -80,6 +78,37 @@ class CandidateReadinessSupervisor(Protocol):
         environment: Mapping[str, str],
     ) -> CandidateProcess:
         """Return the candidate process after readiness."""
+
+
+class CandidateCrashSupervisor(Protocol):
+    """Own crash contracts across candidate and fallback app lifetimes."""
+
+    def prepare(
+        self,
+        *,
+        layout: InstallLayout,
+        environment: Mapping[str, str],
+    ) -> PreparedCrashRun:
+        """Prepare a crash-aware child environment before readiness launch."""
+
+    def supervise_process(
+        self,
+        *,
+        layout: InstallLayout,
+        process: CandidateProcess,
+        prepared: PreparedCrashRun,
+        expected_cancellation: bool = False,
+    ) -> ClassifiedProcessExit:
+        """Classify a candidate for the remainder of its lifetime."""
+
+    def supervise(
+        self,
+        *,
+        layout: InstallLayout,
+        command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> int:
+        """Start and classify a restored fallback for its full lifetime."""
 
 
 class UpdateRollbackReporter(Protocol):
@@ -101,31 +130,61 @@ def launch_prepared_update(
     layout: InstallLayout,
     command: Sequence[str],
     attempted_version: str,
-    initial_guard: CandidateLaunchGuard,
+    environment: Mapping[str, str],
     activation: CandidateUpdateActivation,
-    fallback_guard_factory: Callable[[InstallLayout], CandidateLaunchGuard | None],
     supervisor: CandidateReadinessSupervisor | None = None,
-    fallback_process_starter: Callable[..., None] = start_detached,
+    crash_supervisor: CandidateCrashSupervisor | None = None,
     rollback_reporter: UpdateRollbackReporter = record_update_rollback,
+    on_ready: Callable[[], None] | None = None,
+    cancellation_requested: Callable[[], bool] | None = None,
 ) -> None:
     """Commit after visible readiness or restore and relaunch the prior app."""
 
-    readiness_supervisor = supervisor or ApplicationReadinessSupervisor()
+    readiness_supervisor = supervisor or ApplicationReadinessSupervisor(
+        cancellation_requested=cancellation_requested
+    )
+    crash_owner = crash_supervisor or ApplicationCrashSupervisor()
+    prepared = crash_owner.prepare(
+        layout=layout,
+        environment=packaged_application_environment(environment),
+    )
     try:
         process = readiness_supervisor.launch_until_ready(
             layout=layout,
             command=command,
-            environment=packaged_application_environment(
-                initial_guard.initial_handoff_environment()
-            ),
+            environment=prepared.environment,
         )
+        if on_ready is not None:
+            on_ready()
         try:
             activation.commit()
         except BaseException:
             stop_candidate_process(process)
             raise
-    except BaseException as candidate_error:
+    except ApplicationStartupCancelled as cancelled:
+        if cancelled.terminated_process is not None:
+            crash_owner.supervise_process(
+                layout=layout,
+                process=cancelled.terminated_process,
+                prepared=prepared,
+                expected_cancellation=True,
+            )
         activation.rollback()
+        _LOGGER.info(
+            "Cancelled update startup; restored the previous application without relaunching"
+        )
+        raise
+    except BaseException as candidate_error:
+        if (
+            isinstance(candidate_error, ApplicationReadinessError)
+            and candidate_error.terminated_process is not None
+        ):
+            crash_owner.supervise_process(
+                layout=layout,
+                process=candidate_error.terminated_process,
+                prepared=prepared,
+            )
+        activation.reject(type(candidate_error).__name__)
         rollback_reporter(
             install_root=layout.root,
             attempted_version=attempted_version,
@@ -136,27 +195,21 @@ def launch_prepared_update(
             "Candidate update failed readiness and was rolled back.",
             exc_info=True,
         )
-        initial_guard.release()
-        fallback_guard = fallback_guard_factory(layout)
-        if fallback_guard is None:
-            raise CandidateUpdateRollbackError(
-                "The previous SugarSubstitute version was restored but could not "
-                "acquire launch ownership."
-            ) from candidate_error
-        try:
-            fallback_process_starter(
-                command,
-                environment=packaged_application_environment(
-                    fallback_guard.initial_handoff_environment()
-                ),
-            )
-        except BaseException:
-            fallback_guard.release()
-            raise
+        crash_owner.supervise(
+            layout=layout,
+            command=command,
+            environment=packaged_application_environment(environment),
+        )
+        return
+    crash_owner.supervise_process(
+        layout=layout,
+        process=process,
+        prepared=prepared,
+    )
 
 
 __all__ = [
-    "CandidateLaunchGuard",
+    "CandidateCrashSupervisor",
     "CandidateReadinessSupervisor",
     "CandidateUpdateActivation",
     "CandidateUpdateRollbackError",

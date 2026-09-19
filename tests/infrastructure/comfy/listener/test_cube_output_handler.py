@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -133,6 +134,7 @@ def _handler(
     output_events: list[OutputImageUpdate] | None = None,
     diagnostics: list[CubeOutputDiagnostic] | None = None,
     identity_accepted: bool = True,
+    source_identity_resolver: (Callable[[str], OutputSourceIdentity] | None) = None,
 ) -> CubeOutputEventHandler:
     """Build a cube-output handler with recording test doubles."""
 
@@ -152,6 +154,7 @@ def _handler(
         ),
         identity_acceptor=lambda _identity, _prompt_id, _node_id: identity_accepted,
         on_diagnostic=captured_diagnostics.append,
+        source_identity_resolver=source_identity_resolver,
     )
 
 
@@ -230,6 +233,30 @@ def test_handler_fetches_persists_and_emits_output_image_update() -> None:
             scene_count=4,
         )
     ]
+
+
+def test_handler_uses_listener_source_authority_over_event_presentation() -> None:
+    """Queued source identity must override conflicting transport presentation."""
+
+    persisted_calls: list[tuple[bytes, OutputSourceIdentity]] = []
+    handler = _handler(
+        persistence=_OutputPersistence(persisted_calls),
+        source_identity_resolver=lambda node_id: OutputSourceIdentity(
+            node_id=node_id,
+            source_key="direct:1:0",
+            source_label="1",
+            cube_alias="1",
+        ),
+    )
+
+    handler.handle(_payload())
+
+    assert persisted_calls[0][1] == OutputSourceIdentity(
+        node_id="output-node",
+        source_key="direct:1:0",
+        source_label="1",
+        cube_alias="1",
+    )
 
 
 def test_handler_uses_persisted_dimensions_when_artifact_dimensions_are_missing() -> (

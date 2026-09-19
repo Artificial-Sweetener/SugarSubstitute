@@ -79,6 +79,11 @@ class _FakeApp:
 
         self.quit_calls += 1
 
+    def request_quit(self) -> None:
+        """Model the queued application-exit boundary."""
+
+        self.quit()
+
 
 def _ensure_runtime_qapplication() -> None:
     """Ensure startup runtime services have a real Qt owner during tests."""
@@ -642,6 +647,10 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     )
     monkeypatch.setattr(qtcore, "QTimer", _FakeTimer)
     monkeypatch.setattr(
+        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
+        lambda _window, callback: callback(),
+    )
+    monkeypatch.setattr(
         startup_managed_ready_ports,
         "create_model_metadata_update_bridge",
         lambda parent: _FakeBridge(parent),
@@ -741,7 +750,7 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     assert all(callable(handler) for handler in comfy_restart_handlers)
     assert calls.index("pre_show_start:wf-a") < calls.index("show")
     assert calls.index("prepare_restore_runtime") < calls.index("show")
-    assert calls.index("splash_close") < calls.index("show")
+    assert calls.index("show") < calls.index("splash_close")
     assert calls.index("show") < calls.index("finish_layout")
     assert "splash_log" not in calls[calls.index("splash_close") + 1 :]
     assert "finalize_restore_runtime" not in calls

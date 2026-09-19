@@ -50,9 +50,7 @@ def capture_cold_start_snapshot(layout: InstallLayout) -> dict[str, object]:
     launcher_pids = tuple(sorted(packaged_launcher_pids(layout)))
     host_pids = tuple(sorted(splash_host_pids(layout)))
     return {
-        "application_owner_pids": list(
-            sorted(_qualification_app_pids(layout, live_only=True))
-        ),
+        "application_owner_pids": list(sorted(qualification_app_pids(layout))),
         "application_runtime_process_pids": list(application_runtime_pids),
         "application_runtime_processes": list(_process_facts(application_runtime_pids)),
         "packaged_launcher_pids": list(launcher_pids),
@@ -88,13 +86,48 @@ def assert_cold_start_snapshot(
         raise AssertionError(f"Malformed splash evidence: {snapshot}")
     if (
         surface.get("splash_is_visible") is not True
+        or surface.get("first_paint_confirmed") is not True
+        or not isinstance(surface.get("launch_to_first_paint_ms"), (int, float))
         or surface.get("top_level_surface_count") != 1
         or surface.get("visible_top_level_surface_count") != 1
         or surface.get("platform_name") != "offscreen"
         or adoption.get("app_pid") != expected_app_pid
         or adoption.get("splash_host_pid") != surface.get("host_pid")
+        or adoption.get("close_acknowledged") is not True
     ):
         raise AssertionError(f"Splash surface evidence was not singular: {snapshot}")
+    _assert_startup_phase_order(surface, snapshot=snapshot)
+
+
+def _assert_startup_phase_order(
+    surface: dict[str, object],
+    *,
+    snapshot: dict[str, object],
+) -> None:
+    """Require each observed splash phase to follow its causal predecessor."""
+
+    raw_phases = surface.get("startup_phase_ms")
+    if not isinstance(raw_phases, dict):
+        raise AssertionError(f"Splash startup phases were missing: {snapshot}")
+    ordered_names = (
+        "host_process_requested",
+        "host_module_started",
+        "host_main_entered",
+        "arguments_parsed",
+        "application_ready",
+        "icon_ready",
+        "splash_module_ready",
+        "splash_constructed",
+        "first_paint",
+    )
+    try:
+        phases = [float(raw_phases[name]) for name in ordered_names]
+    except (KeyError, TypeError, ValueError) as error:
+        raise AssertionError(
+            f"Splash startup phases were malformed: {snapshot}"
+        ) from error
+    if phases != sorted(phases):
+        raise AssertionError(f"Splash startup phases were out of order: {snapshot}")
 
 
 def splash_host_pids(layout: InstallLayout) -> tuple[int, ...]:
@@ -197,14 +230,11 @@ def _application_runtime_pids(layout: InstallLayout) -> tuple[int, ...]:
     return tuple(matches)
 
 
-def _qualification_app_pids(
-    layout: InstallLayout,
-    *,
-    live_only: bool,
-) -> tuple[int, ...]:
-    """Return interpreters that wrote an accepted-owner qualification marker."""
+def qualification_app_pids(layout: InstallLayout) -> tuple[int, ...]:
+    """Return live marker owners whose process identity still matches the app."""
 
     marker_dir = layout.user_dir / "qualification-owners"
+    entrypoint_key = os.path.normcase(str(layout.app_entrypoint.resolve()))
     matches: list[int] = []
     for marker_path in marker_dir.glob("*.json"):
         try:
@@ -212,7 +242,19 @@ def _qualification_app_pids(
         except (OSError, json.JSONDecodeError):
             continue
         pid = payload.get("pid") if isinstance(payload, dict) else None
-        if isinstance(pid, int) and (not live_only or psutil.pid_exists(pid)):
+        parent_pid = payload.get("parent_pid") if isinstance(payload, dict) else None
+        if not isinstance(pid, int) or not isinstance(parent_pid, int):
+            continue
+        try:
+            process = psutil.Process(pid)
+            command = process.cmdline()
+            if process.ppid() != parent_pid:
+                continue
+        except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+            continue
+        if any(
+            os.path.normcase(str(argument)) == entrypoint_key for argument in command
+        ):
             matches.append(pid)
     return tuple(matches)
 
@@ -243,5 +285,6 @@ __all__ = [
     "capture_cold_start_snapshot",
     "clear_splash_qualification_records",
     "packaged_launcher_pids",
+    "qualification_app_pids",
     "splash_host_pids",
 ]

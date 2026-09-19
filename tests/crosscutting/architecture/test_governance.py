@@ -36,7 +36,7 @@ def _write_policy(root: Path) -> None:
     """Write a compact architecture policy and empty current state."""
 
     _write(
-        root / "ARCHITECTURE_POLICY.toml",
+        root / "governance/architecture/policy.toml",
         """schema_version = 2
 [structure]
 soft_lines = 4
@@ -46,14 +46,19 @@ source_files = ["entrypoint.py"]
 source_extensions = [".cjs", ".js", ".mjs", ".py", ".pyi", ".spec"]
 excluded_paths = ["product/generated.py"]
 [registries]
-debt = "ARCHITECTURE_DEBT.toml"
-waivers = "ARCHITECTURE_WAIVERS.toml"
+debt = "governance/architecture/debt.toml"
+waivers = "governance/architecture/waivers.toml"
 """,
     )
     _write(root / "entrypoint.py", "VALUE = 1\n")
     _write(root / "product/generated.py", "VALUE = 1\n")
-    _write(root / "ARCHITECTURE_DEBT.toml", "schema_version = 1\ndebts = []\n")
-    _write(root / "ARCHITECTURE_WAIVERS.toml", "schema_version = 1\nwaivers = []\n")
+    _write(
+        root / "governance/architecture/debt.toml", "schema_version = 1\ndebts = []\n"
+    )
+    _write(
+        root / "governance/architecture/waivers.toml",
+        "schema_version = 1\nwaivers = []\n",
+    )
 
 
 def _large_source() -> str:
@@ -101,7 +106,7 @@ def test_invalid_exact_source_files_report_policy_errors_without_being_scanned(
     """Invalid exact files fail policy validation without crashing measurement."""
 
     _write_policy(tmp_path)
-    policy_path = tmp_path / "ARCHITECTURE_POLICY.toml"
+    policy_path = tmp_path / "governance/architecture/policy.toml"
     policy_text = policy_path.read_text(encoding="utf-8").replace(
         'source_files = ["entrypoint.py"]',
         'source_files = ["missing.py", "entrypoint.json"]',
@@ -145,7 +150,7 @@ def test_assessed_debt_requires_a_tightening_remediation_waiver(
     _write(tmp_path / source_path, _large_source())
     fingerprint = source_fingerprint(tmp_path, (source_path,))
     _write(
-        tmp_path / "ARCHITECTURE_DEBT.toml",
+        tmp_path / "governance/architecture/debt.toml",
         "schema_version = 1\n[[debts]]\n"
         'id = "SS-ARCH-TEST"\nowner = "fixture owner"\n'
         f'paths = ["{source_path}"]\n'
@@ -155,7 +160,7 @@ def test_assessed_debt_requires_a_tightening_remediation_waiver(
         'next_extraction = "Extract presentation from state ownership."\n',
     )
     _write(
-        tmp_path / "ARCHITECTURE_WAIVERS.toml",
+        tmp_path / "governance/architecture/waivers.toml",
         "schema_version = 1\n[[waivers]]\n"
         'id = "SS-WAIVER-TEST"\nowner = "fixture owner"\n'
         'rule = "STRUCT003"\n'
@@ -177,7 +182,7 @@ def test_expired_and_unused_state_is_rejected(tmp_path: Path) -> None:
     source_path = "product/small.py"
     _write(tmp_path / source_path, "VALUE = 1\n")
     _write(
-        tmp_path / "ARCHITECTURE_WAIVERS.toml",
+        tmp_path / "governance/architecture/waivers.toml",
         "schema_version = 1\n[[waivers]]\n"
         'id = "SS-WAIVER-STALE"\nowner = "fixture owner"\n'
         'rule = "STRUCT003"\n'
@@ -201,7 +206,7 @@ def test_debt_requires_exactly_one_remediation_waiver(tmp_path: Path) -> None:
     _write(tmp_path / source_path, _large_source())
     fingerprint = source_fingerprint(tmp_path, (source_path,))
     _write(
-        tmp_path / "ARCHITECTURE_DEBT.toml",
+        tmp_path / "governance/architecture/debt.toml",
         "schema_version = 1\n[[debts]]\n"
         'id = "SS-ARCH-UNLINKED"\nowner = "fixture owner"\n'
         f'paths = ["{source_path}"]\n'
@@ -225,7 +230,7 @@ def test_structural_waiver_requires_exact_current_cap_and_specific_rationale(
     source_path = "product/cohesive.py"
     _write(tmp_path / source_path, _large_source())
     _write(
-        tmp_path / "ARCHITECTURE_WAIVERS.toml",
+        tmp_path / "governance/architecture/waivers.toml",
         "schema_version = 1\n[[waivers]]\n"
         'id = "SS-WAIVER-STRUCTURAL"\nowner = "fixture owner"\n'
         'rule = "STRUCT003"\n'
@@ -264,7 +269,7 @@ def test_structural_waiver_rationales_must_be_unique(tmp_path: Path) -> None:
             "max_lines = 8\n"
         )
     _write(
-        tmp_path / "ARCHITECTURE_WAIVERS.toml",
+        tmp_path / "governance/architecture/waivers.toml",
         "schema_version = 1\n" + "\n".join(records),
     )
 
@@ -278,7 +283,7 @@ def test_registry_rejects_history_fields(tmp_path: Path) -> None:
 
     _write_policy(tmp_path)
     _write(
-        tmp_path / "ARCHITECTURE_DEBT.toml",
+        tmp_path / "governance/architecture/debt.toml",
         "schema_version = 1\n[[debts]]\n"
         'id = "SS-ARCH-HISTORY"\nowner = "fixture owner"\n'
         'paths = ["product/generated.py"]\nfingerprint = "sha256:stale"\n'
@@ -324,6 +329,28 @@ def test_system_git_policy_rejects_unguarded_comfy_cli_calls(tmp_path: Path) -> 
     error = next(item for item in diagnostics if item.rule == "GIT002")
     assert error.path == "launcher/unsafe.py"
     assert "protected Comfy Manager command owner" in error.message
+
+
+def test_system_git_policy_does_not_parse_excluded_generated_sources(
+    tmp_path: Path,
+) -> None:
+    """Keep generated resource modules outside authored policy inspection."""
+
+    _write_policy(tmp_path)
+    _write(
+        tmp_path / "substitute/generated.py",
+        "import subprocess\nsubprocess.run(['git', 'status'])\n",
+    )
+    policy_path = tmp_path / "governance/architecture/policy.toml"
+    policy_text = policy_path.read_text(encoding="utf-8").replace(
+        'excluded_paths = ["product/generated.py"]',
+        'excluded_paths = ["product/generated.py", "substitute/generated.py"]',
+    )
+    _write(policy_path, policy_text)
+
+    diagnostics = validate_repository(tmp_path, today=date(2026, 8, 11))
+
+    assert not any(item.path == "substitute/generated.py" for item in diagnostics)
 
 
 def test_current_repository_has_no_architecture_governance_errors() -> None:

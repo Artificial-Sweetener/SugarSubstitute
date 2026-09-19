@@ -29,11 +29,17 @@ class _Label:
         """Initialize the displayed text."""
 
         self.text = ""
+        self.identity: tuple[object, str] | None = None
 
     def setText(self, text: str) -> None:  # noqa: N802
         """Record displayed title text."""
 
         self.text = text
+
+    def setTargetModel(self, target_model: str) -> None:  # noqa: N802
+        """Record the target model without changing the retained icon."""
+
+        self.identity = (None, target_model)
 
 
 def _panel_module() -> ModuleType:
@@ -47,7 +53,11 @@ def test_refresh_cube_header_delegates_to_registry_controller() -> None:
 
     panel_module = _panel_module()
     label = _Label()
-    cube_state = SimpleNamespace(buffer={"nodes": {}}, bypassed=True)
+    cube_state = SimpleNamespace(
+        buffer={"nodes": {}},
+        bypassed=True,
+        ui={"canonical_cube": {"metadata": {"target_model": "SDXL"}}},
+    )
     panel = SimpleNamespace(
         cube_headers={"SDXL/Automask Detailer": label},
         cube_positions={},
@@ -68,4 +78,5 @@ def test_refresh_cube_header_delegates_to_registry_controller() -> None:
 
     panel_module.EditorPanel.refresh_cube_header(panel, "SDXL/Automask Detailer")
 
-    assert label.text == "SDXL/Automask Detailer (bypassed)"
+    assert label.text == "Automask Detailer (bypassed)"
+    assert label.identity == (None, "SDXL")

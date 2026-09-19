@@ -26,6 +26,7 @@ from substitute.presentation.editor.panel.dimension_presets import (
 from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     DimensionRowActions,
 )
+from substitute.presentation.editor.field_actions import FieldActionContribution
 
 EDITOR_ROW_HEIGHT: int
 EDITOR_ROW_HORIZONTAL_MARGINS: tuple[int, int, int, int]
@@ -41,12 +42,14 @@ class BuiltFieldRow:
     row: QWidget
     text_targets: tuple[FieldRowTextTarget, ...]
     dimension_actions: DimensionRowActions | None
+    action_contributions: tuple[FieldActionContribution, ...]
     def __init__(
         self,
         field_key: Any,
         row: QWidget,
         text_targets: tuple[FieldRowTextTarget, ...] = ...,
         dimension_actions: DimensionRowActions | None = ...,
+        action_contributions: tuple[FieldActionContribution, ...] = ...,
     ) -> None: ...
 
 class FieldRowTextTarget:
@@ -88,10 +91,3 @@ def make_grouped_field_divider(
     *,
     field_key: Any = ...,
 ) -> QWidget: ...
-def bind_field_widget_card_relayout(
-    *,
-    field_widget: QWidget,
-    content_body: QWidget,
-    content_layout: Any,
-    allow_unbounded_height: bool,
-) -> None: ...
