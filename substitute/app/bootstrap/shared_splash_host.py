@@ -32,6 +32,9 @@ _HOST_MODULE_STARTED_MONOTONIC_NS = time.monotonic_ns()
 
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QApplication
+from sugarsubstitute_shared.launch_splash.timing import (
+    SPLASH_MESSAGE_APPLICATION_TIMEOUT_SECONDS,
+)
 
 if TYPE_CHECKING:
     from sugarsubstitute_shared.launch_splash.protocol import SplashSessionMessage
@@ -44,7 +47,6 @@ _REQUESTED_MONOTONIC_NS_ENV = "SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS"
 _HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV = (
     "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
 )
-_MESSAGE_APPLICATION_TIMEOUT_SECONDS = 2.0
 
 
 @dataclass(slots=True)
@@ -76,7 +78,7 @@ class QtSplashSessionMessageHandler:
 
         dispatch = _SplashSessionDispatch(message)
         self._bridge.message_received.emit(dispatch)
-        if not dispatch.applied.wait(_MESSAGE_APPLICATION_TIMEOUT_SECONDS):
+        if not dispatch.applied.wait(SPLASH_MESSAGE_APPLICATION_TIMEOUT_SECONDS):
             raise TimeoutError("Splash GUI did not apply the session message.")
 
 

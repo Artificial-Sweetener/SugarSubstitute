@@ -43,6 +43,9 @@ from sugarsubstitute_shared.launch_splash.session import (
     splash_cancel_signal_path,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
+from sugarsubstitute_shared.launch_splash.timing import (
+    SPLASH_HOST_EXIT_TIMEOUT_SECONDS,
+)
 
 if TYPE_CHECKING:
     from launcher.sugarsubstitute_launcher.startup_splash_session import (
@@ -81,7 +84,7 @@ class LauncherSplashSession:
         """Confirm splash exit or terminate the launcher-owned helper."""
 
         try:
-            self.process.wait(timeout=2.0)
+            self.process.wait(timeout=SPLASH_HOST_EXIT_TIMEOUT_SECONDS)
             return
         except subprocess.TimeoutExpired:
             _LOGGER.warning(
