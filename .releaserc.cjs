@@ -89,6 +89,10 @@ module.exports = {
             label: "Update manifest",
           },
           {
+            path: ".local-release-channel/manifest.signed.json",
+            label: "Signed update manifest",
+          },
+          {
             path: ".local-release-channel/checksums.txt",
             label: "Release checksums",
           },
