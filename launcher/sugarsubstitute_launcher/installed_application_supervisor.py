@@ -96,7 +96,9 @@ class InstalledApplicationSupervisor:
                 layout=self._layout,
                 command=append_splash_session_args(self._command, splash_session),
                 environment=installed_application_environment(
-                    self._broker, remote_failure_reason=self._remote_failure_reason
+                    self._broker,
+                    layout=self._layout,
+                    remote_failure_reason=self._remote_failure_reason,
                 ),
                 on_ready=lambda: self.complete_startup(splash_session),
             )

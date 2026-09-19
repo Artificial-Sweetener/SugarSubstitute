@@ -60,10 +60,14 @@ def runtime_requirements_command(
     return command
 
 
-def runtime_environment(*, layout: InstallLayout) -> dict[str, str]:
+def runtime_environment(
+    *,
+    layout: InstallLayout,
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     """Build the environment that keeps uv and Python state deterministic."""
 
-    env = dict(os.environ)
+    env = dict(os.environ if environment is None else environment)
     env.pop("UV_EXCLUDE_NEWER", None)
     env["UV_CACHE_DIR"] = subprocess_path(layout.cache_dir / "uv")
     env["UV_PYTHON_INSTALL_DIR"] = subprocess_path(layout.runtime_dir / "python")

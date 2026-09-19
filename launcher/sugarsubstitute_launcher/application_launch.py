@@ -22,6 +22,7 @@ from collections.abc import Mapping, Sequence
 import os
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.runtime_policy import runtime_environment
 from launcher.sugarsubstitute_launcher.selected_installation_admission import (
     reserve_selected_installation,
 )
@@ -50,6 +51,7 @@ def elect_application(
 def installed_application_environment(
     broker: ApplicationBrokerSession,
     *,
+    layout: InstallLayout,
     remote_failure_reason: str | None,
     environment: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
@@ -58,7 +60,12 @@ def installed_application_environment(
     remote_access = StartupRemoteAccess()
     if remote_failure_reason is not None:
         remote_access.degrade(reason=remote_failure_reason)
-    remote_environment = remote_access.child_environment(environment or os.environ)
+    base_environment = os.environ if environment is None else environment
+    selected_environment = runtime_environment(
+        layout=layout,
+        environment=base_environment,
+    )
+    remote_environment = remote_access.child_environment(selected_environment)
     return broker.child_environment(
         packaged_application_environment(remote_environment)
     )
