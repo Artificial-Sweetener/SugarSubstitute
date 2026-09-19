@@ -22,6 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 
 import pytest
 from PySide6.QtCore import QCoreApplication
@@ -77,8 +78,7 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
     logs: list[dict[str, object]] = []
     paint_callbacks: list[Callable[[], None]] = []
     monkeypatch.setattr(
-        ready_shell_reveal,
-        "run_after_surface_paint",
+        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
         lambda _window, callback: paint_callbacks.append(callback),
     )
     monkeypatch.setattr(
@@ -98,10 +98,17 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         calls.append("show")
         return shown_shell_frame
 
-    def schedule_readiness_receipt(_window: object) -> bool:
+    def schedule_readiness_receipt(
+        window: object,
+        *,
+        before_publish: Callable[[], None] | None = None,
+    ) -> bool:
         """Record readiness scheduling at the visible-shell boundary."""
 
+        _ = window
         calls.append("schedule_readiness")
+        if before_publish is not None:
+            paint_callbacks.append(before_publish)
         return True
 
     result = ready_shell_reveal.reveal_ready_shell_main_window(
@@ -168,8 +175,7 @@ def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
     exceptions: list[str] = []
     paint_callbacks: list[Callable[[], None]] = []
     monkeypatch.setattr(
-        ready_shell_reveal,
-        "run_after_surface_paint",
+        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
         lambda _window, callback: paint_callbacks.append(callback),
     )
     monkeypatch.setattr(
@@ -238,8 +244,7 @@ def test_reveal_retains_splash_when_close_is_not_acknowledged(
     warnings: list[str] = []
     paint_callbacks: list[Callable[[], None]] = []
     monkeypatch.setattr(
-        ready_shell_reveal,
-        "run_after_surface_paint",
+        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
         lambda _window, callback: paint_callbacks.append(callback),
     )
     monkeypatch.setattr(
@@ -286,8 +291,7 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
     calls: list[str] = []
     paint_callbacks: list[Callable[[], None]] = []
     monkeypatch.setattr(
-        ready_shell_reveal,
-        "run_after_surface_paint",
+        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
         lambda _window, callback: paint_callbacks.append(callback),
     )
     monkeypatch.setattr(
@@ -440,6 +444,17 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
         calls.append("show")
         return window
 
+    def schedule_readiness(
+        window: object,
+        *,
+        before_publish: Callable[[], None] | None = None,
+    ) -> bool:
+        """Schedule only the ordered handoff needed by this paint test."""
+
+        if before_publish is not None:
+            run_after_surface_paint(window, before_publish)
+        return True
+
     ready_shell_reveal.reveal_ready_shell_main_window(
         splash=splash,
         shell_frame=window,
@@ -453,7 +468,7 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
         request_startup_diagnostics_update=lambda: None,
         schedule_post_show_hydration=lambda: None,
         trace_fields=lambda: {},
-        schedule_readiness_receipt=lambda _window: True,
+        schedule_readiness_receipt=schedule_readiness,
     )
 
     assert splash.progress == []

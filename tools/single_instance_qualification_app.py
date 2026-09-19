@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import json
 import logging
 import os
@@ -223,22 +224,27 @@ def _schedule_startup_handoff(
     install_root: Path,
     window: QWidget,
 ) -> None:
-    """Match production's close-before-readiness post-paint callback order."""
+    """Match production's atomic close-before-readiness surface handoff."""
 
-    _schedule_splash_close_after_surface_paint(arguments, install_root, window)
-    schedule_main_shell_readiness_receipt(window)
+    close_splash = _splash_close_after_surface_paint_callback(
+        arguments,
+        install_root,
+    )
+    schedule_main_shell_readiness_receipt(
+        window,
+        before_publish=close_splash,
+    )
 
 
-def _schedule_splash_close_after_surface_paint(
+def _splash_close_after_surface_paint_callback(
     arguments: list[str],
     install_root: Path,
-    window: QWidget,
-) -> None:
-    """Adopt and close the launcher splash after the replacement surface paints."""
+) -> Callable[[], None] | None:
+    """Create the launcher-splash close step for the painted-surface handoff."""
 
     splash_spec = splash_session_from_args(arguments)
     if splash_spec is None:
-        return
+        return None
     adoption_path = (
         install_root / "user" / "qualification-splash-adoptions" / f"{os.getpid()}.json"
     )
@@ -257,7 +263,7 @@ def _schedule_splash_close_after_surface_paint(
         payload["close_acknowledged"] = splash_client.close()
         _write_splash_adoption(adoption_path, payload)
 
-    run_after_surface_paint(window, close_adopted_splash)
+    return close_adopted_splash
 
 
 def _write_splash_adoption(path: Path, payload: dict[str, object]) -> None:

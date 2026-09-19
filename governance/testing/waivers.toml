@@ -1426,3 +1426,16 @@ fingerprint = "sha256:565c56dced77ffb432eb9be58cae35b9c2672e2223d49cd19169b6fa28
 rationale = "This Windows native integration module coordinates up to four simultaneous supervised child processes through a real socket barrier, named-pipe election, invocation forwarding, and kernel process-family cleanup. One contender timed out after unrelated process and Qt work in a reused xdist worker, while the exact four-contender case passed ten independent fresh processes and the complete parameter matrix passed ten fresh four-worker runs, covering 120 child processes. Each test owns a tmp_path identity, dynamically allocated port, supervised process families, and unique pipe identity. Fresh-process isolation preserves the real election race and cleanup assertions, bounds native parent-process state, and remains safely concurrent without global serialization."
 issue = "chore:SS-TEST-WAIVER-C0290"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0291"
+owner = "Cube Library add-pack Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/settings/cube_library/test_add_pack.py|isolated-module"]
+paths = ["tests/presentation/settings/cube_library/test_add_pack.py"]
+fingerprint = "sha256:c61d120c90fa8b0819798f3251a1972bb1b5f7ef5aa48b30d2d35444110325b9"
+rationale = "This module exercises the production Cube Library page through real qfluentwidgets expanders, validation-result rendering, immediate task callbacks, and QWidget teardown. Its first add-pack contract aborted a Windows xdist worker during garbage collection after more than 8,000 unrelated tests, while the retained worker report identified the exact active test. The module owns no network, subprocess, port, environment, or cross-process resource, and its service boundary is synchronous and test-local. Fresh-process isolation gives the native widget graph one explicit process lifetime, preserves every behavioral assertion, bounds native failure at the module-process owner, and remains safely concurrent without global serialization."
+issue = "chore:SS-TEST-WAIVER-C0291"
+review_by = 2026-12-15

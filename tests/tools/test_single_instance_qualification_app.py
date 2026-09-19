@@ -32,7 +32,7 @@ from tools.single_instance_qualification_app import (
     APPLICATION_REGISTRATION_GATE_ENV,
     APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV,
     _delay_application_registration,
-    _schedule_splash_close_after_surface_paint,
+    _splash_close_after_surface_paint_callback,
     _schedule_startup_handoff,
     _wait_at_application_registration_gate,
     _wait_at_window_construction_gate,
@@ -148,7 +148,6 @@ def test_qualification_child_records_applied_splash_close(
 ) -> None:
     """The replacement surface must close and observe its adopted splash."""
 
-    callbacks: list[Callable[[], None]] = []
     spec = SplashSessionSpec(
         host="127.0.0.1",
         port=54321,
@@ -177,15 +176,9 @@ def test_qualification_child_records_applied_splash_close(
         "tools.single_instance_qualification_app.SocketSplashSessionClient",
         _AcknowledgedClient,
     )
-    monkeypatch.setattr(
-        "tools.single_instance_qualification_app.run_after_surface_paint",
-        lambda _window, callback: callbacks.append(callback),
-    )
-
-    _schedule_splash_close_after_surface_paint(
+    close_splash = _splash_close_after_surface_paint_callback(
         ["main.py"],
         tmp_path,
-        cast(Any, object()),
     )
     adoption_path = next(
         (tmp_path / "user" / "qualification-splash-adoptions").glob("*.json")
@@ -196,7 +189,8 @@ def test_qualification_child_records_applied_splash_close(
         "splash_host_pid": 1234,
     }
 
-    callbacks[0]()
+    assert close_splash is not None
+    close_splash()
 
     assert json.loads(adoption_path.read_text(encoding="utf-8")) == {
         "app_pid": os.getpid(),
@@ -205,7 +199,7 @@ def test_qualification_child_records_applied_splash_close(
     }
 
 
-def test_qualification_schedules_splash_close_before_readiness(
+def test_qualification_completes_splash_close_before_publishing_readiness(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -214,26 +208,32 @@ def test_qualification_schedules_splash_close_before_readiness(
     scheduled: list[str] = []
     window = cast(Any, object())
 
-    def schedule_close(
+    def create_close(
         _arguments: list[str],
         _root: Path,
+    ) -> Callable[[], None]:
+        """Return a close step whose completion is observable."""
+
+        scheduled.append("splash_close_created")
+        return lambda: scheduled.append("splash_close_applied")
+
+    def schedule_readiness(
         received_window: object,
-    ) -> None:
-        """Record qualification splash-close registration."""
+        *,
+        before_publish: Callable[[], None] | None = None,
+    ) -> bool:
+        """Model the ordered post-paint readiness publisher."""
 
         assert received_window is window
-        scheduled.append("splash_close")
-
-    def schedule_readiness(received_window: object) -> bool:
-        """Record qualification readiness registration."""
-
-        assert received_window is window
-        scheduled.append("readiness")
+        scheduled.append("readiness_scheduled")
+        assert before_publish is not None
+        before_publish()
+        scheduled.append("readiness_published")
         return True
 
     monkeypatch.setattr(
-        "tools.single_instance_qualification_app._schedule_splash_close_after_surface_paint",
-        schedule_close,
+        "tools.single_instance_qualification_app._splash_close_after_surface_paint_callback",
+        create_close,
     )
     monkeypatch.setattr(
         "tools.single_instance_qualification_app.schedule_main_shell_readiness_receipt",
@@ -242,7 +242,12 @@ def test_qualification_schedules_splash_close_before_readiness(
 
     _schedule_startup_handoff(["main.py"], tmp_path, window)
 
-    assert scheduled == ["splash_close", "readiness"]
+    assert scheduled == [
+        "splash_close_created",
+        "readiness_scheduled",
+        "splash_close_applied",
+        "readiness_published",
+    ]
 
 
 def test_qualification_child_authenticates_requested_clean_close(
@@ -359,11 +364,7 @@ def test_qualification_child_authenticates_requested_clean_close(
     )
     monkeypatch.setattr(
         "tools.single_instance_qualification_app.schedule_main_shell_readiness_receipt",
-        lambda _window: True,
-    )
-    monkeypatch.setattr(
-        "tools.single_instance_qualification_app._schedule_splash_close_after_surface_paint",
-        lambda _arguments, _root, _window: None,
+        lambda _window, *, before_publish=None: True,
     )
     monkeypatch.setattr(
         "tools.single_instance_qualification_app._surface_evidence",
