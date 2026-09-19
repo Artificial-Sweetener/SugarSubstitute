@@ -21,16 +21,19 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 import ctypes
 from ctypes import wintypes
-import errno
 import logging
 from pathlib import Path
 import subprocess
 
 from sugarsubstitute_shared.windows_process_creation import create_windows_process
 from sugarsubstitute_shared.windows_process_handle_api import NativeProcessHandleApi
-from sugarsubstitute_shared.windows_process_job_api import load_kernel
+from sugarsubstitute_shared.windows_process_job_api import (
+    APPLICATION_PROCESS_FAMILY_ENV,
+    load_kernel,
+)
 
 _LOGGER = logging.getLogger(__name__)
+_JOB_OBJECT_QUERY = 0x0004
 
 
 def start_independent_windows_process(
@@ -40,11 +43,12 @@ def start_independent_windows_process(
     cwd: Path,
     output_fd: int,
 ) -> int:
-    """Resume only a child proven independent of every inherited job.
+    """Resume a child after Windows accepts explicit native breakaway creation.
 
-    Nested jobs may accept CREATE_BREAKAWAY_FROM_JOB while retaining the child
-    in an outer job. Suspend creation, inspect the actual child, then either
-    resume it or retire it before it can spawn descendants or change files.
+    The child must escape the application's immediate kill-on-close family.
+    Windows may retain it in a higher-level host job, whose lifetime and policy
+    are independent of the application owner. Creation remains suspended until
+    membership can be observed and the initial thread can be resumed safely.
     """
     kernel = load_kernel()
     kernel.IsProcessInJob.argtypes = [
@@ -55,44 +59,69 @@ def start_independent_windows_process(
     kernel.IsProcessInJob.restype = wintypes.BOOL
     kernel.ResumeThread.argtypes = [wintypes.HANDLE]
     kernel.ResumeThread.restype = wintypes.DWORD
-    process = create_windows_process(
-        command,
-        environment=environment,
-        cwd=cwd,
-        output_fd=output_fd,
-        creation_flags=(
-            subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.DETACHED_PROCESS
-            | subprocess.CREATE_BREAKAWAY_FROM_JOB
-            | 0x00000004
-        ),
-    )
-    admitted = False
+    child_environment = dict(environment)
+    family_name = child_environment.pop(APPLICATION_PROCESS_FAMILY_ENV, None)
+    family = 0
     try:
-        member = wintypes.BOOL()
-        if not kernel.IsProcessInJob(process.process, None, ctypes.byref(member)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        if member.value:
-            raise PermissionError(
-                errno.EACCES, "Independent process remains in an inherited Windows job."
-            )
-        if kernel.ResumeThread(process.thread) == 0xFFFFFFFF:
-            raise ctypes.WinError(ctypes.get_last_error())
-        admitted = True
-        _LOGGER.info("Admitted independent process | child_pid=%s", process.pid)
-        return int(process.pid)
-    finally:
+        if family_name:
+            family = kernel.OpenJobObjectW(_JOB_OBJECT_QUERY, False, family_name)
+            if not family:
+                raise ctypes.WinError(ctypes.get_last_error())
+        process = create_windows_process(
+            command,
+            environment=child_environment,
+            cwd=cwd,
+            output_fd=output_fd,
+            creation_flags=(
+                subprocess.CREATE_NEW_PROCESS_GROUP
+                | subprocess.DETACHED_PROCESS
+                | subprocess.CREATE_BREAKAWAY_FROM_JOB
+                | 0x00000004
+            ),
+        )
+        admitted = False
         try:
-            if not admitted:
-                native = NativeProcessHandleApi(allow_termination=True)
-                native.terminate(process.process)
-                if not native.wait(process.process, 5000):
-                    raise TimeoutError(
-                        "Rejected independent process did not complete native exit."
+            if family:
+                retained = wintypes.BOOL()
+                if not kernel.IsProcessInJob(
+                    process.process, family, ctypes.byref(retained)
+                ):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                if retained.value:
+                    raise PermissionError(
+                        "Independent process remains in the application-owned "
+                        "Windows process family."
                     )
+            member = wintypes.BOOL()
+            if not kernel.IsProcessInJob(process.process, None, ctypes.byref(member)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if member.value:
                 _LOGGER.info(
-                    "Retired unadmitted suspended process | child_pid=%s", process.pid
+                    "Independent process escaped its application-owned family "
+                    "but remains governed by a host job | child_pid=%s",
+                    process.pid,
                 )
+            if kernel.ResumeThread(process.thread) == 0xFFFFFFFF:
+                raise ctypes.WinError(ctypes.get_last_error())
+            admitted = True
+            _LOGGER.info("Admitted independent process | child_pid=%s", process.pid)
+            return int(process.pid)
         finally:
-            kernel.CloseHandle(process.thread)
-            kernel.CloseHandle(process.process)
+            try:
+                if not admitted:
+                    native = NativeProcessHandleApi(allow_termination=True)
+                    native.terminate(process.process)
+                    if not native.wait(process.process, 5000):
+                        raise TimeoutError(
+                            "Rejected independent process did not complete native exit."
+                        )
+                    _LOGGER.info(
+                        "Retired unadmitted suspended process | child_pid=%s",
+                        process.pid,
+                    )
+            finally:
+                kernel.CloseHandle(process.thread)
+                kernel.CloseHandle(process.process)
+    finally:
+        if family:
+            kernel.CloseHandle(family)

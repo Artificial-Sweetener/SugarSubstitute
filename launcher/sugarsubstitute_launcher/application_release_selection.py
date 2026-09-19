@@ -84,11 +84,11 @@ class ApplicationReleaseSelection:
         return self._selection
 
     def prepare(self, *, generation: str, version: str) -> Path:
-        """Create one empty transaction-owned paired generation."""
+        """Create one empty transaction-owned generation at its permanent path."""
 
         name = _generation_name(generation)
-        destination = self.preparing_root(name)
-        if destination.exists() or self.generation_root(name).exists():
+        destination = self.generation_root(name)
+        if destination.exists() or self.preparing_root(name).exists():
             raise ValueError("Application release generation already exists.")
         destination.mkdir(parents=True)
         write_json_atomic(
@@ -106,14 +106,15 @@ class ApplicationReleaseSelection:
         """Seal one prepared generation and atomically make it current."""
 
         name = _generation_name(generation)
-        preparing = self.preparing_root(name)
-        record = self._read_release_record(preparing, expected_generation=name)
-        if not (preparing / "app").is_dir() or not (preparing / "runtime").is_dir():
+        prepared = self.candidate_root(name)
+        record = self._read_release_record(prepared, expected_generation=name)
+        if not (prepared / "app").is_dir() or not (prepared / "runtime").is_dir():
             raise ValueError("Prepared application release is incomplete.")
         current = self.load()
         destination = self.generation_root(name)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        preparing.replace(destination)
+        if prepared != destination:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            prepared.replace(destination)
         self._write_release_status(destination, record, status="active")
         selected = ApplicationReleaseSelectionRecord(
             current=name,
@@ -153,7 +154,14 @@ class ApplicationReleaseSelection:
     def abandon_preparation(self, *, generation: str) -> None:
         """Remove only the incomplete storage owned by one failed transaction."""
 
-        shutil.rmtree(self.preparing_root(generation), ignore_errors=True)
+        name = _generation_name(generation)
+        shutil.rmtree(self.preparing_root(name), ignore_errors=True)
+        destination = self.generation_root(name)
+        if not destination.exists():
+            return
+        record = self._read_release_record(destination, expected_generation=name)
+        if record["status"] == "preparing":
+            shutil.rmtree(destination, ignore_errors=True)
 
     def recover_failed_activation(self, *, generation: str) -> None:
         """Rollback a selected candidate or quarantine an interrupted publication."""
@@ -229,9 +237,21 @@ class ApplicationReleaseSelection:
         return root
 
     def preparing_root(self, generation: str) -> Path:
-        """Return transaction-owned preparation storage for one safe identity."""
+        """Return the legacy relocatable preparation path for recovery."""
 
         return self._preparing / _generation_name(generation)
+
+    def candidate_root(self, generation: str) -> Path:
+        """Resolve permanent preparation or a retained legacy transaction path."""
+
+        name = _generation_name(generation)
+        destination = self.generation_root(name)
+        if destination.exists():
+            return destination
+        legacy = self.preparing_root(name)
+        if legacy.exists():
+            return legacy
+        return destination
 
     def generation_root(self, generation: str) -> Path:
         """Return immutable storage for one safe generation identity."""
