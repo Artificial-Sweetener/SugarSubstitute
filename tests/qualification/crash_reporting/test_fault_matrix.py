@@ -288,6 +288,11 @@ class _CandidateActivation:
 
         self.transitions.append("rollback")
 
+    def reject(self, reason: str) -> None:
+        """Record failed-target rejection."""
+
+        self.transitions.append(f"reject:{reason}")
+
 
 def test_real_update_candidate_handoff_preserves_crash_supervision(
     tmp_path: Path,

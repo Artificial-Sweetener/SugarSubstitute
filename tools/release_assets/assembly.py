@@ -23,6 +23,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from sugarsubstitute_shared.launcher_version import safe_launcher_version
+from sugarsubstitute_shared.update_compatibility import (
+    load_repository_update_compatibility,
+)
 from tools.release_assets.launcher_archive import prepare_installed_launcher_archive
 from tools.release_assets.models import LocalReleaseBuildResult, PlatformReleaseInput
 from tools.release_assets.payload import (
@@ -45,7 +48,6 @@ def build_local_release_channel(
     output_dir: Path,
     version: str,
     channel: str = "stable",
-    minimum_launcher_version: str = "0.1.0",
     platform_inputs: Sequence[PlatformReleaseInput] = (),
     asset_base_url: str | None = None,
 ) -> LocalReleaseBuildResult:
@@ -57,6 +59,7 @@ def build_local_release_channel(
     validate_repo_root(resolved_repo_root)
     validate_output_dir(repo_root=resolved_repo_root, output_dir=resolved_output_dir)
     resolved_output_dir.mkdir(parents=True, exist_ok=True)
+    compatibility = load_repository_update_compatibility(resolved_repo_root)
 
     app_zip_path = resolved_output_dir / f"{APP_PAYLOAD_PREFIX}{version}.zip"
     build_app_payload_zip(repo_root=resolved_repo_root, output_path=app_zip_path)
@@ -99,7 +102,9 @@ def build_local_release_channel(
         manifest_path=manifest_path,
         version=version,
         channel=channel,
-        minimum_launcher_version=minimum_launcher_version,
+        minimum_launcher_version=compatibility.minimum_direct_launcher_version,
+        update_protocol=compatibility.update_protocol,
+        data_schema_epoch=compatibility.data_schema_epoch,
         app_asset=app_asset,
         launcher_assets=launcher_assets,
         installer_assets=installer_assets,

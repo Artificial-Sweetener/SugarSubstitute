@@ -91,6 +91,10 @@ def test_build_launcher_data_files_includes_every_runtime_owner(
             "launcher_assets",
         ),
         (
+            str(repo_root.resolve() / "launcher" / "release-trust-root.json"),
+            "launcher_assets",
+        ),
+        (
             str(repo_root.resolve() / "launcher" / "sugarsubstitute_launcher" / "i18n"),
             "launcher/sugarsubstitute_launcher/i18n",
         ),

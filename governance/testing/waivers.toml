@@ -1439,3 +1439,42 @@ fingerprint = "sha256:c61d120c90fa8b0819798f3251a1972bb1b5f7ef5aa48b30d2d3544411
 rationale = "This module exercises the production Cube Library page through real qfluentwidgets expanders, validation-result rendering, immediate task callbacks, and QWidget teardown. Its first add-pack contract aborted a Windows xdist worker during garbage collection after more than 8,000 unrelated tests, while the retained worker report identified the exact active test. The module owns no network, subprocess, port, environment, or cross-process resource, and its service boundary is synchronous and test-local. Fresh-process isolation gives the native widget graph one explicit process lifetime, preserves every behavioral assertion, bounds native failure at the module-process owner, and remains safely concurrent without global serialization."
 issue = "chore:SS-TEST-WAIVER-C0291"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0292"
+owner = "Kernel-owned process-family lifetime contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/application_readiness/test_process_family_lifetime.py|isolated-module"]
+paths = ["tests/launcher/application_readiness/test_process_family_lifetime.py"]
+fingerprint = "sha256:7e65a49ae18bf7f76034c3cda306f07efb70ef06fb2803fa72fc5bee31b0ace6"
+rationale = "This Windows native qualification constructs real kernel-owned process families, including a 21-process descendant tree, and retains exact process identities while proving no descendant outlives its owner. Its wide-family case reached Windows commit exhaustion while running in a reused xdist worker beside native Qt image tests, although the exact case passed immediately both alone and concurrently with the other affected contracts. Each case owns a dynamic loopback port, tmp_path files, and one supervised family. Fresh-process isolation releases the native process and psutil allocation lifetime at the module boundary, preserves every descendant-cleanup assertion, and remains safely concurrent."
+issue = "chore:SS-TEST-WAIVER-C0292"
+review_by = 2026-12-18
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0293"
+owner = "Output comparison tiling resource contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/canvas/output/document/test_comparison_tiling.py|isolated-module"]
+paths = ["tests/presentation/canvas/output/document/test_comparison_tiling.py"]
+fingerprint = "sha256:414b154f71d88f740487cf4db13514f97f41626bec951952d09fc5580ecf2c39"
+rationale = "This native Qt qualification allocates three multi-megapixel source images and repeatedly drives asynchronous tile generation, comparison navigation, resize, zoom, and pan through the production Output document. Its exact assertion failed during the same Windows commit-exhausted reused-worker run as the wide process-family contract, while the case passed immediately alone and concurrently with the other affected contracts. The module owns one QApplication-local document and test-local images with no shared external resource. Fresh-process isolation bounds native image and tile lifetimes at process exit, preserves all pixel and identity assertions, and remains safely concurrent."
+issue = "chore:SS-TEST-WAIVER-C0293"
+review_by = 2026-12-18
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0294"
+owner = "Output document state resource contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/canvas/output/document/test_document_state.py|isolated-module"]
+paths = ["tests/presentation/canvas/output/document/test_document_state.py"]
+fingerprint = "sha256:193985aa5f5dfe4e11efedb5b3d712b4bbb9662af51152e251402724fa5c13bd"
+rationale = "This native Qt module exercises Output document identity, immutable composition state, presentations, replacement, previews, and cleanup across one application process. Its primary ownership contract failed during the same Windows commit-exhausted reused-worker run as the wide process-family and multi-megapixel tiling contracts, while the exact case passed immediately alone and concurrently with both affected cases. All images, execution state, and Qt objects are process-local. Fresh-process isolation gives the document graph an explicit native lifetime, preserves every state assertion, and remains safely concurrent."
+issue = "chore:SS-TEST-WAIVER-C0294"
+review_by = 2026-12-18

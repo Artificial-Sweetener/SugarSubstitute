@@ -27,7 +27,10 @@ import pytest
 from launcher.sugarsubstitute_launcher.config import LauncherConfig, UpdateCheckConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
-from launcher.sugarsubstitute_launcher.payload_models import AppPayloadInstallResult
+from launcher.sugarsubstitute_launcher.payload_models import (
+    AppPayloadInstallResult,
+    StagedAppPayload,
+)
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
@@ -88,7 +91,10 @@ def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     assert result.checked_manifest is True
     assert result.installed_update is True
     assert installer.installed_layouts == [layout]
-    assert runtime_reconciler.reconciled_layouts == [layout]
+    assert len(runtime_reconciler.reconciled_layouts) == 1
+    reconciled_layout = runtime_reconciler.reconciled_layouts[0]
+    assert reconciled_layout.root == layout.root
+    assert reconciled_layout.release_root is not None
     assert not layout.state_path.exists()
     assert result.pending_activation is not None
     assert result.attempted_version == "0.4.0"
@@ -456,8 +462,12 @@ class _PayloadInstaller:
         """Record one install and return a successful result."""
 
         self.installed_layouts.append(activation.layout)
-        return AppPayloadInstallResult(
-            version=self._version, app_dir=activation.layout.app_dir
+        activation.staging_directory.mkdir(parents=True)
+        return activation.promote_app(
+            StagedAppPayload(
+                version=self._version,
+                staging_dir=activation.staging_directory,
+            )
         )
 
 

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -95,6 +96,41 @@ def test_first_normal_launch_does_not_reinstall_first_run_payload(
     assert result.installed_update is False
     assert result.skipped_reason == "installed_current"
     assert result.failure_reason is None
+
+
+def test_continue_install_persists_authenticated_manifest_identity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Protect first-run installs from later metadata rollback and equivocation."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    write_manifest(release_root / "manifest.json", app_zip=app_zip)
+    release_source = LocalFolderReleaseSource(release_root)
+    unsigned_manifest = release_source.load_manifest()
+    signed_digest = "a" * 64
+    monkeypatch.setattr(
+        LocalFolderReleaseSource,
+        "load_manifest",
+        lambda _self: replace(
+            unsigned_manifest,
+            signed_metadata_version=41,
+            signed_metadata_digest=signed_digest,
+        ),
+    )
+    layout = InstallLayout.from_root(tmp_path / "install")
+
+    FirstRunInstaller().continue_install(layout=layout, release_source=release_source)
+
+    state = json.loads(
+        (layout.launcher_dir / "trusted-metadata.json").read_text(encoding="utf-8")
+    )
+    assert state == {
+        "metadata_version": 41,
+        "schema_version": 1,
+        "signed_digest": signed_digest,
+    }
 
 
 def test_continue_install_persists_github_release_source(

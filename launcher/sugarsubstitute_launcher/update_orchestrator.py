@@ -33,6 +33,10 @@ from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
+from launcher.sugarsubstitute_launcher.data_migrations import (
+    DataMigrationRunner,
+    default_data_migration_runner,
+)
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
 from launcher.sugarsubstitute_launcher.payload_models import AppPayloadInstallResult
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
@@ -54,6 +58,8 @@ from launcher.sugarsubstitute_launcher.update_policy import (
     decide_update_check,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from launcher.sugarsubstitute_launcher.update_quarantine import UpdateQuarantine
+from launcher.sugarsubstitute_launcher.trusted_metadata import TrustedMetadataState
 from launcher.sugarsubstitute_launcher.update_progress import (
     LauncherUpdateProgress,
     ResilientLauncherUpdateProgress,
@@ -131,6 +137,7 @@ class LauncherUpdateOrchestrator:
         runtime_reconciler: RuntimeReconciler | None = None,
         launcher_bundle_stager: LauncherBundleStagerProtocol | None = None,
         rollback_reporter: UpdateRollbackReporter = record_update_rollback,
+        data_migration_runner: DataMigrationRunner | None = None,
         launcher_version: str = LAUNCHER_VERSION,
         now: Callable[[], datetime] | None = None,
     ) -> None:
@@ -142,6 +149,7 @@ class LauncherUpdateOrchestrator:
             stager=launcher_bundle_stager, launcher_version=launcher_version
         )
         self._rollback_reporter = rollback_reporter
+        self._data_migrations = data_migration_runner or default_data_migration_runner()
         self._now = _utc_now if now is None else now
 
     def run(
@@ -211,6 +219,15 @@ class LauncherUpdateOrchestrator:
         InstallationRecovery(layout).recover()
         state = LauncherUpdateState.load(layout.state_path)
         manifest = release_source.load_manifest()
+        if (
+            manifest.signed_metadata_version is not None
+            and manifest.signed_metadata_digest is not None
+        ):
+            TrustedMetadataState.admit(
+                install_root=layout.root,
+                metadata_version=manifest.signed_metadata_version,
+                signed_digest=manifest.signed_metadata_digest,
+            )
         if manifest.channel != config.channel:
             state.with_update_check(
                 channel=manifest.channel,
@@ -244,6 +261,16 @@ class LauncherUpdateOrchestrator:
             manifest_version=manifest.version,
         )
         if update_policy.decision is AppPayloadUpdateDecision.INSTALL:
+            if UpdateQuarantine(layout.root).contains(
+                version=manifest.version,
+                sha256=manifest.app.sha256,
+            ):
+                return PreLaunchUpdateResult(
+                    checked_manifest=True,
+                    installed_update=False,
+                    skipped_reason="candidate_quarantined",
+                    attempted_version=manifest.version,
+                )
             successful_state = state.with_successful_update(
                 version=manifest.version,
                 channel=manifest.channel,
@@ -252,6 +279,8 @@ class LauncherUpdateOrchestrator:
             activation = PendingUpdateActivation.begin(
                 layout=layout,
                 successful_state=successful_state,
+                generation_backed=True,
+                candidate_sha256=manifest.app.sha256,
             )
             try:
                 progress.start_activity(application_install_activity(manifest.version))
@@ -262,10 +291,18 @@ class LauncherUpdateOrchestrator:
                     )
                     progress.start_activity(application_dependencies_activity())
                     activation.prepare_runtime()
-                    self._runtime_reconciler.reconcile(layout=layout, progress=progress)
+                    self._runtime_reconciler.reconcile(
+                        layout=activation.preparation_layout,
+                        progress=progress,
+                    )
+                    self._data_migrations.migrate(
+                        install_root=layout.root,
+                        target_epoch=manifest.compatibility.data_schema_epoch,
+                    )
+                    activation.activate()
                 except BaseException as error:
                     progress.clear_activity()
-                    activation.rollback()
+                    activation.reject(type(error).__name__)
                     self._rollback_reporter(
                         install_root=layout.root,
                         attempted_version=manifest.version,

@@ -69,6 +69,11 @@ def test_readiness_receipt_is_queued_after_shell_reveal(
         "schema_version": READINESS_SCHEMA_VERSION,
         "surface": "main_shell",
         "token": "launch-token",
+        "milestones": [
+            "process_started",
+            "surface_painted",
+            "event_loop_turn_completed",
+        ],
     }
     assert os.environ[READINESS_PATH_ENV] == str(readiness_path)
     assert os.environ[READINESS_TOKEN_ENV] == "launch-token"

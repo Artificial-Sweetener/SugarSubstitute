@@ -37,6 +37,10 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
 )
+from sugarsubstitute_shared.launcher_update.attempt_status import (
+    LauncherUpdateAttemptPhase,
+    LauncherUpdateAttemptStore,
+)
 from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
@@ -107,6 +111,7 @@ class InstalledCandidateLaunch:
     process: subprocess.Popen[bytes]
     output_path: Path
     progress_baselines: tuple[tuple[Path, tuple[bool, int]], ...] = ()
+    update_attempt_baseline: bytes | None = None
 
 
 def prepare_qualification_evidence(
@@ -192,6 +197,7 @@ def launch_installed_candidate(
     progress_baselines = tuple(
         (path, _path_signature(path)) for path in observed_progress_paths
     )
+    attempt_store = LauncherUpdateAttemptStore(layout.root)
     with output_path.open("wb") as output:
         process = subprocess.Popen(
             [str(layout.executable_path)],
@@ -207,6 +213,7 @@ def launch_installed_candidate(
         process=process,
         output_path=output_path,
         progress_baselines=progress_baselines,
+        update_attempt_baseline=_read_optional_bytes(attempt_store.path),
     )
 
 
@@ -258,6 +265,8 @@ def verify_main_shell_evidence(
                 candidate_launch=candidate_launch,
                 additional_paths=additional_diagnostic_paths,
             ),
+            update_attempt_store=LauncherUpdateAttemptStore(install_root),
+            expected_update_version=expected_version,
         )
         if expected_main_pid is not None and receipt.pid != expected_main_pid:
             raise InstallerLifecycleError(
@@ -335,6 +344,8 @@ def _wait_for_readiness_receipt(
     trace_path: Path | None = None,
     qualification_event_path: Path | None = None,
     diagnostic_paths: tuple[Path, ...] = (),
+    update_attempt_store: LauncherUpdateAttemptStore | None = None,
+    expected_update_version: str | None = None,
 ) -> ApplicationReadinessReceipt:
     """Wait for a token-bound main-shell receipt or surface diagnostics."""
 
@@ -347,6 +358,29 @@ def _wait_for_readiness_receipt(
     trace_offset = 0
     qualification_event_offset = 0
     while (now := time.monotonic()) < deadline:
+        if update_attempt_store is not None and candidate_launch is not None:
+            current_attempt = _read_optional_bytes(update_attempt_store.path)
+            if current_attempt != candidate_launch.update_attempt_baseline:
+                try:
+                    status = update_attempt_store.load()
+                except (OSError, ValueError) as error:
+                    raise InstallerLifecycleError(
+                        "Launcher wrote an invalid update attempt status."
+                    ) from error
+                if (
+                    status is not None
+                    and status.phase is LauncherUpdateAttemptPhase.FAILED
+                    and (
+                        expected_update_version is None
+                        or status.version == expected_update_version
+                    )
+                ):
+                    raise InstallerLifecycleError(
+                        "Launcher reported a terminal update failure before the "
+                        "main-shell receipt: "
+                        f"route={status.route}; error={status.error_type}; "
+                        f"message={status.error_message}."
+                    )
         if candidate_launch is not None:
             return_code = candidate_launch.process.poll()
             if return_code not in {None, 0}:
@@ -481,6 +515,15 @@ def _path_signature(path: Path) -> tuple[bool, int]:
         return True, path.stat().st_size
     except OSError:
         return False, 0
+
+
+def _read_optional_bytes(path: Path) -> bytes | None:
+    """Read one small status file or return absence without racing publication."""
+
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
 
 
 __all__ = [
