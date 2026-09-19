@@ -24,6 +24,7 @@ from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy.nodepack_installation_inspector import (
     read_nodepack_project_identity,
@@ -100,7 +101,10 @@ def read_historical_sugarcubes_version(install_root: Path) -> str:
     """Read the signed historical app payload's literal SugarCubes requirement."""
 
     contract_path = (
-        install_root / "app" / "substitute" / "domain" / "comfy_nodepacks.py"
+        InstallLayout.from_root(install_root).app_dir
+        / "substitute"
+        / "domain"
+        / "comfy_nodepacks.py"
     )
     try:
         module = ast.parse(contract_path.read_text(encoding="utf-8"))
