@@ -37,16 +37,23 @@ def test_resource_names_load_from_qt_resource_prefix() -> None:
     names = discover_splash_pose_names()
 
     assert names[:3] == ("1.png", "2.png", "3.png")
-    assert names[-5:] == ("comfy.png", "cubby.png", "liz.png", "ren.png", "witchy.png")
+    assert names[-6:] == (
+        "cass.png",
+        "comfy.png",
+        "cubby.png",
+        "liz.png",
+        "ren.png",
+        "witchy.png",
+    )
 
 
 def test_numbered_resource_set_has_no_gaps() -> None:
-    """Packaged numbered splash poses should be contiguous from 1 through 24."""
+    """Packaged numbered splash poses should be contiguous from 1 through 28."""
 
     names = discover_splash_pose_names()
     numbered = tuple(name for name in names if name.removesuffix(".png").isdigit())
 
-    assert numbered == tuple(f"{index}.png" for index in range(1, 25))
+    assert numbered == tuple(f"{index}.png" for index in range(1, 29))
 
 
 def test_pose_weight_policy_distinguishes_numbered_and_named_assets() -> None:
@@ -63,7 +70,7 @@ def test_pose_library_loads_pixmaps_and_weights() -> None:
 
     poses = load_splash_pose_library()
 
-    assert len(poses) == 29
+    assert len(poses) == 34
     assert poses[0].name == "1.png"
     assert poses[0].resource_path == ":/substitute/splash/poses/1.png"
     assert poses[0].base_weight == pytest.approx(NUMBERED_POSE_WEIGHT)
