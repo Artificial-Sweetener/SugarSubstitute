@@ -20,14 +20,20 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
 
 from launcher.sugarsubstitute_launcher import (
+    application_launch,
     installed_application_supervisor,
     installed_app_handoff,
+)
+from launcher.sugarsubstitute_launcher.application_release_selection import (
+    ApplicationReleaseSelection,
 )
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -75,6 +81,55 @@ def _layout(tmp_path: Path) -> InstallLayout:
         layout.config_path
     )
     return layout
+
+
+def test_application_child_environment_replaces_legacy_release_paths(
+    tmp_path: Path,
+) -> None:
+    """Bind Python startup to the selected generation after a launcher handoff."""
+
+    layout = _layout(tmp_path)
+    generation = "a" * 32
+    selection = ApplicationReleaseSelection(layout.root)
+    release_root = selection.prepare(generation=generation, version="2.0.0")
+    candidate_app = release_root / "app"
+    candidate_package = candidate_app / "fixture_package"
+    candidate_package.mkdir(parents=True)
+    (candidate_app / "sitecustomize.py").write_text(
+        "import fixture_package\n", encoding="utf-8"
+    )
+    (candidate_package / "__init__.py").write_text("", encoding="utf-8")
+    (candidate_package / "candidate_only.py").write_text("", encoding="utf-8")
+    (release_root / "runtime").mkdir()
+    selection.activate(generation=generation)
+    legacy_app = layout.root / "app"
+    legacy_package = legacy_app / "fixture_package"
+    legacy_package.mkdir(parents=True)
+    (legacy_app / "sitecustomize.py").write_text(
+        "import fixture_package\n", encoding="utf-8"
+    )
+    (legacy_package / "__init__.py").write_text("", encoding="utf-8")
+
+    environment = application_launch.installed_application_environment(
+        _Broker(),  # type: ignore[arg-type]
+        layout=layout,
+        remote_failure_reason=None,
+        environment={"PYTHONPATH": str(legacy_app)},
+    )
+
+    assert environment["PYTHONPATH"] == str(release_root / "app")
+    assert environment["VIRTUAL_ENV"] == str(release_root / "runtime" / ".venv")
+    assert environment["PYTHONPATH"] != str(legacy_app)
+    import_probe = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", "import fixture_package.candidate_only"],
+        cwd=layout.root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60.0,
+    )
+    assert import_probe.returncode == 0, import_probe.stderr
 
 
 def test_normal_handoff_supervises_restarts_with_the_same_broker(
