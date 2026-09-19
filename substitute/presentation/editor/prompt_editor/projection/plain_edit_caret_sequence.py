@@ -398,6 +398,8 @@ class PromptProjectionPlainEditCaretStopSequence(Sequence[PromptProjectionCaretS
             placement=placement,
             token_slot=token_slot,
         )
+        if not isinstance(previous_state, PromptProjectionCaretState):
+            return None
         return self._transform_previous_state(previous_state)
 
     def next_state(
