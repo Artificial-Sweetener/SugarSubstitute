@@ -31,7 +31,10 @@ from typing import TypeVar
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from tools.single_instance_cold_start_evidence import splash_host_pids
+from tools.single_instance_cold_start_evidence import (
+    qualification_app_pids,
+    splash_host_pids,
+)
 from tools.single_instance_qualification_app import (
     invocation_evidence_path,
     restart_evidence_path,
@@ -40,21 +43,6 @@ from tools.single_instance_qualification_app import (
 
 _TIMEOUT_SECONDS = 30.0
 _T = TypeVar("_T")
-
-
-def _qualification_app_pids(layout: InstallLayout) -> tuple[int, ...]:
-    """Return live registered children in the disposable installation."""
-
-    matches: list[int] = []
-    for marker_path in (layout.user_dir / "qualification-owners").glob("*.json"):
-        try:
-            payload = json.loads(marker_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        pid = payload.get("pid") if isinstance(payload, dict) else None
-        if isinstance(pid, int) and psutil.pid_exists(pid):
-            matches.append(pid)
-    return tuple(matches)
 
 
 def _wait_for_invocation_count(layout: InstallLayout, expected_count: int) -> None:
@@ -254,7 +242,7 @@ def _wait_for_restart_evidence(
 def _assert_single_child(layout: InstallLayout, expected_pid: int) -> None:
     """Prove exactly one registered application child remains live."""
 
-    observed = tuple(sorted(_qualification_app_pids(layout)))
+    observed = tuple(sorted(qualification_app_pids(layout)))
     if observed != (expected_pid,):
         raise AssertionError(f"Expected one child {expected_pid}, observed {observed}.")
 
@@ -352,7 +340,7 @@ def _terminate_launchers(processes: Sequence[subprocess.Popen[bytes]]) -> None:
 def _terminate_qualification_apps(layout: InstallLayout) -> None:
     """Stop remaining children belonging to the disposable installation."""
 
-    for pid in _qualification_app_pids(layout):
+    for pid in qualification_app_pids(layout):
         try:
             process = psutil.Process(pid)
             process.kill()
