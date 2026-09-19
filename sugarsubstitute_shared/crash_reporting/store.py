@@ -223,6 +223,32 @@ class CrashIncidentStore:
                 temporary_path.unlink(missing_ok=True)
         return destination
 
+    def read_text_attachments(
+        self,
+        incident: CrashIncident,
+    ) -> tuple[tuple[str, str], ...]:
+        """Return readable text diagnostics attached to one durable incident."""
+
+        attachments: list[tuple[str, str]] = []
+        for filename in incident.attachments:
+            if Path(filename).suffix.lower() not in {".log", ".txt"}:
+                continue
+            path = self.attachment_path(incident.incident_id, filename)
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                _LOGGER.warning(
+                    "Crash text attachment could not be read.",
+                    extra={
+                        "incident_id": incident.incident_id,
+                        "attachment": filename,
+                    },
+                    exc_info=True,
+                )
+                continue
+            attachments.append((filename, content))
+        return tuple(attachments)
+
     def _incident_directory(self, incident_id: str) -> Path:
         """Return one incident directory after enforcing namespace containment."""
 

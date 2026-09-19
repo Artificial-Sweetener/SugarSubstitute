@@ -48,6 +48,44 @@ from sugarsubstitute_shared.crash_reporting import (
 )
 
 
+def test_complete_crash_report_embeds_sanitized_text_attachments(
+    tmp_path: Path,
+) -> None:
+    """The clipboard report should carry readable logs without binary dump content."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    incident = CrashIncident(
+        incident_id="complete-report",
+        run_id="complete-report",
+        occurred_at_utc="2026-09-19T02:00:00+00:00",
+        kind=CrashKind.PYTHON_UNHANDLED,
+        boundary=CrashBoundary.PROCESS_MAIN,
+        attribution=CrashAttribution.CONFIRMED,
+        summary="Synthetic interruption",
+        process_id=42,
+        attachments=("python-fault.log", "native.dmp"),
+    )
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    directory = store.record(incident)
+    (directory / "python-fault.log").write_text(
+        f"frame below {layout.root} api_key=private-value\n"
+        f"{'x' * 131_072}retained-tail",
+        encoding="utf-8",
+    )
+    (directory / "native.dmp").write_bytes(b"binary dump content")
+
+    presentation = crash_report_application._build_complete_crash_report(
+        layout,
+        incident,
+    )
+
+    assert "[python-fault.log]" in presentation.report_text
+    assert "frame below <install-root> api_key=<redacted>" in (presentation.report_text)
+    assert "private-value" not in presentation.report_text
+    assert "retained-tail" in presentation.report_text
+    assert "binary dump content" not in presentation.report_text
+
+
 @pytest.mark.parametrize("continue_launch", [False, True])
 @pytest.mark.parametrize("restart_requested", [False, True])
 def test_crash_report_presents_a_visible_standalone_window(

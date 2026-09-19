@@ -140,6 +140,25 @@ def test_store_atomically_retains_external_crash_attachment(tmp_path: Path) -> N
     assert not tuple(destination.parent.glob("*.tmp"))
 
 
+def test_store_reads_text_logs_without_treating_minidumps_as_clipboard_text(
+    tmp_path: Path,
+) -> None:
+    """Copyable crash evidence should include text logs and retain binary dumps by name."""
+
+    store = CrashIncidentStore(tmp_path / "crashes")
+    incident = _incident()
+    incident_directory = store.record(incident)
+    (incident_directory / "python-fault.log").write_text(
+        "all-thread fault evidence",
+        encoding="utf-8",
+    )
+    (incident_directory / "minidump.dmp").write_bytes(b"\x00binary")
+
+    assert store.read_text_attachments(incident) == (
+        ("python-fault.log", "all-thread fault evidence"),
+    )
+
+
 def test_store_prunes_only_acknowledged_incidents_beyond_retention(
     tmp_path: Path,
 ) -> None:

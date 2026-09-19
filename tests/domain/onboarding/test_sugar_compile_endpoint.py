@@ -51,3 +51,7 @@ def test_endpoint_builds_sugarcubes_cube_graph_creation_url() -> None:
         endpoint.sugarcubes_workflow_cube_create_url()
         == "http://10.0.0.2:8189/sugarcubes/v2/workflows/cubes/create"
     )
+    assert (
+        endpoint.sugarcubes_workflow_cube_replace_url()
+        == "http://10.0.0.2:8189/sugarcubes/v2/workflows/cubes/replace"
+    )
