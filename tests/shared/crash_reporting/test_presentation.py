@@ -75,7 +75,10 @@ def test_launcher_crash_surface_copies_opens_github_and_restarts(
         platform="Windows",
         python_version="3.12",
     )
-    report = crash_presentation.build_crash_report_presentation(incident)
+    report = crash_presentation.build_crash_report_presentation(
+        incident,
+        text_attachments=(("python-fault.log", "Thread 0x1\nframe.py:42"),),
+    )
     dialog = SharedErrorReportWindow(
         presentation=report,
         restart=lambda: restart_calls.append(None),
@@ -99,6 +102,7 @@ def test_launcher_crash_surface_copies_opens_github_and_restarts(
         ]
         assert "launcher-presentation-incident" in report.report_text
         assert "RuntimeError: qualified" in report.report_text
+        assert "[python-fault.log]\nThread 0x1\nframe.py:42" in report.report_text
         assert SUGARSUBSTITUTE_ISSUES_URL in report.report_text
 
         dialog.content._toggle_details()

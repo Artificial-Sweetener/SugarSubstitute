@@ -83,6 +83,10 @@ def test_registry_classifies_surface_ownership() -> None:
         == WorkflowSurfaceOwnership.PER_WORKFLOW_CACHED
     )
     assert (
+        registry.descriptor(WorkflowSurface.CUBE_STACK).ownership
+        == WorkflowSurfaceOwnership.PER_WORKFLOW_CACHED
+    )
+    assert (
         registry.descriptor(WorkflowSurface.CANVAS).ownership
         == WorkflowSurfaceOwnership.SHARED_ROUTE_PROJECTED
     )

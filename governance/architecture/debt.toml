@@ -1124,7 +1124,7 @@ next_extraction = "Split output, diagnostics, batch, and generation cluster cont
 id = "SS-ARCH-083"
 owner = "workflow surface reconciliation"
 paths = ["substitute/presentation/shell/workflow_surface_reconciler.py"]
-fingerprint = "sha256:1c45b637e8ffc9e4a75bc9aa90292e15aca1ce6ef0267d0044b5dd93b44dab2e"
+fingerprint = "sha256:29d6154333827089b7c1273b1ca5a3c463282cc29f7eaf11f0448639b00fd646"
 issue = "chore:SS-ARCH-083"
 review_by = 2026-12-15
 responsibilities = [
@@ -1133,15 +1133,14 @@ responsibilities = [
   "input and generation availability refresh",
   "dirty/full projection reconciliation",
   "completion and clean-state publication",
-  "legacy dependency adaptation",
 ]
-next_extraction = "Separate active feature refresh and legacy adaptation from dirty-surface reconciliation."
+next_extraction = "Separate the active feature refresh facade from dirty-surface reconciliation."
 
 [[debts]]
 id = "SS-ARCH-084"
 owner = "workflow workspace lifecycle"
 paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:1652a276c332901e950f554204b00a0b68abf4b87764afdf9c3c7cc0adde5ff2"
+fingerprint = "sha256:ca58b68d5018ab0add3dfe7caea34ec44dcebf842252ba875a2a9f161048e2ec"
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
 responsibilities = [

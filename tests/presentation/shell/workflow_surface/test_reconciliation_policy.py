@@ -47,7 +47,12 @@ def test_full_reconciliation_refreshes_then_projects_canvas() -> None:
         on_surface_complete=None,
     )
 
-    assert calls[:3] == ["override-sync", "override-pre", "editor:wf-a:True"]
+    assert calls[:4] == [
+        "cube-stack:wf-a:1",
+        "override-sync",
+        "override-pre",
+        "editor:wf-a:True",
+    ]
     assert "canvas:wf-a" in calls
     assert result.full_refresh
     assert result.canvas_projected

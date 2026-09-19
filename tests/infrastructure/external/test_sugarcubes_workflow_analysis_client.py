@@ -123,6 +123,20 @@ def test_client_requests_sugarcubes_owned_cube_append_and_remove() -> None:
         "instance_id": "cube-a",
     }
 
+    client.replace_cube(
+        {"nodes": [], "links": []},
+        instance_id="cube-a",
+        document=document,
+    )
+
+    assert transport.url.endswith("/sugarcubes/v2/workflows/cubes/replace")
+    assert transport.body == {
+        "schema_version": 1,
+        "workflow": {"nodes": [], "links": []},
+        "instance_id": "cube-a",
+        "document": document,
+    }
+
 
 def test_client_creates_one_native_graph_from_an_ordered_legacy_stack() -> None:
     """Send every migrated Cube in one bounded SugarCubes request."""

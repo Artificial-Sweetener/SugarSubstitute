@@ -917,10 +917,10 @@ owner = "workflow surface reconciliation"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workflow_surface_reconciler.py"
 kind = "remediation"
-justification = "The assessed file mixes active surface refresh facade, override synchronization and materialization, input and generation availability refresh, dirty/full projection reconciliation, completion and clean-state publication, legacy dependency adaptation. Separate active feature refresh and legacy adaptation from dirty-surface reconciliation."
+justification = "The assessed file mixes active surface refresh facade, override synchronization and materialization, input and generation availability refresh, dirty/full projection reconciliation, and completion and clean-state publication. Separate the active feature refresh facade from dirty-surface reconciliation."
 issue = "chore:SS-ARCH-083"
 review_by = 2026-12-15
-max_lines = 601
+max_lines = 597
 next_limit = 500
 debt = "SS-ARCH-083"
 
@@ -933,7 +933,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1654
+max_lines = 1649
 next_limit = 1284
 debt = "SS-ARCH-084"
 
@@ -1459,10 +1459,10 @@ owner = "prompt emphasis interaction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/interactions/emphasis_controller.py"
 kind = "structural"
-justification = "PromptEmphasisController owns one keyboard/mouse emphasis adjustment session. Range expansion, action routing, mutation application, transient-neutral state, cursor placement, wheel identity, and feedback all operate on the same active emphasis session."
+justification = "PromptEmphasisController owns one keyboard/mouse emphasis adjustment session. Range expansion, action routing, non-reentrant publication, mutation application, transient-neutral state, cursor placement, wheel identity, and feedback all operate on the same active emphasis session; extracting publication exclusion would divide the session invariant between owners."
 issue = "chore:SS-WAIVER-S046"
 review_by = 2026-12-15
-max_lines = 611
+max_lines = 635
 
 [[waivers]]
 id = "SS-WAIVER-S048"

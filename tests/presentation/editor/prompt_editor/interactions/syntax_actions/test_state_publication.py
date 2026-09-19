@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
+
+import pytest
 
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
@@ -94,3 +96,86 @@ def test_modify_emphasis_uses_typed_mutation_result_to_refresh_cached_state() ->
     assert controller.document_view is updated_document_view
     assert len(controller.syntax_render_plan.syntax_spans) == 1
     assert controller.active_syntax_span == updated_document_view.syntax_spans[0]
+
+
+def test_modify_emphasis_rejects_reentrant_key_delivery_during_source_publication() -> (
+    None
+):
+    """A nested Qt key event must not apply a second mutation with stale coordinates."""
+
+    document_service = PromptDocumentService()
+    mutation_service = MutationServiceDouble(
+        apply_syntax_action_result=PromptMutation(
+            text="(1girl:1.05)",
+            selection_start=1,
+            selection_end=6,
+            document_view=document_service.build_document_view("(1girl:1.05)"),
+        )
+    )
+    editor = build_editor("1girl", position=5, anchor=0)
+    controller = build_controller(
+        editor,
+        document_service=document_service,
+        mutation_service=cast(PromptMutationService, mutation_service),
+    )
+    weight_interaction = controller.weight_interaction
+    original_execute = weight_interaction.execute_emphasis_weight_action
+    nested_delivery_attempted = False
+
+    def execute_with_nested_key_delivery(action: object, **kwargs: object) -> object:
+        nonlocal nested_delivery_attempted
+        if not nested_delivery_attempted:
+            nested_delivery_attempted = True
+            weight_interaction.modify_emphasis(0.05)
+        return original_execute(action, **kwargs)
+
+    cast(
+        Any, weight_interaction
+    ).execute_emphasis_weight_action = execute_with_nested_key_delivery
+
+    weight_interaction.modify_emphasis(0.05)
+
+    assert nested_delivery_attempted is True
+    assert editor.toPlainText() == "(1girl:1.05)"
+    assert len(mutation_service.apply_syntax_action_calls) == 1
+
+
+def test_modify_emphasis_releases_reentrancy_guard_after_publication_failure() -> None:
+    """A failed publication must not permanently disable later emphasis commands."""
+
+    document_service = PromptDocumentService()
+    mutation_service = MutationServiceDouble(
+        apply_syntax_action_result=PromptMutation(
+            text="(1girl:1.05)",
+            selection_start=1,
+            selection_end=6,
+            document_view=document_service.build_document_view("(1girl:1.05)"),
+        )
+    )
+    editor = build_editor("1girl", position=5, anchor=0)
+    controller = build_controller(
+        editor,
+        document_service=document_service,
+        mutation_service=cast(PromptMutationService, mutation_service),
+    )
+    weight_interaction = controller.weight_interaction
+    original_execute = weight_interaction.execute_emphasis_weight_action
+    fail_next = True
+
+    def execute_with_one_failure(action: object, **kwargs: object) -> object:
+        nonlocal fail_next
+        if fail_next:
+            fail_next = False
+            raise RuntimeError("publication failed")
+        return original_execute(action, **kwargs)
+
+    cast(
+        Any, weight_interaction
+    ).execute_emphasis_weight_action = execute_with_one_failure
+
+    with pytest.raises(RuntimeError, match="publication failed"):
+        weight_interaction.modify_emphasis(0.05)
+    weight_interaction.modify_emphasis(0.05)
+
+    assert editor.toPlainText() == "(1girl:1.05)"
+    assert len(mutation_service.apply_syntax_action_calls) == 1

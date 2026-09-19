@@ -74,6 +74,15 @@ class CubeGraphGateway(Protocol):
     ) -> CanonicalCubeGraphAnalysis:
         """Remove one recognized Cube through SugarCubes' graph owner."""
 
+    def replace_cube(
+        self,
+        workflow: JsonObject,
+        *,
+        instance_id: str,
+        document: JsonObject,
+    ) -> CanonicalCubeGraphAnalysis:
+        """Replace one Cube definition through SugarCubes' graph owner."""
+
 
 class GraphBackedCubeStackService:
     """Translate stack actions into authoritative SugarCubes graph operations."""
@@ -153,6 +162,59 @@ class GraphBackedCubeStackService:
                 instance_id=instance.instance_id,
             ),
         )
+
+    def replace_cube(
+        self,
+        workflow: WorkflowState,
+        alias: str,
+        replacement: CubeState,
+    ) -> None:
+        """Replace one definition while retaining its canonical graph identity."""
+
+        direct = self._direct_document(workflow)
+        existing = workflow.cubes.get(alias)
+        if existing is None:
+            raise ValueError(f"Cube {alias!r} is unavailable.")
+        if replacement.alias != alias:
+            raise ValueError("Replacement Cube alias must match the target alias.")
+        existing_ui = existing.ui
+        node_id = (
+            existing_ui.get("graph_node_id")
+            if isinstance(existing_ui, Mapping)
+            else None
+        )
+        if not isinstance(node_id, str) or not node_id:
+            raise ValueError(f"Cube {alias!r} has no owning Comfy graph node.")
+        instance = next(
+            (
+                candidate
+                for candidate in self._analysis(workflow).instances
+                if candidate.node_id == node_id
+            ),
+            None,
+        )
+        if instance is None:
+            raise ValueError(f"Cube {alias!r} has no canonical instance identity.")
+        replacement.undo_stack = existing.undo_stack
+        replacement.redo_stack = existing.redo_stack
+        replacement.dirty = existing.dirty
+        replacement.field_control_states = existing.field_control_states
+        replacement.output_persistence_enabled = existing.output_persistence_enabled
+        self._install_analysis(
+            workflow,
+            self._gateway.replace_cube(
+                self._editable_graph(direct.source_workflow),
+                instance_id=instance.instance_id,
+                document=self._document(replacement),
+            ),
+            projection_sources={alias: replacement},
+        )
+        projected = workflow.cubes.get(alias)
+        if projected is None:
+            raise ValueError(
+                "Replaced Cube was not projected from the canonical graph."
+            )
+        projected.update_policy = replacement.update_policy
 
     def apply_reordered_aliases(
         self,

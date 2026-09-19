@@ -112,6 +112,11 @@ class ComfyEndpoint:
 
         return self._http_url("/sugarcubes/v2/workflows/cubes/remove")
 
+    def sugarcubes_workflow_cube_replace_url(self) -> str:
+        """Return the SugarCubes atomic Cube definition replacement URL."""
+
+        return self._http_url("/sugarcubes/v2/workflows/cubes/replace")
+
     def interrupt_url(self) -> str:
         """Return the interrupt endpoint URL."""
 
