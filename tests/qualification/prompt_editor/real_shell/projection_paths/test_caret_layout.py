@@ -21,6 +21,11 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 import pytest
 
+from substitute.presentation.editor.prompt_editor.core.projection.caret import (
+    PromptProjectionCaretPlacement,
+    PromptProjectionCaretState,
+)
+from tests.support.prompt_editor.projection_engine_support import surface_for
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
     snapshot_invariant_violations,
 )
@@ -60,6 +65,39 @@ def test_real_shell_projected_token_navigation_keeps_caret_map_sane(
     )
     assert after_left.source_text == prompt
     assert after_right.source_text == prompt
+
+
+def test_real_shell_removed_token_caret_falls_back_to_its_source_position(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Resolve stale projected geometry after its token identity disappears."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="alpha beta")
+    real_shell_scenario.input.set_source_cursor_position(field, 6)
+    real_shell_scenario.input.type_text(field, "x")
+    surface = surface_for(field.editor)
+    stale_token_state = PromptProjectionCaretState(
+        source_position=6,
+        placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
+        token_id="removed-token",
+        run_id="removed-run",
+        token_slot=0,
+    )
+
+    surface._set_caret_states(  # noqa: SLF001
+        cursor_state=stale_token_state,
+        anchor_state=stale_token_state,
+        reason="removed-token-regression",
+    )
+    resolved = real_shell_scenario.snapshots.capture(
+        field,
+        label="removed-token-caret-resolved",
+    )
+
+    assert resolved.source_text == "alpha xbeta"
+    assert resolved.cursor_position == 6
+    assert resolved.caret_token_id is None
+    assert not snapshot_invariant_violations(resolved)
 
 
 def test_real_shell_vertical_navigation_preferred_x_is_owned_and_reset(
