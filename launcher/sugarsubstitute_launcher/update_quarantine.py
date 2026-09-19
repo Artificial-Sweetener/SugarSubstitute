@@ -28,6 +28,7 @@ from sugarsubstitute_shared.launcher_update.persistence import write_json_atomic
 
 _SCHEMA_VERSION: Final = 1
 _MAX_ENTRIES: Final = 16
+_RETRYABLE_REASONS: Final = frozenset({"interrupted_activation"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,10 +65,14 @@ class UpdateQuarantine:
         self._path = install_root.resolve() / "launcher" / "release-quarantine.json"
 
     def contains(self, *, version: str, sha256: str) -> bool:
-        """Return whether the exact immutable artifact previously failed."""
+        """Return whether the exact immutable artifact has a deterministic failure."""
 
         identity = (_required_text(version), _required_digest(sha256))
-        return any((entry.version, entry.sha256) == identity for entry in self._load())
+        return any(
+            (entry.version, entry.sha256) == identity
+            and entry.reason not in _RETRYABLE_REASONS
+            for entry in self._load()
+        )
 
     def add(self, *, version: str, sha256: str, reason: str) -> None:
         """Record one failed target without duplicating its identity."""

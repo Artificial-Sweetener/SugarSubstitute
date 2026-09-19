@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
+import json
 from threading import Event
-from typing import Any
+from typing import Any, Self
 
 import pytest
 
@@ -38,10 +39,15 @@ from sugarsubstitute_shared.launch_splash import (
 from sugarsubstitute_shared.launch_splash.client import (
     DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS,
 )
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+from sugarsubstitute_shared.launch_splash.session import (
+    CURRENT_SPLASH_PROTOCOL_VERSION,
+    LEGACY_SPLASH_PROTOCOL_VERSION,
+)
 
 
-def test_splash_session_args_round_trip_without_exposing_defaults() -> None:
-    """Session specs should serialize into explicit app launch arguments."""
+def test_splash_session_args_round_trip_with_explicit_protocol() -> None:
+    """Session specs should serialize their negotiated protocol version."""
 
     spec = create_splash_session_spec(
         host="127.0.0.1",
@@ -53,6 +59,66 @@ def test_splash_session_args_round_trip_without_exposing_defaults() -> None:
     parsed = splash_session_from_args(["main.py", *splash_session_args(spec)])
 
     assert parsed == spec
+    assert parsed.protocol_version == CURRENT_SPLASH_PROTOCOL_VERSION
+
+
+def test_versionless_022_session_args_select_legacy_protocol() -> None:
+    """Treat inherited 0.22 handoff arguments as the EOF-acknowledged protocol."""
+
+    parsed = splash_session_from_args(
+        [
+            "main.py",
+            "--splash-session-endpoint=127.0.0.1:49152",
+            "--splash-session-token=" + ("x" * 32),
+            "--splash-session-host-pid=1234",
+        ]
+    )
+
+    assert parsed is not None
+    assert parsed.protocol_version == LEGACY_SPLASH_PROTOCOL_VERSION
+
+
+def test_new_client_adopts_022_host_without_starting_replacement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Translate current presentation calls and accept legacy EOF consumption."""
+
+    parsed = splash_session_from_args(
+        [
+            "main.py",
+            "--splash-session-endpoint=127.0.0.1:49152",
+            "--splash-session-token=" + ("x" * 32),
+            "--splash-session-host-pid=1234",
+        ]
+    )
+    assert parsed is not None
+    sent: list[bytes] = []
+    monkeypatch.setattr(
+        "socket.create_connection",
+        lambda *_args, **_kwargs: _LegacyConnection(sent),
+    )
+    client = SocketSplashSessionClient(parsed)
+    activity = SplashActivity(
+        initial_text="Installing update.",
+        long_wait_text="Installation is taking longer than usual.",
+        extended_wait_text="Installation is still running.",
+    )
+
+    client.append_log("Checking for updates.")
+    client.set_progress(SplashProgress(1, 2), status="Downloading update.")
+    client.start_activity(activity)
+    client.clear_activity()
+    assert client.activate()
+    client.fatal("Update failed.")
+    assert client.close()
+
+    assert [json.loads(payload) for payload in sent] == [
+        {"type": "log", "token": "x" * 32, "line": "Checking for updates."},
+        {"type": "status", "token": "x" * 32, "line": "Downloading update."},
+        {"type": "status", "token": "x" * 32, "line": "Installing update."},
+        {"type": "fatal", "token": "x" * 32, "line": "Update failed."},
+        {"type": "close", "token": "x" * 32},
+    ]
 
 
 def test_splash_session_args_reject_incomplete_session() -> None:
@@ -276,3 +342,38 @@ class _RecordingHandler:
         self._received.append(message)
         if message.message_type == "close":
             self._delivered.set()
+
+
+class _LegacyConnection:
+    """Model the 0.22 host that closes after consuming a message without an ACK."""
+
+    def __init__(self, sent: list[bytes]) -> None:
+        """Store the captured legacy request payloads."""
+
+        self._sent = sent
+
+    def __enter__(self) -> Self:
+        """Return this context-managed connection."""
+
+        return self
+
+    def __exit__(
+        self,
+        _exception_type: object,
+        _exception: object,
+        _traceback: object,
+    ) -> None:
+        """Close the inert test connection."""
+
+    def sendall(self, payload: bytes) -> None:
+        """Capture one complete newline-delimited request."""
+
+        self._sent.append(payload)
+
+    def shutdown(self, _how: int) -> None:
+        """Accept the client write shutdown."""
+
+    def recv(self, _size: int) -> bytes:
+        """Return EOF exactly as the 0.22 host does after dispatch."""
+
+        return b""

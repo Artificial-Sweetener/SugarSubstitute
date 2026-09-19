@@ -45,3 +45,16 @@ def test_quarantine_can_clear_only_the_accepted_target(tmp_path: Path) -> None:
 
     assert not quarantine.contains(version="0.23.0", sha256="1" * 64)
     assert quarantine.contains(version="0.23.1", sha256="2" * 64)
+
+
+def test_interrupted_activation_remains_retryable(tmp_path: Path) -> None:
+    """Do not suppress valid bytes merely because startup was interrupted."""
+
+    quarantine = UpdateQuarantine(tmp_path)
+    quarantine.add(
+        version="0.23.0",
+        sha256="1" * 64,
+        reason="interrupted_activation",
+    )
+
+    assert not quarantine.contains(version="0.23.0", sha256="1" * 64)
