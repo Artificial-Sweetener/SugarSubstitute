@@ -26,15 +26,40 @@ from unittest.mock import patch
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
+from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
+from launcher.sugarsubstitute_launcher.payload_models import (
+    AppPayloadInstallResult,
+    StagedAppPayload,
+)
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    write_update_journal_data,
+)
 
 
 def main() -> int:
     """Run the real installer with abrupt exit after one selected filesystem write."""
     layout = InstallLayout.from_root(Path(sys.argv[1]))
     boundary = sys.argv[3]
-    replace = Path.replace
     write_text = Path.write_text
     atomic_replace = os.replace
+    promote_app = PendingUpdateActivation.promote_app
+
+    def interrupt_journal(path: Path, payload: dict[str, object]) -> None:
+        """Exit after durable preparation intent exists."""
+
+        write_update_journal_data(path, payload)
+        if boundary == "app_retired" and payload.get("phase") == "preparing":
+            os._exit(73)
+
+    def interrupt_promotion(
+        self: PendingUpdateActivation, staged: StagedAppPayload
+    ) -> AppPayloadInstallResult:
+        """Exit after the candidate app payload has been fully promoted."""
+
+        result = promote_app(self, staged)
+        if boundary == "app_promoted":
+            os._exit(73)
+        return result
 
     def interrupt_atomic_replace(
         source: str | os.PathLike[str], target: str | os.PathLike[str]
@@ -49,18 +74,14 @@ def main() -> int:
         if boundary == "state_written" and Path(target) == layout.state_path:
             os._exit(73)
 
-    def interrupt_replace(source: Path, target: str | os.PathLike[str]) -> Path:
-        """Exit after the native directory move has succeeded."""
-        result = replace(source, target)
-        if (boundary == "app_retired" and source == layout.app_dir) or (
-            boundary == "app_promoted" and Path(target) == layout.app_dir
-        ):
-            os._exit(73)
-        return result
-
     with (
-        patch.object(Path, "replace", interrupt_replace),
         patch.object(os, "replace", interrupt_atomic_replace),
+        patch(
+            "launcher.sugarsubstitute_launcher.update_activation."
+            "write_update_journal_data",
+            interrupt_journal,
+        ),
+        patch.object(PendingUpdateActivation, "promote_app", interrupt_promotion),
     ):
         FirstRunInstaller().continue_install(
             layout=layout, release_source=LocalFolderReleaseSource(Path(sys.argv[2]))

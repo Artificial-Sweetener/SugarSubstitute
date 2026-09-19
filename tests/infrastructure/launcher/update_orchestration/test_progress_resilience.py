@@ -23,7 +23,10 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
-from launcher.sugarsubstitute_launcher.payload_models import AppPayloadInstallResult
+from launcher.sugarsubstitute_launcher.payload_models import (
+    AppPayloadInstallResult,
+    StagedAppPayload,
+)
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
@@ -133,8 +136,12 @@ class _PayloadInstaller:
         """Return the prepared payload result."""
 
         _ = manifest
-        return AppPayloadInstallResult(
-            version=self._version, app_dir=activation.layout.app_dir
+        activation.staging_directory.mkdir(parents=True)
+        return activation.promote_app(
+            StagedAppPayload(
+                version=self._version,
+                staging_dir=activation.staging_directory,
+            )
         )
 
 

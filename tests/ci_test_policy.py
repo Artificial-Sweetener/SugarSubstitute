@@ -357,6 +357,17 @@ ISOLATED_TEST_MODULES = frozenset(
         # This real placeholder-card click is stable in a fresh native Qt
         # process but can lose pointer delivery after unrelated Qt work.
         "tests/presentation/cubes/placeholder_card/test_card.py",
+        # This kernel-owned process-family qualification deliberately creates a
+        # 21-process descendant tree. A reused worker can exhaust Windows commit
+        # while the ordinary Qt partition retains native image allocations;
+        # fresh bounded processes preserve the complete lifetime assertion.
+        "tests/launcher/application_readiness/test_process_family_lifetime.py",
+        # These Output document owners allocate multi-megapixel native images
+        # and asynchronous tiles. Reused workers can retain earlier Qt image
+        # allocations until process exit, while concurrent fresh processes keep
+        # the same behavior checks inside the qualified resource envelope.
+        "tests/presentation/canvas/output/document/test_comparison_tiling.py",
+        "tests/presentation/canvas/output/document/test_document_state.py",
     }
 )
 

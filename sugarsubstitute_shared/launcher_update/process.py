@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Start the detached app-runtime helper that can replace the launcher."""
+"""Start a durable detached helper that can update launcher generations."""
 
 from __future__ import annotations
 
@@ -24,6 +24,12 @@ import sys
 import os
 
 from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.delegation_contract import (
+    supports_launcher_delegation,
+)
+from sugarsubstitute_shared.launcher_update.targets import (
+    launcher_bundle_target_for_key,
+)
 from sugarsubstitute_shared.crash_reporting.protocol import (
     without_crash_supervision_environment,
 )
@@ -46,7 +52,12 @@ def schedule_launcher_update(
     relaunch: bool,
     wait_pid: int | None,
 ) -> int:
-    """Persist process behavior and start the detached replacement helper."""
+    """Persist process behavior and start the durable replacement helper.
+
+    A permanent delegating baseline owns all current-protocol mutations. Only a
+    pre-bootstrap installation uses the application-runtime helper for its
+    one-time migration into that durable ownership model.
+    """
 
     from sugarsubstitute_shared.process_identity import capture_process_identity
 
@@ -63,18 +74,27 @@ def schedule_launcher_update(
     environment = without_crash_supervision_environment(
         clean_frozen_parent_environment()
     )
-    environment["PYTHONPATH"] = subprocess_path(app_dir)
     install_root = operational_path(request.install_root)
+    target = launcher_bundle_target_for_key(request.target_key)
+    if supports_launcher_delegation(install_root, target):
+        command = [
+            subprocess_path(install_root / target.executable_relative_path),
+            "--apply-launcher-update",
+            subprocess_path(request_path),
+        ]
+    else:
+        environment["PYTHONPATH"] = subprocess_path(app_dir)
+        command = [
+            subprocess_path(runtime_python),
+            "-m",
+            "sugarsubstitute_shared.launcher_update.helper",
+            subprocess_path(request_path),
+        ]
     log_path = install_root / "launcher" / "logs" / "launcher-update.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as output:
         return _start_independent(
-            [
-                subprocess_path(runtime_python),
-                "-m",
-                "sugarsubstitute_shared.launcher_update.helper",
-                subprocess_path(request_path),
-            ],
+            command,
             cwd=install_root,
             environment=environment,
             output_fd=output.fileno(),

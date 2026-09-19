@@ -57,7 +57,6 @@ def main() -> int:
         output_dir=args.output_dir,
         version=args.version,
         channel=args.channel,
-        minimum_launcher_version=args.minimum_launcher_version,
         platform_inputs=platform_inputs_from_args(args),
         asset_base_url=args.asset_base_url,
     )
@@ -86,7 +85,6 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_RELEASE_CHANNEL_DIR,
     )
     build_parser.add_argument("--channel", default="stable")
-    build_parser.add_argument("--minimum-launcher-version", default="0.1.0")
     build_parser.add_argument(
         "--platform-input",
         action="append",

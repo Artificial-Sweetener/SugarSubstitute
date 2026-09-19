@@ -34,6 +34,9 @@ def run_launcher(launcher_main: Callable[[], int] | None = None) -> int:
 
     crash_runtime = _install_supervised_crash_runtime()
     try:
+        from launcher.sugarsubstitute_launcher.launcher_update_entrypoint import (
+            run_launcher_update_invocation,
+        )
         from launcher.sugarsubstitute_launcher.repair_execution_child import (
             run_repair_execution_invocation,
         )
@@ -47,7 +50,9 @@ def run_launcher(launcher_main: Callable[[], int] | None = None) -> int:
             run_prepared_repair_invocation,
         )
 
-        result = run_repair_preparation_invocation(sys.argv[1:])
+        result = run_launcher_update_invocation(sys.argv[1:])
+        if result is None:
+            result = run_repair_preparation_invocation(sys.argv[1:])
         if result is None:
             result = run_repair_execution_invocation(sys.argv[1:])
         if result is None:

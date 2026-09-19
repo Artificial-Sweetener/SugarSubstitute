@@ -62,6 +62,7 @@ def test_first_run_preserves_owned_installation_and_retries_after_release(
         layout.config_path
     )
     LauncherUpdateState(installed_app_version="0.1.0").save(layout.state_path)
+    original_app_entrypoint = layout.app_entrypoint
     originals = {
         layout.config_path: layout.config_path.read_bytes(),
         layout.state_path: layout.state_path.read_bytes(),
@@ -91,7 +92,7 @@ def test_first_run_preserves_owned_installation_and_retries_after_release(
         pool.submit(install).result(timeout=30)
     assert layout.config_path.read_bytes() != originals[layout.config_path]
     if not downloaded:
-        assert layout.app_entrypoint.read_bytes() != originals[layout.app_entrypoint]
+        assert layout.app_entrypoint.read_bytes() != originals[original_app_entrypoint]
 
 
 def test_continuation_recovers_interrupted_update_before_installing(
