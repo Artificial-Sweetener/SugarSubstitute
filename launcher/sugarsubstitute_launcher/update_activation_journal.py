@@ -257,12 +257,7 @@ def previous_runtime_dir(
 def staged_app_dir(layout: InstallLayout, journal: UpdateActivationJournal) -> Path:
     """Return staging owned by the activation's persisted transaction identity."""
     if journal.candidate_generation is not None:
-        return (
-            ApplicationReleaseSelection(layout.root).preparing_root(
-                journal.candidate_generation
-            )
-            / "app"
-        )
+        return candidate_release_root(layout, journal) / "app"
     return activation_directory(layout, journal) / "app_next"
 
 
@@ -273,7 +268,7 @@ def candidate_release_root(
 
     if journal.candidate_generation is None:
         raise UpdateRecoveryError("Activation does not own a release generation.")
-    return ApplicationReleaseSelection(layout.root).preparing_root(
+    return ApplicationReleaseSelection(layout.root).candidate_root(
         journal.candidate_generation
     )
 

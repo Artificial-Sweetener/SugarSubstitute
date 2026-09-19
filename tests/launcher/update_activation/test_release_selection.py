@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -58,11 +59,54 @@ def test_first_generation_activates_atomically_over_legacy_layout(
 
     assert selected.current == _GENERATION
     assert selected.previous == LEGACY_RELEASE_GENERATION
-    assert not prepared.exists()
+    assert prepared == selection.generation_root(_GENERATION)
+    assert prepared.exists()
     assert selection.active_root() == selection.generation_root(_GENERATION)
     layout = InstallLayout.from_root(install_root)
     assert layout.app_dir == selection.generation_root(_GENERATION) / "app"
     assert layout.runtime_dir == selection.generation_root(_GENERATION) / "runtime"
+
+
+def test_activation_does_not_relocate_path_bound_runtime_content(
+    tmp_path: Path,
+) -> None:
+    """Keep virtual-environment references valid by sealing them in place."""
+
+    selection = ApplicationReleaseSelection(tmp_path / "installation")
+    prepared = _prepare_complete_release(selection)
+    configured_runtime = prepared / "runtime" / "venv-origin.txt"
+    configured_runtime.write_text(str(prepared), encoding="utf-8")
+
+    selection.activate(generation=_GENERATION)
+
+    active = selection.active_root()
+    assert active == prepared
+    assert configured_runtime.read_text(encoding="utf-8") == str(active)
+
+
+def test_activation_recovers_a_legacy_preparation_directory(tmp_path: Path) -> None:
+    """Finish an interrupted pre-upgrade transaction stored at its released path."""
+
+    selection = ApplicationReleaseSelection(tmp_path / "installation")
+    legacy = selection.preparing_root(_GENERATION)
+    (legacy / "app").mkdir(parents=True)
+    (legacy / "runtime").mkdir()
+    (legacy / "release.json").write_text(
+        json.dumps(
+            {
+                "generation": _GENERATION,
+                "schema_version": 1,
+                "status": "preparing",
+                "version": "0.22.0",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    selection.activate(generation=_GENERATION)
+
+    assert not legacy.exists()
+    assert selection.active_root() == selection.generation_root(_GENERATION)
 
 
 def test_failed_generation_rolls_back_and_is_quarantined(tmp_path: Path) -> None:
