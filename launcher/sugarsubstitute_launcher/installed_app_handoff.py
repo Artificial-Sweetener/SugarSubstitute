@@ -124,6 +124,7 @@ def complete_installed_app_handoff(
                 attempted_version=attempted_version,
                 environment=installed_application_environment(
                     broker,
+                    layout=layout,
                     remote_failure_reason=update_result.remote_failure_reason,
                 ),
                 activation=update_result.pending_activation,
