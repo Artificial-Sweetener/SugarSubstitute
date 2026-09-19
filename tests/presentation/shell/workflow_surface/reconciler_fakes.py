@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from typing import Protocol, cast
 
 
 from substitute.presentation.shell.workflow_surface_invalidation import (
@@ -58,6 +59,100 @@ class _SessionPort:
         """Return workflow state by id."""
 
         return self._workflows
+
+
+class _TabItem(Protocol):
+    """Describe one route-keyed Cube Stack tab."""
+
+    def routeKey(self) -> str:
+        """Return the tab route key."""
+
+
+class _PresentedCubeStack:
+    """Record complete Cube Stack presentation for adapter tests."""
+
+    def __init__(self) -> None:
+        """Initialize empty tab state."""
+
+        self.tabs: list[dict[str, object]] = []
+        self.itemMap: dict[str, object] = {}
+        self.current_index = -1
+
+    def clear(self) -> None:
+        """Clear all tab state."""
+
+        self.tabs.clear()
+        self.itemMap.clear()
+        self.current_index = -1
+
+    def count(self) -> int:
+        """Return the tab count."""
+
+        return len(self.tabs)
+
+    def insertTab(
+        self,
+        index: int,
+        *,
+        routeKey: str,
+        text: str,
+        icon: object | None = None,
+    ) -> object:
+        """Insert one route-keyed tab."""
+
+        item = _MutableTabItem(routeKey)
+        self.tabs.insert(index, {"item": item, "text": text, "icon": icon})
+        self.itemMap[routeKey] = item
+        return item
+
+    def setCurrentIndex(self, index: int) -> None:
+        """Select one tab index."""
+
+        self.current_index = index
+
+    def currentIndex(self) -> int:
+        """Return the selected tab index."""
+
+        return self.current_index
+
+    def tabItem(self, index: int) -> _TabItem:
+        """Return one tab item."""
+
+        return cast(_TabItem, self.tabs[index]["item"])
+
+    def setTabIcon(self, index: int, icon: object) -> None:
+        """Set one tab icon."""
+
+        self.tabs[index]["icon"] = icon
+
+    def setTabPresentation(self, index: int, **values: str) -> None:
+        """Record tab presentation fields."""
+
+        self.tabs[index].update(values)
+
+    def setTabBypassed(self, index: int, bypassed: bool) -> None:
+        """Record bypass presentation."""
+
+        self.tabs[index]["bypassed"] = bypassed
+
+
+class _MutableTabItem:
+    """Store one mutable Cube Stack route key."""
+
+    def __init__(self, route_key: str) -> None:
+        """Store the route key."""
+
+        self._route_key = route_key
+
+    def routeKey(self) -> str:
+        """Return the route key."""
+
+        return self._route_key
+
+    def setRouteKey(self, key: str) -> None:
+        """Replace the route key."""
+
+        self._route_key = key
 
 
 class _CanvasPort:
@@ -150,6 +245,33 @@ class _EditorPort:
             workflow_id,
             force=False,
             on_complete=None,
+        )
+
+
+class _CubeStackPort:
+    """Cube Stack port double controlling reconciliation results."""
+
+    def __init__(self, calls: list[str]) -> None:
+        """Store shared call log."""
+
+        self._calls = calls
+        self.status = SurfaceRefreshStatus.SUCCESS
+
+    def reconcile_cube_stack(
+        self,
+        workflow_id: str,
+        token: ReconciliationToken,
+    ) -> SurfaceRefreshResult:
+        """Record one Cube Stack reconciliation."""
+
+        self._calls.append(f"cube-stack:{workflow_id}:{token.generation}")
+        return surface_result(
+            workflow_id=workflow_id,
+            surface=WorkflowSurface.CUBE_STACK,
+            status=self.status,
+            operation="reconcile_cube_stack",
+            elapsed_ms=1.0,
+            cleanable=self.status is SurfaceRefreshStatus.SUCCESS,
         )
 
 

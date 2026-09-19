@@ -70,12 +70,6 @@ from substitute.presentation.shell.workflow_route_projector import (
 from substitute.presentation.shell.main_window_canvas_route_adapter import (
     MainWindowCanvasRouteAdapter,
 )
-from substitute.presentation.shell.main_window_editor_surface_adapter import (
-    MainWindowEditorSurfaceAdapter,
-)
-from substitute.presentation.shell.main_window_generation_availability_adapter import (
-    MainWindowGenerationAvailabilityAdapter,
-)
 from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
 )
@@ -85,8 +79,8 @@ from substitute.presentation.shell.main_window_workflow_activity_adapter import 
 from substitute.presentation.shell.main_window_workflow_route_adapter import (
     MainWindowWorkflowRouteAdapter,
 )
-from substitute.presentation.shell.main_window_workflow_session_state_adapter import (
-    MainWindowWorkflowSessionStateAdapter,
+from substitute.presentation.shell.main_window_workflow_surface_composition import (
+    build_main_window_workflow_surface_reconciler,
 )
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
@@ -545,13 +539,14 @@ class WorkflowWorkspaceCoordinator:
             surface_registry=self._surface_registry,
             surface_invalidation_service=self._surface_invalidation_service,
         )
-        self._surface_reconciler = surface_reconciler or WorkflowSurfaceReconciler(
-            MainWindowWorkflowSessionStateAdapter(view),
-            canvas_port=canvas_adapter,
-            editor_port=MainWindowEditorSurfaceAdapter(view),
-            override_port=override_adapter,
-            generation_port=MainWindowGenerationAvailabilityAdapter(view),
-            surface_invalidation_service=self._surface_invalidation_service,
+        self._surface_reconciler = (
+            surface_reconciler
+            or build_main_window_workflow_surface_reconciler(
+                view,
+                canvas_port=canvas_adapter,
+                override_port=override_adapter,
+                surface_invalidation_service=self._surface_invalidation_service,
+            )
         )
 
     def activate_workflow(

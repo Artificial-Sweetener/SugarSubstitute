@@ -29,12 +29,24 @@ from substitute.application.cube_library import (
     LoadedCubeUpdateSelection,
 )
 from substitute.application.cubes import LoadedCubeDefinition, LoadedCubeRuntime
+from substitute.application.cubes import CubeStackService
+from substitute.application.generation.graph_backed_cube_workflow_builder import (
+    GraphBackedCubeWorkflowBuilder,
+)
 from substitute.application.workflows import WorkflowIssueState
 from substitute.domain.cube_library import CubeUpdatePolicy
 from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.workspace_snapshot.codecs import (
+    workflow_state_from_json,
+    workflow_state_to_json,
+)
 from substitute.presentation.shell.workspace_cube_update_actions import (
     WorkspaceCubeUpdateActions,
     WorkspaceCubeUpdateView,
+)
+from tests.application.cubes.cube_stack.graph_backed_support import (
+    _StructuralGraphGateway,
+    _graph_stack_service,
 )
 
 
@@ -182,6 +194,7 @@ class _View:
     workflow_session_service: _WorkflowSessionService
     workspace_loaded_cube_surface_actions: _LoadedCubeSurfaceActions
     workflow_issue_state: WorkflowIssueState
+    cube_stack_service: CubeStackService
 
     def refresh_active_workflow_surface(self) -> None:
         """Satisfy the update view protocol."""
@@ -235,6 +248,89 @@ def test_follow_latest_success_persists_policy() -> None:
 
     assert failures == ()
     assert workflow.cubes["Demo"].update_policy == CubeUpdatePolicy.FOLLOW_LATEST
+
+
+def test_graph_backed_update_replaces_canonical_definition_and_passes_preflight() -> (
+    None
+):
+    """Instance updates must leave one executable graph-authoritative Cube."""
+
+    workflow, cube_stack_service = _graph_workflow("Demo")
+    original = workflow.cubes["Demo"]
+    actions = _actions(workflow, cube_stack_service=cube_stack_service)
+
+    failures = actions.apply_update_selections(
+        (
+            LoadedCubeUpdateSelection(
+                candidate=_candidate(),
+                action=LoadedCubeUpdateAction.UPDATE_INSTANCE,
+                target_version="2.0",
+            ),
+        )
+    )
+
+    assert failures == ()
+    assert workflow.cubes["Demo"] is original
+    assert workflow.cubes["Demo"].version == "2.0"
+    assert workflow.direct_workflow is not None
+    assert workflow.direct_workflow.cube_analysis is not None
+    assert workflow.direct_workflow.cube_analysis.instances[0].cube_version == "2.0"
+    execution_graph = GraphBackedCubeWorkflowBuilder().build(workflow)
+    definitions = execution_graph["definitions"]
+    assert isinstance(definitions, dict)
+    subgraphs = definitions["subgraphs"]
+    assert isinstance(subgraphs, list)
+    extra = subgraphs[0]["extra"]
+    assert isinstance(extra, dict)
+    document = extra["sugarcubes_document"]
+    assert isinstance(document, dict)
+    assert document["version"] == "2.0"
+    restored = workflow_state_from_json(workflow_state_to_json(workflow))
+    assert restored.direct_workflow is not None
+    restored_definitions = restored.direct_workflow.source_workflow["definitions"]
+    assert isinstance(restored_definitions, dict)
+    restored_subgraphs = restored_definitions["subgraphs"]
+    assert isinstance(restored_subgraphs, list)
+    restored_extra = restored_subgraphs[0]["extra"]
+    assert isinstance(restored_extra, dict)
+    restored_document = restored_extra["sugarcubes_document"]
+    assert isinstance(restored_document, dict)
+    assert restored_document["version"] == "2.0"
+
+
+def test_graph_backed_update_all_and_follow_latest_keep_graph_in_sync() -> None:
+    """Bulk and automatic update paths must use the same graph replacement owner."""
+
+    workflow, cube_stack_service = _graph_workflow("Demo", "Copy")
+    actions = _actions(workflow, cube_stack_service=cube_stack_service)
+
+    failures = actions.apply_update_selections(
+        (
+            LoadedCubeUpdateSelection(
+                candidate=_candidate(),
+                action=LoadedCubeUpdateAction.UPDATE_MATCHING_VERSION,
+                target_version="2.0",
+            ),
+        )
+    )
+    follow_failures = actions.apply_update_selections(
+        (
+            LoadedCubeUpdateSelection(
+                candidate=_candidate(update_policy=CubeUpdatePolicy.FOLLOW_LATEST),
+                action=LoadedCubeUpdateAction.FOLLOW_LATEST,
+                target_version="2.0",
+            ),
+        )
+    )
+
+    assert failures == ()
+    assert follow_failures == ()
+    assert [workflow.cubes[alias].version for alias in workflow.stack_order] == [
+        "2.0",
+        "2.0",
+    ]
+    assert workflow.cubes["Demo"].update_policy is CubeUpdatePolicy.FOLLOW_LATEST
+    GraphBackedCubeWorkflowBuilder().build(workflow)
 
 
 def test_update_matching_version_updates_all_same_version_instances() -> None:
@@ -338,6 +434,7 @@ def _actions(
     cube_loader: _CubeLoadService | None = None,
     controller: _LoadedCubeSurfaceActions | None = None,
     workflow_issue_state: WorkflowIssueState | None = None,
+    cube_stack_service: CubeStackService | None = None,
 ) -> WorkspaceCubeUpdateActions:
     """Build update actions around one workflow."""
 
@@ -354,9 +451,33 @@ def _actions(
                     controller or _LoadedCubeSurfaceActions()
                 ),
                 workflow_issue_state=workflow_issue_state or WorkflowIssueState(),
+                cube_stack_service=cube_stack_service or CubeStackService(),
             ),
         ),
     )
+
+
+def _graph_workflow(*aliases: str) -> tuple[WorkflowState, CubeStackService]:
+    """Build a graph-backed workflow through the production stack service."""
+
+    workflow = WorkflowState()
+    service = _graph_stack_service(_StructuralGraphGateway())
+    for alias in aliases:
+        cube = CubeState(
+            cube_id="owner/repo/demo.cube",
+            version="1.0",
+            alias=alias,
+            original_cube={
+                "cube_id": "owner/repo/demo.cube",
+                "version": "1.0",
+                "implementation": {"nodes": {}, "inputs": {}, "outputs": {}},
+                "surface": {},
+                "flavors": {},
+            },
+            buffer={"nodes": {}, "inputs": {}, "outputs": {}},
+        )
+        service.apply_cube_addition(workflow, cube.cube_id, alias, cube)
+    return workflow, service
 
 
 def _candidate(

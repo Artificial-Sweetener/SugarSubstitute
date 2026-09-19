@@ -177,9 +177,13 @@ class WorkflowState:
     ) -> None:
         """Atomically replace workflow authority with one normalized graph."""
 
-        sources = {**self.cubes, **(projection_sources or {})}
-        cubes, order = self._project_direct_cube_views(document, sources=sources)
-        cubes = self._reuse_projection_objects(cubes, sources=sources)
+        projection_context = {**self.cubes, **(projection_sources or {})}
+        identity_sources = {**(projection_sources or {}), **self.cubes}
+        cubes, order = self._project_direct_cube_views(
+            document,
+            sources=projection_context,
+        )
+        cubes = self._reuse_projection_objects(cubes, sources=identity_sources)
         self.direct_workflow = document
         self.cubes = cubes
         self.stack_order = order

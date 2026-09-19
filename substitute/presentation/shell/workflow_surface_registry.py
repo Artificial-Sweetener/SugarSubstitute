@@ -91,6 +91,11 @@ class WorkflowSurfaceRegistry:
     """Expose workflow surface topology without exposing the whole shell."""
 
     _DESCRIPTORS: Mapping[WorkflowSurface, WorkflowSurfaceDescriptor] = {
+        WorkflowSurface.CUBE_STACK: WorkflowSurfaceDescriptor(
+            surface=WorkflowSurface.CUBE_STACK,
+            ownership=WorkflowSurfaceOwnership.PER_WORKFLOW_CACHED,
+            owner_name="CubeStackPresenter",
+        ),
         WorkflowSurface.EDITOR: WorkflowSurfaceDescriptor(
             surface=WorkflowSurface.EDITOR,
             ownership=WorkflowSurfaceOwnership.PER_WORKFLOW_CACHED,

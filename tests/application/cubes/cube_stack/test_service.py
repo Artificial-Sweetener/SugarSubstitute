@@ -30,6 +30,7 @@ from substitute.domain.comfy_workflow.models import DirectWorkflowState
 from substitute.domain.comfy_workflow.cube_analysis import CubeGraphEdgeOrigin
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import WorkflowState
+from substitute.domain.cube_library import CubeUpdatePolicy
 from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 from tests.application.cubes.cube_stack.graph_backed_support import (
     _GraphGateway,
@@ -306,6 +307,53 @@ def test_graph_backed_rename_updates_canonical_instance_alias() -> None:
     marker = properties["sugarcubes_cube"]
     assert isinstance(marker, dict)
     assert marker["instance_alias"] == "Renamed"
+
+
+def test_graph_backed_replacement_updates_definition_and_preserves_instance() -> None:
+    """Definition updates must retain graph identity and mounted editor state."""
+
+    workflow = WorkflowState()
+    gateway = _StructuralGraphGateway()
+    original = _cube_state("First")
+    service = _graph_stack_service(gateway)
+    service.apply_cube_addition(workflow, original.cube_id, original.alias, original)
+    original.undo_stack.append({"nodes": {"before": {}}})
+    assert workflow.direct_workflow is not None
+    old_analysis = workflow.direct_workflow.cube_analysis
+    assert old_analysis is not None
+    old_instance = old_analysis.instances[0]
+    replacement = _cube_state("First")
+    replacement.version = "2.0.0"
+    replacement.buffer = {
+        "nodes": {"replacement": {"class_type": "KSampler", "inputs": {}}}
+    }
+    replacement.update_policy = CubeUpdatePolicy.FOLLOW_LATEST
+
+    service.apply_cube_replacement(workflow, "First", replacement)
+
+    projected = workflow.cubes["First"]
+    assert projected is original
+    assert projected.version == "2.0.0"
+    assert projected.buffer["nodes"] == replacement.buffer["nodes"]
+    assert projected.update_policy is CubeUpdatePolicy.FOLLOW_LATEST
+    assert projected.undo_stack == [{"nodes": {"before": {}}}]
+    assert workflow.direct_workflow.cube_analysis is not None
+    updated_instance = workflow.direct_workflow.cube_analysis.instances[0]
+    assert updated_instance.instance_id == old_instance.instance_id
+    assert updated_instance.node_id == old_instance.node_id
+    assert updated_instance.definition_id == old_instance.definition_id
+    definitions = workflow.direct_workflow.source_workflow["definitions"]
+    assert isinstance(definitions, dict)
+    subgraphs = definitions["subgraphs"]
+    assert isinstance(subgraphs, list)
+    extra = subgraphs[0]["extra"]
+    assert isinstance(extra, dict)
+    document = extra["sugarcubes_document"]
+    assert isinstance(document, dict)
+    assert document["version"] == "2.0.0"
+    implementation = document["implementation"]
+    assert isinstance(implementation, dict)
+    assert implementation["nodes"] == replacement.buffer["nodes"]
 
 
 def test_first_cube_addition_establishes_native_graph_authority() -> None:
