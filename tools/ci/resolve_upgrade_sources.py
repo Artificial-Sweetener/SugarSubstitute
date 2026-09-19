@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Resolve the latest three stable upgrade sources plus the fixed canary."""
+"""Resolve finite update qualification sources from compatibility boundaries."""
 
 from __future__ import annotations
 
@@ -32,11 +32,14 @@ from tools.ci.historical_release_contract import (
     HistoricalReleaseContractError,
     validated_published_at,
 )
+from sugarsubstitute_shared.update_compatibility import (
+    UpdateCompatibilityContract,
+    load_repository_update_compatibility,
+)
 
 
-_CANARY_TAG = "v0.12.2"
-_RELEASE_COUNT = 3
 _SEMVER_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 class UpgradeSourceResolutionError(RuntimeError):
@@ -49,8 +52,9 @@ def resolve_upgrade_sources(
     candidate_version: str,
     selection: Literal["complete", "latest-only"] = "complete",
     fetch_releases: Callable[[str], object] | None = None,
+    compatibility: UpdateCompatibilityContract | None = None,
 ) -> list[dict[str, str]]:
-    """Return the complete matrix or one latest focused-remediation source."""
+    """Return previous, oldest-direct, and declared-boundary upgrade sources."""
 
     payload = (fetch_releases or _fetch_github_releases)(repository)
     if not isinstance(payload, list):
@@ -86,24 +90,38 @@ def resolve_upgrade_sources(
                 "published_at": stable_releases[stable_tags[0]],
                 "tag": stable_tags[0],
                 "version": stable_tags[0].removeprefix("v"),
+                "boundary": "previous-stable",
             }
         ]
-    selected = stable_tags[:_RELEASE_COUNT]
-    if len(selected) != _RELEASE_COUNT:
+    if not stable_tags:
         raise UpgradeSourceResolutionError(
-            f"Expected at least {_RELEASE_COUNT} stable historical releases."
+            "Expected at least 1 stable historical release."
         )
-    if _CANARY_TAG not in selected:
-        if _CANARY_TAG not in stable_releases:
+    contract = compatibility or load_repository_update_compatibility(_REPOSITORY_ROOT)
+    selected: dict[str, list[str]] = {}
+
+    def select(tag: str, boundary: str) -> None:
+        """Select one tag once while retaining every represented boundary."""
+
+        if tag not in stable_releases:
             raise UpgradeSourceResolutionError(
-                f"Fixed canary release {_CANARY_TAG} is missing from GitHub history."
+                f"Compatibility boundary {boundary} requires missing release {tag}."
             )
-        selected.append(_CANARY_TAG)
+        selected.setdefault(tag, []).append(boundary)
+
+    select(stable_tags[0], "previous-stable")
+    direct_floor = _version_key(f"v{contract.minimum_direct_launcher_version}")
+    direct_tags = [tag for tag in stable_tags if _version_key(tag) >= direct_floor]
+    if direct_tags:
+        select(direct_tags[-1], "oldest-direct")
+    for version, boundary in contract.qualification_versions():
+        select(f"v{version}", boundary)
     return [
         {
             "published_at": stable_releases[tag],
             "tag": tag,
             "version": tag.removeprefix("v"),
+            "boundary": "+".join(selected[tag]),
         }
         for tag in selected
     ]

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import os
 import sys
+import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -51,6 +53,7 @@ from tests.launcher.installation_workflow.first_run.support import (
 
 @pytest.mark.platforms("windows")
 def test_first_run_installs_launcher_bundle_and_builds_continue_command(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """The permanent onedir launcher bundle is installed into the chosen root."""
@@ -63,13 +66,25 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
     write_manifest(
         release_root / "manifest.json", app_zip=app_zip, launcher_zip=launcher_zip
     )
+    release_source = LocalFolderReleaseSource(release_root)
+    unsigned_manifest = release_source.load_manifest()
+    signed_digest = "b" * 64
+    monkeypatch.setattr(
+        LocalFolderReleaseSource,
+        "load_manifest",
+        lambda _self: replace(
+            unsigned_manifest,
+            signed_metadata_version=42,
+            signed_metadata_digest=signed_digest,
+        ),
+    )
     started_commands: list[list[str]] = []
 
     result = FirstRunInstaller(
         process_starter=record_command(started_commands)
     ).install_downloaded_launcher(
         install_root=tmp_path / "Programs" / "SugarSubstitute",
-        release_source=LocalFolderReleaseSource(release_root),
+        release_source=release_source,
     )
 
     assert result.layout.executable_path.read_bytes() == b"launcher"
@@ -86,6 +101,15 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
     assert LauncherInstallationRecord.load(
         result.layout.launcher_installation_path
     ) == LauncherInstallationRecord(version="0.4.0", target_key="windows_x64")
+    assert json.loads(
+        (result.layout.launcher_dir / "trusted-metadata.json").read_text(
+            encoding="utf-8"
+        )
+    ) == {
+        "metadata_version": 42,
+        "schema_version": 1,
+        "signed_digest": signed_digest,
+    }
 
 
 def test_continue_install_command_carries_handoff_geometry(tmp_path: Path) -> None:

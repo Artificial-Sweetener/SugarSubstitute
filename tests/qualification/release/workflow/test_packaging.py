@@ -135,6 +135,27 @@ def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
     assert "PyInstaller" not in publication
 
 
+def test_release_candidate_authenticates_and_attests_exact_published_metadata() -> None:
+    """Bind runtime update trust and provenance to the qualified candidate bytes."""
+
+    candidate = workflow_text("release-candidate.yml")
+    publication = workflow_text("release-publication.yml")
+
+    assert "SUGAR_SUBSTITUTE_RELEASE_SIGNING_KEY" in candidate
+    assert "scripts\\sign-release-metadata.mjs" in candidate
+    assert "manifest.signed.json" in candidate
+    assert "actions/attest-build-provenance@" in candidate
+    assert "subject-path: .local-release-channel/*" in candidate
+    assert "attestations: write" in candidate
+    assert "id-token: write" in candidate
+    assert 'gh release upload canary-latest "$channel_dir/manifest.signed.json"' in (
+        publication
+    )
+    assert (
+        'cmp "$channel_dir/manifest.signed.json" "$readback_dir/manifest.signed.json"'
+    ) in publication
+
+
 def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
     """The flattened root release should publish directly from its existing tree."""
 

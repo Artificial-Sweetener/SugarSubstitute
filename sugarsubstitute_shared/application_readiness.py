@@ -31,9 +31,15 @@ READINESS_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_PATH"
 READINESS_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_TOKEN"
 READINESS_DELEGATION_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_PATH"
 READINESS_DELEGATION_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_TOKEN"
-READINESS_SCHEMA_VERSION: Final = 3
+READINESS_SCHEMA_VERSION: Final = 4
 _LEGACY_READINESS_SCHEMA_VERSION: Final = 1
 _SURFACE_READINESS_SCHEMA_VERSION: Final = 2
+_PARENT_READINESS_SCHEMA_VERSION: Final = 3
+REQUIRED_READINESS_MILESTONES: Final = (
+    "process_started",
+    "surface_painted",
+    "event_loop_turn_completed",
+)
 
 
 class ApplicationReadinessSurface(str, Enum):
@@ -53,6 +59,7 @@ class ApplicationReadinessReceipt:
     token: str
     surface: ApplicationReadinessSurface
     parent_pid: int | None
+    milestones: tuple[str, ...] = REQUIRED_READINESS_MILESTONES
 
     def to_json(self) -> dict[str, object]:
         """Return the stable receipt representation."""
@@ -63,6 +70,7 @@ class ApplicationReadinessReceipt:
             "schema_version": READINESS_SCHEMA_VERSION,
             "surface": self.surface.value,
             "token": self.token,
+            "milestones": list(self.milestones),
         }
 
     @classmethod
@@ -80,6 +88,7 @@ class ApplicationReadinessReceipt:
             not in {
                 _LEGACY_READINESS_SCHEMA_VERSION,
                 _SURFACE_READINESS_SCHEMA_VERSION,
+                _PARENT_READINESS_SCHEMA_VERSION,
                 READINESS_SCHEMA_VERSION,
             }
             or not isinstance(pid, int)
@@ -94,16 +103,25 @@ class ApplicationReadinessReceipt:
                 token=token,
                 surface=ApplicationReadinessSurface.LEGACY_VISIBLE_SHELL,
                 parent_pid=None,
+                milestones=(),
             )
         if not isinstance(raw_surface, str):
             raise ValueError("Application readiness receipt is invalid.")
         parent_pid = payload.get("parent_pid")
-        if schema_version == READINESS_SCHEMA_VERSION and (
+        if schema_version >= _PARENT_READINESS_SCHEMA_VERSION and (
             not isinstance(parent_pid, int) or parent_pid <= 0
         ):
             raise ValueError("Application readiness receipt is invalid.")
-        if schema_version != READINESS_SCHEMA_VERSION:
+        if schema_version < _PARENT_READINESS_SCHEMA_VERSION:
             parent_pid = None
+        raw_milestones = payload.get("milestones")
+        milestones: tuple[str, ...]
+        if schema_version == READINESS_SCHEMA_VERSION:
+            if raw_milestones != list(REQUIRED_READINESS_MILESTONES):
+                raise ValueError("Application readiness milestones are incomplete.")
+            milestones = REQUIRED_READINESS_MILESTONES
+        else:
+            milestones = ()
         try:
             surface = ApplicationReadinessSurface(raw_surface)
         except ValueError as error:
@@ -113,6 +131,7 @@ class ApplicationReadinessReceipt:
             token=token,
             surface=surface,
             parent_pid=parent_pid,
+            milestones=milestones,
         )
 
 
@@ -144,6 +163,7 @@ __all__ = [
     "READINESS_DELEGATION_PATH_ENV",
     "READINESS_DELEGATION_TOKEN_ENV",
     "READINESS_SCHEMA_VERSION",
+    "REQUIRED_READINESS_MILESTONES",
     "READINESS_TOKEN_ENV",
     "publish_application_readiness_receipt",
 ]

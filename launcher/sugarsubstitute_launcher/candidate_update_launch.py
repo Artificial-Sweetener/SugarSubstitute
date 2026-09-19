@@ -63,6 +63,9 @@ class CandidateUpdateActivation(Protocol):
     def rollback(self) -> None:
         """Restore the prior update state."""
 
+    def reject(self, reason: str) -> None:
+        """Restore the prior state and quarantine a failed target."""
+
 
 class CandidateReadinessSupervisor(Protocol):
     """Wait until one candidate application is visibly ready."""
@@ -181,7 +184,7 @@ def launch_prepared_update(
                 process=candidate_error.terminated_process,
                 prepared=prepared,
             )
-        activation.rollback()
+        activation.reject(type(candidate_error).__name__)
         rollback_reporter(
             install_root=layout.root,
             attempted_version=attempted_version,

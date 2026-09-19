@@ -24,6 +24,9 @@ from pathlib import Path
 import pytest
 
 from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.legacy_request_bridge import (
+    renew_legacy_launcher_handoff,
+)
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 from .support import _write_scheduled_update_request
@@ -78,3 +81,49 @@ def test_legacy_pid_only_request_can_be_rescheduled_without_guessing_identity(
         pid=456, created_at=2000.5
     )
     assert updated.staged_bundle_dir == request.staged_bundle_dir
+
+
+def test_legacy_bridge_binds_only_the_validated_launcher_incarnation(
+    tmp_path: Path,
+) -> None:
+    """Upgrade a PID-only handoff with observed kernel and executable identity."""
+
+    path, _python, _app = _write_scheduled_update_request(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.update(schema_version=1, wait_pid=123)
+    payload.pop("wait_process_created_at", None)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    observed: list[tuple[int, Path]] = []
+
+    def resolve(pid: int, executable: Path) -> ProcessIdentity:
+        """Return the exact identity after recording the expected executable."""
+
+        observed.append((pid, executable))
+        return ProcessIdentity(pid=pid, created_at=456.5)
+
+    renewed = renew_legacy_launcher_handoff(path, identity_resolver=resolve)
+
+    assert renewed.schema_version == 2
+    assert renewed.wait_identity == ProcessIdentity(pid=123, created_at=456.5)
+    assert observed == [
+        (123, (tmp_path / "SugarSubstitute" / "SugarSubstitute").resolve())
+    ]
+    assert LauncherUpdateRequest.load(path) == renewed
+
+
+def test_legacy_bridge_needs_no_wait_after_launcher_exit(tmp_path: Path) -> None:
+    """Treat a proven missing legacy process as an already completed handoff."""
+
+    path, _python, _app = _write_scheduled_update_request(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.update(schema_version=1, wait_pid=123)
+    payload.pop("wait_process_created_at", None)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    renewed = renew_legacy_launcher_handoff(
+        path,
+        identity_resolver=lambda _pid, _executable: None,
+    )
+
+    assert renewed.schema_version == 2
+    assert renewed.wait_identity is None

@@ -146,11 +146,12 @@ jobs:
 
           for asset in "$channel_dir"/*; do
             case "$(basename "$asset")" in
-              manifest.json|*.exe|*.dmg|*.AppImage|*.deb) continue ;;
+              manifest.json|manifest.signed.json|*.exe|*.dmg|*.AppImage|*.deb) continue ;;
             esac
             gh release upload canary-latest "$asset" --repo "${{ github.repository }}" --clobber
           done
           gh release upload canary-latest "$channel_dir/manifest.json" --repo "${{ github.repository }}" --clobber
+          gh release upload canary-latest "$channel_dir/manifest.signed.json" --repo "${{ github.repository }}" --clobber
           for asset in "$channel_dir"/*.exe "$channel_dir"/*.dmg "$channel_dir"/*.AppImage "$channel_dir"/*.deb; do
             if [ -f "$asset" ]; then
               gh release upload canary-latest "$asset" --repo "${{ github.repository }}" --clobber
@@ -166,5 +167,7 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/git/refs/tags/canary-latest" -f sha="${{ github.sha }}" -F force=true > /dev/null
           gh release edit canary-latest --repo "${{ github.repository }}" --title "$canary_release_title" --notes-file "$channel_dir/.release-notes.md" --prerelease --latest=false
           gh release download canary-latest --repo "${{ github.repository }}" --pattern manifest.json --dir "$readback_dir"
+          gh release download canary-latest --repo "${{ github.repository }}" --pattern manifest.signed.json --dir "$readback_dir"
           cmp "$channel_dir/manifest.json" "$readback_dir/manifest.json"
+          cmp "$channel_dir/manifest.signed.json" "$readback_dir/manifest.signed.json"
           test "$(gh release view canary-latest --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq '[.isDraft, .isPrerelease] | join(":")')" = "false:true"

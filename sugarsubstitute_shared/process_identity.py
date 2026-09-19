@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import math
+import os
+from pathlib import Path
 import sys
 
 import psutil  # type: ignore[import-untyped]
@@ -55,6 +57,34 @@ def capture_process_identity(pid: int) -> ProcessIdentity:
         return ProcessIdentity(pid=pid, created_at=float(process.create_time()))
     except (psutil.NoSuchProcess, psutil.AccessDenied, OSError) as error:
         raise ProcessIdentityError(f"Could not identify process: {pid}") from error
+
+
+def capture_expected_process_identity(
+    pid: int, *, expected_executable: Path
+) -> ProcessIdentity | None:
+    """Bind a legacy PID only when its live executable is the expected launcher.
+
+    A missing process has already satisfied the handoff wait. An inaccessible or
+    different process is never accepted because a persisted PID may have been
+    reused between the legacy scheduler and this updater process.
+    """
+
+    if pid <= 0:
+        raise ProcessIdentityError("Process PID must be positive.")
+    try:
+        process = psutil.Process(pid)
+        created_at = float(process.create_time())
+        executable = Path(process.exe()).expanduser().resolve()
+    except psutil.NoSuchProcess:
+        return None
+    except (psutil.AccessDenied, OSError) as error:
+        raise ProcessIdentityError(f"Could not identify process: {pid}") from error
+    expected = expected_executable.expanduser().resolve()
+    if os.path.normcase(str(executable)) != os.path.normcase(str(expected)):
+        raise ProcessIdentityError(
+            f"Legacy launcher PID belongs to an unexpected executable: {executable}"
+        )
+    return ProcessIdentity(pid=pid, created_at=created_at)
 
 
 def wait_for_process_exit(
@@ -100,5 +130,6 @@ __all__ = [
     "ProcessIdentity",
     "ProcessIdentityError",
     "capture_process_identity",
+    "capture_expected_process_identity",
     "wait_for_process_exit",
 ]

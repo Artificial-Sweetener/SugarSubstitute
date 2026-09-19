@@ -437,9 +437,11 @@ def _assert_prepared_update(
     """Validate the downloaded update before first-launch activation."""
 
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.application_release_selection import (
+        ApplicationReleaseSelection,
+    )
     from launcher.sugarsubstitute_launcher.update_activation_journal import (
         load_update_journal,
-        previous_app_dir,
     )
     from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 
@@ -465,7 +467,13 @@ def _assert_prepared_update(
     journal = load_update_journal(layout)
     if journal is None:
         raise HttpsUpdateHarnessError("Prepared update has no recovery journal.")
-    previous_app = previous_app_dir(layout, journal)
+    selection = ApplicationReleaseSelection(layout.root).load()
+    if selection.previous is None:
+        raise HttpsUpdateHarnessError("Prepared update has no retained prior release.")
+    previous_app = (
+        ApplicationReleaseSelection(layout.root).release_root(selection.previous)
+        / "app"
+    )
     previous_text = (previous_app / "main.py").read_text(encoding="utf-8")
     if f"old {OLD_VERSION}" not in previous_text:
         raise HttpsUpdateHarnessError("Previous payload was not preserved.")
@@ -510,15 +518,15 @@ def _assert_prepared_update(
 
 
 def _assert_committed_update(layout: InstallLayout, previous_app: Path) -> None:
-    """Validate state advancement and backup retirement after activation."""
+    """Validate state advancement and last-known-good retention after activation."""
 
     from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 
     state = LauncherUpdateState.load(layout.state_path)
     if state.installed_app_version != NEW_VERSION:
         raise HttpsUpdateHarnessError(f"Unexpected committed state version: {state}")
-    if previous_app.exists():
-        raise HttpsUpdateHarnessError("Committed app backup was not retired.")
+    if not previous_app.is_dir():
+        raise HttpsUpdateHarnessError("Committed update lost its prior app release.")
 
 
 def _fixed_now() -> datetime:

@@ -38,6 +38,8 @@ def retire_committed_activation(
     layout: InstallLayout, journal: UpdateActivationJournal
 ) -> None:
     """Apply the same nonblocking disposal policy after commit and crash recovery."""
+    if journal.candidate_generation is not None:
+        return
     for path in (
         previous_app_dir(layout, journal),
         previous_runtime_dir(layout, journal),
@@ -50,6 +52,8 @@ def retire_activation_storage(
     layout: InstallLayout, journal: UpdateActivationJournal
 ) -> None:
     """Retain inaccessible staging after the authoritative transition has finished."""
+    if journal.candidate_generation is not None:
+        return
     _retire_obsolete_directory(staged_app_dir(layout, journal), journal)
     if journal.transaction_id is None:
         return

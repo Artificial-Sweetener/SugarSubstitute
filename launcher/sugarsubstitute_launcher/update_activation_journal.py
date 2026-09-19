@@ -28,11 +28,16 @@ from launcher.sugarsubstitute_launcher.config import (
     LauncherConfig,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from launcher.sugarsubstitute_launcher.application_release_selection import (
+    ApplicationReleaseSelection,
+    LEGACY_RELEASE_GENERATION,
+)
 
-_JOURNAL_SCHEMA_VERSION = 3
+_JOURNAL_SCHEMA_VERSION = 5
 _JOURNAL_NAME = "pending-app-update.json"
 PREPARING_PHASE = "preparing"
 COMMITTED_PHASE = "committed"
+ACTIVATED_PHASE = "activated"
 
 
 class UpdateRecoveryError(RuntimeError):
@@ -49,6 +54,9 @@ class UpdateActivationJournal:
     successful_state: LauncherUpdateState
     successful_config: LauncherConfig | None = None
     transaction_id: str | None = None
+    candidate_generation: str | None = None
+    previous_generation: str | None = None
+    candidate_sha256: str | None = None
 
     def to_json(self) -> dict[str, object]:
         """Return the stable persisted journal representation."""
@@ -57,8 +65,17 @@ class UpdateActivationJournal:
             "had_app": self.had_app,
             "had_runtime": self.had_runtime,
             "phase": self.phase,
-            "schema_version": _JOURNAL_SCHEMA_VERSION if self.transaction_id else 2,
+            "schema_version": (
+                _JOURNAL_SCHEMA_VERSION
+                if self.candidate_generation is not None
+                else 3
+                if self.transaction_id
+                else 2
+            ),
             "transaction_id": self.transaction_id,
+            "candidate_generation": self.candidate_generation,
+            "previous_generation": self.previous_generation,
+            "candidate_sha256": self.candidate_sha256,
             "successful_state": self.successful_state.to_json(),
             "successful_config": (
                 self.successful_config.to_json() if self.successful_config else None
@@ -84,6 +101,8 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
     if type(schema_version) is not int or schema_version not in (
         1,
         2,
+        3,
+        4,
         _JOURNAL_SCHEMA_VERSION,
     ):
         raise UpdateRecoveryError(
@@ -97,7 +116,7 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
         not isinstance(had_app, bool)
         or not isinstance(had_runtime, bool)
         or not isinstance(phase, str)
-        or phase not in {PREPARING_PHASE, COMMITTED_PHASE}
+        or phase not in {PREPARING_PHASE, ACTIVATED_PHASE, COMMITTED_PHASE}
         or not isinstance(successful_state, dict)
     ):
         raise UpdateRecoveryError(f"Pending update journal is invalid: {path}")
@@ -107,8 +126,8 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
         raise UpdateRecoveryError(
             f"Pending update journal contains invalid state: {path}"
         ) from error
-    transaction_id = payload.get("transaction_id") if schema_version == 3 else None
-    if schema_version == 3 and (
+    transaction_id = payload.get("transaction_id") if schema_version >= 3 else None
+    if schema_version >= 3 and (
         not isinstance(transaction_id, str)
         or len(transaction_id) != 32
         or any(character not in "0123456789abcdef" for character in transaction_id)
@@ -116,13 +135,47 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
         raise UpdateRecoveryError(
             "Pending activation has an invalid transaction identity."
         )
+    candidate_generation = (
+        payload.get("candidate_generation") if schema_version >= 4 else None
+    )
+    if schema_version >= 4 and not _valid_generation(candidate_generation):
+        raise UpdateRecoveryError(
+            "Pending activation has an invalid candidate generation."
+        )
+    previous_generation = (
+        payload.get("previous_generation") if schema_version >= 4 else None
+    )
+    if previous_generation is not None and not _valid_generation(
+        previous_generation, allow_legacy=True
+    ):
+        raise UpdateRecoveryError(
+            "Pending activation has an invalid previous generation."
+        )
+    candidate_sha256 = payload.get("candidate_sha256") if schema_version >= 5 else None
+    if candidate_sha256 is not None and not _valid_sha256(candidate_sha256):
+        raise UpdateRecoveryError("Pending activation has an invalid candidate digest.")
     journal = UpdateActivationJournal(
         had_app=had_app,
         had_runtime=had_runtime,
         phase=phase,
         successful_state=parsed_state,
-        successful_config=_load_successful_config(payload, layout),
+        successful_config=_load_successful_config(
+            payload,
+            layout,
+            candidate_generation=(
+                candidate_generation if isinstance(candidate_generation, str) else None
+            ),
+        ),
         transaction_id=transaction_id if isinstance(transaction_id, str) else None,
+        candidate_generation=(
+            candidate_generation if isinstance(candidate_generation, str) else None
+        ),
+        previous_generation=(
+            previous_generation if isinstance(previous_generation, str) else None
+        ),
+        candidate_sha256=(
+            candidate_sha256 if isinstance(candidate_sha256, str) else None
+        ),
     )
     if journal.transaction_id is not None:
         activation_directory(layout, journal)
@@ -130,7 +183,10 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
 
 
 def _load_successful_config(
-    payload: dict[str, object], layout: InstallLayout
+    payload: dict[str, object],
+    layout: InstallLayout,
+    *,
+    candidate_generation: str | None,
 ) -> LauncherConfig | None:
     """Accept versioned configuration publication only for this installation."""
     if payload.get("schema_version") == 1:
@@ -145,10 +201,20 @@ def _load_successful_config(
         raise UpdateRecoveryError("Pending activation contains invalid configuration.")
     try:
         config = LauncherConfig.from_json(value)
+        expected_layout = (
+            layout.for_release_root(
+                ApplicationReleaseSelection(layout.root).generation_root(
+                    candidate_generation
+                )
+            )
+            if candidate_generation is not None
+            else layout
+        )
         if (
             config.install_root.resolve() != layout.root.resolve()
-            or config.app_dir.resolve() != layout.app_dir.resolve()
-            or config.runtime_python.resolve() != layout.runtime_python.resolve()
+            or config.app_dir.resolve() != expected_layout.app_dir.resolve()
+            or config.runtime_python.resolve()
+            != expected_layout.runtime_python.resolve()
         ):
             raise ValueError("Configuration targets another installation.")
     except (TypeError, ValueError, OSError) as error:
@@ -190,7 +256,48 @@ def previous_runtime_dir(
 
 def staged_app_dir(layout: InstallLayout, journal: UpdateActivationJournal) -> Path:
     """Return staging owned by the activation's persisted transaction identity."""
+    if journal.candidate_generation is not None:
+        return (
+            ApplicationReleaseSelection(layout.root).preparing_root(
+                journal.candidate_generation
+            )
+            / "app"
+        )
     return activation_directory(layout, journal) / "app_next"
+
+
+def candidate_release_root(
+    layout: InstallLayout, journal: UpdateActivationJournal
+) -> Path:
+    """Return preparation storage for a generation-backed activation."""
+
+    if journal.candidate_generation is None:
+        raise UpdateRecoveryError("Activation does not own a release generation.")
+    return ApplicationReleaseSelection(layout.root).preparing_root(
+        journal.candidate_generation
+    )
+
+
+def _valid_generation(value: object, *, allow_legacy: bool = False) -> bool:
+    """Return whether one persisted generation identity is path-safe."""
+
+    if allow_legacy and value == LEGACY_RELEASE_GENERATION:
+        return True
+    return (
+        isinstance(value, str)
+        and len(value) == 32
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _valid_sha256(value: object) -> bool:
+    """Return whether one persisted artifact digest is canonical SHA256."""
+
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
 
 
 def remove_update_journal(layout: InstallLayout) -> None:

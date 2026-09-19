@@ -49,6 +49,14 @@ from .support import (
 )
 
 
+def _write_delegating_contract(root: Path) -> None:
+    """Mark one synthetic Windows baseline as permanent updater ownership."""
+
+    path = root / "launcher-bin" / "launcher_assets" / "launcher-contract.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"schema_version":1,"delegation_protocol":1}', encoding="utf-8")
+
+
 def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -132,6 +140,60 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
     assert "_PYI_APPLICATION_HOME_DIR" not in observed_environment
     assert observed_environment["QUALIFICATION_TOKEN"] == "preserved"
     assert dll_search_path_events == ["enter", "exit"]
+
+
+def test_delegating_baseline_runs_its_own_update_helper(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Never execute current-protocol updater logic from mutable application code."""
+
+    root = _write_installed_layout(tmp_path / "installation")
+    _write_delegating_contract(root)
+    staged = root / "launcher" / "updates" / "staged"
+    _write_bundle_tree(staged, marker="candidate")
+    request_path = root / "launcher" / "updates" / "pending.json"
+    LauncherUpdateRequest(
+        install_root=root,
+        version="0.24.0",
+        target_key="windows_x64",
+        staged_bundle_dir=staged,
+        relaunch=False,
+    ).save(request_path)
+    commands: list[list[str]] = []
+
+    def start(
+        command: list[str],
+        *,
+        cwd: Path,
+        environment: dict[str, str],
+        output_fd: int,
+    ) -> int:
+        """Capture the durable helper command without starting a process."""
+
+        del cwd, output_fd
+        commands.append(command)
+        assert "PYTHONPATH" not in environment
+        return 42
+
+    monkeypatch.setattr(update_process_module, "_start_independent", start)
+
+    helper_pid = update_process_module.schedule_launcher_update(
+        request_path=request_path,
+        runtime_python=root / "runtime" / "python.exe",
+        app_dir=root / "app",
+        relaunch=True,
+        wait_pid=None,
+    )
+
+    assert helper_pid == 42
+    assert commands == [
+        [
+            str((root / "SugarSubstitute.exe").resolve()),
+            "--apply-launcher-update",
+            str(request_path.resolve()),
+        ]
+    ]
 
 
 @pytest.mark.platforms("windows")
