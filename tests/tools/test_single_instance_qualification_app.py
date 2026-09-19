@@ -33,6 +33,7 @@ from tools.single_instance_qualification_app import (
     APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV,
     _delay_application_registration,
     _schedule_splash_close_after_surface_paint,
+    _schedule_startup_handoff,
     _wait_at_application_registration_gate,
     _wait_at_window_construction_gate,
     application_prewindow_marker_path,
@@ -202,6 +203,46 @@ def test_qualification_child_records_applied_splash_close(
         "close_acknowledged": True,
         "splash_host_pid": 1234,
     }
+
+
+def test_qualification_schedules_splash_close_before_readiness(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prevent readiness from starting launcher cleanup before splash handoff."""
+
+    scheduled: list[str] = []
+    window = cast(Any, object())
+
+    def schedule_close(
+        _arguments: list[str],
+        _root: Path,
+        received_window: object,
+    ) -> None:
+        """Record qualification splash-close registration."""
+
+        assert received_window is window
+        scheduled.append("splash_close")
+
+    def schedule_readiness(received_window: object) -> bool:
+        """Record qualification readiness registration."""
+
+        assert received_window is window
+        scheduled.append("readiness")
+        return True
+
+    monkeypatch.setattr(
+        "tools.single_instance_qualification_app._schedule_splash_close_after_surface_paint",
+        schedule_close,
+    )
+    monkeypatch.setattr(
+        "tools.single_instance_qualification_app.schedule_main_shell_readiness_receipt",
+        schedule_readiness,
+    )
+
+    _schedule_startup_handoff(["main.py"], tmp_path, window)
+
+    assert scheduled == ["splash_close", "readiness"]
 
 
 def test_qualification_child_authenticates_requested_clean_close(

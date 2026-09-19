@@ -189,8 +189,7 @@ def main(argv: list[str] | None = None) -> int:
     window.setWindowTitle("SugarSubstitute instance qualification")
     window.resize(640, 480)
     _show_initial_window_state(window)
-    schedule_main_shell_readiness_receipt(window)
-    _schedule_splash_close_after_surface_paint(arguments, install_root, window)
+    _schedule_startup_handoff(arguments, install_root, window)
     marker_path = install_root / "user" / "qualification-app.json"
     owner_marker_path = (
         install_root / "user" / "qualification-owners" / f"{os.getpid()}.json"
@@ -217,6 +216,17 @@ def main(argv: list[str] | None = None) -> int:
                 clean_exit_outcome,
                 process_id=os.getpid(),
             )
+
+
+def _schedule_startup_handoff(
+    arguments: list[str],
+    install_root: Path,
+    window: QWidget,
+) -> None:
+    """Match production's close-before-readiness post-paint callback order."""
+
+    _schedule_splash_close_after_surface_paint(arguments, install_root, window)
+    schedule_main_shell_readiness_receipt(window)
 
 
 def _schedule_splash_close_after_surface_paint(
