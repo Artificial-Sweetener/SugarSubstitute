@@ -33,7 +33,10 @@ from sugarsubstitute_shared.launch_splash import (
     splash_cancel_signal_path,
     splash_session_from_args,
 )
-from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
+from sugarsubstitute_shared.launch_splash.session import (
+    LEGACY_SPLASH_PROTOCOL_VERSION,
+    validate_splash_session_spec,
+)
 from sugarsubstitute_shared.localization import app_text, format_locale_argument
 
 from substitute.application.execution import (
@@ -294,10 +297,13 @@ def _read_shared_splash_ready_spec(
     endpoint = payload.get("endpoint")
     token = payload.get("token")
     host_pid = payload.get("host_pid")
+    protocol_version = payload.get("protocol_version", LEGACY_SPLASH_PROTOCOL_VERSION)
     if not isinstance(endpoint, str) or not isinstance(token, str):
         raise ValueError("Shared splash host ready message is incomplete.")
     if not isinstance(host_pid, int):
         raise ValueError("Shared splash host PID is invalid.")
+    if not isinstance(protocol_version, int):
+        raise ValueError("Shared splash host protocol version is invalid.")
     host, separator, raw_port = endpoint.rpartition(":")
     if not separator:
         raise ValueError("Shared splash host endpoint is invalid.")
@@ -306,6 +312,7 @@ def _read_shared_splash_ready_spec(
         port=int(raw_port),
         token=token,
         host_pid=host_pid,
+        protocol_version=protocol_version,
     )
     validate_splash_session_spec(spec)
     return spec
