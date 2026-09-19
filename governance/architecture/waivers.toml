@@ -1857,7 +1857,7 @@ kind = "structural"
 justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure after the shell paints, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
 issue = "chore:SS-WAIVER-S150"
 review_by = 2026-12-15
-max_lines = 625
+max_lines = 623
 
 [[waivers]]
 id = "SS-WAIVER-S104"

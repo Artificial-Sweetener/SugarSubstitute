@@ -34,6 +34,9 @@ from launcher.sugarsubstitute_launcher.splash_session import (
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
 )
+from sugarsubstitute_shared.launch_splash.timing import (
+    SPLASH_HOST_EXIT_TIMEOUT_SECONDS,
+)
 
 
 def test_launcher_splash_session_starts_host_and_returns_app_args(
@@ -170,7 +173,7 @@ def test_unacknowledged_splash_close_terminates_the_owned_process() -> None:
     session.close()
 
     assert process.terminated
-    assert process.wait_timeouts == [2.0, 2.0]
+    assert process.wait_timeouts == [SPLASH_HOST_EXIT_TIMEOUT_SECONDS, 2.0]
 
 
 class _UnresponsiveClient:

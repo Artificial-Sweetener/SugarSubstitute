@@ -38,7 +38,6 @@ from substitute.app.bootstrap.startup_warmup_controller import (
     StartupWarmupState,
     connect_restore_finalized_warmups,
 )
-from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 from substitute.shared.logging.logger import (
     get_logger,
     log_exception,
@@ -70,6 +69,18 @@ class ReadyShellSplashProtocol(Protocol):
         """Close the splash surface and optionally report acknowledgement."""
 
 
+class ReadyShellReadinessSchedulerProtocol(Protocol):
+    """Schedule an ordered post-paint handoff and readiness receipt."""
+
+    def __call__(
+        self,
+        window: object,
+        *,
+        before_publish: Callable[[], None] | None = None,
+    ) -> bool:
+        """Schedule readiness after the optional prerequisite completes."""
+
+
 ReadyShellSplashProvider = Callable[[], ReadyShellSplashProtocol | None]
 ReadyShellSplashSetter = Callable[[ReadyShellSplashProtocol | None], None]
 
@@ -96,7 +107,7 @@ def reveal_ready_shell_main_window(
     request_startup_diagnostics_update: Callable[[], object],
     schedule_post_show_hydration: Callable[[], object],
     trace_fields: Callable[[], Mapping[str, object]],
-    schedule_readiness_receipt: Callable[[object], bool] = (
+    schedule_readiness_receipt: ReadyShellReadinessSchedulerProtocol = (
         schedule_main_shell_readiness_receipt
     ),
     on_splash_closed: Callable[[], None] | None = None,
@@ -113,17 +124,22 @@ def reveal_ready_shell_main_window(
     set_current_shell(revealed_shell_frame)
     startup_timer.mark("main_shell_shown")
     trace_mark("main_shell.shown", **dict(trace_fields()))
-    if active_splash is not None:
-        run_after_surface_paint(
-            revealed_shell_frame,
+    close_splash = (
+        (
             lambda: _close_splash_after_surface_paint(
                 splash=active_splash,
                 startup_timer=startup_timer,
                 trace_fields=trace_fields,
                 on_splash_closed=on_splash_closed,
-            ),
+            )
         )
-    schedule_readiness_receipt(revealed_shell_frame)
+        if active_splash is not None
+        else None
+    )
+    schedule_readiness_receipt(
+        revealed_shell_frame,
+        before_publish=close_splash,
+    )
     schedule_main_shell_qualification(revealed_shell_frame)
     update_backend_state("ready" if comfy_http_ready else "starting")
     log_info(
@@ -309,6 +325,7 @@ def connect_ready_shell_restore_finalized_warmups(
 
 __all__ = [
     "ReadyShellRevealResult",
+    "ReadyShellReadinessSchedulerProtocol",
     "ReadyShellRevealTask",
     "ReadyShellRevealTimerProtocol",
     "ReadyShellSplashProvider",
