@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from sugarsubstitute_shared.application_readiness import (
@@ -35,22 +36,44 @@ def schedule_surface_readiness_receipt(
     *,
     surface: ApplicationReadinessSurface,
     window: object,
+    before_publish: Callable[[], None] | None = None,
 ) -> bool:
-    """Publish readiness only after the exact application surface paints."""
+    """Run the handoff and publish readiness after the exact surface paints."""
 
     readiness_path = _readiness_path_from_environment()
     readiness_token = os.environ.get(READINESS_TOKEN_ENV, "")
     if readiness_path is None or not readiness_token:
+        if before_publish is not None:
+            run_after_surface_paint(window, before_publish)
         return False
     run_after_surface_paint(
         window,
-        lambda: _write_readiness_receipt(
+        lambda: _publish_readiness_after_prerequisite(
             readiness_path=readiness_path,
             readiness_token=readiness_token,
             surface=surface,
+            before_publish=before_publish,
         ),
     )
     return True
+
+
+def _publish_readiness_after_prerequisite(
+    *,
+    readiness_path: Path,
+    readiness_token: str,
+    surface: ApplicationReadinessSurface,
+    before_publish: Callable[[], None] | None,
+) -> None:
+    """Complete an ordered surface handoff before publishing readiness."""
+
+    if before_publish is not None:
+        before_publish()
+    _write_readiness_receipt(
+        readiness_path=readiness_path,
+        readiness_token=readiness_token,
+        surface=surface,
+    )
 
 
 def _readiness_path_from_environment() -> Path | None:
@@ -84,12 +107,17 @@ def _write_readiness_receipt(
     )
 
 
-def schedule_main_shell_readiness_receipt(window: object) -> bool:
+def schedule_main_shell_readiness_receipt(
+    window: object,
+    *,
+    before_publish: Callable[[], None] | None = None,
+) -> bool:
     """Publish readiness after the main application shell paints."""
 
     return schedule_surface_readiness_receipt(
         surface=ApplicationReadinessSurface.MAIN_SHELL,
         window=window,
+        before_publish=before_publish,
     )
 
 

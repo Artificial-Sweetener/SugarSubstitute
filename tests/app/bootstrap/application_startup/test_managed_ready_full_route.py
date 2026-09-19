@@ -27,7 +27,6 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from substitute.app.bootstrap import (
-    ready_shell_reveal,
     startup,
     startup_environment,
     startup_managed_ready_ports,
@@ -648,8 +647,7 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     )
     monkeypatch.setattr(qtcore, "QTimer", _FakeTimer)
     monkeypatch.setattr(
-        ready_shell_reveal,
-        "run_after_surface_paint",
+        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
         lambda _window, callback: callback(),
     )
     monkeypatch.setattr(

@@ -70,6 +70,10 @@ ISOLATED_TEST_MODULES = frozenset(
         # can crash after unrelated native Qt work in a reused Linux xdist
         # worker; a fresh bounded process matches the shipped application.
         "tests/presentation/shell/model_updates/test_notification_controller.py",
+        # This widget page owns a qfluentwidgets expander and immediate task
+        # callbacks whose teardown can abort after unrelated Qt work in a
+        # reused Windows worker. A fresh process makes its lifecycle explicit.
+        "tests/presentation/settings/cube_library/test_add_pack.py",
         # This Windows native splash timing qualification requires a fresh
         # process so unrelated xdist pressure cannot distort its latency budget.
         "tests/qualification/startup_splash/test_source_first_paint.py",

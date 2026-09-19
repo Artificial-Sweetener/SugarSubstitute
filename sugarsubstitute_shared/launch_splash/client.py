@@ -28,10 +28,13 @@ from sugarsubstitute_shared.launch_splash.protocol import (
     encode_splash_session_message,
 )
 from sugarsubstitute_shared.launch_splash.session import SplashSessionSpec
+from sugarsubstitute_shared.launch_splash.timing import (
+    SPLASH_CLOSE_ACK_TIMEOUT_SECONDS,
+)
 
 
 DEFAULT_SPLASH_CLIENT_TIMEOUT_SECONDS = 2.0
-DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = 2.0
+DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = SPLASH_CLOSE_ACK_TIMEOUT_SECONDS
 
 
 class SocketSplashSessionClient:
@@ -42,11 +45,13 @@ class SocketSplashSessionClient:
         spec: SplashSessionSpec,
         *,
         timeout_seconds: float = DEFAULT_SPLASH_CLIENT_TIMEOUT_SECONDS,
+        close_timeout_seconds: float = DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS,
     ) -> None:
         """Store the authenticated session endpoint."""
 
         self._spec = spec
         self._timeout_seconds = timeout_seconds
+        self._close_timeout_seconds = close_timeout_seconds
 
     @property
     def spec(self) -> SplashSessionSpec:
@@ -99,10 +104,7 @@ class SocketSplashSessionClient:
             self._send(
                 "close",
                 line=None,
-                timeout_seconds=min(
-                    self._timeout_seconds,
-                    DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS,
-                ),
+                timeout_seconds=self._close_timeout_seconds,
             )
         except OSError:
             return False

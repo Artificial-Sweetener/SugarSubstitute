@@ -74,6 +74,40 @@ def test_readiness_receipt_is_queued_after_shell_reveal(
     assert os.environ[READINESS_TOKEN_ENV] == "launch-token"
 
 
+def test_readiness_receipt_waits_for_ordered_surface_handoff(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Publish readiness only after its post-paint prerequisite completes."""
+
+    callbacks: list[Callable[[], None]] = []
+    events: list[str] = []
+    readiness_path = (tmp_path / "launcher" / "ordered.json").resolve()
+    monkeypatch.setenv(READINESS_PATH_ENV, str(readiness_path))
+    monkeypatch.setenv(READINESS_TOKEN_ENV, "launch-token")
+    monkeypatch.setattr(
+        application_readiness,
+        "run_after_surface_paint",
+        lambda _window, callback: callbacks.append(callback),
+    )
+
+    def complete_splash_handoff() -> None:
+        """Prove the readiness receipt does not exist during splash handoff."""
+
+        assert not readiness_path.exists()
+        events.append("splash_closed")
+
+    assert application_readiness.schedule_main_shell_readiness_receipt(
+        object(),
+        before_publish=complete_splash_handoff,
+    )
+
+    callbacks[0]()
+
+    assert events == ["splash_closed"]
+    assert readiness_path.is_file()
+
+
 def test_readiness_token_survives_onboarding_to_main_shell_handoff(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
