@@ -157,6 +157,25 @@ class CubeStackService:
         workflow.cubes.pop(alias_name, None)
         workflow.stack_order = list(manager.stack_order)
 
+    def apply_cube_replacement(
+        self,
+        workflow: WorkflowStateProtocol,
+        alias_name: str,
+        cube_state: Any,
+    ) -> None:
+        """Replace one Cube through the workflow's authoritative state owner."""
+
+        if getattr(workflow, "is_graph_backed_cube_workflow", False) is True:
+            self._graph_backed().replace_cube(
+                cast(WorkflowState, workflow),
+                alias_name,
+                cast(Any, cube_state),
+            )
+            return
+        if alias_name not in workflow.cubes:
+            raise ValueError(f"Cube {alias_name!r} is unavailable.")
+        workflow.cubes[alias_name] = cube_state
+
     def set_cube_bypassed(
         self,
         workflow: WorkflowStateProtocol,

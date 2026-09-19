@@ -18,9 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
-from inspect import Parameter, signature
 from typing import cast
 
 from substitute.presentation.shell.workflow_route_ports import (
@@ -35,11 +34,17 @@ from substitute.presentation.shell.main_window_editor_surface_adapter import (
 from substitute.presentation.shell.main_window_generation_availability_adapter import (
     MainWindowGenerationAvailabilityAdapter,
 )
+from substitute.presentation.shell.main_window_cube_stack_surface_adapter import (
+    MainWindowCubeStackSurfaceAdapter,
+)
 from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
 )
 from substitute.presentation.shell.main_window_workflow_session_state_adapter import (
     MainWindowWorkflowSessionStateAdapter,
+)
+from substitute.presentation.shell.legacy_workflow_surface_refresh import (
+    call_legacy_surface_refresh,
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurface,
@@ -47,6 +52,7 @@ from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurfaceInvalidationService,
 )
 from substitute.presentation.shell.workflow_surface_ports import (
+    CubeStackSurfacePort,
     EditorSurfacePort,
     GenerationAvailabilityPort,
     OverrideSurfacePort,
@@ -102,7 +108,7 @@ class ActiveWorkflowSurfaceRefresher:
                 self._view, "refresh_active_workflow_surface", None
             )
             if callable(legacy_refresh):
-                self._call_legacy_refresh(
+                call_legacy_surface_refresh(
                     legacy_refresh,
                     force_refresh=force_refresh,
                     on_complete=on_complete,
@@ -116,7 +122,7 @@ class ActiveWorkflowSurfaceRefresher:
                 self._view, "refresh_active_workflow_surface", None
             )
             if callable(legacy_refresh):
-                self._call_legacy_refresh(
+                call_legacy_surface_refresh(
                     legacy_refresh,
                     force_refresh=force_refresh,
                     on_complete=on_complete,
@@ -148,6 +154,7 @@ class ActiveWorkflowSurfaceRefresher:
             session,
             canvas_port=MainWindowCanvasRouteAdapter(self._view),
             editor_port=MainWindowEditorSurfaceAdapter(self._view),
+            cube_stack_port=MainWindowCubeStackSurfaceAdapter(self._view),
             override_port=MainWindowOverrideSurfaceAdapter(self._view),
             generation_port=MainWindowGenerationAvailabilityAdapter(self._view),
             surface_invalidation_service=invalidation,
@@ -183,6 +190,7 @@ class ActiveWorkflowSurfaceRefresher:
             session,
             canvas_port=MainWindowCanvasRouteAdapter(self._view),
             editor_port=MainWindowEditorSurfaceAdapter(self._view),
+            cube_stack_port=MainWindowCubeStackSurfaceAdapter(self._view),
             override_port=MainWindowOverrideSurfaceAdapter(self._view),
             generation_port=MainWindowGenerationAvailabilityAdapter(self._view),
             surface_invalidation_service=invalidation,
@@ -328,36 +336,6 @@ class ActiveWorkflowSurfaceRefresher:
             ),
         )
 
-    @staticmethod
-    def _call_legacy_refresh(
-        legacy_refresh: Callable[..., object],
-        *,
-        force_refresh: bool,
-        on_complete: Callable[[], None] | None,
-    ) -> None:
-        """Call legacy refresh hooks that may not accept modern keyword options."""
-
-        parameters: Mapping[str, Parameter]
-        try:
-            parameters = signature(legacy_refresh).parameters
-        except (TypeError, ValueError):
-            parameters = {}
-        supports_variadic_keywords = any(
-            parameter.kind is Parameter.VAR_KEYWORD for parameter in parameters.values()
-        )
-        supports_force_refresh = (
-            "force_refresh" in parameters or supports_variadic_keywords
-        )
-        supports_on_complete = "on_complete" in parameters or supports_variadic_keywords
-        kwargs: dict[str, object] = {}
-        if supports_force_refresh:
-            kwargs["force_refresh"] = force_refresh
-        if supports_on_complete:
-            kwargs["on_complete"] = on_complete
-        legacy_refresh(**kwargs)
-        if on_complete is not None and not supports_on_complete:
-            on_complete()
-
 
 def active_workflow_surface_refresher_for(
     view: object,
@@ -378,6 +356,7 @@ class WorkflowSurfaceReconciler:
     _SHELL_SURFACES = frozenset(
         {
             WorkflowSurface.EDITOR,
+            WorkflowSurface.CUBE_STACK,
             WorkflowSurface.OVERRIDES,
             WorkflowSurface.GENERATION_AVAILABILITY,
         }
@@ -389,6 +368,7 @@ class WorkflowSurfaceReconciler:
         *,
         canvas_port: CanvasRouteProjectionPort,
         editor_port: EditorSurfacePort,
+        cube_stack_port: CubeStackSurfacePort,
         override_port: OverrideSurfacePort,
         generation_port: GenerationAvailabilityPort,
         surface_invalidation_service: WorkflowSurfaceInvalidationPort,
@@ -398,6 +378,7 @@ class WorkflowSurfaceReconciler:
         self._session_port = session_port
         self._canvas_port = canvas_port
         self._editor_port = editor_port
+        self._cube_stack_port = cube_stack_port
         self._override_port = override_port
         self._generation_port = generation_port
         self._surface_invalidation_service = surface_invalidation_service
@@ -477,6 +458,12 @@ class WorkflowSurfaceReconciler:
                 workflow_id=workflow_id,
             )
 
+        stack_result = self._cube_stack_port.reconcile_cube_stack(workflow_id, token)
+        if stack_result.cleanable:
+            cleanable_surfaces.add(stack_result.surface)
+            self._mark_cleanable(stack_result)
+        else:
+            self._consume_result(stack_result)
         self._consume_result(self._override_port.sync_override_state(workflow_id))
         self._consume_result(
             self._override_port.apply_overrides_before_projection(workflow_id)
@@ -529,6 +516,13 @@ class WorkflowSurfaceReconciler:
         dirty_surfaces = dirty_state.dirty_surfaces
         reconciled_surfaces: set[WorkflowSurface] = set()
         canvas_projected = False
+        if WorkflowSurface.CUBE_STACK in dirty_surfaces:
+            result = self._cube_stack_port.reconcile_cube_stack(workflow_id, token)
+            if result.cleanable:
+                self._mark_cleanable(result)
+                reconciled_surfaces.add(result.surface)
+            else:
+                self._consume_result(result)
         if WorkflowSurface.EDITOR in dirty_surfaces:
             result = self._editor_port.refresh_editor_surface(
                 workflow_id,

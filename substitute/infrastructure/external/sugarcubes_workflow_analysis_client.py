@@ -144,6 +144,26 @@ class SugarCubesWorkflowAnalysisClient:
             operation="mutation",
         )
 
+    def replace_cube(
+        self,
+        workflow: JsonObject,
+        *,
+        instance_id: str,
+        document: JsonObject,
+    ) -> CanonicalCubeGraphAnalysis:
+        """Return the graph after SugarCubes replaces one Cube definition."""
+
+        return self._post_analysis(
+            self._endpoint.sugarcubes_workflow_cube_replace_url(),
+            {
+                "schema_version": 1,
+                "workflow": workflow,
+                "instance_id": instance_id,
+                "document": document,
+            },
+            operation="mutation",
+        )
+
     def _post_analysis(
         self,
         url: str,
