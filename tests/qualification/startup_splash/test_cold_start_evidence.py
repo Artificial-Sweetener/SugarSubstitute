@@ -18,9 +18,16 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
-from tools.single_instance_cold_start_evidence import assert_cold_start_snapshot
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from tools.single_instance_cold_start_evidence import (
+    assert_cold_start_snapshot,
+    qualification_app_pids,
+)
 
 
 def test_cold_start_evidence_records_latency_without_gating_on_it() -> None:
@@ -52,6 +59,50 @@ def test_cold_start_evidence_rejects_out_of_order_presentation_phases() -> None:
             expected_launcher_pids=(101,),
             expected_app_pid=202,
         )
+
+
+def test_qualification_owner_markers_reject_reused_process_ids(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ignore stale marker PIDs that now identify an unrelated process."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    marker_dir = layout.user_dir / "qualification-owners"
+    marker_dir.mkdir(parents=True)
+    marker_dir.joinpath("101.json").write_text(
+        json.dumps({"pid": 101, "parent_pid": 201}),
+        encoding="utf-8",
+    )
+    marker_dir.joinpath("102.json").write_text(
+        json.dumps({"pid": 102, "parent_pid": 202}),
+        encoding="utf-8",
+    )
+
+    class _Process:
+        """Expose stable process identity for one marker PID."""
+
+        def __init__(self, pid: int) -> None:
+            """Retain the selected marker PID."""
+
+            self._pid = pid
+
+        def cmdline(self) -> list[str]:
+            """Return the qualification entrypoint for both process IDs."""
+
+            return ["python.exe", str(layout.app_entrypoint.resolve())]
+
+        def ppid(self) -> int:
+            """Make the second marker stale through parent identity mismatch."""
+
+            return 201 if self._pid == 101 else 999
+
+    monkeypatch.setattr(
+        "tools.single_instance_cold_start_evidence.psutil.Process",
+        _Process,
+    )
+
+    assert qualification_app_pids(layout) == (101,)
 
 
 def _snapshot(*, launch_to_first_paint_ms: float) -> dict[str, object]:
