@@ -32,8 +32,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
         "release-current-install-qualification.yml",
         "release-update-qualification.yml",
     )
-    assert "verify_installer_lifecycle.py clean" in current_text
-    assert "verify_installer_lifecycle.py upgrade" in update_text
+    assert "python -u tools/ci/verify_installer_lifecycle.py clean" in current_text
+    assert "python -u tools/ci/verify_installer_lifecycle.py upgrade" in update_text
     assert "python -m tools.ci.resolve_upgrade_sources" in orchestration_text
     assert '--historical-published-at "${{ matrix.history.published_at }}"' in (
         update_text

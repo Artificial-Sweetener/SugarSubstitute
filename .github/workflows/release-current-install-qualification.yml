@@ -102,7 +102,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           QT_QPA_PLATFORM: offscreen
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
@@ -115,7 +115,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           QT_QPA_PLATFORM: offscreen
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
@@ -175,7 +175,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: cocoa
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
@@ -187,7 +187,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: cocoa
         run: >-
-          python tools/ci/verify_installer_lifecycle.py clean
+          python -u tools/ci/verify_installer_lifecycle.py clean
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
