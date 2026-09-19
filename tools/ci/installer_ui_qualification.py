@@ -47,6 +47,7 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationTarget,
 )
 from tools.ci.installer_evidence_verification import (
+    assert_no_launch_splash_replacement,
     assert_qualification_event_sequence,
     assert_startup_trace_sequence,
     diagnostic_tail,
@@ -285,6 +286,9 @@ def verify_main_shell_evidence(
                 required_events=required_qualification_events,
             )
         assert_startup_trace_sequence(evidence.trace_path)
+        assert_no_launch_splash_replacement(
+            InstallLayout.from_root(install_root).logs_dir / "app-startup.log"
+        )
         if evidence.plan.target_mode == "managed_local":
             assert_real_managed_comfy(
                 install_root=install_root,
