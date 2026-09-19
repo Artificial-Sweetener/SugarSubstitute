@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import ssl
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping, Protocol
@@ -38,6 +38,7 @@ from launcher.sugarsubstitute_launcher.config import (
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from sugarsubstitute_shared.launcher_version import safe_launcher_version
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
+from launcher.sugarsubstitute_launcher.trusted_metadata import ReleaseMetadataVerifier
 
 
 class ReleaseSource(Protocol):
@@ -83,14 +84,26 @@ class GitHubReleaseSource:
         """Download and parse the GitHub-hosted release manifest."""
 
         _require_https_url(self.manifest_url, "release manifest")
-        request = urllib.request.Request(self.manifest_url, method="GET")
+        source_url = (
+            self.manifest_url.removesuffix("manifest.json") + "manifest.signed.json"
+            if _requires_signed_metadata(self.manifest_url)
+            else self.manifest_url
+        )
+        request = urllib.request.Request(source_url, method="GET")
         with urllib.request.urlopen(
             request,
             timeout=self.timeout_seconds,
             context=self.tls_context,
         ) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        return ReleaseManifest.from_json(payload)
+        if not _requires_signed_metadata(self.manifest_url):
+            return ReleaseManifest.from_json(payload)
+        verified = ReleaseMetadataVerifier().verify(payload)
+        return replace(
+            ReleaseManifest.from_json(verified.manifest),
+            signed_metadata_version=verified.metadata_version,
+            signed_metadata_digest=verified.signed_digest,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +228,18 @@ def _with_folder_relative_assets(
             assets=manifest.installers,
             release_root=resolved_root,
         ),
+        compatibility=manifest.compatibility,
+        signed_metadata_version=manifest.signed_metadata_version,
+        signed_metadata_digest=manifest.signed_metadata_digest,
+    )
+
+
+def _requires_signed_metadata(url: str) -> bool:
+    """Require signatures for the official production release namespace."""
+
+    parsed = urlparse(url)
+    return parsed.hostname == "github.com" and parsed.path.startswith(
+        "/Artificial-Sweetener/SugarSubstitute/releases/"
     )
 
 

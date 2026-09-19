@@ -64,6 +64,11 @@ class _Activation:
 
         self.transitions.append("rollback")
 
+    def reject(self, reason: str) -> None:
+        """Record failed-target rejection."""
+
+        self.transitions.append(f"reject:{reason}")
+
 
 class _Supervisor:
     """Return or reject one candidate launch."""
@@ -228,7 +233,7 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
         crash_supervisor=crash_supervisor,
     )
 
-    assert activation.transitions == ["rollback"]
+    assert activation.transitions == ["reject:ApplicationReadinessError"]
     assert crash_supervisor.fallbacks == [
         (
             ["python", "main.py"],

@@ -250,6 +250,7 @@ class ApplicationReadinessSupervisor:
                 token=contract.outer_token,
                 surface=receipt.surface,
                 parent_pid=os.getppid(),
+                milestones=receipt.milestones,
             ),
         )
 

@@ -1,0 +1,10 @@
+{
+  "keys": {
+    "28341258e4023b4b00bbc0f730eda9e519868a3219d44dbc62cc3a46b5303c37": {
+      "algorithm": "ed25519",
+      "public_key_der_base64": "MCowBQYDK2VwAyEAigCyvKDGv9AaLbOSIaMDNWMRHnOix0A7fNCxgyn+HQA="
+    }
+  },
+  "schema_version": 1,
+  "threshold": 1
+}

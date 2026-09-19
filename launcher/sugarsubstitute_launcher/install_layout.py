@@ -45,6 +45,7 @@ class InstallLayout:
     root: Path
     target: LauncherTarget = field(default_factory=detect_launcher_target)
     launcher_bundle_root: Path | None = None
+    release_root: Path | None = None
 
     @classmethod
     def from_root(
@@ -181,7 +182,7 @@ class InstallLayout:
     def runtime_dir(self) -> Path:
         """Return the launcher-managed runtime directory."""
 
-        return self.root / RUNTIME_DIR_NAME
+        return self._selected_release_root() / RUNTIME_DIR_NAME
 
     @property
     def runtime_python(self) -> Path:
@@ -205,7 +206,7 @@ class InstallLayout:
     def app_dir(self) -> Path:
         """Return the replaceable source payload directory."""
 
-        return self.root / APP_DIR_NAME
+        return self._selected_release_root() / APP_DIR_NAME
 
     @property
     def app_entrypoint(self) -> Path:
@@ -239,6 +240,30 @@ class InstallLayout:
             self.appdata_dir,
         ):
             directory.mkdir(parents=True, exist_ok=True)
+
+    def for_release_root(self, release_root: Path) -> InstallLayout:
+        """Return this installation with explicit candidate app/runtime ownership."""
+
+        resolved = release_root.expanduser().resolve()
+        if resolved != self.root and not resolved.is_relative_to(self.root):
+            raise ValueError("Application release root escapes its installation.")
+        return InstallLayout(
+            root=self.root,
+            target=self.target,
+            launcher_bundle_root=self.launcher_bundle_root,
+            release_root=resolved,
+        )
+
+    def _selected_release_root(self) -> Path:
+        """Resolve explicit preparation storage or the atomically selected release."""
+
+        if self.release_root is not None:
+            return self.release_root
+        from launcher.sugarsubstitute_launcher.application_release_selection import (
+            ApplicationReleaseSelection,
+        )
+
+        return ApplicationReleaseSelection(self.root).active_root()
 
 
 def default_install_root(

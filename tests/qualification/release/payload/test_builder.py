@@ -165,14 +165,18 @@ def test_local_release_channel_writes_manifest_and_checksums(tmp_path: Path) -> 
         output_dir=output_dir,
         version="0.4.0",
         channel="stable",
-        minimum_launcher_version="0.1.0",
     )
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema_version"] == 2
     assert manifest["channel"] == "stable"
     assert manifest["version"] == "0.4.0"
-    assert manifest["minimum_launcher_version"] == "0.1.0"
+    assert manifest["minimum_launcher_version"] == "0.23.0"
+    assert manifest["compatibility"] == {
+        "data_schema_epoch": 1,
+        "minimum_direct_launcher_version": "0.23.0",
+        "update_protocol": 1,
+    }
     assert manifest["app"]["filename"] == "SugarSubstitute-app-v0.4.0.zip"
     assert manifest["app"]["url"] == result.app_zip_path.as_uri()
     assert manifest["app"]["sha256"] == sha256_file(result.app_zip_path)
@@ -502,6 +506,37 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
         "VALUE = 1\n",
     )
     _write_file(repo_root / "third_party" / "manifest.toml", "[[component]]\n")
+    _write_file(
+        repo_root / "launcher" / "launcher-contract.json",
+        json.dumps(
+            {
+                "schema_version": 1,
+                "delegation_protocol": 1,
+                "update_protocol": 1,
+                "minimum_direct_launcher_version": "0.23.0",
+                "supported_manifest_schema_versions": [1, 2],
+                "historical_boundaries": [
+                    {
+                        "id": "legacy",
+                        "representative_version": "0.12.2",
+                        "route": "legacy_baseline_bridge",
+                        "platforms": ["windows_x64"],
+                    }
+                ],
+                "data_compatibility": {
+                    "schema_epoch": 1,
+                    "migrations": [
+                        {
+                            "id": "adopt-epoch-1",
+                            "from_epoch": 0,
+                            "to_epoch": 1,
+                        }
+                    ],
+                    "migration_boundaries": [],
+                },
+            }
+        ),
+    )
     return repo_root
 
 

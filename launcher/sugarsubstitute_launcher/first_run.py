@@ -27,6 +27,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.launcher_bundle import LauncherBundleInstaller
+from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
 from launcher.sugarsubstitute_launcher.process import (
     build_app_launch_command,
@@ -37,6 +38,7 @@ from launcher.sugarsubstitute_launcher.release_sources import (
     ReleaseSource,
     release_source_config_for,
 )
+from launcher.sugarsubstitute_launcher.trusted_metadata import TrustedMetadataState
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
 from sugarsubstitute_shared.installation_mutation import installation_mutation
@@ -98,6 +100,7 @@ class FirstRunInstaller:
             )
             layout_result = self._layout_installer.prepare(install_root)
             manifest = release_source.load_manifest()
+            _admit_signed_metadata(layout=layout_result.layout, manifest=manifest)
             self._launcher_bundle_installer.install(
                 layout=layout_result.layout,
                 manifest=manifest,
@@ -126,6 +129,7 @@ class FirstRunInstaller:
             InstallationRecovery(layout).recover(ownership=operation)
             layout.create_base_directories()
             manifest = release_source.load_manifest()
+            _admit_signed_metadata(layout=layout, manifest=manifest)
             activation = PendingUpdateActivation.begin(
                 layout=layout,
                 operation=operation,
@@ -140,11 +144,13 @@ class FirstRunInstaller:
                     release_source=release_source_config_for(release_source),
                     runtime_setup_pending=True,
                 ),
+                generation_backed=True,
             )
             try:
                 payload_result = self._payload_installer.install(
                     activation=activation, manifest=manifest
                 )
+                activation.prepare_runtime(preserve_existing=True)
                 activation.commit()
             finally:
                 activation.rollback()
@@ -153,3 +159,17 @@ class FirstRunInstaller:
                 app_command=build_app_launch_command(layout=layout),
                 app_version=payload_result.version,
             )
+
+
+def _admit_signed_metadata(*, layout: InstallLayout, manifest: ReleaseManifest) -> None:
+    """Persist authenticated release identity before first-run mutation proceeds."""
+
+    metadata_version = manifest.signed_metadata_version
+    signed_digest = manifest.signed_metadata_digest
+    if metadata_version is None or signed_digest is None:
+        return
+    TrustedMetadataState.admit(
+        install_root=layout.root,
+        metadata_version=metadata_version,
+        signed_digest=signed_digest,
+    )

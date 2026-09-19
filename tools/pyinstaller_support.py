@@ -58,6 +58,10 @@ def build_launcher_data_files(
         (resolved_uv, "launcher_assets"),
         (str(resolved_root / "launcher" / "launcher-contract.json"), "launcher_assets"),
         (
+            str(resolved_root / "launcher" / "release-trust-root.json"),
+            "launcher_assets",
+        ),
+        (
             str(resolved_root / "launcher" / "sugarsubstitute_launcher" / "i18n"),
             "launcher/sugarsubstitute_launcher/i18n",
         ),
