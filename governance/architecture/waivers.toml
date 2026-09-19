@@ -1459,10 +1459,10 @@ owner = "prompt emphasis interaction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/interactions/emphasis_controller.py"
 kind = "structural"
-justification = "PromptEmphasisController owns one keyboard/mouse emphasis adjustment session. Range expansion, action routing, mutation application, transient-neutral state, cursor placement, wheel identity, and feedback all operate on the same active emphasis session."
+justification = "PromptEmphasisController owns one keyboard/mouse emphasis adjustment session. Range expansion, action routing, non-reentrant publication, mutation application, transient-neutral state, cursor placement, wheel identity, and feedback all operate on the same active emphasis session; extracting publication exclusion would divide the session invariant between owners."
 issue = "chore:SS-WAIVER-S046"
 review_by = 2026-12-15
-max_lines = 611
+max_lines = 635
 
 [[waivers]]
 id = "SS-WAIVER-S048"
