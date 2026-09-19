@@ -27,7 +27,10 @@ from sugarsubstitute_shared.launch_splash.protocol import (
     SplashSessionMessage,
     encode_splash_session_message,
 )
-from sugarsubstitute_shared.launch_splash.session import SplashSessionSpec
+from sugarsubstitute_shared.launch_splash.session import (
+    LEGACY_SPLASH_PROTOCOL_VERSION,
+    SplashSessionSpec,
+)
 from sugarsubstitute_shared.launch_splash.timing import (
     SPLASH_CLOSE_ACK_TIMEOUT_SECONDS,
 )
@@ -71,16 +74,25 @@ class SocketSplashSessionClient:
 
     def set_progress(self, progress: SplashProgress, *, status: str) -> None:
         """Publish completed units while retaining status-only host compatibility."""
-        self._send("status", line=status, progress=progress)
+        self._send(
+            "status",
+            line=status,
+            progress=(None if self._uses_legacy_protocol else progress),
+        )
 
     def start_activity(self, activity: SplashActivity) -> None:
         """Start or replace one independently animated splash activity."""
 
+        if self._uses_legacy_protocol:
+            self.set_status(activity.initial_text)
+            return
         self._send("activity", line=None, activity=activity)
 
     def clear_activity(self) -> None:
         """Stop the active splash activity and remove its transient row."""
 
+        if self._uses_legacy_protocol:
+            return
         self._send("clear_activity", line=None)
 
     def fatal(self, line: str) -> None:
@@ -91,6 +103,8 @@ class SocketSplashSessionClient:
     def activate(self) -> bool:
         """Bring the shared splash forward and report confirmed application."""
 
+        if self._uses_legacy_protocol:
+            return True
         try:
             self._send("activate", line=None)
         except OSError:
@@ -140,8 +154,16 @@ class SocketSplashSessionClient:
                 connection,
                 len(SPLASH_MESSAGE_APPLIED_ACK),
             )
+            if self._uses_legacy_protocol and acknowledgement == b"":
+                return
             if acknowledgement != SPLASH_MESSAGE_APPLIED_ACK:
                 raise OSError("Splash host did not acknowledge message application.")
+
+    @property
+    def _uses_legacy_protocol(self) -> bool:
+        """Return whether the inherited host predates applied-message acknowledgements."""
+
+        return self._spec.protocol_version == LEGACY_SPLASH_PROTOCOL_VERSION
 
 
 def _receive_exact(connection: socket.socket, size: int) -> bytes:

@@ -52,6 +52,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "endpoint": "127.0.0.1:49152",
         "token": "x" * 32,
         "host_pid": 1234,
+        "protocol_version": 2,
     }
 
     def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
@@ -72,6 +73,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "--splash-session-endpoint=127.0.0.1:49152",
         f"--splash-session-token={'x' * 32}",
         "--splash-session-host-pid=1234",
+        "--splash-session-protocol-version=2",
     )
     assert calls[0]["command"] == [
         subprocess_path(layout.runtime_python),
