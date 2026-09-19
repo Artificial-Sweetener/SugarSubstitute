@@ -53,7 +53,17 @@ class CrashReportRedactor:
     def text(self, value: str) -> str:
         """Redact one bounded diagnostic text field."""
 
-        redacted = value[:_MAX_TEXT_CHARACTERS]
+        return self._redact(value[:_MAX_TEXT_CHARACTERS])
+
+    def complete_text(self, value: str) -> str:
+        """Redact a complete retained text attachment without truncating evidence."""
+
+        return self._redact(value)
+
+    def _redact(self, value: str) -> str:
+        """Apply identifying-path and inline-secret redaction to diagnostic text."""
+
+        redacted = value
         for source, replacement in self._path_replacements:
             redacted = re.sub(
                 re.escape(source), replacement, redacted, flags=re.IGNORECASE

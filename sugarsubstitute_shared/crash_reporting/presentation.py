@@ -23,6 +23,7 @@ from sugarsubstitute_shared.presentation.error_report_presentation import (
 )
 
 import logging
+from collections.abc import Sequence
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
@@ -42,6 +43,8 @@ _LOGGER = logging.getLogger(__name__)
 
 def build_crash_report_presentation(
     incident: CrashIncident,
+    *,
+    text_attachments: Sequence[tuple[str, str]] = (),
 ) -> ErrorReportPresentation:
     """Return the exact shared report surface for one crash incident."""
 
@@ -73,7 +76,12 @@ def build_crash_report_presentation(
         message=message,
         severity=ReportSeverity.ERROR,
         summary_rows=tuple(rows),
-        report_text=render_crash_report(incident, title=title, message=message),
+        report_text=render_crash_report(
+            incident,
+            title=title,
+            message=message,
+            text_attachments=text_attachments,
+        ),
         issue_action=_open_issue_tracker,
     )
 
@@ -83,6 +91,7 @@ def render_crash_report(
     *,
     title: ApplicationText,
     message: ApplicationText,
+    text_attachments: Sequence[tuple[str, str]] = (),
 ) -> str:
     """Render one deterministic localized report without app-payload imports."""
 
@@ -111,8 +120,12 @@ def render_crash_report(
             ),
         ),
     ]
-    if incident.traceback:
-        sections.append(_block(app_text("Traceback"), "\n".join(incident.traceback)))
+    traceback_parts = ["\n".join(incident.traceback)] if incident.traceback else []
+    traceback_parts.extend(
+        f"[{filename}]\n{content}" for filename, content in text_attachments
+    )
+    if traceback_parts:
+        sections.append(_block(app_text("Traceback"), "\n\n".join(traceback_parts)))
     sections.append(
         _section(
             app_text("Runtime context"),

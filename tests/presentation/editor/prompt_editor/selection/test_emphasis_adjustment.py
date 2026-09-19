@@ -25,6 +25,7 @@ from PySide6.QtGui import QKeyEvent, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
+from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretPlacement,
 )
@@ -77,6 +78,42 @@ def test_projection_selection_ctrl_up_wraps_the_entire_manual_multiword_selectio
     process_events(app)
     assert not projection_paint_state_for(box).is_token_decoration_accented(
         token.token_id
+    )
+
+
+def test_projection_selection_repeated_ctrl_up_adjusts_one_shell_without_cascading(
+    widgets: list[QWidget],
+) -> None:
+    """Repeated emphasis shortcuts should retain one target shell and raise its weight."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="1girl",
+        width=240,
+    )
+    cursor = box.textCursor()
+    cursor.setPosition(0, QTextCursor.MoveMode.MoveAnchor)
+    cursor.setPosition(5, QTextCursor.MoveMode.KeepAnchor)
+    box.setTextCursor(cursor)
+    process_events(app)
+
+    for _ in range(3):
+        QTest.keyClick(
+            surface_for(box),
+            Qt.Key.Key_Up,
+            Qt.KeyboardModifier.ControlModifier,
+        )
+        process_events(app)
+
+    assert box.toPlainText() == "(1girl:1.15)"
+    assert (
+        len(
+            PromptDocumentService()
+            .build_document_view(box.toPlainText())
+            .emphasis_spans
+        )
+        == 1
     )
 
 
