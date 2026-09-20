@@ -36,6 +36,7 @@ from sugarsubstitute_shared.application_process_scope import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_CLOSING_OWNER_GRACE_SECONDS = 5.0
 
 
 class ApplicationOwnerRecovery:
@@ -94,7 +95,10 @@ class ApplicationOwnerRecovery:
                 return True
         if identity is None or identity in self._attempted:
             return False
-        if error.reason is not ApplicationInstanceFailureReason.UNAVAILABLE:
+        if error.owner_is_closing:
+            if not self._wait_for_closing_owner(identity):
+                return False
+        elif error.reason is not ApplicationInstanceFailureReason.UNAVAILABLE:
             if not self._owner_has_exited(identity):
                 return False
         else:
@@ -103,6 +107,27 @@ class ApplicationOwnerRecovery:
                 return False
         self._attempted.add(identity)
         self._verified_failure = None
+        return True
+
+    @staticmethod
+    def _wait_for_closing_owner(identity: ProcessIdentity) -> bool:
+        """Give a cooperative owner time to release election resources naturally."""
+
+        try:
+            wait_for_process_exit(
+                identity,
+                timeout_seconds=_CLOSING_OWNER_GRACE_SECONDS,
+            )
+        except ProcessIdentityError:
+            _LOGGER.info(
+                "Closing application owner did not exit within the grace period",
+                extra={"owner_process_id": identity.pid},
+            )
+            return False
+        _LOGGER.info(
+            "Closing application owner exited; repeating election",
+            extra={"owner_process_id": identity.pid},
+        )
         return True
 
     @staticmethod

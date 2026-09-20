@@ -110,11 +110,16 @@ def forward_application_invocation(
         response.get("status") != "presented"
         or response.get("request_id") != request.request_id
     ):
+        owner_is_closing = response.get("surface") in {
+            "application-closing",
+            "supervisor-closing",
+        }
         raise ApplicationInstanceBrokerError(
             "The active application could not present a usable window.",
             owner_identity=owner_identity,
             endpoint=endpoint,
             native_owner=native_owner,
+            owner_is_closing=owner_is_closing,
         )
     _require_accessible_owner_session(endpoint, owner_identity)
     _LOGGER.info(

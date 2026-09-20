@@ -70,6 +70,44 @@ class _ReplyConnection:
         self.closed = True
 
 
+class _ClosingReplyConnection:
+    """Return a matched receipt proving the current owner is shutting down."""
+
+    def __init__(self) -> None:
+        """Start without a captured invocation identity."""
+
+        self._request_id = ""
+
+    def peer_process_id(self) -> int | None:
+        """Expose the current process as authenticated native owner."""
+
+        return os.getpid()
+
+    def send_frame(self, payload: bytes) -> None:
+        """Capture the generated request identity for a matched response."""
+
+        message = json.loads(payload)
+        self._request_id = str(message["request_id"])
+
+    def receive_frame(
+        self, maximum_size: int, *, timeout_seconds: float | None = None
+    ) -> bytes:
+        """Report that the authenticated supervisor is closing."""
+
+        _ = maximum_size, timeout_seconds
+        return json.dumps(
+            {
+                "status": "unavailable",
+                "request_id": self._request_id,
+                "surface": "supervisor-closing",
+                "owner_process_id": os.getpid(),
+            }
+        ).encode()
+
+    def close(self) -> None:
+        """Release the synthetic connection."""
+
+
 def test_protocol_pid_cannot_supply_native_recovery_authority(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -115,6 +153,27 @@ def test_kernel_peer_overrides_a_different_message_pid(
         assert failure.native_owner.endpoint == endpoint
         assert failure.native_owner.executable.is_absolute()
     assert connection.closed
+
+
+def test_closing_owner_requests_a_non_destructive_election_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A normal shutdown response must not be classified as a hung owner."""
+
+    connection = _ClosingReplyConnection()
+    endpoint = instance_endpoint("7" * 48)
+    monkeypatch.setattr(
+        application_instance_forwarding,
+        "connect_instance_endpoint",
+        lambda _endpoint: connection,
+    )
+
+    with pytest.raises(ApplicationInstanceBrokerError) as caught:
+        application_instance_forwarding.forward_application_invocation(
+            endpoint, ApplicationInvocation.capture(())
+        )
+
+    assert caught.value.owner_is_closing
 
 
 def test_reused_pid_cannot_acquire_native_image_evidence() -> None:
