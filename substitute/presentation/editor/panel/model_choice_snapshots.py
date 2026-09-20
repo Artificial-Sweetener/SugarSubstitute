@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -66,6 +66,7 @@ class PanelModelChoiceSnapshotRequest:
     cube_alias: str | None = None
     target_model: str = ""
     thumbnail_repository_available: bool = False
+    field_metadata: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +122,7 @@ class PanelPreparedModelChoiceSource:
         options: Sequence[str],
         context: RichChoiceContext,
         initial_resolution: RichChoiceResolution,
+        refresh_resolution: Callable[[], RichChoiceResolution] | None = None,
     ) -> None:
         """Store a prepared first-render resolution and optional refresh resolver."""
 
@@ -128,6 +130,7 @@ class PanelPreparedModelChoiceSource:
         self._options = tuple(str(option) for option in options)
         self._context = context
         self._resolution = initial_resolution
+        self._refresh_resolution = refresh_resolution
 
     def current_resolution(self) -> RichChoiceResolution:
         """Return the prepared resolution without consulting catalog services."""
@@ -137,6 +140,9 @@ class PanelPreparedModelChoiceSource:
     def refresh(self) -> RichChoiceResolution:
         """Refresh model metadata when the widget explicitly requests it."""
 
+        if self._refresh_resolution is not None:
+            self._resolution = self._refresh_resolution()
+            return self._resolution
         if self._resolver is None:
             return self._resolution
         self._resolution = self._resolver.refresh(

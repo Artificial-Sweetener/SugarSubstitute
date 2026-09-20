@@ -84,6 +84,9 @@ from substitute.application.model_metadata import (
     RichChoiceResolver,
     ThumbnailAssetRepository,
 )
+from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+    UltralyticsThumbnailAssociationService,
+)
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -617,6 +620,9 @@ class EditorPanel(QWidget):
         model_choice_resolver: RichChoiceResolver | None = None,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        ultralytics_thumbnail_associations: (
+            UltralyticsThumbnailAssociationService | None
+        ) = None,
         empty_model_picker_action: EmptyModelPickerAction | None = None,
         user_preset_service: UserPresetService | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
@@ -692,6 +698,7 @@ class EditorPanel(QWidget):
         self.model_choice_snapshot_controller = PanelModelChoiceSnapshotController(
             model_catalog_service=model_catalog_service,
             model_choice_resolver=model_choice_resolver,
+            ultralytics_thumbnail_associations=ultralytics_thumbnail_associations,
             panel_context_id_provider=lambda: self._workflow_id,
         )
         self.active_model_context_controller = PanelActiveModelContextController()

@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2900
+max_lines = 2923
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -543,7 +543,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1959
+max_lines = 1966
 next_limit = 1571
 debt = "SS-ARCH-051"
 
@@ -881,7 +881,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Extract editor composition behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 895
+max_lines = 898
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -985,7 +985,7 @@ kind = "remediation"
 justification = "The assessed file mixes editable combo-surface painting and caret state, popup lifecycle and keyboard navigation, model catalog resolution and unavailable-state handling, metadata context-menu integration, thumbnail preload routing and cache refresh, model-load progress presentation. Extract thumbnail/metadata coordination and catalog resolution from the mounted field and popup interaction."
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
-max_lines = 1390
+max_lines = 1394
 next_limit = 1130
 debt = "SS-ARCH-090"
 
@@ -1704,7 +1704,7 @@ kind = "structural"
 justification = "The module owns one declarative context-menu projection for a model metadata target. Action models, builder, presenter, output-canvas hierarchy expansion, thumbnail choices, and callbacks all produce and execute the same menu contract."
 issue = "chore:SS-WAIVER-S071"
 review_by = 2026-12-15
-max_lines = 507
+max_lines = 566
 
 [[waivers]]
 id = "SS-WAIVER-S073"

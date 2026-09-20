@@ -57,10 +57,102 @@ def test_production_context_menus_use_shared_renderer() -> None:
     assert menu_violations == []
 
 
+def test_popup_dismissal_defers_modal_entry_beyond_menu_callbacks() -> None:
+    """Forbid nested modal loops while a transient menu signal is unwinding."""
+
+    source_path = _PRESENTATION_ROOT / "widgets" / "model_metadata_context_menu.py"
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    action_factory = _function_definition(
+        tree,
+        "thumbnail_library_action_for_target",
+    )
+    menu_action = next(
+        node
+        for node in ast.walk(action_factory)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "ModelMetadataMenuAction"
+    )
+    callback_reference = menu_action.args[1]
+    assert isinstance(callback_reference, ast.Name)
+    callback = _function_definition(action_factory, callback_reference.id)
+    callback_calls = _direct_call_names(callback)
+
+    assert "_thumbnail_library_opening" in callback_calls
+    assert "_schedule_modal_action" in callback_calls
+    assert "choose_ultralytics_thumbnail" not in callback_calls
+
+    schedule_call = next(
+        node
+        for node in ast.walk(callback)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "_schedule_modal_action"
+    )
+    deferred_reference = schedule_call.args[0]
+    assert isinstance(deferred_reference, ast.Name)
+    deferred_action = _function_definition(action_factory, deferred_reference.id)
+    assert "choose_ultralytics_thumbnail" in _direct_call_names(deferred_action)
+
+
 def _python_files(root: Path) -> tuple[Path, ...]:
     """Return production Python files under one root."""
 
     return tuple(sorted(path for path in root.rglob("*.py") if path.is_file()))
+
+
+def _function_definition(root: ast.AST, name: str) -> ast.FunctionDef:
+    """Return one named function nested anywhere under an AST owner."""
+
+    matches = [
+        node
+        for node in ast.walk(root)
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _direct_call_names(function: ast.FunctionDef) -> set[str]:
+    """Return calls made by one function without descending into nested functions."""
+
+    visitor = _DirectCallVisitor()
+    for statement in function.body:
+        visitor.visit(statement)
+    return visitor.calls
+
+
+class _DirectCallVisitor(ast.NodeVisitor):
+    """Collect calls while treating nested callable bodies as separate scopes."""
+
+    def __init__(self) -> None:
+        """Initialize the direct-call set."""
+
+        self.calls: set[str] = set()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Skip nested synchronous function bodies."""
+
+        _ = node
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """Skip nested asynchronous function bodies."""
+
+        _ = node
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        """Skip nested lambda bodies."""
+
+        _ = node
+
+    def visit_Call(self, node: ast.Call) -> None:
+        """Record one direct call and inspect its evaluated arguments."""
+
+        if isinstance(node.func, ast.Name):
+            self.calls.add(node.func.id)
+        elif isinstance(node.func, ast.Attribute):
+            self.calls.add(node.func.attr)
+        self.generic_visit(node)
 
 
 def _is_menu_row_call(node: ast.Call) -> bool:
