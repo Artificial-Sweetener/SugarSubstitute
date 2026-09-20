@@ -1,0 +1,63 @@
+name: release promotion evidence
+
+on:
+  workflow_call:
+    inputs:
+      canary_evidence_run_id:
+        description: "Successful Canary release run for the promoted product tree"
+        required: false
+        default: ""
+        type: string
+    outputs:
+      reusable:
+        description: "Whether exact Canary evidence may replace duplicate Stable gates"
+        value: ${{ jobs.validate.outputs.reusable }}
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  validate:
+    name: Validate successful Canary release identity
+    runs-on: ubuntu-24.04
+    outputs:
+      reusable: ${{ steps.evidence.outputs.reusable }}
+    steps:
+      - name: Checkout promoted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Validate successful Canary release identity
+        id: evidence
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANARY_EVIDENCE_RUN_ID: ${{ inputs.canary_evidence_run_id }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if (-not $env:CANARY_EVIDENCE_RUN_ID) {
+            "reusable=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          if ("${{ github.event_name }}" -ne "workflow_dispatch" -or "${{ github.ref_name }}" -ne "main") {
+            throw "Canary evidence reuse is allowed only for a manually dispatched Main release."
+          }
+          $run = gh api "repos/${{ github.repository }}/actions/runs/$env:CANARY_EVIDENCE_RUN_ID" | ConvertFrom-Json
+          if ($run.name -ne "release" -or $run.head_branch -ne "canary" -or $run.conclusion -ne "success") {
+            throw "Canary evidence must identify one successful Canary release workflow run."
+          }
+          git merge-base --is-ancestor $run.head_sha $env:GITHUB_SHA
+          $changedPaths = @(git diff --name-only "$($run.head_sha)..$env:GITHUB_SHA")
+          $productChanges = @($changedPaths | Where-Object {
+            $_ -notin @(
+              ".github/workflows/release.yml",
+              ".github/workflows/release-promotion-evidence.yml",
+              "tests/qualification/release/workflow/test_ci_policy.py",
+              "tests/qualification/release/workflow/test_qualification.py"
+            )
+          })
+          if ($productChanges.Count -ne 0) {
+            throw "Main does not contain the exact Canary-qualified product tree: $($productChanges -join ', ')"
+          }
+          "reusable=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append

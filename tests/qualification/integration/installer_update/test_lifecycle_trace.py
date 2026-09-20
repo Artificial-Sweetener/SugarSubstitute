@@ -24,7 +24,10 @@ from pathlib import Path
 import pytest
 
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.installer_evidence_verification import assert_startup_trace_sequence
+from tools.ci.installer_evidence_verification import (
+    assert_no_launch_splash_replacement,
+    assert_startup_trace_sequence,
+)
 
 
 def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -> None:
@@ -107,3 +110,30 @@ def test_lifecycle_rejects_main_shell_without_completed_splash(tmp_path: Path) -
 
     with pytest.raises(InstallerLifecycleError, match="splash-to-shell sequence"):
         assert_startup_trace_sequence(trace_path)
+
+
+def test_lifecycle_rejects_replacement_of_launcher_owned_splash(
+    tmp_path: Path,
+) -> None:
+    """An app fallback splash must fail update qualification despite later readiness."""
+
+    app_startup_log_path = tmp_path / "app-startup.log"
+    app_startup_log_path.write_text(
+        "Failed to adopt launcher splash session; starting app splash\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="replaced"):
+        assert_no_launch_splash_replacement(app_startup_log_path)
+
+
+def test_lifecycle_accepts_one_adopted_launcher_splash(tmp_path: Path) -> None:
+    """A normal startup log should preserve the single-splash qualification."""
+
+    app_startup_log_path = tmp_path / "app-startup.log"
+    app_startup_log_path.write_text(
+        "Adopted launcher splash session.\n",
+        encoding="utf-8",
+    )
+
+    assert_no_launch_splash_replacement(app_startup_log_path)

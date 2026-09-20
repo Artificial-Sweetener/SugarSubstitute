@@ -81,7 +81,11 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
     )
     entry_jobs = orchestrator["jobs"]
     jobs = prepublication["jobs"]
-    assert set(entry_jobs) == {"prepare-release", "publish-release"}
+    assert set(entry_jobs) == {
+        "validate-canary-evidence",
+        "prepare-release",
+        "publish-release",
+    }
     assert entry_jobs["prepare-release"]["uses"] == (
         "./.github/workflows/release-prepublication.yml"
     )
@@ -406,13 +410,14 @@ def test_native_build_workflows_use_disposable_package_cache_owner() -> None:
         assert "pip install" not in owner_text
 
 
-def test_release_publisher_includes_installer_and_managed_payload_artifacts() -> None:
-    """Semantic release should attach public installers and managed payloads."""
+def test_release_publisher_includes_every_required_stable_asset() -> None:
+    """Semantic release should attach binaries and trusted update metadata."""
 
     config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
     expected_fragments = (
         "SugarSubstitute-*-Windows-x64-Setup.exe",
         "installer-payload-windows-x64-v*.zip",
+        "manifest.signed.json",
     )
     assert all(fragment in config for fragment in expected_fragments)
 

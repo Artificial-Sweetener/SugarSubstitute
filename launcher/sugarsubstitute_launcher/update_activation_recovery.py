@@ -30,7 +30,6 @@ from launcher.sugarsubstitute_launcher.update_activation_journal import (
 from launcher.sugarsubstitute_launcher.application_release_selection import (
     ApplicationReleaseSelection,
 )
-from launcher.sugarsubstitute_launcher.update_quarantine import UpdateQuarantine
 from launcher.sugarsubstitute_launcher.update_activation_cleanup import (
     remove_update_directory,
     retire_activation_storage,
@@ -42,6 +41,9 @@ from sugarsubstitute_shared.installation_mutation import (
 )
 from launcher.sugarsubstitute_launcher.update_activation_publication import (
     publish_committed_activation,
+)
+from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
+    restore_runtime_configuration,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,13 +68,9 @@ def recover_interrupted_update(
                 selection.recover_failed_activation(
                     generation=journal.candidate_generation
                 )
-                version = journal.successful_state.installed_app_version
-                if version is not None and journal.candidate_sha256 is not None:
-                    UpdateQuarantine(layout.root).add(
-                        version=version,
-                        sha256=journal.candidate_sha256,
-                        reason="interrupted_activation",
-                    )
+                restore_runtime_configuration(
+                    layout, journal.runtime_configuration_snapshot
+                )
             remove_update_journal(layout)
             _LOGGER.warning(
                 "Recovered generation-backed app update.",

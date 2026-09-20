@@ -29,8 +29,14 @@ import tempfile
 SPLASH_ENDPOINT_ARG = "--splash-session-endpoint"
 SPLASH_TOKEN_ARG = "--splash-session-token"
 SPLASH_HOST_PID_ARG = "--splash-session-host-pid"
+SPLASH_PROTOCOL_VERSION_ARG = "--splash-session-protocol-version"
 DEFAULT_SPLASH_HOST = "127.0.0.1"
 MINIMUM_TOKEN_LENGTH = 24
+LEGACY_SPLASH_PROTOCOL_VERSION = 1
+CURRENT_SPLASH_PROTOCOL_VERSION = 2
+SUPPORTED_SPLASH_PROTOCOL_VERSIONS = frozenset(
+    {LEGACY_SPLASH_PROTOCOL_VERSION, CURRENT_SPLASH_PROTOCOL_VERSION}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +47,7 @@ class SplashSessionSpec:
     port: int
     token: str
     host_pid: int
+    protocol_version: int = LEGACY_SPLASH_PROTOCOL_VERSION
 
     @property
     def endpoint(self) -> str:
@@ -65,6 +72,7 @@ def create_splash_session_spec(
         port=port,
         token=resolved_token,
         host_pid=resolved_host_pid,
+        protocol_version=CURRENT_SPLASH_PROTOCOL_VERSION,
     )
     validate_splash_session_spec(spec)
     return spec
@@ -81,6 +89,8 @@ def validate_splash_session_spec(spec: SplashSessionSpec) -> None:
         raise ValueError("Splash session token is too short.")
     if spec.host_pid <= 0:
         raise ValueError("Splash session host PID must be positive.")
+    if spec.protocol_version not in SUPPORTED_SPLASH_PROTOCOL_VERSIONS:
+        raise ValueError("Splash session protocol version is unsupported.")
 
 
 def splash_session_args(spec: SplashSessionSpec) -> list[str]:
@@ -91,6 +101,7 @@ def splash_session_args(spec: SplashSessionSpec) -> list[str]:
         f"{SPLASH_ENDPOINT_ARG}={spec.endpoint}",
         f"{SPLASH_TOKEN_ARG}={spec.token}",
         f"{SPLASH_HOST_PID_ARG}={spec.host_pid}",
+        f"{SPLASH_PROTOCOL_VERSION_ARG}={spec.protocol_version}",
     ]
 
 
@@ -101,7 +112,13 @@ def splash_session_from_args(argv: list[str]) -> SplashSessionSpec | None:
     endpoint = values.get(SPLASH_ENDPOINT_ARG)
     token = values.get(SPLASH_TOKEN_ARG)
     host_pid = values.get(SPLASH_HOST_PID_ARG)
-    if endpoint is None and token is None and host_pid is None:
+    protocol_version = values.get(SPLASH_PROTOCOL_VERSION_ARG)
+    if (
+        endpoint is None
+        and token is None
+        and host_pid is None
+        and protocol_version is None
+    ):
         return None
     if endpoint is None or token is None or host_pid is None:
         raise ValueError("Splash session arguments must be supplied as a complete set.")
@@ -110,11 +127,22 @@ def splash_session_from_args(argv: list[str]) -> SplashSessionSpec | None:
         parsed_host_pid = int(host_pid)
     except ValueError as error:
         raise ValueError("Splash session host PID must be an integer.") from error
+    try:
+        parsed_protocol_version = (
+            LEGACY_SPLASH_PROTOCOL_VERSION
+            if protocol_version is None
+            else int(protocol_version)
+        )
+    except ValueError as error:
+        raise ValueError(
+            "Splash session protocol version must be an integer."
+        ) from error
     spec = SplashSessionSpec(
         host=host,
         port=port,
         token=token,
         host_pid=parsed_host_pid,
+        protocol_version=parsed_protocol_version,
     )
     validate_splash_session_spec(spec)
     return spec
@@ -138,7 +166,12 @@ def _named_arg_values(argv: list[str]) -> dict[str, str]:
         if "=" not in raw_argument:
             continue
         name, value = raw_argument.split("=", 1)
-        if name in {SPLASH_ENDPOINT_ARG, SPLASH_TOKEN_ARG, SPLASH_HOST_PID_ARG}:
+        if name in {
+            SPLASH_ENDPOINT_ARG,
+            SPLASH_TOKEN_ARG,
+            SPLASH_HOST_PID_ARG,
+            SPLASH_PROTOCOL_VERSION_ARG,
+        }:
             values[name] = value
     return values
 
