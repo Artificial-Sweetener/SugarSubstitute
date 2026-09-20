@@ -113,6 +113,64 @@ def repair_sugarcubes_git_versions(
     return repaired
 
 
+def unresolved_sugarcubes_semver_node_ids(
+    payload: Mapping[str, object],
+    *,
+    workspace: Path,
+    repositories: RepositoryService | None = None,
+) -> tuple[str, ...]:
+    """Return semantic-version repairs not already proven by a trusted Git tag."""
+
+    selected = repositories or repository_service()
+    node_ids: list[str] = []
+    for item in _version_plan(payload):
+        if item.get("requiredVersionKind") != "semver":
+            continue
+        if item.get("status") == "satisfied" or item.get("repairable") is not True:
+            continue
+        node_id = _string(item.get("nodeId"))
+        if not node_id:
+            continue
+        if not _trusted_semver_tag_is_current(
+            item,
+            workspace=workspace,
+            repositories=selected,
+        ):
+            node_ids.append(node_id)
+    return tuple(dict.fromkeys(node_ids))
+
+
+def _trusted_semver_tag_is_current(
+    item: Mapping[str, object],
+    *,
+    workspace: Path,
+    repositories: RepositoryService,
+) -> bool:
+    """Prove an installed trusted Git checkout matches its required release tag."""
+
+    evidence = item.get("installedEvidence")
+    if not isinstance(evidence, Mapping):
+        return False
+    if _string(evidence.get("sourceKind")) != "git" or evidence.get("dirty") is True:
+        return False
+    node_id = _string(item.get("nodeId"))
+    required_version = _string(item.get("requiredVersion"))
+    try:
+        candidate = _candidate_for(node_id)
+    except RuntimeError:
+        return False
+    target_path = workspace / "custom_nodes" / candidate.target_folder_name
+    if _normalized_url(_string(evidence.get("repositoryUrl"))) != _normalized_url(
+        candidate.source_url
+    ):
+        return False
+    if Path(_string(evidence.get("sourcePath"))).resolve() != target_path.resolve():
+        return False
+    head = repositories.head_commit_id(target_path)
+    tagged = repositories.revision_commit_id(target_path, f"v{required_version}")
+    return head is not None and head == tagged
+
+
 def _version_plan(payload: Mapping[str, object]) -> Sequence[Mapping[str, object]]:
     """Return the latest readiness version plan from a maintenance payload."""
 
@@ -152,4 +210,7 @@ def _normalized_url(value: str) -> str:
     return value.rstrip("/").casefold()
 
 
-__all__ = ["repair_sugarcubes_git_versions"]
+__all__ = [
+    "repair_sugarcubes_git_versions",
+    "unresolved_sugarcubes_semver_node_ids",
+]

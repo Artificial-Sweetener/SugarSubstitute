@@ -174,6 +174,23 @@ def test_repository_access_does_not_create_a_missing_target(tmp_path: Path) -> N
     assert not repository_path.exists()
 
 
+def test_revision_commit_id_resolves_local_release_tag(tmp_path: Path) -> None:
+    """Revision lookup should peel a local release tag to its commit."""
+
+    repository_path = tmp_path / "repository"
+    repository = pygit2.init_repository(repository_path, initial_head="main")
+    (repository_path / "tracked.txt").write_text("release", encoding="utf-8")
+    commit = _commit(repository, "release")
+    repository.references.create("refs/tags/v1.9.2", commit)
+
+    resolved = Pygit2RepositoryService().revision_commit_id(
+        repository_path,
+        "v1.9.2",
+    )
+
+    assert resolved == str(commit)
+
+
 def _create_origin(tmp_path: Path) -> tuple[Path, pygit2.Repository]:
     """Create a local producer and bare remote without a Git executable."""
 
