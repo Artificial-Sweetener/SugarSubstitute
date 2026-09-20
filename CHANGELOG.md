@@ -1,3 +1,10 @@
+## [0.23.3](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.2...v0.23.3) (2026-09-20)
+
+
+### Bug Fixes
+
+* **workflows:** preserve projects through Cube updates ([e5a4335](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e5a4335e1f936b66a733c8bdefc85c3b8c75deb4))
+
 ## [0.23.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.1...v0.23.2) (2026-09-20)
 
 
