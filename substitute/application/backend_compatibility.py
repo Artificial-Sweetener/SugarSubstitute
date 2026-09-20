@@ -53,7 +53,6 @@ class RuntimeCompatibilityStatus(Enum):
     SUGARCUBES_MISSING = "sugarcubes_missing"
     SUGARCUBES_VERSION_UNKNOWN = "sugarcubes_version_unknown"
     SUGARCUBES_TOO_OLD = "sugarcubes_too_old"
-    SUGARCUBES_TOO_NEW = "sugarcubes_too_new"
     SUGARCUBES_DEV_VERSION_RELEASE_BLOCKED = "sugarcubes_dev_version_release_blocked"
 
 
@@ -234,23 +233,16 @@ class BackendCompatibilityService:
                 required_sugarcubes_version=self.policy.required_sugarcubes_version,
                 repairable=True,
             )
-        if cube_library.sugar_cubes_version != self.policy.required_sugarcubes_version:
-            version_is_too_old = _semver_key(
-                cube_library.sugar_cubes_version
-            ) < _semver_key(self.policy.required_sugarcubes_version)
+        if _semver_key(cube_library.sugar_cubes_version) < _semver_key(
+            self.policy.required_sugarcubes_version
+        ):
             if (
-                version_is_too_old
-                and self.runtime_mode.is_development()
+                self.runtime_mode.is_development()
                 and self.policy.allow_older_sugarcubes_version_in_dev
             ):
                 return None
-            status = (
-                RuntimeCompatibilityStatus.SUGARCUBES_TOO_OLD
-                if version_is_too_old
-                else RuntimeCompatibilityStatus.SUGARCUBES_TOO_NEW
-            )
             return BackendCompatibilityResult(
-                status=status,
+                status=RuntimeCompatibilityStatus.SUGARCUBES_TOO_OLD,
                 summary=app_text("SugarCubes version is incompatible."),
                 installed_backend_version=capabilities.extension_version,
                 installed_sugarcubes_version=cube_library.sugar_cubes_version,

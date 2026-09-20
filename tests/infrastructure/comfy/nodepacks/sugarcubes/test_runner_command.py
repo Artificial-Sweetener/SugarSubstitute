@@ -177,9 +177,10 @@ def test_run_sugarcubes_baseline_maintenance_repairs_only_outdated_semver(
 
         _ = cwd, on_line, env, timeout_seconds
         commands.append(command)
-        readiness = outdated_readiness if len(commands) == 1 else satisfied_readiness
+        initial_preflight = len(commands) == 1
+        readiness = outdated_readiness if initial_preflight else satisfied_readiness
         payload_key = "readinessAfter" if "repair" in command else "dependencyReadiness"
-        return 0, (json.dumps({payload_key: readiness}),)
+        return (2 if initial_preflight else 0), (json.dumps({payload_key: readiness}),)
 
     monkeypatch.setattr(
         sugarcubes_maintenance_runner,
