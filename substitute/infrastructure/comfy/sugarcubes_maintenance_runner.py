@@ -32,7 +32,7 @@ from substitute.application.comfy_nodepacks.sugarcubes_maintenance_report_parser
 )
 from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
     build_sugarcubes_dependency_repair_command,
-    build_sugarcubes_maintenance_command,
+    build_sugarcubes_dependency_preflight_command,
     sugarcubes_maintenance_path,
     sugarcubes_root,
 )
@@ -60,6 +60,7 @@ def run_sugarcubes_baseline_maintenance(
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
     repositories: RepositoryService | None = None,
+    synchronize_repositories: bool = True,
 ) -> SugarCubesMaintenanceResult:
     """Preflight SugarCubes dependencies and repair only reported deficiencies."""
 
@@ -68,16 +69,16 @@ def run_sugarcubes_baseline_maintenance(
     installed_sugarcubes_root = sugarcubes_root(workspace)
     if not sugarcubes_maintenance_path(workspace).exists():
         raise RuntimeError("SugarCubes offline maintenance entrypoint is missing.")
-    prepare_sugarcubes_repositories(
-        installed_sugarcubes_root,
-        on_log=on_log,
-        repositories=repositories,
-    )
+    if synchronize_repositories:
+        prepare_sugarcubes_repositories(
+            installed_sugarcubes_root,
+            on_log=on_log,
+            repositories=repositories,
+        )
     command = list(
-        build_sugarcubes_maintenance_command(
+        build_sugarcubes_dependency_preflight_command(
             python_executable=python_executable,
             workspace=workspace,
-            baseline_only=False,
         )
     )
     exit_code, output_lines = _stream_command_collecting_output(
