@@ -126,7 +126,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1558
+max_lines = 1557
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -1055,7 +1055,7 @@ kind = "structural"
 justification = "GenerationPreparationService owns one deterministic pipeline from a captured workflow state to immutable queued snapshots. Its scene planning, override resolution, serialization, and cache metrics are sequential stages of that one returned contract and share one preparation-state invariant."
 issue = "chore:SS-WAIVER-S005"
 review_by = 2026-12-15
-max_lines = 624
+max_lines = 626
 
 [[waivers]]
 id = "SS-WAIVER-S006"
@@ -1209,7 +1209,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1035
+max_lines = 1017
 
 [[waivers]]
 id = "SS-WAIVER-S022"
@@ -1602,10 +1602,10 @@ owner = "generation queue row"
 rule = "STRUCT003"
 path = "substitute/presentation/generation/queue_item_row.py"
 kind = "structural"
-justification = "GenerationQueueItemRow is one mounted row control over one job-row model. Thumbnail, labels, cancel/open actions, drag pointer publication, hover/pressed painting, tooltip, elision, and resize behavior all render or interact with that same row state."
+justification = "GenerationQueueItemRow is one mounted row control over one job-row model. Thumbnail, labels, cancel/open/seed-reuse actions, drag pointer publication, hover/pressed painting, tooltip, elision, and resize behavior all render or interact with that same row state."
 issue = "chore:SS-WAIVER-S060"
 review_by = 2026-12-15
-max_lines = 566
+max_lines = 576
 
 [[waivers]]
 id = "SS-WAIVER-S061"
@@ -1616,7 +1616,7 @@ kind = "structural"
 justification = "GenerationQueueRowsView is one reorderable queue-list control. Row reconciliation, bucket dividers, drag proxy, drop placeholder, autoscroll, insertion targeting, and scroll restoration jointly maintain the visible ordering of the same queue model."
 issue = "chore:SS-WAIVER-S061"
 review_by = 2026-12-15
-max_lines = 697
+max_lines = 699
 
 [[waivers]]
 id = "SS-WAIVER-S062"
@@ -1668,10 +1668,10 @@ owner = "workspace generation activation"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workspace_generation_controller.py"
 kind = "structural"
-justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
+justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, post-admission seed rearming, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 820
+max_lines = 823
 
 [[waivers]]
 id = "SS-WAIVER-S069"
@@ -1912,7 +1912,7 @@ kind = "structural"
 justification = "This module owns one authorization-preserving projection from authoring payload assets to staged Comfy execution payloads. Image and mask path resolution, channel policy, semantic upload fields, ordered regional masks, required-input failures, and payload immutability all govern that single staging transaction."
 issue = "chore:SS-WAIVER-S119"
 review_by = 2026-12-15
-max_lines = 726
+max_lines = 730
 
 [[waivers]]
 id = "SS-WAIVER-S120"

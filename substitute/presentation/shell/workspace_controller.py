@@ -66,7 +66,6 @@ from substitute.presentation.shell.workspace_generation_request_builder import (
     GenerationWorkflowPruneReport,
     active_behavior_snapshot,
     build_generation_request_for_view,
-    synchronize_generation_request_seed_scopes,
 )
 from substitute.presentation.shell.workspace_generation_snapshot_builder import (
     capture_queued_snapshot_preparation,
@@ -233,18 +232,13 @@ class WorkspaceController:
         return preparation_job.on_prepared(preparation_job.prepare_snapshots())
 
     def capture_queued_generation_preparation(self) -> QueuedGenerationPreparationJob:
-        """Capture a detached queue preparation job after UI preflight and seeds."""
+        """Capture a detached queue preparation job from the currently armed values."""
 
         request = self.build_generation_request()
         behavior_snapshot = active_behavior_snapshot(
             self._views.generation,
             request.workflow_id,
         )
-        seed_result = self._collaborators.generation_seed_randomizer(
-            request=request,
-            behavior_snapshot=behavior_snapshot,
-        )
-        request = synchronize_generation_request_seed_scopes(request, seed_result)
         view = self._views.generation
         preparation = capture_queued_snapshot_preparation(
             request=request,
@@ -272,7 +266,6 @@ class WorkspaceController:
         return build_scene_generation_snapshots_from_context(
             context=context,
             preparation_service=self._generation_preparation_service(),
-            randomize_request_seeds=self._collaborators.generation_seed_randomizer,
             scene_run_bookkeeping=SceneRunBookkeeping(
                 output_scene_run_service=getattr(
                     view,
@@ -289,7 +282,6 @@ class WorkspaceController:
             context=self._scene_generation_context(),
             scene_key=scene_key,
             preparation_service=self._generation_preparation_service(),
-            randomize_request_seeds=self._collaborators.generation_seed_randomizer,
             preflight_error=self._scene_generation_preflight_error,
         )
 
@@ -381,9 +373,7 @@ class WorkspaceController:
         return build_generation_action_bindings(
             view=self._views.generation,
             build_generation_request=self.build_generation_request,
-            randomize_generation_request_seeds=(
-                self._collaborators.generation_seed_randomizer
-            ),
+            randomize_generation_seeds=self._collaborators.generation_seed_randomizer,
             build_queued_generation_snapshots=self.build_queued_generation_snapshots,
             capture_queued_generation_preparation=(
                 self.capture_queued_generation_preparation

@@ -329,7 +329,6 @@ def test_continuous_callbacks_route_generation_events() -> None:
 
     controller.handle_generate_clicked(current_mode="continuous", bindings=bindings)
     callbacks = cast(GenerationCallbacks, fake_queue.enqueue_calls[0]["callbacks"])
-    assert callbacks.randomize_seeds is None
     callbacks.on_progress(_progress_update(workflow_percent=50.0, sampler_percent=25.0))
     callbacks.on_preview(PreviewImageUpdate(workflow_id="wf-1", image=object()))
     callbacks.on_output_image(

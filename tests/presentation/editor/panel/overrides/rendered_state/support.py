@@ -24,7 +24,6 @@ from typing import Any, cast
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.application.generation import GenerationRequest
 from substitute.application.generation.seed_randomization_service import (
     SeedRandomizationResult,
     SeedRandomizationService,
@@ -51,9 +50,6 @@ from substitute.presentation.editor.panel.overrides_controller import (
 )
 from substitute.presentation.shell.main_window_menu import build_main_window_menu
 from substitute.presentation.shell.seed_value_projector import SeedValueProjector
-from substitute.presentation.shell.workspace_generation_action_adapter import (
-    randomize_generation_request_seeds,
-)
 from substitute.presentation.widgets import SeedBox
 from tests.support.prompt_editor.autocomplete_support import (
     EmptyPromptAutocompleteGateway,
@@ -360,15 +356,10 @@ def randomize_for_generation(
     harness: RenderedOverrideHarness,
     randomizer: DeterministicSeedRandomizer,
 ) -> None:
-    """Run the production generation-request seed randomization adapter."""
+    """Rearm the authoritative workflow and project its new seed value."""
 
-    result = randomize_generation_request_seeds(
-        seed_randomization_service=randomizer,
-        request=GenerationRequest(
-            workflow_id="workflow-a",
-            workflow_name="Abuse probe",
-            workflow=cast(Any, harness.workflow),
-        ),
+    result = randomizer.randomize_workflow_seeds(
+        workflow=harness.workflow,
         behavior_snapshot=build_behavior_snapshot(harness.workflow),
     )
     SeedValueProjector(harness.manager.mainwindow).project(harness.workflow, result)

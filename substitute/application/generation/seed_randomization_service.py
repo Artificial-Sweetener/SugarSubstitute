@@ -24,10 +24,14 @@ import random
 from typing import cast
 
 from substitute.application.node_behavior import EditorBehaviorSnapshot
+from substitute.application.workflows.editor_projection_service import (
+    WorkflowEditorProjectionService,
+)
 from substitute.domain.generation.seed_control import (
     SeedControlState,
     SeedMode,
 )
+from substitute.domain.node_behavior import FieldPresentation
 from substitute.domain.workflow import (
     SEED_OVERRIDE_KEY,
     WorkflowSeedAuthority,
@@ -69,6 +73,11 @@ class SeedRandomizationResult:
 class SeedRandomizationService:
     """Randomize workflow-owned seed values according to persisted seed modes."""
 
+    def __init__(self) -> None:
+        """Create the shared editor-section projector used by every workflow kind."""
+
+        self._editor_projection_service = WorkflowEditorProjectionService()
+
     def randomize_workflow_seeds(
         self,
         *,
@@ -105,53 +114,64 @@ class SeedRandomizationService:
         override_seed_active = WorkflowSeedAuthority.active_global_override_key(
             workflow
         )
-        for cube_alias in workflow.stack_order:
-            cube = workflow.cubes.get(cube_alias)
-            if cube is None:
-                continue
+        projection = self._editor_projection_service.project(workflow)
+        for cube_alias, cube in projection.entries:
             node_specs = behavior_snapshot.field_specs_by_alias.get(cube_alias, {})
             for node_name, field_specs in node_specs.items():
-                spec = field_specs.get(SEED_FIELD_KEY)
-                if spec is None or spec.field_key != SEED_FIELD_KEY:
-                    continue
-                if override_seed_active is not None and _spec_uses_seed_override(spec):
-                    continue
-                if (
-                    self._cube_seed_mode(cube, node_name, spec.field_key).mode
-                    == SeedMode.FIXED
-                ):
-                    continue
-                bounds = _seed_bounds(spec.constraints)
-                if bounds is None:
-                    log_warning(
-                        _LOGGER,
-                        "Skipped cube seed randomization for invalid seed range",
-                        cube_alias=cube_alias,
-                        node_name=node_name,
-                        field_key=spec.field_key,
-                    )
-                    continue
-                seed_value = randint(*bounds)
-                previous_value = _read_cube_input_seed(cube.buffer, node_name)
-                if _write_cube_input_seed(cube.buffer, node_name, seed_value):
-                    cube.dirty = True
-                    changes.append(
-                        SeedValueChange(
+                for spec in field_specs.values():
+                    if (
+                        spec.field_behavior.presentation
+                        is not FieldPresentation.SEED_BOX
+                    ):
+                        continue
+                    if override_seed_active is not None and _spec_uses_seed_override(
+                        spec
+                    ):
+                        continue
+                    if (
+                        self._field_seed_mode(cube, node_name, spec.field_key).mode
+                        == SeedMode.FIXED
+                    ):
+                        continue
+                    bounds = _seed_bounds(spec.constraints)
+                    if bounds is None:
+                        log_warning(
+                            _LOGGER,
+                            "Skipped field seed randomization for invalid seed range",
                             cube_alias=cube_alias,
                             node_name=node_name,
                             field_key=spec.field_key,
-                            previous_value=previous_value,
-                            value=seed_value,
                         )
+                        continue
+                    seed_value = randint(*bounds)
+                    previous_value = _read_section_input_seed(
+                        cube,
+                        node_name=node_name,
+                        field_key=spec.field_key,
                     )
-                    log_debug(
-                        _LOGGER,
-                        "Randomized cube seed",
-                        cube_alias=cube_alias,
+                    if _write_section_input_seed(
+                        cube,
                         node_name=node_name,
                         field_key=spec.field_key,
                         seed_value=seed_value,
-                    )
+                    ):
+                        changes.append(
+                            SeedValueChange(
+                                cube_alias=cube_alias,
+                                node_name=node_name,
+                                field_key=spec.field_key,
+                                previous_value=previous_value,
+                                value=seed_value,
+                            )
+                        )
+                        log_debug(
+                            _LOGGER,
+                            "Randomized field seed",
+                            cube_alias=cube_alias,
+                            node_name=node_name,
+                            field_key=spec.field_key,
+                            seed_value=seed_value,
+                        )
         return tuple(changes)
 
     def _randomize_override_seeds(
@@ -200,14 +220,14 @@ class SeedRandomizationService:
         return tuple(changes)
 
     @staticmethod
-    def _cube_seed_mode(
-        cube: object,
+    def _field_seed_mode(
+        section: object,
         node_name: str,
         field_key: str,
     ) -> SeedControlState:
-        """Return persisted seed mode for a cube field, defaulting to random."""
+        """Return persisted mode for a section seed field, defaulting to random."""
 
-        states = getattr(cube, "field_control_states", None)
+        states = getattr(section, "field_control_states", None)
         if not isinstance(states, dict):
             return SeedControlState()
         node_states = states.get(node_name)
@@ -281,12 +301,25 @@ def _coerce_int(value: object, *, default: int) -> int:
         return default
 
 
-def _write_cube_input_seed(
-    buffer: Mapping[str, object],
+def _write_section_input_seed(
+    section: object,
+    *,
     node_name: str,
+    field_key: str,
     seed_value: int,
 ) -> bool:
-    """Write one seed value into a mutable cube input buffer."""
+    """Write one seed through its workflow section's canonical mutation boundary."""
+
+    set_editor_value = getattr(section, "set_editor_value", None)
+    if callable(set_editor_value):
+        return bool(
+            set_editor_value(
+                node_name,
+                field_key=field_key,
+                value=seed_value,
+            )
+        )
+    buffer = getattr(section, "buffer", None)
 
     if not isinstance(buffer, dict):
         return False
@@ -302,15 +335,25 @@ def _write_cube_input_seed(
     if not isinstance(inputs, dict):
         inputs = {}
         node["inputs"] = inputs
-    if inputs.get(SEED_FIELD_KEY) == seed_value:
+    if inputs.get(field_key) == seed_value:
         return False
-    inputs[SEED_FIELD_KEY] = seed_value
+    inputs[field_key] = seed_value
+    if hasattr(section, "dirty"):
+        section.dirty = True
     return True
 
 
-def _read_cube_input_seed(buffer: Mapping[str, object], node_name: str) -> object:
-    """Return one current cube seed without changing malformed buffer state."""
+def _read_section_input_seed(
+    section: object,
+    *,
+    node_name: str,
+    field_key: str,
+) -> object:
+    """Return one current field seed without changing malformed section state."""
 
+    buffer = getattr(section, "buffer", None)
+    if not isinstance(buffer, Mapping):
+        return None
     nodes = buffer.get("nodes")
     if not isinstance(nodes, Mapping):
         return None
@@ -320,7 +363,7 @@ def _read_cube_input_seed(buffer: Mapping[str, object], node_name: str) -> objec
     inputs = node.get("inputs")
     if not isinstance(inputs, Mapping):
         return None
-    return inputs.get(SEED_FIELD_KEY)
+    return inputs.get(field_key)
 
 
 __all__ = [

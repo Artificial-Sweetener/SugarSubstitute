@@ -26,10 +26,7 @@ from substitute.application.generation import (
     CapturedGenerationRequest,
     GenerationJobSnapshot,
     GenerationPreparationResult,
-    GenerationRequest,
-    SeedRandomizationResult,
 )
-from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.presentation.shell.workspace_scene_generation_controller import (
     build_scene_generation_snapshot_from_context,
     build_scene_generation_snapshots_from_context,
@@ -65,7 +62,7 @@ FORBIDDEN_IMPORT_PREFIXES = (
 def test_build_scene_generation_snapshots_from_context_prepares_and_tracks_run() -> (
     None
 ):
-    """Multi-scene snapshot capture should randomize before preparation."""
+    """Multi-scene snapshot capture should preserve the currently armed values."""
 
     workflow = _workflow("**portrait\nstudio\n\n**cafe\ncoffee")
     context = scene_generation_context(
@@ -127,20 +124,8 @@ def test_build_scene_generation_snapshots_from_context_prepares_and_tracks_run()
 
             raise AssertionError("single scene preparation should not run")
 
-    randomized: list[tuple[GenerationRequest, EditorBehaviorSnapshot | None]] = []
     bookkeeping_calls: list[dict[str, object]] = []
     service = _PreparationService()
-
-    def _randomize(
-        *,
-        request: GenerationRequest,
-        behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> SeedRandomizationResult:
-        """Record randomization and mutate the live workflow before capture."""
-
-        randomized.append((request, behavior_snapshot))
-        setattr(request.workflow, "randomized_marker", "after-randomization")
-        return SeedRandomizationResult()
 
     def _bookkeeping(**values: object) -> None:
         """Record scene-run bookkeeping values."""
@@ -150,17 +135,12 @@ def test_build_scene_generation_snapshots_from_context_prepares_and_tracks_run()
     result = build_scene_generation_snapshots_from_context(
         context=context,
         preparation_service=service,
-        randomize_request_seeds=_randomize,
         scene_run_bookkeeping=_bookkeeping,
     )
 
     assert result == snapshots
-    assert randomized == [(context.request, context.behavior_snapshot)]
     assert service.captured_request is not None
     assert service.captured_request.workflow is not workflow
-    assert service.captured_request.workflow.randomized_marker == (
-        "after-randomization"
-    )
     assert service.captured_scene_analysis is context.scene_analysis
     assert bookkeeping_calls == [
         {
@@ -224,31 +204,17 @@ def test_build_scene_generation_snapshot_from_context_validates_and_prepares_sce
             self.captured_scene_run_id = scene_run_id
             return snapshot
 
-    randomize_calls: list[GenerationRequest] = []
     service = _PreparationService()
-
-    def _randomize(
-        *,
-        request: GenerationRequest,
-        behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> SeedRandomizationResult:
-        """Record seed randomization."""
-
-        assert behavior_snapshot is context.behavior_snapshot
-        randomize_calls.append(request)
-        return SeedRandomizationResult()
 
     result = build_scene_generation_snapshot_from_context(
         context=context,
         scene_key="cafe",
         preparation_service=service,
-        randomize_request_seeds=_randomize,
         preflight_error=_preflight_error,
         scene_run_id_factory=lambda: "scene-run-single",
     )
 
     assert result == snapshot
-    assert randomize_calls == [context.request]
     assert service.captured_request is not None
     assert service.captured_scene_key == "cafe"
     assert service.captured_scene_run_id == "scene-run-single"
@@ -264,7 +230,6 @@ def test_build_scene_generation_snapshot_from_context_rejects_unknown_scene_firs
         behavior_snapshot=_behavior_snapshot(),
         preflight_error=_preflight_error,
     )
-    randomize_calls = 0
     preparation_calls = 0
 
     class _PreparationService:
@@ -294,23 +259,11 @@ def test_build_scene_generation_snapshot_from_context_rejects_unknown_scene_firs
             preparation_calls += 1
             raise AssertionError("single scene preparation should not run")
 
-    def _randomize(
-        *,
-        request: GenerationRequest,
-        behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> SeedRandomizationResult:
-        """Record unexpected randomization."""
-
-        nonlocal randomize_calls
-        randomize_calls += 1
-        return SeedRandomizationResult()
-
     with pytest.raises(_ScenePreflightError) as raised:
         build_scene_generation_snapshot_from_context(
             context=context,
             scene_key="missing",
             preparation_service=_PreparationService(),
-            randomize_request_seeds=_randomize,
             preflight_error=_preflight_error,
             scene_run_id_factory=lambda: "scene-run-single",
         )
@@ -319,5 +272,4 @@ def test_build_scene_generation_snapshot_from_context_rejects_unknown_scene_firs
     assert raised.value.message == (
         "Generate scene could not find runnable scene: missing"
     )
-    assert randomize_calls == 0
     assert preparation_calls == 0

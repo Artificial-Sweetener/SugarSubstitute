@@ -26,10 +26,6 @@ from pytest import MonkeyPatch
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.links.prompt_endpoints import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
-from tests.presentation.shell.generation.snapshots.support import (
-    SeedRandomizationRecorder,
-    replace_seed_randomizer,
-)
 from tests.support.native_cube_workflow import (
     native_cube_workflow_input,
     native_cube_workflow_stub,
@@ -170,7 +166,6 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
         active_cube_stack=None,
     )
     controller = mod.WorkspaceController(view)
-    replace_seed_randomizer(controller, SeedRandomizationRecorder(order))
 
     def _prepare_workflow(**kwargs: object) -> object:
         order.append("capture")
@@ -185,7 +180,7 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["reconcile", "capture", "randomize"]
+    assert order == ["reconcile", "capture"]
     assert [snapshot.workflow_name for snapshot in snapshots] == [
         "Recipe - portrait",
         "Recipe - cafe",

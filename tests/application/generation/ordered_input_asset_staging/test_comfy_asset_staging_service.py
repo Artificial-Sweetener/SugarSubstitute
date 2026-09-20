@@ -178,7 +178,11 @@ def test_stage_payload_rewrites_instance_assets_without_rewriting_flavor_presets
             ui={"canonical_cube": {"description": "", "metadata": {}}},
         )
     )
-    native_graph = NativeCubeWorkflowBuilder().build(workflow)
+    native_graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     result = ComfyAssetStagingService(stager=_FakeStager()).stage_payload(
         workflow_payload=native_graph,
