@@ -28,6 +28,9 @@ from substitute.app.bootstrap.gui_reload_coordinator import (
     GuiReloadCoordinator,
     ShellFrameProtocol,
 )
+from substitute.app.bootstrap.deferred_restart_coordinator import (
+    DeferredRestartCoordinator,
+)
 from substitute.app.bootstrap.gui_reload_session_finalizer import (
     GuiReloadSessionFinalizer,
     SessionFinalizationStarter,
@@ -93,7 +96,12 @@ class ShellReloadAdapter:
         self._pending_generation_action_snapshot: (
             _ShellGenerationActionSnapshot | None
         ) = None
-        self._restart_after_cleanup_requested = False
+        self._restart_shutdown_started = False
+        self._restart_coordinator = DeferredRestartCoordinator(
+            queue_provider=self._generation_queue_service,
+            begin_restart=self._begin_restart_shutdown,
+            restart_command=self._restart_launch_command,
+        )
         session_finalizer = GuiReloadSessionFinalizer(
             managed_comfy_lease=managed_comfy_lease,
             begin_session_finalization=begin_session_finalization,
@@ -135,7 +143,7 @@ class ShellReloadAdapter:
     def restart_after_cleanup_requested(self) -> bool:
         """Return whether a Comfy restart relaunch was requested."""
 
-        return self._restart_after_cleanup_requested
+        return self._restart_coordinator.requested
 
     @property
     def restart_launch_command(self) -> tuple[str, ...]:
@@ -354,12 +362,25 @@ class ShellReloadAdapter:
         )
 
     def request_comfy_restart_from_shell(self) -> None:
-        """Request full app relaunch so startup restarts ComfyUI with splash."""
+        """Request a relaunch after active generation work reaches safety."""
 
-        if self._restart_after_cleanup_requested:
-            log_info(_LOGGER, "Duplicate ComfyUI restart request ignored")
+        self._restart_coordinator.request()
+
+    def _generation_queue_service(self) -> object | None:
+        """Return the current shell generation queue when available."""
+
+        shell_frame = self.current_shell()
+        if shell_frame is None:
+            return None
+        main_window = self._main_window_for_shell(shell_frame)
+        return getattr(main_window, "generation_job_queue_service", None)
+
+    def _begin_restart_shutdown(self) -> None:
+        """Request shutdown exactly once for an accepted restart."""
+
+        if self._restart_shutdown_started:
             return
-        self._restart_after_cleanup_requested = True
+        self._restart_shutdown_started = True
         log_info(
             _LOGGER,
             "ComfyUI restart requested from shell",

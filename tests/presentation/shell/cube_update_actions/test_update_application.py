@@ -60,6 +60,7 @@ class _CubeLoadService:
         self.loaded_versions: list[tuple[str, str]] = []
         self.buffer_patch: object | None = None
         self.fail_version_load = False
+        self.drop_steps_input = False
 
     def invalidate_catalog_cache(self) -> None:
         """Record cache invalidation."""
@@ -79,12 +80,15 @@ class _CubeLoadService:
         self.loaded_versions.append((cube_id, version))
         if self.fail_version_load:
             raise RuntimeError("version unavailable")
+        inputs: dict[str, object] = {}
+        if not self.drop_steps_input:
+            inputs["steps"] = 20
         return LoadedCubeDefinition(
             cube_id=cube_id,
             version=version,
             display_name="Demo Cube",
             graph={
-                "nodes": {"sampler": {"class_type": "KSampler", "inputs": {}}},
+                "nodes": {"sampler": {"class_type": "KSampler", "inputs": inputs}},
                 "surface": [],
             },
             ui_payload={"catalog_revision": "rev-2"},
@@ -407,6 +411,32 @@ def test_follow_latest_failure_pins_existing_cube_and_records_issue() -> None:
     assert "version unavailable" in issues[0].message
 
 
+def test_authored_state_loss_aborts_before_replacing_cube() -> None:
+    """A destructive update attempt must leave the existing Cube byte-identical."""
+
+    workflow = _workflow()
+    original = workflow.cubes["Demo"]
+    original_json = workflow_state_to_json(workflow)
+    cube_loader = _CubeLoadService()
+    cube_loader.drop_steps_input = True
+    actions = _actions(workflow, cube_loader=cube_loader)
+
+    failures = actions.apply_update_selections(
+        (
+            LoadedCubeUpdateSelection(
+                candidate=_candidate(),
+                action=LoadedCubeUpdateAction.UPDATE_INSTANCE,
+                target_version="2.0",
+            ),
+        )
+    )
+
+    assert len(failures) == 1
+    assert workflow.cubes["Demo"] is original
+    assert workflow_state_to_json(workflow) == original_json
+    assert cube_loader.buffer_patch is None
+
+
 def _workflow(
     *,
     update_policy: CubeUpdatePolicy = CubeUpdatePolicy.PINNED,
@@ -419,8 +449,22 @@ def _workflow(
                 cube_id="owner/repo/demo.cube",
                 version="1.0",
                 alias="Demo",
-                original_cube={"nodes": {"sampler": {"inputs": {"steps": 20}}}},
-                buffer={"nodes": {"sampler": {"inputs": {"steps": 30}}}},
+                original_cube={
+                    "nodes": {
+                        "sampler": {
+                            "class_type": "KSampler",
+                            "inputs": {"steps": 20},
+                        }
+                    }
+                },
+                buffer={
+                    "nodes": {
+                        "sampler": {
+                            "class_type": "KSampler",
+                            "inputs": {"steps": 30},
+                        }
+                    }
+                },
                 update_policy=update_policy,
             )
         },

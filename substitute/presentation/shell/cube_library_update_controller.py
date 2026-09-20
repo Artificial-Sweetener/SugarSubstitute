@@ -26,11 +26,13 @@ from PySide6.QtWidgets import QApplication
 
 from substitute.application.execution import TaskSubmitter
 from substitute.application.cube_library import (
+    CubeDependencyReconciliationCoordinator,
     CubeLibraryUpdateCoordinator,
     CubeLibraryUpdateDetectionService,
     LoadedCubeUpdateCandidate,
     LoadedCubeUpdateSelection,
 )
+from substitute.domain.cube_library import CubeDependencySyncAndCheckResult
 from substitute.presentation.cube_updates import CubeUpdateModal
 from substitute.presentation.shell.main_window_dependencies import (
     MainWindowDependencies,
@@ -63,6 +65,12 @@ class CubeLibraryUpdateController:
 
         self._shell = shell
         self._actions = WorkspaceCubeUpdateActions(cast(WorkspaceCubeUpdateView, shell))
+        self._dependency_reconciliation = CubeDependencyReconciliationCoordinator(
+            gateway=shell.cube_library_management_service,
+            result_observer=self._on_dependency_reconciliation_result,
+            failure_observer=self._on_dependency_reconciliation_failure,
+            submitter=refresh_submitter,
+        )
         self._modal_open = False
         self._close_update_submitter = close_refresh_submitter
         self.coordinator = CubeLibraryUpdateCoordinator(
@@ -115,6 +123,7 @@ class CubeLibraryUpdateController:
             reason=getattr(update, "reason", ""),
         )
         self.coordinator.on_library_changed(cast(Any, update))
+        self._dependency_reconciliation.request(reason="cube_library_changed")
 
     def start_listener(self) -> None:
         """Start live update listening after MainWindow construction returns."""
@@ -141,6 +150,7 @@ class CubeLibraryUpdateController:
             listener.stop()
             self._listener_started = False
         self.coordinator.shutdown()
+        self._dependency_reconciliation.close()
         if self._close_update_submitter is not None:
             self._close_update_submitter()
             self._close_update_submitter = None
@@ -307,7 +317,38 @@ class CubeLibraryUpdateController:
     def schedule_startup_update_check(self) -> None:
         """Check loaded cubes for version drift after startup hydration."""
 
+        self._dependency_reconciliation.request(reason="startup_hydrated")
         self.coordinator.refresh_async()
+
+    def _on_dependency_reconciliation_result(
+        self,
+        result: CubeDependencySyncAndCheckResult,
+    ) -> None:
+        """Publish truthful repair/restart facts without changing availability."""
+
+        log_info(
+            _LOGGER,
+            "Cube dependency reconciliation completed",
+            ready=result.readiness.ready,
+            restart_required=result.restart_required,
+            required_custom_nodes=result.readiness.required_custom_nodes,
+            errors=result.errors,
+        )
+        self._shell.settings_route_controller.handle_cube_library_restart_required_changed(
+            result.restart_required
+        )
+
+    def _on_dependency_reconciliation_failure(
+        self,
+        error: BaseException | None,
+    ) -> None:
+        """Keep the app usable while recording retryable maintenance failure."""
+
+        log_warning(
+            _LOGGER,
+            "Cube dependency reconciliation did not complete",
+            error=repr(error) if error is not None else "unsupported",
+        )
 
     def _workflow_names(self) -> dict[str, str]:
         """Return display names for currently open workflows."""

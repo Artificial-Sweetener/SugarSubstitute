@@ -32,6 +32,7 @@ from sugarsubstitute_shared.presentation.localization import (
     translate_application_message,
 )
 from substitute.application.cubes import (
+    CubeAuthoredStateLossError,
     CubeInstanceStateTransferService,
     CubeStackService,
     LoadedCubeDefinition,
@@ -404,7 +405,10 @@ class WorkspaceCubeUpdateActions:
             added_control_ids=transfer.report.added_control_ids,
             removed_control_ids=transfer.report.removed_control_ids,
             incompatible_control_ids=transfer.report.incompatible_control_ids,
+            dropped_authored_input_ids=transfer.report.dropped_authored_input_ids,
         )
+        if transfer.report.has_destructive_loss:
+            raise CubeAuthoredStateLossError(transfer.report.dropped_authored_input_ids)
         loaded_runtime = self._view.cube_load_service.build_loaded_cube_runtime(
             candidate.cube_id,
             candidate.cube_alias,
@@ -414,6 +418,11 @@ class WorkspaceCubeUpdateActions:
             cube_load_trace_id=trace_id,
         )
         loaded_runtime.cube_state.update_policy = self._target_update_policy(selection)
+        self._view.cube_stack_service.apply_cube_replacement(
+            workflow,
+            candidate.cube_alias,
+            loaded_runtime.cube_state,
+        )
         mark_stale = getattr(
             self._view.workspace_loaded_cube_surface_actions,
             "mark_loaded_cube_surface_stale",
@@ -425,11 +434,6 @@ class WorkspaceCubeUpdateActions:
                 candidate.cube_alias,
                 reason="cube_definition_updated",
             )
-        self._view.cube_stack_service.apply_cube_replacement(
-            workflow,
-            candidate.cube_alias,
-            loaded_runtime.cube_state,
-        )
         projected_cube = workflow.cubes[candidate.cube_alias]
         _mark_cube_update_surfaces_dirty(self._view, candidate.workflow_id)
         log_info(

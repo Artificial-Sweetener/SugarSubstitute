@@ -171,8 +171,13 @@ def test_initial_restore_plan_preserves_normalization_warnings() -> None:
     plan = _build_plan(_Repository(session))
 
     assert plan.workspace is not None
-    assert plan.workspace.tab_order == ("wf-a",)
-    assert "Dropped duplicate workflow id wf-a." in plan.warnings
+    assert plan.workspace.tab_order[0] == "wf-a"
+    assert len(plan.workspace.tab_order) == 2
+    assert len(set(plan.workspace.tab_order)) == 2
+    assert any(
+        warning.startswith("Reassigned duplicate workflow id wf-a to ")
+        for warning in plan.warnings
+    )
     assert "Removed stale workflow id missing from tab order." in plan.warnings
 
 

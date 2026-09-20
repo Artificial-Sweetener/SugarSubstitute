@@ -1314,10 +1314,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cömfy rëstàrt fàïlëd ···⟧</translation>
     </message>
     <message>
-      <source>Comfy restart requested</source>
-      <translation>⟦Cömfy rëstàrt rëqüëstëd ···⟧</translation>
-    </message>
-    <message>
       <source>Comfy restart required</source>
       <translation>⟦Cömfy rëstàrt rëqüïrëd ···⟧</translation>
     </message>
@@ -1476,10 +1472,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>ComfyUI is unavailable.</source>
       <translation>⟦CömfyÜÏ ïs ünàvàïlàblë. ···⟧</translation>
-    </message>
-    <message>
-      <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
-      <translation>⟦CömfyÜÏ müst rëstàrt bëförë rëpàïrëd cübë dëpëndëncïës càn bë üsëd. ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI needs repair before it can start</source>
@@ -4194,10 +4186,6 @@ I’ll bring my own</source>
     <message>
       <source>Refresh stale cached wiki pages and preview images lazily while browsing.</source>
       <translation>⟦Rëfrësh stàlë càchëd wïkï pàgës ànd prëvïëw ïmàgës làzïly whïlë bröwsïng. ···⟧</translation>
-    </message>
-    <message>
-      <source>Refreshing Cube Library after restart request.</source>
-      <translation>⟦Rëfrëshïng Cübë Lïbràry àftër rëstàrt rëqüëst. ···⟧</translation>
     </message>
     <message>
       <source>Refreshing...</source>
