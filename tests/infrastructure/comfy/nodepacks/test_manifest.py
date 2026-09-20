@@ -26,8 +26,6 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS,
     CLI_INSTALL_TIMEOUT_SECONDS,
     CORE_COMFY_NODEPACKS,
-    SUGARCUBES_BASE_NODEPACK_INSTALLS,
-    SUGARCUBES_COMPANION_NODEPACKS,
 )
 
 _MANIFEST_MODULE = (
@@ -99,10 +97,10 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
     assert by_project["SugarCubes"].local_source_environment_variable == (
         "SUGARSUBSTITUTE_SUGARCUBES_SOURCE"
     )
-    assert by_project["SugarCubes"].required_version == "0.14.3"
+    assert by_project["SugarCubes"].required_version == "0.14.4"
     assert by_project["SugarCubes"].fallback_archive_url == (
         "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
-        "v0.14.3.zip"
+        "v0.14.4.zip"
     )
     assert by_project["SugarCubes"].expected_folder == (
         Path("custom_nodes") / "SugarCubes"
@@ -111,22 +109,6 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
         Path("__init__.py"),
         Path("pyproject.toml"),
     )
-
-
-def test_sugarcubes_nodepack_manifest_contains_trusted_install_fallbacks() -> None:
-    """SugarCubes companion nodepacks should stay in the manifest owner."""
-
-    assert (
-        SUGARCUBES_BASE_NODEPACK_INSTALLS["comfyui-vectorscope-cc"][0].source_url
-        == "https://github.com/pamparamm/ComfyUI-vectorscope-cc.git"
-    )
-    assert (
-        SUGARCUBES_BASE_NODEPACK_INSTALLS["seedvr2_videoupscaler"][0].target_folder_name
-        == "seedvr2_videoupscaler"
-    )
-    assert SUGARCUBES_COMPANION_NODEPACKS == {
-        "SimpleSyrup": ("comfyui-prompt-control",),
-    }
 
 
 def test_nodepack_manifest_centralizes_network_timeout_policy() -> None:

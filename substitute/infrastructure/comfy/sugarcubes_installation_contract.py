@@ -66,13 +66,13 @@ def build_sugarcubes_maintenance_command(
     return command
 
 
-def build_sugarcubes_version_repair_command(
+def build_sugarcubes_dependency_repair_command(
     *,
     python_executable: Path,
     workspace: Path,
     approved_node_ids: Sequence[str],
 ) -> tuple[str, ...]:
-    """Build an exact-version repair command for preflight-selected node packs."""
+    """Build a repair command for every preflight-selected node pack."""
 
     command: tuple[str, ...] = (
         str(python_executable),
