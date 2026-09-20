@@ -870,6 +870,8 @@ class ModelPickerField(QWidget):
             parent=self,
             open_url=self._open_url,
             action_handler=metadata_action_handler,
+            target_updated=self.refresh_metadata,
+            thumbnail_library_opening=self._dismiss_popup,
         )
         self._metadata_action_handler = metadata_action_handler
         self._empty_model_action = empty_model_action
@@ -1071,6 +1073,8 @@ class ModelPickerField(QWidget):
             dismissal_guard_widgets=(self,),
             open_url=self._open_url,
             metadata_action_handler=self._metadata_action_handler,
+            metadata_target_updated=self.refresh_metadata,
+            thumbnail_library_opening=self._dismiss_popup,
             search_focus_requested=self.keep_search_focus_for_popup_interaction,
             external_search_key_pressed=self.handle_popup_search_key,
             parent=self,

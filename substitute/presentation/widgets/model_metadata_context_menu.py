@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, QTimer
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-untyped]
     Action,
@@ -53,6 +53,8 @@ from substitute.presentation.widgets.menu_model import (
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 
 _SET_THUMBNAIL_FROM_CANVAS_LABEL = app_text("Set thumbnail from canvas")
+_READ_ONLY_VISUAL_METADATA_MODEL_KINDS = frozenset({"ultralytics"})
+_ULTRALYTICS_MODEL_KIND = "ultralytics"
 
 
 class ModelMetadataContextActionHandler(Protocol):
@@ -80,6 +82,12 @@ class ModelMetadataContextActionHandler(Protocol):
         image_id: UUID,
     ) -> None:
         """Schedule assigning one output image as the target model thumbnail."""
+
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Choose and persist a packaged thumbnail for one Ultralytics model."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,11 +148,17 @@ class ModelMetadataContextMenuActionBuilder:
         *,
         open_url: UrlOpener | None = None,
         action_handler: ModelMetadataContextActionHandler | None = None,
+        target_updated: Callable[[], None] | None = None,
+        thumbnail_library_opening: Callable[[], None] | None = None,
+        schedule_modal_action: Callable[[Callable[[], None]], None] | None = None,
     ) -> None:
         """Store collaborators used by shared metadata actions."""
 
         self._open_url = open_url or open_external_url
         self._action_handler = action_handler
+        self._target_updated = target_updated
+        self._thumbnail_library_opening = thumbnail_library_opening
+        self._schedule_modal_action = schedule_modal_action or _run_immediately
 
     def menu_items_for_target(
         self,
@@ -153,6 +167,9 @@ class ModelMetadataContextMenuActionBuilder:
         """Return all currently available menu items for one metadata target."""
 
         items: list[ModelMetadataMenuItem] = []
+        library_action = self.thumbnail_library_action_for_target(target)
+        if library_action is not None:
+            items.append(library_action)
         page_action = self.civitai_page_action_for_target(target)
         if page_action is not None:
             items.append(page_action)
@@ -163,6 +180,42 @@ class ModelMetadataContextMenuActionBuilder:
         if thumbnail_action is not None:
             items.append(thumbnail_action)
         return tuple(items)
+
+    def thumbnail_library_action_for_target(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> ModelMetadataMenuAction | None:
+        """Return the packaged detector-library action for Ultralytics targets."""
+
+        if self._action_handler is None:
+            return None
+        if (target.model_kind or "").strip().casefold() != _ULTRALYTICS_MODEL_KIND:
+            return None
+        if not (target.backend_value or "").strip():
+            return None
+
+        def choose_after_menu_closes(
+            target: ModelMetadataContextMenuTarget = target,
+        ) -> None:
+            """Open the library after transient menu widgets finish closing."""
+
+            handler = self._action_handler
+            assert handler is not None
+            if handler.choose_ultralytics_thumbnail(target):
+                if self._target_updated is not None:
+                    self._target_updated()
+
+        def choose_thumbnail() -> None:
+            """Dismiss the picker and defer modal entry beyond the menu callback."""
+
+            if self._thumbnail_library_opening is not None:
+                self._thumbnail_library_opening()
+            self._schedule_modal_action(choose_after_menu_closes)
+
+        return ModelMetadataMenuAction(
+            app_text("Choose detector thumbnail"),
+            choose_thumbnail,
+        )
 
     def civitai_page_action_for_target(
         self,
@@ -190,7 +243,7 @@ class ModelMetadataContextMenuActionBuilder:
     ) -> ModelMetadataMenuAction | None:
         """Return the shared manual metadata refresh action for one target."""
 
-        if self._action_handler is None or not _target_can_refresh_metadata(target):
+        if self._action_handler is None or not _target_can_manage_metadata(target):
             return None
 
         def refresh_metadata(target: ModelMetadataContextMenuTarget = target) -> None:
@@ -210,7 +263,7 @@ class ModelMetadataContextMenuActionBuilder:
     ) -> ModelMetadataMenuItem | None:
         """Return the adaptive output-canvas thumbnail action for one target."""
 
-        if self._action_handler is None or not _target_can_refresh_metadata(target):
+        if self._action_handler is None or not _target_can_manage_metadata(target):
             return None
         choices = self._action_handler.output_canvas_thumbnail_choices()
         active_choice = self._action_handler.active_output_canvas_thumbnail_choice()
@@ -232,6 +285,8 @@ class ModelMetadataContextMenuPresenter:
         open_url: UrlOpener | None = None,
         action_handler: ModelMetadataContextActionHandler | None = None,
         action_builder: ModelMetadataContextMenuActionBuilder | None = None,
+        target_updated: Callable[[], None] | None = None,
+        thumbnail_library_opening: Callable[[], None] | None = None,
     ) -> None:
         """Bind a Qt parent and action builder for future menu openings."""
 
@@ -239,6 +294,9 @@ class ModelMetadataContextMenuPresenter:
         self._action_builder = action_builder or ModelMetadataContextMenuActionBuilder(
             open_url=open_url,
             action_handler=action_handler,
+            target_updated=target_updated,
+            thumbnail_library_opening=thumbnail_library_opening,
+            schedule_modal_action=_schedule_on_next_gui_turn,
         )
 
     def menu_items_for_target(
@@ -330,11 +388,14 @@ def _has_enabled_action(items: tuple[ModelMetadataMenuItem, ...]) -> bool:
     return False
 
 
-def _target_can_refresh_metadata(target: ModelMetadataContextMenuTarget) -> bool:
-    """Return whether one target has enough local identity to refresh metadata."""
+def _target_can_manage_metadata(target: ModelMetadataContextMenuTarget) -> bool:
+    """Return whether one target supports user-managed metadata and thumbnails."""
 
+    model_kind = (target.model_kind or "").strip().casefold()
     return bool(
-        (target.model_kind or "").strip() and (target.backend_value or "").strip()
+        model_kind
+        and model_kind not in _READ_ONLY_VISUAL_METADATA_MODEL_KINDS
+        and (target.backend_value or "").strip()
     )
 
 
@@ -614,6 +675,18 @@ def _batch_label(set_index: int) -> ApplicationText:
     """Return user-facing batch text for one output set index."""
 
     return app_text("Batch %1", set_index)
+
+
+def _run_immediately(callback: Callable[[], None]) -> None:
+    """Execute a modal action directly for non-presented builder use."""
+
+    callback()
+
+
+def _schedule_on_next_gui_turn(callback: Callable[[], None]) -> None:
+    """Enter a modal after the active transient-menu callback unwinds."""
+
+    QTimer.singleShot(0, callback)
 
 
 __all__ = [

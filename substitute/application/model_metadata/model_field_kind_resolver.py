@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 _EXACT_MODEL_FIELDS = {
     ("CheckpointLoaderSimple", "ckpt_name"): "checkpoints",
     ("SimpleSyrup.SimpleLoadCheckpoint", "ckpt_name"): "checkpoints",
@@ -32,6 +34,8 @@ _EXACT_MODEL_FIELDS = {
     ("DualCLIPLoader", "clip_name1"): "text_encoders",
     ("DualCLIPLoader", "clip_name2"): "text_encoders",
     ("Power Lora Loader (rgthree)", "lora"): "loras",
+    ("SimpleSyrup.LoadUltralyticsModel", "model_name"): "ultralytics",
+    ("UltralyticsDetectorProvider", "model_name"): "ultralytics",
 }
 
 _UNQUALIFIED_MODEL_FIELDS = {
@@ -52,6 +56,29 @@ _UNQUALIFIED_MODEL_FIELDS = {
 def declared_model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
     """Return only a declared node-input contract suitable for selecting a widget."""
     return _EXACT_MODEL_FIELDS.get((class_type.strip(), input_key.strip()))
+
+
+def declared_model_kind_for_projected_field(
+    *,
+    class_type: str,
+    input_key: str,
+    field_metadata: Mapping[str, object],
+) -> str | None:
+    """Resolve a declared model contract through wrapper-field provenance."""
+
+    body_node_type = field_metadata.get("body_node_type")
+    body_input_name = field_metadata.get("body_input_name")
+    if isinstance(body_node_type, str) and isinstance(body_input_name, str):
+        body_kind = declared_model_kind_for_field(
+            class_type=body_node_type,
+            input_key=body_input_name,
+        )
+        if body_kind is not None:
+            return body_kind
+    return declared_model_kind_for_field(
+        class_type=class_type,
+        input_key=input_key,
+    )
 
 
 def model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
@@ -81,4 +108,8 @@ def model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
     return None
 
 
-__all__ = ["declared_model_kind_for_field", "model_kind_for_field"]
+__all__ = [
+    "declared_model_kind_for_field",
+    "declared_model_kind_for_projected_field",
+    "model_kind_for_field",
+]

@@ -642,6 +642,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Blüë ···⟧</translation>
     </message>
     <message>
+      <source>Bounding Box</source>
+      <translation>⟦Böündïng Böx ···⟧</translation>
+    </message>
+    <message>
       <source>Bounding box</source>
       <translation>⟦Böündïng böx ···⟧</translation>
     </message>
@@ -928,6 +932,14 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose color</source>
       <translation>⟦Chöösë cölör ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose detector thumbnail</source>
+      <translation>⟦Chöösë dëtëctör thümbnàïl ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose detector thumbnail for %1</source>
+      <translation>⟦Chöösë dëtëctör thümbnàïl för %1 ···⟧</translation>
     </message>
     <message>
       <source>Choose fixed quality or an approximate target file size.</source>
@@ -4786,6 +4798,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Segment reorder</source>
       <translation>⟦Sëgmënt rëördër ···⟧</translation>
+    </message>
+    <message>
+      <source>Segmentation</source>
+      <translation>⟦Sëgmëntàtïön ···⟧</translation>
     </message>
     <message>
       <source>Select</source>

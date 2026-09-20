@@ -27,6 +27,9 @@ from substitute.application.model_metadata import (
     RichChoiceResolution,
     RichChoiceResolver,
 )
+from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+    UltralyticsThumbnailAssociationService,
+)
 from substitute.application.node_behavior import (
     FieldPresentation,
     is_choice_field_type,
@@ -80,12 +83,16 @@ class PanelModelChoiceSnapshotController:
         *,
         model_catalog_service: ModelCatalogLookup | None,
         model_choice_resolver: RichChoiceResolver | None,
+        ultralytics_thumbnail_associations: (
+            UltralyticsThumbnailAssociationService | None
+        ) = None,
         panel_context_id_provider: Callable[[], Hashable | None] | None = None,
     ) -> None:
         """Store services used to prepare cache-only model-choice snapshots."""
 
         self._model_catalog_service = model_catalog_service
         self._model_choice_resolver = model_choice_resolver
+        self._ultralytics_thumbnail_associations = ultralytics_thumbnail_associations
         self._panel_context_id_provider = panel_context_id_provider or (lambda: None)
         self._snapshots: dict[Hashable, PanelModelChoiceSnapshot] = {}
 
@@ -232,6 +239,9 @@ class PanelModelChoiceSnapshotController:
                 resolver=self._model_choice_resolver,
                 options=options,
                 catalog_items=catalog_items,
+                ultralytics_thumbnail_associations=(
+                    self._ultralytics_thumbnail_associations
+                ),
             )
             self._snapshots[identity.query_identity or id(snapshot)] = snapshot
             return snapshot

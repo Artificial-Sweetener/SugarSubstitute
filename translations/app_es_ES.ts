@@ -834,7 +834,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudieron sincronizar los cubos base</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="616"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="666"></location>
       <source>Batch %1</source>
       <translation>Lote %1</translation>
     </message>
@@ -852,6 +852,11 @@ Está tardando mucho más de lo esperado</translation>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Blue</source>
       <translation>Azul</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="134"></location>
+      <source>Bounding Box</source>
+      <translation>Cuadro delimitador</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="54"></location>
@@ -1212,6 +1217,16 @@ Está tardando mucho más de lo esperado</translation>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
       <source>Choose color</source>
       <translation>Elegir color</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="206"></location>
+      <source>Choose detector thumbnail</source>
+      <translation>Elegir miniatura del detector</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="68"></location>
+      <source>Choose detector thumbnail for %1</source>
+      <translation>Elegir miniatura de detector para %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/jpeg_companion_settings.py" line="118"></location>
@@ -1674,7 +1689,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Comfy ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="863"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="861"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy no está disponible</translation>
     </message>
@@ -2144,12 +2159,12 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Continua</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="499"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="498"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>La generación continua no preparó ninguna tarea.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="486"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="485"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>La generación continua necesita la cola de generación.</translation>
     </message>
@@ -2412,7 +2427,7 @@ Install these nodes now?</source>
 ¿Quieres instalar estos nodos ahora?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="385"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="435"></location>
       <source>Current image</source>
       <translation>Imagen actual</translation>
     </message>
@@ -2782,7 +2797,7 @@ Install these nodes now?</source>
       <translation>Dar prioridad al primero</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="433"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="434"></location>
       <source>Enable</source>
       <translation>Activar</translation>
     </message>
@@ -2998,7 +3013,7 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
@@ -3140,7 +3155,7 @@ Install these nodes now?</source>
       <translation>Generar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="488"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="487"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
@@ -3190,12 +3205,12 @@ Install these nodes now?</source>
       <translation>La generación ha fallado durante %1: %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="900"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="898"></location>
       <source>Generation preflight failed</source>
       <translation>La comprobación previa a la generación ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="717"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="716"></location>
       <source>Generation preparation failed</source>
       <translation>No se pudo preparar la generación</translation>
     </message>
@@ -3225,12 +3240,12 @@ Install these nodes now?</source>
       <translation>Cola de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="547"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="546"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>Las integraciones de preparación de la cola de generación no están disponibles.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="541"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="540"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>Las integraciones de instantáneas de la cola de generación no están disponibles.</translation>
     </message>
@@ -3425,7 +3440,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="572"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="622"></location>
       <source>Image %1</source>
       <translation>Imagen %1</translation>
     </message>
@@ -5267,7 +5282,7 @@ Usaré el mío.</translation>
       <translation>Actualizar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="203"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="246"></location>
       <source>Refresh CivitAI metadata</source>
       <translation>Actualizar los metadatos de CivitAI</translation>
     </message>
@@ -5971,17 +5986,17 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Examinando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="455"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="505"></location>
       <source>Scene</source>
       <translation>Escena</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="447"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="446"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>La generación de escenas necesita un índice de prompts activo en el flujo de trabajo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="460"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="459"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>La generación de escenas necesita al menos un marcador **scene en el primer prompt positivo.</translation>
     </message>
@@ -5996,7 +6011,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Programar LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="176"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="183"></location>
       <source>Search %1</source>
       <translation>Buscar %1</translation>
     </message>
@@ -6034,6 +6049,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="137"></location>
       <source>Segment reorder</source>
       <translation>Reordenación de segmentos</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="133"></location>
+      <source>Segmentation</source>
+      <translation>Segmentación</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="350"></location>
@@ -6886,7 +6906,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2771"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2796"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -6977,7 +6997,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>SugarCubes aún indica que faltan dependencias básicas de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="254"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="247"></location>
       <source>SugarCubes version is incompatible.</source>
       <translation>La versión de SugarCubes no es compatible.</translation>
     </message>

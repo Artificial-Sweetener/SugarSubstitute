@@ -93,6 +93,8 @@ class ModelPickerPopup(QWidget):
         dismissal_guard_widgets: Iterable[QWidget] = (),
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        metadata_target_updated: Callable[[], None] | None = None,
+        thumbnail_library_opening: Callable[[], None] | None = None,
         search_focus_requested: Callable[[], None] | None = None,
         external_search_key_pressed: Callable[[QKeyEvent], bool] | None = None,
         parent: QWidget | None = None,
@@ -145,6 +147,8 @@ class ModelPickerPopup(QWidget):
             thumbnail_preloader=thumbnail_preloader,
             open_url=open_url,
             metadata_action_handler=metadata_action_handler,
+            metadata_target_updated=metadata_target_updated,
+            thumbnail_library_opening=thumbnail_library_opening,
         )
 
         layout = QVBoxLayout(self)

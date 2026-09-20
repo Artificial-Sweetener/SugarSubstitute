@@ -234,6 +234,7 @@ def build_widget_for_field_behavior(
                     else ""
                 ),
                 thumbnail_repository_available=(thumbnail_asset_repository is not None),
+                field_metadata=field_meta,
             )
         )
         if model_choice_snapshot_controller is not None

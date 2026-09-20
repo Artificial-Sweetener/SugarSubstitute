@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 from uuid import UUID
 
@@ -64,6 +65,8 @@ class _MetadataActionHandler:
         """Prepare refresh observations."""
 
         self.refresh_targets: list[object] = []
+        self.ultralytics_targets: list[ModelMetadataContextMenuTarget] = []
+        self.before_ultralytics_choice: Callable[[], None] | None = None
 
     def refresh_civitai_metadata(self, target: object) -> None:
         """Record one refresh target."""
@@ -92,6 +95,17 @@ class _MetadataActionHandler:
         """Ignore output thumbnail requests in existing picker tests."""
 
         _ = (target, image_id)
+
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Record one detector-library request as accepted."""
+
+        if self.before_ultralytics_choice is not None:
+            self.before_ultralytics_choice()
+        self.ultralytics_targets.append(target)
+        return True
 
 
 def ensure_qapp() -> QApplication:

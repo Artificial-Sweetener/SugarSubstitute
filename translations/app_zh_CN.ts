@@ -834,7 +834,7 @@ This is taking much longer than expected</source>
       <translation>基础立方体同步失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="616"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="666"></location>
       <source>Batch %1</source>
       <translation>批次 %1</translation>
     </message>
@@ -852,6 +852,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Blue</source>
       <translation>蓝色</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="134"></location>
+      <source>Bounding Box</source>
+      <translation>边界框</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="54"></location>
@@ -1212,6 +1217,16 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
       <source>Choose color</source>
       <translation>选择颜色</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="206"></location>
+      <source>Choose detector thumbnail</source>
+      <translation>选择检测器缩略图</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="68"></location>
+      <source>Choose detector thumbnail for %1</source>
+      <translation>为 %1 选择检测器缩略图</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/jpeg_companion_settings.py" line="118"></location>
@@ -1674,7 +1689,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 运行失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="863"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="861"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy 不可用</translation>
     </message>
@@ -2144,12 +2159,12 @@ This is taking much longer than expected</source>
       <translation>连续生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="499"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="498"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>连续生成未准备任何任务。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="486"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="485"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>连续生成需要生成队列。</translation>
     </message>
@@ -2412,7 +2427,7 @@ Install these nodes now?</source>
 是否立即安装这些节点？</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="385"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="435"></location>
       <source>Current image</source>
       <translation>当前图像</translation>
     </message>
@@ -2782,7 +2797,7 @@ Install these nodes now?</source>
       <translation>优先强调</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="433"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="434"></location>
       <source>Enable</source>
       <translation>启用</translation>
     </message>
@@ -2998,7 +3013,7 @@ Install these nodes now?</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>无法暂存工作流资源 %1.%2：%3</translation>
@@ -3140,7 +3155,7 @@ Install these nodes now?</source>
       <translation>生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="488"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="487"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>生成场景时找不到可运行的场景：%1</translation>
     </message>
@@ -3190,12 +3205,12 @@ Install these nodes now?</source>
       <translation>在 %1 阶段生成失败：%2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="900"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="898"></location>
       <source>Generation preflight failed</source>
       <translation>生成预检失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="717"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="716"></location>
       <source>Generation preparation failed</source>
       <translation>生成准备失败</translation>
     </message>
@@ -3225,12 +3240,12 @@ Install these nodes now?</source>
       <translation>生成队列</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="547"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="546"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>生成队列准备绑定不可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="541"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="540"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>生成队列快照绑定不可用。</translation>
     </message>
@@ -3425,7 +3440,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="572"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="622"></location>
       <source>Image %1</source>
       <translation>图像 %1</translation>
     </message>
@@ -5267,7 +5282,7 @@ I’ll bring my own</source>
       <translation>刷新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="203"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="246"></location>
       <source>Refresh CivitAI metadata</source>
       <translation>刷新 CivitAI 元数据</translation>
     </message>
@@ -5971,17 +5986,17 @@ No known extension claimant.</source>
       <translation>正在扫描…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="455"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="505"></location>
       <source>Scene</source>
       <translation>场景</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="447"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="446"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>生成场景需要活动的工作流提示词索引。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="460"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="459"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>生成场景要求第一个正向提示词中至少包含一个 **scene 标记。</translation>
     </message>
@@ -5996,7 +6011,7 @@ No known extension claimant.</source>
       <translation>安排 LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="176"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="183"></location>
       <source>Search %1</source>
       <translation>搜索 %1</translation>
     </message>
@@ -6034,6 +6049,11 @@ No known extension claimant.</source>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="137"></location>
       <source>Segment reorder</source>
       <translation>片段重新排序</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="133"></location>
+      <source>Segmentation</source>
+      <translation>分割</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="350"></location>
@@ -6886,7 +6906,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2771"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2796"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -6977,7 +6997,7 @@ No known extension claimant.</source>
       <translation>SugarCubes 仍报告缺少基础方块依赖项。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="254"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="247"></location>
       <source>SugarCubes version is incompatible.</source>
       <translation>SugarCubes 版本不兼容。</translation>
     </message>

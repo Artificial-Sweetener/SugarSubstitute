@@ -21,6 +21,9 @@ from __future__ import annotations
 import pytest
 
 from substitute.application.model_metadata import model_kind_for_field
+from substitute.application.model_metadata.model_field_kind_resolver import (
+    declared_model_kind_for_projected_field,
+)
 
 
 @pytest.mark.parametrize(
@@ -41,6 +44,8 @@ from substitute.application.model_metadata import model_kind_for_field
         ("CLIPLoader", "clip_name", "text_encoders"),
         ("DualCLIPLoader", "clip_name1", "text_encoders"),
         ("DualCLIPLoader", "clip_name2", "text_encoders"),
+        ("SimpleSyrup.LoadUltralyticsModel", "model_name", "ultralytics"),
+        ("UltralyticsDetectorProvider", "model_name", "ultralytics"),
     ),
 )
 def test_model_kind_for_field_resolves_known_typed_model_inputs(
@@ -60,6 +65,22 @@ def test_model_kind_for_field_rejects_ambiguous_generic_model_input() -> None:
     """Generic model fields should not acquire a guessed catalog kind."""
 
     assert model_kind_for_field(class_type="CustomLoader", input_key="model") is None
+
+
+def test_projected_model_kind_uses_hidden_wrapper_field_provenance() -> None:
+    """A public subgraph UUID should retain its linked model-loader identity."""
+
+    assert (
+        declared_model_kind_for_projected_field(
+            class_type="c6bb854c-c2ee-47a7-818d-f51684b83e0a",
+            input_key="model_name",
+            field_metadata={
+                "body_node_type": "SimpleSyrup.LoadUltralyticsModel",
+                "body_input_name": "model_name",
+            },
+        )
+        == "ultralytics"
+    )
 
 
 def test_model_kind_for_field_preserves_unique_custom_field_inference() -> None:
