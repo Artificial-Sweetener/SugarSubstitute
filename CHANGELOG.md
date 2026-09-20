@@ -1,3 +1,10 @@
+## [0.23.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.1...v0.23.2) (2026-09-20)
+
+
+### Bug Fixes
+
+* **cubes:** update node packs to cube-required versions ([785e0c1](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/785e0c1f76f2be999e04b516ad11ee75c51223c3))
+
 ## [0.23.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.0...v0.23.1) (2026-09-20)
 
 
