@@ -23,6 +23,7 @@ import sys
 
 import pytest
 
+from launcher.sugarsubstitute_launcher import application_owner_recovery
 from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher.application_election_recovery import (
     ApplicationElectionRecovery,
@@ -35,6 +36,7 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceFailureReason,
 )
 from sugarsubstitute_shared.process_identity import capture_process_identity
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 
 @pytest.mark.parametrize(
@@ -93,3 +95,52 @@ def test_departed_owner_reenters_election_without_session_failure_ui(
             elect=elect,
         ).run()
         assert elections == 2
+
+
+def test_closing_owner_is_given_time_to_exit_without_termination(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rapid relaunch should await normal shutdown before repeating election."""
+
+    identity = ProcessIdentity(123, 456.0)
+    waits: list[tuple[ProcessIdentity, float]] = []
+    terminations: list[ProcessIdentity] = []
+
+    def record_wait(owner: ProcessIdentity, *, timeout_seconds: float) -> None:
+        """Record the cooperative shutdown wait."""
+
+        waits.append((owner, timeout_seconds))
+
+    def record_termination(
+        _recovery: application_owner_recovery.ApplicationOwnerRecovery,
+        owner: ProcessIdentity,
+    ) -> bool:
+        """Reject destructive retirement while recording an unexpected call."""
+
+        terminations.append(owner)
+        return True
+
+    monkeypatch.setattr(
+        application_owner_recovery,
+        "wait_for_process_exit",
+        record_wait,
+    )
+    monkeypatch.setattr(
+        application_owner_recovery.ApplicationOwnerRecovery,
+        "_retire_owner",
+        record_termination,
+    )
+    recovery = application_owner_recovery.ApplicationOwnerRecovery(
+        InstallLayout.from_root(tmp_path)
+    )
+    failure = ApplicationInstanceBrokerError(
+        "Application owner is closing",
+        owner_identity=identity,
+        endpoint=ApplicationInstanceEndpoint("windows-named-pipe", "test"),
+        owner_is_closing=True,
+    )
+
+    assert recovery.recover(failure)
+    assert waits == [(identity, 5.0)]
+    assert terminations == []

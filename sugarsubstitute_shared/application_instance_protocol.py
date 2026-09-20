@@ -51,6 +51,7 @@ class ApplicationInstanceBrokerError(RuntimeError):
         endpoint: ApplicationInstanceEndpoint | None = None,
         native_owner: NativeApplicationInstanceOwner | None = None,
         reason: ApplicationInstanceFailureReason = ApplicationInstanceFailureReason.UNAVAILABLE,
+        owner_is_closing: bool = False,
     ) -> None:
         """Retain the verified owner and endpoint needed for explicit recovery."""
 
@@ -59,6 +60,7 @@ class ApplicationInstanceBrokerError(RuntimeError):
         self.endpoint = endpoint
         self.reason = reason
         self.native_owner = native_owner
+        self.owner_is_closing = owner_is_closing
         if native_owner is not None and (
             native_owner.identity != owner_identity or native_owner.endpoint != endpoint
         ):
