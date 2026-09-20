@@ -84,19 +84,23 @@ def test_queue_panel_routes_shared_row_intents_and_disposes_observer() -> None:
 
     service = RecordingQueueService((queue_job("a", status="pending"),))
     opened: list[str] = []
+    adopted: list[str] = []
     panel = GenerationQueuePanel(
         cast(Any, service),
         open_snapshot_requested=opened.append,
+        adopt_seeds_requested=adopted.append,
     )
     try:
         panel._rows_view.cancelRequested.emit("a")
         panel._rows_view.removeRequested.emit("a")
         panel._rows_view.moveRequested.emit("a", 0)
         panel._rows_view.openSnapshotRequested.emit("a")
+        panel._rows_view.adoptSeedsRequested.emit("a")
         assert service.cancelled == ["a"]
         assert service.removed == ["a"]
         assert service.moved == [("a", 0)]
         assert opened == ["a"]
+        assert adopted == ["a"]
         _assert_qfluent_smoothing_disabled(panel._scroll_area)
         panel.dispose()
         assert service.observers == []

@@ -6370,6 +6370,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üsë My Cürrënt CömfyÜÏ nëëds thë földër thàt cöntàïns yöür löcàl CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
     </message>
     <message>
+      <source>Use Seeds in Current Workflow</source>
+      <translation>⟦Üsë Sëëds ïn Cürrënt Wörkflöw ···⟧</translation>
+    </message>
+    <message>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>
       <translation>⟦Üsë à süppörtëd öpëràtïng-systëm crëdëntïàl störë, thën rëstàrt Sübstïtütë. ···⟧</translation>
     </message>

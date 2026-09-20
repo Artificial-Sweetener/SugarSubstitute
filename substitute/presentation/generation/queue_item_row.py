@@ -165,6 +165,7 @@ class GenerationQueueItemRow(QFrame):
     cancelRequested = Signal(str)
     removeRequested = Signal(str)
     openSnapshotRequested = Signal(str)
+    adoptSeedsRequested = Signal(str)
     bodyPressed = Signal(str, object)
     bodyMoved = Signal(str, object)
     bodyReleased = Signal(str, object)
@@ -391,10 +392,7 @@ class GenerationQueueItemRow(QFrame):
         self._interaction.paint_overlay(painter)
 
     def contextMenuEvent(self, event: object) -> None:
-        """Show terminal-job context actions when available."""
-
-        if not self._row.can_open_snapshot:
-            return
+        """Show snapshot and seed-reuse actions for the queued generation."""
         try:
             from qfluentwidgets import MenuAnimationType
 
@@ -405,17 +403,25 @@ class GenerationQueueItemRow(QFrame):
         except ImportError:
             return
 
-        menu = QFluentMenuRenderer(parent=self).render(
-            MenuModel(
-                entries=(
-                    MenuItem(
-                        "generation_queue.open_snapshot",
-                        app_text("Open as Workflow Tab"),
-                        callback=self._emit_open_snapshot_request,
-                        icon=FIF.ADD,
-                    ),
+        entries = [
+            MenuItem(
+                "generation_queue.adopt_seeds",
+                app_text("Use Seeds in Current Workflow"),
+                callback=self._emit_adopt_seeds_request,
+                icon=FIF.SYNC,
+            )
+        ]
+        if self._row.can_open_snapshot:
+            entries.append(
+                MenuItem(
+                    "generation_queue.open_snapshot",
+                    app_text("Open as Workflow Tab"),
+                    callback=self._emit_open_snapshot_request,
+                    icon=FIF.ADD,
                 )
             )
+        menu = QFluentMenuRenderer(parent=self).render(
+            MenuModel(entries=tuple(entries))
         )
         global_pos = getattr(event, "globalPos", None)
         if callable(global_pos):
@@ -425,6 +431,11 @@ class GenerationQueueItemRow(QFrame):
         """Emit the row snapshot-open intent."""
 
         self.openSnapshotRequested.emit(self._row.job_id)
+
+    def _emit_adopt_seeds_request(self) -> None:
+        """Emit the queued-seed adoption intent."""
+
+        self.adoptSeedsRequested.emit(self._row.job_id)
 
     def _set_tooltip(self, tooltip: str | None) -> None:
         """Apply one tooltip to the row and text labels."""

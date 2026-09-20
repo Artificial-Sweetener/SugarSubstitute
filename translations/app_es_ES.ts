@@ -69,7 +69,7 @@
       <translation>%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_item_row.py" line="446"></location>
+      <location filename="../substitute/presentation/generation/queue_item_row.py" line="457"></location>
       <source>%1
 
 Prompt preview:
@@ -90,7 +90,7 @@ Vista previa del prompt:
       <translation>%1 %2 %3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="889"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="848"></location>
       <source>%1 %2.</source>
       <translation>%1 %2.</translation>
     </message>
@@ -350,7 +350,7 @@ Vista previa del prompt:
       <translation>%1. %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1169"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1121"></location>
       <source>%1/%2: %3 %4 found. Cubes: %5.%6</source>
       <translation>%1/%2: se encontraron %3 %4. Cubos: %5.%6</translation>
     </message>
@@ -474,7 +474,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Una familia de modelos de imagen más reciente con ajustes especializados en ilustración y personajes.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="64"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="66"></location>
       <source>A recovery copy is kept, but explicit saves are the durable project file.</source>
       <translation>Se conserva una copia de recuperación, pero los guardados explícitos son el archivo de proyecto duradero.</translation>
     </message>
@@ -534,7 +534,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Color de énfasis</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="492"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="479"></location>
       <source>Actions</source>
       <translation>Acciones</translation>
     </message>
@@ -564,7 +564,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Añadir 1 modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="264"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="254"></location>
       <source>Add Cube Pack</source>
       <translation>Añadir un paquete de cubos</translation>
     </message>
@@ -574,7 +574,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Añade ahora una clave de API de CivitAI o deja este campo en blanco y añádela más tarde en Configuración.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="428"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="415"></location>
       <source>Add a GitHub Cube Pack to make its cubes available in the picker.</source>
       <translation>Añade un paquete de cubos de GitHub para que sus cubos estén disponibles en el selector.</translation>
     </message>
@@ -819,7 +819,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Paquete base</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="997"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="956"></location>
       <source>Base Cube Packs are required by Substitute and cannot be removed.</source>
       <translation>Substitute necesita los paquetes de cubos base y no permite eliminarlos.</translation>
     </message>
@@ -1674,7 +1674,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Comfy ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="858"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="863"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy no está disponible</translation>
     </message>
@@ -1694,7 +1694,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudo reiniciar Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1136"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1088"></location>
       <source>Comfy restart required</source>
       <translation>Es necesario reiniciar Comfy</translation>
     </message>
@@ -2144,12 +2144,12 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Continua</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="496"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="499"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>La generación continua no preparó ninguna tarea.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="483"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="486"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>La generación continua necesita la cola de generación.</translation>
     </message>
@@ -2204,12 +2204,12 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudo completar el cierre</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="784"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="743"></location>
       <source>Could not add %1.</source>
       <translation>No se pudo añadir %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="634"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="621"></location>
       <source>Could not install required Cube Library nodes.</source>
       <translation>No se pudieron instalar los nodos necesarios de la biblioteca de cubos.</translation>
     </message>
@@ -2219,27 +2219,27 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudo cargar la imagen: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1033"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="992"></location>
       <source>Could not remove %1.</source>
       <translation>No se pudo eliminar %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="955"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="914"></location>
       <source>Could not sync %1.</source>
       <translation>No se pudo sincronizar %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="855"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="814"></location>
       <source>Could not sync Cube Packs.</source>
       <translation>No se pudieron sincronizar los paquetes de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="895"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="854"></location>
       <source>Could not update %1.</source>
       <translation>No se pudo actualizar %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="738"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="697"></location>
       <source>Could not validate %1 on the active target.</source>
       <translation>No se pudo validar %1 en el destino activo.</translation>
     </message>
@@ -2259,7 +2259,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>ID del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="240"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="230"></location>
       <source>Cube Library</source>
       <translation>Biblioteca de cubos</translation>
     </message>
@@ -2269,7 +2269,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Aviso de la biblioteca de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="620"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="607"></location>
       <source>Cube Library dependencies are up to date.</source>
       <translation>Las dependencias de la biblioteca de cubos están actualizadas.</translation>
     </message>
@@ -2279,7 +2279,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>La biblioteca de cubos aún no está disponible. Espera a que el backend de Substitute termine de iniciarse y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="382"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="372"></location>
       <source>Cube Library unavailable</source>
       <translation>Biblioteca de cubos no disponible</translation>
     </message>
@@ -2294,52 +2294,52 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Advertencias de la biblioteca de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="781"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="740"></location>
       <source>Cube Pack add failed</source>
       <translation>No se pudo añadir el paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="779"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="738"></location>
       <source>Cube Pack added</source>
       <translation>Paquete de cubos añadido</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="996"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="955"></location>
       <source>Cube Pack cannot be removed</source>
       <translation>No se puede eliminar el paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1029"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="988"></location>
       <source>Cube Pack remove failed</source>
       <translation>No se pudo eliminar el paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1027"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="986"></location>
       <source>Cube Pack removed</source>
       <translation>Paquete de cubos eliminado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="854"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="813"></location>
       <source>Cube Pack sync failed</source>
       <translation>No se pudo sincronizar el paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="950"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="909"></location>
       <source>Cube Pack synced</source>
       <translation>Paquete de cubos sincronizado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="888"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="847"></location>
       <source>Cube Pack update failed</source>
       <translation>No se pudo actualizar el paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="886"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="845"></location>
       <source>Cube Pack updated</source>
       <translation>Paquete de cubos actualizado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="737"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="696"></location>
       <source>Cube Pack validation failed</source>
       <translation>No se pudo validar el paquete de cubos</translation>
     </message>
@@ -2349,7 +2349,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Paquetes de cubos y disponibilidad</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="839"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="798"></location>
       <source>Cube Packs synced</source>
       <translation>Paquetes de cubos sincronizados</translation>
     </message>
@@ -2359,7 +2359,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Alias del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1138"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1090"></location>
       <source>Cube dependency repair changed the target environment. Restart ComfyUI before generating with the repaired cubes.</source>
       <translation>La reparación de las dependencias de cubos modificó el entorno de destino. Reinicia ComfyUI antes de generar con los cubos reparados.</translation>
     </message>
@@ -2399,7 +2399,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="582"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="569"></location>
       <source>Cubes you are subscribed to require additional custom nodes.
 
 %1
@@ -2522,12 +2522,12 @@ Install these nodes now?</source>
       <translation>La dependencia ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="615"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="602"></location>
       <source>Dependency repair failed</source>
       <translation>No se pudo reparar la dependencia</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="592"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="579"></location>
       <source>Dependency repair skipped</source>
       <translation>Se omitió la reparación de la dependencia</translation>
     </message>
@@ -2607,7 +2607,7 @@ Install these nodes now?</source>
       <translation>¿Tienes una carpeta de modelos existente?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="73"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="75"></location>
       <source>Don't Save</source>
       <translation>No guardar</translation>
     </message>
@@ -2932,7 +2932,7 @@ Install these nodes now?</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="142"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="141"></location>
       <source>Failed to capture Input canvas content for generation.</source>
       <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
     </message>
@@ -2953,7 +2953,7 @@ Install these nodes now?</source>
       <translation>No se pudieron enumerar los cubos disponibles. Comprueba tus paquetes de cubos y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="383"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="373"></location>
       <source>Failed to load Cube Library state from the active target.</source>
       <translation>No se pudo cargar el estado de la biblioteca de cubos desde el destino activo.</translation>
     </message>
@@ -2998,7 +2998,7 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
@@ -3140,7 +3140,7 @@ Install these nodes now?</source>
       <translation>Generar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="489"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="488"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
@@ -3155,7 +3155,7 @@ Install these nodes now?</source>
       <translation>Generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_panel.py" line="193"></location>
+      <location filename="../substitute/presentation/generation/queue_panel.py" line="198"></location>
       <source>Generation Queue :: %1 Pending Jobs</source>
       <translation>Cola de generación :: %1 tareas pendientes</translation>
     </message>
@@ -3165,7 +3165,7 @@ Install these nodes now?</source>
       <translation>Comportamiento de la generación y archivos generados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="158"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="157"></location>
       <source>Generation cannot run because every cube has a runtime error.</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
@@ -3190,12 +3190,12 @@ Install these nodes now?</source>
       <translation>La generación ha fallado durante %1: %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="895"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="900"></location>
       <source>Generation preflight failed</source>
       <translation>La comprobación previa a la generación ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="712"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="717"></location>
       <source>Generation preparation failed</source>
       <translation>No se pudo preparar la generación</translation>
     </message>
@@ -3220,22 +3220,22 @@ Install these nodes now?</source>
       <translation>Vistas previas de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="85"></location>
+      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="86"></location>
       <source>Generation queue</source>
       <translation>Cola de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="547"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>Las integraciones de preparación de la cola de generación no están disponibles.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="537"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="541"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>Las integraciones de instantáneas de la cola de generación no están disponibles.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="708"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
       <source>GitHub URL needed</source>
       <translation>Se necesita una URL de GitHub</translation>
     </message>
@@ -3325,7 +3325,7 @@ Install these nodes now?</source>
       <translation>Ocultar detalles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="93"></location>
+      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="129"></location>
       <source>Hide Full Queue Panel</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
@@ -3345,7 +3345,7 @@ Install these nodes now?</source>
       <translation>Ocultar detalles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
+      <location filename="../substitute/presentation/generation/queue_panel.py" line="112"></location>
       <source>Hide full queue panel</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
@@ -3480,7 +3480,7 @@ Install these nodes now?</source>
       <translation>Instala y activa GNOME Keyring, KWallet u otro llavero compatible con Secret Service mediante el gestor de paquetes de tu distribución. Después, inicia sesión o desbloquéalo y reinicia Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="559"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="546"></location>
       <source>Install missing custom nodes required by enabled cubes.</source>
       <translation>Instala los nodos personalizados que faltan y que necesitan los cubos activados.</translation>
     </message>
@@ -3490,12 +3490,12 @@ Install these nodes now?</source>
       <translation>Instala o actualiza la dependencia en ComfyUI y reinicia.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="580"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="567"></location>
       <source>Install required custom nodes</source>
       <translation>Instalar los nodos personalizados necesarios</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="553"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="540"></location>
       <source>Install required nodes</source>
       <translation>Instalar los nodos necesarios</translation>
     </message>
@@ -3660,7 +3660,7 @@ Install these nodes now?</source>
       <translation>RGB latente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="176"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="173"></location>
       <source>Later</source>
       <translation>Más tarde</translation>
     </message>
@@ -3790,7 +3790,7 @@ Install these nodes now?</source>
       <translation>Cargando los nodos personalizados de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="241"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="231"></location>
       <source>Loading active target Cube Library state.</source>
       <translation>Cargando el estado de la biblioteca de cubos del destino activo.</translation>
     </message>
@@ -3930,7 +3930,7 @@ Install these nodes now?</source>
       <translation>Administrar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="337"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="336"></location>
       <source>Manage ComfyUI connection, setup, and Python environment.</source>
       <translation>Administra la conexión con ComfyUI, la instalación y el entorno de Python.</translation>
     </message>
@@ -4010,7 +4010,7 @@ Install these nodes now?</source>
       <translation>Falta una dependencia de Python: %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="593"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="580"></location>
       <source>Missing cube dependencies still need attention.</source>
       <translation>Aún hay dependencias de cubos que faltan y necesitan atención.</translation>
     </message>
@@ -4275,7 +4275,7 @@ Install these nodes now?</source>
       <translation>No hay ninguna clave de API de CivitAI configurada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="426"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="413"></location>
       <source>No Cube Packs tracked</source>
       <translation>No hay paquetes de cubos registrados</translation>
     </message>
@@ -4310,7 +4310,7 @@ Install these nodes now?</source>
       <translation>No hay cubos disponibles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="754"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="713"></location>
       <source>No cubes found</source>
       <translation>No se encontraron cubos</translation>
     </message>
@@ -4380,12 +4380,12 @@ Install these nodes now?</source>
       <translation>Sin vista previa</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="95"></location>
+      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="96"></location>
       <source>No queued jobs</source>
       <translation>No hay tareas en cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="276"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="266"></location>
       <source>No repository has been validated.</source>
       <translation>No se ha validado ningún repositorio.</translation>
     </message>
@@ -4592,7 +4592,7 @@ Usaré el mío.</translation>
       <translation>Abrir Sugar Script...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_item_row.py" line="413"></location>
+      <location filename="../substitute/presentation/generation/queue_item_row.py" line="418"></location>
       <source>Open as Workflow Tab</source>
       <translation>Abrir como pestaña de flujo de trabajo</translation>
     </message>
@@ -4742,17 +4742,17 @@ Usaré el mío.</translation>
       <translation>Pegar la clave de API de CivitAI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="265"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="255"></location>
       <source>Paste a GitHub URL. Substitute validates and syncs the pack.</source>
       <translation>Pega una URL de GitHub. Substitute validará y sincronizará el paquete.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="709"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="668"></location>
       <source>Paste a GitHub repository URL for a Cube Pack.</source>
       <translation>Pega la URL de un repositorio de GitHub para el paquete de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="711"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="670"></location>
       <source>Paste a URL like https://github.com/owner/repository.</source>
       <translation>Pega una URL como https://github.com/owner/repository.</translation>
     </message>
@@ -5167,7 +5167,7 @@ Usaré el mío.</translation>
       <translation>Añadir esta escena a la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="390"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>Para añadir esta escena se necesita la cola de generación.</translation>
     </message>
@@ -5302,7 +5302,7 @@ Usaré el mío.</translation>
       <translation>Vuelve a instalar la dependencia nativa que falla para esta configuración de Python, PyTorch, CUDA y Windows.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="335"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="343"></location>
       <source>Reload GUI</source>
       <translation>Recargar la interfaz</translation>
     </message>
@@ -5342,12 +5342,12 @@ Usaré el mío.</translation>
       <translation>Eliminar %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1006"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="965"></location>
       <source>Remove %1 from the active target?</source>
       <translation>¿Quieres eliminar %1 del destino activo?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1004"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="963"></location>
       <source>Remove Cube Pack</source>
       <translation>Eliminar paquete de cubos</translation>
     </message>
@@ -5382,12 +5382,12 @@ Usaré el mío.</translation>
       <translation>No se pudo eliminar el cambio previsto</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="475"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="462"></location>
       <source>Remove this Cube Pack from the active target.</source>
       <translation>Elimina este paquete de cubos del destino activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1031"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="990"></location>
       <source>Removed %1.</source>
       <translation>Se eliminó %1.</translation>
     </message>
@@ -5516,7 +5516,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La entrada de imagen obligatoria no tiene ninguna imagen seleccionada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="613"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="600"></location>
       <source>Required nodes installed</source>
       <translation>Nodos necesarios instalados</translation>
     </message>
@@ -5546,7 +5546,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Resolver los comodines al generar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_rows_view.py" line="732"></location>
+      <location filename="../substitute/presentation/generation/queue_rows_view.py" line="734"></location>
       <source>Resolved</source>
       <translation>Resuelto</translation>
     </message>
@@ -5561,12 +5561,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reiniciar ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="647"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="633"></location>
       <source>Restart ComfyUI before using repaired cube dependencies.</source>
       <translation>Reinicia ComfyUI antes de usar las dependencias de cubos reparadas.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="646"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="632"></location>
       <source>Restart ComfyUI manually</source>
       <translation>Reiniciar ComfyUI manualmente</translation>
     </message>
@@ -5586,7 +5586,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>El reinicio no está disponible en este servidor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="187"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="184"></location>
       <source>Restart now</source>
       <translation>Reiniciar ahora</translation>
     </message>
@@ -5596,7 +5596,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Se solicitó el reinicio.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="115"></location>
       <source>Restart required</source>
       <translation>Es necesario reiniciar</translation>
     </message>
@@ -5746,7 +5746,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="402"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="421"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -5796,7 +5796,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Información del entorno de ejecución y del sistema</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="118"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="131"></location>
       <source>Runtime context</source>
       <translation>Contexto de ejecución</translation>
     </message>
@@ -5826,7 +5826,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Solo contenido seguro</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="69"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="71"></location>
       <source>Save</source>
       <translation>Guardar</translation>
     </message>
@@ -5856,7 +5856,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar cambios</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="58"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="60"></location>
       <source>Save changes to “%1” before continuing?</source>
       <translation>¿Guardar los cambios de «%1» antes de continuar?</translation>
     </message>
@@ -5976,12 +5976,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Escena</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="448"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="447"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>La generación de escenas necesita un índice de prompts activo en el flujo de trabajo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="461"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="460"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>La generación de escenas necesita al menos un marcador **scene en el primer prompt positivo.</translation>
     </message>
@@ -6251,7 +6251,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar detalles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="95"></location>
+      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="131"></location>
       <source>Show Full Queue Panel</source>
       <translation>Mostrar el panel completo de la cola</translation>
     </message>
@@ -6456,7 +6456,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Inicia esta instalación de ComfyUI con el acceso directo, script o iniciador que uses habitualmente. Mantén abierto este instalador; Substitute la detectará automáticamente.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="100"></location>
+      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="103"></location>
       <source>Starting SugarSubstitute.</source>
       <translation>Iniciando SugarSubstitute.</translation>
     </message>
@@ -6656,7 +6656,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo identificar el entorno de Python únicamente a partir de la carpeta de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="149"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="148"></location>
       <source>Substitute could not load required live Comfy node definitions.</source>
       <translation>Substitute no pudo cargar las definiciones actuales de nodos de Comfy necesarias.</translation>
     </message>
@@ -6671,7 +6671,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo leer este documento de flujo de trabajo de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="269"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="272"></location>
       <source>Substitute could not update this cube from the Cube Library: %1</source>
       <translation>Substitute no pudo actualizar este cubo desde la biblioteca de cubos: %1</translation>
     </message>
@@ -7092,7 +7092,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Cambia el control principal Generar y actualiza su modo visible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="479"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="466"></location>
       <source>Sync</source>
       <translation>Sincronizar</translation>
     </message>
@@ -7102,7 +7102,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Sincronizar %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="236"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="226"></location>
       <source>Sync all</source>
       <translation>Sincronizar todo</translation>
     </message>
@@ -7117,12 +7117,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Estado de sincronización</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="840"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="799"></location>
       <source>Synced %1 Cube Packs.</source>
       <translation>Se sincronizaron %1 paquetes de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="953"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="912"></location>
       <source>Synced %1.</source>
       <translation>Se sincronizó %1.</translation>
     </message>
@@ -7522,7 +7522,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No hay suficiente espacio libre para estos modelos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="121"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
       <source>These changes will apply after restart.</source>
       <translation>Estos cambios se aplicarán después de reiniciar.</translation>
     </message>
@@ -7667,7 +7667,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Traza inversa:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="294"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="284"></location>
       <source>Tracked Cube Packs</source>
       <translation>Paquetes de cubos registrados</translation>
     </message>
@@ -7812,7 +7812,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Versión desconocida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="56"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="58"></location>
       <source>Unsaved work</source>
       <translation>Trabajo sin guardar</translation>
     </message>
@@ -7827,12 +7827,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Plataforma no compatible con el almacenamiento seguro de credenciales de CivitAI: %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="84"></location>
+      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="79"></location>
       <source>Untitled Workflow</source>
       <translation>Flujo de trabajo sin título</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="85"></location>
+      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="80"></location>
       <source>Untitled Workflow (%1)</source>
       <translation>Flujo de trabajo sin título (%1)</translation>
     </message>
@@ -8012,6 +8012,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Usar mi ComfyUI actual necesita la carpeta que contiene tu instalación local de ComfyUI.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/generation/queue_item_row.py" line="409"></location>
+      <source>Use Seeds in Current Workflow</source>
+      <translation>Usar semillas en el flujo de trabajo actual</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/security/windows_civitai_credential_store.py" line="69"></location>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>
       <translation>Usa un almacén de credenciales compatible del sistema operativo y reinicia Substitute.</translation>
@@ -8097,22 +8102,22 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Usando Python %1 (%2) de ComfyUI en %3.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="782"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="741"></location>
       <source>Validated and synced %1.</source>
       <translation>Se validó y sincronizó %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1159"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1111"></location>
       <source>Validation did not return results.</source>
       <translation>La validación no devolvió resultados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="755"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="714"></location>
       <source>Validation found no cubes in %1.</source>
       <translation>La validación no encontró ningún cubo en %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="275"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="265"></location>
       <source>Validation result</source>
       <translation>Resultado de la validación</translation>
     </message>
@@ -8432,12 +8437,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>por %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="892"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="851"></location>
       <source>disabled</source>
       <translation>desactivado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="892"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="851"></location>
       <source>enabled</source>
       <translation>activado</translation>
     </message>
@@ -8447,7 +8452,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>ComfyUI local existente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="255"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="245"></location>
       <source>https://github.com/owner/repository</source>
       <translation>https://github.com/owner/repository</translation>
     </message>

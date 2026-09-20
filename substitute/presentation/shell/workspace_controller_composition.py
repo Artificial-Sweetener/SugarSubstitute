@@ -26,7 +26,6 @@ from uuid import uuid4
 from PySide6.QtCore import QTimer
 
 from substitute.application.generation import (
-    GenerationRequest,
     SeedRandomizationResult,
     SeedRandomizationService,
 )
@@ -35,6 +34,7 @@ from substitute.application.workflows import (
     CubeDuplicationService,
     WorkflowDuplicateService,
 )
+from substitute.domain.workflow import WorkflowState
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell.cube_loader import (
     CubeLoadExecutionRoute,
@@ -81,11 +81,13 @@ from substitute.presentation.shell.workspace_file_actions import (
 )
 from substitute.presentation.shell.workspace_generation_action_adapter import (
     WorkspaceGenerationActions,
-    randomize_generation_request_seeds,
 )
 from substitute.presentation.shell import workspace_generation_controller
 from substitute.presentation.shell.workspace_generation_controller import (
     GenerationUiBindings,
+)
+from substitute.presentation.shell.workspace_generation_request_builder import (
+    active_behavior_snapshot,
 )
 from substitute.presentation.shell.workspace_ports import WorkspaceGenerationView
 from substitute.presentation.shell.workspace_scene_generation_controller import (
@@ -277,22 +279,25 @@ def compose_workspace_controller_collaborators(
     seed_randomization_service = SeedRandomizationService()
     seed_value_projector = SeedValueProjector(views.generation)
 
-    def generation_seed_randomizer(
-        *,
-        request: object,
-        behavior_snapshot: object,
-    ) -> SeedRandomizationResult:
-        """Randomize request seeds through the composed application service."""
+    def generation_seed_randomizer() -> SeedRandomizationResult:
+        """Rearm random-mode seeds in the active workflow after queue acceptance."""
 
-        seed_randomizer = cast(
-            Callable[..., SeedRandomizationResult], randomize_generation_request_seeds
+        active_workflow = cast(
+            WorkflowState,
+            views.generation.get_active_workflow(),
         )
-        result = seed_randomizer(
-            seed_randomization_service=seed_randomization_service,
-            request=cast(GenerationRequest, request),
-            behavior_snapshot=cast(Any, behavior_snapshot),
+        workflow_session_service = getattr(
+            views.generation, "workflow_session_service", None
         )
-        seed_value_projector.project(cast(GenerationRequest, request).workflow, result)
+        workflow_id = getattr(workflow_session_service, "active_workflow_id", "")
+        result = seed_randomization_service.randomize_workflow_seeds(
+            workflow=active_workflow,
+            behavior_snapshot=active_behavior_snapshot(
+                views.generation,
+                str(workflow_id),
+            ),
+        )
+        seed_value_projector.project(active_workflow, result)
         if result.changed:
             request_autosave = getattr(
                 views.generation, "request_session_autosave", None
