@@ -24,6 +24,7 @@ from substitute.application.cubes.cube_load_service import (
     LoadedCubeRuntime,
 )
 from substitute.application.cubes.cube_instance_state_transfer import (
+    CubeAuthoredStateLossError,
     CubeInstanceStateTransferReport,
     CubeInstanceStateTransferResult,
     CubeInstanceStateTransferService,
@@ -99,6 +100,7 @@ from substitute.application.cubes.cube_workflow_add_service import (
 __all__ = [
     "CubeAddResult",
     "CubeAliasDisplayParts",
+    "CubeAuthoredStateLossError",
     "CubeLoadService",
     "CubeInstanceStateTransferReport",
     "CubeInstanceStateTransferResult",

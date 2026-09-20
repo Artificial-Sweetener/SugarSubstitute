@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Callable
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 from substitute.application.restart_requirements.models import (
     RestartRequirementItem,
     RestartRequirementSnapshot,
@@ -31,7 +33,7 @@ RestartRequirementObserver = Callable[[RestartRequirementSnapshot], None]
 
 
 class RestartRequirementService:
-    """Collect saved settings that need a restart to become active."""
+    """Collect settings and runtime changes that need a restart."""
 
     def __init__(self) -> None:
         """Initialize an empty process-local restart cart."""
@@ -55,11 +57,11 @@ class RestartRequirementService:
         self,
         *,
         key: str,
-        label: str,
+        label: ApplicationText,
         active_value: str,
         saved_value: str,
         scope: RestartScope,
-        detail: str | None = None,
+        detail: ApplicationText | None = None,
     ) -> RestartRequirementSnapshot:
         """Add, update, or clear one restart delta from active and saved values."""
 
@@ -68,11 +70,33 @@ class RestartRequirementService:
             return self.clear(normalized_key)
         item = RestartRequirementItem(
             key=normalized_key,
-            label=label.strip(),
+            label=label,
             active_value=active_value,
             saved_value=saved_value,
             scope=scope,
-            detail=detail.strip() if detail is not None and detail.strip() else None,
+            detail=detail if detail is not None and detail.strip() else None,
+        )
+        self._items[normalized_key] = item
+        return self._changed_snapshot()
+
+    def register_requirement(
+        self,
+        *,
+        key: str,
+        label: ApplicationText,
+        scope: RestartScope,
+        detail: ApplicationText | None = None,
+    ) -> RestartRequirementSnapshot:
+        """Register a first-class runtime requirement without inventing a delta."""
+
+        normalized_key = key.strip()
+        item = RestartRequirementItem(
+            key=normalized_key,
+            label=label,
+            active_value="",
+            saved_value="",
+            scope=scope,
+            detail=detail if detail is not None and detail.strip() else None,
         )
         self._items[normalized_key] = item
         return self._changed_snapshot()

@@ -1694,11 +1694,6 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudo reiniciar Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
-      <source>Comfy restart requested</source>
-      <translation>Se solicitó reiniciar Comfy</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="1136"></location>
       <source>Comfy restart required</source>
       <translation>Es necesario reiniciar Comfy</translation>
@@ -1897,11 +1892,6 @@ Está tardando mucho más de lo esperado</translation>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
       <source>ComfyUI is unavailable.</source>
       <translation>ComfyUI no está disponible.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
-      <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
-      <translation>ComfyUI debe reiniciarse para poder usar las dependencias de cubos reparadas.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="134"></location>
@@ -5295,11 +5285,6 @@ Usaré el mío.</translation>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1297"></location>
       <source>Refresh stale cached wiki pages and preview images lazily while browsing.</source>
       <translation>Actualiza cuando sea necesario las páginas de la wiki y las imágenes de vista previa obsoletas que estén almacenadas en caché.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="670"></location>
-      <source>Refreshing Cube Library after restart request.</source>
-      <translation>Actualizando la biblioteca de cubos tras solicitar el reinicio.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>

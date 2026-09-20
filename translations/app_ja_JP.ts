@@ -1694,11 +1694,6 @@ This is taking much longer than expected</source>
       <translation>Comfy の再起動に失敗しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
-      <source>Comfy restart requested</source>
-      <translation>Comfy の再起動を要求しました</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="1136"></location>
       <source>Comfy restart required</source>
       <translation>Comfy の再起動が必要です</translation>
@@ -1897,11 +1892,6 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
       <source>ComfyUI is unavailable.</source>
       <translation>ComfyUI を利用できません。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
-      <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
-      <translation>修復したキューブ依存関係を使用する前に ComfyUI を再起動してください。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="134"></location>
@@ -5295,11 +5285,6 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1297"></location>
       <source>Refresh stale cached wiki pages and preview images lazily while browsing.</source>
       <translation>閲覧中に、古くなった Wiki ページとプレビュー画像のキャッシュをバックグラウンドで順次更新します。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="670"></location>
-      <source>Refreshing Cube Library after restart request.</source>
-      <translation>再起動要求後、Cube Library を更新しています。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>

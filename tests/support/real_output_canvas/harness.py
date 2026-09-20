@@ -583,7 +583,10 @@ class RealShellOutputCanvasHarness:
             new_alias,
         )
         self.process_events()
-        new_handle = WorkflowHandle(alias=new_alias, workflow_id=new_alias)
+        new_handle = WorkflowHandle(
+            alias=new_alias,
+            workflow_id=old_handle.workflow_id,
+        )
         self.workflows.pop(alias, None)
         self.workflows[new_alias] = new_handle
         return new_handle

@@ -96,6 +96,7 @@ class OrderedMaskMaterializationService:
             binding=binding,
             collection=collection,
             image_id=image_id,
+            workflow_name=workflow_name,
         )
         if not collection.entries:
             authored_value = self._graph_section_service.input_value(
@@ -109,7 +110,10 @@ class OrderedMaskMaterializationService:
                 for path in authored_paths:
                     collection.add_region(
                         image_id,
-                        asset_ref=ProjectMaskAssetRef(path),
+                        asset_ref=ProjectMaskAssetRef(
+                            path,
+                            storage_owner=workflow_name,
+                        ),
                     )
             else:
                 collection.add_region(image_id)
@@ -155,6 +159,7 @@ class OrderedMaskMaterializationService:
         binding: InputCanvasMaskBinding,
         collection: RegionalMaskCollection,
         image_id: UUID,
+        workflow_name: str,
     ) -> None:
         """Move a legacy one-mask batch association into its ordered collection."""
 
@@ -175,7 +180,12 @@ class OrderedMaskMaterializationService:
             image_id,
             mask_id=legacy_entry.mask_id,
             asset_ref=(
-                ProjectMaskAssetRef(legacy_path) if legacy_path is not None else None
+                ProjectMaskAssetRef(
+                    legacy_path,
+                    storage_owner=workflow_name,
+                )
+                if legacy_path is not None
+                else None
             ),
         )
         log_debug(
@@ -231,7 +241,11 @@ class OrderedMaskMaterializationService:
                     projects_dir=projects_dir,
                 )
                 collection.bind_asset(
-                    entry.region_id, ProjectMaskAssetRef(resolved_path.name)
+                    entry.region_id,
+                    ProjectMaskAssetRef(
+                        resolved_path.name,
+                        storage_owner=workflow_name,
+                    ),
                 )
             return MaskMaterializationResult(
                 association_key=binding.association_key,
@@ -271,7 +285,11 @@ class OrderedMaskMaterializationService:
             ):
                 return None
             collection.bind_asset(
-                entry.region_id, ProjectMaskAssetRef(resolved_path.name)
+                entry.region_id,
+                ProjectMaskAssetRef(
+                    resolved_path.name,
+                    storage_owner=workflow_name,
+                ),
             )
             mask_id = self._create_region_layer(
                 workflow=workflow,
@@ -402,7 +420,7 @@ class OrderedMaskMaterializationService:
             return None
         try:
             return self._canvas_io_service.resolve_mask_path(
-                workflow_name=workflow_name,
+                workflow_name=asset_ref.storage_owner or workflow_name,
                 path_from_buffer=asset_ref.relative_path,
                 projects_dir=projects_dir,
             )
