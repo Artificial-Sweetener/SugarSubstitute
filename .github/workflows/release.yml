@@ -69,6 +69,11 @@ on:
         required: false
         default: "3600"
         type: string
+      canary_evidence_run_id:
+        description: "Successful Canary release run for this exact product tree"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   actions: read
@@ -81,22 +86,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-canary-evidence:
+    name: Validate exact Canary promotion evidence
+    uses: ./.github/workflows/release-promotion-evidence.yml
+    with:
+      canary_evidence_run_id: ${{ inputs.canary_evidence_run_id }}
+
   prepare-release:
     name: Verify, build, stage, and qualify release
+    needs: validate-canary-evidence
     uses: ./.github/workflows/release-prepublication.yml
     secrets: inherit
     with:
       channel: ${{ github.ref_name == 'canary' && 'canary' || 'stable' }}
       canary_run_number: ${{ github.ref_name == 'canary' && github.run_number || '' }}
       qualification_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && github.ref_name != 'canary' && format('9999.0.{0}', github.run_number) || '' }}
-      run_tests: ${{ (github.event_name != 'push' || github.ref_name != 'canary') && (github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' || github.event.inputs.qualification_scope == 'full') }}
+      run_tests: ${{ needs.validate-canary-evidence.outputs.reusable != 'true' && (github.event_name != 'push' || github.ref_name != 'canary') && (github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' || github.event.inputs.qualification_scope == 'full') }}
       force_candidate: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
       release_input_run_id: ${{ inputs.release_input_run_id }}
       qualification_candidate_run_id: ${{ inputs.qualification_candidate_run_id }}
       qualification_candidate_version: ${{ inputs.qualification_candidate_version }}
       candidate_artifact_name: ${{ inputs.candidate_artifact_name || 'non-release-candidate-channel' }}
-      qualification_scope: ${{ github.event_name == 'workflow_dispatch' && inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope != '' && inputs.qualification_scope || github.ref_name == 'canary' && 'qualification-windows' || 'all' }}
-      upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
+      qualification_scope: ${{ needs.validate-canary-evidence.outputs.reusable == 'true' && 'updates-windows' || github.event_name == 'workflow_dispatch' && inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope != '' && inputs.qualification_scope || github.ref_name == 'canary' && 'qualification-windows' || 'all' }}
+      upgrade_selection: ${{ needs.validate-canary-evidence.outputs.reusable == 'true' && 'latest-only' || inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
 
   publish-release:

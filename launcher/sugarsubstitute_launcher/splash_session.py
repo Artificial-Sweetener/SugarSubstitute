@@ -38,6 +38,7 @@ from sugarsubstitute_shared.windows_long_paths import (
 )
 from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
 from sugarsubstitute_shared.launch_splash.session import (
+    LEGACY_SPLASH_PROTOCOL_VERSION,
     SplashSessionSpec,
     splash_session_args,
     splash_cancel_signal_path,
@@ -218,6 +219,11 @@ def _read_ready_spec(
         port=port,
         token=_required_string(payload, "token"),
         host_pid=_required_int(payload, "host_pid"),
+        protocol_version=_optional_int(
+            payload,
+            "protocol_version",
+            default=LEGACY_SPLASH_PROTOCOL_VERSION,
+        ),
     )
     validate_splash_session_spec(spec)
     return spec
@@ -305,6 +311,15 @@ def _required_int(payload: dict[Any, Any], key: str) -> int:
     """Read one required integer from a decoded ready payload."""
 
     value = payload.get(key)
+    if not isinstance(value, int):
+        raise ValueError(f"Splash host ready field is invalid: {key}")
+    return value
+
+
+def _optional_int(payload: dict[Any, Any], key: str, *, default: int) -> int:
+    """Read one optional integer while preserving legacy ready messages."""
+
+    value = payload.get(key, default)
     if not isinstance(value, int):
         raise ValueError(f"Splash host ready field is invalid: {key}")
     return value

@@ -47,6 +47,7 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationTarget,
 )
 from tools.ci.installer_evidence_verification import (
+    assert_no_launch_splash_replacement,
     assert_qualification_event_sequence,
     assert_startup_trace_sequence,
     diagnostic_tail,
@@ -64,7 +65,10 @@ from tools.ci.installed_application_shutdown import (
     wait_for_clean_qualification_shutdown,
 )
 from tools.ci.installed_version_evidence import wait_for_installed_version
-from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
+from tools.ci.managed_comfy_qualification import (
+    assert_real_managed_comfy,
+    terminate_owned_managed_comfy,
+)
 from tools.ci.owned_process_runner import terminate_owned_process_tree
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
@@ -285,6 +289,9 @@ def verify_main_shell_evidence(
                 required_events=required_qualification_events,
             )
         assert_startup_trace_sequence(evidence.trace_path)
+        assert_no_launch_splash_replacement(
+            InstallLayout.from_root(install_root).logs_dir / "app-startup.log"
+        )
         if evidence.plan.target_mode == "managed_local":
             assert_real_managed_comfy(
                 install_root=install_root,
@@ -292,6 +299,8 @@ def verify_main_shell_evidence(
                 require_governed_setup_record=require_governed_setup_record,
             )
         request_clean_qualification_shutdown(evidence.plan)
+        if evidence.plan.target_mode == "managed_local":
+            terminate_owned_managed_comfy(install_root)
         wait_for_clean_qualification_shutdown(
             install_root=install_root,
             receipt=receipt,

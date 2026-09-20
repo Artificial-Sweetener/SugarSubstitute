@@ -286,10 +286,11 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert 'evidence.plan.target_mode == "managed_local"' in shell_evidence_text
 
 
-def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
-    """Require publishing runs to exercise their complete target qualification."""
+def test_focused_release_qualification_reuses_only_exact_canary_evidence() -> None:
+    """Limit accelerated Stable publication to one proven Canary product tree."""
 
     release_text = workflow_text("release.yml")
+    evidence_text = workflow_text("release-promotion-evidence.yml")
     prepublication_text = workflow_text("release-prepublication.yml")
     version_text = workflow_text("release-version.yml")
     candidate_text = workflow_text("release-candidate.yml")
@@ -300,6 +301,20 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     prepare_call = release_text.split("  prepare-release:", maxsplit=1)[1].split(
         "  publish-release:", maxsplit=1
     )[0]
+    evidence_call = release_text.split("  validate-canary-evidence:", maxsplit=1)[
+        1
+    ].split("  prepare-release:", maxsplit=1)[0]
+    assert "uses: ./.github/workflows/release-promotion-evidence.yml" in evidence_call
+    assert '"${{ github.event_name }}" -ne "workflow_dispatch"' in evidence_text
+    assert '"${{ github.ref_name }}" -ne "main"' in evidence_text
+    assert '$run.head_branch -ne "canary"' in evidence_text
+    assert '$run.conclusion -ne "success"' in evidence_text
+    assert "git merge-base --is-ancestor $run.head_sha $env:GITHUB_SHA" in evidence_text
+    assert '".github/workflows/release.yml"' in evidence_text
+    assert "needs: validate-canary-evidence" in prepare_call
+    assert "outputs.reusable != 'true'" in prepare_call
+    assert "outputs.reusable == 'true' && 'updates-windows'" in prepare_call
+    assert "outputs.reusable == 'true' && 'latest-only'" in prepare_call
     assert "github.event_name != 'workflow_dispatch'" in prepare_call
     assert "github.event.inputs.dry_run != 'true'" in prepare_call
     assert "github.event.inputs.qualification_scope == 'full'" in prepare_call
@@ -329,11 +344,8 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "qualification-all" in release_text
     assert "qualification-windows" in release_text
     assert "upgrade_selection:" in release_text
-    assert (
-        "upgrade_selection: ${{ inputs.dry_run == 'true' && "
-        "inputs.qualification_scope != 'full' && inputs.upgrade_selection || "
-        "'complete' }}"
-    ) in release_text
+    assert "inputs.dry_run == 'true'" in prepare_call
+    assert "inputs.qualification_scope != 'full'" in prepare_call
     assert '--selection "${{ inputs.upgrade_selection }}"' in qualification_text
     assert "inputs.qualification_scope == 'qualification-all' && 'all'" not in (
         release_text

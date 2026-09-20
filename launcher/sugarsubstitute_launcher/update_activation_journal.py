@@ -32,8 +32,11 @@ from launcher.sugarsubstitute_launcher.application_release_selection import (
     ApplicationReleaseSelection,
     LEGACY_RELEASE_GENERATION,
 )
+from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
+    RuntimeConfigurationSnapshot,
+)
 
-_JOURNAL_SCHEMA_VERSION = 5
+_JOURNAL_SCHEMA_VERSION = 6
 _JOURNAL_NAME = "pending-app-update.json"
 PREPARING_PHASE = "preparing"
 COMMITTED_PHASE = "committed"
@@ -57,6 +60,7 @@ class UpdateActivationJournal:
     candidate_generation: str | None = None
     previous_generation: str | None = None
     candidate_sha256: str | None = None
+    runtime_configuration_snapshot: RuntimeConfigurationSnapshot | None = None
 
     def to_json(self) -> dict[str, object]:
         """Return the stable persisted journal representation."""
@@ -76,6 +80,11 @@ class UpdateActivationJournal:
             "candidate_generation": self.candidate_generation,
             "previous_generation": self.previous_generation,
             "candidate_sha256": self.candidate_sha256,
+            "runtime_configuration_snapshot": (
+                self.runtime_configuration_snapshot.to_json()
+                if self.runtime_configuration_snapshot is not None
+                else None
+            ),
             "successful_state": self.successful_state.to_json(),
             "successful_config": (
                 self.successful_config.to_json() if self.successful_config else None
@@ -103,6 +112,7 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
         2,
         3,
         4,
+        5,
         _JOURNAL_SCHEMA_VERSION,
     ):
         raise UpdateRecoveryError(
@@ -154,6 +164,18 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
     candidate_sha256 = payload.get("candidate_sha256") if schema_version >= 5 else None
     if candidate_sha256 is not None and not _valid_sha256(candidate_sha256):
         raise UpdateRecoveryError("Pending activation has an invalid candidate digest.")
+    try:
+        runtime_configuration_snapshot = (
+            RuntimeConfigurationSnapshot.from_json(
+                payload.get("runtime_configuration_snapshot")
+            )
+            if schema_version >= 6
+            else None
+        )
+    except ValueError as error:
+        raise UpdateRecoveryError(
+            "Pending activation has an invalid runtime configuration snapshot."
+        ) from error
     journal = UpdateActivationJournal(
         had_app=had_app,
         had_runtime=had_runtime,
@@ -176,6 +198,7 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
         candidate_sha256=(
             candidate_sha256 if isinstance(candidate_sha256, str) else None
         ),
+        runtime_configuration_snapshot=runtime_configuration_snapshot,
     )
     if journal.transaction_id is not None:
         activation_directory(layout, journal)
