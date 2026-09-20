@@ -59,6 +59,7 @@ from tools.ci.installer_terminal_event_reader import (
     read_terminal_startup_failure,
 )
 from tools.ci.installed_application_shutdown import (
+    QualificationCandidateProcess,
     assert_no_new_crash_incidents,
     crash_incident_ids,
     request_clean_qualification_shutdown,
@@ -70,6 +71,7 @@ from tools.ci.managed_comfy_qualification import (
     terminate_owned_managed_comfy,
 )
 from tools.ci.owned_process_runner import terminate_owned_process_tree
+from tools.ci.windows_desktop_process import start_windows_desktop_process
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
@@ -112,7 +114,7 @@ class InstallerQualificationEvidence:
 class InstalledCandidateLaunch:
     """Bind an installed-launcher process to its durable diagnostic output."""
 
-    process: subprocess.Popen[bytes]
+    process: QualificationCandidateProcess
     output_path: Path
     progress_baselines: tuple[tuple[Path, tuple[bool, int]], ...] = ()
     update_attempt_baseline: bytes | None = None
@@ -202,17 +204,25 @@ def launch_installed_candidate(
         (path, _path_signature(path)) for path in observed_progress_paths
     )
     attempt_store = LauncherUpdateAttemptStore(layout.root)
-    with output_path.open("wb") as output:
-        process = subprocess.Popen(
+    if os.name == "nt":
+        output_path.write_bytes(b"")
+        process: QualificationCandidateProcess = start_windows_desktop_process(
             [str(layout.executable_path)],
             cwd=layout.root,
-            env=launch_environment,
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=output,
-            close_fds=True,
-            start_new_session=os.name != "nt",
+            environment=launch_environment,
         )
+    else:
+        with output_path.open("wb") as output:
+            process = subprocess.Popen(
+                [str(layout.executable_path)],
+                cwd=layout.root,
+                env=launch_environment,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=output,
+                close_fds=True,
+                start_new_session=True,
+            )
     return InstalledCandidateLaunch(
         process=process,
         output_path=output_path,

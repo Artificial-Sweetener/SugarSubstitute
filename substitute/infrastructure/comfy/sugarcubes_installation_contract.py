@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 SUGARCUBES_MAINTENANCE_MODULE = "sugarcubes.maintenance"
@@ -48,17 +49,40 @@ def build_sugarcubes_maintenance_command(
     workspace: Path,
     baseline_only: bool,
 ) -> tuple[str, ...]:
-    """Build the public SugarCubes dependency-preflight command."""
+    """Build a read-only SugarCubes check that includes required versions."""
 
-    command = (
+    if baseline_only:
+        raise ValueError("Version-aware dependency checks cannot perform repairs.")
+
+    command: tuple[str, ...] = (
         str(python_executable),
         "-m",
         SUGARCUBES_MAINTENANCE_MODULE,
         "cube-deps",
-        "preflight",
+        "sync-and-check",
         "--workspace",
         str(workspace),
     )
-    if baseline_only:
-        return (*command, "--baseline-only")
+    return command
+
+
+def build_sugarcubes_version_repair_command(
+    *,
+    python_executable: Path,
+    workspace: Path,
+    approved_node_ids: Sequence[str],
+) -> tuple[str, ...]:
+    """Build an exact-version repair command for preflight-selected node packs."""
+
+    command: tuple[str, ...] = (
+        str(python_executable),
+        "-m",
+        SUGARCUBES_MAINTENANCE_MODULE,
+        "cube-deps",
+        "repair",
+        "--workspace",
+        str(workspace),
+    )
+    for node_id in approved_node_ids:
+        command = (*command, "--approve", node_id)
     return command

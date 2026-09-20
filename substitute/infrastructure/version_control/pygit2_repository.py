@@ -225,6 +225,23 @@ class Pygit2RepositoryService:
                     f"Could not resolve repository head in {repository_path}: {error}"
                 ) from error
 
+    def revision_commit_id(
+        self,
+        repository_path: Path,
+        revision: str,
+    ) -> str | None:
+        """Return the peeled commit for one local revision when it exists."""
+
+        with open_pygit2_repository(repository_path) as repository:
+            try:
+                return str(repository.revparse_single(revision).peel(pygit2.Commit).id)
+            except KeyError:
+                return None
+            except (ValueError, pygit2.GitError) as error:
+                raise RepositoryOperationError(
+                    f"Could not resolve revision {revision} in {repository_path}: {error}"
+                ) from error
+
     def _fast_forward_current_branch(self, repository: pygit2.Repository) -> None:
         """Advance the current local branch only when its upstream descends from it."""
 

@@ -19,9 +19,13 @@
 from __future__ import annotations
 
 from ctypes import wintypes
+import os
 from pathlib import Path
+import subprocess
+import sys
 from typing import cast
 
+import psutil  # type: ignore[import-untyped]
 import pytest
 
 import sugarsubstitute_shared.windows_independent_process as admission
@@ -31,6 +35,38 @@ from sugarsubstitute_shared.windows_process_job_api import (
 )
 
 pytestmark = pytest.mark.platforms("windows")
+
+
+def test_host_contained_helper_relaunches_without_redundant_breakaway(
+    tmp_path: Path,
+) -> None:
+    """Permit the update helper to relaunch inside its remaining host job."""
+    marker = tmp_path / "relaunch-completed.txt"
+    output_path = tmp_path / "relaunch-output.log"
+    environment = dict(os.environ)
+    environment.pop(APPLICATION_PROCESS_FAMILY_ENV, None)
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; "
+            f"Path({str(marker)!r}).write_text('ready', encoding='utf-8')"
+        ),
+    ]
+
+    with output_path.open("wb") as output:
+        process_id = admission.start_independent_windows_process(
+            command,
+            environment=environment,
+            cwd=tmp_path,
+            output_fd=output.fileno(),
+        )
+
+    try:
+        psutil.Process(process_id).wait(timeout=10.0)
+    except psutil.NoSuchProcess:
+        pass
+    assert marker.read_text(encoding="utf-8") == "ready"
 
 
 @pytest.mark.parametrize(
@@ -119,7 +155,13 @@ def test_successful_breakaway_children_can_execute(
 
     def create(*args: object, **kwargs: object) -> ProcessInformation:
         """Require suspension at creation before returning a controlled child."""
-        assert cast(int, kwargs["creation_flags"]) & 0x4
+        creation_flags = cast(int, kwargs["creation_flags"])
+        assert creation_flags & 0x4
+        expects_owned_family_breakaway = bool(environment)
+        assert (
+            bool(creation_flags & subprocess.CREATE_BREAKAWAY_FROM_JOB)
+            is expects_owned_family_breakaway
+        )
         assert APPLICATION_PROCESS_FAMILY_ENV not in cast(
             dict[str, str], kwargs["environment"]
         )
