@@ -213,7 +213,7 @@ def test_build_sugarcubes_maintenance_command_uses_version_aware_check(
         "-m",
         "sugarcubes.maintenance",
         "cube-deps",
-        "sync-and-check",
+        "preflight",
         "--workspace",
         str((tmp_path / "ComfyUI").resolve()),
     )

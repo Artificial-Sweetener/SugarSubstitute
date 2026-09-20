@@ -21,17 +21,18 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
+from substitute.application.comfy_nodepacks.sugarcubes_dependency_repair_plan import (
+    dependency_repair_node_ids,
+)
 from substitute.application.comfy_nodepacks.sugarcubes_maintenance_report_parser import (
     SugarCubesMaintenanceResult,
+    current_dependency_readiness,
     sugarcubes_maintenance_result as _sugarcubes_maintenance_result,
     sugarcubes_required_dependency_failure_message as _sugarcubes_required_dependency_failure_message,
 )
-from substitute.infrastructure.comfy.sugarcubes_dependency_installer import (
-    install_sugarcubes_reported_nodepacks,
-)
 from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
-    build_sugarcubes_maintenance_command,
-    build_sugarcubes_version_repair_command,
+    build_sugarcubes_dependency_repair_command,
+    build_sugarcubes_dependency_preflight_command,
     sugarcubes_maintenance_path,
     sugarcubes_root,
 )
@@ -46,10 +47,6 @@ from substitute.infrastructure.comfy.workspace_python_resolver import (
 from substitute.infrastructure.comfy.sugarcubes_repository_bootstrapper import (
     prepare_sugarcubes_repositories,
 )
-from substitute.infrastructure.comfy.sugarcubes_version_repair import (
-    repair_sugarcubes_git_versions,
-    unresolved_sugarcubes_semver_node_ids,
-)
 from substitute.infrastructure.version_control import RepositoryService
 from substitute.infrastructure.process.hidden_process_runner import (
     stream_command_collecting_output as _stream_command_collecting_output,
@@ -63,6 +60,7 @@ def run_sugarcubes_baseline_maintenance(
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
     repositories: RepositoryService | None = None,
+    synchronize_repositories: bool = True,
 ) -> SugarCubesMaintenanceResult:
     """Preflight SugarCubes dependencies and repair only reported deficiencies."""
 
@@ -71,16 +69,16 @@ def run_sugarcubes_baseline_maintenance(
     installed_sugarcubes_root = sugarcubes_root(workspace)
     if not sugarcubes_maintenance_path(workspace).exists():
         raise RuntimeError("SugarCubes offline maintenance entrypoint is missing.")
-    prepare_sugarcubes_repositories(
-        installed_sugarcubes_root,
-        on_log=on_log,
-        repositories=repositories,
-    )
+    if synchronize_repositories:
+        prepare_sugarcubes_repositories(
+            installed_sugarcubes_root,
+            on_log=on_log,
+            repositories=repositories,
+        )
     command = list(
-        build_sugarcubes_maintenance_command(
+        build_sugarcubes_dependency_preflight_command(
             python_executable=python_executable,
             workspace=workspace,
-            baseline_only=False,
         )
     )
     exit_code, output_lines = _stream_command_collecting_output(
@@ -92,144 +90,66 @@ def run_sugarcubes_baseline_maintenance(
     result = _sugarcubes_maintenance_result(exit_code, output_lines)
     _emit_sugarcubes_diagnostics(result, on_log=on_log)
     if result.exit_code == 0:
-        result = _repair_reported_versions(
-            result=result,
-            workspace=workspace,
-            python_executable=python_executable,
-            preflight_command=command,
-            sugarcubes_root=installed_sugarcubes_root,
-            on_log=on_log,
-            env=env,
-            repositories=repositories,
-        )
         if not result.diagnostics:
             _emit_log(
                 on_log,
-                "[SugarCubes] Base-Cubes sync and dependencies are ready.",
+                "[SugarCubes] Cube-required node packs are ready.",
                 operation="sugarcubes_maintenance",
             )
         return result
     if result.exit_code == 2:
         if _uses_preserved_local_base_cubes(result):
             return result
-        if install_sugarcubes_reported_nodepacks(
-            workspace,
-            result,
-            python_executable=python_executable,
+        node_ids = dependency_repair_node_ids(result.payload)
+        if not node_ids:
+            raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
+        _emit_log(
+            on_log,
+            (
+                "[SugarCubes] Reconciling cube-required node packs: "
+                f"{', '.join(node_ids)}."
+            ),
+            operation="sugarcubes_dependency_repair",
+        )
+        repair_result = _run_sugarcubes_command(
+            list(
+                build_sugarcubes_dependency_repair_command(
+                    python_executable=python_executable,
+                    workspace=workspace,
+                    approved_node_ids=node_ids,
+                )
+            ),
+            sugarcubes_root=installed_sugarcubes_root,
             on_log=on_log,
             env=env,
-            repositories=repositories,
-        ):
-            exit_code, output_lines = _stream_command_collecting_output(
-                command,
-                cwd=installed_sugarcubes_root,
-                on_line=None,
-                env=env,
+        )
+        if repair_result.exit_code not in {0, 2}:
+            raise RuntimeError(
+                _sugarcubes_required_dependency_failure_message(repair_result)
             )
-            verification_result = _sugarcubes_maintenance_result(
-                exit_code, output_lines
-            )
-            _emit_sugarcubes_diagnostics(verification_result, on_log=on_log)
-            verification_result = _repair_reported_versions(
-                result=verification_result,
-                workspace=workspace,
-                python_executable=python_executable,
-                preflight_command=command,
-                sugarcubes_root=installed_sugarcubes_root,
-                on_log=on_log,
-                env=env,
-                repositories=repositories,
-            )
-            if verification_result.exit_code == 0:
-                if not verification_result.diagnostics:
-                    _emit_log(
-                        on_log,
-                        "[SugarCubes] Base-Cubes sync and dependencies are ready.",
-                        operation="sugarcubes_maintenance",
-                    )
-                return verification_result
+        verification_result = _run_sugarcubes_command(
+            command,
+            sugarcubes_root=installed_sugarcubes_root,
+            on_log=on_log,
+            env=env,
+        )
+        if verification_result.exit_code != 0:
             raise RuntimeError(
                 _sugarcubes_required_dependency_failure_message(verification_result)
             )
-        raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
+        if not verification_result.diagnostics:
+            _emit_log(
+                on_log,
+                "[SugarCubes] Cube-required node packs are ready.",
+                operation="sugarcubes_maintenance",
+            )
+        return verification_result
     _emit_log(
         on_log,
         "[SugarCubes] Dependency maintenance failed.",
         operation="sugarcubes_maintenance",
     )
     raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
-
-
-def _repair_reported_versions(
-    *,
-    result: SugarCubesMaintenanceResult,
-    workspace: Path,
-    python_executable: Path,
-    preflight_command: list[str],
-    sugarcubes_root: Path,
-    on_log: LogCallback | None,
-    env: Mapping[str, str] | None,
-    repositories: RepositoryService | None,
-) -> SugarCubesMaintenanceResult:
-    """Repair only versions rejected by preflight, then verify readiness."""
-
-    changed = repair_sugarcubes_git_versions(
-        result.payload,
-        workspace=workspace,
-        python_executable=python_executable,
-        on_log=on_log,
-        env=env,
-        repositories=repositories,
-    )
-    if changed:
-        result = _run_sugarcubes_command(
-            preflight_command,
-            sugarcubes_root=sugarcubes_root,
-            on_log=on_log,
-            env=env,
-        )
-
-    node_ids = unresolved_sugarcubes_semver_node_ids(
-        result.payload,
-        workspace=workspace,
-        repositories=repositories,
-    )
-    if not node_ids:
-        return result
-
-    _emit_log(
-        on_log,
-        (
-            "[SugarCubes] Updating cube-required node-pack versions: "
-            f"{', '.join(node_ids)}."
-        ),
-        operation="sugarcubes_version_repair",
-    )
-    _run_sugarcubes_command(
-        list(
-            build_sugarcubes_version_repair_command(
-                python_executable=python_executable,
-                workspace=workspace,
-                approved_node_ids=node_ids,
-            )
-        ),
-        sugarcubes_root=sugarcubes_root,
-        on_log=on_log,
-        env=env,
-    )
-    verified = _run_sugarcubes_command(
-        preflight_command,
-        sugarcubes_root=sugarcubes_root,
-        on_log=on_log,
-        env=env,
-    )
-    if verified.exit_code != 0 or unresolved_sugarcubes_semver_node_ids(
-        verified.payload,
-        workspace=workspace,
-        repositories=repositories,
-    ):
-        raise RuntimeError(_sugarcubes_required_dependency_failure_message(verified))
-    return verified
 
 
 def _run_sugarcubes_command(
@@ -255,10 +175,15 @@ def _run_sugarcubes_command(
 def _uses_preserved_local_base_cubes(result: SugarCubesMaintenanceResult) -> bool:
     """Accept the explicit recoverable diagnostic for an existing local checkout."""
 
-    return bool(result.diagnostics) and all(
-        diagnostic.code == "base_cubes_sync_failed"
-        and diagnostic.severity in {"info", "warning"}
-        for diagnostic in result.diagnostics
+    readiness = current_dependency_readiness(result.payload)
+    return (
+        readiness is None
+        and bool(result.diagnostics)
+        and all(
+            diagnostic.code == "base_cubes_sync_failed"
+            and diagnostic.severity in {"info", "warning"}
+            for diagnostic in result.diagnostics
+        )
     )
 
 

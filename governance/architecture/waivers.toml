@@ -1737,7 +1737,7 @@ kind = "remediation"
 justification = "The assessed file mixes direct, managed, and maintenance startup-cycle orchestration, startup trace, console timeline, and diagnostic parsing, measurement correlation and summary projection, HTTP readiness and route probing, manager configuration mutation and subprocess lifecycle, command-line configuration. Extract process/configuration control and trace interpretation into focused collaborators behind the startup-cycle harness."
 issue = "chore:SS-ARCH-092"
 review_by = 2026-12-15
-max_lines = 2024
+max_lines = 2023
 next_limit = 1619
 debt = "SS-ARCH-092"
 

@@ -92,6 +92,7 @@ class ApplicationInstanceControlClient(QObject):
         self._client = client
         self._pending_invocations: deque[RoutedApplicationInvocation] = deque()
         self._presentations: dict[int, tuple[QWidget, list[str]]] = {}
+        self._closing_windows: set[int] = set()
         self._known_windows: list[QWidget] = [
             window for window in QApplication.topLevelWidgets() if window.isVisible()
         ]
@@ -157,14 +158,21 @@ class ApplicationInstanceControlClient(QObject):
             event.type() == QEvent.Type.Show
             and isinstance(watched, QWidget)
             and watched.isWindow()
+            and id(watched) not in self._closing_windows
         ):
             self._remember_window(watched)
             self._present_pending_invocations(window=watched)
         elif event.type() == QEvent.Type.Paint and isinstance(watched, QWidget):
             self._complete_window_presentations(watched, outcome="presented")
+        elif event.type() == QEvent.Type.Close and isinstance(watched, QWidget):
+            self._closing_windows.add(id(watched))
+            self._complete_window_presentations(watched, outcome="unavailable")
+            self._forget_window(watched)
+            QTimer.singleShot(0, lambda: self._restore_rejected_close(watched))
         elif event.type() == QEvent.Type.Destroy and isinstance(watched, QWidget):
             self._complete_window_presentations(watched, outcome="unavailable")
             self._forget_window(watched)
+            self._closing_windows.discard(id(watched))
         return False
 
     def _activate_for_invocation(self, invocation: object) -> None:
@@ -172,7 +180,7 @@ class ApplicationInstanceControlClient(QObject):
 
         if not isinstance(invocation, RoutedApplicationInvocation):
             return
-        window = _activation_window(self._known_windows)
+        window = _activation_window(self._known_windows, self._closing_windows)
         if window is None:
             self._pending_invocations.append(invocation)
             _LOGGER.info(
@@ -235,6 +243,15 @@ class ApplicationInstanceControlClient(QObject):
         self._known_windows = [
             candidate for candidate in self._known_windows if candidate is not window
         ]
+
+    def _restore_rejected_close(self, window: QWidget) -> None:
+        """Restore a surface only when its close handler kept it visible."""
+
+        if not window.isVisible():
+            return
+        self._closing_windows.discard(id(window))
+        self._remember_window(window)
+        self._present_pending_invocations(window=window)
 
     def _complete_window_presentations(
         self,
@@ -329,16 +346,21 @@ def stop_application_instance_control() -> None:
         client.close()
 
 
-def _activation_window(known_windows: list[QWidget]) -> QWidget | None:
+def _activation_window(
+    known_windows: list[QWidget], closing_windows: set[int]
+) -> QWidget | None:
     """Return the best existing top-level surface, including hidden shells."""
 
     active = QApplication.activeWindow()
-    if active is not None:
+    if active is not None and id(active) not in closing_windows:
         return active
-    visible = [window for window in known_windows if window.isVisible()]
+    candidates = [
+        window for window in known_windows if id(window) not in closing_windows
+    ]
+    visible = [window for window in candidates if window.isVisible()]
     if visible:
         return visible[-1]
-    return known_windows[-1] if known_windows else None
+    return candidates[-1] if candidates else None
 
 
 __all__ = [

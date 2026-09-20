@@ -30,6 +30,7 @@ from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_setup_freshness_cache
 from substitute.infrastructure.comfy import managed_torch_reconciliation
+from substitute.infrastructure.comfy import sugarcubes_startup_maintenance
 from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
 )
@@ -50,7 +51,7 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Fresh setup evidence should bypass every recurring setup operation."""
+    """Fresh setup evidence must retain cheap cube dependency reconciliation."""
 
     configure_managed_install(monkeypatch, tmp_path)
 
@@ -128,10 +129,11 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
+        synchronize_repositories: bool = True,
     ) -> bool:
         """Record SugarCubes baseline maintenance."""
 
-        _ = workspace, on_log, env
+        _ = workspace, on_log, env, synchronize_repositories
         calls.append("sugarcubes")
         return True
 
@@ -197,7 +199,13 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
     ]
     assert isinstance(acceleration_fingerprint, str)
     assert len(acceleration_fingerprint) == 64
-    stale_payload["schema_version"] = 1
+    core_nodepacks = cast(
+        list[dict[str, object]], stale_payload["key"]["core_nodepacks"]
+    )
+    sugarcubes_key = next(
+        nodepack for nodepack in core_nodepacks if nodepack["id"] == "SugarCubes"
+    )
+    sugarcubes_key["required_version"] = "0.14.5"
     freshness_path.write_text(json.dumps(stale_payload), encoding="utf-8")
     revalidated = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
     refreshed = managed_install.ensure_managed_comfy_setup(
@@ -215,6 +223,7 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         "sugarcubes",
         "validate",
         "acceleration",
+        "sugarcubes",
         "manager",
         "nodepacks",
         "sugarcubes",
@@ -278,6 +287,47 @@ def test_current_setup_projects_validation_and_applies_requested_model_root(
 
     assert result.python_executable == python_path
     assert model_roots == [selected_model_root]
+    assert result.runtime_configuration.validation_status.value == "valid"
+
+
+def test_cached_setup_remains_usable_when_cube_reconciliation_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Dependency repair failure must remain visible without locking out startup."""
+
+    configure_managed_install(monkeypatch, tmp_path)
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (python_path.parent.parent / "Lib" / "site-packages").mkdir(parents=True)
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
+    )
+    managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    def fail_reconciliation(*_args: object, **_kwargs: object) -> None:
+        """Model an unavailable dependency source after setup was validated."""
+
+        raise RuntimeError("required node pack source unavailable")
+
+    monkeypatch.setattr(
+        sugarcubes_startup_maintenance,
+        "run_sugarcubes_baseline_maintenance",
+        fail_reconciliation,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "attempt_sugarcubes_startup_maintenance",
+        sugarcubes_startup_maintenance.attempt_sugarcubes_startup_maintenance,
+    )
+
+    result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    assert result.python_executable == python_path
     assert result.runtime_configuration.validation_status.value == "valid"
 
 
@@ -449,10 +499,11 @@ def test_setup_remains_valid_when_freshness_cache_write_fails(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
+        synchronize_repositories: bool = True,
     ) -> object:
         """Record one successful SugarCubes maintenance result."""
 
-        _ = workspace, on_log, env
+        _ = workspace, on_log, env, synchronize_repositories
         reconciliation_calls.append("sugarcubes")
         return object()
 
@@ -520,4 +571,5 @@ def test_setup_remains_valid_when_freshness_cache_write_fails(
         "nodepacks",
         "sugarcubes",
         "acceleration",
+        "sugarcubes",
     ]
