@@ -130,6 +130,7 @@ class _FakeOutputCanvas:
         self.register_calls: list[Any] = []
         self.clear_preview_calls: list[str | None] = []
         self.prepare_calls: list[tuple[str, tuple[uuid.UUID, ...]]] = []
+        self.discarded_workflow_ids: list[str] = []
 
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Record the visible session and project it through the fake document."""
@@ -152,6 +153,11 @@ class _FakeOutputCanvas:
 
         self.events.append(("clear_previews", source_key))
         self.clear_preview_calls.append(source_key)
+
+    def discard_workflow_detail_groups(self, workflow_id: str) -> None:
+        """Record closed-workflow inspection cleanup."""
+
+        self.discarded_workflow_ids.append(workflow_id)
 
 
 class _FakeOutputContentSynchronizer:

@@ -70,6 +70,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/application/cube_library/update_coordinator.py": frozenset(
         {"threading.Lock"}
     ),
+    "substitute/application/cube_library/dependency_reconciliation.py": frozenset(
+        {"threading.Lock"}
+    ),
     "substitute/application/cubes/cube_load_service.py": frozenset({"threading.Lock"}),
     "substitute/application/localization/comfy_node_catalog_store.py": frozenset(
         {"threading.RLock"}

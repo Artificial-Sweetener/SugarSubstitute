@@ -49,6 +49,7 @@ def test_active_workflow_close_projects_successor_without_final_toolbar_clear() 
     assert view.calls.count("canvas:project:wf-a") == 1
     assert "progress:remove:wf-b" in view.calls
     assert "progress:project" in view.calls
+    assert "canvas:discard:wf-b" in view.calls
     assert "input:prune" not in view.calls
     assert "canvas:prune" not in view.calls
     assert "wf-b:dispose" in view.calls
@@ -68,6 +69,7 @@ def test_inactive_workflow_close_leaves_active_surfaces_alone() -> None:
     assert "wf-a:clear" not in view.calls
     assert "refresh" not in view.calls
     assert "canvas:project:wf-a" not in view.calls
+    assert "canvas:discard:wf-b" in view.calls
     assert view.workflow_tabbar.removed == [("wf-b", False)]
     assert view.closed_workflow_buffer.summaries()[0].workflow_id == "wf-b"
     assert view.reopen_enabled_states[-1] is True

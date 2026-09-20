@@ -98,8 +98,8 @@ from substitute.presentation.shell.generation_progress_strip import (
 )
 from substitute.presentation.shell.editor_busy_overlay import EditorBusyOverlay
 from substitute.presentation.shell.window_effects import ShellBackdropMode
-from substitute.presentation.shell.window_frame import (
-    titlebar_menu_content_insert_index,
+from substitute.presentation.shell.workflow_tabbar_composition import (
+    build_workflow_tabbar,
 )
 from substitute.presentation.shell.workspace_body_material_surface import (
     WorkspaceBodyMaterialSurface,
@@ -107,7 +107,6 @@ from substitute.presentation.shell.workspace_body_material_surface import (
 from substitute.presentation.workflows.cube_stack_view import CUBE_STACK_EXPANDED_WIDTH
 from substitute.presentation.workflows.workflow_tabs_view import (
     TabBar,
-    TabCloseButtonDisplayMode,
 )
 from substitute.shared.startup_trace import trace_mark, trace_span
 
@@ -226,42 +225,6 @@ class WorkspaceSidePanelHost(QWidget):
         """Return the current live side-panel host width."""
 
         return self.width()
-
-
-def _build_workflow_tabbar(
-    window: object,
-    menu_container: QWidget,
-    backdrop_mode: ShellBackdropMode | None,
-) -> tuple[
-    WorkflowTabService,
-    WorkflowSessionService[Any],
-    TabBar,
-]:
-    """Build the workflow tab row and attach it to the custom titlebar container."""
-
-    workflow_tab_service = WorkflowTabService()
-    workflow_session_service: WorkflowSessionService[Any] = WorkflowSessionService()
-    workflow_tabbar = TabBar(window)
-    set_backdrop_mode = getattr(workflow_tabbar, "set_backdrop_mode", None)
-    if callable(set_backdrop_mode):
-        set_backdrop_mode(backdrop_mode)
-    workflow_tabbar.setMovable(True)
-    workflow_tabbar.setTabMaximumWidth(180)
-    workflow_tabbar.setCloseButtonDisplayMode(TabCloseButtonDisplayMode.ON_HOVER)
-    workflow_tabbar.setMinimumHeight(10)
-
-    menu_layout = menu_container.layout()
-    if menu_layout is None:
-        raise RuntimeError("Menu container must expose a layout for workflow tabs.")
-    typed_menu_layout = cast(QHBoxLayout, menu_layout)
-    insert_index = titlebar_menu_content_insert_index(menu_container)
-    typed_menu_layout.insertWidget(insert_index, cast(QWidget, workflow_tabbar))
-    typed_menu_layout.setStretch(insert_index, 8)
-    if insert_index > 0:
-        typed_menu_layout.setStretch(insert_index - 1, 0)
-    if typed_menu_layout.count() > insert_index + 1:
-        typed_menu_layout.setStretch(insert_index + 1, 2)
-    return workflow_tab_service, workflow_session_service, workflow_tabbar
 
 
 def _build_canvas_scaffold(
@@ -421,7 +384,7 @@ def build_main_window_workspace(
             workflow_tab_service,
             workflow_session_service,
             workflow_tabbar,
-        ) = _build_workflow_tabbar(window, menu_container, backdrop_mode)
+        ) = build_workflow_tabbar(window, menu_container, backdrop_mode)
 
     with trace_span("mainwindow.build_workspace.editor_shell_containers"):
         cube_stack_container = QStackedWidget(window)

@@ -24,6 +24,7 @@ from typing import cast
 
 import pytest
 
+from substitute.application.restart_requirements import RestartRequirementService
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell import settings_route_controller
 from substitute.presentation.shell.shell_chrome_controller import ShellChromeController
@@ -76,6 +77,7 @@ def _shell() -> SimpleNamespace:
         comfy_environment_service=object(),
         cube_library_management_service=object(),
         invalidate_cube_catalog_cache=lambda: None,
+        comfy_runtime_actions=SimpleNamespace(request_comfy_restart=lambda: None),
         about_info_service=object(),
         localization_manager=object(),
         appearance_runtime=object(),
@@ -144,8 +146,8 @@ def test_create_settings_workspace_wires_callbacks_and_layout(
     assert calls[0]["cube_library_restart_required_changed"] == (
         controller.handle_cube_library_restart_required_changed
     )
-    assert calls[0]["cube_library_post_restart_refresh"] == (
-        controller.refresh_runtime_contracts_after_cube_dependency_restart
+    assert calls[0]["cube_library_restart_requested"] == (
+        shell.comfy_runtime_actions.request_comfy_restart
     )
     assert calls[0]["appearance_restart_coordinator"] is (
         shell.appearance_restart_coordinator
@@ -224,24 +226,13 @@ def test_runtime_contract_refresh_invalidates_cube_and_node_caches() -> None:
     assert calls == ["cube-cache", "node-cache"]
 
 
-def test_cube_library_restart_required_blocks_and_restores_generation() -> None:
-    """Restart-required state should block generation until dependencies are ready."""
+def test_cube_library_restart_required_preserves_generation_availability() -> None:
+    """Restart-required state should use the restart cart without a lockout."""
 
-    calls: list[tuple[object, ...]] = []
-    backend_states: list[str] = []
+    service = RestartRequirementService()
     shell = SimpleNamespace(
         _backend_state="ready",
-        workspace_generation_controller=SimpleNamespace(
-            set_backend_available=lambda available, *, message: calls.append(
-                ("backend", available, message)
-            )
-        ),
-        generation_action_controller=SimpleNamespace(
-            apply_generation_action_availability=lambda: calls.append(
-                ("availability",)
-            ),
-            set_backend_state=lambda state: backend_states.append(state),
-        ),
+        restart_requirement_service=service,
     )
     controller = settings_route_controller.SettingsRouteController(
         shell,
@@ -249,18 +240,16 @@ def test_cube_library_restart_required_blocks_and_restores_generation() -> None:
     )
 
     controller.handle_cube_library_restart_required_changed(True)
+
+    assert shell._backend_state == "ready"
+    snapshot = service.snapshot()
+    assert snapshot.count == 1
+    assert snapshot.items[0].key == "cube_library.dependencies"
+
     controller.handle_cube_library_restart_required_changed(False)
 
-    assert shell._backend_state == "unavailable"
-    assert calls == [
-        (
-            "backend",
-            False,
-            "ComfyUI must restart before repaired cube dependencies can be used.",
-        ),
-        ("availability",),
-    ]
-    assert backend_states == ["ready"]
+    assert shell._backend_state == "ready"
+    assert service.snapshot().count == 0
 
 
 def test_route_helpers_switch_workspace_pages_without_geometry_changes() -> None:
