@@ -81,7 +81,11 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
     )
     entry_jobs = orchestrator["jobs"]
     jobs = prepublication["jobs"]
-    assert set(entry_jobs) == {"prepare-release", "publish-release"}
+    assert set(entry_jobs) == {
+        "validate-canary-evidence",
+        "prepare-release",
+        "publish-release",
+    }
     assert entry_jobs["prepare-release"]["uses"] == (
         "./.github/workflows/release-prepublication.yml"
     )
