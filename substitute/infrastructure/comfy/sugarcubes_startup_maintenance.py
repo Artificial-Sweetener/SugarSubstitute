@@ -47,6 +47,7 @@ def attempt_sugarcubes_startup_maintenance(
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
     repositories: RepositoryService | None = None,
+    synchronize_repositories: bool = True,
 ) -> SugarCubesMaintenanceResult | None:
     """Prepare SugarCubes when possible without making startup depend on it."""
 
@@ -57,6 +58,7 @@ def attempt_sugarcubes_startup_maintenance(
             env=env,
             python_executable=python_executable,
             repositories=repositories,
+            synchronize_repositories=synchronize_repositories,
         )
     except Exception as error:  # noqa: BLE001 - startup must survive this optional phase.
         if is_startup_connectivity_failure(error):

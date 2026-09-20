@@ -72,17 +72,18 @@ def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
 
     assert result.status is RuntimeCompatibilityStatus.SUGARCUBES_TOO_OLD
     assert result.repairable is True
-    assert result.required_sugarcubes_version == "0.14.3"
+    assert result.required_sugarcubes_version == "0.14.6"
 
 
-def test_compatibility_blocks_newer_patch_versions() -> None:
-    """Exact pins should reject versions newer than this application build requires."""
+def test_compatibility_keeps_backend_exact_but_accepts_newer_sugarcubes() -> None:
+    """New SugarCubes releases satisfy the minimum while BackEnd stays exact."""
 
     backend_result = _service(_capabilities(extension_version="1.10.1")).assess()
-    sugarcubes_result = _service(_capabilities(sugar_cubes_version="0.14.4")).assess()
+    sugarcubes_result = _service(_capabilities(sugar_cubes_version="0.14.6")).assess()
 
     assert backend_result.status is RuntimeCompatibilityStatus.BACKEND_TOO_NEW
-    assert sugarcubes_result.status is RuntimeCompatibilityStatus.SUGARCUBES_TOO_NEW
+    assert sugarcubes_result.status is RuntimeCompatibilityStatus.COMPATIBLE
+    assert sugarcubes_result.compatible is True
 
 
 def test_compatibility_allows_sugarcubes_branch_version_in_development() -> None:
@@ -139,7 +140,7 @@ def _service(
 def _capabilities(
     *,
     extension_version: str = "1.10.0",
-    sugar_cubes_version: str = "0.14.3",
+    sugar_cubes_version: str = "0.14.6",
     sugarcubes_available: bool = True,
     features: tuple[str, ...] = (
         "cube-library",

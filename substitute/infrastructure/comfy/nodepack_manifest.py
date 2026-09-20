@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -62,47 +61,6 @@ class CoreComfyNodepack:
         """Return canonical and persisted legacy installation locations."""
 
         return (self.expected_folder, *self.legacy_folders)
-
-
-@dataclass(frozen=True)
-class SugarCubesNodepackInstallCandidate:
-    """Describe one trusted SugarCubes custom-node repository."""
-
-    source_url: str
-    target_folder_name: str
-
-
-SUGARCUBES_BASE_NODEPACK_INSTALLS: Mapping[
-    str, tuple[SugarCubesNodepackInstallCandidate, ...]
-] = {
-    "comfyui-vectorscope-cc": (
-        SugarCubesNodepackInstallCandidate(
-            source_url="https://github.com/pamparamm/ComfyUI-vectorscope-cc.git",
-            target_folder_name="ComfyUI-vectorscope-cc",
-        ),
-    ),
-    "seedvr2_videoupscaler": (
-        SugarCubesNodepackInstallCandidate(
-            source_url="https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
-            target_folder_name="seedvr2_videoupscaler",
-        ),
-    ),
-    "SimpleSyrup": (
-        SugarCubesNodepackInstallCandidate(
-            source_url="https://github.com/Artificial-Sweetener/SimpleSyrup.git",
-            target_folder_name="SimpleSyrup",
-        ),
-    ),
-    "comfyui-prompt-control": (
-        SugarCubesNodepackInstallCandidate(
-            source_url="https://github.com/asagi4/comfyui-prompt-control.git",
-            target_folder_name="comfyui-prompt-control",
-        ),
-    ),
-}
-SUGARCUBES_COMPANION_NODEPACKS: Mapping[str, tuple[str, ...]] = {
-    "SimpleSyrup": ("comfyui-prompt-control",),
-}
 
 
 CORE_COMFY_NODEPACKS: tuple[CoreComfyNodepack, ...] = (
@@ -151,9 +109,6 @@ __all__ = [
     "CLI_INSTALL_TIMEOUT_SECONDS",
     "CORE_COMFY_NODEPACKS",
     "CoreComfyNodepack",
-    "SUGARCUBES_BASE_NODEPACK_INSTALLS",
-    "SUGARCUBES_COMPANION_NODEPACKS",
     "SUGARCUBES_FALLBACK_ARCHIVE_URL",
     "SUBSTITUTE_BACKEND_FALLBACK_ARCHIVE_URL",
-    "SugarCubesNodepackInstallCandidate",
 ]
