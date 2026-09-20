@@ -21,6 +21,10 @@ from substitute.application.cube_library.service import (
     CubeLibraryManagementService,
     CubeLibrarySnapshot,
 )
+from substitute.application.cube_library.dependency_reconciliation import (
+    CubeDependencyReconciliationCoordinator,
+    CubeDependencyReconciliationGateway,
+)
 from substitute.application.cube_library.update_coordinator import (
     CubeLibraryUpdateCoordinator,
 )
@@ -44,6 +48,8 @@ __all__ = [
     "CubeLibraryManagementService",
     "CubeLibrarySnapshot",
     "CubeDependencyRepairProposal",
+    "CubeDependencyReconciliationCoordinator",
+    "CubeDependencyReconciliationGateway",
     "CubeLibraryUpdateCoordinator",
     "CubeLibraryUpdateDetectionService",
     "CubeLibraryUpdateReason",

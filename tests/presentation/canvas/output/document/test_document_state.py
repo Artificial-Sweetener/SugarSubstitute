@@ -192,6 +192,11 @@ def test_output_document_retains_inactive_workflow_detail_groups(
             second_group_id,
         )
         assert set(groups[0].members).isdisjoint(groups[1].members)
+
+        document.discard_workflow_detail_groups("first")
+
+        groups = document.workspace.session.inspection.groups()
+        assert tuple(group.group_id for group in groups) == (second_group_id,)
     finally:
         document.close()
         destroy_qt_object(document)

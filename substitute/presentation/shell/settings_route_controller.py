@@ -36,6 +36,7 @@ from substitute.presentation.shell.search_overlay_controller import (
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
 )
+from substitute.application.restart_requirements import RestartScope
 from substitute.shared.logging.logger import get_logger, log_info
 
 _LOGGER = get_logger("presentation.shell.settings_route_controller")
@@ -63,11 +64,11 @@ class SettingsRouteController:
             comfy_environment_service=shell.comfy_environment_service,
             cube_library_management_service=shell.cube_library_management_service,
             cube_library_catalog_invalidated=shell.invalidate_cube_catalog_cache,
+            cube_library_restart_requested=(
+                shell.comfy_runtime_actions.request_comfy_restart
+            ),
             cube_library_restart_required_changed=(
                 self.handle_cube_library_restart_required_changed
-            ),
-            cube_library_post_restart_refresh=(
-                self.refresh_runtime_contracts_after_cube_dependency_restart
             ),
             about_info_service=shell.about_info_service,
             localization_manager=shell.localization_manager,
@@ -162,21 +163,21 @@ class SettingsRouteController:
             clear_object_info_cache()
 
     def handle_cube_library_restart_required_changed(self, required: bool) -> None:
-        """Block generation while Cube Library dependency repair needs restart."""
+        """Publish dependency restart state without changing application access."""
 
+        service = self._shell.restart_requirement_service
         if required:
-            self._shell._backend_state = "unavailable"
-            self._shell.workspace_generation_controller.set_backend_available(
-                False,
-                message=(
-                    app_text(
-                        "ComfyUI must restart before repaired cube dependencies can be used."
-                    )
+            service.register_requirement(
+                key="cube_library.dependencies",
+                label=app_text("Comfy restart required"),
+                scope=RestartScope.FULL_APP,
+                detail=app_text(
+                    "Cube dependency repair changed the target environment. Restart "
+                    "ComfyUI before generating with the repaired cubes."
                 ),
             )
-            self._shell.generation_action_controller.apply_generation_action_availability()
             return
-        self._shell.generation_action_controller.set_backend_state("ready")
+        service.clear("cube_library.dependencies")
 
     def project_settings_workspace(self) -> None:
         """Show the integrated Settings navigation pane and active page host."""

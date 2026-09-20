@@ -282,6 +282,22 @@ class OutputCanvasDocument(QObject):
         )
         self._publish_detail_groups()
 
+    def validate_detail_inspection_groups(
+        self,
+        *,
+        workflow_id: str,
+        groups: tuple[OutputDetailInspectionGroup, ...],
+    ) -> None:
+        """Validate a complete proposed group set without mutating live state."""
+
+        self._detail_groups.validate_workflow_groups(workflow_id, groups)
+
+    def discard_workflow_detail_groups(self, workflow_id: str) -> None:
+        """Release inspection definitions owned by a closed workflow."""
+
+        self._detail_groups.discard_workflow(workflow_id)
+        self._publish_detail_groups()
+
     def present_single(self, image_id: UUID) -> bool:
         """Present one registered Output image in its native composition view."""
 

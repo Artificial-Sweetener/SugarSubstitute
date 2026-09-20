@@ -1,0 +1,118 @@
+{
+  "active_route": "workflow_57157",
+  "active_workflow_id": "workflow_57157",
+  "schema_version": "1",
+  "shell_layout": null,
+  "tab_order": [
+    "workflow_57157"
+  ],
+  "workflows": [
+    {
+      "active_cube_alias": null,
+      "editor_viewport": null,
+      "input_images": [
+        {
+          "image_id": "11111111-1111-4111-8111-111111111111",
+          "path": "G:\\SugarSubstitute\\user\\projects\\Untitled Workflow\\input_surfaces\\source.png",
+          "sequence": 0
+        }
+      ],
+      "input_masks": [
+        {
+          "association_key": [
+            "Region",
+            "mask"
+          ],
+          "image_id": "11111111-1111-4111-8111-111111111111",
+          "mask_id": "22222222-2222-4222-8222-222222222222",
+          "path": "G:\\SugarSubstitute\\user\\projects\\Untitled Workflow\\masks\\region.png"
+        }
+      ],
+      "output_images": [],
+      "tab_label": "Untitled Workflow",
+      "workflow": {
+        "active_output_scene_key": null,
+        "active_output_scene_overview": false,
+        "active_output_set_index": 1,
+        "active_output_source_key": null,
+        "active_output_uuid": null,
+        "canvas": {
+          "active_canvas_route": null,
+          "active_input_mask_uuid": "22222222-2222-4222-8222-222222222222",
+          "input_image_uuid": "11111111-1111-4111-8111-111111111111",
+          "input_key_map": [
+            {
+              "image_id": "11111111-1111-4111-8111-111111111111",
+              "input_key": "Region:surface"
+            }
+          ],
+          "mask_associations": [
+            {
+              "cube_alias": "Region",
+              "mask_id": "22222222-2222-4222-8222-222222222222",
+              "node_name": "mask"
+            }
+          ],
+          "mask_to_image_map": [
+            {
+              "image_id": "11111111-1111-4111-8111-111111111111",
+              "mask_id": "22222222-2222-4222-8222-222222222222"
+            }
+          ]
+        },
+        "cubes": {
+          "Region": {
+            "alias": "Region",
+            "buffer": {
+              "nodes": {
+                "prompt": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "text": "[SEP|left] α é 🧁 שלום"
+                  }
+                }
+              }
+            },
+            "bypassed": false,
+            "cube_id": "base/region.cube",
+            "dirty": false,
+            "display_name": "base/region.cube",
+            "field_control_states": {},
+            "original_cube": {
+              "nodes": {
+                "prompt": {
+                  "class_type": "CLIPTextEncode",
+                  "inputs": {
+                    "text": "[SEP|left] α é 🧁 שלום"
+                  }
+                }
+              }
+            },
+            "redo_stack": [],
+            "ui": null,
+            "undo_stack": [],
+            "update_policy": "pinned",
+            "version": "1.0.0"
+          }
+        },
+        "global_override_selections": {},
+        "global_overrides": {},
+        "metadata": {},
+        "output_compare_state": {
+          "base": null,
+          "comparison": null,
+          "enabled": false,
+          "orientation": "vertical",
+          "split_position": 0.5
+        },
+        "output_focus_mode": "automatic",
+        "output_image_uuids": [],
+        "override_control_states": {},
+        "stack_order": [
+          "Region"
+        ]
+      },
+      "workflow_id": "workflow_57157"
+    }
+  ]
+}

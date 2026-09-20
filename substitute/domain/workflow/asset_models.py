@@ -57,6 +57,7 @@ class ProjectAssetRef:
     """Reference a durable Substitute-owned project asset."""
 
     relative_path: str
+    storage_owner: str = ""
     kind: Literal["project_asset"] = "project_asset"
 
     def __post_init__(self) -> None:
@@ -71,6 +72,7 @@ class ProjectMaskAssetRef:
     """Reference a durable Substitute-owned project mask asset."""
 
     relative_path: str
+    storage_owner: str = ""
     kind: Literal["project_mask"] = "project_mask"
 
     def __post_init__(self) -> None:
@@ -105,9 +107,18 @@ def workflow_asset_ref_to_json(asset_ref: WorkflowAssetRef) -> JsonObject:
     if isinstance(asset_ref, LocalFileAssetRef):
         return {"kind": asset_ref.kind, "path": asset_ref.path}
     if isinstance(asset_ref, ProjectAssetRef):
-        return {"kind": asset_ref.kind, "relative_path": asset_ref.relative_path}
+        payload: JsonObject = {
+            "kind": asset_ref.kind,
+            "relative_path": asset_ref.relative_path,
+        }
+        if asset_ref.storage_owner:
+            payload["storage_owner"] = asset_ref.storage_owner
+        return payload
     if isinstance(asset_ref, ProjectMaskAssetRef):
-        return {"kind": asset_ref.kind, "relative_path": asset_ref.relative_path}
+        payload = {"kind": asset_ref.kind, "relative_path": asset_ref.relative_path}
+        if asset_ref.storage_owner:
+            payload["storage_owner"] = asset_ref.storage_owner
+        return payload
     return {"kind": asset_ref.kind, "name": asset_ref.name}
 
 
@@ -124,18 +135,31 @@ def workflow_asset_ref_from_json(payload: Mapping[str, object]) -> WorkflowAsset
         relative_path = payload.get("relative_path")
         if not isinstance(relative_path, str):
             raise ValueError("Project asset metadata is missing relative_path.")
-        return ProjectAssetRef(relative_path=relative_path)
+        return ProjectAssetRef(
+            relative_path=relative_path,
+            storage_owner=_optional_storage_owner(payload),
+        )
     if kind == "project_mask":
         relative_path = payload.get("relative_path")
         if not isinstance(relative_path, str):
             raise ValueError("Project mask metadata is missing relative_path.")
-        return ProjectMaskAssetRef(relative_path=relative_path)
+        return ProjectMaskAssetRef(
+            relative_path=relative_path,
+            storage_owner=_optional_storage_owner(payload),
+        )
     if kind == "comfy_input":
         name = payload.get("name")
         if not isinstance(name, str):
             raise ValueError("Comfy input asset metadata is missing name.")
         return ComfyInputAssetRef(name=name)
     raise ValueError(f"Unknown workflow asset kind: {kind!r}")
+
+
+def _optional_storage_owner(payload: Mapping[str, object]) -> str:
+    """Return an optional stable project-directory owner from persisted metadata."""
+
+    owner = payload.get("storage_owner")
+    return owner if isinstance(owner, str) else ""
 
 
 def workflow_asset_ref_authoring_value(asset_ref: WorkflowAssetRef) -> str:

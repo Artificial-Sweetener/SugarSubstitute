@@ -21,6 +21,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 from uuid import UUID
+from substitute.application.workflows.input_canvas_ports import (
+    MaskLayerRemovalAuthorization,
+    MaskLayerRemovalOutcome,
+)
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import WorkflowState
 
@@ -92,6 +96,8 @@ class _FakeInputCanvasStateService:
         self.claimed_images: list[tuple[str, UUID]] = []
         self.updated_masks: list[tuple[tuple[str, str], UUID, Path]] = []
         self.removed_masks: list[tuple[UUID, UUID]] = []
+        self.authorize_mask_removal = True
+        self.remove_mask_result = MaskLayerRemovalOutcome.REMOVED
         self.input_path = Path("synthetic.png")
         self.activated_masks: list[UUID] = []
 
@@ -290,18 +296,28 @@ class _FakeInputCanvasStateService:
         self.updated_masks.append((association_key, mask_id, path))
         return True
 
-    def remove_workflow_mask_layer(
+    def authorize_workflow_mask_layer_removal(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
         image_id: UUID,
         mask_id: UUID,
-    ) -> bool:
-        """Record removal of one exact ordered mask layer."""
+    ) -> MaskLayerRemovalAuthorization | None:
+        """Authorize or reject one exact ordered mask side effect."""
 
-        _ = workflow_id, active_workflow
-        self.removed_masks.append((image_id, mask_id))
-        return True
+        _ = active_workflow
+        if not self.authorize_mask_removal:
+            return None
+        return MaskLayerRemovalAuthorization(workflow_id, image_id, mask_id)
+
+    def commit_workflow_mask_layer_removal(
+        self,
+        authorization: MaskLayerRemovalAuthorization,
+    ) -> MaskLayerRemovalOutcome:
+        """Record one authorized ordered mask side effect."""
+
+        self.removed_masks.append((authorization.image_id, authorization.mask_id))
+        return self.remove_mask_result
 
 
 class _FakeCanvasIoService:

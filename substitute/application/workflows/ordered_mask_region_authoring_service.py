@@ -25,6 +25,7 @@ from uuid import UUID
 from substitute.application.workflows.input_canvas_ports import (
     CanvasIoServicePort,
     InputCanvasStateServicePort,
+    MaskLayerRemovalOutcome,
 )
 from substitute.application.workflows.ordered_mask_materialization_service import (
     OrderedMaskMaterializationService,
@@ -38,7 +39,13 @@ from substitute.domain.workflow import (
     WorkflowState,
 )
 from substitute.domain.workflow.input_canvas_plan import InputCanvasMaskBinding
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_debug,
+    log_warning_exception,
+)
 
+_LOGGER = get_logger("application.workflows.ordered_mask_region_authoring_service")
 
 OrderedMaskBindingResolver = Callable[
     [WorkflowState, str, str], InputCanvasMaskBinding | None
@@ -205,7 +212,7 @@ class OrderedMaskRegionAuthoringService:
             )
             return None
         destination = self._canvas_io_service.resolve_mask_path(
-            workflow_name=workflow_name,
+            workflow_name=entry.asset_ref.storage_owner or workflow_name,
             path_from_buffer=entry.asset_ref.relative_path,
             projects_dir=projects_dir,
         )
@@ -254,22 +261,85 @@ class OrderedMaskRegionAuthoringService:
         if collection is None or not 0 <= region_index < len(collection.entries):
             return False
         entry = collection.entries[region_index]
-        if (
-            entry.mask_id is not None
-            and not self._input_canvas_state_service.remove_workflow_mask_layer(
-                workflow_id,
-                workflow,
-                entry.image_id,
-                entry.mask_id,
+        authorization = None
+        if entry.mask_id is not None:
+            authorization = (
+                self._input_canvas_state_service.authorize_workflow_mask_layer_removal(
+                    workflow_id,
+                    workflow,
+                    entry.image_id,
+                    entry.mask_id,
+                )
             )
-        ):
-            return False
+            if authorization is None:
+                return False
+        previous_entries = list(collection.entries)
+        previous_selection = collection.selected_region_id
         collection.remove(entry.region_id)
-        self._graph_values.synchronize(
-            workflow,
-            binding,
-            collection,
-        )
+        try:
+            graph_changed = self._graph_values.synchronize(
+                workflow,
+                binding,
+                collection,
+            )
+        except Exception as error:
+            log_warning_exception(
+                _LOGGER,
+                "Ordered mask removal rejected because graph synchronization failed",
+                error=error,
+                workflow_id=workflow_id,
+                section_key=section_key,
+                node_name=node_name,
+                region_id=str(entry.region_id),
+            )
+            collection.entries[:] = previous_entries
+            collection.selected_region_id = previous_selection
+            try:
+                self._graph_values.synchronize(workflow, binding, collection)
+            except Exception as rollback_error:
+                log_warning_exception(
+                    _LOGGER,
+                    "Ordered mask graph rollback failed after removal rejection",
+                    error=rollback_error,
+                    workflow_id=workflow_id,
+                    section_key=section_key,
+                    node_name=node_name,
+                    region_id=str(entry.region_id),
+                )
+            raise
+        if not graph_changed:
+            collection.entries[:] = previous_entries
+            collection.selected_region_id = previous_selection
+            return False
+        if authorization is not None:
+            try:
+                removal_outcome = (
+                    self._input_canvas_state_service.commit_workflow_mask_layer_removal(
+                        authorization
+                    )
+                )
+            except Exception as error:
+                log_warning_exception(
+                    _LOGGER,
+                    "Ordered mask durable removal completed but live-layer cleanup failed",
+                    error=error,
+                    workflow_id=workflow_id,
+                    section_key=section_key,
+                    node_name=node_name,
+                    region_id=str(entry.region_id),
+                    mask_id=str(entry.mask_id),
+                )
+            else:
+                if removal_outcome is MaskLayerRemovalOutcome.ALREADY_ABSENT:
+                    log_debug(
+                        _LOGGER,
+                        "Ordered mask live layer was already absent during durable removal",
+                        workflow_id=workflow_id,
+                        section_key=section_key,
+                        node_name=node_name,
+                        region_id=str(entry.region_id),
+                        mask_id=str(entry.mask_id),
+                    )
         selected = (
             collection.entry(collection.selected_region_id)
             if collection.selected_region_id is not None

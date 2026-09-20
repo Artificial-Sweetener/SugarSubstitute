@@ -21,6 +21,7 @@ from __future__ import annotations
 from sugarsubstitute_shared.presentation.localization import app_text
 from substitute.presentation.localization import (
     LocalizedBodyLabel,
+    LocalizedCaptionLabel,
     LocalizedPrimaryPushButton,
     LocalizedPushButton,
     LocalizedSubtitleLabel,
@@ -35,10 +36,6 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QVBoxLayout,
     QWidget,
-)
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
-    CaptionLabel,
 )
 from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
@@ -141,12 +138,12 @@ class RestartRequiredDialog(FullWindowModalBase):
             row_layout = QVBoxLayout(row)
             row_layout.setContentsMargins(12, 10, 12, 10)
             row_layout.setSpacing(2)
-            label = BodyLabel(item.label, row)
+            label = LocalizedBodyLabel(item.label, row)
             label.setObjectName("RestartRequiredItemLabel")
             label.setWordWrap(True)
             row_layout.addWidget(label)
             if item.detail:
-                detail = CaptionLabel(item.detail, row)
+                detail = LocalizedCaptionLabel(item.detail, row)
                 detail.setObjectName("RestartRequiredItemDetail")
                 detail.setWordWrap(True)
                 row_layout.addWidget(detail)

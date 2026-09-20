@@ -37,7 +37,7 @@ from ..support.harness import (
 
 def test_clear_images_for_closed_workflow_keeps_shared_references() -> None:
     """Closing a workflow removes only UUIDs no longer referenced by others."""
-    service, input_service, input_pane, output_pane, _output_canvas = _build_services()
+    service, input_service, input_pane, output_pane, output_canvas = _build_services()
     wf_closed = WorkflowState()
     wf_remaining = WorkflowState()
 
@@ -67,6 +67,7 @@ def test_clear_images_for_closed_workflow_keeps_shared_references() -> None:
     assert service.image_registry.metadata_for(closed_only_id) is None
     assert shared_id in output_pane.images
     assert service.image_registry.metadata_for(shared_id) is not None
+    assert output_canvas.discarded_workflow_ids == ["closed"]
 
 
 def test_clear_output_for_workflow_deselects_canvas_and_removes_unreferenced_images() -> (

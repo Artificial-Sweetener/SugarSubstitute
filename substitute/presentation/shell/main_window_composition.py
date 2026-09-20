@@ -131,7 +131,7 @@ from .workspace_drop_controller import (
     WorkspaceDropController,
 )
 from .workspace_restore_controller import WorkspaceRestoreController
-from .workspace_restore_image_adapter import WorkspaceRestoreImageAdapter
+from .workspace_restore_composition import build_workspace_restore_image_adapter
 from .workspace_splitter_controller import WorkspaceSplitterController
 from .workspace_layout_controller import WorkspaceLayoutController
 from .unsaved_work_controller import UnsavedWorkController
@@ -654,7 +654,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
         unsaved_work_controller=UnsavedWorkController(shell),
         workspace_restore_controller=WorkspaceRestoreController(shell),
         restored_workflow_materializer=RestoredWorkflowMaterializer(shell),
-        workspace_restore_image_adapter=WorkspaceRestoreImageAdapter(shell),
+        workspace_restore_image_adapter=build_workspace_restore_image_adapter(shell),
         editor_viewport_restore_controller=EditorViewportRestoreController(shell),
         restore_projection_controller=RestoreProjectionController(shell),
         generation_result_workspace_materializer=(

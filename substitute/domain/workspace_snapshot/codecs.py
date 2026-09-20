@@ -275,7 +275,7 @@ def _workflow_snapshot_from_json(value: object) -> WorkflowSnapshot:
 
     payload = _required_mapping(value)
     return WorkflowSnapshot(
-        workflow_id=_required_str(payload, "workflow_id"),
+        workflow_id=_optional_str(payload.get("workflow_id")) or "",
         tab_label=_required_str(payload, "tab_label"),
         workflow=workflow_state_from_json(_required_mapping(payload.get("workflow"))),
         active_cube_alias=_optional_str(payload.get("active_cube_alias")),

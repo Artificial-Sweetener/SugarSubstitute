@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -218,6 +219,69 @@ def test_restore_input_mask_remaps_reference_through_workflow_canvas_state() -> 
             },
         }
     ]
+
+
+def test_restore_input_mask_uses_recovered_reference_before_canvas_replay() -> None:
+    """Restore should pass verified recovery output to the live canvas owner."""
+
+    image_id = uuid4()
+    snapshot_mask_id = uuid4()
+    workflow = WorkflowState()
+    association_key = ("CubeA", "MaskNode")
+    workflow.canvas.bind_image("CubeA:ImageNode", image_id)
+    workflow.canvas.bind_mask(association_key, snapshot_mask_id, image_id)
+    source_reference = InputMaskReference(
+        mask_id=str(snapshot_mask_id),
+        image_id=str(image_id),
+        path=Path("missing.png"),
+        association_key=association_key,
+    )
+    recovered_reference = replace(source_reference, path=Path("recovered.png"))
+    recovery_calls: list[dict[str, object]] = []
+    restore_paths: list[Path] = []
+
+    def recover_reference(**kwargs: object) -> InputMaskReference:
+        """Return one scripted recovered reference."""
+
+        recovery_calls.append(kwargs)
+        return recovered_reference
+
+    def restore_input_mask(*_args: object, **kwargs: object) -> object:
+        """Record the resolved path and return one restored mask identity."""
+
+        restore_path = kwargs["path"]
+        assert isinstance(restore_path, Path)
+        restore_paths.append(restore_path)
+        return uuid4()
+
+    shell = SimpleNamespace(
+        _shell_restore_lifecycle="running",
+        workflow_session_service=SimpleNamespace(workflows={"wf-a": workflow}),
+        unsaved_work_service=SimpleNamespace(
+            state_for=lambda _workflow_id: SimpleNamespace(
+                source_path=Path("project.sugar")
+            )
+        ),
+        input_canvas_state_service=SimpleNamespace(
+            restore_input_mask=restore_input_mask,
+        ),
+    )
+
+    restored = WorkspaceRestoreImageAdapter(
+        shell,
+        mask_asset_recovery=SimpleNamespace(recover_reference=recover_reference),
+    ).restore_input_mask(source_reference)
+
+    assert restored is True
+    assert recovery_calls == [
+        {
+            "workflow_id": "wf-a",
+            "workflow": workflow,
+            "reference": source_reference,
+            "document_source_path": Path("project.sugar"),
+        }
+    ]
+    assert restore_paths == [Path("recovered.png")]
 
 
 def test_restore_input_mask_defers_during_prehydration() -> None:

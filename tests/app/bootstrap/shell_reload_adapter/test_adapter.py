@@ -84,6 +84,90 @@ def test_shell_reload_adapter_requests_comfy_restart_once() -> None:
     assert state.shutdown_requests == [shell]
 
 
+def test_shell_reload_adapter_defers_restart_until_generation_is_safe() -> None:
+    """Restart should preserve active work and begin after the queue drains."""
+
+    state = _AdapterState(restart_launch_command=("python", "main.py"))
+    shell = object()
+    queue_service = _GenerationQueueService(has_cancellable_jobs=True)
+    state.main_windows[shell] = SimpleNamespace(
+        generation_job_queue_service=queue_service,
+    )
+    adapter = state.build_adapter()
+    adapter.set_current_shell(shell)
+
+    adapter.request_comfy_restart_from_shell()
+    adapter.request_comfy_restart_from_shell()
+
+    assert adapter.restart_after_cleanup_requested is True
+    assert state.shutdown_requests == []
+    assert len(queue_service.observers) == 1
+
+    queue_service.publish(has_cancellable_jobs=True)
+    assert state.shutdown_requests == []
+
+    queue_service.publish(has_cancellable_jobs=False)
+    assert state.shutdown_requests == [shell]
+    assert queue_service.observers == []
+
+
+def test_shell_reload_adapter_refuses_unobservable_active_generation() -> None:
+    """An opaque active queue must keep the app running instead of killing work."""
+
+    state = _AdapterState()
+    shell = object()
+    state.main_windows[shell] = SimpleNamespace(
+        generation_job_queue_service=SimpleNamespace(
+            has_cancellable_jobs=lambda: True,
+        ),
+    )
+    adapter = state.build_adapter()
+    adapter.set_current_shell(shell)
+
+    adapter.request_comfy_restart_from_shell()
+
+    assert adapter.restart_after_cleanup_requested is False
+    assert state.shutdown_requests == []
+
+
+def test_shell_reload_adapter_refuses_restart_when_queue_probe_fails() -> None:
+    """A broken safety probe must leave the running application untouched."""
+
+    state = _AdapterState()
+    shell = object()
+    state.main_windows[shell] = SimpleNamespace(
+        generation_job_queue_service=_FailingGenerationQueueService(
+            fail_probe=True,
+        ),
+    )
+    adapter = state.build_adapter()
+    adapter.set_current_shell(shell)
+
+    adapter.request_comfy_restart_from_shell()
+
+    assert adapter.restart_after_cleanup_requested is False
+    assert state.shutdown_requests == []
+
+
+def test_shell_reload_adapter_recovers_from_queue_observer_failure() -> None:
+    """An observer failure must not strand a false accepted-restart state."""
+
+    state = _AdapterState()
+    shell = object()
+    state.main_windows[shell] = SimpleNamespace(
+        generation_job_queue_service=_FailingGenerationQueueService(
+            fail_observer=True,
+        ),
+    )
+    adapter = state.build_adapter()
+    adapter.set_current_shell(shell)
+
+    adapter.request_comfy_restart_from_shell()
+
+    assert adapter.restart_after_cleanup_requested is False
+    assert state.shutdown_requests == []
+
+
 def test_shell_reload_adapter_builds_hydrates_and_shows_reloaded_shell() -> None:
     """Reload shell ports should build, attach, hydrate, and show with preserved geometry."""
 
@@ -371,6 +455,69 @@ class _AdapterState:
         """Return the restart handler registered for one main window."""
 
         return self.restart_handlers.get(id(main_window))
+
+
+class _GenerationQueueService:
+    """Expose observable cancellable-job state for restart tests."""
+
+    def __init__(self, *, has_cancellable_jobs: bool) -> None:
+        """Initialize queue safety and observer state."""
+
+        self._has_cancellable_jobs = has_cancellable_jobs
+        self.observers: list[Callable[[object], None]] = []
+
+    def has_cancellable_jobs(self) -> bool:
+        """Return whether a restart would terminate queued work."""
+
+        return self._has_cancellable_jobs
+
+    def add_observer(self, observer: Callable[[object], None]) -> None:
+        """Register and immediately notify one queue observer."""
+
+        self.observers.append(observer)
+        observer(object())
+
+    def remove_observer(self, observer: Callable[[object], None]) -> None:
+        """Remove one registered queue observer."""
+
+        self.observers = [
+            candidate for candidate in self.observers if candidate != observer
+        ]
+
+    def publish(self, *, has_cancellable_jobs: bool) -> None:
+        """Update queue safety and notify current observers."""
+
+        self._has_cancellable_jobs = has_cancellable_jobs
+        for observer in tuple(self.observers):
+            observer(object())
+
+
+class _FailingGenerationQueueService:
+    """Inject queue safety and observer failures without starting shutdown."""
+
+    def __init__(
+        self, *, fail_probe: bool = False, fail_observer: bool = False
+    ) -> None:
+        """Configure one queue-boundary failure."""
+
+        self._fail_probe = fail_probe
+        self._fail_observer = fail_observer
+
+    def has_cancellable_jobs(self) -> bool:
+        """Report active work or raise the configured probe failure."""
+
+        if self._fail_probe:
+            raise RuntimeError("queue probe failed")
+        return True
+
+    def add_observer(self, _observer: Callable[[object], None]) -> None:
+        """Raise the configured observer registration failure."""
+
+        if self._fail_observer:
+            raise RuntimeError("queue observer failed")
+
+    def remove_observer(self, _observer: Callable[[object], None]) -> None:
+        """Accept cleanup when registration unexpectedly succeeds."""
 
 
 class _FakeComfyRuntimeActions:
