@@ -1,3 +1,15 @@
+## [0.23.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.0...v0.23.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **prompt-editor:** keep caret movement safe after token replacement ([fe3c0af](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fe3c0afdb886bb7fa2f16ee812b65b2d670ade85))
+* **release:** finish managed update qualification promptly ([c56277b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c56277bb9d8067a52fe2cf4cf5d2af5f0ce8f5e4))
+* **release:** ship reliable 0.23.1 upgrades ([#208](https://github.com/Artificial-Sweetener/SugarSubstitute/issues/208)) ([c489624](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c4896246a8520c9fdcf7888b8ed51a2e1887f107))
+* **updater:** complete 0.23 upgrades in managed Windows hosts ([b0682cc](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b0682ccee7f18ab5cf0ce613981aa939030944ec))
+* **updater:** complete 0.23 upgrades without repair ([570fb59](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/570fb595696f62270369337546b3da699372b85e))
+* **updates:** keep one splash and retry interrupted releases ([3fa7c53](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3fa7c532b8b614594b145e809a9dbded969d783d))
+
 # [0.23.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.22.0...v0.23.0) (2026-09-19)
 
 
