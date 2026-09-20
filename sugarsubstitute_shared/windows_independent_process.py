@@ -61,6 +61,11 @@ def start_independent_windows_process(
     kernel.ResumeThread.restype = wintypes.DWORD
     child_environment = dict(environment)
     family_name = child_environment.pop(APPLICATION_PROCESS_FAMILY_ENV, None)
+    creation_flags = (
+        subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS | 0x00000004
+    )
+    if family_name:
+        creation_flags |= subprocess.CREATE_BREAKAWAY_FROM_JOB
     family = 0
     try:
         if family_name:
@@ -72,12 +77,7 @@ def start_independent_windows_process(
             environment=child_environment,
             cwd=cwd,
             output_fd=output_fd,
-            creation_flags=(
-                subprocess.CREATE_NEW_PROCESS_GROUP
-                | subprocess.DETACHED_PROCESS
-                | subprocess.CREATE_BREAKAWAY_FROM_JOB
-                | 0x00000004
-            ),
+            creation_flags=creation_flags,
         )
         admitted = False
         try:
