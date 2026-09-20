@@ -72,7 +72,7 @@ def test_compatibility_blocks_sugarcubes_before_required_release() -> None:
 
     assert result.status is RuntimeCompatibilityStatus.SUGARCUBES_TOO_OLD
     assert result.repairable is True
-    assert result.required_sugarcubes_version == "0.14.5"
+    assert result.required_sugarcubes_version == "0.14.6"
 
 
 def test_compatibility_keeps_backend_exact_but_accepts_newer_sugarcubes() -> None:
@@ -140,7 +140,7 @@ def _service(
 def _capabilities(
     *,
     extension_version: str = "1.10.0",
-    sugar_cubes_version: str = "0.14.5",
+    sugar_cubes_version: str = "0.14.6",
     sugarcubes_available: bool = True,
     features: tuple[str, ...] = (
         "cube-library",

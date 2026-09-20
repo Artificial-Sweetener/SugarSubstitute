@@ -155,7 +155,7 @@ def test_exit_two_repairs_arbitrary_missing_and_outdated_packs_together(
         "-m",
         "sugarcubes.maintenance",
         "cube-deps",
-        "sync-and-check",
+        "preflight",
         "--workspace",
         str(tmp_path),
     ]

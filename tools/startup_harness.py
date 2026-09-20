@@ -719,13 +719,12 @@ def build_sugarcubes_maintenance_command(paths: HarnessPaths) -> tuple[str, ...]
     """Return the SugarCubes offline dependency preflight command."""
 
     from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
-        build_sugarcubes_maintenance_command as build_installed_command,
+        build_sugarcubes_dependency_preflight_command as build_installed_command,
     )
 
     return build_installed_command(
         python_executable=paths.comfy_python,
         workspace=paths.comfy_root,
-        baseline_only=False,
     )
 
 

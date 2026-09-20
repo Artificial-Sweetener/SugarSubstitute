@@ -192,12 +192,12 @@ def configure_managed_install(
     monkeypatch.setattr(
         managed_install,
         "attempt_sugarcubes_startup_maintenance",
-        lambda _workspace, on_log=None, env=None: True,
+        lambda _workspace, **_kwargs: True,
     )
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "attempt_sugarcubes_startup_maintenance",
-        lambda _workspace, on_log=None, env=None: True,
+        lambda _workspace, **_kwargs: True,
     )
     monkeypatch.setattr(
         managed_install,

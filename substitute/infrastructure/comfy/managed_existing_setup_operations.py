@@ -177,6 +177,18 @@ class ManagedExistingSetupOperations(ExistingManagedSetupOperations):
             env=env,
         )
 
+    def reconcile_cached_sugarcubes_dependencies(
+        self, workspace: Path, env: Mapping[str, str]
+    ) -> None:
+        """Reconcile current requirements without synchronizing cube sources."""
+
+        attempt_sugarcubes_startup_maintenance(
+            workspace,
+            on_log=self._on_log,
+            env=env,
+            synchronize_repositories=False,
+        )
+
     def validate_torch(
         self,
         workspace: Path,

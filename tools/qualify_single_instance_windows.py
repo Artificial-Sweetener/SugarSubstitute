@@ -347,14 +347,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             graceful_forwarder = _launch(layout)
             launchers.append(graceful_forwarder)
-            _wait_for_clean_exits((graceful_forwarder, graceful_supervisor))
+            _wait_for_clean_exits((graceful_forwarder,))
+            rapid_relaunch = _launch(layout)
+            launchers.append(rapid_relaunch)
+            rapid_child_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=graceful_child_pid,
+                supervisor=rapid_relaunch,
+            )
+            _wait_for_clean_exits((graceful_supervisor,))
             _wait_for_process_exit(graceful_child_pid)
-            evidence["graceful_shutdown"] = {
+            _wait_for_splash_hosts_exit(layout)
+            _assert_single_child(layout, rapid_child_pid)
+            evidence["graceful_shutdown_and_rapid_relaunch"] = {
                 "application_pid": graceful_child_pid,
                 "forwarder_exit_code": graceful_forwarder.returncode,
+                "relaunched_application_pid": rapid_child_pid,
+                "relaunched_supervisor_pid": rapid_relaunch.pid,
                 "supervisor_exit_code": graceful_supervisor.returncode,
                 "supervisor_pid": graceful_supervisor.pid,
             }
+            _terminate_supervisor_and_child(rapid_relaunch, rapid_child_pid)
             _assert_no_live_ownership_files(layout)
             evidence["native_ownership"] = {
                 "created_live_ownership_files": [],
