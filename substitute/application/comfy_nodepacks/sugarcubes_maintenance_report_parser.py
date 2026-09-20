@@ -148,14 +148,14 @@ def sugarcubes_required_dependency_failure_message(
     )
     failed_nodes = repair_result_node_ids(result.payload, "failedNodes")
     skipped_nodes = repair_result_node_ids(result.payload, "skippedNodes")
-    parts = ["SugarCubes could not prepare all required Base-Cubes dependencies."]
+    parts = ["SugarCubes could not prepare all cube-required node packs."]
     if missing_nodes:
         parts.append(f"Missing nodepacks: {', '.join(missing_nodes)}.")
     if failed_nodes:
         parts.append(f"Failed installs: {', '.join(failed_nodes)}.")
     if skipped_nodes:
         parts.append(f"Skipped installs: {', '.join(skipped_nodes)}.")
-    parts.append("Setup cannot continue until these required custom nodes install.")
+    parts.append("Automatic node-pack reconciliation remains incomplete.")
     return " ".join(parts)
 
 

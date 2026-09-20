@@ -93,7 +93,7 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Historical qualification should prove one real existing runtime in order."""
+    """Converge current dependencies before restoring the historical node-pack pin."""
 
     workspace = tmp_path / "comfyui"
     model_root = tmp_path / "models"
@@ -211,8 +211,8 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
         "environment",
         "manager",
         "nodepacks",
-        "historical_sugarcubes",
         "sugarcubes",
+        "historical_sugarcubes",
         "model_root",
         "validation",
     ]
@@ -237,13 +237,13 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
         "HISTORICAL_MATERIALIZATION phase=manager state=completed",
         "HISTORICAL_MATERIALIZATION phase=core_nodepacks state=started",
         "HISTORICAL_MATERIALIZATION phase=core_nodepacks state=completed",
+        "HISTORICAL_MATERIALIZATION phase=sugarcubes state=started",
+        "HISTORICAL_MATERIALIZATION phase=sugarcubes state=completed",
         "HISTORICAL_MATERIALIZATION phase=historical_sugarcubes state=started",
         (
             "HISTORICAL_MATERIALIZATION phase=historical_sugarcubes "
             "state=completed version=0.11.0"
         ),
-        "HISTORICAL_MATERIALIZATION phase=sugarcubes state=started",
-        "HISTORICAL_MATERIALIZATION phase=sugarcubes state=completed",
         "HISTORICAL_MATERIALIZATION phase=model_root state=started",
         "HISTORICAL_MATERIALIZATION phase=model_root state=completed",
         "HISTORICAL_MATERIALIZATION phase=validation state=started",

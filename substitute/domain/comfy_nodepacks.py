@@ -21,7 +21,7 @@ from __future__ import annotations
 from enum import Enum
 
 SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.10.0"
-SUGARCUBES_REQUIRED_VERSION = "0.14.3"
+SUGARCUBES_REQUIRED_VERSION = "0.14.5"
 
 
 class CoreNodepackId(str, Enum):
