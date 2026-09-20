@@ -296,6 +296,13 @@ def test_managed_backend_is_verified_before_clean_live_shell_shutdown(
     )
     monkeypatch.setattr(
         installer_ui_qualification,
+        "terminate_owned_managed_comfy",
+        lambda install_root: events.append(
+            f"managed-comfy-stopped:{install_root.name}"
+        ),
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
         "wait_for_clean_qualification_shutdown",
         lambda **_arguments: events.append("clean-shutdown-complete"),
     )
@@ -319,6 +326,7 @@ def test_managed_backend_is_verified_before_clean_live_shell_shutdown(
         "single-splash",
         "managed-comfy",
         "request-clean-shutdown",
+        "managed-comfy-stopped:installed",
         "clean-shutdown-complete",
     ]
 
