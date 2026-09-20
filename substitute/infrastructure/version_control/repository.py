@@ -85,3 +85,10 @@ class RepositoryService(Protocol):
 
     def head_commit_id(self, repository_path: Path) -> str | None:
         """Return the current commit identifier when the repository has a head."""
+
+    def revision_commit_id(
+        self,
+        repository_path: Path,
+        revision: str,
+    ) -> str | None:
+        """Return the commit for one local revision, or none when unavailable."""

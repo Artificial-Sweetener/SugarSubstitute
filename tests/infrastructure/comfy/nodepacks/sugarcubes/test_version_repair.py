@@ -119,3 +119,88 @@ def test_sugarcubes_version_repair_rejects_unexpected_repository(
             python_executable=tmp_path / "python.exe",
             repositories=RecordingRepositoryService(),
         )
+
+
+def test_semver_repair_skips_trusted_checkout_at_required_tag(tmp_path: Path) -> None:
+    """A trusted Git checkout already at the required tag needs no acquisition."""
+
+    node_id = "SimpleSyrup"
+    candidate = SUGARCUBES_BASE_NODEPACK_INSTALLS[node_id][0]
+    target = tmp_path / "custom_nodes" / candidate.target_folder_name
+    commit = "1" * 40
+    repositories = RecordingRepositoryService(
+        head=commit,
+        revisions={"v1.9.2": commit},
+    )
+    payload = {
+        "dependencyReadiness": {
+            "dependencyVersionPlan": [
+                {
+                    "nodeId": node_id,
+                    "requiredVersion": "1.9.2",
+                    "requiredVersionKind": "semver",
+                    "status": "not_comparable",
+                    "repairable": True,
+                    "installedEvidence": {
+                        "sourcePath": str(target),
+                        "sourceKind": "git",
+                        "repositoryUrl": candidate.source_url,
+                        "dirty": False,
+                    },
+                }
+            ]
+        }
+    }
+
+    unresolved = sugarcubes_version_repair.unresolved_sugarcubes_semver_node_ids(
+        payload,
+        workspace=tmp_path,
+        repositories=repositories,
+    )
+
+    assert unresolved == ()
+    assert repositories.calls == [
+        ("head_commit_id", target),
+        ("revision_commit_id", (target, "v1.9.2")),
+    ]
+
+
+def test_semver_repair_selects_trusted_checkout_before_required_tag(
+    tmp_path: Path,
+) -> None:
+    """A trusted Git checkout below the required tag should request exact repair."""
+
+    node_id = "SimpleSyrup"
+    candidate = SUGARCUBES_BASE_NODEPACK_INSTALLS[node_id][0]
+    target = tmp_path / "custom_nodes" / candidate.target_folder_name
+    repositories = RecordingRepositoryService(
+        head="1" * 40,
+        revisions={"v1.9.2": "2" * 40},
+    )
+    payload = {
+        "dependencyReadiness": {
+            "dependencyVersionPlan": [
+                {
+                    "nodeId": node_id,
+                    "requiredVersion": "1.9.2",
+                    "requiredVersionKind": "semver",
+                    "status": "not_comparable",
+                    "repairable": True,
+                    "installedEvidence": {
+                        "sourcePath": str(target),
+                        "sourceKind": "git",
+                        "repositoryUrl": candidate.source_url,
+                        "dirty": False,
+                    },
+                }
+            ]
+        }
+    }
+
+    unresolved = sugarcubes_version_repair.unresolved_sugarcubes_semver_node_ids(
+        payload,
+        workspace=tmp_path,
+        repositories=repositories,
+    )
+
+    assert unresolved == (node_id,)
