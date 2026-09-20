@@ -43,23 +43,19 @@ def sugarcubes_maintenance_path_for_root(installed_root: Path) -> Path:
     return installed_root / SUGARCUBES_MAINTENANCE_RELATIVE_PATH
 
 
-def build_sugarcubes_maintenance_command(
+def build_sugarcubes_dependency_preflight_command(
     *,
     python_executable: Path,
     workspace: Path,
-    baseline_only: bool,
 ) -> tuple[str, ...]:
-    """Build a read-only SugarCubes check that includes required versions."""
-
-    if baseline_only:
-        raise ValueError("Version-aware dependency checks cannot perform repairs.")
+    """Build the authoritative offline cube-dependency readiness check."""
 
     command: tuple[str, ...] = (
         str(python_executable),
         "-m",
         SUGARCUBES_MAINTENANCE_MODULE,
         "cube-deps",
-        "sync-and-check",
+        "preflight",
         "--workspace",
         str(workspace),
     )
