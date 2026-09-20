@@ -22,7 +22,9 @@ from pathlib import Path
 
 import pytest
 
-from substitute.infrastructure.comfy import sugarcubes_dependency_installer
+from substitute.application.comfy_nodepacks.sugarcubes_dependency_repair_plan import (
+    dependency_repair_node_ids,
+)
 from substitute.infrastructure.comfy import sugarcubes_maintenance_runner
 from tests.infrastructure.comfy.nodepacks.sugarcubes.support import (
     _workspace_python_path,
@@ -49,10 +51,10 @@ FORBIDDEN_IMPORT_PREFIXES = (
 )
 
 
-def test_sugarcubes_installable_missing_node_ids_filters_readiness_plan() -> None:
-    """Install planning should only return missing, installable, uninstalled nodes."""
+def test_dependency_repair_node_ids_selects_all_actionable_work() -> None:
+    """Repair planning should include missing and outdated arbitrary packs."""
 
-    assert sugarcubes_dependency_installer.sugarcubes_installable_missing_node_ids(
+    assert dependency_repair_node_ids(
         {
             "dependencyReadiness": {
                 "ready": False,
@@ -79,28 +81,21 @@ def test_sugarcubes_installable_missing_node_ids_filters_readiness_plan() -> Non
                         "installed": False,
                     },
                 ],
+                "dependencyVersionPlan": [
+                    {
+                        "nodeId": "outdated-pack",
+                        "status": "installed_version_too_old",
+                        "repairable": True,
+                    },
+                    {
+                        "nodeId": "newer-pack",
+                        "status": "satisfied",
+                        "repairable": False,
+                    },
+                ],
             }
         }
-    ) == ("SimpleSyrup",)
-
-
-def test_sugarcubes_installable_missing_node_ids_falls_back_to_failed_nodes() -> None:
-    """Legacy repair payloads should still identify failed missing node installs."""
-
-    assert sugarcubes_dependency_installer.sugarcubes_installable_missing_node_ids(
-        {
-            "dependencyReadiness": {
-                "ready": False,
-                "missingCustomNodes": ["SimpleSyrup"],
-            },
-            "repairResult": {
-                "failedNodes": [
-                    {"nodeId": "SimpleSyrup"},
-                    {"nodeId": "not-missing"},
-                ]
-            },
-        }
-    ) == ("SimpleSyrup",)
+    ) == ("SimpleSyrup", "not-missing", "outdated-pack")
 
 
 def test_run_sugarcubes_baseline_maintenance_requires_entrypoint(
