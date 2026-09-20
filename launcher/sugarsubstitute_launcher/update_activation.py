@@ -62,6 +62,10 @@ from launcher.sugarsubstitute_launcher.update_activation_recovery import (
 from launcher.sugarsubstitute_launcher.update_activation_cleanup import (
     retire_committed_activation,
 )
+from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
+    RuntimeConfigurationSnapshot,
+    select_candidate_runtime_configuration,
+)
 from sugarsubstitute_shared.installation_mutation import (
     InstallationMutationOwnership,
     installation_mutation,
@@ -116,6 +120,9 @@ class PendingUpdateActivation:
                 )
             transaction_id = secrets.token_hex(16)
             if generation_backed:
+                runtime_configuration_snapshot = RuntimeConfigurationSnapshot.capture(
+                    layout
+                )
                 selection = ApplicationReleaseSelection(layout.root)
                 preparation_root = selection.prepare(
                     generation=transaction_id,
@@ -145,6 +152,7 @@ class PendingUpdateActivation:
                     transaction_id=transaction_id,
                     candidate_generation=transaction_id,
                     candidate_sha256=candidate_sha256,
+                    runtime_configuration_snapshot=runtime_configuration_snapshot,
                 )
                 if preparation_root != candidate_release_root(layout, journal):
                     raise UpdateRecoveryError(
@@ -263,6 +271,13 @@ class PendingUpdateActivation:
         write_update_journal_data(
             update_journal_path(self._layout), self._journal.to_json()
         )
+        select_candidate_runtime_configuration(
+            layout=self._layout,
+            candidate_layout=self._layout.for_release_root(
+                self._selection.generation_root(generation)
+            ),
+            snapshot=self._journal.runtime_configuration_snapshot,
+        )
 
     def commit(self) -> None:
         """Record the proven version and retire rollback directories."""
@@ -287,6 +302,9 @@ class PendingUpdateActivation:
             candidate_generation=self._journal.candidate_generation,
             previous_generation=self._journal.previous_generation,
             candidate_sha256=self._journal.candidate_sha256,
+            runtime_configuration_snapshot=(
+                self._journal.runtime_configuration_snapshot
+            ),
         )
         write_update_journal_data(
             update_journal_path(self._layout),
