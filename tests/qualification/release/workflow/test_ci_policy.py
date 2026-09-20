@@ -263,6 +263,11 @@ def test_release_reuses_protected_canary_gates_with_safe_fallbacks() -> None:
     preparation = jobs["prepare-release"]
     assert preparation["name"] == "Verify, build, stage, and qualify release"
     assert preparation["uses"] == "./.github/workflows/release-prepublication.yml"
+    assert preparation["needs"] == "validate-canary-evidence"
+    assert (
+        "needs.validate-canary-evidence.outputs.reusable != 'true'"
+        in preparation["with"]["run_tests"]
+    )
     assert "github.event_name != 'push'" in preparation["with"]["run_tests"]
     assert "github.ref_name != 'canary'" in preparation["with"]["run_tests"]
     assert (
@@ -296,6 +301,7 @@ def test_ci_orchestrators_delegate_to_cohesive_workflow_owners() -> None:
             "./.github/workflows/comfy-update-compatibility.yml",
         },
         "release.yml": {
+            "./.github/workflows/release-promotion-evidence.yml",
             "./.github/workflows/release-prepublication.yml",
             "./.github/workflows/release-publication.yml",
         },
