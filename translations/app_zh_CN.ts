@@ -1694,11 +1694,6 @@ This is taking much longer than expected</source>
       <translation>Comfy 重启失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
-      <source>Comfy restart requested</source>
-      <translation>已请求重启 Comfy</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="1136"></location>
       <source>Comfy restart required</source>
       <translation>需要重启 Comfy</translation>
@@ -1897,11 +1892,6 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
       <source>ComfyUI is unavailable.</source>
       <translation>ComfyUI 不可用。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
-      <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
-      <translation>必须重启 ComfyUI，之后才能使用已修复的立方体依赖项。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="134"></location>
@@ -5295,11 +5285,6 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1297"></location>
       <source>Refresh stale cached wiki pages and preview images lazily while browsing.</source>
       <translation>浏览时在后台逐步刷新过期的缓存百科页面和预览图像。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="670"></location>
-      <source>Refreshing Cube Library after restart request.</source>
-      <translation>重启请求发出后，正在刷新 Cube Library。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>

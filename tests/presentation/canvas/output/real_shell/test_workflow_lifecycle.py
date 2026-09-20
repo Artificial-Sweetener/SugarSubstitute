@@ -275,10 +275,10 @@ def test_hidden_pending_projection_for_cleared_workflow_is_pruned(
     assert "workflow-alpha" not in state.pending_projection_workflows, state
 
 
-def test_hidden_pending_projection_rekeys_when_workflow_is_renamed(
+def test_hidden_pending_projection_keeps_identity_when_workflow_is_renamed(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Renaming a workflow should not leave pending projections on old IDs."""
+    """Renaming a workflow label must retain its pending projection identity."""
 
     harness.add_workflow("alpha", activate=True)
     harness.show_canvas("Input")
@@ -293,9 +293,9 @@ def test_hidden_pending_projection_rekeys_when_workflow_is_renamed(
 
     harness.rename_workflow("alpha", "renamed-alpha")
     harness.show_canvas("Output")
-    wait_for_output_delivery(harness)
+    harness.assert_showing_workflow("renamed-alpha", color=(75, 155, 215))
 
     state = harness.fingerprint()
-    assert "workflow-alpha" not in state.workflow_output_image_ids, state
+    assert "workflow-alpha" in state.workflow_output_image_ids, state
+    assert "renamed-alpha" not in state.workflow_output_image_ids, state
     assert "workflow-alpha" not in state.pending_projection_workflows, state
-    harness.assert_showing_workflow("renamed-alpha", color=(75, 155, 215))

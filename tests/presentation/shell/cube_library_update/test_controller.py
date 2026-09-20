@@ -31,7 +31,11 @@ from substitute.application.cube_library import (
     LoadedCubeUpdateCandidate,
     LoadedCubeUpdateSelection,
 )
-from substitute.domain.cube_library import CubeUpdatePolicy
+from substitute.domain.cube_library import (
+    CubeDependencySyncAndCheckResult,
+    CubeLibraryReadiness,
+    CubeUpdatePolicy,
+)
 from substitute.presentation.shell import cube_library_update_controller
 
 
@@ -186,6 +190,31 @@ class _FakeCoordinator:
         self.shutdown_requested = True
 
 
+class _FakeDependencyReconciliationCoordinator:
+    """Capture proactive dependency reconciliation without background work."""
+
+    created_kwargs: dict[str, object] = {}
+    instance: _FakeDependencyReconciliationCoordinator | None = None
+
+    def __init__(self, **kwargs: object) -> None:
+        """Capture reconciliation collaborators and requests."""
+
+        type(self).created_kwargs = kwargs
+        type(self).instance = self
+        self.request_reasons: list[str] = []
+        self.closed = False
+
+    def request(self, *, reason: str) -> None:
+        """Record one coalescible reconciliation trigger."""
+
+        self.request_reasons.append(reason)
+
+    def close(self) -> None:
+        """Record reconciliation shutdown."""
+
+        self.closed = True
+
+
 class _FakeActions:
     """Capture update selections sent through the shell action boundary."""
 
@@ -241,6 +270,7 @@ class _Shell(SimpleNamespace):
     def __init__(self, *, backend_state: str = "ready") -> None:
         """Create shell collaborators and signals."""
 
+        self.restart_required_changes: list[bool] = []
         super().__init__(
             _backend_state=backend_state,
             backend_state_changed=_Signal(),
@@ -249,6 +279,12 @@ class _Shell(SimpleNamespace):
             workflow_session_service=SimpleNamespace(workflows={"wf": object()}),
             session_snapshot_capture_adapter=_SnapshotCapture(),
             cube_load_service=_CubeLoadService(),
+            cube_library_management_service=object(),
+            settings_route_controller=SimpleNamespace(
+                handle_cube_library_restart_required_changed=(
+                    self.restart_required_changes.append
+                )
+            ),
             autosave_count=0,
         )
 
@@ -273,6 +309,8 @@ def controller_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
     _FakeTimer.single_shots = []
     _FakeActions.failures = ()
     _FakeActions.received = ()
+    _FakeDependencyReconciliationCoordinator.created_kwargs = {}
+    _FakeDependencyReconciliationCoordinator.instance = None
     monkeypatch.setattr(
         cube_library_update_controller,
         "QApplication",
@@ -283,6 +321,11 @@ def controller_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
         cube_library_update_controller,
         "CubeLibraryUpdateCoordinator",
         _FakeCoordinator,
+    )
+    monkeypatch.setattr(
+        cube_library_update_controller,
+        "CubeDependencyReconciliationCoordinator",
+        _FakeDependencyReconciliationCoordinator,
     )
     monkeypatch.setattr(
         cube_library_update_controller,
@@ -305,6 +348,29 @@ def _candidate(cube_id: str = "cube") -> LoadedCubeUpdateCandidate:
         display_name="Cube",
         reason=CubeLibraryUpdateReason.VERSION_DRIFT,
         update_policy=CubeUpdatePolicy.PINNED,
+    )
+
+
+def _dependency_result(*, restart_required: bool) -> CubeDependencySyncAndCheckResult:
+    """Build one authoritative dependency reconciliation result."""
+
+    readiness = CubeLibraryReadiness(
+        schema_version=1,
+        ready=True,
+        required_custom_nodes=("simple-syrup",),
+        missing_custom_nodes=(),
+        installed_custom_nodes=("simple-syrup",),
+        can_install=True,
+        install_supported=True,
+        catalog_revision="revision",
+        errors=(),
+    )
+    return CubeDependencySyncAndCheckResult(
+        schema_version=1,
+        readiness=readiness,
+        repair_result=None,
+        restart_required=restart_required,
+        errors=(),
     )
 
 
@@ -356,6 +422,9 @@ def test_controller_wires_listener_signals_and_event_filter() -> None:
     assert listener.started is True
     assert listener.stopped is True
     assert cast(Any, controller.coordinator).shutdown_requested is True
+    reconciliation = _FakeDependencyReconciliationCoordinator.instance
+    assert reconciliation is not None
+    assert reconciliation.closed is True
 
 
 def test_listener_waits_until_backend_ready() -> None:
@@ -423,6 +492,79 @@ def test_library_change_invalidates_cache_and_routes_to_coordinator() -> None:
     assert shell.cube_load_service.invalidated is True
     coordinator = cast(Any, controller.coordinator)
     assert coordinator.changed_updates == [update]
+    reconciliation = _FakeDependencyReconciliationCoordinator.instance
+    assert reconciliation is not None
+    assert reconciliation.request_reasons == ["cube_library_changed"]
+
+
+def test_startup_hydration_reconciles_dependencies_before_cube_use() -> None:
+    """Startup hydration should proactively reconcile current Cube requirements."""
+
+    controller = _controller()
+
+    controller.schedule_startup_update_check()
+
+    reconciliation = _FakeDependencyReconciliationCoordinator.instance
+    assert reconciliation is not None
+    assert reconciliation.request_reasons == ["startup_hydrated"]
+    assert cast(Any, controller.coordinator).refresh_requested is True
+
+
+def test_reconciliation_result_registers_restart_without_disabling_shell() -> None:
+    """A repaired environment should request restart and preserve shell access."""
+
+    shell = _Shell()
+    original_backend_state = shell._backend_state
+    _controller(shell)
+    result_observer = cast(
+        Any,
+        _FakeDependencyReconciliationCoordinator.created_kwargs["result_observer"],
+    )
+
+    result_observer(_dependency_result(restart_required=True))
+
+    assert shell.restart_required_changes == [True]
+    assert shell._backend_state == original_backend_state
+    assert tuple(shell.workflow_session_service.workflows) == ("wf",)
+
+
+def test_reconciliation_result_clears_restart_when_runtime_is_authoritatively_ready() -> (
+    None
+):
+    """A later ready result should clear obsolete restart presentation state."""
+
+    shell = _Shell()
+    _controller(shell)
+    result_observer = cast(
+        Any,
+        _FakeDependencyReconciliationCoordinator.created_kwargs["result_observer"],
+    )
+
+    result_observer(_dependency_result(restart_required=True))
+    result_observer(_dependency_result(restart_required=False))
+
+    assert shell.restart_required_changes == [True, False]
+    assert shell._backend_state == "ready"
+
+
+def test_reconciliation_failure_keeps_shell_available_and_retryable() -> None:
+    """A failed repair report must not mutate backend or workflow availability."""
+
+    shell = _Shell()
+    controller = _controller(shell)
+    failure_observer = cast(
+        Any,
+        _FakeDependencyReconciliationCoordinator.created_kwargs["failure_observer"],
+    )
+
+    failure_observer(RuntimeError("offline"))
+    controller.schedule_startup_update_check()
+
+    assert shell._backend_state == "ready"
+    assert tuple(shell.workflow_session_service.workflows) == ("wf",)
+    reconciliation = _FakeDependencyReconciliationCoordinator.instance
+    assert reconciliation is not None
+    assert reconciliation.request_reasons == ["startup_hydrated"]
 
 
 def test_follow_latest_updates_apply_and_request_autosave() -> None:

@@ -27,6 +27,17 @@ from substitute.application.workflows.canvas_image_registry import CanvasImageRe
 from substitute.application.workflows.input_canvas_document_port import (
     InputCanvasDocumentPort,
 )
+from substitute.application.workflows.input_canvas_ports import (
+    MaskLayerRemovalAuthorization,
+    MaskLayerRemovalOutcome,
+)
+from substitute.application.workflows.input_mask_layer_removal import (
+    authorize_workflow_mask_layer_removal,
+    commit_workflow_mask_layer_removal,
+    mask_belongs_to_image,
+    mask_ids_for_association,
+    workflow_owns_input_image,
+)
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
     InputRouteProjectorPort,
@@ -105,7 +116,7 @@ class InputCanvasStateService:
     ) -> bool:
         """Persist and display an Input image owned by the active workflow."""
 
-        if not self._workflow_owns_input_image(workflow, image_id):
+        if not workflow_owns_input_image(workflow, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -141,7 +152,7 @@ class InputCanvasStateService:
                 reason="missing_active_input_image",
             )
             return False
-        if not self._mask_belongs_to_image(workflow, mask_id, image_id):
+        if not mask_belongs_to_image(workflow, mask_id, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -183,7 +194,7 @@ class InputCanvasStateService:
 
         previous_opacity = workflow.canvas.mask_visual_opacity(association_key)
         updated_mask_ids: list[UUID] = []
-        for mask_id in self._mask_ids_for_association(workflow, association_key):
+        for mask_id in mask_ids_for_association(workflow, association_key):
             if self._input_document.set_mask_visual_opacity(mask_id, normalized):
                 updated_mask_ids.append(mask_id)
                 continue
@@ -220,7 +231,7 @@ class InputCanvasStateService:
     ) -> tuple[UUID, ...]:
         """Return every materialized mask owned by one graph mask node."""
 
-        return self._mask_ids_for_association(workflow, association_key)
+        return mask_ids_for_association(workflow, association_key)
 
     def synchronize_mask_visual_opacity_state(
         self,
@@ -269,7 +280,7 @@ class InputCanvasStateService:
         opacity = workflow.canvas.mask_visual_opacities.get(association_key)
         if opacity is None:
             return True
-        if mask_id not in self._mask_ids_for_association(workflow, association_key):
+        if mask_id not in mask_ids_for_association(workflow, association_key):
             log_warning(
                 _LOGGER,
                 "Rejected Input mask opacity projection for foreign association",
@@ -356,7 +367,7 @@ class InputCanvasStateService:
     ) -> UUID | None:
         """Restore one Input mask and remap its snapshot id to the live layer id."""
 
-        if not self._workflow_owns_input_image(active_workflow, image_id):
+        if not workflow_owns_input_image(active_workflow, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -459,7 +470,7 @@ class InputCanvasStateService:
     ) -> UUID | None:
         """Create one blank mask layer for an explicitly owned Input image."""
 
-        if not self._workflow_owns_input_image(active_workflow, image_id):
+        if not workflow_owns_input_image(active_workflow, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -509,7 +520,7 @@ class InputCanvasStateService:
     ) -> UUID | None:
         """Load one mask file layer for an explicitly owned Input image."""
 
-        if not self._workflow_owns_input_image(active_workflow, image_id):
+        if not workflow_owns_input_image(active_workflow, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -563,7 +574,7 @@ class InputCanvasStateService:
     ) -> bool:
         """Update one associated mask layer after Input ownership validation."""
 
-        if not self._workflow_owns_input_image(active_workflow, image_id):
+        if not workflow_owns_input_image(active_workflow, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -589,7 +600,7 @@ class InputCanvasStateService:
                 reason="mask_update_association_mismatch",
             )
             return False
-        if not self._mask_belongs_to_image(active_workflow, mask_id, image_id):
+        if not mask_belongs_to_image(active_workflow, mask_id, image_id):
             self._log_input_rejection(
                 workflow_id=workflow_id,
                 image_id=image_id,
@@ -629,33 +640,32 @@ class InputCanvasStateService:
         )
         return updated
 
-    def remove_workflow_mask_layer(
+    def authorize_workflow_mask_layer_removal(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
         image_id: UUID,
         mask_id: UUID,
-    ) -> bool:
-        """Remove one explicitly owned mask layer without guessing collection state."""
+    ) -> MaskLayerRemovalAuthorization | None:
+        """Authorize one owned live-layer side effect before durable mutation."""
 
-        if not self._mask_belongs_to_image(active_workflow, mask_id, image_id):
-            self._log_input_rejection(
-                workflow_id=workflow_id,
-                image_id=image_id,
-                mask_id=mask_id,
-                reason="foreign_mask_remove",
-            )
-            return False
-        removed = self._input_document.remove_mask_from_image(image_id, mask_id)
-        log_debug(
-            _LOGGER,
-            "Removed workflow-owned input canvas mask layer",
+        return authorize_workflow_mask_layer_removal(
             workflow_id=workflow_id,
-            image_id=str(image_id),
-            mask_id=str(mask_id),
-            removed=removed,
+            workflow=active_workflow,
+            image_id=image_id,
+            mask_id=mask_id,
         )
-        return removed
+
+    def commit_workflow_mask_layer_removal(
+        self,
+        authorization: MaskLayerRemovalAuthorization,
+    ) -> MaskLayerRemovalOutcome:
+        """Apply one previously authorized live-layer removal side effect."""
+
+        return commit_workflow_mask_layer_removal(
+            input_document=self._input_document,
+            authorization=authorization,
+        )
 
     def drop_mask_association(
         self,
@@ -913,41 +923,6 @@ class InputCanvasStateService:
 
         if workflow.canvas.active_input_mask_uuid in {None, snapshot_mask_id}:
             workflow.canvas.active_input_mask_uuid = live_mask_id
-
-    @staticmethod
-    def _workflow_owns_input_image(workflow: WorkflowState, image_id: UUID) -> bool:
-        """Return whether workflow-local Input state owns image_id."""
-
-        return workflow.canvas.image_entry_for_id(image_id) is not None
-
-    @staticmethod
-    def _mask_belongs_to_image(
-        workflow: WorkflowState,
-        mask_id: UUID,
-        image_id: UUID,
-    ) -> bool:
-        """Return whether one complete mask entry proves mask ownership."""
-
-        return workflow.canvas.owns_mask(mask_id, image_id)
-
-    @staticmethod
-    def _mask_ids_for_association(
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-    ) -> tuple[UUID, ...]:
-        """Return every materialized mask owned by one scalar or ordered node."""
-
-        scalar = workflow.canvas.mask_entry(association_key)
-        collection = workflow.canvas.regional_mask_collection(association_key)
-        return (() if scalar is None else (scalar.mask_id,)) + (
-            ()
-            if collection is None
-            else tuple(
-                entry.mask_id
-                for entry in collection.entries
-                if entry.mask_id is not None
-            )
-        )
 
     def _remove_input_uuid_if_unreferenced(
         self,

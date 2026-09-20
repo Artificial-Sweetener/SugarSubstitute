@@ -273,6 +273,7 @@ class CubeDependencySyncAndCheckRequest:
     include_versions: bool = True
     baseline_only: bool = False
     approved_node_ids: tuple[str, ...] = ()
+    approve_all: bool = False
     repair: bool = False
 
     def to_payload(self) -> JsonObject:
@@ -288,6 +289,7 @@ class CubeDependencySyncAndCheckRequest:
                 "includeVersions": self.include_versions,
                 "baselineOnly": self.baseline_only,
                 "approvedNodeIds": list(self.approved_node_ids),
+                "approveAll": self.approve_all,
                 "repair": self.repair,
             },
         }

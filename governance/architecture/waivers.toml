@@ -256,7 +256,7 @@ kind = "remediation"
 justification = "The assessed file mixes input route projection and scope binding, input image loading, claiming, and restoration, mask creation, loading, update, and removal, asset ownership cleanup, mask opacity synchronization. Extract image and mask asset lifecycle from route projection and visual-state synchronization."
 issue = "chore:SS-ARCH-023"
 review_by = 2026-12-15
-max_lines = 897
+max_lines = 876
 next_limit = 717
 debt = "SS-ARCH-023"
 
@@ -803,7 +803,7 @@ kind = "remediation"
 justification = "The assessed file mixes pack-management settings presentation, asynchronous library operations, GitHub Cube Pack URL parsing and validation, pack and readiness detail projection, dependency repair and restart coordination, operation-result and notification presentation. Extract GitHub pack reference parsing and operation coordination from settings-page presentation."
 issue = "chore:SS-ARCH-074"
 review_by = 2026-12-15
-max_lines = 1160
+max_lines = 1117
 next_limit = 928
 debt = "SS-ARCH-074"
 
@@ -894,7 +894,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow tabbar construction, canvas and editor scaffold construction, generation progress overlay construction, queue side-panel state and width transitions, workspace widget bundle assembly. Extract the queue side-panel host and feature scaffold builders from workspace bundle assembly."
 issue = "chore:SS-ARCH-081"
 review_by = 2026-12-15
-max_lines = 575
+max_lines = 542
 next_limit = 500
 debt = "SS-ARCH-081"
 
@@ -933,7 +933,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1649
+max_lines = 1606
 next_limit = 1284
 debt = "SS-ARCH-084"
 
@@ -1110,7 +1110,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 677
+max_lines = 672
 
 [[waivers]]
 id = "SS-WAIVER-S011"
@@ -1923,7 +1923,7 @@ kind = "structural"
 justification = "This module owns one user-level driver for the real-shell output canvas. Harness-safe shell construction, workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
 issue = "chore:SS-WAIVER-S120"
 review_by = 2026-12-15
-max_lines = 665
+max_lines = 668
 
 [[waivers]]
 id = "SS-WAIVER-S126"

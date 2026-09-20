@@ -37,7 +37,6 @@ from substitute.presentation.localization import (
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
 from urllib.parse import urlparse
 
 from PySide6.QtCore import Qt, Signal
@@ -129,13 +128,6 @@ class CubeLibraryOperationResult:
     error: BaseException | None = None
 
 
-class ComfyRestartService(Protocol):
-    """Describe the restart operation Cube Library can request after repair."""
-
-    def restart_comfy(self) -> object | None:
-        """Request a Comfy restart through the active target."""
-
-
 class CubeLibrarySettingsPage(QWidget):
     """Display Cube Library status and manage target Cube Packs."""
 
@@ -146,9 +138,8 @@ class CubeLibrarySettingsPage(QWidget):
         self,
         service: CubeLibraryManagementService,
         *,
-        restart_service: ComfyRestartService | None = None,
+        restart_requested: Callable[[], None] | None = None,
         restart_required_changed: Callable[[bool], None] | None = None,
-        post_restart_refresh: Callable[[], None] | None = None,
         catalog_invalidated: Callable[[], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         parent: QWidget | None = None,
@@ -158,9 +149,8 @@ class CubeLibrarySettingsPage(QWidget):
 
         super().__init__(parent)
         self._service = service
-        self._restart_service = restart_service
+        self._restart_requested = restart_requested
         self._restart_required_changed = restart_required_changed
-        self._post_restart_refresh = post_restart_refresh
         self._catalog_invalidated = catalog_invalidated
         self._error_presenter = error_presenter
         self._packs: tuple[CubePackRecord, ...] = ()
@@ -385,9 +375,6 @@ class CubeLibrarySettingsPage(QWidget):
                 ),
             )
             return
-        if self._restart_required_after_repair:
-            self._restart_required_after_repair = False
-            self._notify_restart_required_changed(False)
         self._render_status(snapshot)
         if not snapshot.available:
             self._packs = ()
@@ -637,10 +624,9 @@ class CubeLibrarySettingsPage(QWidget):
             )
 
     def _request_restart_comfy(self) -> None:
-        """Request Comfy restart after dependency repair."""
+        """Request restart through the shell's generation-safe lifecycle."""
 
-        restart_service = self._restart_service
-        if restart_service is None:
+        if self._restart_requested is None:
             self._show_notification(
                 severity="warning",
                 title=app_text("Restart ComfyUI manually"),
@@ -649,41 +635,14 @@ class CubeLibrarySettingsPage(QWidget):
                 ),
             )
             return
-        self._run_background(
-            task_id="cube_library_restart_comfy",
-            operation=lambda: self._restart_comfy(restart_service),
-        )
-
-    def _restart_comfy(self, restart_service: ComfyRestartService) -> None:
-        """Run restart request through the settings task route."""
-
         try:
-            job = restart_service.restart_comfy()
-            self.operation_finished.emit(
-                CubeLibraryOperationResult(
-                    operation="restart_comfy",
-                    success=job is not None,
-                    severity="success" if job is not None else "error",
-                    title=app_text("Comfy restart requested")
-                    if job is not None
-                    else app_text("Comfy restart failed"),
-                    message=app_text("Refreshing Cube Library after restart request.")
-                    if job is not None
-                    else app_text("Comfy restart could not be started."),
-                    payload=job,
-                )
-            )
+            self._restart_requested()
         except Exception as error:
             log_exception(_LOGGER, "Failed to request Comfy restart", error=error)
-            self.operation_finished.emit(
-                CubeLibraryOperationResult(
-                    operation="restart_comfy",
-                    success=False,
-                    severity="error",
-                    title=app_text("Comfy restart failed"),
-                    message=app_text("Comfy restart could not be started."),
-                    error=error,
-                )
+            self._show_notification(
+                severity="error",
+                title=app_text("Comfy restart failed"),
+                message=app_text("Comfy restart could not be started."),
             )
 
     def _validate_pack(
@@ -1103,13 +1062,6 @@ class CubeLibrarySettingsPage(QWidget):
                 self._notify_restart_required_changed(True)
                 self._render_restart_required_action()
                 return
-        if result.operation == "restart_comfy" and result.success:
-            if self._post_restart_refresh is not None:
-                self._post_restart_refresh()
-            if self._catalog_invalidated is not None:
-                self._catalog_invalidated()
-            self.refresh()
-            return
         if result.operation in {"validation", "add"}:
             self._render_validation_result(result.payload)
             if result.operation == "validation":

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from substitute.application.workflows import (
     DEFAULT_WORKFLOW_TAB_LABEL,
     WorkflowSessionService,
@@ -46,6 +48,8 @@ def test_plan_new_workflow_tab_generates_unique_labels() -> None:
     assert first.tab_label == "Recipe"
     assert second.tab_label == "Recipe (2)"
     assert first.workflow_id != second.workflow_id
+    assert str(UUID(first.workflow_id)) == first.workflow_id
+    assert str(UUID(second.workflow_id)) == second.workflow_id
 
 
 def test_normalize_default_workflow_tab_label_updates_generated_defaults() -> None:
@@ -209,13 +213,12 @@ def test_inline_rename_invalid_name_reverts_to_old_key() -> None:
     decision = service.resolve_inline_rename(
         old_workflow_id="main",
         proposed_name="bad/name",
-        existing_tab_keys={"main"},
-        existing_workflow_ids={"main"},
+        existing_labels=set(),
     )
 
     assert decision.accepted is False
     assert decision.workflow_id == "main"
-    assert decision.tab_label == "main"
+    assert decision.tab_label == ""
 
 
 def test_inline_rename_conflict_is_resolved_with_suffix() -> None:
@@ -225,10 +228,9 @@ def test_inline_rename_conflict_is_resolved_with_suffix() -> None:
     decision = service.resolve_inline_rename(
         old_workflow_id="workflow_11111",
         proposed_name="main",
-        existing_tab_keys={"main", "workflow_11111"},
-        existing_workflow_ids={"main", "workflow_11111"},
+        existing_labels={"main"},
     )
 
     assert decision.accepted is True
-    assert decision.workflow_id == "main (2)"
+    assert decision.workflow_id == "workflow_11111"
     assert decision.tab_label == "main (2)"

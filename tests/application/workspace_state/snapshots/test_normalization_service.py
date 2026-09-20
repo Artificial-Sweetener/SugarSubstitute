@@ -44,7 +44,7 @@ from substitute.domain.workspace_snapshot.models import (
 def test_snapshot_normalization_repairs_workflow_order_and_active_route(
     tmp_path: Path,
 ) -> None:
-    """Normalizer should drop duplicate workflows and repair tab references."""
+    """Normalizer should retain every workflow and repair ambiguous identities."""
 
     image_path = tmp_path / "output.png"
     image_path.write_bytes(b"image")
@@ -62,18 +62,24 @@ def test_snapshot_normalization_repairs_workflow_order_and_active_route(
 
     result = SnapshotNormalizationService().normalize(snapshot)
 
-    assert [workflow.workflow_id for workflow in result.snapshot.workflows] == ["wf-1"]
-    assert result.snapshot.tab_order == ("wf-1",)
+    workflow_ids = [workflow.workflow_id for workflow in result.snapshot.workflows]
+    assert workflow_ids[0] == "wf-1"
+    assert len(workflow_ids) == 3
+    assert len(set(workflow_ids)) == 3
+    assert all(UUID(identity) for identity in workflow_ids[1:])
+    assert result.snapshot.tab_order == tuple(workflow_ids)
     assert result.snapshot.active_route == "wf-1"
-    assert "Dropped duplicate workflow id wf-1." in result.warnings
-    assert "Dropped workflow with missing id." in result.warnings
+    assert any(
+        "Reassigned duplicate workflow id wf-1" in item for item in result.warnings
+    )
+    assert any("Assigned missing workflow id" in item for item in result.warnings)
     assert "Removed stale workflow id missing from tab order." in result.warnings
 
 
-def test_snapshot_normalization_drops_missing_images_and_stale_focus(
+def test_snapshot_normalization_retains_missing_images_and_focus_for_recovery(
     tmp_path: Path,
 ) -> None:
-    """Normalizer should clear output focus when referenced images are missing."""
+    """Missing files must remain authoritative references available to recovery."""
 
     existing_input = tmp_path / "input.png"
     existing_input.write_bytes(b"image")
@@ -95,11 +101,10 @@ def test_snapshot_normalization_drops_missing_images_and_stale_focus(
     result = SnapshotNormalizationService().normalize(snapshot)
     normalized = result.snapshot.workflows[0]
 
-    assert normalized.output_images == ()
-    assert normalized.workflow.output_image_uuids == []
-    assert normalized.workflow.active_output_uuid is None
-    assert f"Dropped missing output image {output_id}." in result.warnings
-    assert "Cleared stale active output UUID." in result.warnings
+    assert normalized.output_images == workflow.output_images
+    assert normalized.workflow.output_image_uuids == [output_id]
+    assert normalized.workflow.active_output_uuid == output_id
+    assert f"Retained unresolved output image {output_id}." in result.warnings
 
 
 def test_snapshot_normalization_keeps_settings_route(tmp_path: Path) -> None:

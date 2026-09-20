@@ -26,6 +26,9 @@ from uuid import UUID
 from PySide6.QtGui import QImage
 
 from substitute.application.workflows import ImageMeta
+from substitute.application.workflows.mask_asset_recovery_port import (
+    WorkflowMaskAssetRecoveryPort,
+)
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot import (
     InputImageReference,
@@ -41,10 +44,16 @@ _LOGGER = get_logger("presentation.shell.workspace_restore_image_adapter")
 class WorkspaceRestoreImageAdapter:
     """Own restored image loading and canvas-state replay for the shell."""
 
-    def __init__(self, shell: Any) -> None:
+    def __init__(
+        self,
+        shell: Any,
+        *,
+        mask_asset_recovery: WorkflowMaskAssetRecoveryPort | None = None,
+    ) -> None:
         """Store the shell that supplies restore image services."""
 
         self._shell = shell
+        self._mask_asset_recovery = mask_asset_recovery
 
     def set_restore_asset_preload(self, preload: object | None) -> None:
         """Attach preloaded restore image bytes for GUI-thread decoding."""
@@ -125,6 +134,14 @@ class WorkspaceRestoreImageAdapter:
             )
             return False
         workflow_id, workflow = workflow_match
+        if self._mask_asset_recovery is not None:
+            unsaved_state = self._shell.unsaved_work_service.state_for(workflow_id)
+            reference = self._mask_asset_recovery.recover_reference(
+                workflow_id=workflow_id,
+                workflow=workflow,
+                reference=reference,
+                document_source_path=unsaved_state.source_path,
+            )
         live_mask_id = self._shell.input_canvas_state_service.restore_input_mask(
             workflow_id,
             workflow,

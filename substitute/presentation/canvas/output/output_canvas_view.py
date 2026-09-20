@@ -393,6 +393,10 @@ class OutputCanvas(QWidget):
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Apply one authorized projection through the Output document workspace."""
 
+        self.document.validate_detail_inspection_groups(
+            workflow_id=session.workflow_id.value,
+            groups=session.detail_inspection_groups,
+        )
         previous_source_key = self.active_source_key
         previous_set_index = self.active_set_index
         previous_scene_key = self.active_scene_key
@@ -435,6 +439,11 @@ class OutputCanvas(QWidget):
         self._visible_compare_state = compare_state
         self._document_navigation.synchronize_projection()
         self._present_projection(projection, compare_state=compare_state)
+
+    def discard_workflow_detail_groups(self, workflow_id: str) -> None:
+        """Release retained Output inspection state for a closed workflow."""
+
+        self.document.discard_workflow_detail_groups(workflow_id)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Update host-owned navigation overlay geometry after a workspace resize."""

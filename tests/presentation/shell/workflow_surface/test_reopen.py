@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from uuid import UUID
 
 
 from substitute.application.workflows import (
@@ -142,9 +143,10 @@ def test_reopen_latest_closed_workflow_rekeys_on_id_collision() -> None:
 
     assert reopened is True
     assert "wf-b" in view.workflow_session_service.workflows
-    assert "wf-b_reopened" in view.workflow_session_service.workflows
-    assert view.workflow_session_service.active_workflow_id == "wf-b_reopened"
-    assert view.workflow_tabbar.itemMap["wf-b_reopened"].text() == "Old B"
+    reopened_id = view.workflow_session_service.active_workflow_id
+    assert str(UUID(reopened_id)) == reopened_id
+    assert reopened_id != "wf-b"
+    assert view.workflow_tabbar.itemMap[reopened_id].text() == "Old B"
 
 
 def test_reopen_latest_closed_workflow_drops_corrupt_payload_without_crash() -> None:

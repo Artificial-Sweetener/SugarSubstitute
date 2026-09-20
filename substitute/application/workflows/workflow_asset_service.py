@@ -410,13 +410,13 @@ class WorkflowAssetService:
             return Path(asset_ref.path)
         if isinstance(asset_ref, ProjectAssetRef):
             return _resolve_project_asset_path(
-                workflow_name=workflow_name,
+                workflow_name=asset_ref.storage_owner or workflow_name,
                 relative_path=asset_ref.relative_path,
                 projects_dir=projects_dir,
             )
         if isinstance(asset_ref, ProjectMaskAssetRef):
             return _resolve_mask_path(
-                workflow_name=workflow_name,
+                workflow_name=asset_ref.storage_owner or workflow_name,
                 path_from_buffer=asset_ref.relative_path,
                 projects_dir=projects_dir,
             )
@@ -443,7 +443,7 @@ class WorkflowAssetService:
         if isinstance(asset_ref, ProjectMaskAssetRef):
             try:
                 resolved_path = _resolve_mask_path(
-                    workflow_name=workflow_name,
+                    workflow_name=asset_ref.storage_owner or workflow_name,
                     path_from_buffer=asset_ref.relative_path,
                     projects_dir=projects_dir,
                 )
@@ -483,7 +483,7 @@ class WorkflowAssetService:
         if isinstance(asset_ref, ProjectAssetRef):
             try:
                 resolved_path = _resolve_project_asset_path(
-                    workflow_name=workflow_name,
+                    workflow_name=asset_ref.storage_owner or workflow_name,
                     relative_path=asset_ref.relative_path,
                     projects_dir=projects_dir,
                 )
