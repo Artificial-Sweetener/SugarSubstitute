@@ -52,6 +52,11 @@ class NativeProcessHandleApi:
             ctypes.POINTER(wintypes.DWORD),
         ]
         self._kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        self._kernel.GetExitCodeProcess.argtypes = [
+            wintypes.HANDLE,
+            ctypes.POINTER(wintypes.DWORD),
+        ]
+        self._kernel.GetExitCodeProcess.restype = wintypes.BOOL
         self._kernel.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
         self._kernel.TerminateProcess.restype = wintypes.BOOL
 
@@ -102,6 +107,14 @@ class NativeProcessHandleApi:
         ):
             raise ctypes.WinError(ctypes.get_last_error())
         return Path(image.value)
+
+    def exit_code(self, handle: int) -> int:
+        """Return the completed process's native exit code."""
+
+        code = wintypes.DWORD()
+        if not self._kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return int(code.value)
 
     def terminate(self, handle: int) -> None:
         """End only the retained object, accepting an already completed exit."""
