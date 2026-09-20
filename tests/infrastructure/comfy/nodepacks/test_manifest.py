@@ -97,10 +97,10 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
     assert by_project["SugarCubes"].local_source_environment_variable == (
         "SUGARSUBSTITUTE_SUGARCUBES_SOURCE"
     )
-    assert by_project["SugarCubes"].required_version == "0.14.4"
+    assert by_project["SugarCubes"].required_version == "0.14.5"
     assert by_project["SugarCubes"].fallback_archive_url == (
         "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
-        "v0.14.4.zip"
+        "v0.14.5.zip"
     )
     assert by_project["SugarCubes"].expected_folder == (
         Path("custom_nodes") / "SugarCubes"
