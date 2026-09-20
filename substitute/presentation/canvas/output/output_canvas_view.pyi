@@ -194,3 +194,6 @@ class OutputCanvas(QWidget):
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Bind the active Output projection session into the workspace."""
         ...
+    def discard_workflow_detail_groups(self, workflow_id: str) -> None:
+        """Release retained Output inspection state for a closed workflow."""
+        ...

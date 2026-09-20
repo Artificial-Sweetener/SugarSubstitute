@@ -106,7 +106,7 @@ _CONTROLLER_NAMES = (
     "SessionAutosaveController",
     "WorkspaceRestoreController",
     "RestoredWorkflowMaterializer",
-    "WorkspaceRestoreImageAdapter",
+    "build_workspace_restore_image_adapter",
     "EditorViewportRestoreController",
     "RestoreProjectionController",
     "GenerationResultWorkspaceMaterializer",

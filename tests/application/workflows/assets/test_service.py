@@ -20,8 +20,12 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import cast
+from uuid import uuid4
 
 from substitute.application.workflows import WorkflowAssetService
+from substitute.application.workflows.project_asset_owner_service import (
+    ProjectAssetOwnerService,
+)
 from substitute.application.workflows.editor_projection_service import (
     DIRECT_WORKFLOW_SECTION_KEY,
 )
@@ -167,6 +171,51 @@ def test_associate_project_input_mask_updates_graph_and_persisted_asset_ref() ->
     ) == ProjectMaskAssetRef(
         relative_path="test__2160x3072__Inpaint__load_image_as_mask.png"
     )
+
+
+def test_pin_project_asset_owners_covers_graph_and_regional_mask_refs() -> None:
+    """First rename should bind every legacy project reference to its old folder."""
+
+    image_id = uuid4()
+    workflow = WorkflowState(
+        metadata={
+            "asset_refs": {
+                "input_images": {
+                    "Cube:Image": {
+                        "kind": "project_asset",
+                        "relative_path": "inputs/image.png",
+                    }
+                },
+                "input_masks": {
+                    "Cube:Mask": {
+                        "kind": "project_mask",
+                        "relative_path": "mask.png",
+                    }
+                },
+            }
+        }
+    )
+    collection = workflow.canvas.ensure_regional_mask_collection(("Cube", "Batch"))
+    region = collection.add_region(
+        image_id,
+        asset_ref=ProjectMaskAssetRef("region.png"),
+    )
+
+    pinned = ProjectAssetOwnerService().pin_legacy_owners(
+        workflow,
+        storage_owner="Original Name",
+    )
+
+    assert pinned == 3
+    asset_refs = cast(JsonObject, workflow.metadata["asset_refs"])
+    images = cast(JsonObject, asset_refs["input_images"])
+    masks = cast(JsonObject, asset_refs["input_masks"])
+    assert cast(JsonObject, images["Cube:Image"])["storage_owner"] == "Original Name"
+    assert cast(JsonObject, masks["Cube:Mask"])["storage_owner"] == "Original Name"
+    regional_ref = collection.entry(region.region_id)
+    assert regional_ref is not None
+    assert isinstance(regional_ref.asset_ref, ProjectMaskAssetRef)
+    assert regional_ref.asset_ref.storage_owner == "Original Name"
 
 
 def test_associate_local_input_mask_updates_graph_and_persisted_asset_ref() -> None:

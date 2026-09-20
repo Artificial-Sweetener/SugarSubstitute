@@ -202,7 +202,6 @@ if TYPE_CHECKING:
         WorkflowActivationTransition,
         WorkflowCloseTransition,
         WorkflowCreationTransition,
-        WorkflowRenameTransition,
         WorkflowSessionService,
         WorkflowSessionState,
     )
@@ -480,9 +479,6 @@ _EXPORT_MODULES = {
     "live_node_definition_error_to_cube_issues": (
         "substitute.application.workflows.cube_runtime_issues"
     ),
-    "WorkflowRenameTransition": (
-        "substitute.application.workflows.workflow_session_service"
-    ),
     "WorkflowSessionService": (
         "substitute.application.workflows.workflow_session_service"
     ),
@@ -658,7 +654,6 @@ __all__ = [
     "WorkflowInlineRenameDecision",
     "WorkflowIssueState",
     "live_node_definition_error_to_cube_issues",
-    "WorkflowRenameTransition",
     "WorkflowSessionService",
     "WorkflowSessionState",
     "WorkflowState",

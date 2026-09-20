@@ -22,6 +22,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
 
+from substitute.application.prompt_editor.document.service import PromptDocumentService
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
     snapshot_invariant_violations,
 )
@@ -56,6 +57,34 @@ def test_real_shell_emphasis_shortcut_crosses_zero_and_undoes(
     real_shell_scenario.input.undo(field)
 
     assert field.editor.toPlainText() == "(cat:0.00), dog"
+
+
+def test_real_shell_repeated_emphasis_keeps_one_shell(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Repeated Ctrl+Up must adjust one emphasis instead of nesting wrappers."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="1girl")
+    cursor = field.editor.textCursor()
+    cursor.setPosition(0)
+    cursor.setPosition(5, QTextCursor.MoveMode.KeepAnchor)
+    field.editor.setTextCursor(cursor)
+
+    for _step in range(3):
+        real_shell_scenario.input.press_key(
+            field,
+            Qt.Key.Key_Up,
+            modifiers=Qt.KeyboardModifier.ControlModifier,
+        )
+
+    source = field.editor.toPlainText()
+    assert source == "(1girl:1.15)"
+    assert len(PromptDocumentService().build_document_view(source).emphasis_spans) == 1
+    snapshot = real_shell_scenario.snapshots.capture(
+        field,
+        label="repeated-emphasis-single-shell",
+    )
+    assert not snapshot_invariant_violations(snapshot)
 
 
 def test_real_shell_typed_selection_replacement_preserves_exact_keys(

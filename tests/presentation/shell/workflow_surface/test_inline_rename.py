@@ -38,15 +38,34 @@ def test_rejected_inline_rename_restores_old_label() -> None:
     assert view.workflow_tabbar.itemMap["wf-a"].text() == "wf-a"
 
 
-def test_accepted_inline_rename_rekeys_workflow_progress() -> None:
-    """Accepted workflow renames should move runtime progress ownership."""
+def test_accepted_inline_rename_changes_label_without_rekeying_identity() -> None:
+    """Accepted workflow renames must preserve every workflow-keyed owner."""
 
     mod = _import_module()
     view = _build_view()
+    workflow = view.workflow_session_service.get_workflow("wf-a")
+    assert workflow is not None
+    workflow.metadata["asset_refs"] = {
+        "input_masks": {
+            "Cube:Mask": {
+                "kind": "project_mask",
+                "relative_path": "mask.png",
+            }
+        }
+    }
 
     mod.WorkflowWorkspaceCoordinator(view).rename_workflow(
         "wf-a",
         "Renamed Workflow",
     )
 
-    assert "progress:rename:wf-a:Renamed Workflow" in view.calls
+    assert view.workflow_tabbar.itemMap["wf-a"].text() == "Renamed Workflow"
+    assert view.workflow_session_service.active_workflow_id == "wf-a"
+    assert set(view.workflow_session_service.workflows) == {"wf-a", "wf-b"}
+    assert set(view.editor_panels) == {"wf-a", "wf-b"}
+    assert set(view.cube_stacks) == {"wf-a", "wf-b"}
+    assert not any(call.startswith("progress:rename:") for call in view.calls)
+    assert (
+        workflow.metadata["asset_refs"]["input_masks"]["Cube:Mask"]["storage_owner"]
+        == "wf-a"
+    )

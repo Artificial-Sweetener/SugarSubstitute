@@ -25,7 +25,6 @@ from substitute.presentation.settings.cube_library_page import (
     CubeLibraryOperationResult,
 )
 from tests.presentation.settings.cube_library.support import (
-    FakeRestartService,
     application,
     build_page,
     readiness,
@@ -41,14 +40,12 @@ def test_cube_library_page_offers_restart_after_dependency_repair(
     """Dependency repair requiring restart should render a restart action."""
 
     app = application()
-    restart_service = FakeRestartService()
+    restart_requests: list[object] = []
     restart_required_changes: list[bool] = []
-    post_restart_refreshes: list[object] = []
     page = build_page(
         monkeypatch,
-        restart_service=restart_service,
+        restart_requested=lambda: restart_requests.append(object()),
         restart_required_changed=restart_required_changes.append,
-        post_restart_refresh=lambda: post_restart_refreshes.append(object()),
     )
     page._apply_snapshot(
         snapshot(packs=(), readiness=readiness(missing_custom_nodes=()))
@@ -69,12 +66,10 @@ def test_cube_library_page_offers_restart_after_dependency_repair(
     restart_button = readiness_button(page, "Restart Comfy")
     restart_button.click()
 
-    assert restart_service.restart_count == 1
-    assert page.notification_bar.title_label.text() == "Comfy restart requested"
-    assert len(post_restart_refreshes) == 1
+    assert len(restart_requests) == 1
     assert restart_required_changes == [True]
     page._apply_snapshot(
         snapshot(packs=(), readiness=readiness(missing_custom_nodes=()))
     )
-    assert restart_required_changes == [True, False]
+    assert restart_required_changes == [True]
     page.close()

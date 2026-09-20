@@ -65,6 +65,9 @@ class OutputProjectionSessionSink(Protocol):
     def clear_previews(self, source_key: str | None = None) -> None:
         """Retire transient preview rendering for the visible Output canvas."""
 
+    def discard_workflow_detail_groups(self, workflow_id: str) -> None:
+        """Release retained inspection definitions for a closed workflow."""
+
 
 class OutputProjectionContentSynchronizer(Protocol):
     """Synchronize projected Output image payloads with the presentation document."""
@@ -262,7 +265,7 @@ class OutputCanvasProjectionCoordinator:
     ) -> None:
         """Prune unreferenced Output catalog images after workflow close."""
 
-        self._output_navigation_session_service.discard_workflow(closed_workflow_id)
+        self.discard_workflow_projection_state(closed_workflow_id)
         output_prune_result = (
             self._output_canvas_state_service.prune_closed_workflow_images(
                 closed_workflow_id,
@@ -273,6 +276,13 @@ class OutputCanvasProjectionCoordinator:
         self._content_synchronizer.retire_unreferenced(
             output_prune_result.removed_image_ids
         )
+
+    def discard_workflow_projection_state(self, workflow_id: str) -> None:
+        """Release retained navigation and detail groups while preserving images."""
+
+        self._output_navigation_session_service.discard_workflow(workflow_id)
+        if self._projection_sink is not None:
+            self._projection_sink.discard_workflow_detail_groups(workflow_id)
 
     def _bind_canvas_session(
         self,

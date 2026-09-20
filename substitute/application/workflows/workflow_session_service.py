@@ -59,15 +59,6 @@ class WorkflowCloseTransition(Generic[WorkflowT]):
     removed_workflow: WorkflowT | None
 
 
-@dataclass(frozen=True)
-class WorkflowRenameTransition:
-    """Describe a workflow id rename and active-id outcome."""
-
-    old_workflow_id: str
-    new_workflow_id: str
-    active_changed: bool
-
-
 @dataclass
 class WorkflowSessionState(Generic[WorkflowT]):
     """Store mutable workflow-session state for a single desktop session."""
@@ -200,37 +191,6 @@ class WorkflowSessionService(Generic[WorkflowT]):
             removed_workflow=removed,
         )
 
-    def rename_workflow(
-        self,
-        old_workflow_id: str,
-        new_workflow_id: str,
-    ) -> WorkflowRenameTransition | None:
-        """Rename workflow id mapping and update active id when needed."""
-        if old_workflow_id == new_workflow_id:
-            if old_workflow_id not in self._state.workflows:
-                return None
-            return WorkflowRenameTransition(
-                old_workflow_id=old_workflow_id,
-                new_workflow_id=new_workflow_id,
-                active_changed=False,
-            )
-        if old_workflow_id not in self._state.workflows:
-            return None
-        if new_workflow_id in self._state.workflows:
-            raise ValueError(f"Workflow id '{new_workflow_id}' already exists.")
-
-        self._state.workflows[new_workflow_id] = self._state.workflows.pop(
-            old_workflow_id
-        )
-        active_changed = self._state.active_workflow_id == old_workflow_id
-        if self._state.active_workflow_id == old_workflow_id:
-            self._state.active_workflow_id = new_workflow_id
-        return WorkflowRenameTransition(
-            old_workflow_id=old_workflow_id,
-            new_workflow_id=new_workflow_id,
-            active_changed=active_changed,
-        )
-
     def activate_workflow(self, workflow_id: str) -> WorkflowActivationTransition:
         """Switch active workflow id and return transition metadata."""
         if workflow_id not in self._state.workflows:
@@ -287,7 +247,6 @@ __all__ = [
     "WorkflowActivationTransition",
     "WorkflowCloseTransition",
     "WorkflowCreationTransition",
-    "WorkflowRenameTransition",
     "WorkflowSessionService",
     "WorkflowSessionState",
 ]

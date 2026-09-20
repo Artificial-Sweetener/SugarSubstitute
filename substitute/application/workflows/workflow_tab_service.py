@@ -14,24 +14,19 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Provide workflow-tab naming and re-key policies for presentation callers."""
+"""Provide workflow-tab naming and immutable identity policies."""
 
 from __future__ import annotations
 
 import random
 import re
 from dataclasses import dataclass
-from typing import Collection, Iterable, MutableMapping, TypeVar
+from typing import Collection
+from uuid import UUID
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text, opaque_text
 
-MapValueT = TypeVar("MapValueT")
-
 _SAFE_WORKFLOW_NAME_PATTERN = re.compile(r"^[\w \-]+$")
-_INVALID_NAME_MESSAGE = (
-    "Invalid characters in name.\n\n"
-    "Use only letters, numbers, spaces, underscores (_), or hyphens (-)."
-)
 DEFAULT_WORKFLOW_TAB_LABEL = opaque_text("Untitled Workflow")
 _LEGACY_DEFAULT_WORKFLOW_TAB_LABEL = opaque_text("Untitled Recipe")
 _DEFAULT_WORKFLOW_TAB_LABEL_PATTERN = re.compile(
@@ -103,7 +98,7 @@ class WorkflowInlineRenameDecision:
 
 
 class WorkflowTabService:
-    """Own deterministic workflow-tab naming and dictionary re-key behavior."""
+    """Own workflow-tab naming and immutable identity generation."""
 
     def __init__(self, random_generator: random.Random | None = None) -> None:
         """Create service with injectable random source for test determinism."""
@@ -118,7 +113,7 @@ class WorkflowTabService:
     ) -> WorkflowTabCreation:
         """Plan a unique workflow id and tab label for a new workflow tab."""
         unique_label = self.resolve_unique_label(base_name, existing_labels)
-        workflow_id = self._generate_unique_workflow_id(existing_workflow_ids)
+        workflow_id = self.generate_workflow_id(existing_workflow_ids)
         return WorkflowTabCreation(workflow_id=workflow_id, tab_label=unique_label)
 
     def resolve_inline_rename(
@@ -126,10 +121,9 @@ class WorkflowTabService:
         *,
         old_workflow_id: str,
         proposed_name: str,
-        existing_tab_keys: Collection[str],
-        existing_workflow_ids: Collection[str],
+        existing_labels: Collection[str],
     ) -> WorkflowInlineRenameDecision:
-        """Resolve inline rename to valid unique id or reject with visual revert."""
+        """Resolve a label-only rename while preserving immutable identity."""
         normalized_name = proposed_name.strip()
         if not normalized_name or not _SAFE_WORKFLOW_NAME_PATTERN.match(
             normalized_name
@@ -137,52 +131,20 @@ class WorkflowTabService:
             return WorkflowInlineRenameDecision(
                 accepted=False,
                 workflow_id=old_workflow_id,
-                tab_label=old_workflow_id,
+                tab_label="",
             )
 
         unique_name = normalized_name
         counter = 2
-        while self._has_name_conflict(
-            candidate_name=unique_name,
-            old_workflow_id=old_workflow_id,
-            existing_tab_keys=existing_tab_keys,
-            existing_workflow_ids=existing_workflow_ids,
-        ):
+        while unique_name in existing_labels:
             unique_name = f"{normalized_name} ({counter})"
             counter += 1
 
         return WorkflowInlineRenameDecision(
             accepted=True,
-            workflow_id=unique_name,
+            workflow_id=old_workflow_id,
             tab_label=unique_name,
         )
-
-    @staticmethod
-    def rekey_mapping(
-        mapping: MutableMapping[str, MapValueT],
-        *,
-        old_key: str,
-        new_key: str,
-    ) -> None:
-        """Move value from old key to new key in mapping when old key exists."""
-        if old_key == new_key or old_key not in mapping:
-            return
-        mapping[new_key] = mapping.pop(old_key)
-
-    def rekey_workflow_scoped_maps(
-        self,
-        *,
-        old_workflow_id: str,
-        new_workflow_id: str,
-        mappings: Iterable[MutableMapping[str, object]],
-    ) -> None:
-        """Re-key every workflow-scoped mapping to match renamed workflow id."""
-        for mapping in mappings:
-            self.rekey_mapping(
-                mapping,
-                old_key=old_workflow_id,
-                new_key=new_workflow_id,
-            )
 
     def resolve_unique_label(
         self, base_name: str, existing_labels: Collection[str]
@@ -200,32 +162,12 @@ class WorkflowTabService:
                 return candidate
             counter += 1
 
-    def _generate_unique_workflow_id(
-        self, existing_workflow_ids: Collection[str]
-    ) -> str:
-        """Generate unique internal workflow id in legacy random-id format."""
+    def generate_workflow_id(self, existing_workflow_ids: Collection[str]) -> str:
+        """Generate one unique immutable UUID workflow identity."""
         while True:
-            candidate = f"workflow_{self._random.randint(10000, 99999)}"
+            candidate = str(UUID(int=self._random.getrandbits(128), version=4))
             if candidate not in existing_workflow_ids:
                 return candidate
-
-    @staticmethod
-    def _has_name_conflict(
-        *,
-        candidate_name: str,
-        old_workflow_id: str,
-        existing_tab_keys: Collection[str],
-        existing_workflow_ids: Collection[str],
-    ) -> bool:
-        """Return True when candidate collides with another tab/workflow id."""
-        in_tabs = (
-            candidate_name in existing_tab_keys and candidate_name != old_workflow_id
-        )
-        in_workflows = (
-            candidate_name in existing_workflow_ids
-            and candidate_name != old_workflow_id
-        )
-        return in_tabs or in_workflows
 
 
 __all__ = [
