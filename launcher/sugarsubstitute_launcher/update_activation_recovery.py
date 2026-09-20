@@ -42,6 +42,9 @@ from sugarsubstitute_shared.installation_mutation import (
 from launcher.sugarsubstitute_launcher.update_activation_publication import (
     publish_committed_activation,
 )
+from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
+    restore_runtime_configuration,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +67,9 @@ def recover_interrupted_update(
             else:
                 selection.recover_failed_activation(
                     generation=journal.candidate_generation
+                )
+                restore_runtime_configuration(
+                    layout, journal.runtime_configuration_snapshot
                 )
             remove_update_journal(layout)
             _LOGGER.warning(
