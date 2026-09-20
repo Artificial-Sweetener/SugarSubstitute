@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 import subprocess
 import time
@@ -189,7 +188,7 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
         SimpleNamespace(pid=123, poll=lambda: None),
     )
 
-    def _popen(command: list[str], **kwargs: object) -> object:
+    def _start(command: list[str], **kwargs: object) -> object:
         """Capture the process contract without starting an executable."""
 
         observed["command"] = command
@@ -197,8 +196,8 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
         return fake_process
 
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.subprocess.Popen",
-        _popen,
+        "tools.ci.installer_ui_qualification.start_windows_desktop_process",
+        _start,
     )
 
     launch = launch_installed_candidate(
@@ -221,11 +220,7 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
     assert isinstance(launch, InstalledCandidateLaunch)
     assert launch.process is fake_process
     assert observed["command"] == [str(layout.executable_path)]
-    assert observed["stdout"] is observed["stderr"]
-    assert observed["stdin"] is subprocess.DEVNULL
-    assert observed["close_fds"] is True
-    assert observed["start_new_session"] is (os.name != "nt")
-    assert observed["env"] == {
+    assert observed["environment"] == {
         "QUALIFICATION": "1",
         "SSL_CERT_FILE": "candidate-ca.pem",
     }
