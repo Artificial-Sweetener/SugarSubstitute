@@ -527,10 +527,10 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, caret, autocomplete, focus, and pointer owner construction, and Qt input, focus, viewport, and paint lifecycle routing. Extract the now cycle-free caret, autocomplete, focus, and pointer construction into a cohesive pre-source interaction runtime."
+justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, diagnostic, history, and remaining projection runtime coordination, and Qt input, focus, viewport, and paint lifecycle routing. Move diagnostic construction into presentation ownership, then extract history and remaining projection runtime coordination from the Qt event surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 1522
+max_lines = 1478
 next_limit = 1350
 debt = "SS-ARCH-061"
 

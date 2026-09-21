@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from .exact_weight_editor import PromptExactWeightEditor, PromptExactWeightEditorHost
+from .exact_weight_editor import PromptExactWeightEditorHost
 
 from typing import Callable, cast
 
@@ -99,7 +99,6 @@ from ..interactions.text_mutation_controller import (
 )
 from ..interactions import (
     PromptSurfaceKeyHost,
-    PromptSurfaceMouseHandler,
     PromptSurfaceMouseHost,
     PromptSurfaceWheelHost,
     PromptWheelScrollResult,
@@ -113,8 +112,6 @@ from .autocomplete_preview_projection_owner import (
 from .caret_movement_controller import (
     PromptProjectionCaretMovementHost,
 )
-from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
-from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .caret_visual import PromptSurfaceCaretVisualController
 from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .emphasis_projection_owner import PromptProjectionEmphasisOwner
@@ -125,7 +122,6 @@ from .fill_band_cache import (
 from .frame_state import (
     PromptProjectionEditorState,
 )
-from .focus_owner import PromptProjectionFocusOwner
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
@@ -162,6 +158,10 @@ from .surface_foundation import (
 from .surface_input_runtime import (
     PromptProjectionSurfaceInputBindings,
     build_prompt_projection_surface_input_runtime,
+)
+from .surface_interaction_runtime import (
+    PromptProjectionSurfaceInteractionBindings,
+    build_prompt_projection_surface_interaction_runtime,
 )
 from .surface_graph_effects import (
     PromptProjectionSurfaceGraphEffects,
@@ -263,54 +263,44 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._transient_edit_overlays = foundation.transient_overlays
         graph_effects = PromptProjectionSurfaceGraphEffects()
         self._presentation_runtime: PromptProjectionSurfacePresentationRuntime
-        self.exact_weight_editor = PromptExactWeightEditor(
-            cast(PromptExactWeightEditorHost, self),
-            rebuild_projection=graph_effects.rebuild_projection,
+        interaction_runtime = build_prompt_projection_surface_interaction_runtime(
+            PromptProjectionSurfaceInteractionBindings(
+                surface=self,
+                exact_weight_host=cast(PromptExactWeightEditorHost, self),
+                mouse_host=cast(PromptSurfaceMouseHost, self),
+                editing_session=self._editing_session,
+                editor_state=self._editor_state,
+                caret_state=self._caret_state_owner,
+                transient_overlays=self._transient_edit_overlays,
+                session=self._session,
+                layout=self._layout,
+                graph_effects=graph_effects,
+                scroll_offset=self._scroll_offset,
+                selection=self._selection,
+                collapse_expanded_token=self._collapse_expanded_token_if_possible,
+                emit_cursor_position_changed=self.cursorPositionChanged.emit,
+                flush_pending_projection=(
+                    lambda reason: self._flush_pending_projection_update(reason=reason)
+                ),
+                request_update=self.viewport().update,
+                surface_state=lambda: surface_probe_state(self),
+                request_lora_context_menu=(
+                    self._lora_feature_delegate.request_context_menu
+                ),
+            )
         )
+        self.exact_weight_editor = interaction_runtime.exact_weight
+        self._caret_geometry = interaction_runtime.caret_geometry
+        self._caret_publication = interaction_runtime.caret_publication
+        self._autocomplete_preview_projection_owner = (
+            interaction_runtime.autocomplete_preview
+        )
+        self._focus_owner = interaction_runtime.focus
+        self._mouse_handler = interaction_runtime.mouse
         self._exact_source_editing_enabled = False
         self._reorder: PromptReorderProjectionOwner
         self._caret_visual_controller: PromptSurfaceCaretVisualController
         self._projection_freshness_controller: PromptProjectionFreshnessController
-        self._autocomplete_preview_projection_owner: (
-            PromptAutocompletePreviewProjectionOwner
-        )
-        self._caret_geometry = PromptProjectionCaretGeometryOwner(
-            state=self._caret_state_owner,
-            editor_state=self._editor_state,
-            overlays=self._transient_edit_overlays,
-            freshness_is_stale_safe=graph_effects.projection_is_stale,
-            cursor_position=lambda: self.cursor_position,
-            anchor_position=lambda: self.anchor_position,
-            committed_document_rect=(
-                lambda state: self._layout.frame.geometry.caret.cursor_rect(
-                    state,
-                    scroll_offset=0.0,
-                )
-            ),
-            scroll_offset=self._scroll_offset,
-        )
-        self._caret_publication = PromptProjectionCaretPublicationOwner(
-            state=self._caret_state_owner,
-            editor_state=self._editor_state,
-            editing_session=self._editing_session,
-            selection=self._selection,
-            current_caret_rect=self._caret_geometry.current_viewport_rect,
-            clear_transient_geometry=self._caret_geometry.clear_transient,
-            expanded_source_range_present=(
-                lambda: self._session.expanded_source_range is not None
-            ),
-            collapse_expanded_token=self._collapse_expanded_token_if_possible,
-            reconcile_autocomplete=graph_effects.reconcile_autocomplete,
-            refresh_active_projection=graph_effects.refresh_active_projection,
-            ensure_caret_visible=graph_effects.ensure_caret_visible,
-            refresh_caret_layers=graph_effects.refresh_caret_layers,
-            refresh_deferred_caret_layers=(graph_effects.refresh_deferred_caret_layers),
-            restart_caret_blink=graph_effects.restart_caret_blink,
-            request_viewport_update=self.viewport().update,
-            update_caret_paint=graph_effects.update_caret_paint,
-            emit_cursor_position_changed=self.cursorPositionChanged.emit,
-            surface_state=lambda: surface_probe_state(self),
-        )
         self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
             parent=self,
             diagnostics=lambda: self._session.diagnostics,
@@ -329,40 +319,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             device_pixel_ratio=lambda: float(self.viewport().devicePixelRatioF()),
             is_alive=lambda: qt_object_is_alive(self),
             request_update=graph_effects.diagnostic_layer_changed,
-        )
-        self._autocomplete_preview_projection_owner = (
-            PromptAutocompletePreviewProjectionOwner(
-                session=self._session,
-                flush_pending_projection=(
-                    lambda: self._flush_pending_projection_update(
-                        reason="autocomplete_preview"
-                    )
-                ),
-                base_projection_is_stale=graph_effects.projection_is_stale,
-                rebuild_base_projection=graph_effects.rebuild_projection,
-                rebuild_active_projection=graph_effects.rebuild_active_projection,
-                request_repaint=self.viewport().update,
-                surface_state=lambda: surface_probe_state(self),
-            )
-        )
-        self._focus_owner = PromptProjectionFocusOwner(
-            surface=self,
-            prepare_source_line_chrome=graph_effects.prepare_focus_chrome,
-            schedule_caret_blink=graph_effects.schedule_caret_blink,
-            parent=self,
-        )
-        self._mouse_handler = PromptSurfaceMouseHandler(
-            cast(PromptSurfaceMouseHost, self),
-            caret_publication=self._caret_publication,
-            caret_geometry=self._caret_geometry,
-            rebuild_projection=graph_effects.rebuild_projection,
-            ensure_pointer_focus=self._focus_owner.ensure_pointer_focus,
-            clear_autocomplete_preview=(
-                self._autocomplete_preview_projection_owner.clear_preview_state
-            ),
-            request_lora_context_menu=(
-                self._lora_feature_delegate.request_context_menu
-            ),
         )
         self._editing_enabled = True
         self._history = PromptProjectionHistoryOwner(
