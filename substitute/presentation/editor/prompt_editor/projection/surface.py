@@ -157,6 +157,7 @@ from .frame_synchronizer import PromptProjectionFrameSynchronizer
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
 )
+from .geometry_reuse_warmer import PromptProjectionGeometryReuseWarmer
 from .input_method_controller import (
     PromptInputMethodController,
     PromptInputMethodHost,
@@ -386,6 +387,18 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._external_text_input = PromptExternalTextInputOwner(
             self._insert_external_mime_text
         )
+        self._geometry_reuse_warmer = PromptProjectionGeometryReuseWarmer(
+            is_available=lambda: qt_object_is_alive(self),
+            is_projected=(
+                lambda: self._display_mode is PromptProjectionDisplayMode.PROJECTED
+            ),
+            prewarm=(
+                lambda: (
+                    self._layout.frame.output.snapshot.prewarm_inline_object_fragment_index()
+                )
+            ),
+            parent=self,
+        )
         source_state_owners = build_prompt_projection_source_state_owners(
             PromptProjectionSourceStateBindings(
                 applicator=self._projection_applicator,
@@ -402,7 +415,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 fact_context=self,
                 source_effect_sink=self,
                 source_caret_sink=self,
-                document_effect_sink=self,
+                document_scroll_bar=self.verticalScrollBar(),
+                schedule_geometry_reuse_warm=(
+                    lambda reason: self._geometry_reuse_warmer.schedule(reason=reason)
+                ),
                 diagnostics=self._diagnostic_layer_owner,
                 transient_viewport=self.viewport(),
                 transient_scroll_offset=self._scroll_offset,
@@ -529,13 +545,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             reorder_geometry=self._reorder_geometry_owner.projection_geometry,
             geometry_state=lambda: reorder_geometry_state(self._layout.frame.geometry),
         )
-        self._projection_geometry_reuse_warm_timer = QTimer(self)
-        self._projection_geometry_reuse_warm_timer.setSingleShot(True)
-        self._projection_geometry_reuse_warm_timer.setInterval(0)
-        self._projection_geometry_reuse_warm_timer.timeout.connect(
-            self._warm_projection_geometry_reuse_indexes
-        )
-        self._projection_geometry_reuse_warm_requested = False
         self._pointer_interactions = PromptSurfacePointerInteractions()
         self._region_chrome = PromptRegionChrome()
         self._render_frame_owner = PromptProjectionRenderFrameOwner()
@@ -3054,27 +3063,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             active_match_index=self._session.active_search_match_index,
             palette=self.palette(),
         )
-
-    def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
-        """Queue emphasis geometry-reuse cache warming outside source replacement."""
-
-        _ = reason
-        if not qt_object_is_alive(self):
-            return
-        if self._display_mode is not PromptProjectionDisplayMode.PROJECTED:
-            return
-        if self._projection_geometry_reuse_warm_requested:
-            return
-        self._projection_geometry_reuse_warm_requested = True
-        self._projection_geometry_reuse_warm_timer.start(0)
-
-    def _warm_projection_geometry_reuse_indexes(self) -> None:
-        """Populate layout indexes used by repeated emphasis geometry checks."""
-
-        self._projection_geometry_reuse_warm_requested = False
-        if not qt_object_is_alive(self):
-            return
-        self._layout.frame.output.snapshot.prewarm_inline_object_fragment_index()
 
     def _update_incremental_plain_text_projection_paint(
         self,

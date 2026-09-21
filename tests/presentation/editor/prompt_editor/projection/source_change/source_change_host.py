@@ -212,8 +212,8 @@ class _SourceChangeHost:
         self.autocomplete_preview_clear_count += 1
         self._session.set_autocomplete_preview(None)
 
-    def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
-        """Record geometry warm scheduling."""
+    def schedule(self, *, reason: str) -> None:
+        """Record one geometry reuse warm request."""
 
         self.geometry_warm_reasons.append(reason)
 
