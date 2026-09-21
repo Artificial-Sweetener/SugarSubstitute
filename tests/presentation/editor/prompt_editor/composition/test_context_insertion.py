@@ -21,25 +21,28 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from substitute.presentation.editor.prompt_editor.composition import factory
+from substitute.presentation.editor.prompt_editor.composition import (
+    context_insertion_factory,
+    service_factory,
+)
 
 
-_FACTORY_PATH = Path(factory.__file__)
+_CONTEXT_INSERTION_FACTORY_PATH = Path(context_insertion_factory.__file__)
+_SERVICE_FACTORY_PATH = Path(service_factory.__file__)
 
 
 def test_context_insertion_composition_receives_only_its_direct_callbacks() -> None:
     """Keep context insertion from rediscovering the public widget through context."""
 
-    module = ast.parse(_FACTORY_PATH.read_text(encoding="utf-8"))
+    source = _CONTEXT_INSERTION_FACTORY_PATH.read_text(encoding="utf-8")
+    module = ast.parse(source)
     method = next(
         node
         for node in ast.walk(module)
         if isinstance(node, ast.FunctionDef)
         and node.name == "build_context_insertion_service"
     )
-    method_source = ast.get_source_segment(
-        _FACTORY_PATH.read_text(encoding="utf-8"), method
-    )
+    method_source = ast.get_source_segment(source, method)
 
     assert method_source is not None
     assert "context.editor" not in method_source
@@ -52,7 +55,7 @@ def test_context_insertion_composition_receives_only_its_direct_callbacks() -> N
 def test_scene_position_composition_receives_the_direct_source_callback() -> None:
     """Keep scene preparation from recovering prompt source through the widget."""
 
-    source = _FACTORY_PATH.read_text(encoding="utf-8")
+    source = _SERVICE_FACTORY_PATH.read_text(encoding="utf-8")
 
     assert "source_text=lambda: cast(Any, context.editor).toPlainText()" not in source
     assert "source_text=source_text_provider" in source

@@ -43,7 +43,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
     port = f"{prefix}interactions.reorder_overlay_port"
     session = f"{prefix}interactions.reorder_overlay_session"
     factory = f"{prefix}composition.reorder_overlay_factory"
-    composition_factory = f"{prefix}composition.factory"
+    syntax_factory = f"{prefix}composition.syntax_factory"
     application_views = "substitute.application.prompt_editor.reorder.views"
     application_preview_sync = (
         "substitute.application.prompt_editor.reorder.preview_sync"
@@ -93,7 +93,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
             overlay,
             session,
             factory,
-            composition_factory,
+            syntax_factory,
             publication_owner,
             preview_builder,
             projection_provider,
@@ -104,7 +104,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
             overlay,
             session,
             factory,
-            composition_factory,
+            syntax_factory,
             publication_owner,
             preview_builder,
             projection_provider,
@@ -140,7 +140,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
         }
     )
     assert {overlay, port} <= graph[factory]
-    assert publication_owner in graph[composition_factory]
+    assert publication_owner in graph[syntax_factory]
 
     overlay_source = module_paths[overlay].read_text(encoding="utf-8")
     controller_source = module_paths[session].read_text(encoding="utf-8")

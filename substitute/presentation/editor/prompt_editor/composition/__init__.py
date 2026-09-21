@@ -25,15 +25,19 @@ from .collaborator_bundle import (
     PromptEditorTaskExecutorFactory,
 )
 from .autocomplete_factory import PromptEditorAutocompleteFactory
+from .bundle_factory import build_resize_handle, bundle_collaborators
 from .context import PromptEditorCompositionContext
 from .execution_factory import PromptEditorExecutionFactory
-from .factory import (
-    PromptEditorCompositionFactory,
+from .foundations import (
     build_external_url_action_runner,
     build_prompt_document_service,
 )
+from .context_insertion_factory import build_context_insertion_service
+from .danbooru_factory import PromptEditorDanbooruFactory
 from .projection_factory import PromptEditorProjectionFactory
+from .syntax_factory import PromptEditorSyntaxFactory
 from .menu_factory import PromptEditorMenuFactory
+from .service_factory import PromptEditorServiceFactory
 from .signal_bindings import (
     PromptEditorDiagnosticsControllerBinding,
     PromptEditorSignalHost,
@@ -56,10 +60,12 @@ __all__ = [
     "PromptEditorCollaborators",
     "PromptEditorAutocompleteFactory",
     "PromptEditorCompositionContext",
-    "PromptEditorCompositionFactory",
+    "PromptEditorDanbooruFactory",
     "PromptEditorExecutionFactory",
     "PromptEditorMenuFactory",
     "PromptEditorProjectionFactory",
+    "PromptEditorServiceFactory",
+    "PromptEditorSyntaxFactory",
     "PromptEditorConstructionInputs",
     "PromptEditorConstructionLifecycleHost",
     "PromptEditorConstructionObserver",
@@ -71,8 +77,11 @@ __all__ = [
     "apply_prompt_editor_initial_layout",
     "bind_prompt_editor_diagnostics_signals",
     "bind_prompt_editor_signals",
+    "build_context_insertion_service",
     "build_external_url_action_runner",
     "build_prompt_document_service",
+    "build_resize_handle",
+    "bundle_collaborators",
     "is_deleted_qt_object_error",
     "qt_object_is_alive",
     "wire_prompt_editor_construction_lifecycle",

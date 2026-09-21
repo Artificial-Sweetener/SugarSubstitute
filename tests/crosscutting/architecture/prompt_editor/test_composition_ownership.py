@@ -41,7 +41,7 @@ def _class_methods(path_name: str, class_name: str) -> set[str]:
 
 def test_projection_and_execution_composition_have_direct_owners() -> None:
     """Keep projection and async construction out of the mixed factory."""
-    remaining_methods = _class_methods("factory.py", "PromptEditorCompositionFactory")
+    assert not (PROMPT_PRESENTATION_ROOT / "composition" / "factory.py").exists()
     execution_methods = _class_methods(
         "execution_factory.py",
         "PromptEditorExecutionFactory",
@@ -51,14 +51,6 @@ def test_projection_and_execution_composition_have_direct_owners() -> None:
         "PromptEditorProjectionFactory",
     )
 
-    assert (
-        not {
-            "build_projection_collaborators",
-            "build_prompt_task_executor",
-            "build_prompt_request_channel",
-        }
-        & remaining_methods
-    )
     assert {"build_task_executor", "build_request_channel"} <= execution_methods
     assert "build" in projection_methods
 
@@ -69,22 +61,12 @@ def test_projection_and_execution_composition_have_direct_owners() -> None:
 
 def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
     """Keep autocomplete and menu construction out of the mixed factory."""
-    remaining_methods = _class_methods("factory.py", "PromptEditorCompositionFactory")
     autocomplete_methods = _class_methods(
         "autocomplete_factory.py",
         "PromptEditorAutocompleteFactory",
     )
     menu_methods = _class_methods("menu_factory.py", "PromptEditorMenuFactory")
 
-    assert (
-        not {
-            "build_autocomplete",
-            "build_prompt_menu_presenter",
-            "build_inline_lora_menu_presenter",
-            "build_lora_picker_popup_presenter",
-        }
-        & remaining_methods
-    )
     assert "build" in autocomplete_methods
     assert {
         "build_prompt_menu_presenter",
@@ -95,3 +77,13 @@ def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
     assert "PromptEditorAutocompleteFactory(" in widget_source
     assert "PromptEditorMenuFactory(" in widget_source
+
+
+def test_syntax_interaction_composition_has_a_direct_owner() -> None:
+    """Keep syntax, reorder, and weight construction out of the mixed factory."""
+    syntax_methods = _class_methods("syntax_factory.py", "PromptEditorSyntaxFactory")
+
+    assert "build" in syntax_methods
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    assert "PromptEditorSyntaxFactory(" in widget_source
