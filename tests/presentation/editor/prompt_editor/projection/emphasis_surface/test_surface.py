@@ -197,7 +197,7 @@ def test_projection_surface_pulses_emphasis_feedback_without_rebuild(
     rebuild_calls: list[str] = []
     cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
 
-    surface.pulse_emphasis_feedback(
+    surface.emphasis.pulse_feedback(
         outer_start=token.source_start,
         outer_end=token.source_end,
     )
@@ -284,14 +284,14 @@ def test_projection_surface_can_project_and_clear_transient_neutral_emphasis(
     )
     surface = surface_for(box)
 
-    surface.show_transient_neutral_emphasis(content_start=0, content_end=3)
+    surface.emphasis.show_transient_neutral(content_start=0, content_end=3)
 
     token = first_emphasis_token(box)
     assert box.toPlainText() == "cat, dog"
     assert token.synthetic is True
     assert token.value_text == "1.00"
 
-    surface.clear_transient_neutral_emphasis()
+    surface.emphasis.clear_transient_neutral()
 
     assert surface.projection_document().tokens == ()
 

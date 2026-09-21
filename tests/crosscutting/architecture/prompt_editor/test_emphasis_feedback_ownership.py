@@ -21,12 +21,19 @@ from __future__ import annotations
 from .inventory import PROMPT_PRESENTATION_ROOT
 
 
-def test_surface_delegates_emphasis_feedback_state_to_focused_owner() -> None:
-    """Keep accent ranges and pulse timing outside the mounted surface."""
+def test_surface_delegates_emphasis_projection_to_focused_owner() -> None:
+    """Keep emphasis state, feedback, and caret policy outside the mounted surface."""
 
     projection_root = PROMPT_PRESENTATION_ROOT / "projection"
     surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
-    owner_source = (projection_root / "emphasis_feedback_owner.py").read_text(
+    projection_owner_source = (
+        projection_root / "emphasis_projection_owner.py"
+    ).read_text(encoding="utf-8")
+    feedback_owner_source = (projection_root / "emphasis_feedback_owner.py").read_text(
+        encoding="utf-8"
+    )
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    facade_source = (PROMPT_PRESENTATION_ROOT / "emphasis_facade.py").read_text(
         encoding="utf-8"
     )
 
@@ -38,6 +45,26 @@ def test_surface_delegates_emphasis_feedback_state_to_focused_owner() -> None:
         "def _clear_pulsed_emphasis_accent_range(",
     )
     assert all(item not in surface_source for item in obsolete_surface_state)
-    assert "self._emphasis_feedback.accent_ranges()" in surface_source
-    assert "class PromptProjectionEmphasisFeedbackOwner" in owner_source
-    assert "self._pulse_timer.timeout.connect(self.clear_pulse)" in owner_source
+    assert "self._emphasis.accent_ranges()" in surface_source
+    assert "self._emphasis = PromptProjectionEmphasisOwner(" in surface_source
+    assert "class PromptProjectionEmphasisOwner" in projection_owner_source
+    assert "class PromptProjectionEmphasisFeedbackOwner" in feedback_owner_source
+    assert (
+        "self._pulse_timer.timeout.connect(self.clear_pulse)" in feedback_owner_source
+    )
+
+    moved_methods = (
+        "set_emphasis_adjustment_session",
+        "clear_emphasis_adjustment_session",
+        "emphasis_adjustment_session",
+        "prompt_weight_wheel_identity",
+        "pulse_emphasis_feedback",
+        "show_transient_neutral_emphasis",
+        "clear_transient_neutral_emphasis",
+        "set_emphasis_caret_to_content_boundary",
+    )
+    for method_name in moved_methods:
+        declaration = f"def {method_name}("
+        assert declaration not in surface_source
+        assert declaration not in widget_source
+        assert declaration in facade_source

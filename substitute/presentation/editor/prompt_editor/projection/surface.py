@@ -137,7 +137,7 @@ from .display_mode_layout_cache import (
     PromptProjectionDisplayModeLayoutCache,
     PromptProjectionDisplayModeLayoutIdentity,
 )
-from .emphasis_feedback_owner import PromptProjectionEmphasisFeedbackOwner
+from .emphasis_projection_owner import PromptProjectionEmphasisOwner
 from .editing_runtime import PromptProjectionEditingRuntimeFactory
 from .fill_band_cache import (
     PromptFillBandRect,
@@ -170,7 +170,6 @@ from .lora_surface_features import (
     PromptSurfaceLoraThumbnailPreloader,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
-    PromptProjectionCaretPlacement,
     PromptProjectionCaretState,
     PromptProjectionSelection,
 )
@@ -182,8 +181,6 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
-    PromptProjectionTokenKind,
-    PromptWeightControlIdentity,
 )
 from .observability import (
     log_projection_timing,
@@ -200,13 +197,7 @@ from .render_frame_owner import PromptProjectionRenderFrameOwner
 from .render_publication_owner import PromptProjectionRenderPublicationOwner
 from ..geometry.models import PromptProjectionSourceLineRect
 from ..geometry.selection import selection_paints_changed
-from .session import (
-    PromptEmphasisAdjustmentOwner,
-    PromptEmphasisAdjustmentSession,
-    PromptEmphasisCaretBoundary,
-    PromptProjectionSession,
-    PromptTransientNeutralEmphasisOwner,
-)
+from .session import PromptProjectionSession
 from .source_line_chrome import PromptSourceLineChrome
 from .search_highlight_owner import PromptSearchHighlightLayerOwner
 from .refresh_geometry_signature import PromptRefreshGeometryPaintSignature
@@ -503,11 +494,25 @@ class PromptProjectionSurface(QAbstractScrollArea):
             source_state_owners.transient_edit_presentation
         )
         self._last_rendered_active_span_range: tuple[int, int] | None = None
-        self._emphasis_feedback = PromptProjectionEmphasisFeedbackOwner(
+        self._emphasis = PromptProjectionEmphasisOwner(
+            session=self._session,
             is_projected=(
                 lambda: self._display_mode is PromptProjectionDisplayMode.PROJECTED
             ),
-            apply_paint_state=self._apply_decoration_accent_paint_state,
+            tokens=lambda: self._editor_state.projection.document.tokens,
+            apply_session_paint_state=(
+                lambda: self._try_apply_current_session_projection_paint_state()
+            ),
+            apply_accent_paint_state=(
+                lambda: self._apply_decoration_accent_paint_state()
+            ),
+            rebuild_projection=lambda: self._rebuild_projection(),
+            publish_caret=(
+                lambda cursor_state, anchor_state: self._set_caret_states(
+                    cursor_state=cursor_state,
+                    anchor_state=anchor_state,
+                )
+            ),
             parent=self,
         )
         self._caret_visibility_prompt_state_revision: int | None = None
@@ -639,6 +644,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return the focused reorder projection owner for composition wiring."""
 
         return self._reorder
+
+    @property
+    def emphasis(self) -> PromptProjectionEmphasisOwner:
+        """Return the focused emphasis projection owner for interaction wiring."""
+
+        return self._emphasis
 
     @property
     def anchor_position(self) -> int:
@@ -1173,61 +1184,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._session.clear_diagnostics()
         self._diagnostic_layer_owner.refresh(reason="diagnostics_cleared")
 
-    def set_emphasis_adjustment_session(
-        self,
-        *,
-        owner: PromptEmphasisAdjustmentOwner,
-        content_start: int,
-        content_end: int,
-        caret_boundary: PromptEmphasisCaretBoundary,
-        wheel_intent_identity: PromptWeightControlIdentity | None = None,
-    ) -> None:
-        """Store one active emphasis-adjustment session on the projection surface."""
-
-        self._session.set_emphasis_adjustment_session(
-            owner=owner,
-            content_start=content_start,
-            content_end=content_end,
-            caret_boundary=caret_boundary,
-            wheel_intent_identity=wheel_intent_identity,
-        )
-
-    def clear_emphasis_adjustment_session(self) -> None:
-        """Remove any active emphasis-adjustment session from the projection surface."""
-
-        self._session.clear_emphasis_adjustment_session()
-
-    def emphasis_adjustment_session(self) -> PromptEmphasisAdjustmentSession | None:
-        """Return the active emphasis-adjustment session when one exists."""
-
-        return self._session.emphasis_adjustment_session()
-
-    def emphasis_adjustment_session_range(self) -> tuple[int, int] | None:
-        """Return the active emphasis-adjustment content range when present."""
-
-        return self._session.emphasis_adjustment_session_range()
-
-    def emphasis_adjustment_session_matches_range(
-        self,
-        *,
-        content_start: int,
-        content_end: int,
-    ) -> bool:
-        """Return whether the active emphasis-adjustment session owns one range."""
-
-        return self._session.emphasis_adjustment_session_matches_range(
-            content_start=content_start,
-            content_end=content_end,
-        )
-
-    def prompt_weight_wheel_identity(
-        self,
-        token: PromptProjectionToken,
-    ) -> PromptWeightControlIdentity:
-        """Return stable wheel ownership identity for one prompt weight token."""
-
-        return self._session.prompt_weight_wheel_identity(token)
-
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the caret or token focus."""
 
@@ -1682,85 +1638,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._refresh_projection_paint_state()
         self.viewport().update()
 
-    def set_overlay_emphasis_accent_range(
-        self,
-        outer_range: tuple[int, int] | None,
-    ) -> None:
-        """Reflect overlay-owned emphasis visibility back into projected paren accenting."""
-
-        self._emphasis_feedback.set_overlay_range(outer_range)
-
-    def set_wheel_intent_emphasis_accent_range(
-        self,
-        outer_range: tuple[int, int] | None,
-    ) -> None:
-        """Reflect hover dwell readiness back into projected paren accenting."""
-
-        self._emphasis_feedback.set_wheel_intent_range(outer_range)
-
-    def pulse_emphasis_feedback(
-        self,
-        *,
-        outer_start: int,
-        outer_end: int,
-    ) -> None:
-        """Accent one emphasis shell briefly after non-hover adjustments."""
-
-        self._emphasis_feedback.pulse((outer_start, outer_end))
-
-    def show_transient_neutral_emphasis(
-        self,
-        *,
-        content_start: int,
-        content_end: int,
-        owner: PromptTransientNeutralEmphasisOwner = (
-            PromptTransientNeutralEmphasisOwner.CARET
-        ),
-    ) -> None:
-        """Project a temporary neutral emphasis shell over plain source content."""
-
-        self._session.set_transient_neutral_emphasis(
-            content_start=content_start,
-            content_end=content_end,
-            owner=owner,
-        )
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            if not self._try_apply_current_session_projection_paint_state():
-                self._rebuild_projection()
-
-    def clear_transient_neutral_emphasis(self) -> None:
-        """Remove any temporary neutral emphasis shell from the live projection."""
-
-        if self._session.transient_neutral_emphasis is None:
-            return
-        self._session.clear_transient_neutral_emphasis()
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            self._rebuild_projection()
-
-    def clear_overlay_owned_transient_neutral_emphasis(self) -> None:
-        """Remove the transient neutral shell only when overlay interaction owns it."""
-
-        if (
-            self._session.transient_neutral_emphasis_owner()
-            is not PromptTransientNeutralEmphasisOwner.OVERLAY
-        ):
-            return
-        self._session.clear_overlay_owned_transient_neutral_emphasis()
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            self._rebuild_projection()
-
-    def transient_neutral_emphasis_range(self) -> tuple[int, int] | None:
-        """Return the content range currently owned by a temporary neutral shell."""
-
-        return self._session.transient_neutral_emphasis_range()
-
-    def transient_neutral_emphasis_owner(
-        self,
-    ) -> PromptTransientNeutralEmphasisOwner | None:
-        """Return the owner of the current transient neutral shell when present."""
-
-        return self._session.transient_neutral_emphasis_owner()
-
     def _try_apply_current_session_projection_paint_state(self) -> bool:
         """Apply session-only projection changes when layout geometry is unchanged."""
 
@@ -1787,42 +1664,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._clear_transient_caret_geometry()
         self._publish_render_frame()
         self.viewport().update()
-        return True
-
-    def set_emphasis_caret_to_content_boundary(
-        self,
-        *,
-        content_start: int,
-        content_end: int,
-        prefer_end: bool,
-    ) -> bool:
-        """Place the caret at one projected emphasis-content boundary when present."""
-
-        token = next(
-            (
-                candidate
-                for candidate in self._editor_state.projection.document.tokens
-                if candidate.kind is PromptProjectionTokenKind.EMPHASIS
-                and candidate.supports_text_content_navigation
-                and candidate.content_range == (content_start, content_end)
-            ),
-            None,
-        )
-        if token is None:
-            return False
-
-        token_slot = content_end - content_start if prefer_end else 0
-        source_position = content_end if prefer_end else content_start
-        boundary_state = PromptProjectionCaretState(
-            source_position=source_position,
-            placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
-            token_id=token.token_id,
-            token_slot=token_slot,
-        )
-        self._set_caret_states(
-            cursor_state=boundary_state,
-            anchor_state=boundary_state,
-        )
         return True
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_REFRESH_GEOMETRY)
@@ -2613,7 +2454,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _decoration_accent_ranges(self) -> tuple[tuple[int, int], ...]:
         """Return the emphasis ranges whose decorative parens should use accent feedback."""
 
-        return self._emphasis_feedback.accent_ranges()
+        return self._emphasis.accent_ranges()
 
     def _apply_decoration_accent_paint_state(self) -> None:
         """Apply emphasis decoration accent changes without rebuilding layout."""

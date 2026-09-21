@@ -389,9 +389,15 @@ def test_reorder_facade_exclusively_owns_surface_api_adaptation() -> None:
         encoding="utf-8"
     )
 
-    assert (
-        "class PromptEditor(PromptEditorReorderFacade, QFluentTextEdit)"
-        in widget_source
+    widget_tree = ast.parse(widget_source)
+    editor_class = next(
+        node
+        for node in widget_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "PromptEditor"
+    )
+    assert any(
+        isinstance(base, ast.Name) and base.id == "PromptEditorReorderFacade"
+        for base in editor_class.bases
     )
     for method_name in REORDER_FACADE_METHODS:
         declaration = f"def {method_name}("
