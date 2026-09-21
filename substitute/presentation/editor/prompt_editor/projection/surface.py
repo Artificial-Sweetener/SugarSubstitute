@@ -25,7 +25,6 @@ from typing import Callable, cast
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
-    QObject,
     QPoint,
     QPointF,
     QRect,
@@ -153,6 +152,7 @@ from .frame_state import (
     PromptProjectionLayoutWidthResolver,
     build_initial_prompt_projection_state,
 )
+from .focus_owner import PromptProjectionFocusOwner
 from .frame_synchronizer import PromptProjectionFrameSynchronizer
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
@@ -354,7 +354,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         thumbnail_cache.pixmap_ready.connect(
             lambda key: update_lora_thumbnail(self._layout.frame.geometry, key)
         )
-        self._focus_host: QWidget | None = None
         self._scene_error_keys: frozenset[str] = frozenset()
         self._editor_state = build_initial_prompt_projection_state(
             source=self._editing_session.source_snapshot(),
@@ -384,8 +383,19 @@ class PromptProjectionSurface(QAbstractScrollArea):
             is_alive=lambda: qt_object_is_alive(self),
             request_update=self._diagnostic_layer_published,
         )
+        self._focus_owner = PromptProjectionFocusOwner(
+            surface=self,
+            prepare_source_line_chrome=self._prepare_source_line_chrome_layer,
+            schedule_caret_blink=(
+                lambda reset_cycle: self._schedule_caret_blink_sync(
+                    reset_cycle=reset_cycle
+                )
+            ),
+            parent=self,
+        )
         self._mouse_handler = PromptSurfaceMouseHandler(
-            cast(PromptSurfaceMouseHost, self)
+            cast(PromptSurfaceMouseHost, self),
+            ensure_pointer_focus=self._focus_owner.ensure_pointer_focus,
         )
         self._external_text_input = PromptExternalTextInputOwner(
             self._insert_external_mime_text
@@ -694,13 +704,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def attach_focus_host(self, focus_host: QWidget) -> None:
         """Store the widget whose focus should drive caret and accent visibility."""
 
-        if self._focus_host is focus_host:
-            return
-        if self._focus_host is not None:
-            self._focus_host.removeEventFilter(self)
-        self._focus_host = focus_host
-        focus_host.installEventFilter(self)
-        self._schedule_caret_blink_sync(reset_cycle=False)
+        self._focus_owner.attach(focus_host)
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_REFRESH_SCROLL)
     def refresh_scroll(self) -> None:
@@ -2782,21 +2786,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             return handled
         return super().viewportEvent(event)
 
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        """Synchronize caret presentation with the attached focus host."""
-
-        if watched is self._focus_host:
-            if event.type() == QEvent.Type.FocusIn:
-                self._prepare_source_line_chrome_layer()
-                self._schedule_caret_blink_sync(reset_cycle=True)
-            elif event.type() in {QEvent.Type.FocusOut, QEvent.Type.Hide}:
-                self._prepare_source_line_chrome_layer()
-                self._schedule_caret_blink_sync(reset_cycle=False)
-            elif event.type() == QEvent.Type.Show:
-                self._prepare_source_line_chrome_layer()
-                self._schedule_caret_blink_sync(reset_cycle=False)
-        return super().eventFilter(watched, event)
-
     def canInsertFromMimeData(self, source: QMimeData) -> bool:  # noqa: N802
         """Return whether external MIME data may become prompt source text."""
 
@@ -2970,14 +2959,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _focus_owner_has_focus(self) -> bool:
         """Return whether the prompt editor focus owner is active."""
 
-        focus_owner = self._focus_host or self
-        return focus_owner.hasFocus()
+        return self._focus_owner.focus_owner_has_focus()
 
     def _caret_focus_owner_has_focus(self) -> bool:
         """Return whether the owner that permits caret painting is active."""
 
-        focus_owner = self._focus_host or self.parentWidget() or self
-        return focus_owner.hasFocus()
+        return self._focus_owner.caret_focus_owner_has_focus()
 
     def _caret_visual_state_changed(self) -> None:
         """Publish custom caret state before its scheduled repaint."""
