@@ -645,7 +645,7 @@ next_extraction = "Extract remaining source editing and feature-interaction host
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:649f656834a72d434f2252128cf68318e6dce185a0b68a227d1eed8c92cf6e2c"
+fingerprint = "sha256:167ca0530c95989d611f0d9eed7ca6290f5a0687b39ad849d2b139b3595ad0e1"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [
@@ -653,7 +653,7 @@ responsibilities = [
   "projection collaborator integration and lifecycle",
   "keyboard, clipboard, context-menu, and focus routing",
   "autocomplete and diagnostics feature coordination",
-  "prompt command execution, state, metadata, and semantic-action publication",
+  "prompt state, metadata, and semantic-action publication",
   "chrome, scrolling, sizing, and editor-panel integration",
 ]
 next_extraction = "Extract feature coordination and remaining host event routing from the QFluent shell and projection composition boundary."

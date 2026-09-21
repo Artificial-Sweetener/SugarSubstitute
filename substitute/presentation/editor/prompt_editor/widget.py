@@ -80,9 +80,6 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
 )
-from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutationService,
-)
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
@@ -93,14 +90,8 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxService,
-)
 from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
-)
-from substitute.application.prompt_editor.reorder.commit import (
-    PromptReorderLayoutCommitRequest,
 )
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.field_actions import FieldActionContext
@@ -113,21 +104,7 @@ from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
 from .async_work import QtPromptEditorMainThreadDispatcher
-from .commands.autocomplete_commands import PromptAutocompleteAcceptance
 from .commands.context_insertion import PromptContextInsertionService
-from .commands.contracts import (
-    PromptCommandResult,
-    PromptCommandTextReplacement,
-)
-from .commands.diagnostic_commands import (
-    PromptDiagnosticAction,
-    PromptDiagnosticCommandResult,
-)
-from .commands.reorder_commands import PromptReorderCommandResult
-from .commands.weight_commands import (
-    PromptWeightActionRequest,
-    PromptWeightCommandResult,
-)
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
     PromptEditorAutocompleteFactory,
@@ -155,7 +132,6 @@ from .composition import (
 from .composition.context_menu_preparation_factory import (
     build_context_menu_preparation,
 )
-from .core.state.revisions import PromptSourceIdentity
 from .features import (
     PromptContextMenuSnapshotAssembler,
     PromptDanbooruPasteImportController,
@@ -195,6 +171,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 )
 from .projection.undo_payload import PromptProjectionUndoPayload
 from .geometry.models import PromptProjectionSourceLineRect
+from .command_facade import PromptEditorCommandFacade
 from .emphasis_facade import PromptEditorEmphasisFacade
 from .reorder_facade import PromptEditorReorderFacade
 from .shell import (
@@ -213,6 +190,7 @@ _LOGGER = get_logger("presentation.editor.prompt_editor")
 
 
 class PromptEditor(
+    PromptEditorCommandFacade,
     PromptEditorReorderFacade,
     PromptEditorEmphasisFacade,
     QFluentTextEdit,  # type: ignore[misc]
@@ -1017,89 +995,6 @@ class PromptEditor(
         """Return the source-backed cursor wrapper used by controller seams."""
 
         return self._surface.textCursor()
-
-    def prompt_command_source_identity(self) -> PromptSourceIdentity:
-        """Return the current source identity for prepared prompt commands."""
-
-        return self._source_commands.source_identity()
-
-    def execute_autocomplete_acceptance(
-        self,
-        acceptance: PromptAutocompleteAcceptance,
-    ) -> PromptCommandResult[object]:
-        """Execute one prepared autocomplete acceptance on the projection surface."""
-
-        return cast(
-            PromptCommandResult[object],
-            self._autocomplete_commands.execute(acceptance),
-        )
-
-    def execute_diagnostic_action(
-        self,
-        action: PromptDiagnosticAction,
-    ) -> PromptDiagnosticCommandResult[object]:
-        """Execute one prepared diagnostic action on the projection surface."""
-
-        return cast(
-            PromptDiagnosticCommandResult[object],
-            self._diagnostic_commands.execute(action),
-        )
-
-    def execute_weight_action(
-        self,
-        request: PromptWeightActionRequest,
-        *,
-        mutation_service: PromptMutationService,
-        syntax_service: PromptSyntaxService,
-        syntax_profile: PromptSyntaxProfile,
-    ) -> PromptWeightCommandResult[object]:
-        """Execute one prepared weight action on the projection surface."""
-
-        return cast(
-            PromptWeightCommandResult[object],
-            self._weight_commands.execute(
-                request,
-                mutation_service=mutation_service,
-                syntax_service=syntax_service,
-                syntax_profile=syntax_profile,
-            ),
-        )
-
-    def execute_reorder_action(
-        self,
-        request: PromptReorderLayoutCommitRequest,
-        *,
-        mutation_service: PromptMutationService,
-        syntax_service: PromptSyntaxService,
-        syntax_profile: PromptSyntaxProfile,
-    ) -> PromptReorderCommandResult[object]:
-        """Execute one prepared reorder commit on the projection surface."""
-
-        return cast(
-            PromptReorderCommandResult[object],
-            self._reorder_commands.execute(
-                request,
-                mutation_service=mutation_service,
-                syntax_service=syntax_service,
-                syntax_profile=syntax_profile,
-            ),
-        )
-
-    def execute_source_replacement(
-        self,
-        replacement: PromptCommandTextReplacement,
-        *,
-        command_name: str,
-    ) -> PromptCommandResult[object]:
-        """Execute one prepared source replacement on the projection surface."""
-
-        return cast(
-            PromptCommandResult[object],
-            self._source_commands.execute_source_replacement(
-                replacement,
-                command_name=command_name,
-            ),
-        )
 
     def setTextCursor(self, cursor: object) -> None:  # noqa: N802
         """Persist one source-backed cursor selection onto the projection surface."""
