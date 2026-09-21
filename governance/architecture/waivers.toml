@@ -527,11 +527,11 @@ owner = "prompt editor composition"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/composition/factory.py"
 kind = "remediation"
-justification = "The assessed file mixes Danbooru dialog and external-action composition, prompt service and context-insertion composition, autocomplete and LoRA feature composition, context-menu and syntax collaborator composition, and top-level bundle assembly. Extract autocomplete and LoRA presentation composition from service, menu, syntax, and final bundle assembly."
+justification = "The assessed file mixes Danbooru dialog and external-action composition, prompt service and context-insertion composition, syntax and interaction collaborator composition, and top-level bundle assembly. Extract syntax and interaction collaborator composition from service and final bundle assembly."
 issue = "chore:SS-ARCH-054"
 review_by = 2026-12-15
-max_lines = 819
-next_limit = 650
+max_lines = 511
+next_limit = 400
 debt = "SS-ARCH-054"
 
 [[waivers]]
@@ -569,7 +569,7 @@ kind = "remediation"
 justification = "The assessed file mixes QFluent text-edit host compatibility, projection collaborator integration and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 1774
+max_lines = 1775
 next_limit = 1403
 debt = "SS-ARCH-064"
 

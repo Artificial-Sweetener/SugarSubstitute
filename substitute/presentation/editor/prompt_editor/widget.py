@@ -131,11 +131,13 @@ from .commands.weight_commands import (
 )
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
+    PromptEditorAutocompleteFactory,
     PromptEditorCompositionContext,
     PromptEditorCompositionFactory,
     PromptEditorConstructionInputs,
     PromptEditorConstructionObserver,
     PromptEditorExecutionFactory,
+    PromptEditorMenuFactory,
     PromptEditorProjectionFactory,
     PromptEditorTaskExecutorFactory,
     apply_prompt_editor_initial_layout,
@@ -427,6 +429,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             construction_inputs,
             composition_context,
         )
+        menu_factory = PromptEditorMenuFactory(composition_context)
         phase_started_at = construction_observer.started_at()
         projection_collaborators = PromptEditorProjectionFactory(
             construction_inputs,
@@ -562,9 +565,10 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         phase_started_at = construction_observer.started_at()
         document_service = build_prompt_document_service(construction_inputs)
         feature_profile = self._feature_profile_controller
-        autocomplete_collaborators = composition_factory.build_autocomplete(
+        autocomplete_collaborators = PromptEditorAutocompleteFactory(
             construction_inputs,
             composition_context,
+        ).build(
             projection_collaborators,
             service_collaborators,
             self._external_url_action_runner,
@@ -685,8 +689,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             lora_trigger_words=self._lora_trigger_word_controller,
         )
         self._lora_picker_popup_presenter: PromptLoraPickerPopupPresenter = (
-            composition_factory.build_lora_picker_popup_presenter(
-                composition_context,
+            menu_factory.build_lora_picker_popup_presenter(
                 lora_metadata=self._lora_metadata_presentation,
                 lora_thumbnail_cache=self._lora_thumbnail_cache,
                 context_insertion=self._context_insertion,
@@ -703,8 +706,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             )
         )
         self._prompt_menu_presenter: PromptContextMenuRequestPresenter = (
-            composition_factory.build_prompt_menu_presenter(
-                composition_context,
+            menu_factory.build_prompt_menu_presenter(
                 snapshot_reader=self._context_menu_snapshot_assembler,
                 preparation=self._context_menu_preparation,
                 segment_presets=self._segment_preset_controller,
@@ -749,8 +751,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             prompt_menu_requests=self._prompt_menu_presenter,
         )
         self._inline_lora_menu_presenter: PromptInlineLoraContextMenuPresenter = (
-            composition_factory.build_inline_lora_menu_presenter(
-                composition_context,
+            menu_factory.build_inline_lora_menu_presenter(
                 lora_metadata=self._lora_metadata_presentation,
                 lora_trigger_words=self._lora_trigger_word_controller,
                 prepared_scene_context_at_position=(

@@ -24,6 +24,7 @@ from .collaborator_bundle import (
     PromptEditorConstructionInputs,
     PromptEditorTaskExecutorFactory,
 )
+from .autocomplete_factory import PromptEditorAutocompleteFactory
 from .context import PromptEditorCompositionContext
 from .execution_factory import PromptEditorExecutionFactory
 from .factory import (
@@ -32,6 +33,7 @@ from .factory import (
     build_prompt_document_service,
 )
 from .projection_factory import PromptEditorProjectionFactory
+from .menu_factory import PromptEditorMenuFactory
 from .signal_bindings import (
     PromptEditorDiagnosticsControllerBinding,
     PromptEditorSignalHost,
@@ -52,9 +54,11 @@ from .wiring import (
 __all__ = [
     "DanbooruWikiLookupDispatcherFactory",
     "PromptEditorCollaborators",
+    "PromptEditorAutocompleteFactory",
     "PromptEditorCompositionContext",
     "PromptEditorCompositionFactory",
     "PromptEditorExecutionFactory",
+    "PromptEditorMenuFactory",
     "PromptEditorProjectionFactory",
     "PromptEditorConstructionInputs",
     "PromptEditorConstructionLifecycleHost",

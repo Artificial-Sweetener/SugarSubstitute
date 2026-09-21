@@ -65,3 +65,33 @@ def test_projection_and_execution_composition_have_direct_owners() -> None:
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
     assert "PromptEditorExecutionFactory(" in widget_source
     assert "PromptEditorProjectionFactory(" in widget_source
+
+
+def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
+    """Keep autocomplete and menu construction out of the mixed factory."""
+    remaining_methods = _class_methods("factory.py", "PromptEditorCompositionFactory")
+    autocomplete_methods = _class_methods(
+        "autocomplete_factory.py",
+        "PromptEditorAutocompleteFactory",
+    )
+    menu_methods = _class_methods("menu_factory.py", "PromptEditorMenuFactory")
+
+    assert (
+        not {
+            "build_autocomplete",
+            "build_prompt_menu_presenter",
+            "build_inline_lora_menu_presenter",
+            "build_lora_picker_popup_presenter",
+        }
+        & remaining_methods
+    )
+    assert "build" in autocomplete_methods
+    assert {
+        "build_prompt_menu_presenter",
+        "build_inline_lora_menu_presenter",
+        "build_lora_picker_popup_presenter",
+    } <= menu_methods
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    assert "PromptEditorAutocompleteFactory(" in widget_source
+    assert "PromptEditorMenuFactory(" in widget_source
