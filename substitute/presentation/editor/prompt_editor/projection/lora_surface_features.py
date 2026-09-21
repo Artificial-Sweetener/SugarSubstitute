@@ -69,13 +69,6 @@ class PromptSurfaceLoraFeatureHost(Protocol):
     def verticalScrollBar(self) -> QScrollBar:  # noqa: N802
         """Return the scrollbar that owns the visible document offset."""
 
-    def _emit_lora_context_menu_request(
-        self,
-        token: PromptProjectionToken,
-        global_pos: QPoint,
-    ) -> None:
-        """Emit one prepared LoRA context-menu request."""
-
     def token_at_viewport_position(
         self,
         position: QPointF,
@@ -120,6 +113,7 @@ class PromptSurfaceLoraFeatureDelegate:
         *,
         thumbnail_cache: PromptLoraThumbnailCache,
         publish_thumbnail_media: Callable[[str], None],
+        publish_context_menu: Callable[[PromptProjectionToken, QPoint], None],
         thumbnail_preloader: PromptSurfaceLoraThumbnailPreloader | None = None,
     ) -> None:
         """Bind LoRA tooltip, context, and thumbnail behavior to a surface host."""
@@ -128,6 +122,7 @@ class PromptSurfaceLoraFeatureDelegate:
         self._thumbnail_cache = thumbnail_cache
         self._thumbnail_preloader = thumbnail_preloader
         self._publish_thumbnail_media = publish_thumbnail_media
+        self._publish_context_menu = publish_context_menu
         self._tooltip_filter: FluentToolTipFilter | None = None
 
     @property
@@ -182,7 +177,7 @@ class PromptSurfaceLoraFeatureDelegate:
             or not token.model_page_url.strip()
         ):
             return False
-        self._host._emit_lora_context_menu_request(token, global_pos)
+        self._publish_context_menu(token, global_pos)
         return True
 
     def preload_visible_banners(
