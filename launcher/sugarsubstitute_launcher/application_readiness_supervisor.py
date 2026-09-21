@@ -239,18 +239,19 @@ class ApplicationReadinessSupervisor:
         contract: _ReadinessContract,
         receipt: ApplicationReadinessReceipt,
     ) -> None:
-        """Attest the validated child surface through this caller-owned process hop."""
+        """Preserve the painted process while attesting through this process hop."""
 
         if contract.outer_receipt_path is None or contract.outer_token is None:
             return
         publish_application_readiness_receipt(
             receipt_path=contract.outer_receipt_path,
             receipt=ApplicationReadinessReceipt(
-                pid=os.getpid(),
+                pid=receipt.pid,
                 token=contract.outer_token,
                 surface=receipt.surface,
-                parent_pid=os.getppid(),
+                parent_pid=receipt.parent_pid,
                 milestones=receipt.milestones,
+                attester_pids=_extended_attestation_chain(receipt),
             ),
         )
 
@@ -279,12 +280,14 @@ class ApplicationReadinessSupervisor:
         process_matched = expected_pid in {
             receipt.pid,
             receipt.parent_pid,
+            *receipt.attester_pids,
         }
         if not token_matched or not process_matched:
             raise ApplicationReadinessError(
                 "Application readiness receipt did not match the launched process. "
                 f"Expected PID: {expected_pid}. Receipt PID: {receipt.pid}. "
                 f"Receipt parent PID: {receipt.parent_pid}. "
+                f"Receipt attester PIDs: {list(receipt.attester_pids)}. "
                 f"Token matched: {token_matched}."
             )
         return receipt
@@ -316,6 +319,17 @@ def _start_candidate_process(
         command, environment=environment, allow_handoff=True
     )
     return process, log_path
+
+
+def _extended_attestation_chain(
+    receipt: ApplicationReadinessReceipt,
+) -> tuple[int, ...]:
+    """Append this supervisor and its OS parent without duplicating prior hops."""
+
+    process_ids = (*receipt.attester_pids, os.getpid(), os.getppid())
+    return tuple(
+        dict.fromkeys(process_id for process_id in process_ids if process_id > 0)
+    )
 
 
 def stop_candidate_process(process: CandidateProcess) -> None:
