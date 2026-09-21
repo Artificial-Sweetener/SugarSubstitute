@@ -197,7 +197,7 @@ from .observability import (
     reorder_drag_started_at,
 )
 from .content_media_owner import PromptProjectionContentMediaOwner
-from .region_chrome import PromptRegionChrome
+from .region_chrome_presentation import PromptRegionChromePresentationOwner
 from .region_chrome_state import PromptRegionChromeEditTarget
 from .reorder_chip_geometry import (
     PromptReorderChipGeometrySnapshot,
@@ -563,7 +563,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
             geometry_state=lambda: reorder_geometry_state(self._layout.frame.geometry),
         )
         self._pointer_interactions = PromptSurfacePointerInteractions()
-        self._region_chrome = PromptRegionChrome()
+        self._region_chrome_presentation = PromptRegionChromePresentationOwner(
+            publish_render_frame=self._publish_render_frame,
+            request_update=self.viewport().update,
+        )
         self._render_frame_owner = PromptProjectionRenderFrameOwner()
         self._render_publication = PromptProjectionRenderPublicationOwner(
             surface=self,
@@ -576,7 +579,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             content_media=self._content_media_owner,
             selection_layer=self._selection_layer_owner,
             source_line_chrome=self._source_line_chrome,
-            region_chrome=self._region_chrome,
+            region_chrome=self._region_chrome_presentation.chrome,
             reorder_visual_state=self._reorder_surface_visual_state,
             search_highlight=self._search_highlight_layer,
             diagnostics=self._diagnostic_layer_owner,
@@ -599,7 +602,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             frame_state=self._frame_state,
             width_resolver=self._layout_width_resolver,
             freshness=self._projection_freshness_controller,
-            region_chrome=self._region_chrome,
+            region_chrome=self._region_chrome_presentation.chrome,
             source_document=self._source_document_adapter,
             source_line_chrome=self._source_line_chrome,
             scroll_offset=self._scroll_offset,
@@ -2091,10 +2094,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def set_region_hovered(self, region_index: int | None) -> None:
         """Publish transient regional chrome without changing prompt selection."""
 
-        if not self._region_chrome.set_hovered_region(region_index):
-            return
-        self._publish_render_frame()
-        self.viewport().update()
+        self._region_chrome_presentation.set_hovered_region(region_index)
 
     def region_edit_target(
         self,
@@ -2102,23 +2102,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptRegionChromeEditTarget | None:
         """Return prepared document-local geometry for one separator editor."""
 
-        return self._region_chrome.edit_target(region_index)
+        return self._region_chrome_presentation.edit_target(region_index)
 
     def set_region_editing(self, region_index: int | None) -> None:
         """Publish label suppression while an inline editor owns one separator."""
 
-        if not self._region_chrome.set_editing_region(region_index):
-            return
-        self._publish_render_frame()
-        self.viewport().update()
+        self._region_chrome_presentation.set_editing_region(region_index)
 
     def set_region_editing_draft(self, region_index: int, text: str) -> None:
         """Publish live separator geometry without mutating prompt source text."""
 
-        if not self._region_chrome.set_editing_region_draft(region_index, text):
-            return
-        self._publish_render_frame()
-        self.viewport().update()
+        self._region_chrome_presentation.set_editing_region_draft(region_index, text)
 
     def force_collapse_expanded_token(self) -> None:
         """Collapse any expanded projection token after an explicit syntax commit."""

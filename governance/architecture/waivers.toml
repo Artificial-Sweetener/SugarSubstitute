@@ -527,10 +527,10 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, undo, focus, and tooltip routing. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
+justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, autocomplete, diagnostics, reorder, and token-weight interaction hosting, clipboard, undo, focus, and tooltip routing. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 3001
+max_lines = 2995
 next_limit = 2813
 debt = "SS-ARCH-061"
 
@@ -1677,7 +1677,7 @@ kind = "structural"
 justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
 issue = "chore:SS-WAIVER-S080"
 review_by = 2026-12-15
-max_lines = 563
+max_lines = 568
 
 [[waivers]]
 id = "SS-WAIVER-S150"
