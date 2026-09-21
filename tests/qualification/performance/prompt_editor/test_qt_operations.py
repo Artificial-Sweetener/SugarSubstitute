@@ -30,16 +30,22 @@ from PySide6.QtWidgets import QApplication, QWidget
 from substitute.application.prompt_editor.diagnostics.models import (
     PromptSpellingDiagnosticPayload,
 )
-from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
-from substitute.devtools.prompt_editor_performance.qt_operations import (
-    QT_REORDER_ARROW_KEYS,
-    operation_key,
-    process_events,
-    prompt_key_target,
-    run_scenario_operations,
-    send_prompt_alt_event,
+from substitute.devtools.prompt_editor_performance.cache_operations import (
     spelling_diagnostic_for_text,
+)
+from substitute.devtools.prompt_editor_performance.editing_operations import (
+    operation_key,
+    prompt_key_target,
     time_key_click,
+)
+from substitute.devtools.prompt_editor_performance.event_loop import process_events
+from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
+from substitute.devtools.prompt_editor_performance.operation_registry import (
+    run_scenario_operations,
+)
+from substitute.devtools.prompt_editor_performance.reorder_operations import (
+    QT_REORDER_ARROW_KEYS,
+    send_prompt_alt_event,
     wait_for_current_reorder_overlay,
 )
 from substitute.devtools.prompt_editor_performance.scenarios import (
@@ -50,12 +56,16 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-QT_OPERATIONS_MODULE = (
-    PROJECT_ROOT
-    / "substitute"
-    / "devtools"
-    / "prompt_editor_performance"
-    / "qt_operations.py"
+QT_OPERATION_MODULES = tuple(
+    PROJECT_ROOT / "substitute" / "devtools" / "prompt_editor_performance" / name
+    for name in (
+        "cache_operations.py",
+        "editing_operations.py",
+        "event_loop.py",
+        "operation_registry.py",
+        "reorder_operations.py",
+        "viewport_operations.py",
+    )
 )
 FORBIDDEN_IMPORT_PREFIXES = (
     "qfluentwidgets",
@@ -99,12 +109,16 @@ class _KeyEventRecorder(QWidget):
         self.events.append((event.type(), event.key(), event.modifiers()))
 
 
-def test_prompt_editor_performance_qt_operations_imports_no_tools() -> None:
-    """Qt operations may use Qt and presentation, but not tests or tools."""
+def test_prompt_editor_performance_operation_modules_import_no_tools() -> None:
+    """Timing owners may use Qt and presentation, but not tests or tools."""
 
-    imported_modules = _imported_module_names(
-        ast.parse(QT_OPERATIONS_MODULE.read_text(encoding="utf-8"))
-    )
+    imported_modules = {
+        imported_module
+        for module in QT_OPERATION_MODULES
+        for imported_module in _imported_module_names(
+            ast.parse(module.read_text(encoding="utf-8"))
+        )
+    }
 
     forbidden_imports = {
         imported_module
@@ -241,7 +255,7 @@ def test_reorder_overlay_waits_for_bounded_observable_event_turns(
         return overlay
 
     monkeypatch.setattr(
-        "substitute.devtools.prompt_editor_performance.qt_operations."
+        "substitute.devtools.prompt_editor_performance.reorder_operations."
         "current_reorder_overlay",
         fake_current_reorder_overlay,
     )
