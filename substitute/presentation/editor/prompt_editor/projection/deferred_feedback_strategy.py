@@ -55,6 +55,7 @@ from .transient_edit_overlays import (
     PromptProjectionTransientEditOverlayController,
     PromptProjectionTransientInsertionOverlay,
 )
+from .transient_edit_presentation_owner import PromptTransientEditPresentation
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
 )
@@ -78,20 +79,6 @@ class PromptDeferredFeedbackContext(Protocol):
     def _current_caret_document_rect(self) -> QRectF:
         """Return the committed document-local caret rectangle."""
 
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Repaint changed transient insertion feedback."""
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Repaint changed transient deletion feedback."""
-
 
 class PromptDeferredFeedbackStrategy:
     """Own deferred scheduling eligibility and transient overlay publication."""
@@ -105,6 +92,7 @@ class PromptDeferredFeedbackStrategy:
         layout: PromptLayoutEditToFrameCoordinator,
         overlays: PromptProjectionTransientEditOverlayController,
         source_line_chrome: PromptSourceLineChrome,
+        presentation: PromptTransientEditPresentation,
     ) -> None:
         """Store explicit scheduling, frame, and overlay owners."""
 
@@ -114,6 +102,7 @@ class PromptDeferredFeedbackStrategy:
         self._layout = layout
         self._overlays = overlays
         self._source_line_chrome = source_line_chrome
+        self._presentation = presentation
 
     @prompt_editor_work_result_event(
         prompt_editor_work_true_event(PromptEditorWorkEvent.PROJECTION_WRAP_DEFERRED)
@@ -180,11 +169,11 @@ class PromptDeferredFeedbackStrategy:
             insertion_overlay=insertion_overlay,
             deletion_overlay=deletion_overlay,
         )
-        self._context._update_transient_insertion_overlay_paint(
+        self._presentation.update_insertion_overlay_paint(
             previous_insertion_overlay,
             insertion_overlay,
         )
-        self._context._update_transient_deletion_overlay_paint(
+        self._presentation.update_deletion_overlay_paint(
             request.previous_deletion_overlay,
             deletion_overlay,
         )

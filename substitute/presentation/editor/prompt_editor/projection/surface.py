@@ -266,10 +266,6 @@ from substitute.presentation.editor.prompt_editor.projection.inline_renderer_reg
 from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
-from .transient_edit_overlays import (
-    PromptProjectionTransientDeletionOverlay,
-    PromptProjectionTransientInsertionOverlay,
-)
 from .undo_payload import PromptProjectionUndoPayload
 from ..interactions.deletion_controller import (
     PromptDeletionContext,
@@ -408,6 +404,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 source_caret_sink=self,
                 document_effect_sink=self,
                 diagnostics=self._diagnostic_layer_owner,
+                transient_viewport=self.viewport(),
+                transient_scroll_offset=self._scroll_offset,
+                transient_publish_render_frame=self._publish_render_frame,
             ),
             parent=self,
             frame_state=self._frame_state,
@@ -477,6 +476,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
             parent=self,
         )
         self._transient_edit_overlays = source_state_owners.transient_edit_overlays
+        self._transient_edit_presentation = (
+            source_state_owners.transient_edit_presentation
+        )
         self._last_rendered_active_span_range: tuple[int, int] | None = None
         self._overlay_emphasis_accent_range: tuple[int, int] | None = None
         self._wheel_intent_emphasis_accent_range: tuple[int, int] | None = None
@@ -3052,86 +3054,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             active_match_index=self._session.active_search_match_index,
             palette=self.palette(),
         )
-
-    def _transient_insertion_overlay_viewport_rect(
-        self,
-        overlay: PromptProjectionTransientInsertionOverlay,
-    ) -> QRectF:
-        """Return the viewport-local repaint rect for one transient text overlay."""
-
-        return self._transient_edit_overlays.insertion_overlay_viewport_rect(
-            overlay,
-            metrics=self._layout.frame.output.configuration.metrics,
-            scroll_offset=self._scroll_offset(),
-        )
-
-    def _transient_insertion_overlay_document_rect(
-        self,
-        overlay: PromptProjectionTransientInsertionOverlay,
-    ) -> QRectF:
-        """Return the document-local paint rect for one transient text overlay."""
-
-        return self._transient_edit_overlays.insertion_overlay_document_rect(
-            overlay,
-            metrics=self._layout.frame.output.configuration.metrics,
-        )
-
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Repaint transient typed text whenever the overlay grows or clears."""
-
-        repaint_rect = self._transient_edit_overlays.insertion_overlay_repaint_rect(
-            previous_overlay=previous_overlay,
-            next_overlay=next_overlay,
-            metrics=self._layout.frame.output.configuration.metrics,
-            scroll_offset=self._scroll_offset(),
-        )
-        self._publish_render_frame()
-        if repaint_rect is None:
-            return
-        self.viewport().update(repaint_rect.toAlignedRect())
-
-    def _transient_deletion_overlay_viewport_rects(
-        self,
-        overlay: PromptProjectionTransientDeletionOverlay,
-    ) -> tuple[QRectF, ...]:
-        """Return viewport-local erase rects for one transient deletion."""
-
-        return self._transient_edit_overlays.deletion_overlay_viewport_rects(
-            overlay,
-            scroll_offset=self._scroll_offset(),
-        )
-
-    def _transient_deletion_overlay_erase_rects(
-        self,
-        overlay: PromptProjectionTransientDeletionOverlay,
-    ) -> tuple[QRectF, ...]:
-        """Return expanded viewport-local deletion erase bands grouped by visual row."""
-
-        return self._transient_edit_overlays.deletion_overlay_erase_rects(
-            overlay,
-            scroll_offset=self._scroll_offset(),
-        )
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Repaint transient erased text whenever deletion state changes."""
-
-        repaint_rect = self._transient_edit_overlays.deletion_overlay_repaint_rect(
-            previous_overlay=previous_overlay,
-            next_overlay=next_overlay,
-            scroll_offset=self._scroll_offset(),
-        )
-        self._publish_render_frame()
-        if repaint_rect is None:
-            return
-        self.viewport().update(repaint_rect.toAlignedRect())
 
     def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
         """Queue emphasis geometry-reuse cache warming outside source replacement."""
