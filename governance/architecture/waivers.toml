@@ -530,7 +530,7 @@ kind = "remediation"
 justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, undo, focus, and tooltip routing. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 3099
+max_lines = 3042
 next_limit = 2813
 debt = "SS-ARCH-061"
 
