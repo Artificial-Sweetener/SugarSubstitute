@@ -229,22 +229,6 @@ responsibilities = [
 next_extraction = "Extract syntax-family mutation handlers and reorder mutation behind the common PromptMutation result contract."
 
 [[debts]]
-id = "SS-ARCH-019"
-owner = "prompt LoRA catalog"
-paths = ["substitute/application/prompt_editor/lora/catalog.py"]
-fingerprint = "sha256:85258b7900837ec7de636f09eb8980a122d76c48e58700a92bd794ad5d70ba88"
-issue = "chore:SS-ARCH-019"
-review_by = 2026-12-15
-responsibilities = [
-  "catalog cache lifecycle and refresh",
-  "model-record adaptation",
-  "exact and suffix lookup",
-  "autocomplete fallback ranking",
-  "thumbnail and search-text projection",
-]
-next_extraction = "Extract pure LoRA lookup and ranking from catalog cache lifecycle and model-record adaptation."
-
-[[debts]]
 id = "SS-ARCH-020"
 owner = "prompt syntax projection"
 paths = ["substitute/application/prompt_editor/projection/syntax_service.py"]
