@@ -1,3 +1,13 @@
+## [0.24.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.0...v0.24.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **diagnostics:** provide actionable crash and startup reports ([88bdbd7](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/88bdbd7d787c362264a3300e908cd5a73ab5c149))
+* **installer:** preserve ready shell identity through launchers ([ebe4a2e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ebe4a2eddaecb44eacc618ea21f2e333acb35979))
+* **lifecycle:** preserve crash evidence and reliable relaunches ([910bb1b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/910bb1b4a1ca82627cf7ab70de63820b6a18f34c))
+* **updates:** keep existing installations launchable after update ([f02f5f8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f02f5f8af634d6ab7f1688a9227b633f9a0b7108))
+
 # [0.24.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.5...v0.24.0) (2026-09-21)
 
 
