@@ -31,6 +31,9 @@ def test_surface_delegates_reorder_paint_cache_state_to_focused_owner() -> None:
     surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
         encoding="utf-8"
     )
+    projection_owner_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "reorder_projection_owner.py"
+    ).read_text(encoding="utf-8")
 
     for ownership_marker in (
         "PromptReorderProjectionSnapshotKey(",
@@ -43,4 +46,26 @@ def test_surface_delegates_reorder_paint_cache_state_to_focused_owner() -> None:
     ):
         assert ownership_marker in owner_source
         assert ownership_marker not in surface_source
-    assert "PromptReorderPaintSnapshotCacheOwner(" in surface_source
+    assert "PromptReorderPaintSnapshotCacheOwner(" in projection_owner_source
+    assert "PromptReorderPaintSnapshotCacheOwner(" not in surface_source
+
+
+def test_surface_exposes_one_reorder_owner_without_reorder_forwarding_shims() -> None:
+    """Keep reorder projection authority out of the mounted editing surface."""
+
+    surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "self._reorder = PromptReorderProjectionOwner(" in surface_source
+    for forbidden_marker in (
+        "self._reorder_preview_projection",
+        "self._reorder_geometry_owner",
+        "self._reorder_paint_snapshots",
+        "self._reorder_surface_visual_state",
+        "def set_reorder_preview_state(",
+        "def reorder_preview_fragments(",
+        "def reorder_placement_at_rect(",
+        "def set_reorder_surface_visual_publication(",
+    ):
+        assert forbidden_marker not in surface_source

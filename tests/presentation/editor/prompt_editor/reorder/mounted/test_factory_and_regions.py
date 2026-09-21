@@ -75,7 +75,7 @@ def test_segment_overlay_factory_returns_ready_preview_ports_before_activation()
         document_service=document_service,
         syntax_service=PromptSyntaxService(_EmptyPromptWildcardCatalogGateway()),
         syntax_profile=PromptSyntaxProfileService().default_profile(),
-        geometry_owner=surface_for(editor).reorder_geometry_owner,
+        geometry_owner=surface_for(editor).reorder.geometry_owner,
         interaction_metrics=PromptReorderInteractionMetricsOwner(),
     ).create_segment_overlay(editor, layout_policy=document_service)
 
@@ -171,7 +171,7 @@ def test_segment_reorder_overlay_hosts_passive_reorder_view(
     assert view.render_state.live_chips == ()
     surface_chrome = cast(
         Any, editor
-    )._surface._reorder_surface_visual_state.state.chrome_snapshot
+    )._surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert len(surface_chrome.chips) == 3
     assert view.render_state.preview_active is False

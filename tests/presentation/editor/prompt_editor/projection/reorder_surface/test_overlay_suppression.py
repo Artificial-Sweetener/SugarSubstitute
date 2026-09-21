@@ -58,7 +58,7 @@ def test_projection_surface_excludes_dragged_chip_and_separator_from_preview_reg
         drop_target=drop_target,
     )
 
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view(text)
     preview_layout_view = document_service.build_preview_drop_layout_view(
@@ -66,17 +66,17 @@ def test_projection_surface_excludes_dragged_chip_and_separator_from_preview_reg
         dragged_segment_index=1,
         drop_target=drop_target,
     )
-    preview_chip_geometry = surface.reorder_preview_chip_geometry_snapshot(
+    preview_chip_geometry = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+    paint_snapshots = surface.reorder.preview_chip_paint_snapshots(
         chip_geometry_snapshot=preview_chip_geometry,
         chip_owned_ranges_by_index=(
             preview_state.preview_snapshot.chip_owned_ranges_by_index
         ),
     )
-    surface.set_reorder_surface_visual_publication(
+    surface.reorder.presentation.publish(
         PromptReorderSurfaceVisualPublication(
             mode="preview",
             chips=(),
@@ -84,12 +84,12 @@ def test_projection_surface_excludes_dragged_chip_and_separator_from_preview_reg
         )
     )
 
-    visible_region = surface._preview_visible_region()  # noqa: SLF001
+    visible_region = surface.reorder.presentation.preview_visible_region()  # noqa: SLF001
     assert visible_region is not None
     owned_ranges = preview_state.preview_snapshot.chip_owned_ranges_by_index[1]
     assert len(owned_ranges) == 2
     for start, end in owned_ranges:
-        fragments = surface.reorder_preview_fragments(start=start, end=end)
+        fragments = surface.reorder.preview_fragments(start=start, end=end)
         assert fragments
         for fragment in fragments:
             assert visible_region.intersected(
@@ -114,7 +114,7 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
 
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view("alpha, beta, gamma")
     preview_layout_view = document_service.build_preview_drop_layout_view(
@@ -122,17 +122,17 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
         dragged_segment_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
-    preview_chip_geometry = surface.reorder_preview_chip_geometry_snapshot(
+    preview_chip_geometry = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    preview_paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+    preview_paint_snapshots = surface.reorder.preview_chip_paint_snapshots(
         chip_geometry_snapshot=preview_chip_geometry,
         chip_owned_ranges_by_index=(
             preview_state.preview_snapshot.chip_owned_ranges_by_index
         ),
     )
-    surface.set_reorder_surface_visual_publication(
+    surface.reorder.presentation.publish(
         PromptReorderSurfaceVisualPublication(
             mode="preview",
             chips=(),
@@ -140,11 +140,11 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
         )
     )
 
-    visible_region = surface._preview_visible_region()  # noqa: SLF001
+    visible_region = surface.reorder.presentation.preview_visible_region()  # noqa: SLF001
     assert visible_region is not None
     suppressed_ranges = preview_state.preview_snapshot.chip_owned_ranges_by_index[2]
     for start, end in suppressed_ranges:
-        fragments = surface.reorder_preview_fragments(start=start, end=end)
+        fragments = surface.reorder.preview_fragments(start=start, end=end)
         assert fragments
         for fragment in fragments:
             assert visible_region.intersected(
@@ -155,17 +155,17 @@ def test_projection_surface_excludes_overlay_painted_preview_chips(
     assert any(
         not visible_region.intersected(QRegion(fragment.toAlignedRect())).isEmpty()
         for start, end in unsuppressed_ranges
-        for fragment in surface.reorder_preview_fragments(start=start, end=end)
+        for fragment in surface.reorder.preview_fragments(start=start, end=end)
     )
 
-    surface.set_reorder_surface_visual_publication(
+    surface.reorder.presentation.publish(
         PromptReorderSurfaceVisualPublication(
             mode="preview",
             chips=(),
             suppression_snapshots_by_index={},
         )
     )
-    restored_region = surface._preview_visible_region()  # noqa: SLF001
+    restored_region = surface.reorder.presentation.preview_visible_region()  # noqa: SLF001
     assert restored_region is None
 
 
@@ -183,7 +183,7 @@ def test_projection_surface_keeps_text_visible_for_stale_overlay_snapshot(
         dragged_chip_index=1,
         drop_target=drop_target,
     )
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     document_service = PromptDocumentService()
     document_view = document_service.build_document_view(text)
     preview_layout_view = document_service.build_preview_drop_layout_view(
@@ -191,18 +191,18 @@ def test_projection_surface_keeps_text_visible_for_stale_overlay_snapshot(
         dragged_segment_index=1,
         drop_target=drop_target,
     )
-    preview_chip_geometry = surface.reorder_preview_chip_geometry_snapshot(
+    preview_chip_geometry = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+    paint_snapshots = surface.reorder.preview_chip_paint_snapshots(
         chip_geometry_snapshot=preview_chip_geometry,
         chip_owned_ranges_by_index=(
             preview_state.preview_snapshot.chip_owned_ranges_by_index
         ),
     )
     stale_snapshot = paint_snapshots[2]
-    surface.set_reorder_surface_visual_publication(
+    surface.reorder.presentation.publish(
         PromptReorderSurfaceVisualPublication(
             mode="preview",
             chips=(),
@@ -215,13 +215,13 @@ def test_projection_surface_keeps_text_visible_for_stale_overlay_snapshot(
         dragged_chip_index=1,
         drop_target=drop_target,
     )
-    surface.set_reorder_preview_state(refreshed_state)
-    visible_region = surface._preview_visible_region()  # noqa: SLF001
+    surface.reorder.set_preview_state(refreshed_state)
+    visible_region = surface.reorder.presentation.preview_visible_region()  # noqa: SLF001
 
     assert visible_region is not None
     suppressed_ranges = refreshed_state.preview_snapshot.chip_owned_ranges_by_index[2]
     assert any(
         not visible_region.intersected(QRegion(fragment.toAlignedRect())).isEmpty()
         for start, end in suppressed_ranges
-        for fragment in surface.reorder_preview_fragments(start=start, end=end)
+        for fragment in surface.reorder.preview_fragments(start=start, end=end)
     )

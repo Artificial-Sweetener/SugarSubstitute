@@ -202,10 +202,7 @@ def _editor_reorder_preview_document(
 ) -> PromptProjectionDocument | None:
     """Return the surface-owned reorder preview projection document."""
 
-    return cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(box), "_reorder_preview_projection").preview_document,
-    )
+    return surface_for(box).reorder.preview.preview_document
 
 
 def _editor_reorder_preview_text(box: PromptEditor) -> str:
@@ -263,7 +260,7 @@ def _assert_plain_alt_keeps_surface_text_ownership(
     assert state.raster_paint_count == 0
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface._reorder_surface_visual_state.state.chrome_snapshot
+    )._editor._surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.mode == "live"
     assert surface_chrome.chips

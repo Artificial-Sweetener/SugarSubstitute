@@ -44,7 +44,6 @@ from PySide6.QtGui import (
     QMouseEvent,
     QPainter,
     QPaintEvent,
-    QRegion,
     QResizeEvent,
     QShowEvent,
     QTextCursor,
@@ -72,7 +71,6 @@ from substitute.application.prompt_editor.editing.syntax_actions import (
 from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
-from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_event,
@@ -189,52 +187,17 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 )
 from .observability import (
     log_projection_timing,
-    log_reorder_drag_event,
-    log_reorder_drag_timing,
     projection_observability_started_at,
     render_plan_lora_span_count,
-    reorder_drag_started_at,
 )
 from .content_media_owner import PromptProjectionContentMediaOwner
 from .region_chrome_presentation import PromptRegionChromePresentationOwner
 from .region_chrome_state import PromptRegionChromeEditTarget
-from .reorder_chip_geometry import (
-    PromptReorderChipGeometrySnapshot,
-)
-from .reorder_geometry_cache_keys import (
-    ReorderGeometrySnapshot,
-)
 from .reorder_geometry import reorder_geometry_state
-from .reorder_geometry_owner import (
-    PromptReorderGeometryEnvironment,
-    PromptReorderGeometryOwner,
-)
-from .reorder_paint_snapshot_cache_owner import PromptReorderPaintSnapshotCacheOwner
-from .reorder_placement_geometry import (
-    PromptReorderPlacementGeometry,
-    PromptReorderPlacementId,
-    PromptReorderPlacementSnapshot,
-    placement_for_drag_rect,
-)
-from .reorder_preview import (
-    PromptReorderPreviewState,
-)
-from .reorder_preview_projection_contracts import (
-    PromptReorderPreviewProjectionContext,
-)
-from .reorder_preview_projection_owner import PromptReorderPreviewProjectionOwner
-from .reorder_surface_visual_state import (
-    PromptReorderSurfaceVisualContext,
-    PromptReorderSurfaceVisualPublication,
-    PromptReorderSurfaceVisualStateOwner,
-    empty_reorder_surface_visual_publication,
-)
+from .reorder_projection_owner import PromptReorderProjectionOwner
 from .render_compositor import PromptProjectionRenderCompositor
 from .render_frame_owner import PromptProjectionRenderFrameOwner
 from .render_publication_owner import PromptProjectionRenderPublicationOwner
-from .reorder_visual_snapshot import (
-    PromptReorderProjectionPaintSnapshot,
-)
 from ..geometry.models import PromptProjectionSourceLineRect
 from ..geometry.selection import selection_paints_changed
 from .session import (
@@ -276,7 +239,6 @@ from ..interactions.deletion_controller import (
 )
 from .builder import PromptProjectionBuilder
 
-_SLOW_REORDER_PROJECTION_LAYOUT_MS = 8.0
 _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
 
 
@@ -449,28 +411,30 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._source_document_adapter = source_state_owners.source_document
         self._source_commit_application = source_state_owners.source_commit_application
         self._active_projection_document = self._editor_state.projection.document
-        self._reorder_preview_projection = PromptReorderPreviewProjectionOwner(
-            projection_applicator=self._projection_applicator,
+        self._layout_width_resolver: PromptProjectionLayoutWidthResolver
+        self._reorder = PromptReorderProjectionOwner(
+            surface=self,
+            viewport=self.viewport(),
+            applicator=self._projection_applicator,
             thumbnail_cache=thumbnail_cache,
-        )
-        self._reorder_geometry_owner = PromptReorderGeometryOwner(
-            environment=self._reorder_geometry_environment,
-            preview_projection=self._reorder_preview_projection,
+            editor_state=self._editor_state,
+            layout=self._layout,
+            layout_width=lambda: self._layout_width_resolver.resolve(),
+            scroll_offset=self._scroll_offset,
+            flush_pending_projection=(
+                lambda reason: self._flush_pending_projection_update(reason=reason)
+            ),
+            synchronize_layout=self._sync_layout_state,
+            publish_render_frame=self._publish_render_frame,
+            request_update=self.viewport().update,
         )
         self._selection_layer_owner = PromptProjectionSelectionLayerOwner(
             frame=lambda: self._layout.frame,
             selection=self._selection,
             viewport_rect=lambda: QRectF(self.viewport().rect()),
             scroll_offset=self._scroll_offset,
-            preview_active=self._reorder_preview_is_active,
+            preview_active=self._reorder.is_active,
         )
-        self._reorder_paint_snapshots = PromptReorderPaintSnapshotCacheOwner(
-            surface=self,
-            viewport=self.viewport(),
-            editor_state=self._editor_state,
-            scroll_offset=self._scroll_offset,
-        )
-        self._reorder_surface_visual_state = PromptReorderSurfaceVisualStateOwner()
         initial_state = (
             self._editor_state.projection.document.caret_map.state_for_source_position(
                 0
@@ -531,6 +495,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._caret_visual_controller = PromptSurfaceCaretVisualController(
             cast(PromptSurfaceCaretVisualHost, self),
             is_alive=qt_object_is_alive,
+            reorder_preview_active=self._reorder.is_active,
             parent=self,
         )
         self._transient_edit_overlays = source_state_owners.transient_edit_overlays
@@ -582,7 +547,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 lambda: self._layout.frame.output.snapshot.content_size.width()
             ),
             content_left_inset=lambda: self._source_line_chrome.content_left_inset,
-            reorder_geometry=self._reorder_geometry_owner.projection_geometry,
+            reorder_geometry=self._reorder.geometry_owner.projection_geometry,
             geometry_state=lambda: reorder_geometry_state(self._layout.frame.geometry),
         )
         self._pointer_interactions = PromptSurfacePointerInteractions()
@@ -597,13 +562,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
             layout=self._layout,
             editor_state=self._editor_state,
             session=self._session,
-            reorder_preview=self._reorder_preview_projection,
+            reorder_preview=self._reorder.preview,
             input_method=self._input_method_controller,
             content_media=self._content_media_owner,
             selection_layer=self._selection_layer_owner,
             source_line_chrome=self._source_line_chrome,
             region_chrome=self._region_chrome_presentation.chrome,
-            reorder_visual_state=self._reorder_surface_visual_state,
+            reorder_visual_state=self._reorder.presentation.visual_state,
             search_highlight=self._search_highlight_layer,
             diagnostics=self._diagnostic_layer_owner,
             transient_overlays=self._transient_edit_overlays,
@@ -612,8 +577,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             scroll_offset=self._scroll_offset,
             should_paint_caret=self._should_paint_caret,
             current_caret_rect=self._current_caret_rect,
-            preview_visible_region=self._preview_visible_region,
-            reorder_preview_generation=self._reorder_preview_generation,
+            preview_visible_region=self._reorder.presentation.preview_visible_region,
+            reorder_preview_generation=self._reorder.preview_generation,
         )
         self._render_compositor = PromptProjectionRenderCompositor()
         self._layout.frame.set_semantic_palette(semantic_palette_from_theme())
@@ -621,7 +586,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             host=self,
             layout=self._layout,
             applicator=self._projection_applicator,
-            reorder_preview=self._reorder_preview_projection,
+            reorder_preview=self._reorder.preview,
             frame_state=self._frame_state,
             width_resolver=self._layout_width_resolver,
             freshness=self._projection_freshness_controller,
@@ -670,10 +635,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return self._editor_state
 
     @property
-    def reorder_geometry_owner(self) -> PromptReorderGeometryOwner:
-        """Return the focused geometry owner for direct composition wiring."""
+    def reorder(self) -> PromptReorderProjectionOwner:
+        """Return the focused reorder projection owner for composition wiring."""
 
-        return self._reorder_geometry_owner
+        return self._reorder
 
     @property
     def anchor_position(self) -> int:
@@ -789,9 +754,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         previous_cursor_state = self._caret_state_owner.cursor_state
         previous_anchor_state = self._caret_state_owner.anchor_state
         self._display_mode = display_mode
-        self._clear_reorder_projection_and_geometry_caches(
-            reason="display_mode_changed"
-        )
+        self._reorder.clear_projection_and_geometry(reason="display_mode_changed")
         self._mouse_handler.clear_hovered_token(update=False)
         restored_projection = self._display_mode_layout_cache.try_restore(
             display_mode,
@@ -826,9 +789,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             QEvent.Type.ApplicationPaletteChange,
             QEvent.Type.StyleChange,
         }:
-            self._clear_reorder_projection_and_geometry_caches(
-                reason="visual_style_changed"
-            )
+            self._reorder.clear_projection_and_geometry(reason="visual_style_changed")
             self._input_method_controller.refresh_render_layer()
             self._publish_render_frame()
         super().changeEvent(event)
@@ -846,7 +807,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def content_height(self) -> float:
         """Return the current laid-out projection content height."""
 
-        preview_frame = self._reorder_preview_projection.preview_frame
+        preview_frame = self._reorder.preview.preview_frame
         if preview_frame is not None:
             return preview_frame.output.snapshot.content_size.height()
         committed_metrics = self._projection_freshness_controller.committed_metrics
@@ -1160,7 +1121,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             or not preview.suffix_text
             or not self._selection().is_empty
             or preview.source_position != self.cursor_position
-            or self._reorder_preview_projection.is_active()
+            or self._reorder.is_active()
         ):
             return PromptProjectionTransientState()
         return PromptProjectionTransientState(
@@ -1266,459 +1227,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return stable wheel ownership identity for one prompt weight token."""
 
         return self._session.prompt_weight_wheel_identity(token)
-
-    def set_reorder_preview_state(
-        self,
-        preview_state: PromptReorderPreviewState | None,
-    ) -> None:
-        """Replace the active reorder preview state through the projection service."""
-
-        started_at = reorder_drag_started_at()
-        if preview_state is None:
-            self._reorder_paint_snapshots.clear_preview()
-            self._reorder_surface_visual_state.publish(
-                empty_reorder_surface_visual_publication(),
-                context=self._reorder_surface_visual_context(),
-            )
-        self._flush_pending_projection_update(reason="set_reorder_preview_state")
-        invalidation = self._reorder_preview_projection.set_preview_state(
-            preview_state,
-            context=PromptReorderPreviewProjectionContext.from_preview_state(
-                preview_state,
-                source_revision=self._editor_state.source.source_revision,
-                layout_width=self._layout_width_resolver.resolve(),
-                viewport_width=self.viewport().width(),
-            ),
-            font=self.font(),
-            palette=self.palette(),
-            semantic_palette=semantic_palette_from_theme(),
-            live_projection_document=self._editor_state.projection.document,
-            live_projection_frame=self._layout.frame,
-        )
-        if invalidation.clear_all_geometry_reason is not None:
-            self._clear_reorder_geometry_caches(
-                reason=invalidation.clear_all_geometry_reason
-            )
-        if invalidation.clear_base_drag_geometry_reason is not None:
-            self._clear_base_drag_geometry_caches(
-                reason=invalidation.clear_base_drag_geometry_reason
-            )
-        self._sync_layout_state()
-        self.viewport().update()
-        log_reorder_drag_timing(
-            "surface.set_reorder_preview_state",
-            started_at=started_at,
-            gesture_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id
-            ),
-            event_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_event_id
-            ),
-            reason=(
-                "" if preview_state is None else preview_state.instrumentation_reason
-            ),
-            has_preview_state=preview_state is not None,
-            has_base_drag=(
-                False
-                if preview_state is None
-                else preview_state.base_drag_snapshot is not None
-            ),
-            dragged_chip_index=(
-                None if preview_state is None else preview_state.dragged_chip_index
-            ),
-            ordered_count=(
-                0 if preview_state is None else len(preview_state.ordered_chip_indices)
-            ),
-        )
-
-    def clear_reorder_preview_state(self) -> None:
-        """Clear any active reorder preview state and resume live-text painting."""
-
-        self.set_reorder_preview_state(None)
-
-    def reset_reorder_geometry_cache_counters(self) -> None:
-        """Reset per-gesture reorder geometry and projection cache counters."""
-
-        self._reorder_geometry_owner.reset_counters()
-        self._reorder_preview_projection.reset_counters()
-        self._reorder_paint_snapshots.reset_counters()
-
-    def reorder_geometry_cache_counters(self) -> dict[str, object]:
-        """Return per-gesture reorder cache counters for diagnostics summaries."""
-
-        return {
-            **self._reorder_geometry_owner.counters(),
-            **self._reorder_preview_projection.counters(),
-            **self._reorder_paint_snapshots.counters(),
-        }
-
-    def _clear_reorder_geometry_caches(self, *, reason: str) -> None:
-        """Invalidate all reorder geometry caches with prompt-safe diagnostics."""
-
-        self._reorder_geometry_owner.clear_base_drag(reason=reason)
-        self._reorder_geometry_owner.clear_preview(reason=reason)
-
-    def _clear_reorder_projection_and_geometry_caches(self, *, reason: str) -> None:
-        """Invalidate reorder projection and geometry caches after metric changes."""
-
-        self._reorder_preview_projection.clear_projection_cache(reason=reason)
-        self._reorder_geometry_owner.clear_live(reason=reason)
-        self._clear_reorder_geometry_caches(reason=reason)
-
-    def _clear_base_drag_geometry_caches(self, *, reason: str) -> None:
-        """Invalidate stable drag-base chip and placement geometry caches."""
-
-        self._reorder_geometry_owner.clear_base_drag(reason=reason)
-
-    def _clear_preview_chip_geometry_cache(self, *, reason: str) -> None:
-        """Invalidate cached preview chip geometry snapshots."""
-
-        self._reorder_geometry_owner.clear_preview(reason=reason)
-
-    def _reorder_geometry_environment(
-        self,
-        reason: str,
-    ) -> PromptReorderGeometryEnvironment:
-        """Publish one coherent live frame and viewport geometry environment."""
-
-        if reason:
-            self._flush_pending_projection_update(reason=reason)
-        return PromptReorderGeometryEnvironment(
-            live_source_text=(
-                self._editor_state.projection_semantic.document.source_text
-            ),
-            live_frame=self._layout.frame,
-            viewport_rect=QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset(),
-            layout_width=self._layout_width_resolver.resolve(),
-        )
-
-    def reorder_preview_fragments(
-        self,
-        *,
-        start: int,
-        end: int,
-    ) -> tuple[QRectF, ...]:
-        """Return wrapped preview fragments for one raw preview source range."""
-
-        if self._reorder_preview_projection.preview_frame is None:
-            return ()
-        started_at = reorder_drag_started_at()
-        self._flush_pending_projection_update(reason="reorder_preview_fragments")
-        fragments = self._reorder_preview_projection.preview_fragments(
-            start=start,
-            end=end,
-            viewport_rect=QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset(),
-        )
-        preview_state = self._reorder_preview_projection.preview_state
-        log_reorder_drag_timing(
-            "surface.reorder_preview_fragments",
-            started_at=started_at,
-            gesture_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id
-            ),
-            event_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_event_id
-            ),
-            reason=""
-            if preview_state is None
-            else preview_state.instrumentation_reason,
-            start=start,
-            end=end,
-            range_length=end - start,
-            fragment_count=len(fragments),
-        )
-        return fragments
-
-    def reorder_live_chip_geometry_snapshot(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Adapt the public surface query to the focused geometry owner."""
-
-        return self._reorder_geometry_owner.live_chip_snapshot(
-            layout_view=layout_view,
-            chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
-            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-        )
-
-    def reorder_preview_chip_geometry_snapshot(
-        self,
-        *,
-        snapshot: ReorderGeometrySnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Adapt the public surface query to the focused geometry owner."""
-
-        return self._reorder_geometry_owner.preview_chip_snapshot(
-            snapshot=snapshot,
-            layout_view=layout_view,
-        )
-
-    def reorder_live_chip_projection_paint_snapshots(
-        self,
-        *,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
-        """Return projection-owned live paint snapshots for visible reorder chips."""
-
-        self._flush_pending_projection_update(reason="reorder_live_chip_visuals")
-        return self._reorder_paint_snapshots.live_snapshots(
-            projection_frame=self._layout.frame,
-            chip_geometry_snapshot=chip_geometry_snapshot,
-            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-        )
-
-    def reorder_preview_chip_projection_paint_snapshots(
-        self,
-        *,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-        chip_indices: frozenset[int] | None = None,
-    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
-        """Return projection-owned preview paint snapshots for visible reorder chips."""
-
-        preview_frame = self._reorder_preview_projection.preview_frame
-        if preview_frame is None:
-            return {}
-        self._flush_pending_projection_update(reason="reorder_preview_chip_visuals")
-        return self._reorder_paint_snapshots.preview_snapshots(
-            projection_frame=preview_frame,
-            chip_geometry_snapshot=chip_geometry_snapshot,
-            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-            preview_generation=self._reorder_preview_generation(),
-            chip_indices=chip_indices,
-        )
-
-    def _reorder_preview_generation(self) -> int | None:
-        """Return the active preview identity used by visual snapshots."""
-
-        preview_state = self._reorder_preview_projection.preview_state
-        if preview_state is None:
-            return None
-        return id(preview_state.preview_snapshot)
-
-    def reorder_preview_cursor_rect(self, position: int) -> QRectF:
-        """Return the preview caret rect for one raw preview source position."""
-
-        if (
-            self._reorder_preview_projection.preview_frame is None
-            or self._reorder_preview_projection.preview_document is None
-        ):
-            return QRectF()
-        started_at = reorder_drag_started_at()
-        self._flush_pending_projection_update(reason="reorder_preview_cursor_rect")
-        cursor_rect = self._reorder_preview_projection.preview_cursor_rect(
-            position=position,
-            scroll_offset=self._scroll_offset(),
-        )
-        preview_state = self._reorder_preview_projection.preview_state
-        log_reorder_drag_timing(
-            "surface.reorder_preview_cursor_rect",
-            started_at=started_at,
-            gesture_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id
-            ),
-            event_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_event_id
-            ),
-            reason=""
-            if preview_state is None
-            else preview_state.instrumentation_reason,
-            position=position,
-            rect_left=f"{cursor_rect.left():.2f}",
-            rect_top=f"{cursor_rect.top():.2f}",
-            rect_width=f"{cursor_rect.width():.2f}",
-            rect_height=f"{cursor_rect.height():.2f}",
-        )
-        return cursor_rect
-
-    def reorder_base_drag_fragments(
-        self,
-        *,
-        start: int,
-        end: int,
-    ) -> tuple[QRectF, ...]:
-        """Return wrapped fragments for one raw source range from the stable drag base."""
-
-        if self._reorder_preview_projection.base_drag_frame is None:
-            return ()
-        started_at = reorder_drag_started_at()
-        fragments = self._reorder_preview_projection.base_drag_fragments(
-            start=start,
-            end=end,
-            viewport_rect=QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset(),
-        )
-        preview_state = self._reorder_preview_projection.preview_state
-        log_reorder_drag_timing(
-            "surface.reorder_base_drag_fragments",
-            started_at=started_at,
-            gesture_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id
-            ),
-            event_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_event_id
-            ),
-            reason=""
-            if preview_state is None
-            else preview_state.instrumentation_reason,
-            start=start,
-            end=end,
-            range_length=end - start,
-            fragment_count=len(fragments),
-        )
-        return fragments
-
-    def reorder_base_drag_chip_geometry_snapshot(
-        self,
-        *,
-        snapshot: ReorderGeometrySnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Adapt the public surface query to the focused geometry owner."""
-
-        return self._reorder_geometry_owner.base_drag_chip_snapshot(
-            snapshot=snapshot,
-            layout_view=layout_view,
-        )
-
-    def reorder_base_drag_cursor_rect(self, position: int) -> QRectF:
-        """Return the stable drag-base caret rect for one raw preview source position."""
-
-        if (
-            self._reorder_preview_projection.base_drag_frame is None
-            or self._reorder_preview_projection.base_drag_document is None
-        ):
-            return QRectF()
-        started_at = reorder_drag_started_at()
-        cursor_rect = self._reorder_preview_projection.base_drag_cursor_rect(
-            position=position,
-            scroll_offset=self._scroll_offset(),
-        )
-        preview_state = self._reorder_preview_projection.preview_state
-        log_reorder_drag_timing(
-            "surface.reorder_base_drag_cursor_rect",
-            started_at=started_at,
-            gesture_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id
-            ),
-            event_id=(
-                None
-                if preview_state is None
-                else preview_state.instrumentation_event_id
-            ),
-            reason=""
-            if preview_state is None
-            else preview_state.instrumentation_reason,
-            position=position,
-            rect_left=f"{cursor_rect.left():.2f}",
-            rect_top=f"{cursor_rect.top():.2f}",
-            rect_width=f"{cursor_rect.width():.2f}",
-            rect_height=f"{cursor_rect.height():.2f}",
-        )
-        return cursor_rect
-
-    def reorder_base_drag_placement_snapshot(
-        self,
-        *,
-        snapshot: ReorderGeometrySnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderPlacementSnapshot:
-        """Adapt the public surface query to the focused geometry owner."""
-
-        return self._reorder_geometry_owner.base_drag_placement_snapshot(
-            snapshot=snapshot,
-            layout_view=layout_view,
-        )
-
-    def reorder_live_placement_snapshot(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        gap_ranges_by_index: dict[int, tuple[int, int]],
-    ) -> PromptReorderPlacementSnapshot:
-        """Adapt the public surface query to the focused geometry owner."""
-
-        return self._reorder_geometry_owner.live_placement_snapshot(
-            layout_view=layout_view,
-            chip_geometry_snapshot=chip_geometry_snapshot,
-            gap_ranges_by_index=gap_ranges_by_index,
-        )
-
-    def reorder_placement_at_rect(
-        self,
-        drag_rect: QRectF,
-        *,
-        snapshot: PromptReorderPlacementSnapshot,
-        active_placement_id: PromptReorderPlacementId | None,
-    ) -> PromptReorderPlacementGeometry | None:
-        """Return the projection-owned placement selected by one drag intent rect."""
-
-        preview_state = self._reorder_preview_projection.preview_state
-        started_at = reorder_drag_started_at()
-        placement = placement_for_drag_rect(
-            snapshot,
-            drag_rect,
-            active_placement_id=active_placement_id,
-            gesture_id=None
-            if preview_state is None
-            else preview_state.instrumentation_gesture_id,
-            event_id=None
-            if preview_state is None
-            else preview_state.instrumentation_event_id,
-        )
-        elapsed_ms = log_reorder_drag_timing(
-            "surface.reorder_placement_at_rect",
-            started_at=started_at,
-            gesture_id=None
-            if preview_state is None
-            else preview_state.instrumentation_gesture_id,
-            event_id=None
-            if preview_state is None
-            else preview_state.instrumentation_event_id,
-            placement_count=len(snapshot.placements),
-            selected=placement is not None,
-        )
-        if elapsed_ms >= _SLOW_REORDER_PROJECTION_LAYOUT_MS:
-            log_reorder_drag_event(
-                "slow.placement_hit_test",
-                gesture_id=None
-                if preview_state is None
-                else preview_state.instrumentation_gesture_id,
-                event_id=None
-                if preview_state is None
-                else preview_state.instrumentation_event_id,
-                elapsed_ms=f"{elapsed_ms:.3f}",
-                threshold_ms=f"{_SLOW_REORDER_PROJECTION_LAYOUT_MS:.3f}",
-                placement_count=len(snapshot.placements),
-                selected=placement is not None,
-            )
-        return placement
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the caret or token focus."""
@@ -2005,7 +1513,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return PromptProjectionFreshnessBlockers(
             display_mode=self._display_mode,
-            reorder_preview_active=self._reorder_preview_projection.is_active(),
+            reorder_preview_active=self._reorder.is_active(),
             autocomplete_preview_active=self._session.autocomplete_preview is not None,
             exact_weight_edit_active=self._session.exact_weight_edit is not None,
             expanded_source_range_active=(
@@ -2052,8 +1560,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not deferrable_projection:
             self._clear_transient_caret_geometry()
         source_identity = self._editor_state.publish_source(source_snapshot)
-        if self._reorder_preview_projection.preview_state is not None:
-            self._clear_reorder_projection_and_geometry_caches(reason="source_changed")
+        self._reorder.clear_for_source_change()
         if clear_diagnostic_fragment_cache:
             self._diagnostic_layer_owner.clear_fragment_cache(reason="source_changed")
         self._projection_freshness_controller.mark_source_text_changed(
@@ -2340,9 +1847,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptRefreshGeometryPaintSignature:
         """Return visual state used to decide whether refresh_geometry repaints."""
 
-        active_frame = (
-            self._reorder_preview_projection.preview_frame or self._layout.frame
-        )
+        active_frame = self._reorder.active_frame
         content_size = active_frame.output.snapshot.content_size
         scroll_bar = self.verticalScrollBar()
         return PromptRefreshGeometryPaintSignature(
@@ -2818,7 +2323,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._caret_state_owner.clear_visual_affinity(reset_preferred_x=True)
         if not self._projection_freshness_controller.has_stale_projection_geometry():
             self._clear_transient_caret_geometry()
-        self._clear_reorder_projection_and_geometry_caches(reason="resize")
+        self._reorder.clear_projection_and_geometry(reason="resize")
         self._diagnostic_layer_owner.clear_fragment_cache(reason="resize")
         self.refresh_geometry()
         self.viewport().update()
@@ -2927,7 +2432,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         if not self._source_line_chrome.enabled:
             return
-        frame = self._reorder_preview_projection.preview_frame or self._layout.frame
+        frame = self._reorder.active_frame
         self._source_line_chrome.prepare(
             geometry=frame.geometry,
             geometry_identity=id(frame.output.snapshot),
@@ -2951,11 +2456,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Publish custom caret state before its scheduled repaint."""
 
         self._publish_render_frame()
-
-    def _reorder_preview_is_active(self) -> bool:
-        """Return whether a reorder preview currently suppresses the live caret."""
-
-        return self._reorder_preview_projection.is_active()
 
     def _prepare_search_highlight_layer(self) -> None:
         """Prepare search commands against the current layout and viewport."""
@@ -3125,27 +2625,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _sync_layout_state(self, *, commit_projection: bool = False) -> None:
         """Keep layout metrics in sync and optionally commit rebuilt projection freshness."""
 
-        if self._reorder_preview_projection.preview_state is not None:
-            layout_width = self._layout_width_resolver.resolve()
-            font = self.font()
-            if not self._reorder_preview_projection.geometry_inputs_match(
-                layout_width=layout_width,
-                font=font,
-            ):
-                invalidation = self._reorder_preview_projection.rebuild_geometry_inputs(
-                    source_revision=self._editor_state.source.source_revision,
-                    layout_width=layout_width,
-                    viewport_width=self.viewport().width(),
-                    font=font,
-                    palette=self.palette(),
-                    semantic_palette=semantic_palette_from_theme(),
-                    live_projection_document=self._editor_state.projection.document,
-                    live_projection_frame=self._layout.frame,
-                )
-                if invalidation.clear_base_drag_geometry_reason is not None:
-                    self._clear_base_drag_geometry_caches(
-                        reason=invalidation.clear_base_drag_geometry_reason
-                    )
+        self._reorder.synchronize_geometry_inputs()
         self._frame_synchronizer.sync(
             display_mode=self._display_mode,
             commit_projection=commit_projection,
@@ -3156,74 +2636,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._prepare_search_highlight_layer()
         self._input_method_controller.refresh_render_layer()
         self._publish_render_frame()
-
-    def set_reorder_surface_visual_publication(
-        self,
-        publication: PromptReorderSurfaceVisualPublication,
-    ) -> None:
-        """Publish chrome and suppression atomically for one prepared frame."""
-
-        if not self._reorder_surface_visual_state.publish(
-            publication,
-            context=self._reorder_surface_visual_context(),
-        ):
-            return
-        self._publish_render_frame()
-        self.viewport().update()
-
-    def _reorder_surface_visual_context(self) -> PromptReorderSurfaceVisualContext:
-        """Return the exact projection identity receiving reorder visuals."""
-
-        return PromptReorderSurfaceVisualContext(
-            source_revision=self._editor_state.source.source_revision,
-            viewport_rect=self.viewport().rect(),
-            scroll_offset=int(round(self._scroll_offset())),
-            preview_generation=self._reorder_preview_generation(),
-        )
-
-    def _preview_visible_region(self) -> QRegion | None:
-        """Return the viewport region that should remain visible during preview paint."""
-
-        preview_state = self._reorder_preview_projection.preview_state
-        preview_frame = self._reorder_preview_projection.preview_frame
-        if preview_state is None or preview_frame is None:
-            return None
-        suppression_snapshots = (
-            self._reorder_surface_visual_state.state.suppression_snapshots_by_index
-        )
-        if not suppression_snapshots:
-            return None
-
-        visible_region = QRegion(self.viewport().rect())
-        for chip_index, snapshot in suppression_snapshots.items():
-            if not self._reorder_suppression_snapshot_is_fresh(
-                snapshot,
-                chip_index=chip_index,
-            ):
-                continue
-            for fragment_rect in snapshot.viewport_rects:
-                visible_region = visible_region.subtracted(
-                    QRegion(fragment_rect.toAlignedRect())
-                )
-        return visible_region
-
-    def _reorder_suppression_snapshot_is_fresh(
-        self,
-        snapshot: PromptReorderProjectionPaintSnapshot,
-        *,
-        chip_index: int,
-    ) -> bool:
-        """Return whether an overlay snapshot matches the active preview paint."""
-
-        key = snapshot.key
-        return not (
-            key.source_revision != self._editor_state.source.source_revision
-            or key.viewport_rect != self.viewport().rect()
-            or key.scroll_offset != int(round(self._scroll_offset()))
-            or key.preview_generation != self._reorder_preview_generation()
-            or key.segment_index != chip_index
-            or key.mode != "preview"
-        )
 
     def _move_horizontally(self, direction: int, *, keep_anchor: bool) -> None:
         """Move the caret across plain text or collapsed token boundaries."""

@@ -58,9 +58,6 @@ class PromptSurfaceCaretVisualHost(Protocol):
     def _log_transient_caret_used(self, *, operation: str) -> None:
         """Record that transient caret geometry was consumed."""
 
-    def _reorder_preview_is_active(self) -> bool:
-        """Return whether a reorder preview currently suppresses the live caret."""
-
     def _selection(self) -> PromptProjectionSelection:
         """Return the current source-backed selection."""
 
@@ -79,12 +76,14 @@ class PromptSurfaceCaretVisualController:
         host: PromptSurfaceCaretVisualHost,
         *,
         is_alive: Callable[[QObject], bool],
+        reorder_preview_active: Callable[[], bool],
         parent: QObject,
     ) -> None:
         """Bind caret visuals to a surface host and Qt lifecycle owner."""
 
         self._host = host
         self._is_alive = is_alive
+        self._reorder_preview_active = reorder_preview_active
         self._blink_timer = QTimer(parent)
         self._blink_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._blink_timer.timeout.connect(self.toggle_caret_blink_visibility)
@@ -239,7 +238,7 @@ class PromptSurfaceCaretVisualController:
         if (
             not self._host.isVisible()
             or not viewport.isVisible()
-            or self._host._reorder_preview_is_active()
+            or self._reorder_preview_active()
             or not self._host._selection().is_empty
         ):
             return False

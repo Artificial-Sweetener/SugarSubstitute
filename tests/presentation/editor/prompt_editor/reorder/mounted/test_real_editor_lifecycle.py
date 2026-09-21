@@ -49,10 +49,7 @@ from tests.support.prompt_editor.projection_engine_support import surface_for
 def _reorder_preview_document(editor: PromptEditor) -> PromptProjectionDocument | None:
     """Return the projection preview active during a mounted reorder session."""
 
-    return cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(editor), "_reorder_preview_projection").preview_document,
-    )
+    return surface_for(editor).reorder.preview.preview_document
 
 
 def test_prompt_editor_real_widget_enters_reorder_mode_once_and_closes_without_mutation_on_noop_alt_release(

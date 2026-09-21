@@ -222,8 +222,9 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
         return None, None
     layout = getattr(surface, "_layout", None)
     frames = [None if layout is None else getattr(layout, "frame", None)]
-    preview_projection = getattr(surface, "_reorder_preview_projection", None)
-    preview_frame = getattr(preview_projection, "preview_frame", None)
+    reorder = getattr(surface, "reorder", None)
+    preview = None if reorder is None else getattr(reorder, "preview", None)
+    preview_frame = getattr(preview, "preview_frame", None)
     if preview_frame is not None:
         frames.append(preview_frame)
     for layout_name, frame in zip(("base", "preview"), frames, strict=False):
@@ -488,7 +489,7 @@ def _layout_projection_ownership_is_valid(
     """Return whether layout divergence has an active transient or reorder owner."""
 
     layout_projection = surface._layout.frame.output.projection_document
-    reorder_preview_active = bool(surface._reorder_preview_projection.is_active())
+    reorder_preview_active = bool(surface.reorder.is_active())
     if reorder_preview_active:
         return True
     if bool(surface._active_projection_requires_layout()):

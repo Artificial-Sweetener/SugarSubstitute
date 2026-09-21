@@ -21,7 +21,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from substitute.presentation.editor.prompt_editor.shell.widget import (
     PROMPT_EDITOR_HOST_FACADE_INVENTORY,
@@ -75,10 +75,11 @@ FORBIDDEN_HOST_IMPORT_MODULES = (
 class _RecordingCollaborator:
     """Record forwarded calls while returning deterministic method results."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, aliases: dict[str, str] | None = None) -> None:
         """Initialize call recording."""
 
         self.calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
+        self._aliases = {} if aliases is None else aliases
 
     def __getattr__(self, name: str) -> Any:
         """Return a recorder for one forwarded method name."""
@@ -86,8 +87,9 @@ class _RecordingCollaborator:
         def record(*args: object, **kwargs: object) -> object:
             """Record one call and return a method-specific sentinel."""
 
-            self.calls.append((name, args, kwargs))
-            return _result_for(name)
+            recorded_name = self._aliases.get(name, name)
+            self.calls.append((recorded_name, args, kwargs))
+            return _result_for(recorded_name)
 
         return record
 
@@ -98,7 +100,31 @@ class _PromptEditorHostDouble:
     def __init__(self) -> None:
         """Create surface and reorder-command fakes."""
 
-        self._surface = _RecordingCollaborator()
+        surface = cast(Any, _RecordingCollaborator())
+        surface.reorder = _RecordingCollaborator(
+            aliases={
+                "set_preview_state": "set_reorder_preview_state",
+                "clear_preview_state": "clear_reorder_preview_state",
+                "preview_fragments": "reorder_preview_fragments",
+                "live_chip_geometry_snapshot": "reorder_live_chip_geometry_snapshot",
+                "preview_chip_geometry_snapshot": (
+                    "reorder_preview_chip_geometry_snapshot"
+                ),
+                "preview_cursor_rect": "reorder_preview_cursor_rect",
+                "base_drag_fragments": "reorder_base_drag_fragments",
+                "base_drag_chip_geometry_snapshot": (
+                    "reorder_base_drag_chip_geometry_snapshot"
+                ),
+                "base_drag_cursor_rect": "reorder_base_drag_cursor_rect",
+                "base_drag_placement_snapshot": (
+                    "reorder_base_drag_placement_snapshot"
+                ),
+                "reset_cache_counters": "reset_reorder_geometry_cache_counters",
+                "cache_counters": "reorder_geometry_cache_counters",
+                "placement_at_rect": "reorder_placement_at_rect",
+            }
+        )
+        self._surface = surface
         self._reorder_commands = _RecordingCollaborator()
 
 
@@ -176,7 +202,8 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
     )
 
     assert host._reorder_commands.calls == []
-    assert host._surface.calls == [
+    assert host._surface.calls == []
+    assert host._surface.reorder.calls == [
         ("set_reorder_preview_state", ("preview-state",), {}),
         ("clear_reorder_preview_state", (), {}),
         ("reorder_preview_fragments", (), {"start": 1, "end": 4}),

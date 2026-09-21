@@ -434,7 +434,7 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
     dragged_segment_index = render_state.dragged_segment_index
     if dragged_segment_index is not None:
         expected_indices.discard(dragged_segment_index)
-    surface_visual_state = surface._reorder_surface_visual_state.state
+    surface_visual_state = surface.reorder.presentation.visual_state.state
     surface_chrome = surface_visual_state.chrome_snapshot
     surface_indices = (
         set()
@@ -484,7 +484,7 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
             f"{unsafe_suppressed_indices!r}"
         )
     active_frame = (
-        surface._reorder_preview_projection.preview_frame
+        surface.reorder.preview.preview_frame
         if render_state.preview_active
         else surface._layout.frame
     )
