@@ -71,7 +71,10 @@ class PromptSurfaceMouseHost(Protocol):
 
     _caret_state_owner: PromptProjectionCaretStateOwner
     _session: _PromptSurfaceMouseProjectionSession
-    _pointer_interactions: PromptSurfacePointerInteractions
+
+    @property
+    def pointer_interactions(self) -> PromptSurfacePointerInteractions:
+        """Return pointer and regional interaction ports."""
 
     def viewport(self) -> QWidget:
         """Return the viewport widget that owns pointer-local updates."""
@@ -232,7 +235,7 @@ class PromptSurfaceMouseHandler:
             self._drag_selection_session = None
             self.clear_pending_segment_word_selection()
             return False
-        if host._pointer_interactions.handle_weight_click(viewport_position):
+        if host.pointer_interactions.handle_weight_click(viewport_position):
             self._mouse_selecting = False
             self._drag_selection_session = None
             event.accept()
@@ -285,15 +288,15 @@ class PromptSurfaceMouseHandler:
                 if self._hovered_token_id is not None:
                     self._hovered_token_id = None
                     host.viewport().update()
-                host._pointer_interactions.publish_region_hover(None, frame)
+                host.pointer_interactions.publish_region_hover(None, frame)
                 return False
             self.update_hovered_token(viewport_position)
-            host._pointer_interactions.publish_region_hover(viewport_position, frame)
+            host.pointer_interactions.publish_region_hover(viewport_position, frame)
             return False
         host._flush_pending_projection_update(reason="mouse_move_drag")
         geometry = frame.geometry
         self.update_hovered_token(viewport_position)
-        host._pointer_interactions.publish_region_hover(viewport_position, frame)
+        host.pointer_interactions.publish_region_hover(viewport_position, frame)
         drag_target = geometry.hit_testing.resolve_drag_selection_endpoint(
             viewport_position,
             scroll_offset=host._scroll_offset(),
@@ -334,14 +337,14 @@ class PromptSurfaceMouseHandler:
         if event.button() != Qt.MouseButton.LeftButton:
             return False
         self.clear_pending_segment_word_selection()
-        if host._pointer_interactions.handle_region_double_click(
+        if host.pointer_interactions.handle_region_double_click(
             viewport_position, frame
         ):
             self._mouse_selecting = False
             self._drag_selection_session = None
             event.accept()
             return True
-        if host._pointer_interactions.handle_weight_double_click(viewport_position):
+        if host.pointer_interactions.handle_weight_double_click(viewport_position):
             self._mouse_selecting = False
             self._drag_selection_session = None
             event.accept()

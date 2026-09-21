@@ -141,7 +141,7 @@ def test_projection_surface_arrow_navigation_flushes_pending_projection_update(
     )
     surface = surface_for(box)
     _delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -151,7 +151,7 @@ def test_projection_surface_arrow_navigation_flushes_pending_projection_update(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,

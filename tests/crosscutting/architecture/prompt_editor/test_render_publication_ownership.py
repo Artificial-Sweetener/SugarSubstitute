@@ -29,6 +29,9 @@ def test_surface_delegates_complete_render_publication_to_focused_owner() -> Non
     surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
         encoding="utf-8"
     )
+    runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface_presentation_runtime.py"
+    ).read_text(encoding="utf-8")
 
     for ownership_marker in (
         "PromptProjectionContentPaintMode",
@@ -42,7 +45,11 @@ def test_surface_delegates_complete_render_publication_to_focused_owner() -> Non
     ):
         assert ownership_marker in owner_source
         assert ownership_marker not in surface_source
-    assert "self._render_publication.publish()" in surface_source
+    assert "self._presentation_runtime.render_publication.publish()" in surface_source
+    assert (
+        "render_publication = PromptProjectionRenderPublicationOwner(" in runtime_source
+    )
+    assert "render_publication=render_publication" in runtime_source
     for direct_layer_orchestration in (
         "self._diagnostic_layer_owner.refresh(",
         "self._diagnostic_layer_owner.clear_fragment_cache(",

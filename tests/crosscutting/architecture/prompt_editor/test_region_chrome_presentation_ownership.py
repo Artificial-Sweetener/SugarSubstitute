@@ -29,6 +29,9 @@ def test_surface_delegates_regional_chrome_publication_to_focused_owner() -> Non
     owner_source = (projection_root / "region_chrome_presentation.py").read_text(
         encoding="utf-8"
     )
+    runtime_source = (projection_root / "surface_presentation_runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "self._region_chrome =" not in surface_source
     assert "self._region_chrome.set_hovered_region(" not in surface_source
@@ -37,6 +40,8 @@ def test_surface_delegates_regional_chrome_publication_to_focused_owner() -> Non
     assert "class PromptRegionChromePresentationOwner" in owner_source
     assert "self._publish_render_frame()" in owner_source
     assert "self._request_update()" in owner_source
+    assert "region_chrome = PromptRegionChromePresentationOwner(" in runtime_source
+    assert "region_chrome=region_chrome" in runtime_source
 
 
 def test_prompt_editor_diagnostics_follow_regional_chrome_owner() -> None:
@@ -56,4 +61,5 @@ def test_prompt_editor_diagnostics_follow_regional_chrome_owner() -> None:
     for path in diagnostic_paths:
         source = path.read_text(encoding="utf-8")
         assert 'getattr(surface, "_region_chrome", None)' not in source
-        assert '"_region_chrome_presentation"' in source
+        assert '"_presentation_runtime"' in source
+        assert '"region_chrome"' in source

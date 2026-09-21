@@ -129,7 +129,7 @@ def test_unchanged_reorder_preview_publication_reuses_the_exact_render_frame(
             drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
         )
     )
-    owner = surface._render_frame_owner  # noqa: SLF001
+    owner = surface._presentation_runtime.render_frame  # noqa: SLF001
     initial_frame = owner.frame
 
     surface._publish_render_frame()  # noqa: SLF001

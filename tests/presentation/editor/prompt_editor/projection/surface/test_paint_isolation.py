@@ -52,16 +52,18 @@ def test_paint_reads_only_event_clip_and_published_render_frame(
 
     monkeypatch.setattr(surface, "_publish_render_frame", reject_discovery)
     monkeypatch.setattr(
-        surface._render_publication,  # noqa: SLF001
+        surface._presentation_runtime.render_publication,  # noqa: SLF001
         "_should_paint_caret",
         reject_discovery,
     )
     monkeypatch.setattr(
-        surface._render_publication,  # noqa: SLF001
+        surface._presentation_runtime.render_publication,  # noqa: SLF001
         "_preview_visible_region",
         reject_discovery,
     )
-    monkeypatch.setattr(surface._render_publication, "publish", reject_discovery)  # noqa: SLF001
+    monkeypatch.setattr(
+        surface._presentation_runtime.render_publication, "publish", reject_discovery
+    )  # noqa: SLF001
 
     image = render_surface_viewport(surface)
 

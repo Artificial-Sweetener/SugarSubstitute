@@ -20,6 +20,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+)
+from substitute.presentation.editor.prompt_editor.projection.layout_publication_owner import (
+    PromptProjectionLayoutPublicationOwner,
+)
 from substitute.presentation.editor.prompt_editor.projection.scene_diagnostics_owner import (
     PromptSceneDiagnosticsOwner,
 )
@@ -47,6 +53,63 @@ class _Effects:
         """Append one publication event."""
 
         self.events.append(event)
+
+
+@dataclass(slots=True)
+class _GeometrySynchronization:
+    """Record geometry synchronization for layout-publication tests."""
+
+    effects: _Effects
+
+    def synchronize_geometry_inputs(self) -> None:
+        """Record one geometry synchronization."""
+
+        self.effects.record("geometry")
+
+
+@dataclass(slots=True)
+class _FrameSynchronization:
+    """Record frame synchronization inputs for layout-publication tests."""
+
+    effects: _Effects
+
+    def sync(
+        self,
+        *,
+        display_mode: PromptProjectionDisplayMode,
+        commit_projection: bool,
+    ) -> None:
+        """Record one frame synchronization and its governing inputs."""
+
+        self.effects.record(f"frame:{display_mode.value}:{commit_projection}")
+
+
+@dataclass(slots=True)
+class _LayoutRenderPublication:
+    """Record render publication after synchronized layout."""
+
+    effects: _Effects
+
+    def layout_synchronized(self) -> None:
+        """Record one synchronized-layout render publication."""
+
+        self.effects.record("render")
+
+
+def test_layout_publication_orders_geometry_frame_and_render_effects() -> None:
+    """Layout publication should keep all dependent owner state in one order."""
+
+    effects = _Effects([])
+    owner = PromptProjectionLayoutPublicationOwner(
+        reorder=_GeometrySynchronization(effects),
+        frame_synchronizer=_FrameSynchronization(effects),
+        render_publication=_LayoutRenderPublication(effects),
+        display_mode=lambda: PromptProjectionDisplayMode.PROJECTED,
+    )
+
+    owner.sync(commit_projection=True)
+
+    assert effects.events == ["geometry", "frame:projected:True", "render"]
 
 
 def test_scene_diagnostics_publish_changed_keys_as_one_rebuild_transaction() -> None:

@@ -100,7 +100,7 @@ def test_projection_layout_keeps_short_tag_without_trailing_space_width() -> Non
         surface.editor_state.stage_edit_semantic(surface.editor_state.semantic)
         box.setGeometry(20, 20, 240, box.height())
         process_events(app)
-        surface._projection_rebuild.rebuild()  # noqa: SLF001
+        surface._presentation_runtime.rebuild.rebuild()  # noqa: SLF001
 
         line_texts = _projection_line_texts(surface)
         snapshot = cast(Any, surface)._layout.frame.output.snapshot

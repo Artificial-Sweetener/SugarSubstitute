@@ -66,7 +66,7 @@ def test_projection_surface_defers_simple_typed_edit_rebuild_with_existing_synta
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -76,7 +76,7 @@ def test_projection_surface_defers_simple_typed_edit_rebuild_with_existing_synta
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -127,7 +127,7 @@ def test_projection_surface_scheduled_middle_plain_edit_uses_incremental_apply(
         next_document_view,
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -137,7 +137,7 @@ def test_projection_surface_scheduled_middle_plain_edit_uses_incremental_apply(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
@@ -185,7 +185,7 @@ def test_projection_surface_long_middle_plain_edit_uses_incremental_apply(
         next_document_view,
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -195,7 +195,7 @@ def test_projection_surface_long_middle_plain_edit_uses_incremental_apply(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
@@ -235,7 +235,7 @@ def test_projection_surface_scheduled_plain_replacement_uses_incremental_apply(
         next_document_view,
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -245,7 +245,7 @@ def test_projection_surface_scheduled_plain_replacement_uses_incremental_apply(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(
@@ -285,7 +285,7 @@ def test_projection_surface_scheduled_plain_selection_delete_uses_incremental_ap
         next_document_view,
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -295,7 +295,7 @@ def test_projection_surface_scheduled_plain_selection_delete_uses_incremental_ap
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     _publish_test_source(surface, next_text)
     cast(Any, surface)._prompt_state_applier.apply_prompt_state_projection(

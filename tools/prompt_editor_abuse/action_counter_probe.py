@@ -123,9 +123,10 @@ def _prompt_editor_counters(editor: object) -> dict[str, float]:
     """Return existing editor counters without triggering owner preparation."""
 
     surface = getattr(editor, "_surface", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
     region_chrome_presentation = getattr(
-        surface,
-        "_region_chrome_presentation",
+        presentation_runtime,
+        "region_chrome",
         None,
     )
     region_chrome = getattr(region_chrome_presentation, "chrome", None)
