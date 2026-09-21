@@ -1,3 +1,10 @@
+## [0.23.5](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.4...v0.23.5) (2026-09-20)
+
+
+### Bug Fixes
+
+* **startup:** reconcile cube packs and honor immediate relaunches ([147eab8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/147eab8d964ed4970c68bb5e3468bb2a7cafe9d4))
+
 ## [0.23.4](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.3...v0.23.4) (2026-09-20)
 
 
