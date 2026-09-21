@@ -136,6 +136,10 @@ class PromptProjectionSourceStateBindings:
     set_cursor_positions: Callable[[int, int], object]
     ensure_caret_visible: Callable[[], None]
     rebuild_projection: Callable[[], None]
+    active_span_range: Callable[[], tuple[int, int] | None]
+    publish_active_span_range: Callable[[tuple[int, int] | None], None]
+    use_committed_active_projection: Callable[[], None]
+    rebuild_active_projection: Callable[[bool], None]
     projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers]
     input_method_source_changed: Callable[[], None]
     clear_reorder_for_source_change: Callable[[], None]
@@ -216,6 +220,9 @@ def build_prompt_projection_source_state_owners(
         caret_publication=bindings.caret_publication,
         overlays=transient_edit_overlays,
         rebuild_projection=bindings.rebuild_projection,
+        active_span_range=bindings.active_span_range,
+        publish_active_span_range=bindings.publish_active_span_range,
+        rebuild_active_projection=bindings.rebuild_active_projection,
     )
     reflow_strategy = PromptIncrementalReflowStrategy(
         bindings.build_context,
@@ -269,6 +276,9 @@ def build_prompt_projection_source_state_owners(
         strategy=prompt_state_strategy,
         ensure_caret_visible=bindings.ensure_caret_visible,
         rebuild_projection=bindings.rebuild_projection,
+        publish_active_span_range=bindings.publish_active_span_range,
+        use_committed_active_projection=bindings.use_committed_active_projection,
+        rebuild_active_projection=bindings.rebuild_active_projection,
     )
     scheduled_update_sink.wire(prompt_state_applier)
     projection_facts = PromptSourceEditProjectionFactResolver(

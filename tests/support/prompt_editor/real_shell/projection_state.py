@@ -360,7 +360,7 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             getattr(layout_projection_document, "projection_text", "")
         ),
         "active_projection_layout_required": bool(
-            surface is not None and surface._active_projection_requires_layout()
+            surface is not None and surface._active_projection.requires_layout()
         ),
         "layout_uses_projection_document": (
             layout_projection_document is projection_document

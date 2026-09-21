@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source and cursor facade, active and transient projection, paint, layout, and freshness coordination, and Qt input, focus, viewport, and paint lifecycle routing. Extract active and transient projection publication and reusable paint-state coordination from the Qt event surface."
+justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, projection queries, source-line chrome, search, and viewport geometry coordination, and Qt input, focus, viewport, and paint lifecycle routing. Extract projection queries, source-line chrome, search, and region presentation coordination from the Qt event surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 2002
-next_limit = 1850
+max_lines = 1844
+next_limit = 1650
 debt = "SS-ARCH-061"
 
 [[waivers]]
@@ -1372,7 +1372,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 610
+max_lines = 612
 
 [[waivers]]
 id = "SS-WAIVER-S054"

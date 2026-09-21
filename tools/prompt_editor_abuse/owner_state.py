@@ -473,7 +473,7 @@ def _active_projection_ownership_is_valid(
     """Return whether active projection divergence has a live transient owner."""
 
     active_projection = surface.active_projection_document()
-    if bool(surface._active_projection_requires_layout()):
+    if bool(surface._active_projection.requires_layout()):
         return str(active_projection.source_text) == str(
             projection_document.source_text
         )
@@ -492,7 +492,7 @@ def _layout_projection_ownership_is_valid(
     reorder_preview_active = bool(surface.reorder.is_active())
     if reorder_preview_active:
         return True
-    if bool(surface._active_projection_requires_layout()):
+    if bool(surface._active_projection.requires_layout()):
         return layout_projection is surface.active_projection_document()
     return str(layout_projection.projection_text) == str(
         projection_document.projection_text
