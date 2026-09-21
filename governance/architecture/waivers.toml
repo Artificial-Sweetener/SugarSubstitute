@@ -261,19 +261,6 @@ next_limit = 800
 debt = "SS-ARCH-026"
 
 [[waivers]]
-id = "SS-WAIVER-R027"
-owner = "prompt editor performance operations"
-rule = "STRUCT003"
-path = "substitute/devtools/prompt_editor_performance/qt_operations.py"
-kind = "remediation"
-justification = "The assessed file mixes scenario operation dispatch, basic keyboard and selection timings, paint and diagnostic cache timings, reorder interaction timings, focus, hover, resize, scroll, and menu timings. Split operation families into focused timing modules behind the scenario-operation registry."
-issue = "chore:SS-ARCH-027"
-review_by = 2026-12-15
-max_lines = 633
-next_limit = 506
-debt = "SS-ARCH-027"
-
-[[waivers]]
 id = "SS-WAIVER-R028"
 owner = "node links"
 rule = "STRUCT003"

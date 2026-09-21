@@ -60,10 +60,12 @@ from substitute.devtools.prompt_editor_performance.metrics import (
 from substitute.devtools.prompt_editor_performance.observability import (
     scenario_log_fields,
 )
-from substitute.devtools.prompt_editor_performance.qt_operations import (
-    process_events,
-    run_scenario_operations,
+from substitute.devtools.prompt_editor_performance.editing_operations import (
     set_cursor_position,
+)
+from substitute.devtools.prompt_editor_performance.event_loop import process_events
+from substitute.devtools.prompt_editor_performance.operation_registry import (
+    run_scenario_operations,
 )
 from substitute.devtools.prompt_editor_performance.reorder_measurements import (
     reorder_cache_counts,
