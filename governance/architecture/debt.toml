@@ -708,22 +708,6 @@ responsibilities = [
 next_extraction = "Split feature-specific subfactories from the top-level prompt-editor composition boundary."
 
 [[debts]]
-id = "SS-ARCH-055"
-owner = "prompt diagnostics presentation"
-paths = ["substitute/presentation/editor/prompt_editor/features/diagnostics_presentation.py"]
-fingerprint = "sha256:88a9a18e29f14f3ab04689f88edb1080990a1b4a4dbd8b92767108dce23870bc"
-issue = "chore:SS-ARCH-055"
-review_by = 2026-12-15
-responsibilities = [
-  "prepared diagnostic snapshot ownership",
-  "cursor hit testing",
-  "context-menu action preparation",
-  "diagnostic command dispatch",
-  "refresh request and visible-surface publication",
-]
-next_extraction = "Extract diagnostic command dispatch from prepared diagnostic and menu presentation."
-
-[[debts]]
 id = "SS-ARCH-056"
 owner = "canonical prompt layout"
 paths = ["substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"]

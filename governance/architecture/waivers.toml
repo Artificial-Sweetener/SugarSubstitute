@@ -587,19 +587,6 @@ next_limit = 879
 debt = "SS-ARCH-054"
 
 [[waivers]]
-id = "SS-WAIVER-R055"
-owner = "prompt diagnostics presentation"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/features/diagnostics_presentation.py"
-kind = "remediation"
-justification = "The assessed file mixes prepared diagnostic snapshot ownership, cursor hit testing, context-menu action preparation, diagnostic command dispatch, refresh request and visible-surface publication. Extract diagnostic command dispatch from prepared diagnostic and menu presentation."
-issue = "chore:SS-ARCH-055"
-review_by = 2026-12-15
-max_lines = 518
-next_limit = 500
-debt = "SS-ARCH-055"
-
-[[waivers]]
 id = "SS-WAIVER-R056"
 owner = "canonical prompt layout"
 rule = "STRUCT003"
