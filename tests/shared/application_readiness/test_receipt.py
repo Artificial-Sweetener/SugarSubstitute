@@ -22,6 +22,7 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
     READINESS_SCHEMA_VERSION,
+    REQUIRED_READINESS_MILESTONES,
 )
 
 
@@ -70,3 +71,39 @@ def test_current_readiness_receipt_requires_a_positive_parent_pid() -> None:
         pass
     else:
         raise AssertionError("Current readiness evidence accepted no parent PID.")
+
+
+def test_schema_four_receipt_remains_parseable_without_attestation_chain() -> None:
+    """Read the previous milestone contract without inventing process hops."""
+
+    receipt = ApplicationReadinessReceipt.from_json(
+        {
+            "milestones": list(REQUIRED_READINESS_MILESTONES),
+            "parent_pid": 122,
+            "pid": 123,
+            "schema_version": 4,
+            "surface": "main_shell",
+            "token": "legacy-token",
+        }
+    )
+
+    assert receipt.attester_pids == ()
+
+
+def test_current_receipt_rejects_invalid_attestation_chain() -> None:
+    """Reject non-positive or non-integer process identities in the chain."""
+
+    payload = ApplicationReadinessReceipt(
+        pid=123,
+        parent_pid=122,
+        token="launch-token",
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+    ).to_json()
+    payload["attester_pids"] = [121, 0]
+
+    try:
+        ApplicationReadinessReceipt.from_json(payload)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Current readiness evidence accepted an invalid chain.")

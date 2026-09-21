@@ -118,6 +118,7 @@ def _tracked_processes(
     process_ids = {receipt.pid}
     if receipt.parent_pid is not None:
         process_ids.add(receipt.parent_pid)
+    process_ids.update(receipt.attester_pids)
     if candidate_process_id is not None:
         process_ids.add(candidate_process_id)
     tracked: list[psutil.Process] = []
