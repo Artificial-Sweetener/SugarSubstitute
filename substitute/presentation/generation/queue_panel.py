@@ -68,6 +68,7 @@ class GenerationQueuePanel(QWidget):
     cancelRequested = Signal(str)
     removeRequested = Signal(str)
     openSnapshotRequested = Signal(str)
+    adoptSeedsRequested = Signal(str)
     moveRequested = Signal(str, int)
     hideRequested = Signal()
 
@@ -76,6 +77,7 @@ class GenerationQueuePanel(QWidget):
         queue_service: "GenerationJobQueueService",
         *,
         open_snapshot_requested: Callable[[str], None] | None = None,
+        adopt_seeds_requested: Callable[[str], None] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Create panel widgets and subscribe to queue changes."""
@@ -146,9 +148,12 @@ class GenerationQueuePanel(QWidget):
         self.moveRequested.connect(queue_service.move_pending_job)
         if open_snapshot_requested is not None:
             self.openSnapshotRequested.connect(open_snapshot_requested)
+        if adopt_seeds_requested is not None:
+            self.adoptSeedsRequested.connect(adopt_seeds_requested)
         self._rows_view.cancelRequested.connect(self.cancelRequested)
         self._rows_view.removeRequested.connect(self.removeRequested)
         self._rows_view.openSnapshotRequested.connect(self.openSnapshotRequested)
+        self._rows_view.adoptSeedsRequested.connect(self.adoptSeedsRequested)
         self._rows_view.moveRequested.connect(self.moveRequested)
         queue_service.add_observer(self._on_jobs_changed)
 

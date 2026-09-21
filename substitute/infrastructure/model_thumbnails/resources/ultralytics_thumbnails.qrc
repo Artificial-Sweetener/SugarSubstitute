@@ -1,0 +1,21 @@
+<RCC>
+  <qresource prefix="/substitute/model-thumbnails/ultralytics">
+    <file alias="anime-face-detection.png">ultralytics/anime-face-detection.png</file>
+    <file alias="anime-face-segmentation.png">ultralytics/anime-face-segmentation.png</file>
+    <file alias="breast-detection.png">ultralytics/breast-detection.png</file>
+    <file alias="breast-segmentation.png">ultralytics/breast-segmentation.png</file>
+    <file alias="eyes-detection.png">ultralytics/eyes-detection.png</file>
+    <file alias="eyes-segmentation.png">ultralytics/eyes-segmentation.png</file>
+    <file alias="face-detection.png">ultralytics/face-detection.png</file>
+    <file alias="face-segmentation.png">ultralytics/face-segmentation.png</file>
+    <file alias="female-face-detection.png">ultralytics/female-face-detection.png</file>
+    <file alias="female-face-segmentation.png">ultralytics/female-face-segmentation.png</file>
+    <file alias="hair-detection.png">ultralytics/hair-detection.png</file>
+    <file alias="hair-segmentation.png">ultralytics/hair-segmentation.png</file>
+    <file alias="hand-detection.png">ultralytics/hand-detection.png</file>
+    <file alias="hand-segmentation.png">ultralytics/hand-segmentation.png</file>
+    <file alias="male-face-detection.png">ultralytics/male-face-detection.png</file>
+    <file alias="male-face-segmentation.png">ultralytics/male-face-segmentation.png</file>
+    <file alias="person-segmentation.png">ultralytics/person-segmentation.png</file>
+  </qresource>
+</RCC>

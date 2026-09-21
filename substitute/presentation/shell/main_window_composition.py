@@ -340,6 +340,9 @@ def capture_dependencies(
     shell.model_metadata_context_action_handler = (
         dependencies.model_metadata_context_action_handler
     )
+    shell.ultralytics_thumbnail_associations = (
+        dependencies.ultralytics_thumbnail_associations
+    )
     shell.manual_model_metadata_update_sink = (
         dependencies.manual_model_metadata_update_sink
     )

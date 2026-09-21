@@ -218,6 +218,19 @@ def test_queue_row_snapshot_action_emits_job_identity() -> None:
         destroy_qt_object(row)
 
 
+def test_queue_row_seed_action_emits_job_identity_for_pending_item() -> None:
+    """Every queue item should expose its immutable generation seed evidence."""
+
+    row = GenerationQueueItemRow(_row_view(status="Pending"))
+    spy = QSignalSpy(row.adoptSeedsRequested)
+    try:
+        row._emit_adopt_seeds_request()
+        assert spy.count() == 1
+        assert spy.at(0) == ["job-1"]
+    finally:
+        destroy_qt_object(row)
+
+
 @pytest.mark.parametrize(
     ("surface_mode", "visual_role", "interaction_role", "cursor", "overlay_alpha"),
     (

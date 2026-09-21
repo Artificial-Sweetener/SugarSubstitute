@@ -23,8 +23,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from substitute.domain.common import JsonObject
+
+if TYPE_CHECKING:
+    from substitute.domain.generation.seed_control import SeedControlState
 
 from .cube_analysis import CanonicalCubeGraphAnalysis
 from .cube_projection import (
@@ -68,6 +72,9 @@ class DirectWorkflowState:
     dirty: bool = False
     cube_analysis: CanonicalCubeGraphAnalysis | None = None
     cube_projection_state: JsonObject = field(default_factory=dict)
+    field_control_states: dict[str, dict[str, SeedControlState]] = field(
+        default_factory=dict
+    )
 
     @property
     def cube_projection(self) -> CubeGraphProjection:
@@ -299,6 +306,7 @@ class DirectWorkflowState:
             dirty=self.dirty,
             cube_analysis=deepcopy(self.cube_analysis),
             cube_projection_state=deepcopy(self.cube_projection_state),
+            field_control_states=deepcopy(self.field_control_states),
         )
 
 
