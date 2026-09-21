@@ -1,3 +1,15 @@
+# [0.24.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.5...v0.24.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **generation:** keep seed controls and Cube execution in sync ([747c2fc](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/747c2fce062c31d0a3eb62c14b61a1fa3f0515cd))
+
+
+### Features
+
+* **models:** add visual Ultralytics detector picker ([9c9deb3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9c9deb3bfa784404e6635dd7c1bf4983cd7c9421))
+
 ## [0.23.5](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.4...v0.23.5) (2026-09-20)
 
 
