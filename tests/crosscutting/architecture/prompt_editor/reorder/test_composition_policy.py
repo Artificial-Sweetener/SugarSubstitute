@@ -24,6 +24,28 @@ from ..inventory import (
 )
 
 
+def test_reorder_runtime_composition_stays_outside_the_qt_surface() -> None:
+    """Keep one atomic runtime graph behind the mounted overlay adapter."""
+
+    architecture = prompt_editor_architecture_inventory()
+    graph = architecture.graph
+    prefix = "substitute.presentation.editor.prompt_editor."
+    overlay = f"{prefix}overlays.reorder_overlay"
+    runtime = f"{prefix}overlays.reorder_overlay_runtime"
+    overlay_factory = f"{prefix}composition.reorder_overlay_factory"
+    runtime_factory = f"{prefix}composition.reorder_overlay_runtime_factory"
+
+    assert runtime in graph[overlay]
+    assert runtime_factory not in graph[overlay]
+    assert runtime in graph[runtime_factory]
+    assert {overlay, runtime_factory} <= graph[overlay_factory]
+    assert not {
+        dependency
+        for dependency in graph[runtime]
+        if dependency.startswith(f"{prefix}composition.")
+    }
+
+
 def test_reorder_preview_publications_flow_through_typed_composition() -> None:
     """Keep preview facts coherent and below controller/composition adapters."""
 
@@ -43,6 +65,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
     port = f"{prefix}interactions.reorder_overlay_port"
     session = f"{prefix}interactions.reorder_overlay_session"
     factory = f"{prefix}composition.reorder_overlay_factory"
+    runtime_factory = f"{prefix}composition.reorder_overlay_runtime_factory"
     syntax_factory = f"{prefix}composition.syntax_factory"
     application_views = "substitute.application.prompt_editor.reorder.views"
     application_preview_sync = (
@@ -84,15 +107,16 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
         port,
         sync_adapter,
     }
-    assert facts_owner in graph[overlay]
-    assert sync_context_owner in graph[overlay]
-    assert visual_lifecycle in graph[overlay]
-    assert session_activation in graph[overlay]
+    assert facts_owner in graph[runtime_factory]
+    assert sync_context_owner in graph[runtime_factory]
+    assert visual_lifecycle in graph[runtime_factory]
+    assert session_activation in graph[runtime_factory]
     assert graph[visual_lifecycle].isdisjoint(
         {
             overlay,
             session,
             factory,
+            runtime_factory,
             syntax_factory,
             publication_owner,
             preview_builder,
@@ -104,6 +128,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
             overlay,
             session,
             factory,
+            runtime_factory,
             syntax_factory,
             publication_owner,
             preview_builder,
@@ -139,7 +164,7 @@ def test_reorder_preview_publications_flow_through_typed_composition() -> None:
             publication_owner,
         }
     )
-    assert {overlay, port} <= graph[factory]
+    assert {overlay, port, runtime_factory} <= graph[factory]
     assert publication_owner in graph[syntax_factory]
 
     overlay_source = module_paths[overlay].read_text(encoding="utf-8")
@@ -193,6 +218,7 @@ def test_reorder_autoscroll_state_flows_outward_from_one_owner() -> None:
     overlay_ports = f"{prefix}overlays.reorder_overlay_ports"
     factory = f"{prefix}composition.reorder_overlay_factory"
     overlay = f"{prefix}overlays.reorder_overlay"
+    runtime_factory = f"{prefix}composition.reorder_overlay_runtime_factory"
 
     assert graph[autoscroll] == {
         gesture_controller,
@@ -202,7 +228,8 @@ def test_reorder_autoscroll_state_flows_outward_from_one_owner() -> None:
     }
     assert autoscroll not in graph[overlay_ports]
     assert autoscroll not in graph[factory]
-    assert autoscroll in graph[overlay]
+    assert autoscroll not in graph[overlay]
+    assert autoscroll in graph[runtime_factory]
     source = (
         PROMPT_PRESENTATION_ROOT / "overlays" / "reorder_autoscroll.py"
     ).read_text(encoding="utf-8")

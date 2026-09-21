@@ -138,7 +138,7 @@ def test_reorder_keyboard_blank_line_animation_survives_overlay_resize(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
     animation_revision = animation_owner.publication.revision
@@ -186,7 +186,7 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
     outbound_revision = animation_owner.publication.revision
@@ -208,7 +208,7 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
             blank_line_index=0,
         )
     )
-    visual_mode = cast(Any, overlay)._visual_mode
+    visual_mode = cast(Any, overlay)._runtime.visual_mode
     monkeypatch.setattr(visual_mode, "has_reordered", lambda: False)
     before_return = _performance_counters(overlay)
     return_revision = animation_owner.publication.revision

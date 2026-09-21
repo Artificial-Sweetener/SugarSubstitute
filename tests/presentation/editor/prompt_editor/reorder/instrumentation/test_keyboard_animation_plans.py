@@ -57,7 +57,7 @@ def test_reorder_alt_left_builds_keyboard_animation_plan(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     original_apply_plan = animation_owner.apply_plan
     recorded_plans: list[Any] = []
     before = _performance_counters(overlay)
@@ -108,7 +108,7 @@ def test_reorder_keyboard_animation_first_frame_is_coherent(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    render_publication = cast(Any, overlay)._render_publication
+    render_publication = cast(Any, overlay)._runtime.render
     original_sync = render_publication.sync
     animation_frames: list[
         tuple[
@@ -124,7 +124,7 @@ def test_reorder_keyboard_animation_first_frame_is_coherent(
 
         original_sync(reason=reason)
         if reason == "animation_frame":
-            publication = cast(Any, overlay)._animation_presentation.publication
+            publication = cast(Any, overlay)._runtime.animation.publication
             prepared = render_publication.publication
             overlay_state = prepared.overlay_state
             overlay_chips = (
@@ -177,7 +177,7 @@ def test_reorder_alt_right_captures_commit_snapshot_before_animation(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     original_apply_plan = animation_owner.apply_plan
     observed_orders: list[tuple[int, ...] | None] = []
 

@@ -522,19 +522,6 @@ next_limit = 435
 debt = "SS-ARCH-053"
 
 [[waivers]]
-id = "SS-WAIVER-R058"
-owner = "prompt reorder overlay"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/overlays/reorder_overlay.py"
-kind = "remediation"
-justification = "The assessed file mixes overlay widget lifecycle and painting, pointer and keyboard drag session, animation state and raster warmup, reorder geometry and landing projection, autoscroll invalidation, performance counters and diagnostic publication. Extract animation/raster ownership and geometry projection from overlay interaction and widget lifecycle."
-issue = "chore:SS-ARCH-058"
-review_by = 2026-12-15
-max_lines = 900
-next_limit = 720
-debt = "SS-ARCH-058"
-
-[[waivers]]
 id = "SS-WAIVER-R061"
 owner = "prompt projection surface"
 rule = "STRUCT003"
@@ -1943,3 +1930,14 @@ justification = "PromptTokenWeightControls owns one mounted overlay projection o
 issue = "chore:SS-WAIVER-S154"
 review_by = 2026-12-15
 max_lines = 743
+
+[[waivers]]
+id = "SS-WAIVER-S155"
+owner = "prompt reorder runtime composition"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/composition/reorder_overlay_runtime_factory.py"
+kind = "structural"
+justification = "PromptReorderOverlayRuntimeComposer owns one atomic construction graph for a mounted reorder runtime. Animation, raster, geometry, landing, pointer, keyboard, diagnostics, and lifecycle collaborators receive cross-references and surface callbacks that must describe the same runtime instance; splitting the graph would introduce staged bundles, divide construction order, and make partial or mismatched runtimes representable. The composer owns no interaction policy or mutable session state: every behavior and state family remains in a dedicated collaborator, while the QWidget owns only mounted Qt event adaptation."
+issue = "chore:SS-WAIVER-S155"
+review_by = 2026-12-15
+max_lines = 530

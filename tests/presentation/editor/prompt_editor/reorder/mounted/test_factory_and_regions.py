@@ -105,7 +105,9 @@ def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
     )
 
     initial_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
-    initial_visual_indices = set(cast(Any, overlay)._live_visual_owner.visuals_by_index)
+    initial_visual_indices = set(
+        cast(Any, overlay)._runtime.live_visuals.visuals_by_index
+    )
 
     assert initial_indices == initial_visual_indices
     assert overlay.findChildren(QWidget, "segmentChip") == []
@@ -117,7 +119,7 @@ def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
 
     scrolled_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
     scrolled_visual_indices = set(
-        cast(Any, overlay)._live_visual_owner.visuals_by_index
+        cast(Any, overlay)._runtime.live_visuals.visuals_by_index
     )
     assert scrolled_indices == scrolled_visual_indices
     assert overlay.findChildren(QWidget, "segmentChip") == []

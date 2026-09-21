@@ -61,7 +61,7 @@ def test_reorder_target_change_paints_displaced_neighbors_after_preview_sync(
         text="alpha,beta,gamma,",
     )
     overlay = _open_reorder_overlay(editor)
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
     recorded_plans: list[Any] = []
     original_apply_plan = animation_owner.apply_plan
@@ -164,7 +164,6 @@ def test_reorder_rapid_target_changes_coalesce_one_preview_sync(
     QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(first_target), 10)
     _process_events(app)
 
-    cast(Any, overlay)._instrumentation_max_drag_move_ms = 0.0
     before = _performance_counters(overlay)
     QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(second_target), 10)
     QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(third_target), 10)
@@ -233,7 +232,7 @@ def test_reorder_wrapped_drag_preview_builds_wrapped_animation_plan(
     dragged_chip = _overlay_chip_by_segment_index(overlay, 3)
     target_chip = _overlay_chip_by_segment_index(overlay, 1)
     recorded_plans: list[Any] = []
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     original_apply_plan = animation_owner.apply_plan
 
     def record_apply_plan(plan: Any, **context: Any) -> None:

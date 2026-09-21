@@ -225,7 +225,7 @@ def _reorder_animation_active(editor: Any) -> bool:
     overlay = editor._segment_overlay
     if overlay is None:
         return False
-    publication = overlay._animation_presentation.publication
+    publication = overlay._runtime.animation.publication
     return bool(
         publication.displacement_rects_by_index or publication.held_rects_by_index
     )
@@ -448,7 +448,7 @@ def _all_projection_chip_snapshots(
 ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
     """Build observation-only snapshots for every chip in the active projection."""
 
-    geometry_state = overlay._geometry.state
+    geometry_state = overlay._runtime.geometry.state
     preview_snapshot = geometry_state.preview_snapshot
     preview_geometry = geometry_state.preview_chip_geometry_snapshot
     if preview_snapshot is not None and preview_geometry is not None:
@@ -462,7 +462,7 @@ def _all_projection_chip_snapshots(
                 chip_indices=None,
             ),
         )
-    live_visuals = overlay._live_visual_owner
+    live_visuals = overlay._runtime.live_visuals
     live_geometry = live_visuals.chip_geometry
     if live_geometry is None:
         return {}
@@ -484,7 +484,7 @@ def _reorder_publication_evidence(
     overlay = editor._segment_overlay
     if overlay is None:
         return "overlay=none"
-    prepared = overlay._render_publication.publication
+    prepared = overlay._runtime.render.publication
     state = overlay._view.render_state
     surface_state = editor._surface._reorder_surface_visual_state.state
     active_chips = state.preview_chips if state.preview_active else state.live_chips
@@ -492,11 +492,11 @@ def _reorder_publication_evidence(
     surface_indices = tuple(chip.segment_index for chip in surface_state.chips)
     suppression_indices = tuple(surface_state.suppression_snapshots_by_index)
     preview_snapshot_indices = tuple(
-        overlay._preview_paint_snapshots.snapshots_by_index
+        overlay._runtime.preview_paint_snapshots.snapshots_by_index
     )
-    preview_visual_indices = tuple(overlay._preview_visual_owner.visuals_by_index)
-    geometry_state = overlay._geometry.state
-    preview_visual_publication = overlay._preview_visual_owner.publication
+    preview_visual_indices = tuple(overlay._runtime.preview_visuals.visuals_by_index)
+    geometry_state = overlay._runtime.geometry.state
+    preview_visual_publication = overlay._runtime.preview_visuals.publication
     preview_geometry = geometry_state.preview_chip_geometry_snapshot
     preview_geometry_indices = (
         ()
