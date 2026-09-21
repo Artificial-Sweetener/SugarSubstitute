@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, IO, cast
 
 import pytest
 
@@ -157,6 +159,68 @@ def test_store_reads_text_logs_without_treating_minidumps_as_clipboard_text(
     assert store.read_text_attachments(incident) == (
         ("python-fault.log", "all-thread fault evidence"),
     )
+
+
+def test_store_omits_empty_logs_and_bounds_oversized_diagnostics(
+    tmp_path: Path,
+) -> None:
+    """Placeholder files must not become evidence and huge logs must stay copyable."""
+
+    store = CrashIncidentStore(tmp_path / "crashes")
+    incident = _incident()
+    incident_directory = store.record(incident)
+    (incident_directory / "python-fault.log").write_text(" \r\n\t", encoding="utf-8")
+    oversized = incident_directory / "minidump.dmp"
+    oversized.write_bytes(b"binary")
+    extra = incident_directory / "diagnostic.txt"
+    extra.write_text(
+        f"HEAD-SECRET api_key=private\n{'x' * 600_000}\nTAIL-EVIDENCE",
+        encoding="utf-8",
+    )
+    incident = replace(
+        incident,
+        attachments=(
+            "python-fault.log",
+            "diagnostic.txt",
+            "minidump.dmp",
+        ),
+    )
+
+    attachments = store.read_text_attachments(incident)
+
+    assert len(attachments) == 1
+    filename, content = attachments[0]
+    assert filename == "diagnostic.txt"
+    assert "HEAD-SECRET" in content
+    assert "diagnostic attachment truncated" in content
+    assert "TAIL-EVIDENCE" in content
+    assert len(content) < 270_000
+
+
+def test_store_skips_unreadable_text_attachment_without_losing_incident(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unavailable log must not prevent the remaining report from being copied."""
+
+    store = CrashIncidentStore(tmp_path / "crashes")
+    incident = _incident()
+    incident_directory = store.record(incident)
+    fault_log = incident_directory / "python-fault.log"
+    fault_log.write_text("retained evidence", encoding="utf-8")
+    original_open = Path.open
+
+    def deny_fault_log(path: Path, *args: Any, **kwargs: Any) -> IO[Any]:
+        """Reject only the selected attachment while preserving other file access."""
+
+        if path == fault_log:
+            raise PermissionError("diagnostic is locked")
+        return cast(IO[Any], original_open(path, *args, **kwargs))
+
+    monkeypatch.setattr(Path, "open", deny_fault_log)
+
+    assert store.read_text_attachments(incident) == ()
+    assert store.pending() == (incident,)
 
 
 def test_store_prunes_only_acknowledged_incidents_beyond_retention(

@@ -23,6 +23,10 @@ import logging
 from pathlib import Path
 
 from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
+from sugarsubstitute_shared.crash_reporting.run_context import (
+    RUNTIME_CONTEXT_FILENAME,
+    STARTUP_OUTPUT_FILENAME,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +52,12 @@ class CompletedRunArtifacts:
             self._unlink(path)
         self._remove_empty_directory(context.exit_intent_path.parent)
         incident_directory = context.incident_root / context.run_id
-        self._unlink(incident_directory / "python-fault.log")
+        for filename in (
+            "python-fault.log",
+            RUNTIME_CONTEXT_FILENAME,
+            STARTUP_OUTPUT_FILENAME,
+        ):
+            self._unlink(incident_directory / filename)
         self._remove_empty_directory(incident_directory)
 
     def _unlink(self, path: Path) -> None:

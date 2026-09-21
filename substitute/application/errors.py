@@ -43,6 +43,7 @@ class ErrorReportKind(Enum):
     MISSING_NODES = "missing_nodes"
     CUBE_LIBRARY_DRIFT = "cube_library_drift"
     SUBSTITUTE_INTERNAL = "substitute_internal"
+    APPLICATION_LIFECYCLE = "application_lifecycle"
     COMFY_CONNECTION = "comfy_connection"
 
 
