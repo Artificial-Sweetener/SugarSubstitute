@@ -196,19 +196,6 @@ next_limit = 500
 debt = "SS-ARCH-018"
 
 [[waivers]]
-id = "SS-WAIVER-R019"
-owner = "prompt LoRA catalog"
-rule = "STRUCT003"
-path = "substitute/application/prompt_editor/lora/catalog.py"
-kind = "remediation"
-justification = "The assessed file mixes catalog cache lifecycle and refresh, model-record adaptation, exact and suffix lookup, autocomplete fallback ranking, thumbnail and search-text projection. Extract pure LoRA lookup and ranking from catalog cache lifecycle and model-record adaptation."
-issue = "chore:SS-ARCH-019"
-review_by = 2026-12-15
-max_lines = 613
-next_limit = 500
-debt = "SS-ARCH-019"
-
-[[waivers]]
 id = "SS-WAIVER-R020"
 owner = "prompt syntax projection"
 rule = "STRUCT003"
