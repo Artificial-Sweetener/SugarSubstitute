@@ -108,6 +108,7 @@ from ..interactions.text_mutation_controller import (
     PromptProjectionTextMutationContext,
 )
 from ..interactions import (
+    PromptExternalTextInputOwner,
     PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
     PromptSurfaceMouseHandler,
@@ -118,10 +119,6 @@ from ..interactions import (
     prompt_word_bounds,
 )
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-from ..mime_data_policy import (
-    mime_data_has_prompt_plain_text,
-    prompt_plain_text_from_mime_data,
-)
 from ..qt_lifecycle import qt_object_is_alive
 from .applicator import PromptProjectionApplicator, PromptProjectionRebuildResult
 from .autocomplete_preview_projection_owner import (
@@ -381,6 +378,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._search_highlight_layer = PromptSearchHighlightLayerOwner()
         self._mouse_handler = PromptSurfaceMouseHandler(
             cast(PromptSurfaceMouseHost, self)
+        )
+        self._external_text_input = PromptExternalTextInputOwner(
+            self._insert_external_mime_text
         )
         source_state_owners = build_prompt_projection_source_state_owners(
             PromptProjectionSourceStateBindings(
@@ -2900,13 +2900,15 @@ class PromptProjectionSurface(QAbstractScrollArea):
             mouse_event = cast(QMouseEvent, event)
             self._mouse_handler.update_hovered_token(mouse_event.position())
         elif event.type() == QEvent.Type.DragEnter:
-            self._accept_or_ignore_prompt_mime_event(cast(QDragEnterEvent, event))
+            self._external_text_input.accept_or_ignore_drag(
+                cast(QDragEnterEvent, event)
+            )
             return True
         elif event.type() == QEvent.Type.DragMove:
-            self._accept_or_ignore_prompt_mime_event(cast(QDragMoveEvent, event))
+            self._external_text_input.accept_or_ignore_drag(cast(QDragMoveEvent, event))
             return True
         elif event.type() == QEvent.Type.Drop:
-            self._drop_prompt_mime_text(
+            self._external_text_input.drop(
                 cast(QDropEvent, event),
                 viewport_position=cast(QDropEvent, event).position().toPoint(),
             )
@@ -2922,13 +2924,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         if watched is self.viewport():
             if event.type() == QEvent.Type.DragEnter:
-                self._accept_or_ignore_prompt_mime_event(cast(QDragEnterEvent, event))
+                self._external_text_input.accept_or_ignore_drag(
+                    cast(QDragEnterEvent, event)
+                )
                 return True
             if event.type() == QEvent.Type.DragMove:
-                self._accept_or_ignore_prompt_mime_event(cast(QDragMoveEvent, event))
+                self._external_text_input.accept_or_ignore_drag(
+                    cast(QDragMoveEvent, event)
+                )
                 return True
             if event.type() == QEvent.Type.Drop:
-                self._drop_prompt_mime_text(
+                self._external_text_input.drop(
                     cast(QDropEvent, event),
                     viewport_position=cast(QDropEvent, event).position().toPoint(),
                 )
@@ -2983,30 +2989,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def canInsertFromMimeData(self, source: QMimeData) -> bool:  # noqa: N802
         """Return whether external MIME data may become prompt source text."""
 
-        return mime_data_has_prompt_plain_text(source)
+        return self._external_text_input.can_insert(source)
 
     def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
         """Insert prompt-safe MIME text through the source mutation owner."""
 
-        text = prompt_plain_text_from_mime_data(source)
-        if text is None:
-            return
-        self.insert_external_text(text, command_name="mime_plain_text")
+        self._external_text_input.insert(source)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Accept only prompt-safe plain text drag payloads."""
 
-        self._accept_or_ignore_prompt_mime_event(event)
+        self._external_text_input.accept_or_ignore_drag(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         """Keep rejecting non-text drag payloads while the pointer moves."""
 
-        self._accept_or_ignore_prompt_mime_event(event)
+        self._external_text_input.accept_or_ignore_drag(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Insert prompt-safe dropped text and reject rich/file payloads."""
 
-        self._drop_prompt_mime_text(
+        self._external_text_input.drop(
             event,
             viewport_position=self.viewport().mapFrom(
                 self,
@@ -3014,32 +3017,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
             ),
         )
 
-    def _accept_or_ignore_prompt_mime_event(
+    def _insert_external_mime_text(
         self,
-        event: QDragEnterEvent | QDragMoveEvent,
-    ) -> None:
-        """Accept one drag event only when it carries prompt-safe plain text."""
-
-        if mime_data_has_prompt_plain_text(event.mimeData()):
-            event.acceptProposedAction()
-            return
-        event.ignore()
-
-    def _drop_prompt_mime_text(
-        self,
-        event: QDropEvent,
+        text: str,
         *,
-        viewport_position: QPoint,
+        command_name: str,
+        viewport_position: QPoint | None,
     ) -> None:
-        """Insert dropped MIME text at one projection-viewport position."""
-
-        text = prompt_plain_text_from_mime_data(event.mimeData())
-        if text is None:
-            event.ignore()
-            return
-        self.cursorForPosition(viewport_position)
-        self.insert_external_text(text, command_name="drop_plain_text")
-        event.acceptProposedAction()
+        """Commit accepted external text through projection source ownership."""
+        if viewport_position is not None:
+            self.cursorForPosition(viewport_position)
+        self.insert_external_text(text, command_name=command_name)
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_RESIZE_EVENT)
     def resizeEvent(self, event: QResizeEvent) -> None:
