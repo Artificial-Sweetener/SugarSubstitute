@@ -111,13 +111,6 @@ class PromptSurfaceMouseHost(Protocol):
     def _rebuild_projection(self) -> None:
         """Refresh projection state after token expansion changes session state."""
 
-    def _request_lora_context_menu(
-        self,
-        viewport_position: QPointF,
-        global_pos: QPoint,
-    ) -> bool:
-        """Request a LoRA context menu for one pointer position."""
-
     def _scroll_offset(self) -> float:
         """Return the viewport scroll offset used by projection geometry."""
 
@@ -154,11 +147,13 @@ class PromptSurfaceMouseHandler:
         host: PromptSurfaceMouseHost,
         *,
         ensure_pointer_focus: Callable[[], None],
+        request_lora_context_menu: Callable[[QPointF, QPoint], bool],
     ) -> None:
         """Bind pointer routing to the bounded surface operations it may use."""
 
         self._host = host
         self._ensure_pointer_focus = ensure_pointer_focus
+        self._request_lora_context_menu = request_lora_context_menu
         self._hovered_token_id: str | None = None
         self._mouse_selecting = False
         self._drag_selection_session: _DragSelectionSession | None = None
@@ -231,7 +226,7 @@ class PromptSurfaceMouseHandler:
         host._flush_pending_projection_update(reason="mouse_press")
         geometry = frame.geometry
         if event.button() == Qt.MouseButton.RightButton:
-            if host._request_lora_context_menu(
+            if self._request_lora_context_menu(
                 viewport_position, event.globalPosition().toPoint()
             ):
                 event.accept()

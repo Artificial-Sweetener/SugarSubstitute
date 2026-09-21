@@ -347,6 +347,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
             thumbnail_cache=thumbnail_cache,
             thumbnail_preloader=lora_thumbnail_preloader,
             publish_thumbnail_media=self._publish_lora_thumbnail_media,
+            publish_context_menu=(
+                lambda token, global_pos: self.loraContextMenuRequested.emit(
+                    token,
+                    global_pos,
+                )
+            ),
         )
         update_lora_thumbnail = self._lora_feature_delegate.update_lora_thumbnail_pixmap
         thumbnail_cache.pixmap_ready.connect(
@@ -394,6 +400,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._mouse_handler = PromptSurfaceMouseHandler(
             cast(PromptSurfaceMouseHost, self),
             ensure_pointer_focus=self._focus_owner.ensure_pointer_focus,
+            request_lora_context_menu=(
+                self._lora_feature_delegate.request_context_menu
+            ),
         )
         self._external_text_input = PromptExternalTextInputOwner(
             self._insert_external_mime_text
@@ -630,7 +639,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.viewport().installEventFilter(self._viewport_event_router)
-        self._install_lora_tooltip_filter()
+        self._lora_feature_delegate.install_tooltip_filter()
         self._sync_layout_state()
         self._rebuild_projection()
 
@@ -3413,41 +3422,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         if collapsed:
             self._rebuild_projection()
-
-    def _install_lora_tooltip_filter(self) -> None:
-        """Install delayed QFluent tooltips for inline LoRA chip labels."""
-
-        self._lora_feature_delegate.install_tooltip_filter()
-
-    def _lora_tooltip_for_hover_event(
-        self,
-        watched: object,
-        event: object,
-    ) -> str | None:
-        """Return full page/version text for the hovered LoRA chip."""
-
-        return self._lora_feature_delegate.tooltip_for_hover_event(watched, event)
-
-    def _request_lora_context_menu(
-        self,
-        viewport_position: QPointF,
-        global_pos: QPoint,
-    ) -> bool:
-        """Emit a LoRA context-menu request when the clicked token has actions."""
-
-        return self._lora_feature_delegate.request_context_menu(
-            viewport_position,
-            global_pos,
-        )
-
-    def _emit_lora_context_menu_request(
-        self,
-        token: PromptProjectionToken,
-        global_pos: QPoint,
-    ) -> None:
-        """Emit one prepared LoRA context-menu request from the feature delegate."""
-
-        self.loraContextMenuRequested.emit(token, global_pos)
 
     def _focused_or_hovered_token(
         self,
