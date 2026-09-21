@@ -354,9 +354,7 @@ def test_real_unknown_external_termination_still_produces_actionable_report(
     )
     process, _startup_output = _start_child(command, prepared.environment)
     runtime_context = (
-        prepared.context.incident_root
-        / prepared.context.run_id
-        / "runtime-context.json"
+        prepared.context.run_root / prepared.context.run_id / "runtime-context.json"
     )
     for _ in range(1_000):
         if runtime_context.is_file():
@@ -378,7 +376,10 @@ def test_real_unknown_external_termination_still_produces_actionable_report(
     assert incident.metadata["termination_reason"] == "unknown"
     assert incident.metadata["runtime_context_source"] == "application"
     assert incident.application_version == "qualification"
-    assert incident.attachments == ("startup-output.log",)
+    assert incident.attachments == (
+        "startup-output.log",
+        "runtime-context.json",
+    )
     report = _build_complete_crash_report(layout, incident).report_text
     assert "Title: SugarSubstitute did not close normally" in report
     assert "Kind: abnormal_exit" in report
@@ -427,7 +428,13 @@ def test_real_launcher_ui_child_crash_is_durable_and_presented(
     assert incidents[0].attachments == (
         "python-fault.log",
         "startup-output.log",
+        "runtime-context.json",
     )
+    incident_directory = (
+        layout.appdata_dir / "diagnostics" / "crashes" / incidents[0].incident_id
+    )
+    assert (incident_directory / "runtime-context.json").is_file()
+    assert tuple((layout.appdata_dir / "diagnostics" / "runs").glob("*")) == ()
 
 
 class _RealCandidateReadiness:

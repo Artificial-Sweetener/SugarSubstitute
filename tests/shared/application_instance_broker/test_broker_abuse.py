@@ -291,6 +291,31 @@ def test_stalled_handshake_cannot_block_later_launches(tmp_path: Path) -> None:
         forwarder.join(timeout=2.0)
 
 
+@pytest.mark.platforms("windows")
+def test_close_drains_stalled_handshake_before_immediate_reelection(
+    tmp_path: Path,
+) -> None:
+    """Closing an owner must release accepted pipes before a replacement elects."""
+
+    broker = _elect_primary(tmp_path)
+    environment = broker.child_environment({})
+    endpoint = ApplicationInstanceEndpoint.from_json(environment[BROKER_ENDPOINT_ENV])
+    stalled = connect_instance_endpoint(endpoint)
+
+    broker.close()
+    replacement = ApplicationInstanceBroker.elect(
+        install_root=tmp_path,
+        invocation=ApplicationInvocation.capture(["Substitute"]),
+    )
+
+    try:
+        assert replacement is not None
+    finally:
+        stalled.close()
+        if replacement is not None:
+            replacement.close()
+
+
 def test_forged_child_receipt_requeues_work_for_a_real_child(tmp_path: Path) -> None:
     """A bad child receipt must lose its channel rather than lose user work."""
 

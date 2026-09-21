@@ -72,7 +72,7 @@ def test_native_client_starts_handler_with_private_database_and_attachment(
         crashpad_handler=handler,
         crashpad_client_library=library_path,
     )
-    attachment = context.incident_root / context.run_id / "python-fault.log"
+    attachment = context.run_root / context.run_id / "python-fault.log"
     start = _StartFunction()
     library = _Library(start)
 

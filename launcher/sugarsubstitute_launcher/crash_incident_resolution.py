@@ -20,10 +20,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
-import logging
 from pathlib import Path
 import signal
 
+from launcher.sugarsubstitute_launcher.crash_evidence_promotion import (
+    CrashIncidentEvidencePromoter,
+    file_has_meaningful_content,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.supervised_termination import (
     SupervisedTermination,
@@ -42,11 +45,7 @@ from sugarsubstitute_shared.crash_reporting.protocol import (
 from sugarsubstitute_shared.crash_reporting.run_context import (
     CrashRunRuntimeContext,
     CrashRunRuntimeContextStore,
-    STARTUP_OUTPUT_FILENAME,
 )
-
-
-_LOGGER = logging.getLogger(__name__)
 
 
 def resolve_process_incident(
@@ -66,8 +65,9 @@ def resolve_process_incident(
     """Enrich in-process evidence or synthesize an accurate termination report."""
 
     store = CrashIncidentStore(context.incident_root)
-    retained_dump = _retain_minidump(store, context.run_id, minidump)
-    recorded_runtime_context = CrashRunRuntimeContextStore(context.incident_root).load(
+    evidence_promoter = CrashIncidentEvidencePromoter(context)
+    evidence = evidence_promoter.promote(minidump=minidump)
+    recorded_runtime_context = CrashRunRuntimeContextStore(context.run_root).load(
         context.run_id
     )
     runtime_context = recorded_runtime_context or CrashRunRuntimeContext(
@@ -78,13 +78,6 @@ def resolve_process_incident(
         launch_arguments=launch_arguments,
         install_root=str(layout.root),
     )
-    fault_log = store.attachment_path(context.run_id, "python-fault.log")
-    startup_output = store.attachment_path(context.run_id, STARTUP_OUTPUT_FILENAME)
-    diagnostic_attachments = _meaningful_attachments(
-        fault_log=fault_log,
-        startup_output=startup_output,
-        retained_dump=retained_dump,
-    )
     metadata = _termination_metadata(
         termination=termination,
         exit_evidence=exit_evidence,
@@ -93,8 +86,8 @@ def resolve_process_incident(
             if recorded_runtime_context is not None
             else "supervisor_fallback"
         ),
-        fault_log=fault_log,
-        startup_output=startup_output,
+        fault_log=evidence.fault_log,
+        startup_output=evidence.startup_output,
     )
     if runtime_context.process_id != process_id:
         metadata["supervisor_process_id"] = str(process_id)
@@ -103,18 +96,20 @@ def resolve_process_incident(
         None,
     )
     if existing is not None:
-        return _enrich_existing_incident(
+        incident = _enrich_existing_incident(
             store=store,
             existing=existing,
             return_code=return_code,
-            diagnostic_attachments=diagnostic_attachments,
+            diagnostic_attachments=evidence.attachment_names,
             runtime_context=runtime_context,
             metadata=metadata,
         )
+        evidence_promoter.retire(evidence)
+        return incident
 
     kind, boundary, attribution, summary = _synthesized_termination(
         minidump=minidump,
-        fault_log=fault_log,
+        fault_log=evidence.fault_log,
         return_code=return_code,
         termination=termination,
     )
@@ -132,10 +127,11 @@ def resolve_process_incident(
         platform=runtime_context.platform,
         python_version=runtime_context.python_version,
         launch_arguments=runtime_context.launch_arguments,
-        attachments=diagnostic_attachments,
+        attachments=evidence.attachment_names,
         metadata=metadata,
     )
     store.record(incident)
+    evidence_promoter.retire(evidence)
     return incident
 
 
@@ -153,25 +149,6 @@ def newest_run_minidump(database: Path, started_at_ns: int) -> Path | None:
         if modified_ns >= started_at_ns:
             candidates.append((modified_ns, path))
     return max(candidates, default=(0, None), key=lambda item: item[0])[1]
-
-
-def _retain_minidump(
-    store: CrashIncidentStore,
-    run_id: str,
-    minidump: Path | None,
-) -> Path | None:
-    """Retain an available minidump without discarding other crash evidence."""
-
-    if minidump is None:
-        return None
-    try:
-        return store.retain_attachment(run_id, minidump)
-    except OSError:
-        _LOGGER.exception(
-            "Crashpad minidump could not be retained with its incident.",
-            extra={"run_id": run_id},
-        )
-        return None
 
 
 def _enrich_existing_incident(
@@ -260,42 +237,6 @@ def _fault_log_reports_abort(path: Path) -> bool:
     return "Fatal Python error: Aborted" in tail
 
 
-def _meaningful_attachments(
-    *,
-    fault_log: Path,
-    startup_output: Path,
-    retained_dump: Path | None,
-) -> tuple[str, ...]:
-    """Return only attachments carrying evidence rather than empty placeholders."""
-
-    attachments = [
-        path.name
-        for path in (fault_log, startup_output)
-        if _file_has_non_whitespace(path)
-    ]
-    if retained_dump is not None:
-        attachments.append(retained_dump.name)
-    return tuple(dict.fromkeys(attachments))
-
-
-def _file_has_non_whitespace(path: Path) -> bool:
-    """Return whether a bounded sample contains meaningful text or binary evidence."""
-
-    try:
-        with path.open("rb") as stream:
-            head = stream.read(4096)
-            if any(not chr(byte).isspace() for byte in head):
-                return True
-            stream.seek(0, 2)
-            size = stream.tell()
-            if size <= len(head):
-                return False
-            stream.seek(max(0, size - 4096))
-            return any(not chr(byte).isspace() for byte in stream.read())
-    except OSError:
-        return False
-
-
 def _termination_metadata(
     *,
     termination: SupervisedTermination,
@@ -312,11 +253,11 @@ def _termination_metadata(
         "exit_receipt_state": exit_evidence.receipt_state.value,
         "runtime_context_source": runtime_context_source,
         "python_fault_log": (
-            "captured" if _file_has_non_whitespace(fault_log) else "empty_or_missing"
+            "captured" if file_has_meaningful_content(fault_log) else "empty_or_missing"
         ),
         "startup_output": (
             "captured"
-            if _file_has_non_whitespace(startup_output)
+            if file_has_meaningful_content(startup_output)
             else "empty_or_missing"
         ),
     }
