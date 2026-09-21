@@ -61,6 +61,7 @@ from .source_commit_ports import (
     PromptSourceReplacementPointerSink,
 )
 from .source_change_publication import PromptSourceChangePublicationOwner
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .source_document import PromptProjectionSourceDocument
 from .source_edit_projection_policy import PromptSourceEditProjectionDecision
 from .source_projection_application import PromptSourceProjectionApplication
@@ -82,6 +83,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
         presentation_sink: PromptSourceCommitPresentationSink,
         pointer_sink: PromptSourceReplacementPointerSink,
         *,
+        caret_publication: PromptProjectionCaretPublicationOwner,
         editor_state: PromptSourceChangeEditorState,
         freshness: PromptProjectionFreshnessController,
         source_change_publication: PromptSourceChangePublicationOwner,
@@ -95,6 +97,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
 
         self._presentation_sink = presentation_sink
         self._pointer_sink = pointer_sink
+        self._caret_publication = caret_publication
         self._editor_state = editor_state
         self._freshness = freshness
         self._source_change_publication = source_change_publication
@@ -280,7 +283,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             projection_decision=projection_decision,
         )
         if source_edit_start is not None and source_edit_end is not None:
-            presentation_sink._mark_source_edit_horizontal_movement_origin()
+            self._caret_publication.mark_source_edit_horizontal_movement_origin()
         if emit_text_changed:
             presentation_sink.textChanged.emit()
         presentation_sink.cursorPositionChanged.emit()

@@ -258,7 +258,19 @@ class _SourceChangeHost:
 
         self.rebuilds += 1
 
-    def _set_deferred_source_caret_states(
+    @property
+    def cursor_state(self) -> PromptProjectionCaretState:
+        """Return the recorded projection cursor state."""
+
+        return self._caret_state_owner.cursor_state
+
+    @property
+    def anchor_state(self) -> PromptProjectionCaretState:
+        """Return the recorded projection anchor state."""
+
+        return self._caret_state_owner.anchor_state
+
+    def publish_deferred(
         self,
         *,
         cursor_state: PromptProjectionCaretState,
@@ -270,7 +282,7 @@ class _SourceChangeHost:
             (cursor_state.source_position, anchor_state.source_position)
         )
 
-    def _set_caret_states(
+    def publish(
         self,
         *,
         cursor_state: PromptProjectionCaretState,
@@ -291,17 +303,43 @@ class _SourceChangeHost:
             (cursor_state.source_position, anchor_state.source_position, reason)
         )
 
-    def _sync_editing_session_to_caret_states(self) -> None:
-        """Accept editing-session sync calls."""
+    def publish_direct_feedback(
+        self,
+        *,
+        cursor_state: PromptProjectionCaretState,
+        anchor_state: PromptProjectionCaretState,
+    ) -> None:
+        """Record direct-feedback state and refresh its caret visuals."""
 
-    def _ensure_caret_visible(self) -> None:
-        """Record caret visibility checks."""
+        self.replace_states(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+            clear_caret_rect_override=True,
+            reset_preferred_x=False,
+        )
+        self.refresh_visibility()
+
+    def replace_states(
+        self,
+        *,
+        cursor_state: PromptProjectionCaretState,
+        anchor_state: PromptProjectionCaretState,
+        clear_caret_rect_override: bool,
+        reset_preferred_x: bool,
+    ) -> None:
+        """Replace recorded projection caret state."""
+
+        self._caret_state_owner.replace_states(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+            clear_caret_rect_override=clear_caret_rect_override,
+            reset_preferred_x=reset_preferred_x,
+        )
+
+    def refresh_visibility(self) -> None:
+        """Record caret visibility and blink refresh effects."""
 
         self.caret_visibility_checks += 1
-
-    def _restart_caret_blink_cycle(self) -> None:
-        """Record caret blink restart."""
-
         self.caret_blink_restarts += 1
 
     def _clear_transient_caret_geometry(self) -> None:
@@ -315,7 +353,7 @@ class _SourceChangeHost:
         if commit_projection:
             self.layout_sync_commits += 1
 
-    def _mark_source_edit_horizontal_movement_origin(self) -> None:
+    def mark_source_edit_horizontal_movement_origin(self) -> None:
         """Record horizontal movement origin marking."""
 
         self.horizontal_origin_marks += 1

@@ -308,9 +308,12 @@ def test_projection_surface_backspace_updates_for_immediate_visibility(
     delay_projection_update_scheduler(surface)
     committed_height = surface.content_height()
     original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
-    original_ensure_caret_visible = surface._ensure_caret_visible  # noqa: SLF001
+    caret_publication = surface._caret_publication  # noqa: SLF001
+    original_ensure_caret_visible = (  # noqa: SLF001
+        caret_publication._ensure_caret_visible
+    )
     original_collapse_expanded_token = (  # noqa: SLF001
-        surface._collapse_expanded_token_if_possible  # noqa: SLF001
+        caret_publication._collapse_expanded_token
     )
     rebuild_count = 0
     ensure_caret_visible_count = 0
@@ -338,10 +341,14 @@ def test_projection_surface_backspace_updates_for_immediate_visibility(
         original_collapse_expanded_token()
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
-    monkeypatch.setattr(surface, "_ensure_caret_visible", count_ensure_caret_visible)
     monkeypatch.setattr(
-        surface,
-        "_collapse_expanded_token_if_possible",
+        caret_publication,
+        "_ensure_caret_visible",
+        count_ensure_caret_visible,
+    )
+    monkeypatch.setattr(
+        caret_publication,
+        "_collapse_expanded_token",
         count_collapse_expanded_token,
     )
     cursor_position = len(box.toPlainText())

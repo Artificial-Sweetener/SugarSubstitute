@@ -34,6 +34,7 @@ from .freshness_controller import (
     PromptProjectionFreshnessController,
 )
 from .caret_state_owner import PromptProjectionCaretStateOwner
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
     PromptProjectionSelection,
@@ -66,18 +67,6 @@ class PromptProjectionCaretMovementHost(Protocol):
     def _selection(self) -> PromptProjectionSelection:
         """Return the current source selection."""
 
-    def _set_caret_states(
-        self,
-        *,
-        cursor_state: PromptProjectionCaretState,
-        anchor_state: PromptProjectionCaretState,
-        reset_preferred_x: bool = True,
-        caret_rect_override: QRectF | None = None,
-        collapse_expanded_token: bool = True,
-        reason: str = "generic",
-    ) -> None:
-        """Commit resolved cursor and anchor states."""
-
 
 class PromptProjectionCaretMovementController:
     """Move the caret through projected geometry and source caret-map stops."""
@@ -87,11 +76,13 @@ class PromptProjectionCaretMovementController:
         host: PromptProjectionCaretMovementHost,
         *,
         state: PromptProjectionCaretStateOwner,
+        publication: PromptProjectionCaretPublicationOwner,
     ) -> None:
         """Store the surface effects and focused caret-state owner."""
 
         self._host = host
         self._state = state
+        self._publication = publication
 
     def move_horizontally(
         self,
@@ -136,7 +127,7 @@ class PromptProjectionCaretMovementController:
                 next_anchor_state = (
                     self._state.anchor_state if keep_anchor else local_target.state
                 )
-                host._set_caret_states(
+                self._publication.publish(
                     cursor_state=local_target.state,
                     anchor_state=next_anchor_state,
                     caret_rect_override=self._visual_affinity_override_for_target(
@@ -184,7 +175,7 @@ class PromptProjectionCaretMovementController:
                     next_anchor_state = (
                         self._state.anchor_state if keep_anchor else visual_target.state
                     )
-                    host._set_caret_states(
+                    self._publication.publish(
                         cursor_state=visual_target.state,
                         anchor_state=next_anchor_state,
                         caret_rect_override=self._visual_affinity_override_for_target(
@@ -216,7 +207,7 @@ class PromptProjectionCaretMovementController:
         next_anchor_state = (
             self._state.anchor_state if keep_anchor else next_cursor_state
         )
-        host._set_caret_states(
+        self._publication.publish(
             cursor_state=next_cursor_state,
             anchor_state=next_anchor_state,
             caret_rect_override=caret_rect_override,
@@ -310,7 +301,7 @@ class PromptProjectionCaretMovementController:
             else preferred_x
         )
         next_anchor_state = self._state.anchor_state if keep_anchor else target.state
-        host._set_caret_states(
+        self._publication.publish(
             cursor_state=target.state,
             anchor_state=next_anchor_state,
             reset_preferred_x=False,

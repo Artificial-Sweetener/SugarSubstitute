@@ -38,11 +38,12 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 
 from ..layout.contracts import PromptLayoutDamage
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
-from .caret_state_owner import PromptProjectionCaretStateOwner
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .frame_state import PromptProjectionFrameStatePublisher
 from .incremental_edit_contracts import PromptProjectionPlainTextApplyResult
 from .semantic_transition_strategy import PromptSemanticTransitionResult
+from .transient_edit_overlays import PromptProjectionTransientEditOverlayController
 
 
 PromptEditPublicationState = PromptEditorDocumentState[
@@ -55,14 +56,10 @@ PromptEditPublicationState = PromptEditorDocumentState[
 class PromptEditPublicationSink(Protocol):
     """Expose surface effects that remain outside revisioned edit state."""
 
-    _caret_state_owner: PromptProjectionCaretStateOwner
     _last_rendered_active_span_range: tuple[int, int] | None
 
     def _active_span_range(self) -> tuple[int, int] | None:
         """Return the active projected span range."""
-
-    def _sync_editing_session_to_caret_states(self) -> object:
-        """Mirror resolved projection caret states into the editing session."""
 
     def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
         """Refresh prepared paint state after frame publication."""
@@ -75,9 +72,6 @@ class PromptEditPublicationSink(Protocol):
         layout_result: PromptLayoutDamage,
     ) -> None:
         """Repaint lines dirtied by an accepted local edit."""
-
-    def _clear_transient_caret_geometry(self) -> None:
-        """Clear provisional caret geometry after committed catch-up."""
 
     def viewport(self) -> QWidget:
         """Return the repaint target."""
@@ -94,6 +88,8 @@ class PromptEditPublication:
         frame_state: PromptProjectionFrameStatePublisher,
         layout: PromptLayoutEditToFrameCoordinator,
         diagnostics: PromptDiagnosticLayerOwner,
+        caret_publication: PromptProjectionCaretPublicationOwner,
+        overlays: PromptProjectionTransientEditOverlayController,
     ) -> None:
         """Store explicit revisioned state and the remaining surface effect sink."""
 
@@ -102,6 +98,8 @@ class PromptEditPublication:
         self._frame_state = frame_state
         self._layout = layout
         self._diagnostics = diagnostics
+        self._caret_publication = caret_publication
+        self._overlays = overlays
 
     def current_layout_identity(self) -> PromptLayoutIdentity | None:
         """Return the active layout identity before a strategy mutates the frame."""
@@ -127,22 +125,10 @@ class PromptEditPublication:
         """Publish an accepted trailing insertion and remap caret state."""
 
         sink = self._sink
-        previous_cursor_state = sink._caret_state_owner.cursor_state
-        previous_anchor_state = sink._caret_state_owner.anchor_state
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
         self._diagnostics.clear_fragment_cache(reason=cache_reason)
-        sink._caret_state_owner.replace_states(
-            cursor_state=projection_document.caret_map.resolve_state(
-                previous_cursor_state
-            ),
-            anchor_state=projection_document.caret_map.resolve_state(
-                previous_anchor_state
-            ),
-            clear_caret_rect_override=True,
-            reset_preferred_x=False,
-        )
-        sink._sync_editing_session_to_caret_states()
+        self._caret_publication.remap_after_projection_publication(projection_document)
         self._finish_trailing_publication()
 
     def publish_plain_delete(
@@ -224,7 +210,7 @@ class PromptEditPublication:
                 ),
             )
         sink._rebuild_active_projection(commit_projection=True)
-        sink._clear_transient_caret_geometry()
+        self._overlays.clear()
         sink._update_incremental_plain_text_projection_paint(layout_result)
 
     def publish_reflow(
@@ -242,7 +228,7 @@ class PromptEditPublication:
         sink._last_rendered_active_span_range = sink._active_span_range()
         self._diagnostics.clear_fragment_cache(reason="projection_prebuilt_reflow")
         sink._rebuild_active_projection(commit_projection=True)
-        sink._clear_transient_caret_geometry()
+        self._overlays.clear()
         sink._update_incremental_plain_text_projection_paint(layout_result)
 
     def publish_checkpoint(
@@ -258,7 +244,7 @@ class PromptEditPublication:
             reason="projection_history_checkpoint_restore"
         )
         sink._rebuild_active_projection(commit_projection=True)
-        sink._clear_transient_caret_geometry()
+        self._overlays.clear()
         sink.viewport().update()
 
     def publish_semantic_transition(
@@ -268,27 +254,15 @@ class PromptEditPublication:
         """Publish one same-source semantic document and bounded frame damage."""
 
         sink = self._sink
-        previous_cursor_state = sink._caret_state_owner.cursor_state
-        previous_anchor_state = sink._caret_state_owner.anchor_state
         projection_document = result.projection_document
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
         self._diagnostics.clear_fragment_cache(
             reason="projection_local_semantic_transition"
         )
-        sink._caret_state_owner.replace_states(
-            cursor_state=projection_document.caret_map.resolve_state(
-                previous_cursor_state
-            ),
-            anchor_state=projection_document.caret_map.resolve_state(
-                previous_anchor_state
-            ),
-            clear_caret_rect_override=True,
-            reset_preferred_x=False,
-        )
-        sink._sync_editing_session_to_caret_states()
+        self._caret_publication.remap_after_projection_publication(projection_document)
         sink._rebuild_active_projection(commit_projection=True)
-        sink._clear_transient_caret_geometry()
+        self._overlays.clear()
         sink._update_incremental_plain_text_projection_paint(result.layout_damage)
 
     def _finish_trailing_publication(self) -> None:
@@ -296,7 +270,7 @@ class PromptEditPublication:
 
         sink = self._sink
         sink._rebuild_active_projection(commit_projection=True)
-        sink._clear_transient_caret_geometry()
+        self._overlays.clear()
         sink.viewport().update()
 
 

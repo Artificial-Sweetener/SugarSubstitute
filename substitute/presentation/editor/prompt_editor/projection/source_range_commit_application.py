@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Generic, TypeVar
 
 from substitute.presentation.editor.prompt_editor.core.editing.commit import (
@@ -39,9 +40,9 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from .semantic_remap import PromptProjectionSemanticRemapper
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .session import PromptProjectionSession
 from .source_change_transaction import PromptProjectionSourceChangeTransaction
-from .source_commit_ports import PromptSourceChangeCaretSink
 from .source_edit_projection_facts import PromptSourceEditProjectionFactResolver
 
 TProjectionPayload = TypeVar("TProjectionPayload")
@@ -58,8 +59,9 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
 
     def __init__(
         self,
-        caret_sink: PromptSourceChangeCaretSink,
         *,
+        caret_publication: PromptProjectionCaretPublicationOwner,
+        set_cursor_positions: Callable[[int, int], object],
         editor_state: PromptSourceRangeEditorState,
         projection_facts: PromptSourceEditProjectionFactResolver,
         semantic_remapper: PromptProjectionSemanticRemapper,
@@ -68,7 +70,8 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
     ) -> None:
         """Store explicit caret, semantic, fact, session, and transaction owners."""
 
-        self._caret_sink = caret_sink
+        self._caret_publication = caret_publication
+        self._set_cursor_positions = set_cursor_positions
         self._editor_state = editor_state
         self._projection_facts = projection_facts
         self._semantic_remapper = semantic_remapper
@@ -84,9 +87,9 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
 
         previous_text = commit.previous_snapshot.source_text
         if not commit.source_changed:
-            self._caret_sink.set_cursor_positions(
-                cursor_position=commit.cursor_state.cursor_position,
-                anchor_position=commit.cursor_state.anchor_position,
+            self._set_cursor_positions(
+                commit.cursor_state.cursor_position,
+                commit.cursor_state.anchor_position,
             )
             return
         source_edit = commit.source_edit
@@ -122,7 +125,7 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
             updated_text=updated_text,
             normalized_text=commit.next_snapshot.source_text,
             region_structure_requires_rebuild=region_structure_requires_rebuild,
-            cursor_state=self._caret_sink._caret_state_owner.cursor_state,
+            cursor_state=self._caret_publication.cursor_state,
         )
         deferral_reason = projection_decision.deferral_reason
         optimistic_prompt_state = (
