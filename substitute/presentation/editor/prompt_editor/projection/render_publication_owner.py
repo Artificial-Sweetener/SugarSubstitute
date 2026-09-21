@@ -32,6 +32,7 @@ from .edit_to_frame import PromptLayoutEditToFrameCoordinator
 from .frame_state import PromptProjectionEditorState
 from .freshness_controller import PromptProjectionFreshnessController
 from .input_method_controller import PromptInputMethodController
+from .prepared_frame import PromptProjectionPreparedFrame
 from .region_chrome import PromptRegionChrome
 from .render_frame import (
     PromptProjectionContentPaintMode,
@@ -71,6 +72,9 @@ class PromptProjectionRenderPublicationOwner:
         transient_overlays: PromptProjectionTransientEditOverlayController,
         freshness: PromptProjectionFreshnessController,
         frame_owner: PromptProjectionRenderFrameOwner,
+        active_frame: Callable[[], PromptProjectionPreparedFrame],
+        cursor_position: Callable[[], int],
+        focus_active: Callable[[], bool],
         scroll_offset: Callable[[], float],
         should_paint_caret: Callable[[], bool],
         current_caret_rect: Callable[[], QRectF],
@@ -95,11 +99,101 @@ class PromptProjectionRenderPublicationOwner:
         self._transient_overlays = transient_overlays
         self._freshness = freshness
         self._frame_owner = frame_owner
+        self._active_frame = active_frame
+        self._cursor_position = cursor_position
+        self._focus_active = focus_active
         self._scroll_offset = scroll_offset
         self._should_paint_caret = should_paint_caret
         self._current_caret_rect = current_caret_rect
         self._preview_visible_region = preview_visible_region
         self._reorder_preview_generation = reorder_preview_generation
+
+    def viewport_scrolled(self) -> None:
+        """Refresh every viewport-bound layer before publishing one frame."""
+
+        self._selection_layer.refresh()
+        self._diagnostics.refresh(reason="viewport_scrolled")
+        self._prepare_source_line_chrome()
+        self._prepare_search_highlight()
+        self.publish()
+
+    def visual_style_changed(self) -> None:
+        """Republish style-sensitive input-method and frame presentation."""
+
+        self.publish()
+
+    def source_line_configuration_changed(self) -> None:
+        """Publish newly configured source-line commands atomically."""
+
+        self._prepare_source_line_chrome()
+        self.publish()
+
+    def search_changed(self) -> None:
+        """Prepare current search commands and publish their exact frame."""
+
+        self._prepare_search_highlight()
+        self.publish()
+
+    def search_cleared(self) -> None:
+        """Clear search commands and publish the empty layer atomically."""
+
+        self._search_highlight.clear()
+        self.publish()
+
+    def source_changed(self, *, clear_diagnostic_fragment_cache: bool) -> None:
+        """Invalidate diagnostic geometry when source lineage requires it."""
+
+        if clear_diagnostic_fragment_cache:
+            self._diagnostics.clear_fragment_cache(reason="source_changed")
+
+    def caret_changed(self) -> None:
+        """Refresh caret-dependent layers before caret-frame publication."""
+
+        self._selection_layer.refresh()
+        self._diagnostics.refresh(reason="selection_changed")
+        self._prepare_source_line_chrome()
+
+    def deferred_caret_changed(self) -> None:
+        """Refresh layers valid while source caret geometry remains deferred."""
+
+        self._selection_layer.refresh()
+        self._diagnostics.refresh(reason="selection_changed")
+
+    def viewport_resized(self) -> None:
+        """Discard diagnostic fragments tied to the previous viewport size."""
+
+        self._diagnostics.clear_fragment_cache(reason="resize")
+
+    def focus_changed(self) -> None:
+        """Prepare focus-sensitive chrome and publish its exact frame."""
+
+        self._prepare_source_line_chrome()
+        self.publish()
+
+    def prepare_focus_chrome(self) -> None:
+        """Prepare focus-sensitive chrome before the caret owner publishes."""
+
+        self._prepare_source_line_chrome()
+
+    def diagnostic_layer_changed(self) -> None:
+        """Publish a changed diagnostic layer before requesting its repaint."""
+
+        self.publish()
+        self._viewport.update()
+
+    def projection_rebuilt(self, *, invalidation_reason: str) -> None:
+        """Discard diagnostic fragments tied to replaced projection geometry."""
+
+        self._diagnostics.clear_fragment_cache(reason=invalidation_reason)
+
+    def layout_synchronized(self) -> None:
+        """Refresh all layout-bound layers before publishing one frame."""
+
+        self._selection_layer.refresh()
+        self._diagnostics.refresh(reason="layout_synchronized")
+        self._prepare_source_line_chrome()
+        self._prepare_search_highlight()
+        self.publish()
 
     def publish(self) -> bool:
         """Select live or preview inputs and atomically publish the render frame."""
@@ -185,6 +279,38 @@ class PromptProjectionRenderPublicationOwner:
             caret_rect=caret_rect,
             preview_content_visible_region=preview_visible_region,
             reorder_instrumentation=reorder_instrumentation,
+        )
+
+    def _prepare_source_line_chrome(self) -> None:
+        """Prepare source-line commands against the active frame and viewport."""
+
+        frame = self._active_frame()
+        self._source_line_chrome.prepare(
+            geometry=frame.geometry,
+            geometry_identity=id(frame.output.snapshot),
+            viewport_rect=QRectF(self._viewport.rect()),
+            scroll_offset=self._scroll_offset(),
+            cursor_position=self._cursor_position(),
+            focus_active=self._focus_active(),
+        )
+
+    def _prepare_search_highlight(self) -> None:
+        """Prepare search commands against the current layout and viewport."""
+
+        layout_snapshot = self._editor_state.layout
+        if (
+            layout_snapshot is None
+            or layout_snapshot.geometry is not self._layout.frame.output.snapshot
+            or not self._session.search_match_ranges
+        ):
+            self._search_highlight.clear()
+            return
+        self._search_highlight.prepare(
+            geometry=self._layout.frame.geometry,
+            layout_identity=layout_snapshot.identity,
+            match_ranges=self._session.search_match_ranges,
+            active_match_index=self._session.active_search_match_index,
+            palette=self._surface.palette(),
         )
 
     def _fresh_reorder_surface_chrome(

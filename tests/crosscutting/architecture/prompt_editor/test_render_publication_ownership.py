@@ -34,7 +34,20 @@ def test_surface_delegates_complete_render_publication_to_focused_owner() -> Non
         "PromptProjectionContentPaintMode",
         "PromptReorderRenderInstrumentation",
         "_fresh_reorder_surface_chrome",
+        "_prepare_source_line_chrome",
+        "_prepare_search_highlight",
+        "def viewport_scrolled",
+        "def layout_synchronized",
+        "def caret_changed",
     ):
         assert ownership_marker in owner_source
         assert ownership_marker not in surface_source
     assert "self._render_publication.publish()" in surface_source
+    for direct_layer_orchestration in (
+        "self._diagnostic_layer_owner.refresh(",
+        "self._diagnostic_layer_owner.clear_fragment_cache(",
+        "self._selection_layer_owner.refresh()",
+        "self._search_highlight_layer.clear()",
+        "self._input_method_controller.refresh_render_layer()",
+    ):
+        assert direct_layer_orchestration not in surface_source
