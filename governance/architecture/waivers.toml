@@ -540,11 +540,11 @@ owner = "prompt editor shell"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
 kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility, projection collaborator integration and lifecycle, keyboard, clipboard, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and remaining host event routing from the QFluent shell and projection composition boundary."
+justification = "The assessed file mixes QFluent text-edit host compatibility, projection collaborator integration and lifecycle, keyboard, clipboard, context-menu, and focus routing, autocomplete, diagnostics, and weight feature coordination, prompt command execution, state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and remaining host event routing from the QFluent shell and projection composition boundary."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 1766
-next_limit = 1403
+max_lines = 1615
+next_limit = 1400
 debt = "SS-ARCH-064"
 
 [[waivers]]

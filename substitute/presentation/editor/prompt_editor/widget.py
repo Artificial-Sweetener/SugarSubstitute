@@ -102,7 +102,6 @@ from substitute.application.prompt_editor.projection.syntax_models import (
 from substitute.application.prompt_editor.reorder.commit import (
     PromptReorderLayoutCommitRequest,
 )
-from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.field_actions import FieldActionContext
 from substitute.presentation.widgets.menu_model import MenuEntry
@@ -195,20 +194,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptProjectionToken,
     PromptWeightControlIdentity,
 )
-from .projection.reorder_chip_geometry import PromptReorderChipGeometrySnapshot
-from .projection.reorder_geometry_cache_keys import ReorderGeometrySnapshot
-from .projection.reorder_placement_geometry import PromptReorderPlacementSnapshot
-from .projection.reorder_placement_geometry import (
-    PromptReorderPlacementGeometry,
-    PromptReorderPlacementId,
-)
-from .projection.reorder_preview import PromptReorderPreviewState
-from .projection.reorder_surface_visual_state import (
-    PromptReorderSurfaceVisualPublication,
-)
 from .projection.undo_payload import PromptProjectionUndoPayload
-from .projection.reorder_visual_snapshot import PromptReorderProjectionPaintSnapshot
 from .geometry.models import PromptProjectionSourceLineRect
+from .reorder_facade import PromptEditorReorderFacade
 from .projection.session import (
     PromptEmphasisAdjustmentOwner,
     PromptEmphasisAdjustmentSession,
@@ -230,7 +218,7 @@ from .shell import (
 _LOGGER = get_logger("presentation.editor.prompt_editor")
 
 
-class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
+class PromptEditor(PromptEditorReorderFacade, QFluentTextEdit):  # type: ignore[misc]
     """Expose the public prompt editor API through a QFluent-faithful shell."""
 
     _AUTOCOMPLETE_MIN_PREFIX = 2
@@ -1345,19 +1333,6 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
 
         return self._surface.source_range_fragments(start=start, end=end)
 
-    def set_reorder_preview_state(
-        self,
-        preview_state: PromptReorderPreviewState | None,
-    ) -> None:
-        """Delegate explicit reorder preview ownership into the projection surface."""
-
-        self._surface.reorder.set_preview_state(preview_state)
-
-    def clear_reorder_preview_state(self) -> None:
-        """Clear the active reorder preview state from the projection surface."""
-
-        self._surface.reorder.clear_preview_state()
-
     def set_wheel_intent_token_handlers(
         self,
         *,
@@ -1375,163 +1350,6 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             token_wheel_allowed=token_wheel_allowed,
             token_wheel_activated=token_wheel_activated,
             token_range_changed=self._surface.set_wheel_intent_emphasis_accent_range,
-        )
-
-    def reorder_preview_fragments(
-        self,
-        *,
-        start: int,
-        end: int,
-    ) -> tuple[QRectF, ...]:
-        """Return wrapped fragments for one active reorder preview source range."""
-
-        return self._surface.reorder.preview_fragments(start=start, end=end)
-
-    def reorder_live_chip_geometry_snapshot(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_rendered_ranges_by_index: dict[int, tuple[int, int]],
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Return projection-owned live reorder chip geometry."""
-
-        return self._surface.reorder.live_chip_geometry_snapshot(
-            layout_view=layout_view,
-            chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
-            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-        )
-
-    def reorder_live_placement_snapshot(
-        self,
-        *,
-        layout_view: PromptReorderLayoutView,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        gap_ranges_by_index: dict[int, tuple[int, int]],
-    ) -> PromptReorderPlacementSnapshot:
-        """Return provisional placements from the current live projection."""
-
-        return self._surface.reorder.live_placement_snapshot(
-            layout_view=layout_view,
-            chip_geometry_snapshot=chip_geometry_snapshot,
-            gap_ranges_by_index=gap_ranges_by_index,
-        )
-
-    def reorder_preview_chip_geometry_snapshot(
-        self,
-        *,
-        snapshot: ReorderGeometrySnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Return projection-owned preview reorder chip geometry."""
-
-        return self._surface.reorder.preview_chip_geometry_snapshot(
-            snapshot=snapshot,
-            layout_view=layout_view,
-        )
-
-    def reorder_live_chip_projection_paint_snapshots(
-        self,
-        *,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
-        """Return projection-owned live paint snapshots for visible reorder chips."""
-
-        return self._surface.reorder.live_chip_paint_snapshots(
-            chip_geometry_snapshot=chip_geometry_snapshot,
-            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-        )
-
-    def reorder_preview_chip_projection_paint_snapshots(
-        self,
-        *,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-        chip_indices: frozenset[int] | None = None,
-    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
-        """Return projection-owned preview paint snapshots for visible reorder chips."""
-
-        return self._surface.reorder.preview_chip_paint_snapshots(
-            chip_geometry_snapshot=chip_geometry_snapshot,
-            chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-            chip_indices=chip_indices,
-        )
-
-    def set_reorder_surface_visual_publication(
-        self,
-        publication: PromptReorderSurfaceVisualPublication,
-    ) -> None:
-        """Publish reorder chrome and suppression as one prepared frame."""
-
-        self._surface.reorder.presentation.publish(publication)
-
-    def reorder_preview_cursor_rect(self, position: int) -> QRectF:
-        """Return the active reorder preview caret rect for one source position."""
-
-        return self._surface.reorder.preview_cursor_rect(position)
-
-    def reorder_base_drag_fragments(
-        self,
-        *,
-        start: int,
-        end: int,
-    ) -> tuple[QRectF, ...]:
-        """Return wrapped fragments for one active base-drag preview source range."""
-
-        return self._surface.reorder.base_drag_fragments(start=start, end=end)
-
-    def reorder_base_drag_chip_geometry_snapshot(
-        self,
-        *,
-        snapshot: ReorderGeometrySnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderChipGeometrySnapshot:
-        """Return projection-owned base-drag reorder chip geometry."""
-
-        return self._surface.reorder.base_drag_chip_geometry_snapshot(
-            snapshot=snapshot,
-            layout_view=layout_view,
-        )
-
-    def reorder_base_drag_cursor_rect(self, position: int) -> QRectF:
-        """Return the active base-drag caret rect for one source position."""
-
-        return self._surface.reorder.base_drag_cursor_rect(position)
-
-    def reorder_base_drag_placement_snapshot(
-        self,
-        *,
-        snapshot: ReorderGeometrySnapshot,
-        layout_view: PromptReorderLayoutView,
-    ) -> PromptReorderPlacementSnapshot:
-        """Return projection-owned base-drag placement geometry."""
-
-        return self._surface.reorder.base_drag_placement_snapshot(
-            snapshot=snapshot,
-            layout_view=layout_view,
-        )
-
-    def reset_reorder_geometry_cache_counters(self) -> None:
-        """Reset surface reorder cache counters for a new drag gesture."""
-        self._surface.reorder.reset_cache_counters()
-
-    def reorder_geometry_cache_counters(self) -> dict[str, object]:
-        """Return surface reorder cache counters for gesture diagnostics."""
-        return self._surface.reorder.cache_counters()
-
-    def reorder_placement_at_rect(
-        self,
-        drag_rect: QRectF,
-        *,
-        snapshot: PromptReorderPlacementSnapshot,
-        active_placement_id: PromptReorderPlacementId | None,
-    ) -> PromptReorderPlacementGeometry | None:
-        """Return the projection-owned placement selected by one drag rect."""
-        return self._surface.reorder.placement_at_rect(
-            drag_rect,
-            snapshot=snapshot,
-            active_placement_id=active_placement_id,
         )
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
