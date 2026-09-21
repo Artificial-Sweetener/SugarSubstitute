@@ -89,3 +89,30 @@ def test_source_state_uses_an_explicit_late_bound_effect_port() -> None:
         "bind_prompt_projection_source_lifecycle_effects("
     )
     assert presentation_index < effect_binding_index
+
+
+def test_pre_source_owners_use_an_explicit_graph_effect_port() -> None:
+    """Prevent early owner construction from closing over future surface fields."""
+
+    surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
+        encoding="utf-8"
+    )
+    graph_start = surface_source.index(
+        "graph_effects = PromptProjectionSurfaceGraphEffects()"
+    )
+    graph_end = surface_source.index(
+        "source_lifecycle_effects = PromptProjectionSourceLifecycleEffects()"
+    )
+    graph_block = surface_source[graph_start:graph_end]
+
+    assert "self._presentation_runtime." not in graph_block
+    assert "self._projection_freshness_controller." not in graph_block
+    assert "self._caret_visual_controller." not in graph_block
+    assert "graph_effects.rebuild_projection" in graph_block
+    assert "graph_effects.ensure_caret_visible" in graph_block
+
+    presentation_index = surface_source.index("self._presentation_runtime =")
+    effect_binding_index = surface_source.index(
+        "bind_prompt_projection_surface_graph_effects("
+    )
+    assert presentation_index < effect_binding_index
