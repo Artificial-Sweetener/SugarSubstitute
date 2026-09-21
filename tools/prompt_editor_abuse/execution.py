@@ -24,7 +24,8 @@ from time import perf_counter
 from PySide6.QtWidgets import QWidget
 
 from .action_counter_probe import PromptAbuseActionCounterProbe
-from .action_driver import PromptAbuseActionHost, dispatch_action
+from .action_driver import dispatch_action
+from .action_host import PromptAbuseActionHost
 from .models import (
     PromptAbuseAction,
     PromptAbuseActionOwnerDelta,

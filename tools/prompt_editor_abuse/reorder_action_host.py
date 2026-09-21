@@ -39,7 +39,7 @@ from substitute.domain.prompt.reorder.mutations import (
     apply_line_drop_target_to_state,
 )
 
-from .action_driver import PromptAbuseActionHost
+from .action_host import PromptAbuseActionHost
 from .models import PromptAbuseAction
 
 
