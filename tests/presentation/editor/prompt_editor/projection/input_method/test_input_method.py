@@ -102,7 +102,7 @@ def test_prompt_preedit_paint_consumes_the_published_shaped_layer(
     event = QInputMethodEvent("にほん", [])
     event.setAccepted(False)
     QApplication.sendEvent(surface, event)
-    controller = cast(Any, surface)._input_method_controller
+    controller = cast(Any, surface)._input_runtime.input_method
     frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert event.isAccepted()
     assert controller.render_layer.layout is not None
@@ -160,7 +160,7 @@ def test_focus_out_clears_preedit_and_publishes_an_empty_input_layer(
     _set_source(surface, "prefix suffix")
     surface.set_cursor_positions(cursor_position=7, anchor_position=7)
     QApplication.sendEvent(surface, QInputMethodEvent("にほん", []))
-    controller = cast(Any, surface)._input_method_controller
+    controller = cast(Any, surface)._input_runtime.input_method
     assert controller.is_composing
 
     QApplication.sendEvent(

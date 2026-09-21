@@ -57,7 +57,7 @@ def test_boundary_wheel_after_idle_is_not_spill(
     )
     spill_clock_ms = [0]
     monkeypatch.setattr(
-        surface_for(box)._wheel_handler,  # noqa: SLF001
+        surface_for(box)._input_runtime.wheel,  # noqa: SLF001
         "_spill_now_ms",
         lambda: spill_clock_ms[0],
     )

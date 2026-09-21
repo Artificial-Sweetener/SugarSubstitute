@@ -98,12 +98,9 @@ from ..interactions.text_mutation_controller import (
     PromptProjectionTextMutationContext,
 )
 from ..interactions import (
-    PromptExternalTextInputOwner,
-    PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
     PromptSurfaceMouseHandler,
     PromptSurfaceMouseHost,
-    PromptSurfaceWheelHandler,
     PromptSurfaceWheelHost,
     PromptWheelScrollResult,
     prompt_word_bounds,
@@ -137,10 +134,7 @@ from .freshness_controller import (
 )
 from .geometry_reuse_warmer import PromptProjectionGeometryReuseWarmer
 from .history_owner import PromptProjectionHistoryOwner
-from .input_method_controller import (
-    PromptInputMethodController,
-    PromptInputMethodHost,
-)
+from .input_method_controller import PromptInputMethodHost
 from ..layout.contracts import PromptLayoutDamage
 from .lora_surface_features import (
     PromptSurfaceLoraFeatureHost,
@@ -167,6 +161,10 @@ from .surface_foundation import (
     PromptProjectionSurfaceFoundationBindings,
     build_prompt_projection_surface_foundation,
 )
+from .surface_input_runtime import (
+    PromptProjectionSurfaceInputBindings,
+    build_prompt_projection_surface_input_runtime,
+)
 from .surface_presentation_runtime import (
     PromptProjectionSurfacePresentationBindings,
     PromptProjectionSurfacePresentationRuntime,
@@ -180,12 +178,10 @@ from .source_state_wiring import (
 )
 from .theme import qcolor_from_rgb, semantic_palette_from_theme
 from .undo_payload import PromptProjectionUndoPayload
-from .viewport_event_router import PromptProjectionViewportEventRouter
 from ..interactions.deletion_controller import (
     PromptDeletionContext,
     PromptDeletionContextProvider,
     PromptDeletionProjectionEffects,
-    PromptSurfaceDeletionController,
 )
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
@@ -193,8 +189,6 @@ _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
 
 class PromptProjectionSurface(QAbstractScrollArea):
     """Own prompt projection editing inside a host-provided shell and scrollbar."""
-
-    _viewport_event_router: PromptProjectionViewportEventRouter | None = None
 
     textChanged = Signal()
     cursorPositionChanged = Signal()
@@ -264,7 +258,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
         )
         self._exact_source_editing_enabled = False
-        self._input_method_controller: PromptInputMethodController
         self._reorder: PromptReorderProjectionOwner
         self._caret_visual_controller: PromptSurfaceCaretVisualController
         self._projection_freshness_controller: PromptProjectionFreshnessController
@@ -417,9 +410,47 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 self._lora_feature_delegate.request_context_menu
             ),
         )
-        self._external_text_input = PromptExternalTextInputOwner(
-            self._insert_external_mime_text
+        self._editing_enabled = True
+        self._history = PromptProjectionHistoryOwner(
+            editing_session=self._editing_session,
+            caret_state=self._caret_state_owner,
+            projection_session=self._session,
+            editor_state=self._editor_state,
+            layout=self._layout,
+            set_cursor_positions=(
+                lambda cursor, anchor: self.set_cursor_positions(
+                    cursor_position=cursor,
+                    anchor_position=anchor,
+                )
+            ),
+            publish_undo_available=self.undoAvailableChanged.emit,
+            publish_redo_available=self.redoAvailableChanged.emit,
         )
+        editing_runtime = editing_runtime_factory(self)
+        input_runtime = build_prompt_projection_surface_input_runtime(
+            PromptProjectionSurfaceInputBindings(
+                input_method_host=cast(PromptInputMethodHost, self),
+                deletion_context_provider=cast(PromptDeletionContextProvider, self),
+                deletion_projection_effects=cast(PromptDeletionProjectionEffects, self),
+                key_host=cast(PromptSurfaceKeyHost, self),
+                wheel_host=cast(PromptSurfaceWheelHost, self),
+                viewport=self.viewport(),
+                layout=self._layout,
+                mouse=self._mouse_handler,
+                history=self._history,
+                editing_runtime=editing_runtime,
+                external_text_insertion=self._insert_external_mime_text,
+                finish_pending_key_edit_block=(
+                    lambda reason: self._finish_pending_key_edit_block(reason=reason)
+                ),
+                publish_render_frame=self._publish_render_frame,
+                request_update=self.viewport().update,
+                input_method_hints=self.inputMethodHints,
+                viewport_rect=lambda: QRectF(self.viewport().rect()),
+                parent=self,
+            )
+        )
+        self._input_runtime = input_runtime
         self._geometry_reuse_warmer = PromptProjectionGeometryReuseWarmer(
             is_available=lambda: qt_object_is_alive(self),
             is_projected=(
@@ -481,9 +512,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                     )
                 ),
                 projection_freshness_blockers=self._projection_freshness_blockers,
-                input_method_source_changed=(
-                    lambda: self._input_method_controller.source_changed()
-                ),
+                input_method_source_changed=self._input_runtime.input_method.source_changed,
                 clear_reorder_for_source_change=(
                     lambda: self._reorder.clear_for_source_change()
                 ),
@@ -533,62 +562,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             viewport_rect=lambda: QRectF(self.viewport().rect()),
             scroll_offset=self._scroll_offset,
             preview_active=self._reorder.is_active,
-        )
-        self._editing_enabled = True
-        self._history = PromptProjectionHistoryOwner(
-            editing_session=self._editing_session,
-            caret_state=self._caret_state_owner,
-            projection_session=self._session,
-            editor_state=self._editor_state,
-            layout=self._layout,
-            set_cursor_positions=(
-                lambda cursor, anchor: self.set_cursor_positions(
-                    cursor_position=cursor,
-                    anchor_position=anchor,
-                )
-            ),
-            publish_undo_available=self.undoAvailableChanged.emit,
-            publish_redo_available=self.redoAvailableChanged.emit,
-        )
-        editing_runtime = editing_runtime_factory(self)
-        self._edit_execution = editing_runtime.execution
-        self._source_commands = editing_runtime.source_commands
-        self._text_mutations = editing_runtime.text_mutations
-        self._history.bind_clipboard_history(editing_runtime.clipboard_history)
-        self._undo_coalescing_actions = editing_runtime.undo_coalescing
-        self._input_method_controller = PromptInputMethodController(
-            cast(PromptInputMethodHost, self),
-            text_mutations=self._text_mutations,
-            finish_pending_key_edit_block=(
-                lambda reason: self._finish_pending_key_edit_block(reason=reason)
-            ),
-            publish_render_frame=self._publish_render_frame,
-            request_update=self.viewport().update,
-            input_method_hints=self.inputMethodHints,
-            viewport_rect=lambda: QRectF(self.viewport().rect()),
-        )
-        self._deletion_controller = PromptSurfaceDeletionController(
-            context_provider=cast(PromptDeletionContextProvider, self),
-            projection_effects=cast(PromptDeletionProjectionEffects, self),
-            source_commands=self._source_commands,
-        )
-        self._key_handler = PromptSurfaceKeyHandler(
-            cast(PromptSurfaceKeyHost, self),
-            deletion_controller=self._deletion_controller,
-            text_mutations=self._text_mutations,
-            clipboard_history_actions=lambda: self._history.clipboard_history_actions,
-            undo_coalescing_actions=lambda: self._undo_coalescing_actions,
-        )
-        self._wheel_handler = PromptSurfaceWheelHandler(
-            cast(PromptSurfaceWheelHost, self)
-        )
-        self._viewport_event_router = PromptProjectionViewportEventRouter(
-            viewport=self.viewport(),
-            layout=self._layout,
-            mouse=self._mouse_handler,
-            wheel=self._wheel_handler,
-            external_text=self._external_text_input,
-            parent=self,
         )
         self._caret_visual_controller = PromptSurfaceCaretVisualController(
             surface=self,
@@ -663,7 +636,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                     source_document=self._source_document_adapter,
                     source_line_chrome=self._source_line_chrome,
                     search_highlight=self._search_highlight_layer,
-                    input_method=self._input_method_controller,
+                    input_method=self._input_runtime.input_method,
                     content_media=self._content_media_owner,
                     selection_layer=self._selection_layer_owner,
                     diagnostics=self._diagnostic_layer_owner,
@@ -703,7 +676,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                     current_caret_rect=self._caret_geometry.current_viewport_rect,
                     scroll_range_sink=(
                         lambda page_step, scroll_range: (
-                            self._wheel_handler.sync_external_scroll_range(
+                            self._input_runtime.wheel.sync_external_scroll_range(
                                 page_step=page_step,
                                 scroll_range=scroll_range,
                             )
@@ -735,7 +708,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self.viewport().setAutoFillBackground(False)
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.viewport().installEventFilter(self._viewport_event_router)
+        self.viewport().installEventFilter(self._input_runtime.viewport_events)
         self._lora_feature_delegate.install_tooltip_filter()
         self._sync_layout_state()
         self._presentation_runtime.rebuild.rebuild()
@@ -793,7 +766,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptEditExecution[PromptProjectionUndoPayload]:
         """Return the construction-owned editing execution service."""
 
-        return self._edit_execution
+        return self._input_runtime.edit_execution
 
     @property
     def source_commands(
@@ -801,7 +774,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptSourceCommandService[PromptProjectionUndoPayload]:
         """Return the focused source command service."""
 
-        return self._source_commands
+        return self._input_runtime.source_commands
 
     @property
     def history(self) -> PromptProjectionHistoryOwner:
@@ -812,7 +785,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def attach_external_scroll_bar(self, scroll_bar: QScrollBar) -> None:
         """Mirror layout range and scroll offset onto one host-owned scrollbar."""
 
-        self._wheel_handler.attach_external_scroll_bar(scroll_bar)
+        self._input_runtime.wheel.attach_external_scroll_bar(scroll_bar)
 
     def attach_focus_host(self, focus_host: QWidget) -> None:
         """Store the widget whose focus should drive caret and accent visibility."""
@@ -833,7 +806,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._layout.frame.paint_state,
         )
         self._presentation_runtime.render_publication.viewport_scrolled()
-        self._wheel_handler.refresh_scroll()
+        self._input_runtime.wheel.refresh_scroll()
 
     def set_editing_enabled(self, editing_enabled: bool) -> None:
         """Enable or disable source mutations while keeping navigation active."""
@@ -1122,12 +1095,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def cursor_adapter_begin_edit_block(self, *, finish_typing: bool = True) -> None:
         """Begin an edit block requested by the source cursor adapter."""
 
-        self._edit_execution.begin_edit_block(finish_typing=finish_typing)
+        self._input_runtime.edit_execution.begin_edit_block(finish_typing=finish_typing)
 
     def cursor_adapter_end_edit_block(self) -> None:
         """End an edit block requested by the source cursor adapter."""
 
-        self._edit_execution.end_edit_block()
+        self._input_runtime.edit_execution.end_edit_block()
 
     def cursor_adapter_delete_selection(self) -> None:
         """Delete the live selection requested by the source cursor adapter."""
@@ -1140,7 +1113,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Insert text requested by the source cursor adapter."""
 
-        self._text_mutations.insert_text(
+        self._input_runtime.text_mutations.insert_text(
             text,
             origin=PromptSourceEditOrigin.PROGRAMMATIC,
             command_name="cursor_insert_text",
@@ -1320,7 +1293,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Set the callback that decides whether this surface may wheel-scroll."""
 
-        self._wheel_handler.set_wheel_scroll_permission(permission)
+        self._input_runtime.wheel.set_wheel_scroll_permission(permission)
 
     def set_active_span(
         self,
@@ -1413,7 +1386,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if selection.is_empty:
             return
         self._finish_pending_key_edit_block(reason="delete_selection")
-        self._source_commands.replace_source_range(
+        self._input_runtime.source_commands.replace_source_range(
             start=selection.start,
             end=selection.end,
             replacement_text="",
@@ -1437,7 +1410,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def insert_external_text(self, text: str, *, command_name: str) -> None:
         """Insert external plain text through projection boundary ownership."""
 
-        self._text_mutations.insert_text(
+        self._input_runtime.text_mutations.insert_text(
             text,
             origin=PromptSourceEditOrigin.PASTE,
             command_name=command_name,
@@ -1572,12 +1545,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def inputMethodEvent(self, event: QInputMethodEvent) -> None:  # noqa: N802
         """Delegate platform IME composition without persisting preedit text."""
 
-        self._input_method_controller.dispatch_event(event)
+        self._input_runtime.input_method.dispatch_event(event)
 
     def inputMethodQuery(self, query: Qt.InputMethodQuery) -> object:  # noqa: N802
         """Expose source, selection, and caret state to the platform input method."""
 
-        value = self._input_method_controller.query(query)
+        value = self._input_runtime.input_method.query(query)
         if value is not None:
             return value
         return super().inputMethodQuery(query)
@@ -1585,21 +1558,21 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _handle_key_press_event(self, event: QKeyEvent) -> None:
         """Delegate one key press after the public Qt entrypoint receives it."""
 
-        if self._key_handler.handle_key_press(event):
+        if self._input_runtime.key.handle_key_press(event):
             return
         super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         """Delegate key release handling while preserving Qt fallback behavior."""
 
-        if self._key_handler.handle_key_release(event):
+        if self._input_runtime.key.handle_key_release(event):
             return
         super().keyReleaseEvent(event)
 
     def _finish_pending_key_edit_block(self, *, reason: str) -> None:
         """Commit any pending key-owned edit block."""
 
-        self._edit_execution.finish_pending_key_edit_block(reason=reason)
+        self._input_runtime.edit_execution.finish_pending_key_edit_block(reason=reason)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Delegate projection-aware pointer press handling."""
@@ -1636,7 +1609,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Clear hovered token state once the pointer leaves the viewport."""
 
         self._mouse_handler.clear_hovered_token(update=False)
-        self._wheel_handler.clear_boundary_spill()
+        self._input_runtime.wheel.clear_boundary_spill()
         super().leaveEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
@@ -1654,14 +1627,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptWheelScrollResult:
         """Handle policy-aware prompt wheel scrolling."""
 
-        return self._wheel_handler.handle_prompt_wheel_scroll(event)
+        return self._input_runtime.wheel.handle_prompt_wheel_scroll(event)
 
     def viewportEvent(self, event: QEvent) -> bool:
         """Track viewport hover updates even when Qt keeps events on the inner viewport."""
 
-        router = self._viewport_event_router
-        if router is None:
+        if not hasattr(self, "_input_runtime"):
             return super().viewportEvent(event)
+        router = self._input_runtime.viewport_events
         handled = router.handle_viewport_event(event)
         if handled is not None:
             return handled
@@ -1670,27 +1643,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def canInsertFromMimeData(self, source: QMimeData) -> bool:  # noqa: N802
         """Return whether external MIME data may become prompt source text."""
 
-        return self._external_text_input.can_insert(source)
+        return self._input_runtime.external_text.can_insert(source)
 
     def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
         """Insert prompt-safe MIME text through the source mutation owner."""
 
-        self._external_text_input.insert(source)
+        self._input_runtime.external_text.insert(source)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Accept only prompt-safe plain text drag payloads."""
 
-        self._external_text_input.accept_or_ignore_drag(event)
+        self._input_runtime.external_text.accept_or_ignore_drag(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         """Keep rejecting non-text drag payloads while the pointer moves."""
 
-        self._external_text_input.accept_or_ignore_drag(event)
+        self._input_runtime.external_text.accept_or_ignore_drag(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Insert prompt-safe dropped text and reject rich/file payloads."""
 
-        self._external_text_input.drop(
+        self._input_runtime.external_text.drop(
             event,
             viewport_position=self.viewport().mapFrom(
                 self,
@@ -1736,7 +1709,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Stop caret blinking when the surface itself loses focus ownership."""
 
-        self._input_method_controller.focus_out()
+        self._input_runtime.input_method.focus_out()
         super().focusOutEvent(event)
         self._presentation_runtime.render_publication.focus_changed()
         self._caret_visual_controller.schedule_caret_blink_sync(
@@ -1937,12 +1910,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _visible_scroll_bar(self) -> QScrollBar:
         """Return the scrollbar that currently owns the visible scroll offset."""
 
-        return self._wheel_handler.visible_scroll_bar()
+        return self._input_runtime.wheel.visible_scroll_bar()
 
     def _scroll_offset(self) -> float:
         """Return the active vertical scroll offset used by layout and paint."""
 
-        return self._wheel_handler.scroll_offset()
+        return self._input_runtime.wheel.scroll_offset()
 
     def _clear_pending_segment_word_selection(self) -> None:
         """Delegate pending segment-word selection clearing to pointer routing."""
