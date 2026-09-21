@@ -1,0 +1,67 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Enforce direct ownership for prompt-editor composition families."""
+
+from __future__ import annotations
+
+import ast
+
+from .inventory import PROMPT_PRESENTATION_ROOT
+
+
+def _class_methods(path_name: str, class_name: str) -> set[str]:
+    """Return directly declared method names for one composition class."""
+    path = PROMPT_PRESENTATION_ROOT / "composition" / path_name
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == class_name
+    )
+    return {
+        node.name
+        for node in class_node.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+
+def test_projection_and_execution_composition_have_direct_owners() -> None:
+    """Keep projection and async construction out of the mixed factory."""
+    remaining_methods = _class_methods("factory.py", "PromptEditorCompositionFactory")
+    execution_methods = _class_methods(
+        "execution_factory.py",
+        "PromptEditorExecutionFactory",
+    )
+    projection_methods = _class_methods(
+        "projection_factory.py",
+        "PromptEditorProjectionFactory",
+    )
+
+    assert (
+        not {
+            "build_projection_collaborators",
+            "build_prompt_task_executor",
+            "build_prompt_request_channel",
+        }
+        & remaining_methods
+    )
+    assert {"build_task_executor", "build_request_channel"} <= execution_methods
+    assert "build" in projection_methods
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    assert "PromptEditorExecutionFactory(" in widget_source
+    assert "PromptEditorProjectionFactory(" in widget_source

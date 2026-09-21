@@ -630,18 +630,17 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-054"
 owner = "prompt editor composition"
 paths = ["substitute/presentation/editor/prompt_editor/composition/factory.py"]
-fingerprint = "sha256:c584ab294b615e0345c9f284a5bdf4a913ea31945e6c1603e089285fbb386cfb"
+fingerprint = "sha256:b992ebf0b0fdf2c2e752204595663836f84204cd2687611a9b94913c2777ea5a"
 issue = "chore:SS-ARCH-054"
 review_by = 2026-12-15
 responsibilities = [
-  "async executor and request-channel composition",
   "Danbooru dialog and external-action composition",
-  "projection and editing collaborator composition",
+  "prompt service and context-insertion composition",
   "autocomplete and LoRA feature composition",
   "context-menu and syntax collaborator composition",
   "top-level bundle assembly",
 ]
-next_extraction = "Split feature-specific subfactories from the top-level prompt-editor composition boundary."
+next_extraction = "Extract autocomplete and LoRA presentation composition from service, menu, syntax, and final bundle assembly."
 
 [[debts]]
 id = "SS-ARCH-058"
@@ -681,12 +680,12 @@ next_extraction = "Extract input/editing, paint publication, and feature-interac
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:a20642d2b9455376f36abb8cbbcc1760c2328a53d0cf17ab8e9b11f38dbd051d"
+fingerprint = "sha256:2b9dff5cd732d30740295c47bc57a14741198141b516e0902afbfc385bd4986b"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [
   "QFluent text-edit host compatibility",
-  "projection surface composition and lifecycle",
+  "projection collaborator integration and lifecycle",
   "keyboard, clipboard, drag/drop, context-menu, and focus routing",
   "autocomplete, diagnostics, reorder, and weight feature coordination",
   "prompt state, metadata, and semantic-action publication",
