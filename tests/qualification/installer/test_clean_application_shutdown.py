@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -86,6 +87,25 @@ def test_clean_shutdown_reaps_the_candidate_before_accepting_process_exit(
     )
 
     assert polls == ["poll"]
+
+
+def test_clean_shutdown_does_not_wait_for_external_receipt_attesters(
+    tmp_path: Path,
+) -> None:
+    """A supervising qualification process must not wait for its own exit."""
+
+    wait_for_clean_qualification_shutdown(
+        install_root=tmp_path / "installed",
+        receipt=ApplicationReadinessReceipt(
+            pid=999_999_999,
+            parent_pid=os.getpid(),
+            token="token",
+            surface=ApplicationReadinessSurface.MAIN_SHELL,
+            attester_pids=(os.getpid(),),
+        ),
+        candidate_process=None,
+        timeout_seconds=0.25,
+    )
 
 
 def test_clean_shutdown_rejects_a_new_crash_incident(
