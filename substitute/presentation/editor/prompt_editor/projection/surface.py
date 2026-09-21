@@ -198,7 +198,6 @@ from .observability import (
     reorder_drag_started_at,
 )
 from .content_media_owner import PromptProjectionContentMediaOwner
-from .prepared_frame import PromptProjectionPreparedFrame
 from .region_chrome import PromptRegionChrome
 from .region_chrome_state import PromptRegionChromeEditTarget
 from .reorder_chip_geometry import (
@@ -212,8 +211,7 @@ from .reorder_geometry_owner import (
     PromptReorderGeometryEnvironment,
     PromptReorderGeometryOwner,
 )
-from .reorder_paint_snapshot_builder import PromptReorderPaintSnapshotBuilder
-from .reorder_paint_snapshot_reuse import reuse_reorder_paint_snapshots
+from .reorder_paint_snapshot_cache_owner import PromptReorderPaintSnapshotCacheOwner
 from .reorder_placement_geometry import (
     PromptReorderPlacementGeometry,
     PromptReorderPlacementId,
@@ -238,7 +236,6 @@ from .render_frame_owner import PromptProjectionRenderFrameOwner
 from .render_publication_owner import PromptProjectionRenderPublicationOwner
 from .reorder_visual_snapshot import (
     PromptReorderProjectionPaintSnapshot,
-    PromptReorderProjectionSnapshotKey,
 )
 from ..geometry.models import PromptProjectionSourceLineRect
 from ..geometry.selection import selection_paints_changed
@@ -417,17 +414,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
             scroll_offset=self._scroll_offset,
             preview_active=self._reorder_preview_is_active,
         )
-        self._reorder_preview_paint_snapshots_by_index: dict[
-            int,
-            PromptReorderProjectionPaintSnapshot,
-        ] = {}
-        self._reorder_live_paint_snapshots_by_index: dict[
-            int,
-            PromptReorderProjectionPaintSnapshot,
-        ] = {}
-        self._reorder_paint_snapshot_exact_reuse_count = 0
-        self._reorder_paint_snapshot_scroll_reuse_count = 0
-        self._reorder_paint_snapshot_rebuild_count = 0
+        self._reorder_paint_snapshots = PromptReorderPaintSnapshotCacheOwner(
+            surface=self,
+            viewport=self.viewport(),
+            editor_state=self._editor_state,
+            scroll_offset=self._scroll_offset,
+        )
         self._reorder_surface_visual_state = PromptReorderSurfaceVisualStateOwner()
         initial_state = (
             self._editor_state.projection.document.caret_map.state_for_source_position(
@@ -1298,7 +1290,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         started_at = reorder_drag_started_at()
         if preview_state is None:
-            self._reorder_preview_paint_snapshots_by_index = {}
+            self._reorder_paint_snapshots.clear_preview()
             self._reorder_surface_visual_state.publish(
                 empty_reorder_surface_visual_publication(),
                 context=self._reorder_surface_visual_context(),
@@ -1368,9 +1360,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._reorder_geometry_owner.reset_counters()
         self._reorder_preview_projection.reset_counters()
-        self._reorder_paint_snapshot_exact_reuse_count = 0
-        self._reorder_paint_snapshot_scroll_reuse_count = 0
-        self._reorder_paint_snapshot_rebuild_count = 0
+        self._reorder_paint_snapshots.reset_counters()
 
     def reorder_geometry_cache_counters(self) -> dict[str, object]:
         """Return per-gesture reorder cache counters for diagnostics summaries."""
@@ -1378,13 +1368,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return {
             **self._reorder_geometry_owner.counters(),
             **self._reorder_preview_projection.counters(),
-            "paint_snapshot_exact_reuse_count": (
-                self._reorder_paint_snapshot_exact_reuse_count
-            ),
-            "paint_snapshot_scroll_reuse_count": (
-                self._reorder_paint_snapshot_scroll_reuse_count
-            ),
-            "paint_snapshot_rebuild_count": self._reorder_paint_snapshot_rebuild_count,
+            **self._reorder_paint_snapshots.counters(),
         }
 
     def _clear_reorder_geometry_caches(self, *, reason: str) -> None:
@@ -1507,19 +1491,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return projection-owned live paint snapshots for visible reorder chips."""
 
         self._flush_pending_projection_update(reason="reorder_live_chip_visuals")
-        snapshots = self._reorder_chip_projection_paint_snapshots(
+        return self._reorder_paint_snapshots.live_snapshots(
             projection_frame=self._layout.frame,
             chip_geometry_snapshot=chip_geometry_snapshot,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
-            preview_generation=None,
-            mode="live",
-            previous_snapshots_by_chip_index=(
-                self._reorder_live_paint_snapshots_by_index
-            ),
-            chip_indices=None,
         )
-        self._reorder_live_paint_snapshots_by_index = snapshots
-        return snapshots
 
     def reorder_preview_chip_projection_paint_snapshots(
         self,
@@ -1534,79 +1510,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if preview_frame is None:
             return {}
         self._flush_pending_projection_update(reason="reorder_preview_chip_visuals")
-        snapshots = self._reorder_chip_projection_paint_snapshots(
+        return self._reorder_paint_snapshots.preview_snapshots(
             projection_frame=preview_frame,
             chip_geometry_snapshot=chip_geometry_snapshot,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
             preview_generation=self._reorder_preview_generation(),
-            mode="preview",
-            previous_snapshots_by_chip_index=(
-                self._reorder_preview_paint_snapshots_by_index
-            ),
             chip_indices=chip_indices,
         )
-        self._reorder_preview_paint_snapshots_by_index = snapshots
-        return snapshots
-
-    def _reorder_chip_projection_paint_snapshots(
-        self,
-        *,
-        projection_frame: PromptProjectionPreparedFrame,
-        chip_geometry_snapshot: PromptReorderChipGeometrySnapshot,
-        chip_owned_ranges_by_index: dict[int, tuple[tuple[int, int], ...]],
-        preview_generation: int | None,
-        mode: str,
-        previous_snapshots_by_chip_index: dict[
-            int,
-            PromptReorderProjectionPaintSnapshot,
-        ],
-        chip_indices: frozenset[int] | None,
-    ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
-        """Build projection paint snapshots using the current viewport identity."""
-
-        viewport_rect = QRectF(self.viewport().rect())
-        scroll_offset = self._scroll_offset()
-        keys_by_chip_index: dict[int, PromptReorderProjectionSnapshotKey] = {}
-        source_ranges_by_chip_index: dict[int, tuple[tuple[int, int], ...]] = {}
-        for (
-            segment_index,
-            geometry,
-        ) in chip_geometry_snapshot.geometries_by_chip_index.items():
-            if chip_indices is not None and segment_index not in chip_indices:
-                continue
-            source_ranges = chip_owned_ranges_by_index.get(segment_index, ())
-            if not source_ranges:
-                continue
-            keys_by_chip_index[segment_index] = PromptReorderProjectionSnapshotKey(
-                source_revision=self._editor_state.source.source_revision,
-                viewport_rect=self.viewport().rect(),
-                scroll_offset=int(round(scroll_offset)),
-                font_key=self.font().toString(),
-                palette_key=int(self.palette().cacheKey()),
-                preview_generation=preview_generation,
-                geometry_generation=geometry.geometry_id.visual_revision,
-                segment_index=segment_index,
-                mode=mode,
-            )
-            source_ranges_by_chip_index[segment_index] = source_ranges
-        reuse = reuse_reorder_paint_snapshots(
-            keys_by_chip_index,
-            previous_snapshots_by_chip_index=previous_snapshots_by_chip_index,
-        )
-        rebuilt_snapshots = PromptReorderPaintSnapshotBuilder(
-            projection_frame.paint_input
-        ).build_many(
-            keys_by_chip_index=reuse.rebuild_keys_by_chip_index,
-            source_ranges_by_chip_index=source_ranges_by_chip_index,
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
-        )
-        snapshots = dict(reuse.snapshots_by_chip_index)
-        snapshots.update(rebuilt_snapshots)
-        self._reorder_paint_snapshot_exact_reuse_count += reuse.exact_reuse_count
-        self._reorder_paint_snapshot_scroll_reuse_count += reuse.scroll_reuse_count
-        self._reorder_paint_snapshot_rebuild_count += len(rebuilt_snapshots)
-        return snapshots
 
     def _reorder_preview_generation(self) -> int | None:
         """Return the active preview identity used by visual snapshots."""
