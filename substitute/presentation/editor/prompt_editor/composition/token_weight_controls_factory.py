@@ -29,11 +29,16 @@ from ..interactions import PromptTokenWeightWheelIntentController
 from ..overlays.token_weight_controls import (
     PromptTokenWeightControls,
     PromptTokenWeightControlsSurface,
+)
+from ..overlays.token_weight_exact_edit import (
+    PromptTokenWeightExactEditController,
     PromptTokenWeightExactEditHost,
 )
 from ..overlays.token_weight_geometry import PromptTokenWeightGeometry
 from ..overlays.token_weight_gestures import PromptTokenWeightGestureController
+from ..overlays.token_weight_preview import PromptTokenWeightPreviewController
 from ..overlays.token_weight_view import PromptTokenWeightView
+from ..overlays.token_weight_wheel_intent import PromptTokenWeightWheelIntentRouter
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,8 +69,11 @@ class PromptTokenWeightControlsFactory:
             geometry=geometry,
             view_factory=PromptTokenWeightView,
             gesture_controller_factory=self._create_gesture_controller,
-            exact_edit_host=self.exact_edit_host,
-            wheel_intent_owner=self.wheel_intent_owner,
+            exact_edit_controller_factory=self._create_exact_edit_controller,
+            preview_controller=PromptTokenWeightPreviewController(),
+            wheel_intent_router=PromptTokenWeightWheelIntentRouter(
+                self.wheel_intent_owner
+            ),
         )
 
     def _surface_widget(self) -> QWidget:
@@ -82,8 +90,16 @@ class PromptTokenWeightControlsFactory:
         return PromptTokenWeightGestureController(
             parent,
             hide_delay_ms=PromptTokenWeightControls.HIDE_DELAY_MS,
-            preview_delay_ms=PromptTokenWeightControls.WEIGHT_PREVIEW_MS,
+            preview_delay_ms=PromptTokenWeightPreviewController.DURATION_MS,
         )
+
+    def _create_exact_edit_controller(
+        self,
+        gestures: PromptTokenWeightGestureController,
+    ) -> PromptTokenWeightExactEditController:
+        """Return exact-edit coordination bound to the overlay gestures."""
+
+        return PromptTokenWeightExactEditController(self.exact_edit_host, gestures)
 
 
 __all__ = ["PromptTokenWeightControlsFactory"]

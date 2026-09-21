@@ -162,17 +162,23 @@ def test_phase25_1_prompt_weight_invalid_exact_edit_cancels_without_mutation() -
     controls = token_weight_controls_for(box)
     token = _first_weighted_token(box)
 
-    cast(Any, controls)._start_exact_weight_edit(token)
-    surface_for(box).exact_weight_editor.update_buffer(
+    surface = surface_for(box)
+    weight_rect = surface.token_weight_text_rect(token)
+    assert weight_rect is not None
+    assert controls.begin_exact_weight_edit_at_position(weight_rect.center()) is True
+    surface.exact_weight_editor.update_buffer(
         buffer_text="abc",
         caret_index=3,
         select_all=False,
     )
-    cast(Any, controls)._finalize_exact_weight_edit()
+    QTest.keyClick(box, Qt.Key.Key_Return)
     process_events(app)
 
     assert box.toPlainText() == "(cat:1.20)"
-    assert cast(Any, controls)._exact_edit_host.exact_weight_edit_active() is False
+    assert all(
+        token.editing_value_text is None
+        for token in surface.projection_document().tokens
+    )
 
     destroy_widget_roots(widgets)
 
