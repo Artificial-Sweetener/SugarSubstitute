@@ -55,7 +55,7 @@ def test_projection_surface_default_scheduler_keeps_safe_typing_projection_pendi
         width=240,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -65,7 +65,7 @@ def test_projection_surface_default_scheduler_keeps_safe_typing_projection_pendi
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -151,7 +151,7 @@ def test_projection_surface_schedules_semantics_after_syntax_sensitive_typing(
         width=240,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -161,7 +161,7 @@ def test_projection_surface_schedules_semantics_after_syntax_sensitive_typing(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -192,7 +192,7 @@ def test_projection_surface_defers_normal_comma_typing(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -202,7 +202,7 @@ def test_projection_surface_defers_normal_comma_typing(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -239,7 +239,7 @@ def test_projection_surface_rebuilds_immediately_for_comma_inside_active_token(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -249,7 +249,7 @@ def test_projection_surface_rebuilds_immediately_for_comma_inside_active_token(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     surface.set_cursor_positions(cursor_position=2, anchor_position=2)
     rebuild_count = 0
 
@@ -276,7 +276,7 @@ def test_projection_surface_coalesces_repeated_simple_typed_projection_rebuilds(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -286,7 +286,7 @@ def test_projection_surface_coalesces_repeated_simple_typed_projection_rebuilds(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,

@@ -190,7 +190,7 @@ def test_projection_surface_prewarms_lora_banners_after_layout_sync(
         record_prewarm,
     )
     install_lora_wildcard_prompt_state(surface, "<lora:midna:1>")
-    surface._rebuild_projection()  # noqa: SLF001
+    surface._projection_rebuild.rebuild()  # noqa: SLF001
 
     assert events[-2:] == ["layout", "prewarm"]
 

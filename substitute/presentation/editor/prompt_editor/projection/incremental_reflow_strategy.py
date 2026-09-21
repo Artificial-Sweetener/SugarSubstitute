@@ -122,7 +122,7 @@ class PromptIncrementalReflowStrategy:
             previous_document=self._editor_state.projection.document,
             document_view=self._editor_state.edit_semantic.document,
             render_plan=self._editor_state.edit_semantic.render_plan,
-            display_mode=context._display_mode,
+            display_mode=context.display_mode(),
             session=context._session,
             active_span_range=None,
             decoration_accent_ranges=context._decoration_accent_ranges(),

@@ -82,7 +82,7 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
         anchor_position=len(text),
     )
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -92,7 +92,7 @@ def test_projection_surface_schedules_metadata_only_prompt_state(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     set_surface_prompt_state(surface, document_view, metadata_render_plan)
 
     assert rebuild_count == 0
@@ -143,7 +143,7 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
         anchor_position=len(text),
     )
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_attempts = 0
 
     def fail_rebuild() -> None:
@@ -153,7 +153,7 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
         rebuild_attempts += 1
         raise RuntimeError("projection rebuild failed")
 
-    monkeypatch.setattr(surface, "_rebuild_projection", fail_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", fail_rebuild)
     monkeypatch.setattr(
         cast(Any, surface)._edit_pipeline._trailing_strategy,
         "can_apply_prompt_state_insert",
@@ -181,7 +181,9 @@ def test_projection_surface_scheduled_metadata_failure_remains_retryable(
     assert surface.editor_state.projection_semantic.render_plan == original_render_plan
     assert surface.has_pending_projection_update() is False
 
-    monkeypatch.setattr(surface, "_rebuild_projection", original_rebuild_projection)
+    monkeypatch.setattr(
+        surface._projection_rebuild, "rebuild", original_rebuild_projection
+    )
     monkeypatch.undo()
     set_surface_prompt_state(surface, document_view, metadata_render_plan)
 

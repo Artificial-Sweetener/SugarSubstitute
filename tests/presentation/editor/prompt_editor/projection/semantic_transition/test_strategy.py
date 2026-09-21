@@ -86,10 +86,14 @@ class _BuildContext:
     ) -> None:
         """Store projected mode and optional blockers."""
 
-        self._display_mode = PromptProjectionDisplayMode.PROJECTED
         self._session = PromptProjectionSession()
         self._scene_error_keys: frozenset[str] = frozenset()
         self._blockers = blockers or _blockers()
+
+    def display_mode(self) -> PromptProjectionDisplayMode:
+        """Return projected display mode for local semantic transitions."""
+
+        return PromptProjectionDisplayMode.PROJECTED
 
     def _decoration_accent_ranges(self) -> tuple[tuple[int, int], ...]:
         """Return no extra decoration accents."""

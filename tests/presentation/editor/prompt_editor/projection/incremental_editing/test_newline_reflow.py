@@ -61,7 +61,7 @@ def test_projection_surface_backspace_newline_uses_incremental_layout(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -71,7 +71,7 @@ def test_projection_surface_backspace_newline_uses_incremental_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len("alpha\n")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -108,7 +108,7 @@ def test_projection_surface_middle_enter_uses_incremental_layout(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -118,7 +118,7 @@ def test_projection_surface_middle_enter_uses_incremental_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len("alpha")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -157,7 +157,7 @@ def test_projection_surface_middle_enter_after_lora_keeps_caret_on_new_line(
     surface = surface_for(box)
     install_lora_wildcard_prompt_state(surface, text)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -167,7 +167,7 @@ def test_projection_surface_middle_enter_after_lora_keeps_caret_on_new_line(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len("<lora:midna:1>\nalpha")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -197,7 +197,7 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
     )
     surface = surface_for(box)
     surface.set_source_line_content_left_inset(24.0)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -207,7 +207,7 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len("alpha")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -302,7 +302,7 @@ def test_projection_surface_backspace_newline_after_lora_keeps_geometry_aligned(
     install_lora_wildcard_prompt_state(surface, text)
     installed_text = box.toPlainText()
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -312,7 +312,7 @@ def test_projection_surface_backspace_newline_after_lora_keeps_geometry_aligned(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = installed_text.index("\n", installed_text.index("alpha")) + 1
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -345,7 +345,7 @@ def test_projection_surface_trailing_enter_uses_incremental_newline_layout(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -355,7 +355,7 @@ def test_projection_surface_trailing_enter_uses_incremental_newline_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -390,7 +390,7 @@ def test_projection_surface_trailing_newline_backspace_uses_incremental_layout(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -400,7 +400,7 @@ def test_projection_surface_trailing_newline_backspace_uses_incremental_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -435,7 +435,7 @@ def test_projection_surface_newline_backspace_flushes_pending_typing_before_dele
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -445,7 +445,7 @@ def test_projection_surface_newline_backspace_flushes_pending_typing_before_dele
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
