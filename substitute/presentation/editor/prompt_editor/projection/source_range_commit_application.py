@@ -30,7 +30,7 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
     PromptEditorDocumentState,
 )
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.shared.diagnostics.prompt_editor_work import (

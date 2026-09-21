@@ -27,7 +27,7 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.editing.literal_parentheses import (
     PromptParenthesisTransitionKind,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.editing.commit import (

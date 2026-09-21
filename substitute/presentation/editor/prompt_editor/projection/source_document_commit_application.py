@@ -23,7 +23,7 @@ from typing import Generic, Protocol, TypeVar
 from PySide6.QtWidgets import QScrollBar
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.commands.contracts import (

@@ -98,7 +98,7 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/application/prompt_editor/lora/catalog.py": frozenset(
         {"threading.RLock"}
     ),
-    "substitute/application/prompt_editor/projection/syntax_service.py": frozenset(
+    "substitute/application/prompt_editor/projection/syntax_cache.py": frozenset(
         {"threading.RLock"}
     ),
     "substitute/application/workspace_state/session_autosave_service.py": frozenset(

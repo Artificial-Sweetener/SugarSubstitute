@@ -28,8 +28,10 @@ from PySide6.QtWidgets import QWidget
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from tests.support.prompt_editor.autocomplete_support import prompt_syntax_profile
 from tests.support.prompt_editor.projection_engine_support import (

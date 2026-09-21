@@ -229,22 +229,6 @@ responsibilities = [
 next_extraction = "Extract syntax-family mutation handlers and reorder mutation behind the common PromptMutation result contract."
 
 [[debts]]
-id = "SS-ARCH-020"
-owner = "prompt syntax projection"
-paths = ["substitute/application/prompt_editor/projection/syntax_service.py"]
-fingerprint = "sha256:da13a778cb415ebd1c3396fcde57430b714b9e7a1debbea88c555e44102778fd"
-issue = "chore:SS-ARCH-020"
-review_by = 2026-12-15
-responsibilities = [
-  "renderer-view model definitions",
-  "render-plan construction and caching",
-  "wildcard span projection",
-  "LoRA catalog resolution and span projection",
-  "identity-revision cache bookkeeping and diagnostics",
-]
-next_extraction = "Extract syntax-family span projectors and cache identity tracking from render-plan orchestration."
-
-[[debts]]
 id = "SS-ARCH-021"
 owner = "recipe model resolution"
 paths = ["substitute/application/recipes/model_load_resolution.py"]
@@ -762,7 +746,7 @@ next_extraction = "Extract remaining exact-edit activation gestures, wheel-inten
 id = "SS-ARCH-060"
 owner = "prompt projection construction"
 paths = ["substitute/presentation/editor/prompt_editor/projection/builder.py"]
-fingerprint = "sha256:aa433b0edb5ce75cbdab576eddafc56712296de5933b27e8df0d9016cdaba594"
+fingerprint = "sha256:af94ed94c57ae56f8f81126521a3f3e95014122fe069d7bd23a0aa74681b1adc"
 issue = "chore:SS-ARCH-060"
 review_by = 2026-12-15
 responsibilities = [
@@ -779,7 +763,7 @@ next_extraction = "Extract LoRA, exact-weight, and inline-preview feature projec
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:471a05af360403ca8cc42928e2891e96870d26155e8885e0e7489e6e233a9f6d"
+fingerprint = "sha256:ee501a072049e110be6d11442b8217d2f23ba2ea8fe89286c9dab40e1bc74569"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
@@ -812,7 +796,7 @@ next_extraction = "Split emphasis, wildcard, and LoRA renderers into focused mod
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:077a6576ee0bbf3a6fde4cadabe91e2ffe05143b0d949abed8c1b169b5fd2b47"
+fingerprint = "sha256:a20642d2b9455376f36abb8cbbcc1760c2328a53d0cf17ab8e9b11f38dbd051d"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [

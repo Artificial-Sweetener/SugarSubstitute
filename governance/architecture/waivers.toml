@@ -196,19 +196,6 @@ next_limit = 500
 debt = "SS-ARCH-018"
 
 [[waivers]]
-id = "SS-WAIVER-R020"
-owner = "prompt syntax projection"
-rule = "STRUCT003"
-path = "substitute/application/prompt_editor/projection/syntax_service.py"
-kind = "remediation"
-justification = "The assessed file mixes renderer-view model definitions, render-plan construction and caching, wildcard span projection, LoRA catalog resolution and span projection, identity-revision cache bookkeeping and diagnostics. Extract syntax-family span projectors and cache identity tracking from render-plan orchestration."
-issue = "chore:SS-ARCH-020"
-review_by = 2026-12-15
-max_lines = 744
-next_limit = 595
-debt = "SS-ARCH-020"
-
-[[waivers]]
 id = "SS-WAIVER-R021"
 owner = "recipe model resolution"
 rule = "STRUCT003"
@@ -673,7 +660,7 @@ kind = "remediation"
 justification = "The assessed file mixes QFluent text-edit host compatibility, projection surface composition and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 1766
+max_lines = 1768
 next_limit = 1403
 debt = "SS-ARCH-064"
 
@@ -1337,7 +1324,7 @@ kind = "structural"
 justification = "PromptSemanticRefreshController owns one stale-safe async refresh state machine. Queueing, flush, cancellation, task completion, freshness validation, source-identity rebase, publication, and failure logging all operate on the same active and pending request state."
 issue = "chore:SS-WAIVER-S037"
 review_by = 2026-12-15
-max_lines = 524
+max_lines = 526
 
 [[waivers]]
 id = "SS-WAIVER-S038"
