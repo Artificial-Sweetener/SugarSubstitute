@@ -30,7 +30,6 @@ from PySide6.QtCore import (
     QRect,
     QRectF,
     Qt,
-    QTimer,
     Signal,
 )
 from PySide6.QtGui import (
@@ -141,6 +140,7 @@ from .display_mode_layout_cache import (
     PromptProjectionDisplayModeLayoutCache,
     PromptProjectionDisplayModeLayoutIdentity,
 )
+from .emphasis_feedback_owner import PromptProjectionEmphasisFeedbackOwner
 from .editing_runtime import PromptProjectionEditingRuntimeFactory
 from .fill_band_cache import (
     PromptFillBandRect,
@@ -302,8 +302,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Publish nested implicit syntax without owning education behavior."""
 
         self.implicitParenthesisAuthored.emit(nesting_depth)
-
-    _EMPHASIS_FEEDBACK_PULSE_MS = 220
 
     def __init__(
         self,
@@ -517,14 +515,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
             source_state_owners.transient_edit_presentation
         )
         self._last_rendered_active_span_range: tuple[int, int] | None = None
-        self._overlay_emphasis_accent_range: tuple[int, int] | None = None
-        self._wheel_intent_emphasis_accent_range: tuple[int, int] | None = None
-        self._pulsed_emphasis_accent_range: tuple[int, int] | None = None
-        self._emphasis_feedback_timer = QTimer(self)
-        self._emphasis_feedback_timer.setSingleShot(True)
-        self._emphasis_feedback_timer.setInterval(self._EMPHASIS_FEEDBACK_PULSE_MS)
-        self._emphasis_feedback_timer.timeout.connect(
-            self._clear_pulsed_emphasis_accent_range
+        self._emphasis_feedback = PromptProjectionEmphasisFeedbackOwner(
+            is_projected=(
+                lambda: self._display_mode is PromptProjectionDisplayMode.PROJECTED
+            ),
+            apply_paint_state=self._apply_decoration_accent_paint_state,
+            parent=self,
         )
         self._caret_visibility_prompt_state_revision: int | None = None
         self._projection_freshness_controller = source_state_owners.freshness_controller
@@ -2178,11 +2174,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Reflect overlay-owned emphasis visibility back into projected paren accenting."""
 
-        if outer_range == self._overlay_emphasis_accent_range:
-            return
-        self._overlay_emphasis_accent_range = outer_range
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            self._apply_decoration_accent_paint_state()
+        self._emphasis_feedback.set_overlay_range(outer_range)
 
     def set_wheel_intent_emphasis_accent_range(
         self,
@@ -2190,11 +2182,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Reflect hover dwell readiness back into projected paren accenting."""
 
-        if outer_range == self._wheel_intent_emphasis_accent_range:
-            return
-        self._wheel_intent_emphasis_accent_range = outer_range
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            self._apply_decoration_accent_paint_state()
+        self._emphasis_feedback.set_wheel_intent_range(outer_range)
 
     def pulse_emphasis_feedback(
         self,
@@ -2204,10 +2192,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Accent one emphasis shell briefly after non-hover adjustments."""
 
-        self._pulsed_emphasis_accent_range = (outer_start, outer_end)
-        self._emphasis_feedback_timer.start()
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            self._apply_decoration_accent_paint_state()
+        self._emphasis_feedback.pulse((outer_start, outer_end))
 
     def show_transient_neutral_emphasis(
         self,
@@ -3132,25 +3117,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _decoration_accent_ranges(self) -> tuple[tuple[int, int], ...]:
         """Return the emphasis ranges whose decorative parens should use accent feedback."""
 
-        ranges: list[tuple[int, int]] = []
-        for outer_range in (
-            self._overlay_emphasis_accent_range,
-            self._wheel_intent_emphasis_accent_range,
-            self._pulsed_emphasis_accent_range,
-        ):
-            if outer_range is None or outer_range in ranges:
-                continue
-            ranges.append(outer_range)
-        return tuple(ranges)
-
-    def _clear_pulsed_emphasis_accent_range(self) -> None:
-        """Clear one completed emphasis-feedback pulse and refresh projected decoration state."""
-
-        if self._pulsed_emphasis_accent_range is None:
-            return
-        self._pulsed_emphasis_accent_range = None
-        if self._display_mode is PromptProjectionDisplayMode.PROJECTED:
-            self._apply_decoration_accent_paint_state()
+        return self._emphasis_feedback.accent_ranges()
 
     def _apply_decoration_accent_paint_state(self) -> None:
         """Apply emphasis decoration accent changes without rebuilding layout."""
