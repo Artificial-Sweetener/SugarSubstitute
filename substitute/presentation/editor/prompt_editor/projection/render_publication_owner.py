@@ -46,7 +46,6 @@ from .search_highlight_owner import PromptSearchHighlightLayerOwner
 from .session import PromptProjectionSession
 from .source_line_chrome import PromptSourceLineChrome
 from .transient_edit_overlays import PromptProjectionTransientEditOverlayController
-from .undo_payload import PromptProjectionUndoPayload
 
 
 class PromptProjectionRenderPublicationOwner:
@@ -61,7 +60,7 @@ class PromptProjectionRenderPublicationOwner:
         editor_state: PromptProjectionEditorState,
         session: PromptProjectionSession,
         reorder_preview: PromptReorderPreviewProjectionOwner,
-        input_method: PromptInputMethodController[PromptProjectionUndoPayload],
+        input_method: PromptInputMethodController,
         content_media: PromptProjectionContentMediaOwner,
         selection_layer: PromptProjectionSelectionLayerOwner,
         source_line_chrome: PromptSourceLineChrome,

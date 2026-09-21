@@ -52,7 +52,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QAbstractScrollArea,
-    QApplication,
     QScrollBar,
     QWidget,
 )
@@ -477,11 +476,16 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._text_mutations = editing_runtime.text_mutations
         self._history.bind_clipboard_history(editing_runtime.clipboard_history)
         self._undo_coalescing_actions = editing_runtime.undo_coalescing
-        self._input_method_controller: PromptInputMethodController[
-            PromptProjectionUndoPayload
-        ] = PromptInputMethodController(
+        self._input_method_controller = PromptInputMethodController(
             cast(PromptInputMethodHost, self),
             text_mutations=self._text_mutations,
+            finish_pending_key_edit_block=(
+                lambda reason: self._finish_pending_key_edit_block(reason=reason)
+            ),
+            publish_render_frame=self._publish_render_frame,
+            request_update=self.viewport().update,
+            input_method_hints=self.inputMethodHints,
+            viewport_rect=lambda: QRectF(self.viewport().rect()),
         )
         self._deletion_controller = PromptSurfaceDeletionController(
             context_provider=cast(PromptDeletionContextProvider, self),
@@ -1926,23 +1930,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def inputMethodEvent(self, event: QInputMethodEvent) -> None:  # noqa: N802
         """Delegate platform IME composition without persisting preedit text."""
 
-        self._finish_pending_key_edit_block(reason="input_method_event")
-        self._input_method_controller.handle_event(event)
-        self._publish_render_frame()
-        event.accept()
-        self.viewport().update()
-        QApplication.inputMethod().update(Qt.InputMethodQuery.ImQueryAll)
+        self._input_method_controller.dispatch_event(event)
 
     def inputMethodQuery(self, query: Qt.InputMethodQuery) -> object:  # noqa: N802
         """Expose source, selection, and caret state to the platform input method."""
 
-        value = self._input_method_controller.query(
-            query,
-            font=self.font(),
-            palette=self.palette(),
-            input_method_hints=self.inputMethodHints(),
-            viewport_rect=QRectF(self.viewport().rect()),
-        )
+        value = self._input_method_controller.query(query)
         if value is not None:
             return value
         return super().inputMethodQuery(query)
@@ -2098,9 +2091,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Stop caret blinking when the surface itself loses focus ownership."""
 
-        QApplication.inputMethod().commit()
-        self._input_method_controller.cancel()
-        self._finish_pending_key_edit_block(reason="focus_out")
+        self._input_method_controller.focus_out()
         super().focusOutEvent(event)
         self._render_publication.focus_changed()
         self._schedule_caret_blink_sync(reset_cycle=False)

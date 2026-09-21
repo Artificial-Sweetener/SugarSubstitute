@@ -51,3 +51,25 @@ def test_surface_delegates_complete_render_publication_to_focused_owner() -> Non
         "self._input_method_controller.refresh_render_layer()",
     ):
         assert direct_layer_orchestration not in surface_source
+
+
+def test_input_method_controller_owns_qt_event_and_focus_lifecycle() -> None:
+    """Keep IME sequencing out of the mounted projection surface."""
+
+    projection_root = PROMPT_PRESENTATION_ROOT / "projection"
+    owner_source = (projection_root / "input_method_controller.py").read_text(
+        encoding="utf-8"
+    )
+    surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+
+    for ownership_marker in (
+        "def dispatch_event(",
+        "def focus_out(",
+        "QApplication.inputMethod().commit()",
+        "QApplication.inputMethod().update(",
+        'self._finish_pending_key_edit_block("input_method_event")',
+    ):
+        assert ownership_marker in owner_source
+        assert ownership_marker not in surface_source
+    assert "self._input_method_controller.dispatch_event(event)" in surface_source
+    assert "self._input_method_controller.focus_out()" in surface_source
