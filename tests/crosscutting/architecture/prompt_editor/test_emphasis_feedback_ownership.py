@@ -26,6 +26,9 @@ def test_surface_delegates_emphasis_projection_to_focused_owner() -> None:
 
     projection_root = PROMPT_PRESENTATION_ROOT / "projection"
     surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    lifecycle_runtime_source = (
+        projection_root / "surface_lifecycle_runtime.py"
+    ).read_text(encoding="utf-8")
     projection_owner_source = (
         projection_root / "emphasis_projection_owner.py"
     ).read_text(encoding="utf-8")
@@ -46,7 +49,9 @@ def test_surface_delegates_emphasis_projection_to_focused_owner() -> None:
     )
     assert all(item not in surface_source for item in obsolete_surface_state)
     assert "self._emphasis.accent_ranges()" in surface_source
-    assert "self._emphasis = PromptProjectionEmphasisOwner(" in surface_source
+    assert "self._emphasis = lifecycle_runtime.emphasis" in surface_source
+    assert "PromptProjectionEmphasisOwner(" in lifecycle_runtime_source
+    assert "PromptProjectionEmphasisOwner(" not in surface_source
     assert "class PromptProjectionEmphasisOwner" in projection_owner_source
     assert "class PromptProjectionEmphasisFeedbackOwner" in feedback_owner_source
     assert (
