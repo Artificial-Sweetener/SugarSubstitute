@@ -225,7 +225,7 @@ def build_prompt_projection_caret_map(
             )
             if token.token_id not in tokens_with_leading_edge:
                 append_stop(
-                    run.projection_end,
+                    run.projection_start,
                     PromptProjectionCaretState(
                         source_position=token.source_start,
                         placement=PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE,
