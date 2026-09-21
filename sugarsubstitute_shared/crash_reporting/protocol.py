@@ -159,27 +159,35 @@ class CrashRunContext:
     def from_environment(
         cls, environment: Mapping[str, str] | None = None
     ) -> Self | None:
-        """Parse a complete inherited contract or reject partial supervision."""
+        """Parse a current or complete predecessor supervision contract."""
 
         source = os.environ if environment is None else environment
-        required_names = (
+        predecessor_names = (
             CRASH_RUN_ID_ENV,
             CRASH_RUN_TOKEN_ENV,
             CRASH_INCIDENT_ROOT_ENV,
-            CRASH_RUN_ROOT_ENV,
             CRASH_EXIT_INTENT_PATH_ENV,
             CRASH_EXIT_RECEIPT_PATH_ENV,
             CRASHPAD_DATABASE_ENV,
         )
-        values = {name: source.get(name) for name in required_names}
-        if all(value is None for value in values.values()):
+        predecessor_values = {name: source.get(name) for name in predecessor_names}
+        run_root_value = source.get(CRASH_RUN_ROOT_ENV)
+        if all(value is None for value in predecessor_values.values()) and (
+            run_root_value is None
+        ):
             return None
-        if any(not value for value in values.values()):
+        if any(not value for value in predecessor_values.values()):
             raise ValueError("Crash supervision environment is incomplete.")
-        run_id = values[CRASH_RUN_ID_ENV]
-        token = values[CRASH_RUN_TOKEN_ENV]
+        run_id = predecessor_values[CRASH_RUN_ID_ENV]
+        token = predecessor_values[CRASH_RUN_TOKEN_ENV]
         if run_id is None or token is None:
             raise ValueError("Crash supervision identity is incomplete.")
+        exit_intent_path = Path(
+            _present(predecessor_values, CRASH_EXIT_INTENT_PATH_ENV)
+        )
+        run_root = (
+            Path(run_root_value) if run_root_value else exit_intent_path.parent.parent
+        )
         handler = source.get(CRASHPAD_HANDLER_ENV)
         client_library = source.get(CRASHPAD_CLIENT_LIBRARY_ENV)
         if bool(handler) != bool(client_library):
@@ -187,11 +195,13 @@ class CrashRunContext:
         return cls(
             run_id=run_id,
             token=token,
-            incident_root=Path(_present(values, CRASH_INCIDENT_ROOT_ENV)),
-            run_root=Path(_present(values, CRASH_RUN_ROOT_ENV)),
-            exit_intent_path=Path(_present(values, CRASH_EXIT_INTENT_PATH_ENV)),
-            exit_receipt_path=Path(_present(values, CRASH_EXIT_RECEIPT_PATH_ENV)),
-            crashpad_database=Path(_present(values, CRASHPAD_DATABASE_ENV)),
+            incident_root=Path(_present(predecessor_values, CRASH_INCIDENT_ROOT_ENV)),
+            run_root=run_root,
+            exit_intent_path=exit_intent_path,
+            exit_receipt_path=Path(
+                _present(predecessor_values, CRASH_EXIT_RECEIPT_PATH_ENV)
+            ),
+            crashpad_database=Path(_present(predecessor_values, CRASHPAD_DATABASE_ENV)),
             crashpad_handler=Path(handler) if handler else None,
             crashpad_client_library=(Path(client_library) if client_library else None),
         )
