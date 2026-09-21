@@ -61,11 +61,11 @@ def test_projection_surface_reuses_stable_reorder_projections(
     )
     assert preview_state.base_drag_snapshot is not None
 
-    surface.reset_reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state)
-    after_first_set = surface.reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state)
-    after_second_set = surface.reorder_geometry_cache_counters()
+    surface.reorder.reset_cache_counters()
+    surface.reorder.set_preview_state(preview_state)
+    after_first_set = surface.reorder.cache_counters()
+    surface.reorder.set_preview_state(preview_state)
+    after_second_set = surface.reorder.cache_counters()
 
     assert after_first_set["projection_snapshot_rebuild_count"] == 2
     assert after_second_set["projection_snapshot_rebuild_count"] == 2
@@ -90,11 +90,11 @@ def test_projection_surface_reorder_projection_context_includes_active_target_id
         active_drop_target_identity=("line", 0, 2),
     )
 
-    surface.reset_reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state)
-    before_changed_target = surface.reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(changed_target_state)
-    after_changed_target = surface.reorder_geometry_cache_counters()
+    surface.reorder.reset_cache_counters()
+    surface.reorder.set_preview_state(preview_state)
+    before_changed_target = surface.reorder.cache_counters()
+    surface.reorder.set_preview_state(changed_target_state)
+    after_changed_target = surface.reorder.cache_counters()
 
     assert cast(int, after_changed_target["projection_snapshot_rebuild_count"]) == (
         cast(int, before_changed_target["projection_snapshot_rebuild_count"]) + 1
@@ -125,12 +125,12 @@ def test_projection_surface_reuses_reorder_preview_projection_lru_for_revisited_
     assert preview_state_a.base_drag_snapshot is not None
     assert preview_state_b.base_drag_snapshot is not None
 
-    surface.reset_reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state_a)
-    surface.set_reorder_preview_state(preview_state_b)
-    before_revisit = surface.reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state_a)
-    after_revisit = surface.reorder_geometry_cache_counters()
+    surface.reorder.reset_cache_counters()
+    surface.reorder.set_preview_state(preview_state_a)
+    surface.reorder.set_preview_state(preview_state_b)
+    before_revisit = surface.reorder.cache_counters()
+    surface.reorder.set_preview_state(preview_state_a)
+    after_revisit = surface.reorder.cache_counters()
 
     assert before_revisit["projection_snapshot_rebuild_count"] == 3
     assert after_revisit["projection_snapshot_rebuild_count"] == 3
@@ -159,12 +159,12 @@ def test_projection_surface_reorder_preview_projection_lru_invalidates_on_clear(
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=2),
     )
 
-    surface.set_reorder_preview_state(preview_state_a)
-    surface.set_reorder_preview_state(preview_state_b)
-    surface.clear_reorder_preview_state()
-    surface.reset_reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state_a)
-    counters = surface.reorder_geometry_cache_counters()
+    surface.reorder.set_preview_state(preview_state_a)
+    surface.reorder.set_preview_state(preview_state_b)
+    surface.reorder.clear_preview_state()
+    surface.reorder.reset_cache_counters()
+    surface.reorder.set_preview_state(preview_state_a)
+    counters = surface.reorder.cache_counters()
 
     assert counters["projection_snapshot_rebuild_count"] == 2
     assert counters["preview_projection_cache_miss_count"] == 1
@@ -192,12 +192,12 @@ def test_projection_surface_reorder_preview_projection_lru_survives_scroll_geome
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=2),
     )
 
-    surface.set_reorder_preview_state(preview_state_a)
-    surface.set_reorder_preview_state(preview_state_b)
+    surface.reorder.set_preview_state(preview_state_a)
+    surface.reorder.set_preview_state(preview_state_b)
     surface.refresh_scroll()
-    before_revisit = surface.reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state_a)
-    after_revisit = surface.reorder_geometry_cache_counters()
+    before_revisit = surface.reorder.cache_counters()
+    surface.reorder.set_preview_state(preview_state_a)
+    after_revisit = surface.reorder.cache_counters()
 
     assert (
         after_revisit["projection_snapshot_rebuild_count"]
@@ -230,12 +230,12 @@ def test_projection_surface_reorder_preview_projection_lru_invalidates_on_displa
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=2),
     )
 
-    surface.set_reorder_preview_state(preview_state_a)
-    surface.set_reorder_preview_state(preview_state_b)
+    surface.reorder.set_preview_state(preview_state_a)
+    surface.reorder.set_preview_state(preview_state_b)
     surface.set_display_mode(PromptProjectionDisplayMode.RAW)
-    before_revisit = surface.reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state_a)
-    after_revisit = surface.reorder_geometry_cache_counters()
+    before_revisit = surface.reorder.cache_counters()
+    surface.reorder.set_preview_state(preview_state_a)
+    after_revisit = surface.reorder.cache_counters()
 
     assert cast(int, after_revisit["projection_snapshot_rebuild_count"]) == (
         cast(int, before_revisit["projection_snapshot_rebuild_count"]) + 1

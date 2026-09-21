@@ -105,13 +105,10 @@ def test_reorder_keyboard_suppression_clips_settled_projection(
     _process_events(app)
 
     surface = surface_for(box)
-    visible_region = cast(Any, surface)._preview_visible_region()
+    visible_region = surface.reorder.presentation.preview_visible_region()
 
     assert set(
-        cast(
-            Any,
-            surface,
-        )._reorder_surface_visual_state.state.suppression_snapshots_by_index
+        surface.reorder.presentation.visual_state.state.suppression_snapshots_by_index
     ) == {0, 1}
     assert visible_region is not None
     hidden_region = QRegion(surface.viewport().rect()).subtracted(visible_region)

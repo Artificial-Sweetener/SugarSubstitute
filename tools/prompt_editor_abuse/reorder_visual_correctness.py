@@ -335,7 +335,7 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
     if prompt_editor._segment_overlay is not None:
         return ()
     surface = prompt_editor._surface
-    preview_frame = surface._reorder_preview_projection.preview_frame
+    preview_frame = surface.reorder.preview.preview_frame
     frame = surface._layout.frame if preview_frame is None else preview_frame
     output = frame.output
     scene_run_ids = {
@@ -486,7 +486,7 @@ def _reorder_publication_evidence(
         return "overlay=none"
     prepared = overlay._runtime.render.publication
     state = overlay._view.render_state
-    surface_state = editor._surface._reorder_surface_visual_state.state
+    surface_state = editor._surface.reorder.presentation.visual_state.state
     active_chips = state.preview_chips if state.preview_active else state.live_chips
     overlay_indices = tuple(chip.segment_index for chip in active_chips)
     surface_indices = tuple(chip.segment_index for chip in surface_state.chips)

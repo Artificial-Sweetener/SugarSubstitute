@@ -1351,12 +1351,12 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> None:
         """Delegate explicit reorder preview ownership into the projection surface."""
 
-        self._surface.set_reorder_preview_state(preview_state)
+        self._surface.reorder.set_preview_state(preview_state)
 
     def clear_reorder_preview_state(self) -> None:
         """Clear the active reorder preview state from the projection surface."""
 
-        self._surface.clear_reorder_preview_state()
+        self._surface.reorder.clear_preview_state()
 
     def set_wheel_intent_token_handlers(
         self,
@@ -1385,7 +1385,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> tuple[QRectF, ...]:
         """Return wrapped fragments for one active reorder preview source range."""
 
-        return self._surface.reorder_preview_fragments(start=start, end=end)
+        return self._surface.reorder.preview_fragments(start=start, end=end)
 
     def reorder_live_chip_geometry_snapshot(
         self,
@@ -1396,7 +1396,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned live reorder chip geometry."""
 
-        return self._surface.reorder_live_chip_geometry_snapshot(
+        return self._surface.reorder.live_chip_geometry_snapshot(
             layout_view=layout_view,
             chip_rendered_ranges_by_index=chip_rendered_ranges_by_index,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
@@ -1411,7 +1411,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> PromptReorderPlacementSnapshot:
         """Return provisional placements from the current live projection."""
 
-        return self._surface.reorder_live_placement_snapshot(
+        return self._surface.reorder.live_placement_snapshot(
             layout_view=layout_view,
             chip_geometry_snapshot=chip_geometry_snapshot,
             gap_ranges_by_index=gap_ranges_by_index,
@@ -1425,7 +1425,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned preview reorder chip geometry."""
 
-        return self._surface.reorder_preview_chip_geometry_snapshot(
+        return self._surface.reorder.preview_chip_geometry_snapshot(
             snapshot=snapshot,
             layout_view=layout_view,
         )
@@ -1438,7 +1438,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
         """Return projection-owned live paint snapshots for visible reorder chips."""
 
-        return self._surface.reorder_live_chip_projection_paint_snapshots(
+        return self._surface.reorder.live_chip_paint_snapshots(
             chip_geometry_snapshot=chip_geometry_snapshot,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
         )
@@ -1452,7 +1452,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> dict[int, PromptReorderProjectionPaintSnapshot]:
         """Return projection-owned preview paint snapshots for visible reorder chips."""
 
-        return self._surface.reorder_preview_chip_projection_paint_snapshots(
+        return self._surface.reorder.preview_chip_paint_snapshots(
             chip_geometry_snapshot=chip_geometry_snapshot,
             chip_owned_ranges_by_index=chip_owned_ranges_by_index,
             chip_indices=chip_indices,
@@ -1464,12 +1464,12 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> None:
         """Publish reorder chrome and suppression as one prepared frame."""
 
-        self._surface.set_reorder_surface_visual_publication(publication)
+        self._surface.reorder.presentation.publish(publication)
 
     def reorder_preview_cursor_rect(self, position: int) -> QRectF:
         """Return the active reorder preview caret rect for one source position."""
 
-        return self._surface.reorder_preview_cursor_rect(position)
+        return self._surface.reorder.preview_cursor_rect(position)
 
     def reorder_base_drag_fragments(
         self,
@@ -1479,7 +1479,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> tuple[QRectF, ...]:
         """Return wrapped fragments for one active base-drag preview source range."""
 
-        return self._surface.reorder_base_drag_fragments(start=start, end=end)
+        return self._surface.reorder.base_drag_fragments(start=start, end=end)
 
     def reorder_base_drag_chip_geometry_snapshot(
         self,
@@ -1489,7 +1489,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> PromptReorderChipGeometrySnapshot:
         """Return projection-owned base-drag reorder chip geometry."""
 
-        return self._surface.reorder_base_drag_chip_geometry_snapshot(
+        return self._surface.reorder.base_drag_chip_geometry_snapshot(
             snapshot=snapshot,
             layout_view=layout_view,
         )
@@ -1497,7 +1497,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     def reorder_base_drag_cursor_rect(self, position: int) -> QRectF:
         """Return the active base-drag caret rect for one source position."""
 
-        return self._surface.reorder_base_drag_cursor_rect(position)
+        return self._surface.reorder.base_drag_cursor_rect(position)
 
     def reorder_base_drag_placement_snapshot(
         self,
@@ -1507,18 +1507,18 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     ) -> PromptReorderPlacementSnapshot:
         """Return projection-owned base-drag placement geometry."""
 
-        return self._surface.reorder_base_drag_placement_snapshot(
+        return self._surface.reorder.base_drag_placement_snapshot(
             snapshot=snapshot,
             layout_view=layout_view,
         )
 
     def reset_reorder_geometry_cache_counters(self) -> None:
         """Reset surface reorder cache counters for a new drag gesture."""
-        self._surface.reset_reorder_geometry_cache_counters()
+        self._surface.reorder.reset_cache_counters()
 
     def reorder_geometry_cache_counters(self) -> dict[str, object]:
         """Return surface reorder cache counters for gesture diagnostics."""
-        return self._surface.reorder_geometry_cache_counters()
+        return self._surface.reorder.cache_counters()
 
     def reorder_placement_at_rect(
         self,
@@ -1528,7 +1528,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         active_placement_id: PromptReorderPlacementId | None,
     ) -> PromptReorderPlacementGeometry | None:
         """Return the projection-owned placement selected by one drag rect."""
-        return self._surface.reorder_placement_at_rect(
+        return self._surface.reorder.placement_at_rect(
             drag_rect,
             snapshot=snapshot,
             active_placement_id=active_placement_id,

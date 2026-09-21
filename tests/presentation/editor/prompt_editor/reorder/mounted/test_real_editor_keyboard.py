@@ -26,9 +26,6 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.core.projection.document import (
-    PromptProjectionDocument,
-)
 from substitute.presentation.editor.prompt_editor.overlays import SegmentReorderOverlay
 from tests.presentation.editor.prompt_editor.autocomplete.real_widget_support import (
     ensure_qapp,
@@ -44,10 +41,7 @@ from tests.support.prompt_editor.projection_engine_support import surface_for
 def _reorder_preview_text(editor: PromptEditor) -> str:
     """Return the source text from the active reorder preview, if any."""
 
-    preview_document = cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(editor), "_reorder_preview_projection").preview_document,
-    )
+    preview_document = surface_for(editor).reorder.preview.preview_document
     return "" if preview_document is None else preview_document.source_text
 
 

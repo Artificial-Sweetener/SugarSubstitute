@@ -88,6 +88,8 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
     interaction_state = f"{prefix}projection.reorder_interaction_geometry_state"
     surface_chrome = f"{prefix}projection.reorder_surface_chrome"
     surface_visual_state = f"{prefix}projection.reorder_surface_visual_state"
+    surface_presentation = f"{prefix}projection.reorder_surface_presentation_owner"
+    projection_owner = f"{prefix}projection.reorder_projection_owner"
     visual_snapshot = f"{prefix}projection.reorder_visual_snapshot"
     forbidden_outer = {
         view,
@@ -109,7 +111,9 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         }
         | forbidden_outer
     )
-    assert surface_visual_state in graph[f"{prefix}projection.surface"]
+    assert projection_owner in graph[f"{prefix}projection.surface"]
+    assert surface_presentation in graph[projection_owner]
+    assert surface_visual_state in graph[surface_presentation]
     assert {render_state, surface_visual_state} <= graph[prepared_visual]
     assert graph[prepared_visual].isdisjoint(
         {

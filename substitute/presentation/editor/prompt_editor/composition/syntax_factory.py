@@ -121,7 +121,7 @@ class PromptEditorSyntaxFactory:
             document_service=document_service,
             syntax_service=syntax_service,
             syntax_profile=syntax_profile,
-            geometry_owner=projection_collaborators.surface.reorder_geometry_owner,
+            geometry_owner=projection_collaborators.surface.reorder.geometry_owner,
             interaction_metrics=reorder_metrics,
         )
         renderers = PromptSyntaxRendererCoordinator((projection_collaborators.surface,))
@@ -159,9 +159,9 @@ class PromptEditorSyntaxFactory:
             lora_autocomplete_enabled=lambda: feature_profile.lora_autocomplete_enabled,
         )
         reorder_publication = PromptReorderPreviewPublicationOwner(
-            clear_preview_state=projection_collaborators.surface.clear_reorder_preview_state,
+            clear_preview_state=projection_collaborators.surface.reorder.clear_preview_state,
             current_document_view=lambda: syntax_state.document_view,
-            publish_preview_state=projection_collaborators.surface.set_reorder_preview_state,
+            publish_preview_state=projection_collaborators.surface.reorder.set_preview_state,
             source_identity=projection_collaborators.source_commands.source_identity,
             viewport_width=lambda: projection_collaborators.surface.viewport().width(),
             document_service=document_service,

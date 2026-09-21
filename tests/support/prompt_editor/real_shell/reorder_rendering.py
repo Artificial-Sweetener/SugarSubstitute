@@ -46,7 +46,7 @@ def capture_source_line_chrome(
 
     wait_for_queued_qt_turn()
     surface = cast(Any, editor)._surface
-    preview_frame = surface._reorder_preview_projection.preview_frame
+    preview_frame = surface.reorder.preview.preview_frame
     frame = preview_frame if preview_frame is not None else surface._layout.frame
     viewport = surface.viewport()
     image = QImage(
@@ -99,7 +99,7 @@ def capture_reorder_layout(
     """Capture the exact preview-or-live frame currently rendered by the surface."""
 
     surface = cast(Any, field.editor)._surface
-    preview_frame = surface._reorder_preview_projection.preview_frame
+    preview_frame = surface.reorder.preview.preview_frame
     frame = preview_frame if preview_frame is not None else surface._layout.frame
     output = frame.output
     snapshot = output.snapshot

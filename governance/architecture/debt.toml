@@ -630,14 +630,14 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:9bc049a1aa0a80f4c9349184e8431f5316c0776d845e574b42e0b9f395f348b3"
+fingerprint = "sha256:9ffad80cf567b333333dc2a6310f957817a363689c41d2483ab3dcfe080a7e2a"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
   "source editing and input-method handling",
   "projection, layout, and freshness coordination",
   "caret geometry effects, selection, scrolling, and hit testing",
-  "autocomplete, diagnostics, reorder, and token-weight interaction hosting",
+  "autocomplete, diagnostics, and token-weight interaction hosting",
 ]
 next_extraction = "Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
 
@@ -645,7 +645,7 @@ next_extraction = "Extract remaining source editing and feature-interaction host
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:25dd05a06b6917e934a6997df43b88921311288f6e76840f992b8452e01ccd88"
+fingerprint = "sha256:a40228af07a51794bc56a5b39cc5f4e109e567b6b6e40619af32c1fb5b2cebaa"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [

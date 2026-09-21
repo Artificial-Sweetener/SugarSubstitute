@@ -123,7 +123,7 @@ def test_projection_surface_reorder_preview_suppresses_lora_banner_reads(
         preview_document_view,
         syntax_profile,
     )
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         PromptReorderPreviewState(
             preview_snapshot=PromptReorderProjectionSnapshot(
                 document_view=preview_document_view,
@@ -142,7 +142,7 @@ def test_projection_surface_reorder_preview_suppresses_lora_banner_reads(
         )
     )
     lora_preview_range = preview_snapshot.chip_rendered_ranges_by_index[0]
-    preview_fragments = surface.reorder_preview_fragments(
+    preview_fragments = surface.reorder.preview_fragments(
         start=lora_preview_range[0],
         end=lora_preview_range[1],
     )

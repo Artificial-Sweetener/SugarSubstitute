@@ -67,7 +67,7 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
+    current_surface_state = surface.reorder.presentation.visual_state.state  # noqa: SLF001
     box.set_reorder_surface_visual_publication(
         PromptReorderSurfaceVisualPublication(
             mode=current_surface_state.mode,
@@ -77,22 +77,22 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     )
     before = _performance_counters(overlay)
     before_surface_revision = (
-        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.revision  # noqa: SLF001
     )
     cast(Any, overlay)._handle_reorder_animation_frame()
     after = _performance_counters(overlay)
     after_first_surface_revision = (
-        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.revision  # noqa: SLF001
     )
     cast(Any, overlay)._handle_reorder_animation_frame()
     after_second_surface_revision = (
-        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.revision  # noqa: SLF001
     )
 
     assert after["raster_build_count"] == before["raster_build_count"]
     assert after_first_surface_revision == before_surface_revision + 1
     assert set(
-        surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
     ) == {0, 1}
     assert after_second_surface_revision == after_first_surface_revision
 
@@ -126,7 +126,7 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
 
     cast(Any, overlay)._runtime.preview_paint_snapshots.clear()
     surface = surface_for(box)
-    current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
+    current_surface_state = surface.reorder.presentation.visual_state.state  # noqa: SLF001
     box.set_reorder_surface_visual_publication(
         PromptReorderSurfaceVisualPublication(
             mode=current_surface_state.mode,
@@ -137,7 +137,7 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
     cast(Any, overlay)._handle_reorder_animation_frame()
 
     assert (
-        surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
         == {}
     )
 

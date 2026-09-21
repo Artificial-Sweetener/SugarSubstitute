@@ -59,18 +59,18 @@ def test_projection_surface_publishes_combined_reorder_visual_once(
         dragged_chip_index=1,
         drop_target=drop_target,
     )
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     document_service = PromptDocumentService()
     preview_layout_view = document_service.build_preview_drop_layout_view(
         document_service.build_document_view(text),
         dragged_segment_index=1,
         drop_target=drop_target,
     )
-    geometry = surface.reorder_preview_chip_geometry_snapshot(
+    geometry = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+    paint_snapshots = surface.reorder.preview_chip_paint_snapshots(
         chip_geometry_snapshot=geometry,
         chip_owned_ranges_by_index=(
             preview_state.preview_snapshot.chip_owned_ranges_by_index
@@ -100,14 +100,18 @@ def test_projection_surface_publishes_combined_reorder_visual_once(
         publish_count += 1
         publish_render_frame()
 
-    monkeypatch.setattr(surface, "_publish_render_frame", count_publish)
+    monkeypatch.setattr(
+        surface.reorder.presentation,
+        "_publish_render_frame",
+        count_publish,
+    )
 
-    surface.set_reorder_surface_visual_publication(publication)
+    surface.reorder.presentation.publish(publication)
     assert publish_count == 1
-    assert surface._reorder_surface_visual_state.state.revision == 1  # noqa: SLF001
-    surface.set_reorder_surface_visual_publication(publication)
+    assert surface.reorder.presentation.visual_state.state.revision == 1  # noqa: SLF001
+    surface.reorder.presentation.publish(publication)
     assert publish_count == 1
-    assert surface._reorder_surface_visual_state.state.revision == 1  # noqa: SLF001
+    assert surface.reorder.presentation.visual_state.state.revision == 1  # noqa: SLF001
 
 
 def test_unchanged_reorder_preview_publication_reuses_the_exact_render_frame(
@@ -118,7 +122,7 @@ def test_unchanged_reorder_preview_publication_reuses_the_exact_render_frame(
     prompt_text = "alpha, beta, gamma"
     box = show_prompt_editor(widgets, text=prompt_text, width=320)
     surface = surface_for(box)
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         _build_reorder_preview_state(
             prompt_text,
             dragged_chip_index=1,
@@ -153,10 +157,10 @@ def test_projection_surface_clears_reorder_preview_state_back_to_live_rendering(
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
 
-    surface.set_reorder_preview_state(preview_state)
-    surface.clear_reorder_preview_state()
+    surface.reorder.set_preview_state(preview_state)
+    surface.reorder.clear_preview_state()
 
-    assert surface._reorder_preview_projection.preview_document is None  # noqa: SLF001
-    assert surface._reorder_preview_projection.preview_frame is None  # noqa: SLF001
-    assert surface.reorder_preview_fragments(start=0, end=1) == ()
-    assert surface.reorder_preview_cursor_rect(0).isEmpty() is True
+    assert surface.reorder.preview.preview_document is None  # noqa: SLF001
+    assert surface.reorder.preview.preview_frame is None  # noqa: SLF001
+    assert surface.reorder.preview_fragments(start=0, end=1) == ()
+    assert surface.reorder.preview_cursor_rect(0).isEmpty() is True

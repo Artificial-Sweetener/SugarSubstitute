@@ -84,10 +84,7 @@ def _editor_reorder_preview_document(
 ) -> PromptProjectionDocument | None:
     """Return the surface-owned preview document active during reorder mode."""
 
-    return cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(box), "_reorder_preview_projection").preview_document,
-    )
+    return surface_for(box).reorder.preview.preview_document
 
 
 def _editor_reorder_preview_text(box: PromptEditor) -> str:
