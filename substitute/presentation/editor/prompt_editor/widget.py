@@ -173,6 +173,7 @@ from .features import (
 from .interactions import (
     PromptContextMenuRequestPresenter,
     PromptDanbooruDialogRunner,
+    PromptExternalTextInputOwner,
     PromptExternalUrlActionRunner,
     PromptInlineLoraContextMenuPresenter,
     PromptLoraPickerPopupPresenter,
@@ -183,10 +184,6 @@ from .interactions.clipboard_paste_completion import (
     PromptClipboardPasteCompletionOwner,
 )
 from .interactions.cursor_adapter import PromptCursorAdapter
-from .mime_data_policy import (
-    mime_data_has_prompt_plain_text,
-    prompt_plain_text_from_mime_data,
-)
 from .overlays import (
     PromptAutocompletePanel,
     PromptTokenWeightControls,
@@ -446,6 +443,9 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             projection_collaborators.lora_thumbnail_preloader
         )
         self._surface = projection_collaborators.surface
+        self._external_text_input = PromptExternalTextInputOwner(
+            self._insert_external_mime_text
+        )
         self.setFocusProxy(self._surface)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._edit_execution = projection_collaborators.edit_execution
@@ -1586,62 +1586,44 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     def canInsertFromMimeData(self, source: QMimeData) -> bool:  # noqa: N802
         """Return whether external MIME data may become prompt source text."""
 
-        return mime_data_has_prompt_plain_text(source)
+        return self._external_text_input.can_insert(source)
 
     def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
         """Insert prompt-safe MIME text through the source command boundary."""
 
-        text = prompt_plain_text_from_mime_data(source)
-        if text is None:
-            return
-        self._insert_dropped_prompt_text(text, viewport_position=None)
+        self._external_text_input.insert(source)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Accept only prompt-safe plain text drag payloads."""
 
-        self._accept_or_ignore_prompt_mime_event(event)
+        self._external_text_input.accept_or_ignore_drag(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         """Keep rejecting non-text drag payloads while the pointer moves."""
 
-        self._accept_or_ignore_prompt_mime_event(event)
+        self._external_text_input.accept_or_ignore_drag(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Insert prompt-safe dropped text and reject rich/file payloads."""
 
-        text = prompt_plain_text_from_mime_data(event.mimeData())
-        if text is None:
-            event.ignore()
-            return
-        self._insert_dropped_prompt_text(
-            text,
+        self._external_text_input.drop(
+            event,
             viewport_position=self._viewport_position_for_host_drop(event),
         )
-        event.acceptProposedAction()
 
-    def _accept_or_ignore_prompt_mime_event(
-        self,
-        event: QDragEnterEvent | QDragMoveEvent,
-    ) -> None:
-        """Accept one drag event only when it carries prompt-safe plain text."""
-
-        if mime_data_has_prompt_plain_text(event.mimeData()):
-            event.acceptProposedAction()
-            return
-        event.ignore()
-
-    def _insert_dropped_prompt_text(
+    def _insert_external_mime_text(
         self,
         text: str,
         *,
+        command_name: str,
         viewport_position: QPoint | None,
     ) -> None:
-        """Replace the current source selection with externally dropped text."""
+        """Commit accepted external text through shell editing ownership."""
 
         if viewport_position is not None:
             self.setTextCursor(self.cursorForPosition(viewport_position))
-        self._surface.insert_external_text(text, command_name="drop_plain_text")
-        self._clipboard_paste_completion.complete("drop_plain_text")
+        self._surface.insert_external_text(text, command_name=command_name)
+        self._clipboard_paste_completion.complete(command_name)
 
     def _viewport_position_for_host_drop(self, event: QDropEvent) -> QPoint:
         """Return a host drop position in projection-viewport coordinates."""
