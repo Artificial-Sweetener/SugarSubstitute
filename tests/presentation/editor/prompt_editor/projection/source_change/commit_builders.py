@@ -115,6 +115,7 @@ def _source_change_applier(
 
     projection_facts = PromptSourceEditProjectionFactResolver(
         cast(PromptSourceEditProjectionFactContext, host),
+        caret_geometry=cast(Any, host),
         applicator=cast(Any, host._projection_applicator),
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),

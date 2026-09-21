@@ -35,6 +35,7 @@ from .freshness_controller import (
 )
 from .caret_state_owner import PromptProjectionCaretStateOwner
 from .caret_publication_owner import PromptProjectionCaretPublicationOwner
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
     PromptProjectionSelection,
@@ -58,9 +59,6 @@ class PromptProjectionCaretMovementHost(Protocol):
     ]
     _projection_freshness_controller: PromptProjectionFreshnessController
 
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the current document-local caret rectangle."""
-
     def _flush_pending_projection_update(self, *, reason: str) -> None:
         """Flush pending projection work before movement consumes geometry."""
 
@@ -77,12 +75,14 @@ class PromptProjectionCaretMovementController:
         *,
         state: PromptProjectionCaretStateOwner,
         publication: PromptProjectionCaretPublicationOwner,
+        geometry: PromptProjectionCaretGeometryOwner,
     ) -> None:
         """Store the surface effects and focused caret-state owner."""
 
         self._host = host
         self._state = state
         self._publication = publication
+        self._geometry = geometry
 
     def move_horizontally(
         self,
@@ -94,7 +94,7 @@ class PromptProjectionCaretMovementController:
         """Move the caret across plain text or collapsed token boundaries."""
 
         host = self._host
-        pre_flush_origin_rect = host._current_caret_document_rect()
+        pre_flush_origin_rect = self._geometry.current_document_rect()
         host._flush_pending_projection_update(reason="move_horizontally")
         skip_same_source_soft_wrap_move = (
             self._state.consume_source_edit_horizontal_movement_origin()
@@ -361,7 +361,7 @@ class PromptProjectionCaretMovementController:
 
         host = self._host
         if keep_anchor or host._selection().is_empty:
-            return host._current_caret_document_rect()
+            return self._geometry.current_document_rect()
         return geometry.caret.cursor_rect(origin_state, scroll_offset=0.0)
 
 

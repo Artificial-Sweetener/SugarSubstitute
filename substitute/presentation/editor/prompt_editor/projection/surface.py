@@ -118,12 +118,10 @@ from .caret_movement_controller import (
     PromptProjectionCaretMovementController,
     PromptProjectionCaretMovementHost,
 )
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .caret_state_owner import PromptProjectionCaretStateOwner
-from .caret_visual import (
-    PromptSurfaceCaretVisualController,
-    PromptSurfaceCaretVisualHost,
-)
+from .caret_visual import PromptSurfaceCaretVisualController
 from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .display_mode_layout_cache import (
     PromptProjectionDisplayModeLayoutCache,
@@ -319,7 +317,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._reorder: PromptReorderProjectionOwner
         self._render_publication: PromptProjectionRenderPublicationOwner
         self._caret_visual_controller: PromptSurfaceCaretVisualController
-        self._transient_edit_overlays: PromptProjectionTransientEditOverlayController
+        self._projection_freshness_controller: PromptProjectionFreshnessController
         self._autocomplete_preview_projection_owner: (
             PromptAutocompletePreviewProjectionOwner
         )
@@ -330,13 +328,33 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
         )
         self._caret_state_owner = PromptProjectionCaretStateOwner(initial_state)
+        self._transient_edit_overlays = PromptProjectionTransientEditOverlayController()
+        self._caret_geometry = PromptProjectionCaretGeometryOwner(
+            state=self._caret_state_owner,
+            editor_state=self._editor_state,
+            overlays=self._transient_edit_overlays,
+            freshness_is_stale_safe=(
+                lambda: (
+                    self._projection_freshness_controller.has_stale_projection_geometry()
+                )
+            ),
+            cursor_position=lambda: self.cursor_position,
+            anchor_position=lambda: self.anchor_position,
+            committed_document_rect=(
+                lambda state: self._layout.frame.geometry.caret.cursor_rect(
+                    state,
+                    scroll_offset=0.0,
+                )
+            ),
+            scroll_offset=self._scroll_offset,
+        )
         self._caret_publication = PromptProjectionCaretPublicationOwner(
             state=self._caret_state_owner,
             editor_state=self._editor_state,
             editing_session=self._editing_session,
             selection=self._selection,
-            current_caret_rect=self._current_caret_rect,
-            clear_transient_geometry=lambda: self._transient_edit_overlays.clear(),
+            current_caret_rect=self._caret_geometry.current_viewport_rect,
+            clear_transient_geometry=self._caret_geometry.clear_transient,
             expanded_source_range_present=(
                 lambda: self._session.expanded_source_range is not None
             ),
@@ -350,14 +368,26 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 )
             ),
             refresh_active_projection=self._refresh_active_projection_for_caret_state,
-            ensure_caret_visible=self._ensure_caret_visible,
+            ensure_caret_visible=(
+                lambda: self._caret_visual_controller.ensure_caret_visible()
+            ),
             refresh_caret_layers=lambda: self._render_publication.caret_changed(),
             refresh_deferred_caret_layers=(
                 lambda: self._render_publication.deferred_caret_changed()
             ),
-            restart_caret_blink=self._restart_caret_blink_cycle,
+            restart_caret_blink=(
+                lambda: self._caret_visual_controller.restart_caret_blink_cycle(
+                    cursor_flash_time_ms=(
+                        self._caret_visual_controller.cursor_flash_time_ms()
+                    )
+                )
+            ),
             request_viewport_update=self.viewport().update,
-            update_caret_paint=self._update_caret_paint,
+            update_caret_paint=(
+                lambda previous_rect: self._caret_visual_controller.update_caret_paint(
+                    previous_rect
+                )
+            ),
             emit_cursor_position_changed=self.cursorPositionChanged.emit,
             surface_state=lambda: surface_probe_state(self),
         )
@@ -382,7 +412,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 lambda: self._render_publication.diagnostic_layer_changed()
             ),
         )
-        self._projection_freshness_controller: PromptProjectionFreshnessController
         self._autocomplete_preview_projection_owner = PromptAutocompletePreviewProjectionOwner(
             session=self._session,
             flush_pending_projection=(
@@ -406,8 +435,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 lambda: self._render_publication.prepare_focus_chrome()
             ),
             schedule_caret_blink=(
-                lambda reset_cycle: self._schedule_caret_blink_sync(
-                    reset_cycle=reset_cycle
+                lambda reset_cycle: (
+                    self._caret_visual_controller.schedule_caret_blink_sync(
+                        reset_cycle=reset_cycle,
+                        cursor_flash_time_ms=(
+                            self._caret_visual_controller.cursor_flash_time_ms
+                        ),
+                    )
                 )
             ),
             parent=self,
@@ -415,6 +449,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._mouse_handler = PromptSurfaceMouseHandler(
             cast(PromptSurfaceMouseHost, self),
             caret_publication=self._caret_publication,
+            caret_geometry=self._caret_geometry,
             ensure_pointer_focus=self._focus_owner.ensure_pointer_focus,
             clear_autocomplete_preview=(
                 self._autocomplete_preview_projection_owner.clear_preview_state
@@ -448,17 +483,21 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 pointer_sink=self._mouse_handler,
                 publication_sink=self,
                 build_context=self,
-                direct_feedback_context=self,
                 deferred_feedback_context=self,
                 prompt_state_host=self,
                 fact_context=self,
                 source_presentation_sink=self,
                 caret_publication=self._caret_publication,
+                caret_geometry=self._caret_geometry,
+                transient_edit_overlays=self._transient_edit_overlays,
                 set_cursor_positions=(
                     lambda cursor, anchor: self.set_cursor_positions(
                         cursor_position=cursor,
                         anchor_position=anchor,
                     )
+                ),
+                ensure_caret_visible=(
+                    lambda: self._caret_visual_controller.ensure_caret_visible()
                 ),
                 projection_freshness_blockers=self._projection_freshness_blockers,
                 input_method_source_changed=(
@@ -572,12 +611,19 @@ class PromptProjectionSurface(QAbstractScrollArea):
             parent=self,
         )
         self._caret_visual_controller = PromptSurfaceCaretVisualController(
-            cast(PromptSurfaceCaretVisualHost, self),
+            surface=self,
+            viewport=self.viewport(),
+            geometry=self._caret_geometry,
             is_alive=qt_object_is_alive,
             reorder_preview_active=self._reorder.is_active,
+            surface_is_visible=self.isVisible,
+            caret_focus_active=self._focus_owner.caret_focus_owner_has_focus,
+            publish_visual_state=self._publish_render_frame,
+            selection=self._selection,
+            caret_suppressed=lambda: self._session.exact_weight_edit is not None,
+            visible_scroll_bar=self._visible_scroll_bar,
             parent=self,
         )
-        self._transient_edit_overlays = source_state_owners.transient_edit_overlays
         self._transient_edit_presentation = (
             source_state_owners.transient_edit_presentation
         )
@@ -614,6 +660,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cast(PromptProjectionCaretMovementHost, self),
             state=self._caret_state_owner,
             publication=self._caret_publication,
+            geometry=self._caret_geometry,
         )
         self._edit_pipeline = source_state_owners.edit_pipeline
         self._prompt_state_applier = source_state_owners.prompt_state_applier
@@ -662,8 +709,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cursor_position=lambda: self.cursor_position,
             focus_active=self._focus_owner_has_focus,
             scroll_offset=self._scroll_offset,
-            should_paint_caret=self._should_paint_caret,
-            current_caret_rect=self._current_caret_rect,
+            should_paint_caret=self._caret_visual_controller.should_paint_caret,
+            current_caret_rect=self._caret_geometry.current_viewport_rect,
             preview_visible_region=self._reorder.presentation.preview_visible_region,
             reorder_preview_generation=self._reorder.preview_generation,
         )
@@ -875,7 +922,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 restored_projection.projection_rebuild,
                 invalidation_reason="display_mode_layout_restored",
             )
-        self._ensure_caret_visible()
+        self._caret_visual_controller.ensure_caret_visible()
         self.cursorPositionChanged.emit()
         if not self._active_projection_requires_layout():
             self._restore_base_projection_layout_after_transient_state()
@@ -1384,15 +1431,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._visible_scroll_bar()
         self.has_pending_projection_update()
-        transient_rect = self._valid_transient_caret_document_rect()
+        transient_rect = self._caret_geometry.transient_document_rect()
         if transient_rect is not None:
-            self._log_transient_caret_used(operation="cursor_rect")
             rect = transient_rect.translated(
                 0.0, -self._scroll_offset()
             ).toAlignedRect()
             return rect
         self._flush_pending_projection_update(reason="cursor_rect")
-        rect = self._current_caret_rect().toAlignedRect()
+        rect = self._caret_geometry.current_viewport_rect().toAlignedRect()
         return rect
 
     def input_method_caret_rect(self, source_position: int) -> QRectF:
@@ -1488,28 +1534,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not qt_object_is_alive(self):
             return
         self._projection_freshness_controller.cancel_pending_projection_update()
-
-    def _clear_transient_caret_geometry(self) -> None:
-        """Discard stale temporary caret geometry."""
-
-        self._transient_edit_overlays.clear()
-
-    def _valid_transient_caret_document_rect(self) -> QRectF | None:
-        """Return the temporary document-local caret rect when it is valid."""
-
-        return self._transient_edit_overlays.valid_caret_document_rect(
-            freshness_is_stale_safe=(
-                self._projection_freshness_controller.has_stale_projection_geometry()
-            ),
-            source_identity=self._editor_state.source_identity,
-            cursor_position=self.cursor_position,
-            anchor_position=self.anchor_position,
-        )
-
-    def _log_transient_caret_used(self, *, operation: str) -> None:
-        """Preserve the removed transient-caret diagnostic hook."""
-
-        del operation
 
     def has_pending_projection_update(self) -> bool:
         """Return whether a safe projection rebuild is waiting to flush."""
@@ -1626,7 +1650,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._layout.frame.output,
             self._layout.frame.paint_state,
         )
-        self._clear_transient_caret_geometry()
+        self._caret_geometry.clear_transient()
         self._publish_render_frame()
         self.viewport().update()
         return True
@@ -1784,7 +1808,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cursor_position=cursor_position,
             anchor_position=anchor_position,
         ).clamped(len(self.toPlainText()))
-        self._clear_transient_caret_geometry()
+        self._caret_geometry.clear_transient()
         next_cursor_state = (
             self._editor_state.projection.document.caret_map.state_for_source_position(
                 cursor_state.cursor_position
@@ -2014,7 +2038,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         super().resizeEvent(event)
         self._caret_state_owner.clear_visual_affinity(reset_preferred_x=True)
         if not self._projection_freshness_controller.has_stale_projection_geometry():
-            self._clear_transient_caret_geometry()
+            self._caret_geometry.clear_transient()
         self._reorder.clear_projection_and_geometry(reason="resize")
         self._render_publication.viewport_resized()
         self.refresh_geometry()
@@ -2025,7 +2049,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         super().focusInEvent(event)
         self._render_publication.focus_changed()
-        self._schedule_caret_blink_sync(reset_cycle=True)
+        self._caret_visual_controller.schedule_caret_blink_sync(
+            reset_cycle=True,
+            cursor_flash_time_ms=self._caret_visual_controller.cursor_flash_time_ms,
+        )
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Stop caret blinking when the surface itself loses focus ownership."""
@@ -2033,21 +2060,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._input_method_controller.focus_out()
         super().focusOutEvent(event)
         self._render_publication.focus_changed()
-        self._schedule_caret_blink_sync(reset_cycle=False)
+        self._caret_visual_controller.schedule_caret_blink_sync(
+            reset_cycle=False,
+            cursor_flash_time_ms=self._caret_visual_controller.cursor_flash_time_ms,
+        )
 
     def showEvent(self, event: QShowEvent) -> None:
         """Resume caret blinking when the surface becomes visible again."""
 
         super().showEvent(event)
-        self._schedule_caret_blink_sync(reset_cycle=False)
+        self._caret_visual_controller.schedule_caret_blink_sync(
+            reset_cycle=False,
+            cursor_flash_time_ms=self._caret_visual_controller.cursor_flash_time_ms,
+        )
         self._lora_feature_delegate.prewarm_visible_banners(self._layout.frame.geometry)
 
     def hideEvent(self, event: QHideEvent) -> None:
         """Stop caret blinking while the surface is hidden."""
 
-        previous_caret_rect = self._current_caret_rect()
-        self._stop_caret_blink_cycle()
-        self._update_caret_paint(previous_caret_rect)
+        previous_caret_rect = self._caret_geometry.current_viewport_rect()
+        self._caret_visual_controller.stop_caret_blink_cycle()
+        self._caret_visual_controller.update_caret_paint(previous_caret_rect)
         super().hideEvent(event)
 
     def _publish_render_frame(self) -> None:
@@ -2113,16 +2146,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return whether the prompt editor focus owner is active."""
 
         return self._focus_owner.focus_owner_has_focus()
-
-    def _caret_focus_owner_has_focus(self) -> bool:
-        """Return whether the owner that permits caret painting is active."""
-
-        return self._focus_owner.caret_focus_owner_has_focus()
-
-    def _caret_visual_state_changed(self) -> None:
-        """Publish custom caret state before its scheduled repaint."""
-
-        self._publish_render_frame()
 
     def _update_incremental_plain_text_projection_paint(
         self,
@@ -2222,7 +2245,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._rebuild_active_projection(commit_projection=True)
         self._lora_feature_delegate.prewarm_visible_banners(self._layout.frame.geometry)
-        self._clear_transient_caret_geometry()
+        self._caret_geometry.clear_transient()
         self.backingFillInvalidated.emit(self.viewport().rect())
         self.viewport().update()
 
@@ -2290,108 +2313,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             anchor_state=next_anchor_state,
             caret_rect_override=caret_rect_override,
         )
-
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the current document-local caret rect including line-affinity override."""
-
-        transient_rect = self._valid_transient_caret_document_rect()
-        if transient_rect is not None:
-            self._log_transient_caret_used(operation="document_rect")
-            return transient_rect
-        caret_rect_override = self._caret_state_owner.caret_rect_override
-        if caret_rect_override is not None:
-            return caret_rect_override
-        return self._layout.frame.geometry.caret.cursor_rect(
-            self._caret_state_owner.cursor_state,
-            scroll_offset=0.0,
-        )
-
-    def _current_caret_rect(self) -> QRectF:
-        """Return the viewport-local caret rect for the current logical caret state."""
-
-        return self._current_caret_document_rect().translated(
-            0.0, -self._scroll_offset()
-        )
-
-    def _cursor_flash_time_ms(self) -> int:
-        """Return the current application caret flash period in milliseconds."""
-
-        return self._caret_visual_controller.cursor_flash_time_ms()
-
-    def _cursor_blink_interval_ms(self) -> int:
-        """Return the timer interval used to toggle one full cursor flash cycle."""
-
-        return self._caret_visual_controller.cursor_blink_interval_ms(
-            self._cursor_flash_time_ms()
-        )
-
-    def _is_caret_blink_enabled(self) -> bool:
-        """Return whether the current application setting allows caret blinking."""
-
-        return self._caret_visual_controller.is_caret_blink_enabled(
-            self._cursor_flash_time_ms()
-        )
-
-    def _set_caret_blink_visible(self, visible: bool) -> None:
-        """Persist one caret blink phase and repaint only when it changes."""
-
-        self._caret_visual_controller.set_caret_blink_visible(visible)
-
-    def _restart_caret_blink_cycle(self) -> None:
-        """Make the caret visible immediately and restart the blink timer."""
-
-        self._caret_visual_controller.restart_caret_blink_cycle(
-            cursor_flash_time_ms=self._cursor_flash_time_ms()
-        )
-
-    def _stop_caret_blink_cycle(self) -> None:
-        """Stop blinking and hide the custom caret until it becomes paintable again."""
-
-        self._caret_visual_controller.stop_caret_blink_cycle()
-
-    def _toggle_caret_blink_visibility(self) -> None:
-        """Advance the caret blink phase for one timer tick."""
-
-        self._caret_visual_controller.toggle_caret_blink_visibility()
-
-    def _schedule_caret_blink_sync(self, *, reset_cycle: bool) -> None:
-        """Resolve caret blink state after Qt finishes the current focus transition."""
-
-        self._caret_visual_controller.schedule_caret_blink_sync(
-            reset_cycle=reset_cycle,
-            cursor_flash_time_ms=self._cursor_flash_time_ms,
-        )
-
-    def _sync_caret_blink_state(self, *, reset_cycle: bool) -> None:
-        """Apply caret blink visibility after one focus or visibility lifecycle event."""
-
-        self._caret_visual_controller.sync_caret_blink_state(
-            reset_cycle=reset_cycle,
-            cursor_flash_time_ms=self._cursor_flash_time_ms(),
-        )
-
-    def _caret_can_paint(self) -> bool:
-        """Return whether the surface currently owns a visible custom caret."""
-
-        return self._caret_visual_controller.caret_can_paint()
-
-    def _should_paint_caret(self) -> bool:
-        """Return whether the custom caret should be painted in the current frame."""
-
-        if self._session.exact_weight_edit is not None:
-            return False
-        return self._caret_visual_controller.should_paint_caret()
-
-    def _update_caret_paint(self, previous_caret_rect: QRectF | None = None) -> None:
-        """Repaint the current and previous caret bounds after one visibility change."""
-
-        self._publish_render_frame()
-        self._caret_visual_controller.update_caret_paint(previous_caret_rect)
-
-    def _ensure_caret_visible(self) -> None:
-        """Scroll the viewport vertically until the caret is visible."""
-
-        self._caret_visual_controller.ensure_caret_visible()
 
     def _collapse_expanded_token_if_possible(self) -> None:
         """Collapse the expanded token once caret ownership has left a still-valid span."""

@@ -40,10 +40,7 @@ from .deferred_feedback_strategy import (
     PromptDeferredFeedbackContext,
     PromptDeferredFeedbackStrategy,
 )
-from .direct_feedback_strategy import (
-    PromptDirectFeedbackContext,
-    PromptDirectFeedbackStrategy,
-)
+from .direct_feedback_strategy import PromptDirectFeedbackStrategy
 from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .autocomplete_preview_projection_owner import (
     PromptAutocompletePreviewProjectionOwner,
@@ -51,6 +48,7 @@ from .autocomplete_preview_projection_owner import (
 from .edit_pipeline import PromptEditPipeline
 from .edit_publication import PromptEditPublication, PromptEditPublicationSink
 from .caret_publication_owner import PromptProjectionCaretPublicationOwner
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
@@ -106,7 +104,6 @@ class PromptProjectionSourceStateOwners:
         PromptProjectionUndoPayload
     ]
     source_change_publication: PromptSourceChangePublicationOwner
-    transient_edit_overlays: PromptProjectionTransientEditOverlayController
     transient_edit_presentation: PromptTransientEditPresentationOwner
     freshness_controller: PromptProjectionFreshnessController
     edit_pipeline: PromptEditPipeline
@@ -129,13 +126,15 @@ class PromptProjectionSourceStateBindings:
     pointer_sink: PromptSourceReplacementPointerSink
     publication_sink: PromptEditPublicationSink
     build_context: PromptProjectionBuildContext
-    direct_feedback_context: PromptDirectFeedbackContext
     deferred_feedback_context: PromptDeferredFeedbackContext
     prompt_state_host: PromptProjectionPromptStateHost
     fact_context: PromptSourceEditProjectionFactContext
     source_presentation_sink: PromptSourceCommitPresentationSink
     caret_publication: PromptProjectionCaretPublicationOwner
+    caret_geometry: PromptProjectionCaretGeometryOwner
+    transient_edit_overlays: PromptProjectionTransientEditOverlayController
     set_cursor_positions: Callable[[int, int], object]
+    ensure_caret_visible: Callable[[], None]
     projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers]
     input_method_source_changed: Callable[[], None]
     clear_reorder_for_source_change: Callable[[], None]
@@ -180,7 +179,7 @@ def build_prompt_projection_source_state_owners(
 
     scheduled_update_sink = _PromptProjectionScheduledUpdateSink()
     source_document = PromptProjectionSourceDocument(parent=parent)
-    transient_edit_overlays = PromptProjectionTransientEditOverlayController()
+    transient_edit_overlays = bindings.transient_edit_overlays
     transient_edit_presentation = PromptTransientEditPresentationOwner(
         overlays=transient_edit_overlays,
         metrics=lambda: bindings.layout.frame.output.configuration.metrics,
@@ -230,7 +229,7 @@ def build_prompt_projection_source_state_owners(
     )
     history_strategy = PromptHistoryCheckpointStrategy(bindings.layout)
     direct_feedback_strategy = PromptDirectFeedbackStrategy(
-        bindings.direct_feedback_context,
+        caret_geometry=bindings.caret_geometry,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         layout=bindings.layout,
@@ -239,6 +238,7 @@ def build_prompt_projection_source_state_owners(
     )
     deferred_strategy = PromptDeferredFeedbackStrategy(
         bindings.deferred_feedback_context,
+        caret_geometry=bindings.caret_geometry,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         layout=bindings.layout,
@@ -265,10 +265,12 @@ def build_prompt_projection_source_state_owners(
         bindings.prompt_state_host,
         frame_state=frame_state,
         strategy=prompt_state_strategy,
+        ensure_caret_visible=bindings.ensure_caret_visible,
     )
     scheduled_update_sink.wire(prompt_state_applier)
     projection_facts = PromptSourceEditProjectionFactResolver(
         bindings.fact_context,
+        caret_geometry=bindings.caret_geometry,
         applicator=bindings.applicator,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
@@ -339,7 +341,6 @@ def build_prompt_projection_source_state_owners(
         source_document=source_document,
         source_commit_application=source_commit_application,
         source_change_publication=source_change_publication,
-        transient_edit_overlays=transient_edit_overlays,
         transient_edit_presentation=transient_edit_presentation,
         freshness_controller=freshness_controller,
         edit_pipeline=edit_pipeline,

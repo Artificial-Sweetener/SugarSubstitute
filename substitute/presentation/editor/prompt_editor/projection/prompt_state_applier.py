@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from .exact_weight_editor import PromptExactWeightEditor
 
 from dataclasses import dataclass
@@ -135,9 +136,6 @@ class PromptProjectionPromptStateHost(Protocol):
 
     exact_weight_editor: PromptExactWeightEditor
 
-    def _ensure_caret_visible(self) -> None:
-        """Ensure the committed caret is visible."""
-
     def _rebuild_projection(self) -> None:
         """Run the surface-owned full projection rebuild sink."""
 
@@ -154,12 +152,14 @@ class PromptProjectionPromptStateApplier:
         *,
         frame_state: PromptProjectionFrameStatePublisher,
         strategy: PromptStateProjectionStrategy,
+        ensure_caret_visible: Callable[[], None],
     ) -> None:
         """Create an applier around a projection surface sink."""
 
         self._host = host
         self._frame_state = frame_state
         self._strategy = strategy
+        self._ensure_caret_visible = ensure_caret_visible
 
     def set_prompt_state(
         self,
@@ -604,7 +604,7 @@ class PromptProjectionPromptStateApplier:
                 update_source_revision=update_source_revision,
             )
             if refresh_caret_visibility:
-                host._ensure_caret_visible()
+                self._ensure_caret_visible()
                 host._caret_visibility_prompt_state_revision = None
             if fast_insert_applied or scheduled_incremental_applied:
                 host._rebuild_active_projection(commit_projection=True)
