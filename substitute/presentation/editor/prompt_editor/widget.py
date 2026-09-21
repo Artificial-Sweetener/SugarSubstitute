@@ -135,6 +135,8 @@ from .composition import (
     PromptEditorCompositionFactory,
     PromptEditorConstructionInputs,
     PromptEditorConstructionObserver,
+    PromptEditorExecutionFactory,
+    PromptEditorProjectionFactory,
     PromptEditorTaskExecutorFactory,
     apply_prompt_editor_initial_layout,
     bind_prompt_editor_diagnostics_signals,
@@ -421,12 +423,16 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             fill_plane_factory=PromptFillPlane,
             resize_handle_factory=PromptResizeHandle,
         )
-        phase_started_at = construction_observer.started_at()
-        projection_collaborators = composition_factory.build_projection_collaborators(
+        execution_factory = PromptEditorExecutionFactory(
             construction_inputs,
             composition_context,
-            paste_completed=self._clipboard_paste_completion.complete,
         )
+        phase_started_at = construction_observer.started_at()
+        projection_collaborators = PromptEditorProjectionFactory(
+            construction_inputs,
+            composition_context,
+            execution_factory,
+        ).build(paste_completed=self._clipboard_paste_completion.complete)
         self._lora_thumbnail_cache = projection_collaborators.lora_thumbnail_cache
         self._lora_thumbnail_preloader = (
             projection_collaborators.lora_thumbnail_preloader
@@ -483,6 +489,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         service_collaborators = composition_factory.build_service_collaborators(
             construction_inputs,
             composition_context,
+            execution_factory,
             projection_collaborators,
             self._context_insertion,
             cursor_provider=self.textCursor,
@@ -530,9 +537,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             parent=self,
             request_channel=cast(
                 Any,
-                composition_factory.build_prompt_request_channel(
-                    construction_inputs,
-                    composition_context,
+                execution_factory.build_request_channel(
                     owner_label="prompt-diagnostics",
                 ),
             ),
@@ -590,6 +595,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         syntax_collaborators = composition_factory.build_syntax_collaborators(
             construction_inputs,
             composition_context,
+            execution_factory,
             projection_collaborators,
             service_collaborators,
             self._autocomplete,

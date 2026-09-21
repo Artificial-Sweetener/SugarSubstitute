@@ -24,12 +24,14 @@ from .collaborator_bundle import (
     PromptEditorConstructionInputs,
     PromptEditorTaskExecutorFactory,
 )
+from .context import PromptEditorCompositionContext
+from .execution_factory import PromptEditorExecutionFactory
 from .factory import (
-    PromptEditorCompositionContext,
     PromptEditorCompositionFactory,
     build_external_url_action_runner,
     build_prompt_document_service,
 )
+from .projection_factory import PromptEditorProjectionFactory
 from .signal_bindings import (
     PromptEditorDiagnosticsControllerBinding,
     PromptEditorSignalHost,
@@ -52,6 +54,8 @@ __all__ = [
     "PromptEditorCollaborators",
     "PromptEditorCompositionContext",
     "PromptEditorCompositionFactory",
+    "PromptEditorExecutionFactory",
+    "PromptEditorProjectionFactory",
     "PromptEditorConstructionInputs",
     "PromptEditorConstructionLifecycleHost",
     "PromptEditorConstructionObserver",
