@@ -268,6 +268,7 @@ from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer i
     PromptWildcardInlineObjectRenderer,
 )
 from .undo_payload import PromptProjectionUndoPayload
+from .viewport_event_router import PromptProjectionViewportEventRouter
 from ..interactions.deletion_controller import (
     PromptDeletionContext,
     PromptDeletionContextProvider,
@@ -282,6 +283,8 @@ _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
 
 class PromptProjectionSurface(QAbstractScrollArea):
     """Own prompt projection editing inside a host-provided shell and scrollbar."""
+
+    _viewport_event_router: PromptProjectionViewportEventRouter | None = None
 
     textChanged = Signal()
     cursorPositionChanged = Signal()
@@ -486,6 +489,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._wheel_handler = PromptSurfaceWheelHandler(
             cast(PromptSurfaceWheelHost, self)
         )
+        self._viewport_event_router = PromptProjectionViewportEventRouter(
+            viewport=self.viewport(),
+            layout=self._layout,
+            mouse=self._mouse_handler,
+            wheel=self._wheel_handler,
+            external_text=self._external_text_input,
+            parent=self,
+        )
         self._caret_visual_controller = PromptSurfaceCaretVisualController(
             cast(PromptSurfaceCaretVisualHost, self),
             is_alive=qt_object_is_alive,
@@ -609,7 +620,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self.viewport().setAutoFillBackground(False)
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.viewport().installEventFilter(self)
+        self.viewport().installEventFilter(self._viewport_event_router)
         self._install_lora_tooltip_filter()
         self._sync_layout_state()
         self._rebuild_projection()
@@ -2763,85 +2774,18 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def viewportEvent(self, event: QEvent) -> bool:
         """Track viewport hover updates even when Qt keeps events on the inner viewport."""
 
-        if event.type() == QEvent.Type.MouseMove:
-            mouse_event = cast(QMouseEvent, event)
-            self._mouse_handler.update_hovered_token(mouse_event.position())
-        elif event.type() == QEvent.Type.DragEnter:
-            self._external_text_input.accept_or_ignore_drag(
-                cast(QDragEnterEvent, event)
-            )
-            return True
-        elif event.type() == QEvent.Type.DragMove:
-            self._external_text_input.accept_or_ignore_drag(cast(QDragMoveEvent, event))
-            return True
-        elif event.type() == QEvent.Type.Drop:
-            self._external_text_input.drop(
-                cast(QDropEvent, event),
-                viewport_position=cast(QDropEvent, event).position().toPoint(),
-            )
-            return True
-        elif event.type() == QEvent.Type.Leave:
-            self._mouse_handler.clear_hovered_token(update=False)
-            self._wheel_handler.clear_boundary_spill()
-            self.viewport().update()
+        router = self._viewport_event_router
+        if router is None:
+            return super().viewportEvent(event)
+        handled = router.handle_viewport_event(event)
+        if handled is not None:
+            return handled
         return super().viewportEvent(event)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        """Mirror hover tracking when tests send events directly to the inner viewport."""
+        """Synchronize caret presentation with the attached focus host."""
 
-        if watched is self.viewport():
-            if event.type() == QEvent.Type.DragEnter:
-                self._external_text_input.accept_or_ignore_drag(
-                    cast(QDragEnterEvent, event)
-                )
-                return True
-            if event.type() == QEvent.Type.DragMove:
-                self._external_text_input.accept_or_ignore_drag(
-                    cast(QDragMoveEvent, event)
-                )
-                return True
-            if event.type() == QEvent.Type.Drop:
-                self._external_text_input.drop(
-                    cast(QDropEvent, event),
-                    viewport_position=cast(QDropEvent, event).position().toPoint(),
-                )
-                return True
-            if event.type() == QEvent.Type.MouseButtonPress:
-                return self._mouse_handler.handle_viewport_mouse_press(
-                    cast(QMouseEvent, event),
-                    self._layout.frame,
-                    viewport_position=cast(QMouseEvent, event).position(),
-                )
-            if event.type() == QEvent.Type.MouseMove:
-                return self._mouse_handler.handle_viewport_mouse_move(
-                    cast(QMouseEvent, event),
-                    self._layout.frame,
-                    viewport_position=cast(QMouseEvent, event).position(),
-                )
-            if event.type() == QEvent.Type.MouseButtonRelease:
-                return self._mouse_handler.handle_viewport_mouse_release(
-                    cast(QMouseEvent, event)
-                )
-            if event.type() == QEvent.Type.MouseButtonDblClick:
-                return self._mouse_handler.handle_viewport_mouse_double_click(
-                    cast(QMouseEvent, event),
-                    self._layout.frame,
-                    viewport_position=cast(QMouseEvent, event).position(),
-                )
-            if event.type() == QEvent.Type.Wheel:
-                wheel_event = cast(QWheelEvent, event)
-                self._mouse_handler.update_hovered_token(wheel_event.position())
-                result = self.handle_prompt_wheel_scroll(wheel_event)
-                if result is PromptWheelScrollResult.CONSUMED:
-                    wheel_event.accept()
-                    return True
-                wheel_event.ignore()
-                return False
-            elif event.type() == QEvent.Type.Leave:
-                self._mouse_handler.clear_hovered_token(update=False)
-                self._wheel_handler.clear_boundary_spill()
-                self.viewport().update()
-        elif watched is self._focus_host:
+        if watched is self._focus_host:
             if event.type() == QEvent.Type.FocusIn:
                 self._prepare_source_line_chrome_layer()
                 self._schedule_caret_blink_sync(reset_cycle=True)
