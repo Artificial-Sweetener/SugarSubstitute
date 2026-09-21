@@ -140,8 +140,9 @@ def _source_change_applier(
         source_document=cast(Any, host._source_document_adapter),
     )
     document_application = PromptSourceDocumentCommitApplication[_ProjectionPayload](
+        cast(Any, host._scroll_bar),
         cast(Any, host),
-        cast(Any, host),
+        schedule_geometry_reuse_warm=lambda reason: host.schedule(reason=reason),
         transaction=transaction,
     )
     return PromptProjectionSourceCommitApplication[_ProjectionPayload](

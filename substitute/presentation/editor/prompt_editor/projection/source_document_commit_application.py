@@ -18,9 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Generic, Protocol, TypeVar
-
-from PySide6.QtWidgets import QScrollBar
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_models import (
@@ -40,14 +39,11 @@ from .source_commit_ports import PromptSourceChangeCaretSink
 TProjectionPayload = TypeVar("TProjectionPayload")
 
 
-class PromptSourceDocumentCommitEffectSink(Protocol):
-    """Expose document-wide viewport effects outside source state."""
+class PromptSourceDocumentScrollBar(Protocol):
+    """Apply document-wide vertical scroll intent."""
 
-    def verticalScrollBar(self) -> QScrollBar:  # noqa: N802
-        """Return the active vertical scrollbar."""
-
-    def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
-        """Schedule geometry reuse warmup."""
+    def setValue(self, value: int) -> None:  # noqa: N802
+        """Set the vertical scroll position."""
 
 
 class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
@@ -55,15 +51,17 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
 
     def __init__(
         self,
-        effect_sink: PromptSourceDocumentCommitEffectSink,
+        scroll_bar: PromptSourceDocumentScrollBar,
         caret_sink: PromptSourceChangeCaretSink,
         *,
+        schedule_geometry_reuse_warm: Callable[[str], None],
         transaction: PromptProjectionSourceChangeTransaction[TProjectionPayload],
     ) -> None:
-        """Store explicit document-effect, caret, and transaction owners."""
+        """Store explicit scroll, caret, warmup, and transaction collaborators."""
 
-        self._effect_sink = effect_sink
+        self._scroll_bar = scroll_bar
         self._caret_sink = caret_sink
+        self._schedule_geometry_reuse_warm = schedule_geometry_reuse_warm
         self._transaction = transaction
 
     def apply(self, commit: PromptEditCommit[TProjectionPayload]) -> None:
@@ -91,13 +89,13 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
                 origin=commit.origin,
             )
         if application_state is not None and application_state.reset_scroll_to_top:
-            self._effect_sink.verticalScrollBar().setValue(0)
+            self._scroll_bar.setValue(0)
         if (
             application_state is not None
             and application_state.schedule_geometry_reuse_warm_reason is not None
         ):
-            self._effect_sink._schedule_projection_geometry_reuse_warm(
-                reason=application_state.schedule_geometry_reuse_warm_reason
+            self._schedule_geometry_reuse_warm(
+                application_state.schedule_geometry_reuse_warm_reason
             )
 
     @staticmethod
@@ -127,5 +125,5 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
 
 __all__ = [
     "PromptSourceDocumentCommitApplication",
-    "PromptSourceDocumentCommitEffectSink",
+    "PromptSourceDocumentScrollBar",
 ]

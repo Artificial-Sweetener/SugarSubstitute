@@ -22,7 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QScrollBar, QWidget
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_models import (
@@ -75,7 +75,6 @@ from .source_commit_ports import (
 )
 from .source_document_commit_application import (
     PromptSourceDocumentCommitApplication,
-    PromptSourceDocumentCommitEffectSink,
 )
 from .source_edit_projection_facts import (
     PromptSourceEditProjectionFactContext,
@@ -128,7 +127,8 @@ class PromptProjectionSourceStateBindings:
     fact_context: PromptSourceEditProjectionFactContext
     source_effect_sink: PromptSourceChangeEffectSink
     source_caret_sink: PromptSourceChangeCaretSink
-    document_effect_sink: PromptSourceDocumentCommitEffectSink
+    document_scroll_bar: QScrollBar
+    schedule_geometry_reuse_warm: Callable[[str], None]
     diagnostics: PromptDiagnosticLayerOwner
     transient_viewport: QWidget
     transient_scroll_offset: Callable[[], float]
@@ -292,8 +292,9 @@ def build_prompt_projection_source_state_owners(
     document_application = PromptSourceDocumentCommitApplication[
         PromptProjectionUndoPayload
     ](
-        bindings.document_effect_sink,
+        bindings.document_scroll_bar,
         bindings.source_caret_sink,
+        schedule_geometry_reuse_warm=bindings.schedule_geometry_reuse_warm,
         transaction=source_change_transaction,
     )
     source_commit_application = PromptProjectionSourceCommitApplication[
