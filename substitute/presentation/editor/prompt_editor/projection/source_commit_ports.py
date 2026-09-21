@@ -51,9 +51,6 @@ class PromptSourceChangeEffectSink(Protocol):
     def font(self) -> QFont:
         """Return the current surface font."""
 
-    def clear_autocomplete_preview_state(self) -> None:
-        """Clear autocomplete preview through its authoritative owner."""
-
     def notify_implicit_parenthesis_authored(self, nesting_depth: int) -> None:
         """Publish authored nested implicit emphasis education."""
 

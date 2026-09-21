@@ -45,6 +45,9 @@ from .direct_feedback_strategy import (
     PromptDirectFeedbackStrategy,
 )
 from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
+from .autocomplete_preview_projection_owner import (
+    PromptAutocompletePreviewProjectionOwner,
+)
 from .edit_pipeline import PromptEditPipeline
 from .edit_publication import PromptEditPublication, PromptEditPublicationSink
 from .freshness_controller import PromptProjectionFreshnessController
@@ -130,6 +133,7 @@ class PromptProjectionSourceStateBindings:
     document_scroll_bar: QScrollBar
     schedule_geometry_reuse_warm: Callable[[str], None]
     diagnostics: PromptDiagnosticLayerOwner
+    autocomplete_preview: PromptAutocompletePreviewProjectionOwner
     transient_viewport: QWidget
     transient_scroll_offset: Callable[[], float]
     transient_publish_render_frame: Callable[[], None]
@@ -269,6 +273,7 @@ def build_prompt_projection_source_state_owners(
         semantic_remapper=semantic_remapper,
         session=bindings.session,
         source_document=source_document,
+        autocomplete_preview=bindings.autocomplete_preview,
     )
     range_application = PromptSourceRangeCommitApplication[PromptProjectionUndoPayload](
         bindings.source_caret_sink,

@@ -18,49 +18,42 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from collections.abc import Callable
 
-from ..debug_probe import log_prompt_editor_probe, preview_probe_state
 from ..autocomplete_preview_state import PromptAutocompletePreviewState
-
-
-class PromptAutocompletePreviewProjectionHost(Protocol):
-    """Expose projection operations needed by autocomplete preview ownership."""
-
-    def current_autocomplete_preview_state(
-        self,
-    ) -> PromptAutocompletePreviewState | None:
-        """Return the projection session's current autocomplete preview state."""
-
-    def set_session_autocomplete_preview_state(
-        self,
-        preview_state: PromptAutocompletePreviewState | None,
-    ) -> None:
-        """Replace autocomplete preview state in the projection session."""
-
-    def flush_pending_projection_for_autocomplete_preview(self) -> None:
-        """Flush pending projection work before preview is applied."""
-
-    def base_projection_is_stale_for_autocomplete_preview(self) -> bool:
-        """Return whether active preview would be layered over stale geometry."""
-
-    def rebuild_base_projection_for_autocomplete_preview(self) -> None:
-        """Rebuild base projection before applying autocomplete preview."""
-
-    def rebuild_active_projection_for_autocomplete_preview(self) -> None:
-        """Rebuild active projection after preview state changes."""
-
-    def invalidate_autocomplete_preview_paint(self) -> None:
-        """Request repaint for pixels that may contain autocomplete preview text."""
+from ..debug_probe import log_prompt_editor_probe, preview_probe_state
+from .session import PromptProjectionSession
 
 
 class PromptAutocompletePreviewProjectionOwner:
-    """Coordinate preview state, projection rebuilds, and repaint invalidation."""
+    """Own preview state, projection rebuilds, caret reconciliation, and repaint."""
 
-    def __init__(self, host: PromptAutocompletePreviewProjectionHost) -> None:
-        """Store the host whose preview projection state this owner controls."""
+    def __init__(
+        self,
+        *,
+        session: PromptProjectionSession,
+        flush_pending_projection: Callable[[], None],
+        base_projection_is_stale: Callable[[], bool],
+        rebuild_base_projection: Callable[[], None],
+        rebuild_active_projection: Callable[[], None],
+        request_repaint: Callable[[], None],
+        surface_state: Callable[[], dict[str, object]],
+    ) -> None:
+        """Bind the exact projection operations controlled by preview lifecycle."""
 
-        self._host = host
+        self._session = session
+        self._flush_pending_projection = flush_pending_projection
+        self._base_projection_is_stale = base_projection_is_stale
+        self._rebuild_base_projection = rebuild_base_projection
+        self._rebuild_active_projection = rebuild_active_projection
+        self._request_repaint = request_repaint
+        self._surface_state = surface_state
+
+    @property
+    def state(self) -> PromptAutocompletePreviewState | None:
+        """Return the active projection-session preview state."""
+
+        return self._session.autocomplete_preview
 
     def set_preview_state(
         self,
@@ -68,41 +61,97 @@ class PromptAutocompletePreviewProjectionOwner:
     ) -> None:
         """Replace preview state and guarantee clear paths invalidate paint."""
 
-        host = self._host
-        current_preview = host.current_autocomplete_preview_state()
+        current_preview = self.state
         log_prompt_editor_probe(
             "autocomplete_preview_owner.set_preview_state.begin",
             owner_id=id(self),
             current_preview=preview_probe_state(current_preview),
             next_preview=preview_probe_state(preview_state),
+            surface=self._surface_state(),
         )
         if current_preview == preview_state:
             if preview_state is None:
-                host.invalidate_autocomplete_preview_paint()
+                self._invalidate_paint()
             log_prompt_editor_probe(
                 "autocomplete_preview_owner.set_preview_state.end",
                 owner_id=id(self),
                 changed=False,
                 next_preview=preview_probe_state(preview_state),
+                surface=self._surface_state(),
             )
             return
         if preview_state is not None:
-            host.flush_pending_projection_for_autocomplete_preview()
-            if host.base_projection_is_stale_for_autocomplete_preview():
-                host.rebuild_base_projection_for_autocomplete_preview()
-        host.set_session_autocomplete_preview_state(preview_state)
-        host.rebuild_active_projection_for_autocomplete_preview()
+            self._flush_pending_projection()
+            if self._base_projection_is_stale():
+                self._rebuild_base_projection()
+        self._session.set_autocomplete_preview(preview_state)
+        self._rebuild_active()
         if preview_state is None:
-            host.invalidate_autocomplete_preview_paint()
+            self._invalidate_paint()
         log_prompt_editor_probe(
             "autocomplete_preview_owner.set_preview_state.end",
             owner_id=id(self),
             changed=True,
             next_preview=preview_probe_state(preview_state),
+            surface=self._surface_state(),
         )
 
+    def clear_preview_state(self) -> None:
+        """Clear the active preview through the complete owner lifecycle."""
 
-__all__ = [
-    "PromptAutocompletePreviewProjectionHost",
-    "PromptAutocompletePreviewProjectionOwner",
-]
+        self.set_preview_state(None)
+
+    def reconcile_after_caret_state_change(
+        self,
+        *,
+        cursor_position: int,
+        selection_is_empty: bool,
+    ) -> None:
+        """Clear or rebuild preview projection after committed caret movement."""
+
+        preview_state = self.state
+        log_prompt_editor_probe(
+            "autocomplete_preview_owner.reconcile_caret.begin",
+            owner_id=id(self),
+            cursor_position=cursor_position,
+            selection_is_empty=selection_is_empty,
+            preview=preview_probe_state(preview_state),
+            surface=self._surface_state(),
+        )
+        if preview_state is None:
+            action = "noop_no_preview"
+        elif not selection_is_empty or preview_state.source_position != cursor_position:
+            self.clear_preview_state()
+            action = "clear"
+        else:
+            self._rebuild_active()
+            action = "rebuild"
+        log_prompt_editor_probe(
+            "autocomplete_preview_owner.reconcile_caret.end",
+            owner_id=id(self),
+            action=action,
+            surface=self._surface_state(),
+        )
+
+    def _rebuild_active(self) -> None:
+        """Rebuild active preview projection with owner-state diagnostics."""
+
+        log_prompt_editor_probe(
+            "autocomplete_preview_owner.rebuild_active_projection",
+            owner_id=id(self),
+            surface=self._surface_state(),
+        )
+        self._rebuild_active_projection()
+
+    def _invalidate_paint(self) -> None:
+        """Invalidate pixels that can retain cleared autocomplete preview text."""
+
+        log_prompt_editor_probe(
+            "autocomplete_preview_owner.invalidate_paint",
+            owner_id=id(self),
+            surface=self._surface_state(),
+        )
+        self._request_repaint()
+
+
+__all__ = ["PromptAutocompletePreviewProjectionOwner"]

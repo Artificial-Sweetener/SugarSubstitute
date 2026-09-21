@@ -79,7 +79,6 @@ from substitute.shared.logging.logger import (
     log_debug,
 )
 
-from ..autocomplete_preview_state import PromptAutocompletePreviewState
 from ..commands.execution import PromptEditExecution
 from ..commands.source_service import PromptSourceCommandService
 from ..core.state.semantic_state import PromptEditorSemanticSnapshot
@@ -115,12 +114,7 @@ from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..qt_lifecycle import qt_object_is_alive
 from .applicator import PromptProjectionApplicator, PromptProjectionRebuildResult
 from .autocomplete_preview_projection_owner import (
-    PromptAutocompletePreviewProjectionHost,
     PromptAutocompletePreviewProjectionOwner,
-)
-from .caret_autocomplete_preview_coordinator import (
-    PromptCaretAutocompletePreviewCoordinator,
-    PromptCaretAutocompletePreviewHost,
 )
 from .caret_movement_controller import (
     PromptProjectionCaretMovementController,
@@ -152,6 +146,7 @@ from .focus_owner import PromptProjectionFocusOwner
 from .frame_synchronizer import PromptProjectionFrameSynchronizer
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
+    PromptProjectionFreshnessController,
 )
 from .geometry_reuse_warmer import PromptProjectionGeometryReuseWarmer
 from .history_owner import PromptProjectionHistoryOwner
@@ -340,6 +335,24 @@ class PromptProjectionSurface(QAbstractScrollArea):
             is_alive=lambda: qt_object_is_alive(self),
             request_update=self._diagnostic_layer_published,
         )
+        self._projection_freshness_controller: PromptProjectionFreshnessController
+        self._autocomplete_preview_projection_owner = PromptAutocompletePreviewProjectionOwner(
+            session=self._session,
+            flush_pending_projection=(
+                lambda: self._flush_pending_projection_update(
+                    reason="autocomplete_preview"
+                )
+            ),
+            base_projection_is_stale=(
+                lambda: (
+                    self._projection_freshness_controller.has_stale_projection_geometry()
+                )
+            ),
+            rebuild_base_projection=self._rebuild_projection,
+            rebuild_active_projection=self._rebuild_active_projection,
+            request_repaint=self.viewport().update,
+            surface_state=lambda: surface_probe_state(self),
+        )
         self._focus_owner = PromptProjectionFocusOwner(
             surface=self,
             prepare_source_line_chrome=self._prepare_source_line_chrome_layer,
@@ -353,6 +366,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._mouse_handler = PromptSurfaceMouseHandler(
             cast(PromptSurfaceMouseHost, self),
             ensure_pointer_focus=self._focus_owner.ensure_pointer_focus,
+            clear_autocomplete_preview=(
+                self._autocomplete_preview_projection_owner.clear_preview_state
+            ),
             request_lora_context_menu=(
                 self._lora_feature_delegate.request_context_menu
             ),
@@ -393,6 +409,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                     lambda reason: self._geometry_reuse_warmer.schedule(reason=reason)
                 ),
                 diagnostics=self._diagnostic_layer_owner,
+                autocomplete_preview=self._autocomplete_preview_projection_owner,
                 transient_viewport=self.viewport(),
                 transient_scroll_offset=self._scroll_offset,
                 transient_publish_render_frame=self._publish_render_frame,
@@ -523,16 +540,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             viewport=self.viewport(),
             freshness=self._projection_freshness_controller,
         )
-        self._autocomplete_preview_projection_owner = (
-            PromptAutocompletePreviewProjectionOwner(
-                cast(PromptAutocompletePreviewProjectionHost, self)
-            )
-        )
-        self._caret_autocomplete_preview_coordinator = (
-            PromptCaretAutocompletePreviewCoordinator(
-                cast(PromptCaretAutocompletePreviewHost, self)
-            )
-        )
         self._caret_movement_controller = PromptProjectionCaretMovementController(
             cast(PromptProjectionCaretMovementHost, self),
             state=self._caret_state_owner,
@@ -657,6 +664,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return the owner of diagnostic state and render-layer publication."""
 
         return self._diagnostic_layer_owner
+
+    @property
+    def autocomplete_preview(self) -> PromptAutocompletePreviewProjectionOwner:
+        """Return the owner of autocomplete preview projection lifecycle."""
+
+        return self._autocomplete_preview_projection_owner
 
     @property
     def anchor_position(self) -> int:
@@ -919,85 +932,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._scene_error_keys = scene_error_keys
         self._mouse_handler.clear_hovered_token(update=False)
         self._rebuild_projection()
-
-    def set_autocomplete_preview_state(
-        self,
-        preview_state: PromptAutocompletePreviewState | None,
-    ) -> None:
-        """Replace the active projection-owned autocomplete preview state."""
-
-        log_prompt_editor_probe(
-            "surface.set_autocomplete_preview_state.begin",
-            requested_preview=repr(preview_state),
-            surface=surface_probe_state(self),
-        )
-        self._autocomplete_preview_projection_owner.set_preview_state(preview_state)
-        log_prompt_editor_probe(
-            "surface.set_autocomplete_preview_state.end",
-            surface=surface_probe_state(self),
-        )
-
-    def clear_autocomplete_preview_state(self) -> None:
-        """Clear any active projection-owned autocomplete preview."""
-
-        self.set_autocomplete_preview_state(None)
-
-    def current_autocomplete_preview_state(
-        self,
-    ) -> PromptAutocompletePreviewState | None:
-        """Return the projection session's autocomplete preview state."""
-
-        return self._session.autocomplete_preview
-
-    def set_session_autocomplete_preview_state(
-        self,
-        preview_state: PromptAutocompletePreviewState | None,
-    ) -> None:
-        """Replace autocomplete preview state inside the projection session."""
-
-        log_prompt_editor_probe(
-            "surface.set_session_autocomplete_preview_state.begin",
-            requested_preview=repr(preview_state),
-            surface=surface_probe_state(self),
-        )
-        self._session.set_autocomplete_preview(preview_state)
-        log_prompt_editor_probe(
-            "surface.set_session_autocomplete_preview_state.end",
-            surface=surface_probe_state(self),
-        )
-
-    def flush_pending_projection_for_autocomplete_preview(self) -> None:
-        """Flush pending projection before autocomplete preview is applied."""
-
-        self._flush_pending_projection_update(reason="autocomplete_preview")
-
-    def base_projection_is_stale_for_autocomplete_preview(self) -> bool:
-        """Return whether autocomplete preview would layer over stale geometry."""
-
-        return self._projection_freshness_controller.has_stale_projection_geometry()
-
-    def rebuild_base_projection_for_autocomplete_preview(self) -> None:
-        """Rebuild base projection before autocomplete preview is applied."""
-
-        self._rebuild_projection()
-
-    def rebuild_active_projection_for_autocomplete_preview(self) -> None:
-        """Rebuild active projection after autocomplete preview changes."""
-
-        log_prompt_editor_probe(
-            "surface.rebuild_active_projection_for_autocomplete_preview",
-            surface=surface_probe_state(self),
-        )
-        self._rebuild_active_projection()
-
-    def invalidate_autocomplete_preview_paint(self) -> None:
-        """Request repaint for pixels that may contain autocomplete preview text."""
-
-        log_prompt_editor_probe(
-            "surface.invalidate_autocomplete_preview_paint",
-            surface=surface_probe_state(self),
-        )
-        self.viewport().update()
 
     def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
         """Build an explicit layout-affecting preview projection when required."""
@@ -1904,7 +1838,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         if collapse_expanded_token and self._session.expanded_source_range is not None:
             self._collapse_expanded_token_if_possible()
-        self._caret_autocomplete_preview_coordinator.reconcile_after_caret_state_change(
+        self._autocomplete_preview_projection_owner.reconcile_after_caret_state_change(
             cursor_position=resolved_cursor_state.source_position,
             selection_is_empty=self._selection().is_empty,
         )

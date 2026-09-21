@@ -76,7 +76,7 @@ def test_surface_keeps_committed_projection_separate_from_active_preview(
     box.setTextCursor(cursor)
     process_events(app)
 
-    surface.set_autocomplete_preview_state(
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=9,
             suffix_text="irl",
