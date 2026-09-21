@@ -102,12 +102,12 @@ class CrashRunRuntimeContext:
 
 
 class CrashRunRuntimeContextStore:
-    """Own one run's durable runtime facts without creating an incident."""
+    """Own runtime facts below the temporary diagnostic-run namespace."""
 
-    def __init__(self, incident_root: Path) -> None:
-        """Bind runtime context storage to the crash incident namespace."""
+    def __init__(self, run_root: Path) -> None:
+        """Bind runtime context storage to the temporary run namespace."""
 
-        self._incident_root = incident_root
+        self._run_root = run_root
 
     def save(self, run_id: str, context: CrashRunRuntimeContext) -> Path:
         """Atomically persist runtime facts and return their path."""
@@ -139,7 +139,23 @@ class CrashRunRuntimeContextStore:
 
         if not run_id or run_id in {".", ".."} or "/" in run_id or "\\" in run_id:
             raise ValueError("Crash run identifier is unsafe.")
-        return self._incident_root / run_id / RUNTIME_CONTEXT_FILENAME
+        return self._run_root / run_id / RUNTIME_CONTEXT_FILENAME
+
+    def run_ids_for_process(self, process_id: int) -> tuple[str, ...]:
+        """Return valid run identities whose durable context names one process."""
+
+        if process_id <= 0:
+            raise ValueError("Crash runtime process ID must be positive.")
+        if not self._run_root.is_dir():
+            return ()
+        matches: list[str] = []
+        for directory in sorted(self._run_root.iterdir(), key=lambda path: path.name):
+            if not directory.is_dir() or directory.is_symlink():
+                continue
+            context = self.load(directory.name)
+            if context is not None and context.process_id == process_id:
+                matches.append(directory.name)
+        return tuple(matches)
 
 
 __all__ = [

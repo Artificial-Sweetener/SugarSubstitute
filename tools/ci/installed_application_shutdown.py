@@ -25,6 +25,7 @@ import time
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 from sugarsubstitute_shared.application_readiness import ApplicationReadinessReceipt
 from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
@@ -45,10 +46,8 @@ def crash_incident_ids(install_root: Path) -> frozenset[str]:
     """Capture crash incidents that existed before this qualification run."""
 
     layout = InstallLayout.from_root(install_root)
-    crash_root = layout.appdata_dir / "diagnostics" / "crashes"
-    if not crash_root.is_dir():
-        return frozenset()
-    return frozenset(path.name for path in crash_root.iterdir() if path.is_dir())
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    return frozenset(incident.incident_id for incident in store.pending())
 
 
 def request_clean_qualification_shutdown(plan: InstallerQualificationPlan) -> None:
