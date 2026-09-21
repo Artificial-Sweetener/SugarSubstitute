@@ -154,7 +154,7 @@ def test_python_cache_identity_covers_every_compatibility_input() -> None:
         "$env:ImageOS",
         "$env:ImageVersion",
         "$env:PYTHON_VERSION",
-        "uv0.12.13",
+        "uv0.12.15",
         "$bootstrapLockHash",
         "$lockHash",
     ):
@@ -210,7 +210,7 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert setup_uv_environment["UV_BOOTSTRAP_LOCK"] == (
         "requirements-ci-bootstrap.lock"
     )
-    assert setup_uv_environment["UV_VERSION"] == "0.12.13"
+    assert setup_uv_environment["UV_VERSION"] == "0.12.15"
     setup_uv_script = str(setup_uv["run"])
     assert "python -m pip install" in setup_uv_script
     assert "--require-hashes --only-binary=:all: --no-deps" in setup_uv_script

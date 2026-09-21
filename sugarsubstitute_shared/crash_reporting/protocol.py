@@ -36,6 +36,7 @@ CRASH_PROTOCOL_SCHEMA_VERSION = 1
 CRASH_RUN_ID_ENV = "SUGAR_SUBSTITUTE_CRASH_RUN_ID"
 CRASH_RUN_TOKEN_ENV = "SUGAR_SUBSTITUTE_CRASH_RUN_TOKEN"
 CRASH_INCIDENT_ROOT_ENV = "SUGAR_SUBSTITUTE_CRASH_INCIDENT_ROOT"
+CRASH_RUN_ROOT_ENV = "SUGAR_SUBSTITUTE_CRASH_RUN_ROOT"
 CRASH_EXIT_INTENT_PATH_ENV = "SUGAR_SUBSTITUTE_CRASH_EXIT_INTENT_PATH"
 CRASH_EXIT_RECEIPT_PATH_ENV = "SUGAR_SUBSTITUTE_CRASH_EXIT_RECEIPT_PATH"
 CRASHPAD_DATABASE_ENV = "SUGAR_SUBSTITUTE_CRASHPAD_DATABASE"
@@ -45,6 +46,7 @@ _CRASH_SUPERVISION_ENVIRONMENT_NAMES = (
     CRASH_RUN_ID_ENV,
     CRASH_RUN_TOKEN_ENV,
     CRASH_INCIDENT_ROOT_ENV,
+    CRASH_RUN_ROOT_ENV,
     CRASH_EXIT_INTENT_PATH_ENV,
     CRASH_EXIT_RECEIPT_PATH_ENV,
     CRASHPAD_DATABASE_ENV,
@@ -61,6 +63,30 @@ class CleanExitOutcome(Enum):
     UPDATE_HANDOFF = "update_handoff"
 
 
+class LifecycleMessageState(Enum):
+    """Classify one expected signed lifecycle message."""
+
+    MISSING = "missing"
+    VALID = "valid"
+    INVALID = "invalid"
+
+
+@dataclass(frozen=True, slots=True)
+class CleanExitEvidence:
+    """Describe signed intent and receipt evidence without reducing it to a boolean."""
+
+    intent_state: LifecycleMessageState
+    receipt_state: LifecycleMessageState
+    intent: tuple[CleanExitOutcome, int] | None
+    receipt: tuple[CleanExitOutcome, int] | None
+
+    @property
+    def validates_clean_exit(self) -> bool:
+        """Return whether matching valid intent and completion evidence exists."""
+
+        return self.intent is not None and self.receipt == self.intent
+
+
 @dataclass(frozen=True, slots=True)
 class CrashRunContext:
     """Carry one supervisor-owned run contract into the application process."""
@@ -68,6 +94,7 @@ class CrashRunContext:
     run_id: str
     token: str
     incident_root: Path
+    run_root: Path
     exit_intent_path: Path
     exit_receipt_path: Path
     crashpad_database: Path
@@ -88,13 +115,15 @@ class CrashRunContext:
             raise ValueError("Crashpad handler and client library must be paired.")
 
         run_id = secrets.token_urlsafe(24)
-        lifecycle_root = diagnostics_root / "lifecycle" / run_id
         return cls(
             run_id=run_id,
             token=secrets.token_urlsafe(32),
             incident_root=diagnostics_root / "crashes",
-            exit_intent_path=lifecycle_root / "exit-intent.json",
-            exit_receipt_path=lifecycle_root / "exit-receipt.json",
+            run_root=diagnostics_root / "runs",
+            exit_intent_path=(diagnostics_root / "runs" / run_id / "exit-intent.json"),
+            exit_receipt_path=(
+                diagnostics_root / "runs" / run_id / "exit-receipt.json"
+            ),
             crashpad_database=diagnostics_root / "crashpad",
             crashpad_handler=crashpad_handler,
             crashpad_client_library=crashpad_client_library,
@@ -109,6 +138,7 @@ class CrashRunContext:
                 CRASH_RUN_ID_ENV: self.run_id,
                 CRASH_RUN_TOKEN_ENV: self.token,
                 CRASH_INCIDENT_ROOT_ENV: str(self.incident_root),
+                CRASH_RUN_ROOT_ENV: str(self.run_root),
                 CRASH_EXIT_INTENT_PATH_ENV: str(self.exit_intent_path),
                 CRASH_EXIT_RECEIPT_PATH_ENV: str(self.exit_receipt_path),
                 CRASHPAD_DATABASE_ENV: str(self.crashpad_database),
@@ -129,10 +159,10 @@ class CrashRunContext:
     def from_environment(
         cls, environment: Mapping[str, str] | None = None
     ) -> Self | None:
-        """Parse a complete inherited contract or reject partial supervision."""
+        """Parse a current or complete predecessor supervision contract."""
 
         source = os.environ if environment is None else environment
-        required_names = (
+        predecessor_names = (
             CRASH_RUN_ID_ENV,
             CRASH_RUN_TOKEN_ENV,
             CRASH_INCIDENT_ROOT_ENV,
@@ -140,15 +170,24 @@ class CrashRunContext:
             CRASH_EXIT_RECEIPT_PATH_ENV,
             CRASHPAD_DATABASE_ENV,
         )
-        values = {name: source.get(name) for name in required_names}
-        if all(value is None for value in values.values()):
+        predecessor_values = {name: source.get(name) for name in predecessor_names}
+        run_root_value = source.get(CRASH_RUN_ROOT_ENV)
+        if all(value is None for value in predecessor_values.values()) and (
+            run_root_value is None
+        ):
             return None
-        if any(not value for value in values.values()):
+        if any(not value for value in predecessor_values.values()):
             raise ValueError("Crash supervision environment is incomplete.")
-        run_id = values[CRASH_RUN_ID_ENV]
-        token = values[CRASH_RUN_TOKEN_ENV]
+        run_id = predecessor_values[CRASH_RUN_ID_ENV]
+        token = predecessor_values[CRASH_RUN_TOKEN_ENV]
         if run_id is None or token is None:
             raise ValueError("Crash supervision identity is incomplete.")
+        exit_intent_path = Path(
+            _present(predecessor_values, CRASH_EXIT_INTENT_PATH_ENV)
+        )
+        run_root = (
+            Path(run_root_value) if run_root_value else exit_intent_path.parent.parent
+        )
         handler = source.get(CRASHPAD_HANDLER_ENV)
         client_library = source.get(CRASHPAD_CLIENT_LIBRARY_ENV)
         if bool(handler) != bool(client_library):
@@ -156,10 +195,13 @@ class CrashRunContext:
         return cls(
             run_id=run_id,
             token=token,
-            incident_root=Path(_present(values, CRASH_INCIDENT_ROOT_ENV)),
-            exit_intent_path=Path(_present(values, CRASH_EXIT_INTENT_PATH_ENV)),
-            exit_receipt_path=Path(_present(values, CRASH_EXIT_RECEIPT_PATH_ENV)),
-            crashpad_database=Path(_present(values, CRASHPAD_DATABASE_ENV)),
+            incident_root=Path(_present(predecessor_values, CRASH_INCIDENT_ROOT_ENV)),
+            run_root=run_root,
+            exit_intent_path=exit_intent_path,
+            exit_receipt_path=Path(
+                _present(predecessor_values, CRASH_EXIT_RECEIPT_PATH_ENV)
+            ),
+            crashpad_database=Path(_present(predecessor_values, CRASHPAD_DATABASE_ENV)),
             crashpad_handler=Path(handler) if handler else None,
             crashpad_client_library=(Path(client_library) if client_library else None),
         )
@@ -200,6 +242,15 @@ class CrashRunContext:
     def validates_clean_exit(self, *, process_id: int | None = None) -> bool:
         """Return whether matching signed intent and completion messages exist."""
 
+        return self.inspect_exit_evidence(process_id=process_id).validates_clean_exit
+
+    def inspect_exit_evidence(
+        self,
+        *,
+        process_id: int | None = None,
+    ) -> CleanExitEvidence:
+        """Return the validity and content of both lifecycle messages."""
+
         intent = _read_lifecycle_message(
             self.exit_intent_path,
             run_id=self.run_id,
@@ -214,7 +265,12 @@ class CrashRunContext:
             expected_process_id=process_id,
             phase="complete",
         )
-        return intent is not None and receipt == intent
+        return CleanExitEvidence(
+            intent_state=_message_state(self.exit_intent_path, intent),
+            receipt_state=_message_state(self.exit_receipt_path, receipt),
+            intent=intent,
+            receipt=receipt,
+        )
 
 
 def without_crash_supervision_environment(
@@ -314,6 +370,21 @@ def _read_lifecycle_message(
         return None
 
 
+def _message_state(
+    path: Path,
+    message: tuple[CleanExitOutcome, int] | None,
+) -> LifecycleMessageState:
+    """Distinguish an absent lifecycle message from invalid retained evidence."""
+
+    if message is not None:
+        return LifecycleMessageState.VALID
+    return (
+        LifecycleMessageState.INVALID
+        if path.exists()
+        else LifecycleMessageState.MISSING
+    )
+
+
 def _message_signature(
     *,
     run_id: str,
@@ -335,9 +406,12 @@ __all__ = [
     "CRASH_EXIT_INTENT_PATH_ENV",
     "CRASH_EXIT_RECEIPT_PATH_ENV",
     "CRASH_INCIDENT_ROOT_ENV",
+    "CRASH_RUN_ROOT_ENV",
     "CRASH_RUN_ID_ENV",
     "CRASH_RUN_TOKEN_ENV",
+    "CleanExitEvidence",
     "CleanExitOutcome",
     "CrashRunContext",
+    "LifecycleMessageState",
     "without_crash_supervision_environment",
 ]

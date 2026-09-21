@@ -25,6 +25,7 @@ import time
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 from sugarsubstitute_shared.application_readiness import ApplicationReadinessReceipt
 from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
@@ -45,10 +46,8 @@ def crash_incident_ids(install_root: Path) -> frozenset[str]:
     """Capture crash incidents that existed before this qualification run."""
 
     layout = InstallLayout.from_root(install_root)
-    crash_root = layout.appdata_dir / "diagnostics" / "crashes"
-    if not crash_root.is_dir():
-        return frozenset()
-    return frozenset(path.name for path in crash_root.iterdir() if path.is_dir())
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    return frozenset(incident.incident_id for incident in store.pending())
 
 
 def request_clean_qualification_shutdown(plan: InstallerQualificationPlan) -> None:
@@ -72,6 +71,7 @@ def wait_for_clean_qualification_shutdown(
         )
     deadline = time.monotonic() + timeout_seconds
     tracked_processes = _tracked_processes(
+        install_root=install_root,
         receipt=receipt,
         candidate_process_id=(candidate_process.pid if candidate_process else None),
     )
@@ -111,23 +111,45 @@ def assert_no_new_crash_incidents(
 
 def _tracked_processes(
     *,
+    install_root: Path,
     receipt: ApplicationReadinessReceipt,
     candidate_process_id: int | None,
 ) -> tuple[psutil.Process, ...]:
-    """Capture stable identities for every process named by the launch chain."""
+    """Capture stable identities for processes owned by the installed launch."""
 
-    process_ids = {receipt.pid}
-    if receipt.parent_pid is not None:
-        process_ids.add(receipt.parent_pid)
+    directly_owned_process_ids = {receipt.pid}
     if candidate_process_id is not None:
-        process_ids.add(candidate_process_id)
+        directly_owned_process_ids.add(candidate_process_id)
+    chain_process_ids: set[int] = set(receipt.attester_pids)
+    if receipt.parent_pid is not None:
+        chain_process_ids.add(receipt.parent_pid)
+
+    resolved_root = install_root.resolve()
     tracked: list[psutil.Process] = []
-    for process_id in process_ids:
+    for process_id in directly_owned_process_ids | chain_process_ids:
         try:
-            tracked.append(psutil.Process(process_id))
+            process = psutil.Process(process_id)
         except psutil.NoSuchProcess:
             continue
+        if process_id in directly_owned_process_ids or _process_is_within_install(
+            process,
+            resolved_root,
+        ):
+            tracked.append(process)
     return tuple(tracked)
+
+
+def _process_is_within_install(process: psutil.Process, install_root: Path) -> bool:
+    """Return whether a receipt-chain process belongs to the installed tree."""
+
+    try:
+        paths = (process.exe(), process.cwd())
+    except (OSError, psutil.AccessDenied, psutil.NoSuchProcess):
+        return False
+    return any(
+        isinstance(path, str) and _path_is_within(Path(path), install_root)
+        for path in paths
+    )
 
 
 def _installed_process_ids(install_root: Path) -> tuple[int, ...]:

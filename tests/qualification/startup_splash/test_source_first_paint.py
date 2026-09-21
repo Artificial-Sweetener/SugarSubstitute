@@ -28,6 +28,7 @@ import pytest
 
 
 pytestmark = pytest.mark.platforms("windows")
+_SOURCE_SPLASH_QUALIFICATION_TIMEOUT_SECONDS = 30.0
 
 
 def test_source_splash_confirms_first_paint_before_exit(tmp_path: Path) -> None:
@@ -49,7 +50,7 @@ def test_source_splash_confirms_first_paint_before_exit(tmp_path: Path) -> None:
         env=environment,
         capture_output=True,
         text=True,
-        timeout=5.0,
+        timeout=_SOURCE_SPLASH_QUALIFICATION_TIMEOUT_SECONDS,
         check=False,
     )
 

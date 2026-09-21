@@ -38,6 +38,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     PreparedCrashRun,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.supervised_termination import (
+    SupervisedTermination,
+    SupervisedTerminationReason,
+)
 from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
     record_update_rollback,
 )
@@ -88,6 +92,7 @@ class CandidateCrashSupervisor(Protocol):
         *,
         layout: InstallLayout,
         environment: Mapping[str, str],
+        command: Sequence[str] = (),
     ) -> PreparedCrashRun:
         """Prepare a crash-aware child environment before readiness launch."""
 
@@ -97,7 +102,7 @@ class CandidateCrashSupervisor(Protocol):
         layout: InstallLayout,
         process: CandidateProcess,
         prepared: PreparedCrashRun,
-        expected_cancellation: bool = False,
+        termination: SupervisedTermination = SupervisedTermination(),
     ) -> ClassifiedProcessExit:
         """Classify a candidate for the remainder of its lifetime."""
 
@@ -147,13 +152,16 @@ def launch_prepared_update(
     prepared = crash_owner.prepare(
         layout=layout,
         environment=packaged_application_environment(environment),
+        command=command,
     )
+    candidate_process: CandidateProcess | None = None
     try:
         process = readiness_supervisor.launch_until_ready(
             layout=layout,
             command=command,
             environment=prepared.environment,
         )
+        candidate_process = process
         if on_ready is not None:
             on_ready()
         try:
@@ -167,7 +175,9 @@ def launch_prepared_update(
                 layout=layout,
                 process=cancelled.terminated_process,
                 prepared=prepared,
-                expected_cancellation=True,
+                termination=SupervisedTermination(
+                    SupervisedTerminationReason.USER_CANCELLATION
+                ),
             )
         activation.rollback()
         _LOGGER.info(
@@ -175,14 +185,28 @@ def launch_prepared_update(
         )
         raise
     except BaseException as candidate_error:
-        if (
-            isinstance(candidate_error, ApplicationReadinessError)
-            and candidate_error.terminated_process is not None
-        ):
+        terminated_process = (
+            candidate_error.terminated_process
+            if (
+                isinstance(candidate_error, ApplicationReadinessError)
+                and candidate_error.terminated_process is not None
+            )
+            else candidate_process
+        )
+        if terminated_process is not None:
+            reason = (
+                SupervisedTerminationReason.UPDATE_READINESS_FAILURE
+                if isinstance(candidate_error, ApplicationReadinessError)
+                else SupervisedTerminationReason.UPDATE_ACTIVATION_FAILURE
+            )
             crash_owner.supervise_process(
                 layout=layout,
-                process=candidate_error.terminated_process,
+                process=terminated_process,
                 prepared=prepared,
+                termination=SupervisedTermination(
+                    reason,
+                    str(candidate_error),
+                ),
             )
         activation.reject(type(candidate_error).__name__)
         rollback_reporter(

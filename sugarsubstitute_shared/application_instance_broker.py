@@ -170,10 +170,11 @@ class ApplicationInstanceBroker:
             return
         self._closing.set()
         self._startup_resources.close()
-        stopped = self._bindings.close()
+        self._bindings.stop_accepting()
         self._router.close()
+        stopped = self._bindings.wait_closed()
         _LOGGER.info(
-            "Application supervisor shutdown completed | owner_pid=%s | transport=%s | accept_threads_stopped=%s",
+            "Application supervisor shutdown completed | owner_pid=%s | transport=%s | request_ownership_stopped=%s",
             os.getpid(),
             self._endpoint.transport,
             stopped,
