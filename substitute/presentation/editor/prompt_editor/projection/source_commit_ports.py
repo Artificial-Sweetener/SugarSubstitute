@@ -23,14 +23,10 @@ from typing import Protocol
 from PySide6.QtCore import QRectF, SignalInstance
 from PySide6.QtGui import QFont
 
-from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
-    PromptSourceSnapshot,
-)
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
 )
 
-from .freshness_controller import PromptProjectionFreshnessBlockers
 from .caret_state_owner import PromptProjectionCaretStateOwner
 
 
@@ -41,8 +37,8 @@ class PromptSourceReplacementPointerSink(Protocol):
         """Clear pointer state after a committed source replacement."""
 
 
-class PromptSourceChangeEffectSink(Protocol):
-    """Expose source-revision and presentation effects outside core state."""
+class PromptSourceCommitPresentationSink(Protocol):
+    """Expose source-commit presentation effects outside core state."""
 
     textChanged: SignalInstance
     cursorPositionChanged: SignalInstance
@@ -53,18 +49,6 @@ class PromptSourceChangeEffectSink(Protocol):
 
     def notify_implicit_parenthesis_authored(self, nesting_depth: int) -> None:
         """Publish authored nested implicit emphasis education."""
-
-    def _projection_freshness_blockers(self) -> PromptProjectionFreshnessBlockers:
-        """Return active modes that block deferred projection work."""
-
-    def _mark_source_text_changed(
-        self,
-        *,
-        deferrable_projection: bool,
-        source_snapshot: PromptSourceSnapshot,
-        clear_diagnostic_fragment_cache: bool = True,
-    ) -> None:
-        """Publish a committed source identity and its invalidation effects."""
 
     def _mark_source_edit_horizontal_movement_origin(self) -> None:
         """Make horizontal movement leave same-source wrap affinity after edits."""
@@ -116,6 +100,6 @@ class PromptSourceChangeCaretSink(Protocol):
 
 __all__ = [
     "PromptSourceChangeCaretSink",
-    "PromptSourceChangeEffectSink",
+    "PromptSourceCommitPresentationSink",
     "PromptSourceReplacementPointerSink",
 ]

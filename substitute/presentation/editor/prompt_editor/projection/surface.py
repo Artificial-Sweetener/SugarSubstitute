@@ -89,7 +89,6 @@ from ..debug_probe import (
 from ..core.editing.commit import PromptEditCommit
 from ..core.editing.cursor_state import PromptCursorState
 from ..core.editing.session import PromptEditingSession
-from ..core.editing.source_buffer import PromptSourceSnapshot
 from ..core.editing.source_commands import PromptSourceEditOrigin
 from ..interactions.cursor_adapter import (
     PromptCursorAdapter,
@@ -315,6 +314,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._frame_state = PromptProjectionFrameStatePublisher(self._editor_state)
         self._source_line_chrome = PromptSourceLineChrome()
         self._search_highlight_layer = PromptSearchHighlightLayerOwner()
+        self._input_method_controller: PromptInputMethodController
+        self._reorder: PromptReorderProjectionOwner
         self._render_publication: PromptProjectionRenderPublicationOwner
         self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
             parent=self,
@@ -406,8 +407,22 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 deferred_feedback_context=self,
                 prompt_state_host=self,
                 fact_context=self,
-                source_effect_sink=self,
+                source_presentation_sink=self,
                 source_caret_sink=self,
+                projection_freshness_blockers=self._projection_freshness_blockers,
+                input_method_source_changed=(
+                    lambda: self._input_method_controller.source_changed()
+                ),
+                clear_reorder_for_source_change=(
+                    lambda: self._reorder.clear_for_source_change()
+                ),
+                invalidate_render_for_source_change=(
+                    lambda clear_fragment_cache: (
+                        self._render_publication.source_changed(
+                            clear_diagnostic_fragment_cache=clear_fragment_cache
+                        )
+                    )
+                ),
                 document_scroll_bar=self.verticalScrollBar(),
                 schedule_geometry_reuse_warm=(
                     lambda reason: self._geometry_reuse_warmer.schedule(reason=reason)
@@ -423,6 +438,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._source_document_adapter = source_state_owners.source_document
         self._source_commit_application = source_state_owners.source_commit_application
+        self._source_change_publication = source_state_owners.source_change_publication
         self._active_projection_document = self._editor_state.projection.document
         self._layout_width_resolver: PromptProjectionLayoutWidthResolver
         self._reorder = PromptReorderProjectionOwner(
@@ -1426,28 +1442,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not qt_object_is_alive(self):
             return
         self._projection_freshness_controller.cancel_pending_projection_update()
-
-    def _mark_source_text_changed(
-        self,
-        *,
-        deferrable_projection: bool,
-        source_snapshot: PromptSourceSnapshot,
-        clear_diagnostic_fragment_cache: bool = True,
-    ) -> None:
-        """Record source revision and whether the next prompt state can be scheduled."""
-
-        self._input_method_controller.source_changed()
-        if not deferrable_projection:
-            self._clear_transient_caret_geometry()
-        source_identity = self._editor_state.publish_source(source_snapshot)
-        self._reorder.clear_for_source_change()
-        self._render_publication.source_changed(
-            clear_diagnostic_fragment_cache=clear_diagnostic_fragment_cache
-        )
-        self._projection_freshness_controller.mark_source_text_changed(
-            deferrable_projection=deferrable_projection,
-            source_revision=source_identity.source_revision,
-        )
 
     def _clear_transient_caret_geometry(self) -> None:
         """Discard stale temporary caret geometry."""

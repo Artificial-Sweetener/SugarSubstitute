@@ -118,6 +118,17 @@ class _FreshnessControllerRecorder:
         self.pending_clear_count = 0
         self.can_defer_projection = False
         self.deferral_reason = "safe_typing"
+        self.marked_source_changes: list[tuple[bool, int]] = []
+
+    def mark_source_text_changed(
+        self,
+        *,
+        deferrable_projection: bool,
+        source_revision: int,
+    ) -> None:
+        """Record one published source revision and its deferral contract."""
+
+        self.marked_source_changes.append((deferrable_projection, source_revision))
 
     def clear_pending_after_immediate_apply(self) -> None:
         """Record pending update clearing through the freshness owner."""

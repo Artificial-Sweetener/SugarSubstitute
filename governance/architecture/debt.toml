@@ -630,15 +630,15 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:f34e524bbfb36e47df83191cc3d45c096b96e13fd26bdb4c79df726053b8f227"
+fingerprint = "sha256:b4566a1bc0076b6e5a76325fe622371f060c5041b198e9568cd9c2d6d32d4735"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
-  "source editing transaction integration",
-  "projection, layout, and freshness coordination",
+  "Qt-compatible source and cursor facade",
+  "projection mode, layout, and freshness coordination",
   "caret geometry effects, selection, scrolling, and hit testing",
 ]
-next_extraction = "Extract source-change effects and remaining editing transaction integration from the mounted projection surface."
+next_extraction = "Extract caret-state publication, visibility, and transient geometry effects from the mounted projection surface."
 
 [[debts]]
 id = "SS-ARCH-064"
