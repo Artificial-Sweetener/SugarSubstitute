@@ -1625,19 +1625,6 @@ next_limit = 973
 debt = "SS-ARCH-093"
 
 [[waivers]]
-id = "SS-WAIVER-R094"
-owner = "prompt abuse action dispatch"
-rule = "STRUCT003"
-path = "tools/prompt_editor_abuse/action_driver.py"
-kind = "remediation"
-justification = "The assessed file mixes generic mounted prompt-editor action host and collaborator composition, action checkpoint/timing/semantic-completion orchestration, keyboard/text/event-drain dispatch, source selection and caret projection, and diagnostic/picker/context-menu feature invocation. Extract keyboard/text/drain dispatch and diagnostic/picker/context-menu feature interaction from the generic mounted action host."
-issue = "chore:SS-ARCH-094"
-review_by = 2026-12-15
-max_lines = 912
-next_limit = 821
-debt = "SS-ARCH-094"
-
-[[waivers]]
 id = "SS-WAIVER-S075"
 owner = "regional separator abuse workloads"
 rule = "STRUCT003"
