@@ -194,8 +194,10 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
     forwarded = ApplicationReadinessReceipt.from_json(
         json.loads(receipt_path.read_text())
     )
-    assert forwarded.pid == os.getpid()
-    assert forwarded.parent_pid == os.getppid()
+    assert forwarded.pid == process.pid
+    assert forwarded.parent_pid == 999
+    assert os.getpid() in forwarded.attester_pids
+    assert os.getppid() in forwarded.attester_pids
 
 
 def test_supervisor_rejects_partial_outer_readiness_contract(tmp_path: Path) -> None:

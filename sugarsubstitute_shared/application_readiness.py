@@ -31,10 +31,11 @@ READINESS_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_PATH"
 READINESS_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_TOKEN"
 READINESS_DELEGATION_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_PATH"
 READINESS_DELEGATION_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_TOKEN"
-READINESS_SCHEMA_VERSION: Final = 4
+READINESS_SCHEMA_VERSION: Final = 5
 _LEGACY_READINESS_SCHEMA_VERSION: Final = 1
 _SURFACE_READINESS_SCHEMA_VERSION: Final = 2
 _PARENT_READINESS_SCHEMA_VERSION: Final = 3
+_MILESTONE_READINESS_SCHEMA_VERSION: Final = 4
 REQUIRED_READINESS_MILESTONES: Final = (
     "process_started",
     "surface_painted",
@@ -60,6 +61,7 @@ class ApplicationReadinessReceipt:
     surface: ApplicationReadinessSurface
     parent_pid: int | None
     milestones: tuple[str, ...] = REQUIRED_READINESS_MILESTONES
+    attester_pids: tuple[int, ...] = ()
 
     def to_json(self) -> dict[str, object]:
         """Return the stable receipt representation."""
@@ -71,6 +73,7 @@ class ApplicationReadinessReceipt:
             "surface": self.surface.value,
             "token": self.token,
             "milestones": list(self.milestones),
+            "attester_pids": list(self.attester_pids),
         }
 
     @classmethod
@@ -89,6 +92,7 @@ class ApplicationReadinessReceipt:
                 _LEGACY_READINESS_SCHEMA_VERSION,
                 _SURFACE_READINESS_SCHEMA_VERSION,
                 _PARENT_READINESS_SCHEMA_VERSION,
+                _MILESTONE_READINESS_SCHEMA_VERSION,
                 READINESS_SCHEMA_VERSION,
             }
             or not isinstance(pid, int)
@@ -116,12 +120,24 @@ class ApplicationReadinessReceipt:
             parent_pid = None
         raw_milestones = payload.get("milestones")
         milestones: tuple[str, ...]
-        if schema_version == READINESS_SCHEMA_VERSION:
+        if schema_version >= _MILESTONE_READINESS_SCHEMA_VERSION:
             if raw_milestones != list(REQUIRED_READINESS_MILESTONES):
                 raise ValueError("Application readiness milestones are incomplete.")
             milestones = REQUIRED_READINESS_MILESTONES
         else:
             milestones = ()
+        raw_attester_pids = payload.get("attester_pids")
+        if schema_version == READINESS_SCHEMA_VERSION:
+            if not isinstance(raw_attester_pids, list) or any(
+                not isinstance(process_id, int)
+                or isinstance(process_id, bool)
+                or process_id <= 0
+                for process_id in raw_attester_pids
+            ):
+                raise ValueError("Application readiness attestation chain is invalid.")
+            attester_pids = tuple(raw_attester_pids)
+        else:
+            attester_pids = ()
         try:
             surface = ApplicationReadinessSurface(raw_surface)
         except ValueError as error:
@@ -132,6 +148,7 @@ class ApplicationReadinessReceipt:
             surface=surface,
             parent_pid=parent_pid,
             milestones=milestones,
+            attester_pids=attester_pids,
         )
 
 
