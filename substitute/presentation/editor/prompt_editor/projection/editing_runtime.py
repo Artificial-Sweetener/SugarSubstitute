@@ -28,6 +28,7 @@ from ..interactions.text_mutation_controller import (
     PromptProjectionTextMutationController,
 )
 from ..interactions.undo_coalescing import PromptUndoCoalescingController
+from .history_owner import PromptProjectionHistoryOwner
 
 THost_contra = TypeVar("THost_contra", contravariant=True)
 TPayload = TypeVar("TPayload")
@@ -52,6 +53,7 @@ class PromptProjectionEditingRuntimeFactory(
     def __call__(
         self,
         host: THost_contra,
+        history: PromptProjectionHistoryOwner,
     ) -> PromptProjectionEditingRuntime[TPayload]:
         """Return fully wired editing services during surface construction."""
 

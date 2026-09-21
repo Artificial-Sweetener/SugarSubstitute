@@ -20,12 +20,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Generic, TypeVar
 
 from PySide6.QtCore import QObject, QRectF, Qt
 from PySide6.QtWidgets import QWidget
 
 from ..commands.execution import PromptEditExecution
 from ..commands.source_service import PromptSourceCommandService
+from ..core.editing.session import PromptEditingSession
 from ..interactions import (
     PromptExternalTextInputOwner,
     PromptSurfaceKeyHandler,
@@ -45,15 +47,20 @@ from ..interactions.text_mutation_controller import (
 )
 from ..interactions.undo_coalescing import PromptUndoCoalescingController
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
-from .editing_runtime import PromptProjectionEditingRuntime
+from .editing_runtime import PromptProjectionEditingRuntimeFactory
+from .caret_state_owner import PromptProjectionCaretStateOwner
+from .frame_state import PromptProjectionEditorState
 from .history_owner import PromptProjectionHistoryOwner
 from .input_method_controller import PromptInputMethodController, PromptInputMethodHost
 from .undo_payload import PromptProjectionUndoPayload
 from .viewport_event_router import PromptProjectionViewportEventRouter
+from .session import PromptProjectionSession
+
+THost = TypeVar("THost")
 
 
 @dataclass(frozen=True, slots=True)
-class PromptProjectionSurfaceInputBindings:
+class PromptProjectionSurfaceInputBindings(Generic[THost]):
     """Declare editing services and host ports required by source input."""
 
     input_method_host: PromptInputMethodHost
@@ -61,11 +68,21 @@ class PromptProjectionSurfaceInputBindings:
     deletion_projection_effects: PromptDeletionProjectionEffects
     key_host: PromptSurfaceKeyHost
     wheel_host: PromptSurfaceWheelHost
+    editing_runtime_host: THost
+    editing_runtime_factory: PromptProjectionEditingRuntimeFactory[
+        THost,
+        PromptProjectionUndoPayload,
+    ]
+    editing_session: PromptEditingSession[PromptProjectionUndoPayload]
+    caret_state: PromptProjectionCaretStateOwner
+    projection_session: PromptProjectionSession
+    editor_state: PromptProjectionEditorState
     viewport: QWidget
     layout: PromptLayoutEditToFrameCoordinator
     mouse: PromptSurfaceMouseHandler
-    history: PromptProjectionHistoryOwner
-    editing_runtime: PromptProjectionEditingRuntime[PromptProjectionUndoPayload]
+    set_cursor_positions: Callable[[int, int], object]
+    publish_undo_available: Callable[[bool], None]
+    publish_redo_available: Callable[[bool], None]
     external_text_insertion: PromptExternalTextInsertion
     finish_pending_key_edit_block: Callable[[str], None]
     publish_render_frame: Callable[[], None]
@@ -83,6 +100,7 @@ class PromptProjectionSurfaceInputRuntime:
     source_commands: PromptSourceCommandService[PromptProjectionUndoPayload]
     text_mutations: PromptProjectionTextMutationController[PromptProjectionUndoPayload]
     undo_coalescing: PromptUndoCoalescingController[PromptProjectionUndoPayload]
+    history: PromptProjectionHistoryOwner
     input_method: PromptInputMethodController
     deletion: PromptSurfaceDeletionController[PromptProjectionUndoPayload]
     key: PromptSurfaceKeyHandler[PromptProjectionUndoPayload]
@@ -92,12 +110,25 @@ class PromptProjectionSurfaceInputRuntime:
 
 
 def build_prompt_projection_surface_input_runtime(
-    bindings: PromptProjectionSurfaceInputBindings,
+    bindings: PromptProjectionSurfaceInputBindings[THost],
 ) -> PromptProjectionSurfaceInputRuntime:
     """Build initialized input controllers around one editing runtime."""
 
-    editing_runtime = bindings.editing_runtime
-    bindings.history.bind_clipboard_history(editing_runtime.clipboard_history)
+    history = PromptProjectionHistoryOwner(
+        editing_session=bindings.editing_session,
+        caret_state=bindings.caret_state,
+        projection_session=bindings.projection_session,
+        editor_state=bindings.editor_state,
+        layout=bindings.layout,
+        set_cursor_positions=bindings.set_cursor_positions,
+        publish_undo_available=bindings.publish_undo_available,
+        publish_redo_available=bindings.publish_redo_available,
+    )
+    editing_runtime = bindings.editing_runtime_factory(
+        bindings.editing_runtime_host,
+        history,
+    )
+    history.bind_clipboard_history(editing_runtime.clipboard_history)
     input_method = PromptInputMethodController(
         bindings.input_method_host,
         text_mutations=editing_runtime.text_mutations,
@@ -116,7 +147,7 @@ def build_prompt_projection_surface_input_runtime(
         bindings.key_host,
         deletion_controller=deletion,
         text_mutations=editing_runtime.text_mutations,
-        clipboard_history_actions=lambda: bindings.history.clipboard_history_actions,
+        clipboard_history_actions=lambda: history.clipboard_history_actions,
         undo_coalescing_actions=lambda: editing_runtime.undo_coalescing,
     )
     wheel = PromptSurfaceWheelHandler(bindings.wheel_host)
@@ -134,6 +165,7 @@ def build_prompt_projection_surface_input_runtime(
         source_commands=editing_runtime.source_commands,
         text_mutations=editing_runtime.text_mutations,
         undo_coalescing=editing_runtime.undo_coalescing,
+        history=history,
         input_method=input_method,
         deletion=deletion,
         key=key,

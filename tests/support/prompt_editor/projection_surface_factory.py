@@ -50,6 +50,9 @@ from substitute.presentation.editor.prompt_editor.projection.editing_runtime imp
     PromptProjectionEditingRuntime,
     PromptProjectionEditingRuntimeFactory,
 )
+from substitute.presentation.editor.prompt_editor.projection.history_owner import (
+    PromptProjectionHistoryOwner,
+)
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
 )
@@ -119,13 +122,14 @@ class TestProjectionEditingRuntimeFactory(
     def __call__(
         self,
         surface: PromptProjectionSurface,
+        history: PromptProjectionHistoryOwner,
     ) -> PromptProjectionEditingRuntime[PromptProjectionUndoPayload]:
         """Return a deterministic runtime without external integrations."""
 
         execution = PromptEditExecution(
             session=self._session,
-            undo_payload_provider=surface.history,
-            availability_signal_sink=surface.history,
+            undo_payload_provider=history,
+            availability_signal_sink=history,
             commit_sink=surface,
         )
         source_commands = PromptSourceCommandService(

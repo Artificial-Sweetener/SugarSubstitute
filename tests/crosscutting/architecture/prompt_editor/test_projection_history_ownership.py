@@ -27,6 +27,9 @@ def test_projection_history_bypasses_surface_protocol_routing() -> None:
     projection_root = PROMPT_PRESENTATION_ROOT / "projection"
     surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
     history_source = (projection_root / "history_owner.py").read_text(encoding="utf-8")
+    input_runtime_source = (projection_root / "surface_input_runtime.py").read_text(
+        encoding="utf-8"
+    )
     runtime_factory_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "editing_runtime_factory.py"
     ).read_text(encoding="utf-8")
@@ -51,8 +54,12 @@ def test_projection_history_bypasses_surface_protocol_routing() -> None:
     for method_name in removed_surface_methods:
         assert f"def {method_name}(" not in surface_source
     assert "class PromptProjectionHistoryOwner" in history_source
-    assert "undo_payload_provider=surface.history" in runtime_factory_source
-    assert "availability_signal_sink=surface.history" in runtime_factory_source
-    assert "cursor_sink=surface.history" in runtime_factory_source
-    assert "undo_payload_provider=surface.history" in surface_factory_source
-    assert "availability_signal_sink=surface.history" in surface_factory_source
+    assert "history = PromptProjectionHistoryOwner(" in input_runtime_source
+    assert "editing_runtime_factory(" in input_runtime_source
+    assert "undo_payload_provider=history" in runtime_factory_source
+    assert "availability_signal_sink=history" in runtime_factory_source
+    assert "cursor_sink=history" in runtime_factory_source
+    assert "undo_payload_provider=history" in surface_factory_source
+    assert "availability_signal_sink=history" in surface_factory_source
+    assert "surface.history" not in runtime_factory_source
+    assert "surface.history" not in surface_factory_source
