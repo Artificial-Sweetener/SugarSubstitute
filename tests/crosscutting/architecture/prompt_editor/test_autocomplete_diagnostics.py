@@ -138,8 +138,8 @@ def test_autocomplete_query_result_lifecycle_is_the_only_query_cache_owner() -> 
     assert "class PromptAutocompleteQueryResultLifecycle" in lifecycle_source
     assert "PySide6" not in lifecycle_source
     assert "PromptAutocompletePresentationLifecycle" not in lifecycle_source
-    assert "publication=session_publication" in (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+    assert "publication=publication" in (
+        PROMPT_PRESENTATION_ROOT / "composition" / "autocomplete_factory.py"
     ).read_text(encoding="utf-8")
 
 
@@ -352,8 +352,8 @@ def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
         PROMPT_PRESENTATION_ROOT / "features" / "lora_metadata_refresh_lifecycle.py"
     ).read_text(encoding="utf-8")
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
-    factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+    menu_factory_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_factory.py"
     ).read_text(encoding="utf-8")
 
     assert not deleted_controller.exists()
@@ -370,7 +370,7 @@ def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
     assert "self._lora_metadata_presentation" in widget_source
     assert "self._lora_metadata_refresh" in widget_source
     assert "_lora_metadata_feature_controller" not in widget_source
-    assert "lora_metadata: PromptLoraMetadataPresentation" in factory_source
+    assert "lora_metadata: PromptLoraMetadataPresentation" in menu_factory_source
 
 
 def test_wildcard_diagnostics_and_autocomplete_owners_stay_separate() -> None:
@@ -433,8 +433,8 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
         PROMPT_PRESENTATION_ROOT / "interactions" / "prompt_menu_presenter.py"
     ).read_text(encoding="utf-8")
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
-    factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+    menu_factory_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_factory.py"
     ).read_text(encoding="utf-8")
     deleted_action_adapter = (
         PROMPT_PRESENTATION_ROOT / "features" / "context_menu_actions.py"
@@ -467,5 +467,5 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
     assert "self._snapshot_reader.snapshot_for_menu(" in presenter_source
     assert "self._context_menu_snapshot_assembler" in widget_source
     assert "self._context_menu_preparation" in widget_source
-    assert "snapshot_reader: PromptContextMenuSnapshotAssembler" in factory_source
-    assert "preparation: PromptContextMenuPreparationLifecycle" in factory_source
+    assert "snapshot_reader: PromptContextMenuSnapshotAssembler" in menu_factory_source
+    assert "preparation: PromptContextMenuPreparationLifecycle" in menu_factory_source

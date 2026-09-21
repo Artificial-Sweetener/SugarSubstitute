@@ -18,11 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Callable
 from typing import Any, cast
 
-from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
@@ -40,12 +38,6 @@ from substitute.application.prompt_editor.document.semantics import (
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
-from substitute.application.prompt_editor.features.syntax_profile import (
-    PromptSyntaxProfile,
-)
-from substitute.application.prompt_editor.lora.catalog_models import (
-    PromptLoraCatalogItem,
-)
 from substitute.application.prompt_editor.lora.schedule import PromptLoraScheduleService
 from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
@@ -57,41 +49,22 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.presentation.dialogs.danbooru_wiki_dialog import (
     QtDanbooruWikiLookupDispatcher,
 )
-from substitute.presentation.widgets.model_metadata_context_menu import (
-    ModelMetadataContextActionHandler,
-)
 
 from ..async_work import (
-    PromptScheduledLoraContextProvider,
     build_prompt_scheduled_lora_context_coordinator,
     build_prompt_semantic_refresh_controller,
 )
-from ..commands.autocomplete_commands import (
-    PromptAutocompleteAcceptance,
-)
-from ..commands.contracts import PromptCommandResult
 from ..commands.context_insertion import (
     PromptCommandCursor,
     PromptCommandContextInsertState,
     PromptContextInsertionService,
 )
-from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from ..features import (
-    PromptAutocompleteQueryController,
     PromptAutocompleteQueryResultLifecycle,
-    PromptAutocompleteResultController,
-    PromptAutocompleteSceneContextController,
-    PromptAutocompleteScheduledLoraContextController,
-    PromptAutocompleteWildcardResultProvider,
-    PromptContextMenuPreparationLifecycle,
-    PromptContextMenuSnapshotAssembler,
     PromptDanbooruActionController,
     PromptFeatureProfileController,
-    PromptLoraMetadataPresentation,
-    PromptLoraTriggerWordController,
     PromptSceneContextPublication,
     PromptScenePositionContextPreparation,
-    PromptScenePositionContextSnapshot,
     PromptSearchFeatureController,
     PromptSegmentPresetController,
     PromptWildcardAutocompletePresentation,
@@ -100,28 +73,18 @@ from ..features import (
 )
 from ..features.prompt_segment_selection import PromptSegmentCursor
 from ..interactions import (
-    PromptAutocompleteAcceptanceController,
-    PromptAutocompleteAcceptanceLifecycle,
-    PromptAutocompleteInputAdapter,
     PromptAutocompleteInputPort,
-    PromptAutocompleteSessionPublication,
-    PromptAutocompleteSessionController,
     PromptAutocompleteSourceSnapshotController,
     PromptAutocompleteTimingController,
-    PromptContextMenuRequestPresenter,
     PromptDanbooruDialogHostAdapter,
     PromptDanbooruDialogRunner,
     PromptExternalUrlActionRunner,
     PromptExternalUrlOpener,
     PromptInlineLoraContextMenuPresenter,
-    PromptInlineLoraShellMenu,
     PromptInteractionController,
     PromptInteractionEditor,
-    PromptLoraPickerPopupPresenter,
-    PromptLoraPickerPopupView,
     PromptSegmentPresetHostAdapter,
     PromptTokenWeightWheelIntentController,
-    PromptTriggerWordActionAdapter,
     PromptWeightInteraction,
     PromptWheelController,
     PromptWheelScrollResult,
@@ -133,16 +96,6 @@ from ..interactions.reorder_interaction_metrics import (
 from ..interactions.reorder_preview_publication import (
     PromptReorderPreviewPublicationOwner,
 )
-from ..lora_thumbnail_cache import PromptLoraThumbnailCache
-from ..overlays import (
-    PromptAutocompleteLoraWall,
-    PromptAutocompletePanel,
-    PromptAutocompletePanelPresenter,
-    PromptLoraWallView,
-    PromptTokenWeightControls,
-    show_lora_picker_popup,
-)
-from ..projection.autocomplete_ghost_text import PromptAutocompleteGhostTextPublisher
 from ..projection.reorder_projection_snapshot_provider import (
     PromptReorderPreviewProjectionProvider,
 )
@@ -152,51 +105,18 @@ from ..syntax_renderers import (
     PromptSyntaxStateController,
 )
 from .collaborator_bundle import (
-    PromptEditorAutocompleteCollaborators,
     PromptEditorCollaborators,
     PromptEditorConstructionInputs,
 )
 from .context import PromptEditorCompositionContext
 from .execution_factory import PromptEditorExecutionFactory
+from .feature_collaborators import (
+    PromptEditorServiceCollaborators,
+    PromptEditorSyntaxCollaborators,
+)
 from .projection_factory import PromptEditorProjectionCollaborators
 from .reorder_overlay_factory import PromptSegmentReorderOverlayFactory
 from .token_weight_controls_factory import PromptTokenWeightControlsFactory
-
-type _PromptSceneContextReader = Callable[[int], PromptScenePositionContextSnapshot]
-
-
-@dataclass(frozen=True, slots=True)
-class PromptEditorServiceCollaborators:
-    """Carry construction results for prompt-editor service state."""
-
-    lora_schedule_service: PromptLoraScheduleService
-    prompt_scheduled_lora_service: PromptScheduledLoraService
-    scheduled_lora_resolver: Callable[[str], tuple[PromptScheduledLora, ...]]
-    scheduled_lora_context_provider: PromptScheduledLoraContextProvider
-    feature_profile_controller: PromptFeatureProfileController
-    scene_context_publication: PromptSceneContextPublication
-    scene_position_preparation: PromptScenePositionContextPreparation
-    search_feature_controller: PromptSearchFeatureController
-    wildcard_autocomplete_presentation: PromptWildcardAutocompletePresentation
-    wildcard_diagnostics_presentation: PromptWildcardDiagnosticsPresentation
-    segment_preset_controller: PromptSegmentPresetController
-    danbooru_action_controller: PromptDanbooruActionController
-
-
-@dataclass(frozen=True, slots=True)
-class PromptEditorSyntaxCollaborators:
-    """Carry construction results for syntax and interaction collaborators."""
-
-    autocomplete_timing_controller: PromptAutocompleteTimingController
-    document_service: PromptDocumentService
-    mutation_service: PromptMutationService
-    syntax_profile: PromptSyntaxProfile
-    syntax_service: PromptSyntaxService
-    token_weight_controls: PromptTokenWeightControls
-    weight_interaction: PromptWeightInteraction
-    wheel_controller: PromptWheelController
-    syntax_renderer_coordinator: PromptSyntaxRendererCoordinator
-    interaction_controller: PromptInteractionController
 
 
 def build_external_url_action_runner(
@@ -411,251 +331,6 @@ class PromptEditorCompositionFactory:
             wildcard_diagnostics_presentation=wildcard_diagnostics_presentation,
             segment_preset_controller=segment_preset_controller,
             danbooru_action_controller=danbooru_action_controller,
-        )
-
-    def build_prompt_menu_presenter(
-        self,
-        context: PromptEditorCompositionContext,
-        *,
-        snapshot_reader: PromptContextMenuSnapshotAssembler,
-        preparation: PromptContextMenuPreparationLifecycle,
-        segment_presets: PromptSegmentPresetController,
-        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
-        trigger_word_identity_validator: Callable[
-            [PromptFeatureSnapshotIdentity], bool
-        ],
-        schedule_lora: Callable[[], None],
-        open_danbooru_wiki_for_selection: Callable[[str], object],
-        queue_scene: Callable[[str], None],
-        is_read_only: Callable[[], bool],
-        rich_prompt_rendering_enabled: Callable[[], bool],
-        toggle_rich_prompt_rendering: Callable[[bool], None],
-    ) -> PromptContextMenuRequestPresenter:
-        """Build the prompt context-menu request presenter."""
-        return PromptContextMenuRequestPresenter(
-            snapshot_reader=snapshot_reader,
-            preparation=preparation,
-            segment_presets=segment_presets,
-            trigger_word_action_adapter=PromptTriggerWordActionAdapter(
-                action_parent=context.editor,
-                text_insertion_executor=context_insertion,
-                identity_validator=trigger_word_identity_validator,
-            ),
-            schedule_lora=schedule_lora,
-            open_danbooru_wiki_for_selection=open_danbooru_wiki_for_selection,
-            queue_scene=queue_scene,
-            is_read_only=is_read_only,
-            rich_prompt_rendering_enabled=rich_prompt_rendering_enabled,
-            toggle_rich_prompt_rendering=toggle_rich_prompt_rendering,
-        )
-
-    def build_inline_lora_menu_presenter(
-        self,
-        context: PromptEditorCompositionContext,
-        *,
-        lora_metadata: PromptLoraMetadataPresentation,
-        lora_trigger_words: PromptLoraTriggerWordController,
-        prepared_scene_context_at_position: _PromptSceneContextReader,
-        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
-        shell_menu: PromptInlineLoraShellMenu,
-        finish_pending_key_edit_block: Callable[[str], None],
-        external_url_actions: PromptExternalUrlActionRunner,
-        metadata_action_handler: (ModelMetadataContextActionHandler | None) = None,
-    ) -> PromptInlineLoraContextMenuPresenter:
-        """Build the inline LoRA context-menu presenter."""
-        return PromptInlineLoraContextMenuPresenter(
-            lora_metadata=lora_metadata,
-            lora_trigger_words=lora_trigger_words,
-            prepared_scene_context_at_position=prepared_scene_context_at_position,
-            trigger_word_action_adapter=PromptTriggerWordActionAdapter(
-                action_parent=context.editor,
-                text_insertion_executor=context_insertion,
-                identity_validator=lora_trigger_words.action_identity_is_current,
-            ),
-            shell_menu=shell_menu,
-            finish_pending_key_edit_block=finish_pending_key_edit_block,
-            external_url_actions=external_url_actions,
-            metadata_action_handler=metadata_action_handler,
-        )
-
-    def build_lora_picker_popup_presenter(
-        self,
-        context: PromptEditorCompositionContext,
-        *,
-        lora_metadata: PromptLoraMetadataPresentation,
-        lora_thumbnail_cache: PromptLoraThumbnailCache,
-        context_insertion: PromptContextInsertionService[PromptProjectionUndoPayload],
-        last_context_menu_global_pos: Callable[[], QPoint | None],
-        cursor_global_position: Callable[[], QPoint],
-        external_url_actions: PromptExternalUrlActionRunner,
-        metadata_action_handler: (ModelMetadataContextActionHandler | None) = None,
-    ) -> PromptLoraPickerPopupPresenter:
-        """Build the LoRA picker popup presenter."""
-
-        def create_lora_picker_popup(
-            parent: QWidget,
-            items: Iterable[PromptLoraCatalogItem],
-            *,
-            thumbnail_cache: PromptLoraThumbnailCache,
-            global_position: QPoint,
-        ) -> PromptLoraPickerPopupView:
-            """Create the concrete overlay popup behind the presenter protocol."""
-
-            return cast(
-                PromptLoraPickerPopupView,
-                show_lora_picker_popup(
-                    parent,
-                    items,
-                    thumbnail_cache=thumbnail_cache,
-                    global_position=global_position,
-                    open_url=external_url_actions.open_civitai_model_page,
-                    metadata_action_handler=metadata_action_handler,
-                ),
-            )
-
-        return PromptLoraPickerPopupPresenter(
-            parent=context.editor,
-            data_source=lora_metadata,
-            thumbnail_cache=lora_thumbnail_cache,
-            text_insertion_executor=context_insertion,
-            popup_factory=create_lora_picker_popup,
-            last_context_menu_global_pos=last_context_menu_global_pos,
-            cursor_global_position=cursor_global_position,
-        )
-
-    def build_autocomplete(
-        self,
-        inputs: PromptEditorConstructionInputs,
-        context: PromptEditorCompositionContext,
-        projection_collaborators: PromptEditorProjectionCollaborators,
-        service_collaborators: PromptEditorServiceCollaborators,
-        external_url_actions: PromptExternalUrlActionRunner,
-        document_service: PromptDocumentService,
-        *,
-        autocomplete_cursor_position: Callable[[], int],
-        autocomplete_focus_host: QWidget,
-        complete_lora_autocomplete_replacement: Callable[[], None],
-        cursor_rect: Callable[[], QRect],
-        execute_autocomplete_acceptance: Callable[
-            [PromptAutocompleteAcceptance],
-            PromptCommandResult[object],
-        ],
-        restore_autocomplete_focus: Callable[[], None],
-        viewport: Callable[[], QWidget],
-    ) -> PromptEditorAutocompleteCollaborators:
-        """Build the autocomplete coordinator from prepared construction inputs."""
-
-        def create_lora_wall(
-            parent: QWidget,
-            thumbnail_cache: object,
-        ) -> PromptAutocompleteLoraWall:
-            """Create the concrete LoRA wall used inside autocomplete."""
-
-            return cast(
-                PromptAutocompleteLoraWall,
-                PromptLoraWallView(
-                    parent,
-                    thumbnail_cache=cast(PromptLoraThumbnailCache, thumbnail_cache),
-                    open_url=external_url_actions.open_civitai_model_page,
-                    metadata_action_handler=inputs.model_metadata_action_handler,
-                ),
-            )
-
-        autocomplete_presenter = PromptAutocompletePanelPresenter(
-            host_widget=context.editor,
-            viewport=viewport,
-            cursor_rect=cursor_rect,
-            panel_factory=lambda parent: PromptAutocompletePanel(parent),
-            lora_wall_factory=create_lora_wall,
-            lora_thumbnail_cache=projection_collaborators.lora_thumbnail_cache,
-        )
-        autocomplete_ghost_text_publisher = PromptAutocompleteGhostTextPublisher(
-            publish_preview_state=(
-                projection_collaborators.surface.set_autocomplete_preview_state
-            ),
-        )
-        autocomplete_acceptance_controller = PromptAutocompleteAcceptanceController(
-            cursor_position=autocomplete_cursor_position,
-            current_source_identity=(
-                projection_collaborators.source_commands.source_identity
-            ),
-            execute_acceptance=execute_autocomplete_acceptance,
-            complete_lora_replacement=complete_lora_autocomplete_replacement,
-        )
-        autocomplete_scene_context_controller = PromptAutocompleteSceneContextController(
-            scene_context_identity=(
-                lambda: (
-                    service_collaborators.scene_context_publication.scene_context_identity
-                )
-            ),
-        )
-        autocomplete_scheduled_lora_context_controller = PromptAutocompleteScheduledLoraContextController(
-            context_provider=(service_collaborators.scheduled_lora_context_provider),
-            enabled=(
-                service_collaborators.feature_profile_controller.lora_trigger_words_enabled
-            ),
-        )
-        autocomplete_result_controller = PromptAutocompleteResultController(
-            prompt_autocomplete_gateway=inputs.prompt_autocomplete_gateway,
-            limit=context.autocomplete_limit,
-            scene_autocomplete_state=(
-                lambda: (
-                    service_collaborators.scene_context_publication.snapshot.autocomplete
-                )
-            ),
-            wildcard_feature=cast(
-                PromptAutocompleteWildcardResultProvider,
-                service_collaborators.wildcard_autocomplete_presentation,
-            ),
-            prompt_lora_catalog_service=inputs.prompt_lora_catalog_service,
-            trigger_word_provider=autocomplete_scheduled_lora_context_controller,
-        )
-        autocomplete_session_controller = PromptAutocompleteSessionController()
-        session_publication = PromptAutocompleteSessionPublication(
-            sessions=autocomplete_session_controller,
-            presenter=autocomplete_presenter,
-            ghost_text_publisher=autocomplete_ghost_text_publisher,
-            ghost_text_enabled=(
-                service_collaborators.feature_profile_controller.autocomplete_ghost_text_enabled
-            ),
-        )
-        acceptance_lifecycle = PromptAutocompleteAcceptanceLifecycle(
-            acceptance_controller=autocomplete_acceptance_controller,
-            session_publication=session_publication,
-        )
-        autocomplete = PromptAutocompleteInputAdapter(
-            autocomplete_focus_host,
-            restore_focus=restore_autocomplete_focus,
-            acceptance_lifecycle=acceptance_lifecycle,
-            session_publication=session_publication,
-        )
-        query_result_lifecycle = PromptAutocompleteQueryResultLifecycle(
-            query_controller=PromptAutocompleteQueryController(
-                document_service=document_service,
-                feature_profile=service_collaborators.feature_profile_controller,
-                minimum_prefix_length=context.autocomplete_minimum_prefix_length,
-            ),
-            result_controller=autocomplete_result_controller,
-            scene_context_controller=autocomplete_scene_context_controller,
-            publication=session_publication,
-            current_source_identity=(
-                projection_collaborators.source_commands.source_identity
-            ),
-            lora_autocomplete_enabled=(
-                lambda: (
-                    service_collaborators.feature_profile_controller.lora_autocomplete_enabled
-                )
-            ),
-            lora_thumbnail_cache_available=(
-                lambda: projection_collaborators.lora_thumbnail_cache is not None
-            ),
-        )
-        autocomplete_scheduled_lora_context_controller.bind_current_context(
-            query_result_lifecycle
-        )
-        return PromptEditorAutocompleteCollaborators(
-            autocomplete=autocomplete,
-            query_result_lifecycle=query_result_lifecycle,
         )
 
     def build_syntax_collaborators(
