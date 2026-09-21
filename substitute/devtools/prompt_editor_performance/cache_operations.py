@@ -78,7 +78,7 @@ def time_diagnostic_cache_operations(
 
     surface = surface_for(editor)
     diagnostic = spelling_diagnostic_for_text(editor.toPlainText())
-    surface.set_diagnostics((diagnostic,))
+    surface.diagnostics.set_diagnostics((diagnostic,))
     process_events(app)
 
     def fragment_reader(
@@ -92,7 +92,7 @@ def time_diagnostic_cache_operations(
         layout_snapshot = surface._editor_state.layout  # noqa: SLF001
         if layout_snapshot is None:
             raise RuntimeError("Diagnostic cache timing requires a published layout.")
-        return surface._diagnostic_layer_owner.fragments(  # noqa: SLF001
+        return surface.diagnostics.fragments(
             diagnostic,
             geometry=surface._layout.frame.geometry,  # noqa: SLF001
             viewport_rect=viewport_rect,
@@ -113,7 +113,7 @@ def time_diagnostic_cache_operations(
 
     preserver = cast(
         Callable[..., None],
-        surface._diagnostic_layer_owner.preserve_fragment_cache_for_incremental_edit,
+        surface.diagnostics.preserve_fragment_cache_for_incremental_edit,
     )
     layout_snapshot = surface._editor_state.layout  # noqa: SLF001
     if layout_snapshot is None:

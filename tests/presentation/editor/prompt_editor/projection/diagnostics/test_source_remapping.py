@@ -77,7 +77,7 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
         message="Possible spelling issue: beta",
         payload=PromptSpellingDiagnosticPayload(word="beta"),
     )
-    surface.set_diagnostics((diagnostic,))
+    surface.diagnostics.set_diagnostics((diagnostic,))
     layout = cast(Any, surface)._layout
     fragment_lookup_count = _observe_source_range_fragment_lookups(monkeypatch)
     viewport_rect = QRectF(surface.viewport().rect())
@@ -104,7 +104,7 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
         previous_layout_identity,
         next_source_length=len(text) + 1,
     )
-    diagnostic_layer_owner = cast(Any, surface)._diagnostic_layer_owner
+    diagnostic_layer_owner = surface.diagnostics
     diagnostic_layer_owner.preserve_fragment_cache_for_incremental_edit(
         start=edit_start,
         end=edit_start,
@@ -152,7 +152,7 @@ def test_projection_surface_preserves_diagnostic_fragments_after_fast_delete(
         message="Possible spelling issue: alpha",
         payload=PromptSpellingDiagnosticPayload(word="alpha"),
     )
-    surface.set_diagnostics((diagnostic,))
+    surface.diagnostics.set_diagnostics((diagnostic,))
     fragment_lookup_count = _observe_source_range_fragment_lookups(monkeypatch)
     viewport_rect = QRectF(surface.viewport().rect())
     scroll_offset = cast(Any, surface)._scroll_offset()
@@ -208,7 +208,7 @@ def test_projection_surface_diagnostics_remap_across_plain_typing(
         message="Spelling",
         payload=PromptSpellingDiagnosticPayload(word="mispelled"),
     )
-    surface.set_diagnostics((diagnostic,))
+    surface.diagnostics.set_diagnostics((diagnostic,))
 
     previous_signal_state = surface.blockSignals(True)
     try:
@@ -248,7 +248,7 @@ def test_projection_surface_diagnostics_drop_when_edited_inside_word(
         message="Spelling",
         payload=PromptSpellingDiagnosticPayload(word="mispelled"),
     )
-    surface.set_diagnostics((diagnostic,))
+    surface.diagnostics.set_diagnostics((diagnostic,))
 
     source_text = surface.toPlainText()
     previous_signal_state = surface.blockSignals(True)
