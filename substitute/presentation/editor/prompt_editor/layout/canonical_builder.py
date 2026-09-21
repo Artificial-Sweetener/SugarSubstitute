@@ -49,7 +49,9 @@ from .models import (
     PromptProjectionLineSnapshot,
     PromptProjectionTextFragment,
 )
-from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 from .keep_groups import PromptKeepGroupPlanner, PromptKeepGroupRange
 from .layout_pieces import (
     PromptInlineObjectLayoutPiece,

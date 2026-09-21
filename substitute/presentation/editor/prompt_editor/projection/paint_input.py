@@ -47,7 +47,9 @@ from .content_text_styles import (
     text_style_for_run,
 )
 from .paint_state import PromptProjectionPaintState
-from .tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 
 
 @dataclass(frozen=True, slots=True)

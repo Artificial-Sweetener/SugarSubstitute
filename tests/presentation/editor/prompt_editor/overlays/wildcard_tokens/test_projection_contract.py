@@ -35,7 +35,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 from substitute.presentation.editor.prompt_editor.overlays import (

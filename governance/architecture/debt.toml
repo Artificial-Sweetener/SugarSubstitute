@@ -713,7 +713,7 @@ next_extraction = "Extract remaining exact-edit activation gestures, wheel-inten
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:ee501a072049e110be6d11442b8217d2f23ba2ea8fe89286c9dab40e1bc74569"
+fingerprint = "sha256:1c145acfe8d6399faabcc9e7a820666f6554aae51a49291c552cd8f4df143ea8"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
@@ -725,22 +725,6 @@ responsibilities = [
   "clipboard, drag/drop, undo, focus, and tooltip routing",
 ]
 next_extraction = "Extract input/editing, paint publication, and feature-interaction hosts from the mounted projection surface."
-
-[[debts]]
-id = "SS-ARCH-062"
-owner = "prompt inline token rendering"
-paths = ["substitute/presentation/editor/prompt_editor/projection/tokens.py"]
-fingerprint = "sha256:50edcafde62aa7f50690b618efe9555888f76151f752c4288ec88e039e5faa12"
-issue = "chore:SS-ARCH-062"
-review_by = 2026-12-15
-responsibilities = [
-  "shared inline renderer contract",
-  "emphasis measurement and static token painting",
-  "wildcard inline rendering",
-  "LoRA banner rendering and media presentation",
-  "renderer registration and theme adaptation",
-]
-next_extraction = "Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
 
 [[debts]]
 id = "SS-ARCH-064"

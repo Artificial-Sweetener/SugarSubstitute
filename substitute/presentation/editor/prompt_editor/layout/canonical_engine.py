@@ -44,7 +44,9 @@ from .reused_semantics import (
     PromptReusedLineSemanticResolver,
     reusable_suffix_semantics_by_line,
 )
-from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 
 
 class PromptLineReuseMismatchObserver(Protocol):

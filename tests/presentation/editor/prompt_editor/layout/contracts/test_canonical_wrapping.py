@@ -46,8 +46,10 @@ from substitute.presentation.editor.prompt_editor.projection.session import (
 from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionTextFragment,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 from tests.support.prompt_editor.projection_layout_support import (

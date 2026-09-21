@@ -37,7 +37,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.runs import (
 from ..projection.region_caret_navigation import (
     resolve_region_separator_line_caret_state,
 )
-from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 from ..layout.models import (
     PromptProjectionInlineObjectFragment,
     PromptProjectionLayoutSnapshot,
