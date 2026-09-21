@@ -644,22 +644,6 @@ responsibilities = [
 next_extraction = "Split feature-specific subfactories from the top-level prompt-editor composition boundary."
 
 [[debts]]
-id = "SS-ARCH-057"
-owner = "prompt autocomplete panel"
-paths = ["substitute/presentation/editor/prompt_editor/overlays/autocomplete_panel.py"]
-fingerprint = "sha256:911197d469941d50bcacb6cacd7be8173361b8c6eeff85d0986ade5d33c4a705"
-issue = "chore:SS-ARCH-057"
-review_by = 2026-12-15
-responsibilities = [
-  "overlay protocol and render-state models",
-  "tag row measurement and custom painting",
-  "LoRA wall navigation adaptation",
-  "panel content reconciliation and selection",
-  "overlay sizing, visibility, and activation lifecycle",
-]
-next_extraction = "Extract row rendering and LoRA-wall adaptation from panel state, layout, and visibility ownership."
-
-[[debts]]
 id = "SS-ARCH-058"
 owner = "prompt reorder overlay"
 paths = ["substitute/presentation/editor/prompt_editor/overlays/reorder_overlay.py"]

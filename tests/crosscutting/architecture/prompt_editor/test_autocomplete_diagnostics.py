@@ -177,6 +177,28 @@ def test_autocomplete_input_adapter_stays_at_the_qt_boundary() -> None:
     assert "self._sessions" not in adapter_source
 
 
+def test_autocomplete_overlay_keeps_render_and_wall_owners_separate() -> None:
+    """Keep row painting and LoRA-wall adaptation outside popup lifecycle."""
+
+    overlays_root = PROMPT_PRESENTATION_ROOT / "overlays"
+    panel_source = (overlays_root / "autocomplete_panel.py").read_text(encoding="utf-8")
+    row_source = (overlays_root / "autocomplete_row.py").read_text(encoding="utf-8")
+    wall_host_source = (overlays_root / "autocomplete_lora_wall_host.py").read_text(
+        encoding="utf-8"
+    )
+    contracts_source = (overlays_root / "autocomplete_contracts.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "class PromptAutocompletePanel(" in panel_source
+    assert "class PromptAutocompleteRow(" not in panel_source
+    assert "class PromptAutocompleteLoraWallHost" not in panel_source
+    assert "class PromptAutocompleteRow(" in row_source
+    assert "class PromptAutocompleteLoraWallHost" in wall_host_source
+    assert "class PromptAutocompletePanelRenderState" in contracts_source
+    assert "class PromptAutocompleteOverlay(Protocol)" in contracts_source
+
+
 def test_autocomplete_test_stack_exposes_real_owners_without_proxy_routing() -> None:
     """Keep test composition explicit instead of recreating autocomplete ownership."""
 

@@ -18,21 +18,23 @@
 
 from __future__ import annotations
 
-from .autocomplete_panel import (
+from .autocomplete_contracts import (
     PromptAutocompleteActivationIntent,
     PromptAutocompleteLoraActivationSignal,
     PromptAutocompleteLoraWall,
     PromptAutocompleteLoraWallRenderState,
     PromptAutocompleteOverlay,
-    PromptAutocompletePanel,
     PromptAutocompletePanelRenderState,
-    PromptAutocompleteRow,
     PromptAutocompleteRowRenderState,
-    format_prompt_autocomplete_popularity,
 )
+from .autocomplete_panel import PromptAutocompletePanel
 from .autocomplete_presenter import (
     PromptAutocompletePanelPresenter,
     PromptAutocompletePresenter,
+)
+from .autocomplete_row import (
+    PromptAutocompleteRow,
+    format_prompt_autocomplete_popularity,
 )
 from .chip_painter import PromptChipPainter, PromptChipPaintStyle
 from .chip_visuals import PromptChipVisual, PromptChipVisualBuilder
