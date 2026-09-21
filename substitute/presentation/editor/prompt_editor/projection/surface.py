@@ -146,10 +146,8 @@ from .display_mode_layout_cache import (
 from .editing_runtime import PromptProjectionEditingRuntimeFactory
 from .fill_band_cache import (
     PromptFillBandRect,
-    PromptProjectionFillBandBuildRequest,
-    PromptProjectionFillBandCache,
-    PromptProjectionFillBandCacheKey,
 )
+from .fill_band_owner import PromptProjectionFillBandOwner
 from .frame_state import (
     PromptProjectionEditorState,
     PromptProjectionFrameStatePublisher,
@@ -255,7 +253,7 @@ from .source_state_wiring import (
     PromptProjectionSourceStateBindings,
     build_prompt_projection_source_state_owners,
 )
-from .theme import qcolor_from_rgb, scene_zebra_color, semantic_palette_from_theme
+from .theme import qcolor_from_rgb, semantic_palette_from_theme
 from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
@@ -495,7 +493,23 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._edit_pipeline = source_state_owners.edit_pipeline
         self._prompt_state_applier = source_state_owners.prompt_state_applier
-        self._fill_band_cache = PromptProjectionFillBandCache()
+        self._fill_band_owner = PromptProjectionFillBandOwner(
+            freshness=self._projection_freshness_controller,
+            display_mode=lambda: self._display_mode,
+            current_source_identity=lambda: self._editor_state.source_identity,
+            committed_source_text=(
+                lambda: self._editor_state.projection.document.source_text
+            ),
+            live_source_text=self.toPlainText,
+            viewport_rect=lambda: QRectF(self.viewport().rect()),
+            scroll_offset=self._scroll_offset,
+            content_width=(
+                lambda: self._layout.frame.output.snapshot.content_size.width()
+            ),
+            content_left_inset=lambda: self._source_line_chrome.content_left_inset,
+            reorder_geometry=self._reorder_geometry_owner.projection_geometry,
+            geometry_state=lambda: reorder_geometry_state(self._layout.frame.geometry),
+        )
         self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
             parent=self,
             diagnostics=lambda: self._session.diagnostics,
@@ -796,32 +810,15 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         preview_frame = self._reorder_preview_projection.preview_frame
         if preview_frame is not None:
-            content_height = preview_frame.output.snapshot.content_size.height()
-            self._log_passive_metric_read(
-                metric="content_height",
-                returned_height=content_height,
-                exact_reorder_preview=True,
-            )
-            return content_height
+            return preview_frame.output.snapshot.content_size.height()
         committed_metrics = self._projection_freshness_controller.committed_metrics
         if self._projection_freshness_controller.can_use_committed_passive_metrics():
             assert committed_metrics is not None
-            self._log_passive_metric_read(
-                metric="content_height",
-                committed_revision=committed_metrics.source_revision,
-                returned_height=committed_metrics.content_height,
-            )
             return committed_metrics.content_height
         self._flush_pending_projection_update(
             reason="content_height_initial_or_unavailable"
         )
-        content_height = self._layout.frame.output.snapshot.content_size.height()
-        self._log_passive_metric_read(
-            metric="content_height",
-            returned_height=content_height,
-            forced_unavailable=True,
-        )
-        return content_height
+        return self._layout.frame.output.snapshot.content_size.height()
 
     def text_line_height(self) -> float:
         """Return the row height owned by the current prepared layout."""
@@ -859,60 +856,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def visible_prompt_fill_band_rects(self) -> tuple[PromptFillBandRect, ...]:
         """Return visible prompt fill band rows in projection viewport coordinates."""
 
-        if self._display_mode is PromptProjectionDisplayMode.RAW:
-            self._log_passive_metric_read(
-                metric="visible_prompt_fill_band_rects",
-                rect_count=0,
-            )
-            return ()
-        key = PromptProjectionFillBandCacheKey(
-            source_identity=(
-                self._projection_freshness_controller.fill_band_source_identity(
-                    current_source_identity=self._editor_state.source_identity
-                )
-            ),
-            display_mode=self._display_mode,
-            viewport_width=self.viewport().width(),
-            viewport_height=self.viewport().height(),
-            scroll_offset=int(round(self._scroll_offset())),
-            content_width=(
-                self._projection_freshness_controller.fill_band_content_width(
-                    current_content_width=(
-                        self._layout.frame.output.snapshot.content_size.width()
-                    )
-                )
-            ),
-            content_left_inset=self._source_line_chrome.content_left_inset,
-        )
-        cached_rects = self._fill_band_cache.cached_rects(key)
-        rects = cached_rects
-        if rects is None:
-            rects = self._fill_band_cache.build_and_store(
-                key,
-                PromptProjectionFillBandBuildRequest(
-                    source_text=(
-                        self._projection_freshness_controller.fill_band_source_text(
-                            committed_source_text=self._editor_state.projection.document.source_text,
-                            live_source_text=self.toPlainText(),
-                        )
-                    ),
-                    viewport_rect=QRectF(self.viewport().rect()),
-                    scroll_offset=self._scroll_offset(),
-                ),
-                reorder_geometry=self._reorder_geometry_owner.projection_geometry,
-                geometry_state=reorder_geometry_state(self._layout.frame.geometry),
-            )
-        self._log_passive_metric_read(
-            metric="visible_prompt_fill_band_rects",
-            committed_revision=key.source_identity.source_revision,
-            rect_count=len(rects),
-        )
-        return rects
+        return self._fill_band_owner.visible_rects()
 
     def prompt_fill_band_color(self) -> QColor:
         """Return the alternating prompt fill color used beneath projection painting."""
 
-        return scene_zebra_color()
+        return self._fill_band_owner.color()
 
     def current_source_line_index(self) -> int:
         """Return the newline-delimited source line containing the cursor."""
@@ -2161,27 +2110,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return whether layout metrics still describe an older source snapshot."""
 
         return self._projection_freshness_controller.has_stale_projection_geometry()
-
-    def _log_passive_metric_read(
-        self,
-        *,
-        metric: str,
-        committed_revision: int | None = None,
-        returned_height: float | None = None,
-        rect_count: int | None = None,
-        exact_reorder_preview: bool = False,
-        forced_unavailable: bool = False,
-    ) -> None:
-        """Preserve the removed passive-metric diagnostic hook."""
-
-        del (
-            metric,
-            committed_revision,
-            returned_height,
-            rect_count,
-            exact_reorder_preview,
-            forced_unavailable,
-        )
 
     def set_wheel_scroll_permission(
         self,
