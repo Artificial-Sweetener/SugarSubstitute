@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Protocol
 
 from substitute.application.generation import (
@@ -28,6 +28,7 @@ from substitute.application.generation import (
     GenerationPreparationResult,
     GenerationRequest,
 )
+from substitute.application.generation.seed_value_service import SeedValueService
 
 if TYPE_CHECKING:
     from substitute.application.node_behavior import EditorBehaviorSnapshot
@@ -82,6 +83,10 @@ def capture_queued_snapshot_preparation(
         request=request,
         behavior_snapshot=behavior_snapshot,
     )
+    seed_values = SeedValueService().capture(
+        workflow=request.workflow,
+        behavior_snapshot=behavior_snapshot,
+    )
 
     def prepare_snapshots() -> GenerationPreparationResult:
         """Prepare queued snapshots from detached state."""
@@ -101,7 +106,9 @@ def capture_queued_snapshot_preparation(
                 scene_count=result.scene_count,
                 snapshots=result.snapshots,
             )
-        return result.snapshots
+        return tuple(
+            replace(snapshot, seed_values=seed_values) for snapshot in result.snapshots
+        )
 
     return QueuedSnapshotPreparation(
         prepare_snapshots=prepare_snapshots,

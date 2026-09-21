@@ -26,10 +26,6 @@ import pytest
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.links.prompt_endpoints import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
-from tests.presentation.shell.generation.snapshots.support import (
-    SeedRandomizationRecorder,
-    replace_seed_randomizer,
-)
 from tests.support.native_cube_workflow import (
     native_cube_workflow_input,
     native_cube_workflow_stub,
@@ -170,7 +166,6 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
         active_cube_stack=None,
     )
     controller = mod.WorkspaceController(view)
-    replace_seed_randomizer(controller, SeedRandomizationRecorder(order))
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
@@ -180,7 +175,7 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
 
     snapshot = controller.build_scene_generation_snapshot("portrait")
 
-    assert order == ["reconcile", "capture", "randomize"]
+    assert order == ["reconcile", "capture"]
     assert snapshot.workflow_name == "Recipe - portrait"
     assert snapshot.positive_prompt_preview == "quality studio portrait"
     assert snapshot.scene_run_id is not None

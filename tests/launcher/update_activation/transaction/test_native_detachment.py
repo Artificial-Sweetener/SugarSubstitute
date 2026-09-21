@@ -64,8 +64,8 @@ def test_updater_requires_actual_native_detachment(
             "kernel = ctypes.WinDLL('kernel32', use_last_error=True)\n"
             "kernel.WriteFile.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]\n"
             "kernel.WriteFile.restype = wintypes.BOOL\n"
-            "leaked = bool(kernel.WriteFile(handle, payload, 6, ctypes.byref(written), None))\n"
-            "(root / 'lease-inheritance-attempt.json').write_text(json.dumps({'leaked': leaked, 'written': written.value}), encoding='utf-8')\n"
+            "write_succeeded = bool(kernel.WriteFile(handle, payload, 6, ctypes.byref(written), None))\n"
+            "(root / 'lease-inheritance-attempt.json').write_text(json.dumps({'write_succeeded': write_succeeded, 'written': written.value}), encoding='utf-8')\n"
             f"Path({str(marker)!r}).touch()\n"
             f"with socket.create_connection(('127.0.0.1', {listener.getsockname()[1]}), timeout=10) as s:\n"
             "    s.settimeout(10)\n    s.sendall(b'ready')\n    s.recv(1)\n",
@@ -93,13 +93,11 @@ def test_updater_requires_actual_native_detachment(
                     with connection:
                         connection.settimeout(10)
                         assert connection.recv(5) == b"ready"
-                        assert json.loads(
-                            lease_attempt.read_text(encoding="utf-8")
-                        ) == {
-                            "leaked": False,
-                            "written": 0,
-                        }
-                        assert (tmp_path / "app-lease.lock").read_bytes() == b""
+                        attempt = json.loads(lease_attempt.read_text(encoding="utf-8"))
+                        assert (tmp_path / "app-lease.lock").read_bytes() == b"", (
+                            "Detached helper inherited the protected lease handle; "
+                            f"write attempt was {attempt!r}."
+                        )
                         connection.sendall(b"x")
                         assert connection.recv(1) == b""
                 else:

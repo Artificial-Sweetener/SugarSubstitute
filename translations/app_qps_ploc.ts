@@ -642,6 +642,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Blüë ···⟧</translation>
     </message>
     <message>
+      <source>Bounding Box</source>
+      <translation>⟦Böündïng Böx ···⟧</translation>
+    </message>
+    <message>
       <source>Bounding box</source>
       <translation>⟦Böündïng böx ···⟧</translation>
     </message>
@@ -928,6 +932,14 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose color</source>
       <translation>⟦Chöösë cölör ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose detector thumbnail</source>
+      <translation>⟦Chöösë dëtëctör thümbnàïl ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose detector thumbnail for %1</source>
+      <translation>⟦Chöösë dëtëctör thümbnàïl för %1 ···⟧</translation>
     </message>
     <message>
       <source>Choose fixed quality or an approximate target file size.</source>
@@ -4788,6 +4800,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëgmënt rëördër ···⟧</translation>
     </message>
     <message>
+      <source>Segmentation</source>
+      <translation>⟦Sëgmëntàtïön ···⟧</translation>
+    </message>
+    <message>
       <source>Select</source>
       <translation>⟦Sëlëct ···⟧</translation>
     </message>
@@ -6368,6 +6384,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Use My Current ComfyUI needs the folder that contains your local ComfyUI installation.</source>
       <translation>⟦Üsë My Cürrënt CömfyÜÏ nëëds thë földër thàt cöntàïns yöür löcàl CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Use Seeds in Current Workflow</source>
+      <translation>⟦Üsë Sëëds ïn Cürrënt Wörkflöw ···⟧</translation>
     </message>
     <message>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>

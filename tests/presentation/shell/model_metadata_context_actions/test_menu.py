@@ -51,6 +51,7 @@ class _MetadataActionHandler:
 
         self.refresh_targets: list[ModelMetadataContextMenuTarget] = []
         self.thumbnail_targets: list[tuple[ModelMetadataContextMenuTarget, UUID]] = []
+        self.ultralytics_targets: list[ModelMetadataContextMenuTarget] = []
         self._choices = choices
         self._active_choice = active_choice
 
@@ -84,6 +85,39 @@ class _MetadataActionHandler:
         """Record one thumbnail assignment request."""
 
         self.thumbnail_targets.append((target, image_id))
+
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Record one accepted packaged-thumbnail request."""
+
+        self.ultralytics_targets.append(target)
+        return True
+
+
+def test_ultralytics_target_offers_only_detector_thumbnail_library() -> None:
+    """Ultralytics should avoid CivitAI and canvas-thumbnail action paths."""
+
+    handler = _MetadataActionHandler()
+    action_order: list[str] = []
+    builder = ModelMetadataContextMenuActionBuilder(
+        action_handler=handler,
+        target_updated=lambda: action_order.append("updated"),
+        thumbnail_library_opening=lambda: action_order.append("dismissed"),
+    )
+    target = ModelMetadataContextMenuTarget(
+        title="Person detector",
+        backend_value="segm/person.pt",
+        model_kind="ultralytics",
+    )
+
+    actions = _actions(builder.menu_items_for_target(target))
+
+    assert [action.label for action in actions] == ["Choose detector thumbnail"]
+    actions[0].callback()
+    assert handler.ultralytics_targets == [target]
+    assert action_order == ["dismissed", "updated"]
 
 
 def test_metadata_context_menu_builds_civitai_page_action() -> None:

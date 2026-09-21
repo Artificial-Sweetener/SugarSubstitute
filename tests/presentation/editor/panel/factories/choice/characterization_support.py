@@ -29,6 +29,9 @@ from substitute.application.model_metadata import (
     ModelThumbnailVariant,
     RichChoiceResolver,
 )
+from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+    UltralyticsThumbnailAssociationService,
+)
 from substitute.application.ports import (
     PromptAutocompleteSuggestion,
     PromptWildcardCatalogGateway,
@@ -246,6 +249,9 @@ def _rich_choice_resolver(catalog: _FakeModelCatalog) -> RichChoiceResolver:
 def _model_choice_controller(
     catalog: _FakeModelCatalog | None,
     resolver: RichChoiceResolver | None = None,
+    ultralytics_thumbnail_associations: (
+        UltralyticsThumbnailAssociationService | None
+    ) = None,
 ) -> PanelModelChoiceSnapshotController:
     """Return a model-choice snapshot controller for factory tests."""
 
@@ -253,6 +259,7 @@ def _model_choice_controller(
         model_catalog_service=catalog,
         model_choice_resolver=resolver
         or (_rich_choice_resolver(catalog) if catalog else None),
+        ultralytics_thumbnail_associations=ultralytics_thumbnail_associations,
     )
 
 

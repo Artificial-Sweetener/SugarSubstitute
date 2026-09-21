@@ -68,6 +68,7 @@ class GenerationQueueDropdownView(AcrylicFlyoutViewBase):  # type: ignore[misc]
     removeRequested = Signal(str)
     moveRequested = Signal(str, int)
     openSnapshotRequested = Signal(str)
+    adoptSeedsRequested = Signal(str)
 
     def __init__(self, parent: object | None = None) -> None:
         """Create the fixed-size dropdown layout."""
@@ -119,6 +120,7 @@ class GenerationQueueDropdownView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         self._rows_view.cancelRequested.connect(self.cancelRequested)
         self._rows_view.removeRequested.connect(self.removeRequested)
         self._rows_view.openSnapshotRequested.connect(self.openSnapshotRequested)
+        self._rows_view.adoptSeedsRequested.connect(self.adoptSeedsRequested)
         self._rows_view.moveRequested.connect(self.moveRequested)
         self.set_rows(())
 
@@ -162,12 +164,14 @@ class GenerationQueueDropdown:
         *,
         parent: QWidget,
         open_snapshot_requested: Callable[[str], None] | None = None,
+        adopt_seeds_requested: Callable[[str], None] | None = None,
     ) -> None:
         """Subscribe to queue state and remember the flyout parent."""
 
         self._queue_service = queue_service
         self._parent = parent
         self._open_snapshot_requested = open_snapshot_requested
+        self._adopt_seeds_requested = adopt_seeds_requested
         self._jobs: tuple[GenerationQueueJob, ...] = ()
         self._flyout: AcrylicFlyout | None = None
         queue_service.add_observer(self._on_jobs_changed)
@@ -197,6 +201,8 @@ class GenerationQueueDropdown:
         view.moveRequested.connect(self._queue_service.move_pending_job)
         if self._open_snapshot_requested is not None:
             view.openSnapshotRequested.connect(self._open_snapshot_requested)
+        if self._adopt_seeds_requested is not None:
+            view.adoptSeedsRequested.connect(self._adopt_seeds_requested)
         view.set_items(queue_job_display_items(self._jobs))
         self._flyout = AcrylicFlyout.make(
             view,

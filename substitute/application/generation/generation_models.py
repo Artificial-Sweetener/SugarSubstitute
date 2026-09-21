@@ -151,7 +151,6 @@ class GenerationCallbacks:
     on_failure: Callable[[GenerationFailure], None]
     on_timing: Callable[[GenerationExecutionTiming], None]
     on_run_started: Callable[[GenerationRunStarted], None] | None = None
-    randomize_seeds: Callable[[], None] | None = None
     on_completed: Callable[[ListenerCompleted], None] | None = None
 
 

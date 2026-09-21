@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from PySide6.QtCore import QPoint, Signal
 from PySide6.QtWidgets import QWidget
@@ -66,6 +66,8 @@ class ModelPickerWallView(MediaWallView):
         thumbnail_preloader: MediaWallThumbnailPreloader | None = None,
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        metadata_target_updated: Callable[[], None] | None = None,
+        thumbnail_library_opening: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the model media wall with the shared picker profile."""
 
@@ -82,6 +84,8 @@ class ModelPickerWallView(MediaWallView):
             parent=self,
             open_url=self._open_url,
             action_handler=metadata_action_handler,
+            target_updated=metadata_target_updated,
+            thumbnail_library_opening=thumbnail_library_opening,
         )
         self.itemActivated.connect(self._activate_model)
         self.itemContextMenuRequested.connect(self._show_model_context_menu)

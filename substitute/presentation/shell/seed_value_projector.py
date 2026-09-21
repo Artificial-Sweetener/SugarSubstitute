@@ -19,11 +19,24 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Protocol
 
 from PySide6.QtCore import QSignalBlocker
 
-from substitute.application.generation import SeedRandomizationResult
+from substitute.application.generation.seed_randomization_service import SeedValueChange
 from substitute.presentation.widgets import SeedBox
+
+
+class SeedValueChanges(Protocol):
+    """Describe seed mutations projectable into mounted controls."""
+
+    @property
+    def changed(self) -> bool:
+        """Return whether the mutation result contains changes."""
+
+    @property
+    def changes(self) -> tuple[SeedValueChange, ...]:
+        """Return authoritative seed changes in projection order."""
 
 
 class SeedValueProjector:
@@ -34,7 +47,7 @@ class SeedValueProjector:
 
         self._shell = shell
 
-    def project(self, workflow: object, result: SeedRandomizationResult) -> None:
+    def project(self, workflow: object, result: SeedValueChanges) -> None:
         """Project changes only when their workflow owns the active surface."""
 
         if not result.changed or not self._is_active_workflow(workflow):

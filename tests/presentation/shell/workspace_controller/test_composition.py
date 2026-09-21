@@ -78,6 +78,16 @@ class _FakeAction:
 class _FakeSeedRandomizationService:
     """Stand in for the application seed-randomization service."""
 
+    calls: list[dict[str, object]] = []
+
+    def randomize_workflow_seeds(self, **kwargs: object) -> SeedRandomizationResult:
+        """Record live-authority randomization and return one projected change."""
+
+        self.calls.append(kwargs)
+        return SeedRandomizationResult(
+            (SeedValueChange(value=42, previous_value=7, override_key="seed"),)
+        )
+
 
 class _FakeSeedValueProjector:
     """Record authoritative seed projections composed for generation."""
@@ -97,18 +107,6 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Composition should wire controller collaborators without controller fields."""
-
-    seed_calls: list[dict[str, object]] = []
-
-    def randomize_generation_request_seeds(
-        **kwargs: object,
-    ) -> SeedRandomizationResult:
-        """Record seed-randomization adapter inputs."""
-
-        seed_calls.append(kwargs)
-        return SeedRandomizationResult(
-            (SeedValueChange(value=42, previous_value=7, override_key="seed"),)
-        )
 
     monkeypatch.setattr(
         mod,
@@ -131,13 +129,9 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
     monkeypatch.setattr(mod, "WorkspaceSceneGenerationActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceLoadedCubeSurfaceActions", _FakeAction)
     monkeypatch.setattr(mod, "SeedRandomizationService", _FakeSeedRandomizationService)
+    _FakeSeedRandomizationService.calls.clear()
     _FakeSeedValueProjector.calls.clear()
     monkeypatch.setattr(mod, "SeedValueProjector", _FakeSeedValueProjector)
-    monkeypatch.setattr(
-        mod,
-        "randomize_generation_request_seeds",
-        randomize_generation_request_seeds,
-    )
 
     host = SimpleNamespace(
         _error_presenter="errors",
@@ -148,12 +142,23 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
         ),
     )
     autosave_calls: list[str] = []
+    authoritative_workflow = object()
+    behavior_snapshot = SimpleNamespace(name="snapshot")
     views = mod.WorkspaceControllerViews(
         generation=cast(
             Any,
             SimpleNamespace(
                 name="generation",
                 request_session_autosave=lambda: autosave_calls.append("autosave"),
+                get_active_workflow=lambda: authoritative_workflow,
+                workflow_session_service=SimpleNamespace(
+                    active_workflow_id="workflow-a"
+                ),
+                editor_panels={
+                    "workflow-a": SimpleNamespace(
+                        current_behavior_snapshot=lambda: behavior_snapshot
+                    )
+                },
             ),
         ),
         workflow_workspace=cast(Any, SimpleNamespace(name="workflow-workspace")),
@@ -240,23 +245,16 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
         workflow_workspace
     )
 
-    workflow = object()
-    request = SimpleNamespace(name="request", workflow=workflow)
-    behavior_snapshot = SimpleNamespace(name="snapshot")
-    assert bundle.generation_seed_randomizer(
-        request=request,
-        behavior_snapshot=behavior_snapshot,
-    )
-    assert len(seed_calls) == 1
-    assert seed_calls[0]["request"] is request
-    assert seed_calls[0]["behavior_snapshot"] is behavior_snapshot
-    assert isinstance(
-        seed_calls[0]["seed_randomization_service"],
-        _FakeSeedRandomizationService,
-    )
+    assert bundle.generation_seed_randomizer()
+    assert _FakeSeedRandomizationService.calls == [
+        {
+            "workflow": authoritative_workflow,
+            "behavior_snapshot": behavior_snapshot,
+        }
+    ]
     assert _FakeSeedValueProjector.calls == [
         (
-            workflow,
+            authoritative_workflow,
             SeedRandomizationResult(
                 (SeedValueChange(value=42, previous_value=7, override_key="seed"),)
             ),
