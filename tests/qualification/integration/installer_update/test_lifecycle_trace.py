@@ -23,6 +23,12 @@ from pathlib import Path
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.crash_reporting.run_context import (
+    CrashRunRuntimeContext,
+    CrashRunRuntimeContextStore,
+    STARTUP_OUTPUT_FILENAME,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_evidence_verification import (
     assert_no_launch_splash_replacement,
@@ -117,23 +123,71 @@ def test_lifecycle_rejects_replacement_of_launcher_owned_splash(
 ) -> None:
     """An app fallback splash must fail update qualification despite later readiness."""
 
-    app_startup_log_path = tmp_path / "app-startup.log"
+    install_root = tmp_path / "install"
+    app_startup_log_path = _startup_output_for_process(install_root, process_id=42)
     app_startup_log_path.write_text(
         "Failed to adopt launcher splash session; starting app splash\n",
         encoding="utf-8",
     )
 
     with pytest.raises(InstallerLifecycleError, match="replaced"):
-        assert_no_launch_splash_replacement(app_startup_log_path)
+        assert_no_launch_splash_replacement(
+            install_root=install_root,
+            process_id=42,
+        )
 
 
 def test_lifecycle_accepts_one_adopted_launcher_splash(tmp_path: Path) -> None:
     """A normal startup log should preserve the single-splash qualification."""
 
-    app_startup_log_path = tmp_path / "app-startup.log"
+    install_root = tmp_path / "install"
+    app_startup_log_path = _startup_output_for_process(install_root, process_id=42)
     app_startup_log_path.write_text(
         "Adopted launcher splash session.\n",
         encoding="utf-8",
     )
 
-    assert_no_launch_splash_replacement(app_startup_log_path)
+    assert_no_launch_splash_replacement(
+        install_root=install_root,
+        process_id=42,
+    )
+
+
+def test_lifecycle_ignores_stale_canonical_startup_log(tmp_path: Path) -> None:
+    """Only the ready process's run output may decide splash qualification."""
+
+    install_root = tmp_path / "install"
+    layout = InstallLayout.from_root(install_root)
+    layout.logs_dir.mkdir(parents=True)
+    (layout.logs_dir / "app-startup.log").write_text(
+        "Failed to adopt launcher splash session; starting app splash\n",
+        encoding="utf-8",
+    )
+    _startup_output_for_process(install_root, process_id=42).write_text(
+        "Adopted launcher splash session.\n",
+        encoding="utf-8",
+    )
+
+    assert_no_launch_splash_replacement(
+        install_root=install_root,
+        process_id=42,
+    )
+
+
+def _startup_output_for_process(install_root: Path, *, process_id: int) -> Path:
+    """Create one temporary run bound to the supplied process identity."""
+
+    layout = InstallLayout.from_root(install_root)
+    store = CrashRunRuntimeContextStore(layout.appdata_dir / "diagnostics" / "runs")
+    store.save(
+        "current-run",
+        CrashRunRuntimeContext(
+            process_id=process_id,
+            application_version="0.24.1",
+            platform="Windows-11",
+            python_version="3.12",
+            launch_arguments=(),
+            install_root=str(install_root),
+        ),
+    )
+    return store.path("current-run").parent / STARTUP_OUTPUT_FILENAME

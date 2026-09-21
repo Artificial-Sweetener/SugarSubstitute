@@ -59,6 +59,11 @@ def test_supervisor_accepts_only_authenticated_clean_completion(tmp_path: Path) 
 
     layout = InstallLayout.from_root(tmp_path / "install")
     reports: list[str] = []
+    layout.logs_dir.mkdir(parents=True)
+    (layout.logs_dir / "app-startup.log").write_text(
+        "stale startup evidence\n",
+        encoding="utf-8",
+    )
     script = (
         "import os; "
         "from sugarsubstitute_shared.crash_reporting.protocol import "
@@ -82,6 +87,11 @@ def test_supervisor_accepts_only_authenticated_clean_completion(tmp_path: Path) 
 
     assert return_code == 0
     assert reports == []
+    canonical_log = layout.logs_dir / "app-startup.log"
+    assert canonical_log.is_file()
+    assert "Starting SugarSubstitute app" in canonical_log.read_text(encoding="utf-8")
+    assert "stale startup evidence" not in canonical_log.read_text(encoding="utf-8")
+    assert tuple((layout.appdata_dir / "diagnostics" / "runs").glob("*")) == ()
     assert (
         CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes").pending()
         == ()
@@ -163,6 +173,7 @@ def test_supervisor_reports_hard_exit_even_when_exit_code_is_zero(
     assert reports == [incidents[0].incident_id]
     assert incidents[0].kind is CrashKind.ABNORMAL_EXIT
     assert incidents[0].attribution is CrashAttribution.UNCLEAN_TERMINATION
+    assert tuple((layout.appdata_dir / "diagnostics" / "runs").glob("*")) == ()
 
 
 def test_supervisor_preserves_known_readiness_failure_instead_of_calling_it_crash(
@@ -184,7 +195,7 @@ def test_supervisor_preserves_known_readiness_failure_instead_of_calling_it_cras
         command=("python", "main.py", "--access-token=argument-secret"),
     )
     startup_output = (
-        prepared.context.incident_root / prepared.context.run_id / "startup-output.log"
+        prepared.context.run_root / prepared.context.run_id / "startup-output.log"
     )
     startup_output.parent.mkdir(parents=True)
     startup_output.write_text(
@@ -236,7 +247,7 @@ def test_supervisor_identifies_real_abort_from_fatal_evidence(tmp_path: Path) ->
         "import faulthandler, os; "
         "from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext; "
         "c=CrashRunContext.from_environment(); assert c is not None; "
-        "p=c.incident_root/c.run_id/'python-fault.log'; "
+        "p=c.run_root/c.run_id/'python-fault.log'; "
         "p.parent.mkdir(parents=True, exist_ok=True); "
         "f=p.open('w', encoding='utf-8'); faulthandler.enable(file=f, all_threads=True); "
         "os.abort()"

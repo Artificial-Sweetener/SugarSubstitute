@@ -21,6 +21,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.crash_reporting.run_context import (
+    CrashRunRuntimeContextStore,
+    STARTUP_OUTPUT_FILENAME,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
 _SHELL_FRAME_PAINT_EVENT = "main_shell.first_paint"
@@ -106,14 +111,28 @@ def assert_startup_trace_sequence(trace_path: Path) -> None:
         )
 
 
-def assert_no_launch_splash_replacement(app_startup_log_path: Path) -> None:
-    """Reject an update that replaced rather than adopted its launcher splash."""
+def assert_no_launch_splash_replacement(
+    *,
+    install_root: Path,
+    process_id: int,
+) -> None:
+    """Reject splash replacement using output bound to the ready process."""
+
+    layout = InstallLayout.from_root(install_root)
+    store = CrashRunRuntimeContextStore(layout.appdata_dir / "diagnostics" / "runs")
+    run_ids = store.run_ids_for_process(process_id)
+    if len(run_ids) != 1:
+        raise InstallerLifecycleError(
+            "Installer could not bind startup diagnostics to the ready process "
+            f"{process_id}; matching run IDs: {list(run_ids)}."
+        )
+    app_startup_log_path = store.path(run_ids[0]).parent / STARTUP_OUTPUT_FILENAME
 
     try:
         log_text = app_startup_log_path.read_text(encoding="utf-8", errors="replace")
     except OSError as error:
         raise InstallerLifecycleError(
-            "Button-launched child did not write its app-startup log: "
+            "Button-launched child did not write its process-bound startup log: "
             f"{app_startup_log_path}."
         ) from error
     if _SPLASH_ADOPTION_FAILURE in log_text:

@@ -37,7 +37,10 @@ from launcher.sugarsubstitute_launcher.crash_incident_resolution import (
     resolve_process_incident,
 )
 from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
-from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
+from launcher.sugarsubstitute_launcher.process_execution import (
+    APP_STARTUP_LOG_NAME,
+    spawn_supervised_process,
+)
 from launcher.sugarsubstitute_launcher.supervised_termination import (
     SupervisedTermination,
 )
@@ -196,7 +199,10 @@ class ApplicationCrashSupervisor:
         if termination.is_user_cancellation or (
             exit_evidence.validates_clean_exit and return_code == 0
         ):
-            CompletedRunArtifacts(context).discard(minidump=minidump)
+            CompletedRunArtifacts(context).discard(
+                minidump=minidump,
+                startup_log_path=layout.logs_dir / APP_STARTUP_LOG_NAME,
+            )
             if termination.is_user_cancellation:
                 _LOGGER.info(
                     "Application startup cancelled by the user",

@@ -36,6 +36,7 @@ CRASH_PROTOCOL_SCHEMA_VERSION = 1
 CRASH_RUN_ID_ENV = "SUGAR_SUBSTITUTE_CRASH_RUN_ID"
 CRASH_RUN_TOKEN_ENV = "SUGAR_SUBSTITUTE_CRASH_RUN_TOKEN"
 CRASH_INCIDENT_ROOT_ENV = "SUGAR_SUBSTITUTE_CRASH_INCIDENT_ROOT"
+CRASH_RUN_ROOT_ENV = "SUGAR_SUBSTITUTE_CRASH_RUN_ROOT"
 CRASH_EXIT_INTENT_PATH_ENV = "SUGAR_SUBSTITUTE_CRASH_EXIT_INTENT_PATH"
 CRASH_EXIT_RECEIPT_PATH_ENV = "SUGAR_SUBSTITUTE_CRASH_EXIT_RECEIPT_PATH"
 CRASHPAD_DATABASE_ENV = "SUGAR_SUBSTITUTE_CRASHPAD_DATABASE"
@@ -45,6 +46,7 @@ _CRASH_SUPERVISION_ENVIRONMENT_NAMES = (
     CRASH_RUN_ID_ENV,
     CRASH_RUN_TOKEN_ENV,
     CRASH_INCIDENT_ROOT_ENV,
+    CRASH_RUN_ROOT_ENV,
     CRASH_EXIT_INTENT_PATH_ENV,
     CRASH_EXIT_RECEIPT_PATH_ENV,
     CRASHPAD_DATABASE_ENV,
@@ -92,6 +94,7 @@ class CrashRunContext:
     run_id: str
     token: str
     incident_root: Path
+    run_root: Path
     exit_intent_path: Path
     exit_receipt_path: Path
     crashpad_database: Path
@@ -112,13 +115,15 @@ class CrashRunContext:
             raise ValueError("Crashpad handler and client library must be paired.")
 
         run_id = secrets.token_urlsafe(24)
-        lifecycle_root = diagnostics_root / "lifecycle" / run_id
         return cls(
             run_id=run_id,
             token=secrets.token_urlsafe(32),
             incident_root=diagnostics_root / "crashes",
-            exit_intent_path=lifecycle_root / "exit-intent.json",
-            exit_receipt_path=lifecycle_root / "exit-receipt.json",
+            run_root=diagnostics_root / "runs",
+            exit_intent_path=(diagnostics_root / "runs" / run_id / "exit-intent.json"),
+            exit_receipt_path=(
+                diagnostics_root / "runs" / run_id / "exit-receipt.json"
+            ),
             crashpad_database=diagnostics_root / "crashpad",
             crashpad_handler=crashpad_handler,
             crashpad_client_library=crashpad_client_library,
@@ -133,6 +138,7 @@ class CrashRunContext:
                 CRASH_RUN_ID_ENV: self.run_id,
                 CRASH_RUN_TOKEN_ENV: self.token,
                 CRASH_INCIDENT_ROOT_ENV: str(self.incident_root),
+                CRASH_RUN_ROOT_ENV: str(self.run_root),
                 CRASH_EXIT_INTENT_PATH_ENV: str(self.exit_intent_path),
                 CRASH_EXIT_RECEIPT_PATH_ENV: str(self.exit_receipt_path),
                 CRASHPAD_DATABASE_ENV: str(self.crashpad_database),
@@ -160,6 +166,7 @@ class CrashRunContext:
             CRASH_RUN_ID_ENV,
             CRASH_RUN_TOKEN_ENV,
             CRASH_INCIDENT_ROOT_ENV,
+            CRASH_RUN_ROOT_ENV,
             CRASH_EXIT_INTENT_PATH_ENV,
             CRASH_EXIT_RECEIPT_PATH_ENV,
             CRASHPAD_DATABASE_ENV,
@@ -181,6 +188,7 @@ class CrashRunContext:
             run_id=run_id,
             token=token,
             incident_root=Path(_present(values, CRASH_INCIDENT_ROOT_ENV)),
+            run_root=Path(_present(values, CRASH_RUN_ROOT_ENV)),
             exit_intent_path=Path(_present(values, CRASH_EXIT_INTENT_PATH_ENV)),
             exit_receipt_path=Path(_present(values, CRASH_EXIT_RECEIPT_PATH_ENV)),
             crashpad_database=Path(_present(values, CRASHPAD_DATABASE_ENV)),
@@ -388,6 +396,7 @@ __all__ = [
     "CRASH_EXIT_INTENT_PATH_ENV",
     "CRASH_EXIT_RECEIPT_PATH_ENV",
     "CRASH_INCIDENT_ROOT_ENV",
+    "CRASH_RUN_ROOT_ENV",
     "CRASH_RUN_ID_ENV",
     "CRASH_RUN_TOKEN_ENV",
     "CleanExitEvidence",

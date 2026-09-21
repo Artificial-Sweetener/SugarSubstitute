@@ -31,7 +31,7 @@ def test_runtime_context_round_trips_without_secret_supervision_state(
 ) -> None:
     """Supervisor fallback should recover complete non-secret runtime facts."""
 
-    store = CrashRunRuntimeContextStore(tmp_path / "crashes")
+    store = CrashRunRuntimeContextStore(tmp_path / "runs")
     expected = CrashRunRuntimeContext(
         process_id=42,
         application_version="0.23.5",
@@ -53,10 +53,36 @@ def test_corrupt_runtime_context_is_an_observable_miss(
 ) -> None:
     """Corrupt supplemental facts must not obstruct incident recovery."""
 
-    store = CrashRunRuntimeContextStore(tmp_path / "crashes")
+    store = CrashRunRuntimeContextStore(tmp_path / "runs")
     path = store.path("run-2")
     path.parent.mkdir(parents=True)
     path.write_text("not json", encoding="utf-8")
 
     assert store.load("run-2") is None
     assert path.read_text(encoding="utf-8") == "not json"
+
+
+def test_runtime_context_resolves_exact_process_run(tmp_path: Path) -> None:
+    """Qualification should bind startup evidence to its ready process identity."""
+
+    store = CrashRunRuntimeContextStore(tmp_path / "runs")
+    first = CrashRunRuntimeContext(
+        process_id=41,
+        application_version="0.24.0",
+        platform="Windows-11",
+        python_version="3.12",
+        launch_arguments=(),
+        install_root=str(tmp_path / "install"),
+    )
+    second = CrashRunRuntimeContext(
+        process_id=42,
+        application_version="0.24.1",
+        platform="Windows-11",
+        python_version="3.12",
+        launch_arguments=(),
+        install_root=str(tmp_path / "install"),
+    )
+    store.save("older-run", first)
+    store.save("current-run", second)
+
+    assert store.run_ids_for_process(42) == ("current-run",)

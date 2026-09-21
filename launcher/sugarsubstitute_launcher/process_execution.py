@@ -28,8 +28,8 @@ from sugarsubstitute_shared.application_launch_context import (
 )
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.crash_reporting.protocol import (
-    CRASH_INCIDENT_ROOT_ENV,
     CRASH_RUN_ID_ENV,
+    CRASH_RUN_ROOT_ENV,
     without_crash_supervision_environment,
 )
 from sugarsubstitute_shared.crash_reporting.run_context import STARTUP_OUTPUT_FILENAME
@@ -239,11 +239,11 @@ def _app_startup_log_path(
     """Resolve the startup log path from an installed app launch command."""
 
     if environment is not None:
-        incident_root = environment.get(CRASH_INCIDENT_ROOT_ENV)
+        run_root = environment.get(CRASH_RUN_ROOT_ENV)
         run_id = environment.get(CRASH_RUN_ID_ENV)
-        if incident_root and run_id and run_id not in {".", ".."}:
+        if run_root and run_id and run_id not in {".", ".."}:
             if "/" not in run_id and "\\" not in run_id:
-                return Path(incident_root) / run_id / STARTUP_OUTPUT_FILENAME
+                return Path(run_root) / run_id / STARTUP_OUTPUT_FILENAME
 
     explicit_install_root = explicit_application_launch_install_root(command)
     if explicit_install_root is not None:

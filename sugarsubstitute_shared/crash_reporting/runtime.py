@@ -329,9 +329,8 @@ class ProcessCrashRuntime:
     def _enable_fault_handler(self) -> None:
         """Keep a pre-opened all-thread fault target available to signal handlers."""
 
-        fault_path = self._store.attachment_path(
-            self._context.run_id,
-            _PYTHON_FAULT_LOG_NAME,
+        fault_path = (
+            self._context.run_root / self._context.run_id / _PYTHON_FAULT_LOG_NAME
         )
         fault_path.parent.mkdir(parents=True, exist_ok=True)
         fault_file = fault_path.open("a", encoding="utf-8", buffering=1)
@@ -341,7 +340,7 @@ class ProcessCrashRuntime:
     def _persist_runtime_context(self) -> None:
         """Persist actionable runtime facts before application bootstrap continues."""
 
-        CrashRunRuntimeContextStore(self._context.incident_root).save(
+        CrashRunRuntimeContextStore(self._context.run_root).save(
             self._context.run_id,
             CrashRunRuntimeContext(
                 process_id=os.getpid(),
@@ -358,9 +357,8 @@ class ProcessCrashRuntime:
 
         if self._context.crashpad_handler is None:
             return
-        fault_path = self._store.attachment_path(
-            self._context.run_id,
-            _PYTHON_FAULT_LOG_NAME,
+        fault_path = (
+            self._context.run_root / self._context.run_id / _PYTHON_FAULT_LOG_NAME
         )
         self._native_client.start(
             context=self._context,

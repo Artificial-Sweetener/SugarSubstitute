@@ -59,7 +59,9 @@ class ApplicationInstanceBindings:
         self._reserve_selected = reserve_selected
         self._lock = threading.Lock()
         self._reservations = {reservation.endpoint: reservation}
-        self._threads: list[threading.Thread] = []
+        self._accept_threads: list[threading.Thread] = []
+        self._request_threads: set[threading.Thread] = set()
+        self._active_connections: dict[int, ApplicationInstanceConnection] = {}
         try:
             self._start(reservation)
         except BaseException:
@@ -115,21 +117,40 @@ class ApplicationInstanceBindings:
             return True
 
     def close(self) -> bool:
-        """Release every claimed address and bound the accept-thread shutdown."""
+        """Release every address and drain all accepted connection handlers."""
+
+        self.stop_accepting()
+        return self.wait_closed()
+
+    def stop_accepting(self) -> None:
+        """Release reservations and close connections currently owned by handlers."""
+
         self._closing.set()
         with self._lock:
             reservations = tuple(self._reservations.values())
             self._reservations.clear()
-            threads = tuple(self._threads)
         for reservation in reservations:
             reservation.close()
+        with self._lock:
+            connections = tuple(self._active_connections.values())
+        for connection in connections:
+            try:
+                connection.close()
+            except OSError:
+                pass
+
+    def wait_closed(self) -> bool:
+        """Wait for accept and request threads after their resources are closed."""
+
+        with self._lock:
+            threads = (*self._accept_threads, *self._request_threads)
         deadline = time.monotonic() + 2.0
         for thread in threads:
             if thread.ident is not None and threading.current_thread() is not thread:
                 thread.join(timeout=max(0.0, deadline - time.monotonic()))
         stopped = all(not thread.is_alive() for thread in threads)
         if not stopped:
-            _LOGGER.warning("Application instance accept thread did not stop")
+            _LOGGER.warning("Application instance request ownership did not stop")
         return stopped
 
     def _start(self, reservation: ApplicationInstanceReservation) -> None:
@@ -144,7 +165,7 @@ class ApplicationInstanceBindings:
                     name="application-instance-broker",
                     daemon=True,
                 )
-                self._threads.append(thread)
+                self._accept_threads.append(thread)
                 thread.start()
                 started.append(thread)
         except BaseException:
@@ -166,9 +187,49 @@ class ApplicationInstanceBindings:
                 if not self._closing.is_set() and not abandoned.is_set():
                     time.sleep(0.01)
                 continue
-            threading.Thread(
-                target=self._handle_connection,
+            self._dispatch(connection)
+
+    def _dispatch(self, connection: ApplicationInstanceConnection) -> None:
+        """Register one accepted connection before its handler can outlive close."""
+
+        with self._lock:
+            if self._closing.is_set():
+                try:
+                    connection.close()
+                except OSError:
+                    pass
+                return
+            thread = threading.Thread(
+                target=self._serve,
                 args=(connection,),
                 name="application-instance-request",
                 daemon=True,
-            ).start()
+            )
+            self._request_threads.add(thread)
+            self._active_connections[id(connection)] = connection
+            try:
+                thread.start()
+            except BaseException:
+                self._request_threads.discard(thread)
+                self._active_connections.pop(id(connection), None)
+                try:
+                    connection.close()
+                except OSError:
+                    pass
+                raise
+
+    def _serve(self, connection: ApplicationInstanceConnection) -> None:
+        """Run one request and relinquish binding ownership on every outcome."""
+
+        try:
+            self._handle_connection(connection)
+        except Exception:
+            _LOGGER.exception("Application instance request handler failed")
+            try:
+                connection.close()
+            except OSError:
+                pass
+        finally:
+            with self._lock:
+                self._active_connections.pop(id(connection), None)
+                self._request_threads.discard(threading.current_thread())
