@@ -64,6 +64,7 @@ def test_readiness_receipt_is_queued_after_shell_reveal(
     callbacks[0]()
     payload = json.loads(readiness_path.read_text(encoding="utf-8"))
     assert payload == {
+        "attester_pids": [],
         "parent_pid": os.getppid(),
         "pid": os.getpid(),
         "schema_version": READINESS_SCHEMA_VERSION,
