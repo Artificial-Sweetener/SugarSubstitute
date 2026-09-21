@@ -50,6 +50,7 @@ from sugarsubstitute_shared.application_readiness import (
     WRITABLE_READINESS_SCHEMA_VERSIONS,
     publish_application_readiness_receipt,
 )
+from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 
 
 DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
@@ -191,6 +192,10 @@ class ApplicationReadinessSupervisor:
                     )
                     self._require_accepted_surface(receipt)
                     self._publish_outer_receipt(contract=contract, receipt=receipt)
+                    self._publish_qualification_receipt(
+                        environment=environment,
+                        receipt=receipt,
+                    )
                     _LOGGER.info(
                         "Accepted painted application surface | candidate_pid=%s | "
                         "surface_pid=%s | surface=%s | outer_contract=%s",
@@ -344,6 +349,37 @@ class ApplicationReadinessSupervisor:
             ),
             schema_version=contract.outer_schema_version,
         )
+
+    @staticmethod
+    def _publish_qualification_receipt(
+        *,
+        environment: Mapping[str, str],
+        receipt: ApplicationReadinessReceipt,
+    ) -> None:
+        """Mirror validated readiness across legacy detached update handoffs."""
+
+        try:
+            plan = InstallerQualificationPlan.from_environment(environment)
+            if plan is None:
+                return
+            publish_application_readiness_receipt(
+                receipt_path=plan.readiness_receipt_path,
+                receipt=ApplicationReadinessReceipt(
+                    pid=receipt.pid,
+                    token=plan.token,
+                    surface=receipt.surface,
+                    parent_pid=receipt.parent_pid,
+                    milestones=receipt.milestones,
+                    attester_pids=_extended_attestation_chain(receipt),
+                ),
+            )
+        except (OSError, ValueError) as error:
+            _LOGGER.warning(
+                "Could not publish installer qualification readiness | "
+                "error_type=%s | error=%s",
+                type(error).__name__,
+                error,
+            )
 
     @staticmethod
     def _validate_receipt(
