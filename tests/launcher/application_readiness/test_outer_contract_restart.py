@@ -37,8 +37,11 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessSurface,
     READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
     READINESS_DELEGATION_PATH_ENV,
+    READINESS_DELEGATION_SCHEMA_ENV,
     READINESS_DELEGATION_TOKEN_ENV,
     READINESS_PATH_ENV,
+    READINESS_SCHEMA_ENV,
+    READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
 )
 
@@ -154,6 +157,7 @@ def test_supervisor_replaces_outer_receipt_across_authorized_restart(
         READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
         READINESS_PATH_ENV: str(receipt_path),
         READINESS_TOKEN_ENV: "outer-token",
+        READINESS_SCHEMA_ENV: str(READINESS_SCHEMA_VERSION),
     }
 
     supervisor.launch_until_ready(
@@ -237,6 +241,7 @@ def test_nested_supervisor_projects_final_surface_to_original_outer_contract(
         outer_receipt_path.resolve()
     )
     assert setup_child_environment[READINESS_DELEGATION_TOKEN_ENV] == "outer-token"
+    assert setup_child_environment[READINESS_DELEGATION_SCHEMA_ENV] == "5"
 
     def start_app(
         _command: Sequence[str],
@@ -372,6 +377,7 @@ def test_supervisor_replaces_outer_receipt_across_real_processes(
         READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
         READINESS_PATH_ENV: str(receipt_path),
         READINESS_TOKEN_ENV: "outer-token",
+        READINESS_SCHEMA_ENV: str(READINESS_SCHEMA_VERSION),
     }
     onboarding_pid_path = tmp_path / "onboarding.pid"
     main_shell_pid_path = tmp_path / "main-shell.pid"
@@ -421,6 +427,71 @@ def test_supervisor_replaces_outer_receipt_across_real_processes(
         assert final_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
     finally:
         assert main_shell_process.wait(timeout=5) == 0
+
+
+def test_real_nested_launcher_relay_is_accepted_by_schema_three_outer(
+    tmp_path: Path,
+) -> None:
+    """A 0.22-era outer must accept readiness relayed by the current launcher."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    receipt_path = tmp_path / "qualification" / "candidate.json"
+    app_script = (
+        "import os, threading; "
+        "from pathlib import Path; "
+        "from sugarsubstitute_shared.application_readiness import "
+        "ApplicationReadinessReceipt, ApplicationReadinessSurface, "
+        "READINESS_PATH_ENV, READINESS_TOKEN_ENV, "
+        "publish_application_readiness_receipt; "
+        "publish_application_readiness_receipt("
+        "receipt_path=Path(os.environ[READINESS_PATH_ENV]), "
+        "receipt=ApplicationReadinessReceipt("
+        "pid=os.getpid(), parent_pid=os.getppid(), "
+        "token=os.environ[READINESS_TOKEN_ENV], "
+        "surface=ApplicationReadinessSurface.MAIN_SHELL)); "
+        "threading.Event().wait()"
+    )
+    nested_launcher_script = (
+        "import os, sys; "
+        "from pathlib import Path; "
+        "from launcher.sugarsubstitute_launcher.application_readiness_supervisor "
+        "import ApplicationReadinessSupervisor; "
+        "from launcher.sugarsubstitute_launcher.install_layout import InstallLayout; "
+        "process=ApplicationReadinessSupervisor(timeout_seconds=10).launch_until_ready("
+        "layout=InstallLayout.from_root(Path(os.environ['TEST_INSTALL_ROOT'])), "
+        f"command=[sys.executable, '-c', {app_script!r}], environment=os.environ); "
+        "process.terminate(); process.wait(timeout=5)"
+    )
+    environment = {
+        **os.environ,
+        READINESS_PATH_ENV: str(receipt_path),
+        READINESS_TOKEN_ENV: "legacy-outer-token",
+        "TEST_INSTALL_ROOT": str(layout.root),
+    }
+
+    base_python = Path(sys.base_prefix) / "python.exe"
+    with subprocess.Popen(
+        [str(base_python), "-c", nested_launcher_script],
+        env=environment,
+    ) as process:
+        try:
+            assert process.wait(timeout=15) == 0
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert payload == {
+        "parent_pid": process.pid,
+        "pid": payload["pid"],
+        "schema_version": 3,
+        "surface": "main_shell",
+        "token": "legacy-outer-token",
+    }
+    assert isinstance(payload["pid"], int)
+    assert payload["pid"] > 0
+    assert process.pid in {payload["pid"], payload["parent_pid"]}
 
 
 def _increasing_clock(*, step: float = 0.1) -> Callable[[], float]:

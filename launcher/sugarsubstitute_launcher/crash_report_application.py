@@ -21,12 +21,16 @@ from __future__ import annotations
 from launcher.sugarsubstitute_launcher.process_execution import start_detached_handoff
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 import sys
 
 from PySide6.QtWidgets import QApplication
 
 from launcher.sugarsubstitute_launcher.crash_reporter import show_crash_report
+from launcher.sugarsubstitute_launcher.crash_diagnostic_context import (
+    collect_crash_diagnostic_context,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.resources import launcher_icon
 from launcher.sugarsubstitute_launcher.localization import (
@@ -118,6 +122,12 @@ def _build_complete_crash_report(
     """Build one copyable report containing every readable attached crash log."""
 
     store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    if incident.diagnostic_context is None:
+        incident = replace(
+            incident,
+            diagnostic_context=collect_crash_diagnostic_context(layout),
+        )
+        store.record(incident)
     runtime_context = CrashRunRuntimeContextStore(store.root).load(incident.run_id)
     additional_roots = (
         (Path(runtime_context.install_root),)

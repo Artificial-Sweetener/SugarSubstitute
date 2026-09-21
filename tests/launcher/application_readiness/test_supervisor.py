@@ -36,8 +36,9 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
     READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
-    READINESS_COMPATIBILITY_SCHEMA_VERSION,
     READINESS_PATH_ENV,
+    READINESS_SCHEMA_ENV,
+    READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
 )
 
@@ -188,6 +189,7 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
         environment={
             READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
             READINESS_PATH_ENV: str(receipt_path),
+            READINESS_SCHEMA_ENV: str(READINESS_SCHEMA_VERSION),
             READINESS_TOKEN_ENV: "outer-token",
         },
     )
@@ -203,10 +205,10 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
     assert os.getppid() in forwarded.attester_pids
 
 
-def test_supervisor_projects_schema_four_identity_for_legacy_parent(
+def test_supervisor_projects_schema_three_identity_for_legacy_parent(
     tmp_path: Path,
 ) -> None:
-    """An unadvertised outer contract must remain valid for the v0.23 launcher."""
+    """An unadvertised outer contract must work across historical launchers."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
     process = _CandidateProcess()
@@ -218,7 +220,7 @@ def test_supervisor_projects_schema_four_identity_for_legacy_parent(
     ) -> tuple[_CandidateProcess, Path]:
         """Publish a schema-five child proof behind the legacy outer contract."""
 
-        assert environment[READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV] == "4,5"
+        assert environment[READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV] == "1,2,3,4,5"
         _publish_test_receipt(
             receipt_path=Path(environment[READINESS_PATH_ENV]),
             pid=process.pid,
@@ -244,14 +246,9 @@ def test_supervisor_projects_schema_four_identity_for_legacy_parent(
     payload = json.loads(receipt_path.read_text(encoding="utf-8"))
     assert result is process
     assert payload == {
-        "milestones": [
-            "process_started",
-            "surface_painted",
-            "event_loop_turn_completed",
-        ],
-        "parent_pid": os.getppid(),
-        "pid": os.getpid(),
-        "schema_version": READINESS_COMPATIBILITY_SCHEMA_VERSION,
+        "parent_pid": os.getpid(),
+        "pid": process.pid,
+        "schema_version": 3,
         "surface": "main_shell",
         "token": "v0.23-token",
     }
@@ -525,7 +522,7 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
         wait=lambda _seconds: None,
     )
 
-    with pytest.raises(ApplicationReadinessError, match="did not reveal"):
+    with pytest.raises(ApplicationReadinessError, match="did not reveal") as captured:
         supervisor.launch_until_ready(
             layout=layout,
             command=["python", "main.py"],
@@ -534,6 +531,18 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
 
     assert process.terminated is True
     assert process.killed is False
+    assert captured.value.diagnostics == {
+        "readiness_failure_kind": "timeout",
+        "readiness_candidate_pid": str(process.pid),
+        "readiness_elapsed_seconds": "0.900",
+        "readiness_timeout_seconds": "0.500",
+        "readiness_poll_interval_seconds": "0.050",
+        "readiness_receipt_state": "missing",
+        "readiness_outer_contract": "False",
+        "readiness_child_schema": "5",
+        "readiness_outer_schema": "none",
+        "readiness_termination_action": "terminated",
+    }
 
 
 def test_default_supervisor_allows_long_candidate_repair(tmp_path: Path) -> None:

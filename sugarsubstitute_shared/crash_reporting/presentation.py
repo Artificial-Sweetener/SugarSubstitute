@@ -33,6 +33,10 @@ from sugarsubstitute_shared.crash_reporting.model import (
     CrashIncident,
     CrashKind,
 )
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+    DiagnosticValue,
+)
 from sugarsubstitute_shared.issue_tracker import SUGARSUBSTITUTE_ISSUES_URL
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.error_report_glyph import ReportSeverity
@@ -119,12 +123,9 @@ def render_crash_report(
             )
         )
     runtime_rows = tuple(
-        app_text("%1: %2", key, value)
-        for key, value in _runtime_rows(incident)
-        if value
+        app_text("%1: %2", key, value) for key, value in _runtime_rows(incident)
     )
-    if runtime_rows:
-        sections.append(_section(app_text("Runtime context"), runtime_rows))
+    sections.append(_section(app_text("Runtime and system information"), runtime_rows))
     return "\n\n".join(section for section in sections if section.strip())
 
 
@@ -137,7 +138,7 @@ def _incident_context_rows(
         (
             "Operation",
             "application_startup"
-            if incident.kind is CrashKind.STARTUP
+            if incident.kind in {CrashKind.STARTUP, CrashKind.STARTUP_READINESS_TIMEOUT}
             else "application_crash",
         ),
         ("Trace ID", incident.incident_id),
@@ -161,7 +162,7 @@ def _incident_message(
 ) -> tuple[ApplicationText, ApplicationText]:
     """Return truthful user-facing copy for one incident classification."""
 
-    if incident.kind is CrashKind.STARTUP:
+    if incident.kind in {CrashKind.STARTUP, CrashKind.STARTUP_READINESS_TIMEOUT}:
         return (
             app_text("SugarSubstitute could not finish starting"),
             app_text(
@@ -186,14 +187,86 @@ def _incident_message(
     )
 
 
-def _runtime_rows(incident: CrashIncident) -> tuple[tuple[str, str | None], ...]:
-    """Return the runtime fields carried by one incident."""
+def _runtime_rows(incident: CrashIncident) -> tuple[tuple[str, str], ...]:
+    """Return every mandatory runtime field without hiding unavailable facts."""
 
+    context = incident.diagnostic_context or _legacy_diagnostic_context(incident)
     return (
-        ("SugarSubstitute version", incident.application_version),
-        ("Operating system", incident.platform),
-        ("Python", incident.python_version),
-        ("Launch arguments", " ".join(incident.launch_arguments)),
+        (
+            app_text("SugarSubstitute payload version"),
+            context.substitute_version.display_value,
+        ),
+        (
+            app_text("SugarSubstitute recorded release version"),
+            context.substitute_release_version.display_value,
+        ),
+        (
+            app_text("Supervising launcher version"),
+            context.supervising_launcher_version.display_value,
+        ),
+        (
+            app_text("Installed launcher version"),
+            context.installed_launcher_version.display_value,
+        ),
+        (app_text("ComfyUI version"), context.comfyui_version.display_value),
+        (app_text("ComfyUI commit"), context.comfyui_commit.display_value),
+        (app_text("Operating system"), context.operating_system.display_value),
+        (app_text("System architecture"), context.system_architecture.display_value),
+        (app_text("Python"), context.python_version.display_value),
+        (app_text("Python architecture"), context.python_architecture.display_value),
+        (app_text("Processor"), context.processor.display_value),
+        (
+            app_text("Logical processor count"),
+            context.logical_processor_count.display_value,
+        ),
+        (app_text("Physical memory"), context.physical_memory.display_value),
+        (app_text("GPU"), context.gpu.display_value),
+        (app_text("Readiness schema"), context.readiness_schema.display_value),
+        (
+            app_text("Launch arguments"),
+            " ".join(incident.launch_arguments)
+            if incident.launch_arguments
+            else "unavailable (not recorded)",
+        ),
+    )
+
+
+def _legacy_diagnostic_context(incident: CrashIncident) -> CrashDiagnosticContext:
+    """Project the few legacy runtime values while naming every absent fact."""
+
+    context = CrashDiagnosticContext.unavailable_legacy()
+    return CrashDiagnosticContext(
+        substitute_version=_legacy_value(
+            incident.application_version, source="legacy_incident.application_version"
+        ),
+        substitute_release_version=context.substitute_release_version,
+        supervising_launcher_version=context.supervising_launcher_version,
+        installed_launcher_version=context.installed_launcher_version,
+        comfyui_version=context.comfyui_version,
+        comfyui_commit=context.comfyui_commit,
+        operating_system=_legacy_value(
+            incident.platform, source="legacy_incident.platform"
+        ),
+        system_architecture=context.system_architecture,
+        python_version=_legacy_value(
+            incident.python_version, source="legacy_incident.python_version"
+        ),
+        python_architecture=context.python_architecture,
+        processor=context.processor,
+        logical_processor_count=context.logical_processor_count,
+        physical_memory=context.physical_memory,
+        gpu=context.gpu,
+        readiness_schema=context.readiness_schema,
+    )
+
+
+def _legacy_value(value: str | None, *, source: str) -> DiagnosticValue:
+    """Preserve a legacy value or identify why it cannot be shown."""
+
+    if value:
+        return DiagnosticValue.available(value, source=source)
+    return DiagnosticValue.unavailable(
+        "not recorded by this incident schema", source=source
     )
 
 
