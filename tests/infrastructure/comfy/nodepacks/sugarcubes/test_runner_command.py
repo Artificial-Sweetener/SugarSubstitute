@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Mapping
+import json
 from pathlib import Path
 
 import pytest
@@ -70,11 +71,11 @@ def test_sugarcubes_maintenance_runner_imports_no_ui_or_raw_process_modules() ->
     assert forbidden_imports == set()
 
 
-def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
+def test_run_sugarcubes_baseline_maintenance_builds_preflight_command(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Baseline maintenance should invoke the shared SugarCubes sync/check action."""
+    """Baseline maintenance should invoke SugarCubes' offline readiness action."""
 
     python_path = _write_maintenance_fixture(tmp_path)
     commands: list[list[str]] = []
@@ -110,11 +111,142 @@ def test_run_sugarcubes_baseline_maintenance_builds_sync_check_command(
             "preflight",
             "--workspace",
             str(tmp_path),
-            "--baseline-only",
         ]
     ]
     assert result.exit_code == 0
     assert result.diagnostics == ()
+
+
+def test_cached_setup_reconciliation_does_not_sync_cube_repositories(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The recurring readiness check must remain offline when already ready."""
+
+    _write_maintenance_fixture(tmp_path)
+    repository_preparations: list[Path] = []
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "prepare_sugarcubes_repositories",
+        lambda root, **_kwargs: repository_preparations.append(root),
+    )
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "_stream_command_collecting_output",
+        lambda *_args, **_kwargs: (
+            0,
+            ('{"schemaVersion": 1, "dependencyReadiness": {"ready": true}}',),
+        ),
+    )
+
+    result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(
+        tmp_path,
+        synchronize_repositories=False,
+    )
+
+    assert result.exit_code == 0
+    assert repository_preparations == []
+
+
+def test_run_sugarcubes_baseline_maintenance_repairs_only_outdated_semver(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An outdated pack should trigger one exact repair followed by verification."""
+
+    python_path = _write_maintenance_fixture(tmp_path)
+    commands: list[list[str]] = []
+
+    outdated_readiness = {
+        "ready": True,
+        "dependencyVersionPlan": [
+            {
+                "nodeId": "SimpleSyrup",
+                "requiredVersion": "1.9.2",
+                "requiredVersionKind": "semver",
+                "installedVersion": "old-git-commit",
+                "installedVersionKind": "git_sha",
+                "status": "not_comparable",
+                "repairable": True,
+                "requirements": [
+                    {
+                        "requiredVersion": "1.9.1",
+                        "defaultBaseRepo": True,
+                    },
+                    {
+                        "requiredVersion": "1.9.2",
+                        "defaultBaseRepo": True,
+                    },
+                ],
+            }
+        ],
+    }
+    satisfied_readiness = {
+        "ready": True,
+        "dependencyVersionPlan": [
+            {
+                "nodeId": "SimpleSyrup",
+                "requiredVersion": "1.9.2",
+                "requiredVersionKind": "semver",
+                "installedVersion": "1.9.2",
+                "installedVersionKind": "semver",
+                "status": "satisfied",
+                "repairable": False,
+            }
+        ],
+    }
+
+    def fake_stream(
+        command: list[str],
+        *,
+        cwd: Path,
+        on_line: object | None,
+        env: Mapping[str, str] | None = None,
+        timeout_seconds: int | None = None,
+    ) -> tuple[int, tuple[str, ...]]:
+        """Model the preflight, exact repair, and verification sequence."""
+
+        _ = cwd, on_line, env, timeout_seconds
+        commands.append(command)
+        initial_preflight = len(commands) == 1
+        readiness = outdated_readiness if initial_preflight else satisfied_readiness
+        payload_key = "readinessAfter" if "repair" in command else "dependencyReadiness"
+        return (2 if initial_preflight else 0), (json.dumps({payload_key: readiness}),)
+
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "_stream_command_collecting_output",
+        fake_stream,
+    )
+
+    result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
+
+    preflight_command = [
+        str(python_path),
+        "-m",
+        "sugarcubes.maintenance",
+        "cube-deps",
+        "preflight",
+        "--workspace",
+        str(tmp_path),
+    ]
+    assert commands == [
+        preflight_command,
+        [
+            str(python_path),
+            "-m",
+            "sugarcubes.maintenance",
+            "cube-deps",
+            "repair",
+            "--workspace",
+            str(tmp_path),
+            "--approve",
+            "SimpleSyrup",
+        ],
+        preflight_command,
+    ]
+    assert result.exit_code == 0
+    assert result.payload["dependencyReadiness"] == satisfied_readiness
 
 
 def test_nodepack_reconciliation_facade_exports_sugarcubes_maintenance() -> None:

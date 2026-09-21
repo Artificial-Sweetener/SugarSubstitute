@@ -57,7 +57,7 @@ def wait_for_installed_version(
     while monotonic() < deadline:
         try:
             assert_installed_version(install_root, expected_version)
-        except (InstallerLifecycleError, OSError) as error:
+        except (InstallerLifecycleError, OSError, ValueError) as error:
             last_error = error
             sleep(0.05)
             continue

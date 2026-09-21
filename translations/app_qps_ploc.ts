@@ -642,6 +642,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Blüë ···⟧</translation>
     </message>
     <message>
+      <source>Bounding Box</source>
+      <translation>⟦Böündïng Böx ···⟧</translation>
+    </message>
+    <message>
       <source>Bounding box</source>
       <translation>⟦Böündïng böx ···⟧</translation>
     </message>
@@ -928,6 +932,14 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose color</source>
       <translation>⟦Chöösë cölör ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose detector thumbnail</source>
+      <translation>⟦Chöösë dëtëctör thümbnàïl ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose detector thumbnail for %1</source>
+      <translation>⟦Chöösë dëtëctör thümbnàïl för %1 ···⟧</translation>
     </message>
     <message>
       <source>Choose fixed quality or an approximate target file size.</source>
@@ -1314,10 +1326,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cömfy rëstàrt fàïlëd ···⟧</translation>
     </message>
     <message>
-      <source>Comfy restart requested</source>
-      <translation>⟦Cömfy rëstàrt rëqüëstëd ···⟧</translation>
-    </message>
-    <message>
       <source>Comfy restart required</source>
       <translation>⟦Cömfy rëstàrt rëqüïrëd ···⟧</translation>
     </message>
@@ -1476,10 +1484,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>ComfyUI is unavailable.</source>
       <translation>⟦CömfyÜÏ ïs ünàvàïlàblë. ···⟧</translation>
-    </message>
-    <message>
-      <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
-      <translation>⟦CömfyÜÏ müst rëstàrt bëförë rëpàïrëd cübë dëpëndëncïës càn bë üsëd. ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI needs repair before it can start</source>
@@ -2024,6 +2028,10 @@ Install these nodes now?</source>
     <message>
       <source>Devices: %1</source>
       <translation>⟦Dëvïcës: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Diagnostic logs</source>
+      <translation>⟦Dïàgnöstïc lögs ···⟧</translation>
     </message>
     <message>
       <source>Diffusion model</source>
@@ -4196,10 +4204,6 @@ I’ll bring my own</source>
       <translation>⟦Rëfrësh stàlë càchëd wïkï pàgës ànd prëvïëw ïmàgës làzïly whïlë bröwsïng. ···⟧</translation>
     </message>
     <message>
-      <source>Refreshing Cube Library after restart request.</source>
-      <translation>⟦Rëfrëshïng Cübë Lïbràry àftër rëstàrt rëqüëst. ···⟧</translation>
-    </message>
-    <message>
       <source>Refreshing...</source>
       <translation>⟦Rëfrëshïng... ···⟧</translation>
     </message>
@@ -4798,6 +4802,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Segment reorder</source>
       <translation>⟦Sëgmënt rëördër ···⟧</translation>
+    </message>
+    <message>
+      <source>Segmentation</source>
+      <translation>⟦Sëgmëntàtïön ···⟧</translation>
     </message>
     <message>
       <source>Select</source>
@@ -5560,12 +5568,20 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦SügàrSübstïtütë ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>⟦SügàrSübstïtütë cöüld nöt fïnïsh stàrtïng ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute crashed</source>
       <translation>⟦SügàrSübstïtütë cràshëd ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute did not close normally</source>
       <translation>⟦SügàrSübstïtütë dïd nöt clösë nörmàlly ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>⟦SügàrSübstïtütë ëncöüntërëd à cönfïrmëd stàrtüp fàïlürë. Cöpy thïs rëpört ànd shàrë ït wïth thë màïntàïnërs. ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute is free software, shared in the spirit of collaboration, curiosity, and user freedom.
@@ -6380,6 +6396,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Use My Current ComfyUI needs the folder that contains your local ComfyUI installation.</source>
       <translation>⟦Üsë My Cürrënt CömfyÜÏ nëëds thë földër thàt cöntàïns yöür löcàl CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Use Seeds in Current Workflow</source>
+      <translation>⟦Üsë Sëëds ïn Cürrënt Wörkflöw ···⟧</translation>
     </message>
     <message>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>

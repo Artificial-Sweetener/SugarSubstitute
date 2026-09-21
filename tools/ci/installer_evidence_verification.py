@@ -30,6 +30,9 @@ _REQUIRED_STARTUP_EVENTS = (
     _SHELL_FRAME_PAINT_EVENT,
     "launch_splash.closed",
 )
+_SPLASH_ADOPTION_FAILURE = (
+    "Failed to adopt launcher splash session; starting app splash"
+)
 
 
 def assert_qualification_event_sequence(
@@ -103,6 +106,23 @@ def assert_startup_trace_sequence(trace_path: Path) -> None:
         )
 
 
+def assert_no_launch_splash_replacement(app_startup_log_path: Path) -> None:
+    """Reject an update that replaced rather than adopted its launcher splash."""
+
+    try:
+        log_text = app_startup_log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as error:
+        raise InstallerLifecycleError(
+            "Button-launched child did not write its app-startup log: "
+            f"{app_startup_log_path}."
+        ) from error
+    if _SPLASH_ADOPTION_FAILURE in log_text:
+        raise InstallerLifecycleError(
+            "Application replaced the launcher-owned splash during startup.\n"
+            + diagnostic_tail(app_startup_log_path)
+        )
+
+
 def diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
     """Return a bounded diagnostic suffix when a qualification step fails."""
 
@@ -146,6 +166,7 @@ def _contains_ordered_events(
 
 
 __all__ = [
+    "assert_no_launch_splash_replacement",
     "assert_qualification_event_sequence",
     "assert_startup_trace_sequence",
     "diagnostic_tail",

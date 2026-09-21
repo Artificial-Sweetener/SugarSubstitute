@@ -80,6 +80,9 @@ if TYPE_CHECKING:
         ScopedMetadataRefreshService,
         ThumbnailAssetRepository,
     )
+    from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+        UltralyticsThumbnailAssociationService,
+    )
     from sugarsubstitute_shared.model_updates import (
         ModelUpdateAcquisitionService,
         ModelUpdateService,
@@ -321,6 +324,9 @@ class MainWindowDependencies:
     model_metadata_context_action_handler: ModelMetadataContextActionHandler | None = (
         None
     )
+    ultralytics_thumbnail_associations: (
+        UltralyticsThumbnailAssociationService | None
+    ) = None
     manual_model_metadata_update_sink: ModelMetadataUpdateSink | None = None
     configure_output_thumbnail_context: (
         Callable[

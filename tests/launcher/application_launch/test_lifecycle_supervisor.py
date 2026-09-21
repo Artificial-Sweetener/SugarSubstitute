@@ -130,10 +130,11 @@ def test_pre_readiness_failure_defers_report_to_single_recovery_surface(
             *,
             layout: InstallLayout,
             environment: Mapping[str, str],
+            command: Sequence[str] = (),
         ) -> object:
             """Return an opaque prepared crash contract."""
 
-            del layout, environment
+            del layout, environment, command
             return SimpleNamespace(
                 environment={},
                 context=SimpleNamespace(run_id="startup-incident"),
@@ -146,10 +147,11 @@ def test_pre_readiness_failure_defers_report_to_single_recovery_surface(
             process: object,
             prepared: object,
             present_report: bool = True,
+            termination: object = None,
         ) -> ClassifiedProcessExit:
             """Capture the presentation policy applied to the failure."""
 
-            del layout, process, prepared
+            del layout, process, prepared, termination
             self.calls.append(present_report)
             return ClassifiedProcessExit(1, "startup-incident")
 

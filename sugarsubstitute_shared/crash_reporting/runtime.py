@@ -43,6 +43,10 @@ from sugarsubstitute_shared.crash_reporting.protocol import (
     CrashRunContext,
 )
 from sugarsubstitute_shared.crash_reporting.redaction import CrashReportRedactor
+from sugarsubstitute_shared.crash_reporting.run_context import (
+    CrashRunRuntimeContext,
+    CrashRunRuntimeContextStore,
+)
 from sugarsubstitute_shared.crash_reporting.store import CrashIncidentStore
 
 
@@ -89,9 +93,10 @@ class ProcessCrashRuntime:
         self._context = context
         self._store = CrashIncidentStore(context.incident_root)
         self._application_version = application_version
+        self._redactor_root = install_root.expanduser().resolve()
         self._redactor = CrashReportRedactor(
             home=Path.home(),
-            install_root=install_root,
+            install_root=self._redactor_root,
         )
         self._launch_arguments = self._redactor.arguments(launch_arguments)
         self._terminate = terminate
@@ -122,6 +127,7 @@ class ProcessCrashRuntime:
             return
         self._installed = True
         self._enable_fault_handler()
+        self._persist_runtime_context()
         sys.excepthook = self._handle_main_exception
         threading.excepthook = self._handle_thread_exception
         sys.unraisablehook = self._handle_unraisable
@@ -331,6 +337,21 @@ class ProcessCrashRuntime:
         fault_file = fault_path.open("a", encoding="utf-8", buffering=1)
         self._fault_file = fault_file
         faulthandler.enable(file=fault_file, all_threads=True)
+
+    def _persist_runtime_context(self) -> None:
+        """Persist actionable runtime facts before application bootstrap continues."""
+
+        CrashRunRuntimeContextStore(self._context.incident_root).save(
+            self._context.run_id,
+            CrashRunRuntimeContext(
+                process_id=os.getpid(),
+                application_version=self._application_version,
+                platform=platform.platform(),
+                python_version=sys.version,
+                launch_arguments=self._launch_arguments,
+                install_root=str(self._redactor_root),
+            ),
+        )
 
     def _enable_native_handler(self) -> None:
         """Register native exception capture when the run provides Crashpad."""

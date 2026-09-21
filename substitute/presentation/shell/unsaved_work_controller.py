@@ -25,7 +25,9 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 from substitute.application.workflows.unsaved_work_service import (
     UnsavedWorkDecision,
 )
-from sugarsubstitute_shared.presentation.localization import app_text
+from sugarsubstitute_shared.presentation.localization import (
+    translate_application_message,
+)
 
 
 class UnsavedWorkPrompt(Protocol):
@@ -53,28 +55,28 @@ class QtUnsavedWorkPrompt:
 
         dialog = QMessageBox(parent)
         dialog.setIcon(QMessageBox.Icon.Warning)
-        dialog.setWindowTitle(app_text("Unsaved work"))
+        dialog.setWindowTitle(translate_application_message("Unsaved work"))
         dialog.setText(
-            app_text(
+            translate_application_message(
                 "Save changes to “%1” before continuing?",
                 workflow_name,
             )
         )
         dialog.setInformativeText(
-            app_text(
+            translate_application_message(
                 "A recovery copy is kept, but explicit saves are the durable project file."
             )
         )
         save_button = dialog.addButton(
-            app_text("Save"),
+            translate_application_message("Save"),
             QMessageBox.ButtonRole.AcceptRole,
         )
         discard_button = dialog.addButton(
-            app_text("Don't Save"),
+            translate_application_message("Don't Save"),
             QMessageBox.ButtonRole.DestructiveRole,
         )
         cancel_button = dialog.addButton(
-            app_text("Cancel"),
+            translate_application_message("Cancel"),
             QMessageBox.ButtonRole.RejectRole,
         )
         dialog.setDefaultButton(cast(Any, save_button))

@@ -27,9 +27,11 @@ from pathlib import Path
 import subprocess
 from threading import Event, RLock
 import time
+import uuid
 import weakref
 
 from sugarsubstitute_shared.windows_process_job_api import (
+    APPLICATION_PROCESS_FAMILY_ENV,
     ExtendedLimits,
     BasicAccounting,
     load_kernel,
@@ -76,7 +78,8 @@ class WindowsProcessFamily:
     ) -> WindowsProcessFamily:
         """Assign the child atomically, eliminating the spawn-before-containment gap."""
         kernel = load_kernel()
-        job = kernel.CreateJobObjectW(None, None)
+        job_name = f"Local\\SugarSubstitute-family-{uuid.uuid4()}"
+        job = kernel.CreateJobObjectW(None, job_name)
         if not job:
             raise ctypes.WinError(ctypes.get_last_error())
         limits = ExtendedLimits()
@@ -88,9 +91,11 @@ class WindowsProcessFamily:
                 job, 9, ctypes.byref(limits), ctypes.sizeof(limits)
             ):
                 raise ctypes.WinError(ctypes.get_last_error())
+            child_environment = dict(environment)
+            child_environment[APPLICATION_PROCESS_FAMILY_ENV] = job_name
             process_info = create_windows_process(
                 command,
-                environment=environment,
+                environment=child_environment,
                 cwd=cwd,
                 output_fd=output_fd,
                 error_fd=error_fd,

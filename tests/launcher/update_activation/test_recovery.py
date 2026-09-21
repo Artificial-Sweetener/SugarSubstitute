@@ -38,6 +38,7 @@ from launcher.sugarsubstitute_launcher.update_activation_recovery import (
     recover_interrupted_update,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from launcher.sugarsubstitute_launcher.update_quarantine import UpdateQuarantine
 from sugarsubstitute_shared.update_rollback_report import (
     UpdateRollbackReport,
     UpdateRollbackReportStore,
@@ -125,6 +126,32 @@ def test_interrupted_update_is_recovered_from_durable_journal(
     assert (layout.app_dir / "version.txt").read_text() == "old-app"
     assert (layout.runtime_dir / "version.txt").read_text() == "old-runtime"
     assert recover_interrupted_update(layout) is False
+
+
+def test_generation_rollback_keeps_interrupted_candidate_retryable(
+    tmp_path: Path,
+) -> None:
+    """A cancelled first launch should restore state without condemning valid bytes."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    digest = "1" * 64
+    activation = PendingUpdateActivation.begin(
+        layout=layout,
+        successful_state=_updated_state(),
+        generation_backed=True,
+        candidate_sha256=digest,
+    )
+    _write(activation.staging_directory / "version.txt", "candidate-app")
+    activation.promote_app(
+        StagedAppPayload(version="0.4.0", staging_dir=activation.staging_directory)
+    )
+    activation.prepare_runtime()
+    activation.activate()
+
+    activation.rollback()
+
+    assert not UpdateQuarantine(layout.root).contains(version="0.4.0", sha256=digest)
+    assert not (layout.launcher_dir / "pending-app-update.json").exists()
 
 
 def test_interrupted_commit_finishes_proven_update(

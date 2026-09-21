@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 
+from sugarsubstitute_shared.localization import ApplicationText
+
 
 class RestartScope(IntEnum):
     """Order restart scopes by increasing runtime cost."""
@@ -32,14 +34,14 @@ class RestartScope(IntEnum):
 
 @dataclass(frozen=True, slots=True)
 class RestartRequirementItem:
-    """Describe one saved setting whose value is pending restart application."""
+    """Describe one settings or runtime change pending restart application."""
 
     key: str
-    label: str
+    label: ApplicationText
     active_value: str
     saved_value: str
     scope: RestartScope
-    detail: str | None = None
+    detail: ApplicationText | None = None
 
     def __post_init__(self) -> None:
         """Validate invariant fields for a pending restart delta."""

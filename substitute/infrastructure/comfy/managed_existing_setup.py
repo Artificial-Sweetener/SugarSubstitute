@@ -132,6 +132,11 @@ class ExistingManagedSetupOperations(Protocol):
     def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> None:
         """Converge SugarCubes baseline dependencies."""
 
+    def reconcile_cached_sugarcubes_dependencies(
+        self, workspace: Path, env: Mapping[str, str]
+    ) -> None:
+        """Reconcile cube dependencies without refreshing cube repositories."""
+
     def validate_torch(
         self,
         workspace: Path,
@@ -199,6 +204,19 @@ def reconcile_existing_managed_setup(
             refresh_core_nodepacks=request.refresh_core_nodepacks,
         )
     if fast_record is not None:
+        operations.emit_status(
+            render_source_application_text(
+                app_text("Preparing Base-Cubes dependencies.")
+            )
+        )
+        remote_steps.run(
+            operation="sugarcubes_dependency_reconciliation",
+            action=lambda: _reconcile_cached_sugarcubes_dependencies(
+                operations=operations,
+                workspace=workspace,
+                managed_env=request.managed_env,
+            ),
+        )
         cached_configuration = (
             validated_runtime_configuration_from_installed_setup_record(fast_record)
         )
@@ -410,6 +428,18 @@ def _prepare_sugarcubes(
 
     with trace_span("managed_setup.existing.sugarcubes_baseline"):
         operations.prepare_sugarcubes(workspace, managed_env)
+
+
+def _reconcile_cached_sugarcubes_dependencies(
+    *,
+    operations: ExistingManagedSetupOperations,
+    workspace: Path,
+    managed_env: Mapping[str, str],
+) -> None:
+    """Reconcile current cube requirements without unrelated setup work."""
+
+    with trace_span("managed_setup.existing.sugarcubes_dependency_reconciliation"):
+        operations.reconcile_cached_sugarcubes_dependencies(workspace, managed_env)
 
 
 def _configure_model_root(

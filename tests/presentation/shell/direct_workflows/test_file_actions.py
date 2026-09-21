@@ -163,6 +163,7 @@ def test_direct_workflow_file_action_loads_blank_tab_and_refreshes(
     invalidation = view.workflow_surface_invalidation_service
     dirty = invalidation.dirty_state("wf-1")
     assert WorkflowSurface.EDITOR in dirty.dirty_surfaces
+    assert WorkflowSurface.CUBE_STACK in dirty.dirty_surfaces
     assert dirty.reasons == (WorkflowInvalidationReason.DIRECT_WORKFLOW_LOADED,)
 
 

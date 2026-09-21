@@ -43,6 +43,18 @@ GenerationJobStatus = Literal[
 ]
 
 
+@dataclass(frozen=True, slots=True)
+class GenerationSeedValue:
+    """Record one effective seed value captured for a queued generation."""
+
+    value: int
+    field_key: str
+    cube_alias: str | None = None
+    node_name: str | None = None
+    class_type: str | None = None
+    override_key: str | None = None
+
+
 @dataclass(frozen=True)
 class GenerationJobSnapshot:
     """Store a detached generation graph captured when Generate was clicked."""
@@ -64,6 +76,7 @@ class GenerationJobSnapshot:
     scene_title: str | None = None
     scene_order: int | None = None
     scene_count: int | None = None
+    seed_values: tuple[GenerationSeedValue, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -132,6 +145,7 @@ TERMINAL_GENERATION_JOB_STATUSES = frozenset({"completed", "failed", "cancelled"
 
 __all__ = [
     "GenerationJobSnapshot",
+    "GenerationSeedValue",
     "GenerationJobOutputRecord",
     "GenerationJobStatus",
     "GenerationCubeExecutionDuration",

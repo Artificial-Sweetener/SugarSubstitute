@@ -458,6 +458,8 @@ class GenerationPreparationService:
 
         return self._native_cube_workflow_builder.build(
             cast(Any, request.workflow),
+            enabled_node_keys_by_alias=request.enabled_node_keys_by_alias,
+            disabled_node_keys_by_alias=request.disabled_node_keys_by_alias,
             global_override_scopes=request.global_override_scopes,
             prompt_field_overrides=prompt_field_overrides,
         )

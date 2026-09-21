@@ -24,6 +24,10 @@ from pathlib import Path
 
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.common import JsonObject
+from substitute.domain.generation.seed_control import (
+    nested_seed_control_states_from_json,
+    nested_seed_control_states_to_json,
+)
 
 from .errors import SnapshotCodecError
 from .json_value_codec import json_object_to_json, json_value_to_json
@@ -58,6 +62,9 @@ def direct_workflow_to_json(
             if key != "node_behavior_runtime"
         },
         "dirty": state.dirty,
+        "field_control_states": nested_seed_control_states_to_json(
+            state.field_control_states
+        ),
         "cube_projection_state": json_object_to_json(
             cube_projection_state
             if cube_projection_state is not None
@@ -82,6 +89,9 @@ def direct_workflow_from_json(value: object) -> DirectWorkflowState | None:
         buffer=dict(_required_mapping(payload.get("buffer"))),
         ui=dict(_optional_mapping(payload.get("ui"))),
         dirty=payload.get("dirty") is True,
+        field_control_states=nested_seed_control_states_from_json(
+            payload.get("field_control_states")
+        ),
         cube_projection_state=dict(
             _optional_mapping(payload.get("cube_projection_state"))
         ),

@@ -19,11 +19,29 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID
 
 from substitute.domain.workflow import WorkflowAssetRef, WorkflowState
+
+
+class MaskLayerRemovalOutcome(StrEnum):
+    """Describe exact live-layer removal without conflating ownership."""
+
+    REMOVED = "removed"
+    ALREADY_ABSENT = "already_absent"
+
+
+@dataclass(frozen=True, slots=True)
+class MaskLayerRemovalAuthorization:
+    """Authorize one exact live-layer side effect before durable mutation."""
+
+    workflow_id: str
+    image_id: UUID
+    mask_id: UUID
 
 
 class InputCanvasStateServicePort(Protocol):
@@ -149,14 +167,20 @@ class InputCanvasStateServicePort(Protocol):
     ) -> bool:
         """Update one associated mask layer after Input ownership validation."""
 
-    def remove_workflow_mask_layer(
+    def authorize_workflow_mask_layer_removal(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
         image_id: UUID,
         mask_id: UUID,
-    ) -> bool:
-        """Remove one explicitly owned mask layer without changing its collection."""
+    ) -> MaskLayerRemovalAuthorization | None:
+        """Authorize one owned layer removal before durable state changes."""
+
+    def commit_workflow_mask_layer_removal(
+        self,
+        authorization: MaskLayerRemovalAuthorization,
+    ) -> MaskLayerRemovalOutcome:
+        """Apply one previously authorized live-layer removal side effect."""
 
 
 class CanvasIoServicePort(Protocol):

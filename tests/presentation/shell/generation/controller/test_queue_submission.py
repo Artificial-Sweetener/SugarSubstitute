@@ -25,7 +25,7 @@ from substitute.application.generation import (
     GenerationPreparationResult,
     GenerationService,
 )
-from substitute.domain.generation import GenerationJobSnapshot
+from substitute.domain.generation import GenerationJobSnapshot, GenerationSeedValue
 from substitute.presentation.shell.workspace_generation_controller import (
     GenerationUiBindings,
     QueuedGenerationPreparationJob,
@@ -85,6 +85,58 @@ def test_handle_generate_clicked_enqueues_snapshot_when_queue_is_available() -> 
     assert _without_output_sessions([queued_snapshot]) == [snapshot]
     assert queued_snapshot.output_session_id
     assert isinstance(fake_queue.enqueue_calls[0]["callbacks"], GenerationCallbacks)
+
+
+def test_queue_submission_fires_loaded_seed_then_rearms_live_workflow() -> None:
+    """The displayed seed should enter the snapshot before random mode advances it."""
+
+    fake_queue = _FakeGenerationQueueService()
+    controller = WorkspaceGenerationController(
+        cast(GenerationService, _FakeGenerationService()),
+        cast(Any, fake_queue),
+    )
+    recorder = _BindingRecorder([], [], [], [], [], [])
+    base_bindings = _build_bindings(recorder)
+    live_seed = 31415
+
+    def _build_snapshot() -> tuple[GenerationJobSnapshot, ...]:
+        """Capture the exact currently displayed seed."""
+
+        return (
+            GenerationJobSnapshot(
+                workflow_id="wf-1",
+                workflow_name="Workflow 1",
+                seed_values=(GenerationSeedValue(value=live_seed, field_key="seed"),),
+            ),
+        )
+
+    def _rearm() -> None:
+        """Advance the live seed after the queue accepted its snapshot."""
+
+        nonlocal live_seed
+        live_seed = 27182
+        recorder.randomize_calls += 1
+
+    bindings = GenerationUiBindings(
+        build_generation_request=base_bindings.build_generation_request,
+        randomize_seeds=_rearm,
+        on_progress=base_bindings.on_progress,
+        on_model_load_progress=base_bindings.on_model_load_progress,
+        on_preview=base_bindings.on_preview,
+        on_output_image=base_bindings.on_output_image,
+        on_failure=base_bindings.on_failure,
+        on_timing=base_bindings.on_timing,
+        on_completed=base_bindings.on_completed,
+        refresh_generation_actions=base_bindings.refresh_generation_actions,
+        build_queued_generation_snapshots=_build_snapshot,
+    )
+
+    controller.handle_generate_clicked(current_mode="generate", bindings=bindings)
+
+    queued = cast(GenerationJobSnapshot, fake_queue.enqueue_calls[0]["snapshot"])
+    assert queued.seed_values[0].value == 31415
+    assert live_seed == 27182
+    assert recorder.randomize_calls == 1
 
 
 def test_handle_generate_clicked_submits_captured_preparation_without_blocking() -> (

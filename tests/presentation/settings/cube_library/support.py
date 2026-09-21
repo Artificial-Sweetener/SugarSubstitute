@@ -40,10 +40,7 @@ from substitute.domain.cube_library import (
 )
 from substitute.domain.onboarding import ComfyEndpoint
 from substitute.presentation.errors import ErrorReportPresenterProtocol
-from substitute.presentation.settings.cube_library_page import (
-    ComfyRestartService,
-    CubeLibrarySettingsPage,
-)
+from substitute.presentation.settings.cube_library_page import CubeLibrarySettingsPage
 from substitute.presentation.settings.settings_async import SettingsAsyncTaskRunner
 from tests.support.execution import ImmediateTaskSubmitter
 
@@ -180,21 +177,6 @@ class FakeCubeLibraryService:
         """Record one dependency repair request."""
 
         self.repair_proposals.append(proposal)
-
-
-class FakeRestartService:
-    """Record Comfy restart requests from Cube Library tests."""
-
-    def __init__(self) -> None:
-        """Initialize empty restart state."""
-
-        self.restart_count = 0
-
-    def restart_comfy(self) -> object:
-        """Record and return one fake restart job."""
-
-        self.restart_count += 1
-        return object()
 
 
 def snapshot(
@@ -361,9 +343,8 @@ def build_page(
     monkeypatch: pytest.MonkeyPatch,
     *,
     service: FakeCubeLibraryService | None = None,
-    restart_service: ComfyRestartService | None = None,
+    restart_requested: Callable[[], None] | None = None,
     restart_required_changed: Callable[[bool], None] | None = None,
-    post_restart_refresh: Callable[[], None] | None = None,
     error_presenter: ErrorReportPresenterProtocol | None = None,
 ) -> CubeLibrarySettingsPage:
     """Create a page whose successful commands retain their rendered state."""
@@ -374,16 +355,14 @@ def build_page(
     return CubeLibrarySettingsPage(
         cast(CubeLibraryManagementService, page_service),
         task_runner_factory=immediate_task_runner_factory,
-        restart_service=restart_service,
+        restart_requested=restart_requested,
         restart_required_changed=restart_required_changed,
-        post_restart_refresh=post_restart_refresh,
         error_presenter=error_presenter,
     )
 
 
 __all__ = [
     "FakeCubeLibraryService",
-    "FakeRestartService",
     "application",
     "build_page",
     "description_label_texts",

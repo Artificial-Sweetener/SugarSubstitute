@@ -19,16 +19,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 
 from substitute.application.generation import (
     GenerationJobSnapshot,
     GenerationRequest,
     SeedRandomizationResult,
-    SeedRandomizationService,
 )
-from substitute.application.node_behavior import EditorBehaviorSnapshot
-from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
 )
@@ -37,10 +34,6 @@ from substitute.presentation.shell.workspace_generation_controller import (
     GenerationPreflightError,
     QueuedGenerationPreparationJob,
     generation_preflight_failure,
-)
-from substitute.presentation.shell.workspace_generation_request_builder import (
-    active_behavior_snapshot,
-    synchronize_generation_request_seed_scopes,
 )
 from substitute.presentation.shell.workspace_ports import (
     GenerationActionRefreshProtocol,
@@ -72,30 +65,6 @@ class GenerationActionIntentView(Protocol):
     generation_action_controller: GenerationActionRefreshProtocol
     generation_interrupt_failure_presenter: GenerationInterruptFailurePresenterProtocol
     generation_job_queue_service: object
-
-
-class GenerationRequestSeedRandomizer(Protocol):
-    """Randomize live workflow seeds before request serialization."""
-
-    def __call__(
-        self,
-        *,
-        request: GenerationRequest,
-        behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> SeedRandomizationResult:
-        """Apply seed randomization to one generation request."""
-
-
-class SeedRandomizationServiceProtocol(Protocol):
-    """Describe workflow seed-randomization service behavior."""
-
-    def randomize_workflow_seeds(
-        self,
-        *,
-        workflow: Any,
-        behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> SeedRandomizationResult:
-        """Randomize eligible seeds in one workflow."""
 
 
 class WorkspaceGenerationActions:
@@ -146,7 +115,7 @@ def build_generation_action_bindings(
     *,
     view: GenerationActionBindingView,
     build_generation_request: Callable[[], GenerationRequest],
-    randomize_generation_request_seeds: GenerationRequestSeedRandomizer,
+    randomize_generation_seeds: Callable[[], SeedRandomizationResult],
     build_queued_generation_snapshots: Callable[[], tuple[GenerationJobSnapshot, ...]],
     capture_queued_generation_preparation: Callable[[], QueuedGenerationPreparationJob],
 ) -> GenerationUiBindings:
@@ -154,19 +123,14 @@ def build_generation_action_bindings(
 
     feedback = view.generation_feedback_dispatcher
 
-    def build_generation_request_with_randomized_seeds() -> GenerationRequest:
-        """Build a request and randomize model-owned seeds before serialization."""
+    def rearm_random_seeds() -> None:
+        """Advance live random-mode seeds after a generation snapshot is accepted."""
 
-        request = build_generation_request()
-        result = randomize_generation_request_seeds(
-            request=request,
-            behavior_snapshot=active_behavior_snapshot(view, request.workflow_id),
-        )
-        return synchronize_generation_request_seed_scopes(request, result)
+        randomize_generation_seeds()
 
     return GenerationUiBindings(
-        build_generation_request=build_generation_request_with_randomized_seeds,
-        randomize_seeds=lambda: None,
+        build_generation_request=build_generation_request,
+        randomize_seeds=rearm_random_seeds,
         on_run_started=feedback.on_run_started,
         on_progress=feedback.on_progress,
         on_model_load_progress=feedback.on_model_load_progress,
@@ -320,27 +284,6 @@ def handle_stop_generation_clicked(
     view.generation_action_controller.clear_generation_progress()
 
 
-def randomize_generation_request_seeds(
-    *,
-    seed_randomization_service: SeedRandomizationServiceProtocol,
-    request: GenerationRequest,
-    behavior_snapshot: EditorBehaviorSnapshot | None,
-) -> SeedRandomizationResult:
-    """Randomize request workflow seeds through workflow-owned model state."""
-
-    workflow = request.workflow
-    if not isinstance(workflow, WorkflowState) and isinstance(
-        seed_randomization_service,
-        SeedRandomizationService,
-    ):
-        return SeedRandomizationResult()
-    result = seed_randomization_service.randomize_workflow_seeds(
-        workflow=cast(Any, workflow),
-        behavior_snapshot=behavior_snapshot,
-    )
-    return result
-
-
 def effective_generation_batch_count(view: object) -> int:
     """Return the clamped shell batch count from registry or legacy cluster."""
 
@@ -363,10 +306,7 @@ __all__ = [
     "handle_interrupt_clicked",
     "handle_skip_generation_clicked",
     "handle_stop_generation_clicked",
-    "randomize_generation_request_seeds",
     "GenerationActionBindingView",
     "GenerationActionIntentView",
-    "GenerationRequestSeedRandomizer",
-    "SeedRandomizationServiceProtocol",
     "WorkspaceGenerationActions",
 ]

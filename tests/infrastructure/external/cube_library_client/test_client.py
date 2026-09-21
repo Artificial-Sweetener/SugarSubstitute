@@ -243,6 +243,7 @@ def test_client_posts_sync_and_check_request() -> None:
                     "includeVersions": True,
                     "baselineOnly": False,
                     "approvedNodeIds": [],
+                    "approveAll": False,
                     "repair": False,
                 },
             },

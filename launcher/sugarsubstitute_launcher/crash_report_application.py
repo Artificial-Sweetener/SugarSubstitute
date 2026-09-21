@@ -21,6 +21,7 @@ from __future__ import annotations
 from launcher.sugarsubstitute_launcher.process_execution import start_detached_handoff
 
 from collections.abc import Callable
+from pathlib import Path
 import sys
 
 from PySide6.QtWidgets import QApplication
@@ -32,7 +33,14 @@ from launcher.sugarsubstitute_launcher.localization import (
     build_launcher_localization_runtime,
 )
 from launcher.sugarsubstitute_launcher.ui.launcher_theme import configure_launcher_theme
-from sugarsubstitute_shared.crash_reporting import CrashIncident
+from sugarsubstitute_shared.crash_reporting import (
+    CrashIncident,
+    CrashIncidentStore,
+)
+from sugarsubstitute_shared.crash_reporting.redaction import CrashReportRedactor
+from sugarsubstitute_shared.crash_reporting.run_context import (
+    CrashRunRuntimeContextStore,
+)
 from sugarsubstitute_shared.crash_reporting.presentation import (
     build_crash_report_presentation,
 )
@@ -40,6 +48,9 @@ from sugarsubstitute_shared.qt_application_instance_control import (
     request_supervised_application_restart,
     start_application_instance_control,
     stop_application_instance_control,
+)
+from sugarsubstitute_shared.presentation.error_report_presentation import (
+    ErrorReportPresentation,
 )
 
 
@@ -80,7 +91,7 @@ def run_crash_report_application(
 
 
 def _present_crash_incident(
-    _layout: InstallLayout,
+    layout: InstallLayout,
     incident: CrashIncident,
     _locale_override: str | None,
     restart: Callable[[], None],
@@ -92,12 +103,47 @@ def _present_crash_incident(
     )
 
     window = SharedErrorReportWindow(
-        presentation=build_crash_report_presentation(incident), restart=restart
+        presentation=_build_complete_crash_report(layout, incident), restart=restart
     )
     try:
         window.exec()
     finally:
         window.deleteLater()
+
+
+def _build_complete_crash_report(
+    layout: InstallLayout,
+    incident: CrashIncident,
+) -> ErrorReportPresentation:
+    """Build one copyable report containing every readable attached crash log."""
+
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    runtime_context = CrashRunRuntimeContextStore(store.root).load(incident.run_id)
+    additional_roots = (
+        (Path(runtime_context.install_root),)
+        if runtime_context is not None
+        and Path(runtime_context.install_root).resolve() != layout.root.resolve()
+        else ()
+    )
+    redactor = CrashReportRedactor(
+        home=Path.home(),
+        install_root=layout.root,
+        additional_roots=additional_roots,
+    )
+    text_attachments = tuple(
+        (filename, redactor.complete_text(_normalize_diagnostic_text(content)))
+        for filename, content in store.read_text_attachments(incident)
+    )
+    return build_crash_report_presentation(
+        incident,
+        text_attachments=text_attachments,
+    )
+
+
+def _normalize_diagnostic_text(content: str) -> str:
+    """Normalize platform line endings without changing diagnostic wording."""
+
+    return "\n".join(content.splitlines())
 
 
 def _restart_application(layout: InstallLayout) -> None:

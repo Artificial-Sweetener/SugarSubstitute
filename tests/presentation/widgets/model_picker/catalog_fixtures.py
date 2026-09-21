@@ -198,6 +198,15 @@ class _MetadataActionHandler:
 
         _ = (target, image_id)
 
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Reject detector-thumbnail actions outside Ultralytics tests."""
+
+        _ = target
+        return False
+
 
 def _rich_choice_resolution_from_catalog_items(
     items: tuple[ModelCatalogItem, ...],

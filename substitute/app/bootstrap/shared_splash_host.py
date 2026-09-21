@@ -285,6 +285,7 @@ def _write_ready_message(*, stream: TextIO, server: SplashSessionServer) -> None
         "endpoint": spec.endpoint,
         "token": spec.token,
         "host_pid": spec.host_pid,
+        "protocol_version": spec.protocol_version,
     }
     stream.write(json.dumps(payload, ensure_ascii=True, separators=(",", ":")) + "\n")
     stream.flush()

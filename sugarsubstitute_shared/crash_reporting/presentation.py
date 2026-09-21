@@ -23,6 +23,7 @@ from sugarsubstitute_shared.presentation.error_report_presentation import (
 )
 
 import logging
+from collections.abc import Sequence
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
@@ -30,6 +31,7 @@ from PySide6.QtGui import QDesktopServices
 from sugarsubstitute_shared.crash_reporting.model import (
     CrashAttribution,
     CrashIncident,
+    CrashKind,
 )
 from sugarsubstitute_shared.issue_tracker import SUGARSUBSTITUTE_ISSUES_URL
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -42,29 +44,14 @@ _LOGGER = logging.getLogger(__name__)
 
 def build_crash_report_presentation(
     incident: CrashIncident,
+    *,
+    text_attachments: Sequence[tuple[str, str]] = (),
 ) -> ErrorReportPresentation:
     """Return the exact shared report surface for one crash incident."""
 
-    confirmed = incident.attribution is CrashAttribution.CONFIRMED
-    title = (
-        app_text("SugarSubstitute crashed")
-        if confirmed
-        else app_text("SugarSubstitute did not close normally")
-    )
-    message = (
-        app_text(
-            "Something unexpected stopped SugarSubstitute. You can copy this report "
-            "and share it with the maintainers."
-        )
-        if confirmed
-        else app_text(
-            "The previous SugarSubstitute session ended without completing shutdown. "
-            "The report below may help determine why."
-        )
-    )
+    title, message = _incident_message(incident)
     rows: list[tuple[ApplicationText, str]] = [
         (app_text("Stage"), incident.boundary.value),
-        (app_text("Workflow"), render_application_text(app_text("unknown"))),
     ]
     if incident.exception_type:
         rows.append((app_text("Exception"), incident.exception_type))
@@ -73,7 +60,12 @@ def build_crash_report_presentation(
         message=message,
         severity=ReportSeverity.ERROR,
         summary_rows=tuple(rows),
-        report_text=render_crash_report(incident, title=title, message=message),
+        report_text=render_crash_report(
+            incident,
+            title=title,
+            message=message,
+            text_attachments=text_attachments,
+        ),
         issue_action=_open_issue_tracker,
     )
 
@@ -83,6 +75,7 @@ def render_crash_report(
     *,
     title: ApplicationText,
     message: ApplicationText,
+    text_attachments: Sequence[tuple[str, str]] = (),
 ) -> str:
     """Render one deterministic localized report without app-payload imports."""
 
@@ -91,7 +84,7 @@ def render_crash_report(
             app_text("Error summary"),
             (
                 app_text("Severity: %1", "error"),
-                app_text("Kind: %1", "substitute_internal"),
+                app_text("Kind: %1", incident.kind.value),
                 app_text("Title: %1", title),
                 app_text("Message: %1", message),
                 app_text("Stage: %1", incident.boundary.value),
@@ -113,16 +106,25 @@ def render_crash_report(
     ]
     if incident.traceback:
         sections.append(_block(app_text("Traceback"), "\n".join(incident.traceback)))
-    sections.append(
-        _section(
-            app_text("Runtime context"),
-            tuple(
-                app_text("%1: %2", key, value)
-                for key, value in _runtime_rows(incident)
-                if value
-            ),
-        )
+    diagnostic_logs = tuple(
+        (filename, content) for filename, content in text_attachments if content.strip()
     )
+    if diagnostic_logs:
+        sections.append(
+            _block(
+                app_text("Diagnostic logs"),
+                "\n\n".join(
+                    f"[{filename}]\n{content}" for filename, content in diagnostic_logs
+                ),
+            )
+        )
+    runtime_rows = tuple(
+        app_text("%1: %2", key, value)
+        for key, value in _runtime_rows(incident)
+        if value
+    )
+    if runtime_rows:
+        sections.append(_section(app_text("Runtime context"), runtime_rows))
     return "\n\n".join(section for section in sections if section.strip())
 
 
@@ -132,16 +134,55 @@ def _incident_context_rows(
     """Return complete non-secret crash operation context."""
 
     return (
-        ("Operation", "application_crash"),
+        (
+            "Operation",
+            "application_startup"
+            if incident.kind is CrashKind.STARTUP
+            else "application_crash",
+        ),
         ("Trace ID", incident.incident_id),
         ("run_id", incident.run_id),
+        ("occurred_at_utc", incident.occurred_at_utc),
         ("crash_kind", incident.kind.value),
         ("attribution", incident.attribution.value),
+        ("summary", incident.summary),
+        ("exception_message", incident.exception_message),
         ("process_id", incident.process_id),
         ("exit_code", incident.exit_code),
         ("thread_name", incident.thread_name),
         ("attachments", ", ".join(incident.attachments)),
+        *tuple(sorted(incident.metadata.items())),
         ("issues_url", SUGARSUBSTITUTE_ISSUES_URL),
+    )
+
+
+def _incident_message(
+    incident: CrashIncident,
+) -> tuple[ApplicationText, ApplicationText]:
+    """Return truthful user-facing copy for one incident classification."""
+
+    if incident.kind is CrashKind.STARTUP:
+        return (
+            app_text("SugarSubstitute could not finish starting"),
+            app_text(
+                "SugarSubstitute encountered a confirmed startup failure. Copy this "
+                "report and share it with the maintainers."
+            ),
+        )
+    if incident.attribution is CrashAttribution.CONFIRMED:
+        return (
+            app_text("SugarSubstitute crashed"),
+            app_text(
+                "Something unexpected stopped SugarSubstitute. You can copy this "
+                "report and share it with the maintainers."
+            ),
+        )
+    return (
+        app_text("SugarSubstitute did not close normally"),
+        app_text(
+            "The previous SugarSubstitute session ended without completing shutdown. "
+            "The report below may help determine why."
+        ),
     )
 
 

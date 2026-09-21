@@ -145,6 +145,17 @@ class _GraphGateway:
 
         raise AssertionError("This gateway fixture does not remove Cubes.")
 
+    def replace_cube(
+        self,
+        workflow: JsonObject,
+        *,
+        instance_id: str,
+        document: JsonObject,
+    ) -> CanonicalCubeGraphAnalysis:
+        """Reject unused Cube replacement calls in existing-graph tests."""
+
+        raise AssertionError("This gateway fixture does not replace Cubes.")
+
 
 class _InvalidAnalysisGateway(_GraphGateway):
     """Return a response whose Cube instance has no embedded definition."""
@@ -275,6 +286,52 @@ class _StructuralGraphGateway:
             if candidate.instance_id == instance_id
         )
         return self.analyze(_remove_test_cube(workflow, node_id=instance.node_id))
+
+    def replace_cube(
+        self,
+        workflow: JsonObject,
+        *,
+        instance_id: str,
+        document: JsonObject,
+    ) -> CanonicalCubeGraphAnalysis:
+        """Return one server-shaped graph after a definition replacement."""
+
+        analysis = self.analyze(workflow)
+        instance = next(
+            candidate
+            for candidate in analysis.instances
+            if candidate.instance_id == instance_id
+        )
+        graph = deepcopy(workflow)
+        nodes = graph.get("nodes")
+        if not isinstance(nodes, list):
+            raise AssertionError("fixture nodes are malformed")
+        node = next(
+            item
+            for item in nodes
+            if isinstance(item, dict) and str(item.get("id")) == instance.node_id
+        )
+        marker = _cube_marker(node)
+        if marker is None:
+            raise AssertionError("fixture marker is missing")
+        marker["cube_id"] = document["cube_id"]
+        marker["cube_version"] = document["version"]
+        definitions = graph.get("definitions")
+        subgraphs = (
+            definitions.get("subgraphs") if isinstance(definitions, dict) else None
+        )
+        if not isinstance(subgraphs, list):
+            raise AssertionError("fixture definitions are malformed")
+        definition = next(
+            item
+            for item in subgraphs
+            if isinstance(item, dict) and str(item.get("id")) == instance.definition_id
+        )
+        extra = definition.setdefault("extra", {})
+        if not isinstance(extra, dict):
+            raise AssertionError("fixture definition metadata is malformed")
+        extra["sugarcubes_document"] = deepcopy(document)
+        return self.analyze(graph)
 
 
 def _append_test_cube(
