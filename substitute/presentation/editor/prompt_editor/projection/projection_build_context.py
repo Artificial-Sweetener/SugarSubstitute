@@ -32,10 +32,12 @@ class PromptProjectionBuildContext(Protocol):
     """Expose mutable feature state read only when a strategy builds projection."""
 
     _session: PromptProjectionSession
-    _scene_error_keys: frozenset[str]
 
     def display_mode(self) -> PromptProjectionDisplayMode:
         """Return the current projection display mode."""
+
+    def scene_error_keys(self) -> frozenset[str]:
+        """Return scene diagnostics included in projection builds."""
 
     def _decoration_accent_ranges(self) -> tuple[tuple[int, int], ...]:
         """Return source ranges receiving semantic decoration accents."""
