@@ -203,6 +203,7 @@ class ChoiceFieldSurfaceReconciler:
                                 field_spec.meta_info.get("target_model", "")
                             ),
                             thumbnail_repository_available=self._thumbnail_repository_available,
+                            field_metadata=field_spec.meta_info,
                         )
                     )
                     prepared[(cube_alias, node_name, field_key)] = (

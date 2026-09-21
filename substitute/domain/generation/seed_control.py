@@ -68,9 +68,43 @@ def seed_control_state_from_json(value: object) -> SeedControlState:
     return SeedControlState(mode=seed_mode_from_value(value.get("mode")))
 
 
+def nested_seed_control_states_to_json(
+    states: Mapping[str, Mapping[str, SeedControlState]],
+) -> JsonObject:
+    """Return JSON-ready seed modes keyed by node and field identity."""
+
+    return {
+        str(node_name): {
+            str(field_key): seed_control_state_to_json(state)
+            for field_key, state in field_states.items()
+        }
+        for node_name, field_states in states.items()
+    }
+
+
+def nested_seed_control_states_from_json(
+    value: object,
+) -> dict[str, dict[str, SeedControlState]]:
+    """Build node/field seed modes from decoded JSON state."""
+
+    if not isinstance(value, Mapping):
+        return {}
+    nested: dict[str, dict[str, SeedControlState]] = {}
+    for node_name, field_states in value.items():
+        if not isinstance(field_states, Mapping):
+            continue
+        nested[str(node_name)] = {
+            str(field_key): seed_control_state_from_json(state)
+            for field_key, state in field_states.items()
+        }
+    return nested
+
+
 __all__ = [
     "SeedControlState",
     "SeedMode",
+    "nested_seed_control_states_from_json",
+    "nested_seed_control_states_to_json",
     "seed_control_state_from_json",
     "seed_control_state_to_json",
     "seed_mode_from_value",

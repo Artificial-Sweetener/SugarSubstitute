@@ -31,6 +31,11 @@ from substitute.presentation.generation.queue_panel import GenerationQueuePanel
 from substitute.presentation.shell.generation_result_workspace_opener import (
     open_generation_job_as_workflow_for_view,
 )
+from substitute.application.generation.seed_value_service import SeedValueService
+from substitute.presentation.shell.seed_value_projector import SeedValueProjector
+from substitute.presentation.shell.workspace_generation_request_builder import (
+    active_behavior_snapshot,
+)
 from substitute.presentation.resources.app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
@@ -60,10 +65,12 @@ class GenerationQueueController:
             self._shell.generation_job_queue_service,
             parent=self._shell,
             open_snapshot_requested=self.open_generation_snapshot,
+            adopt_seeds_requested=self.adopt_generation_seeds,
         )
         self._panel = GenerationQueuePanel(
             self._shell.generation_job_queue_service,
             open_snapshot_requested=self.open_generation_snapshot,
+            adopt_seeds_requested=self.adopt_generation_seeds,
             parent=self._shell.sidePanelHost,
         )
         self._panel.hideRequested.connect(lambda: self.set_panel_visible(False))
@@ -79,6 +86,35 @@ class GenerationQueueController:
             file_actions=self._shell.workspace_file_actions,
             job_id=job_id,
         )
+
+    def adopt_generation_seeds(self, job_id: str) -> None:
+        """Load a queued generation's seeds into the active workflow controls."""
+
+        snapshot = self._shell.generation_job_queue_service.snapshot_for_job(job_id)
+        if snapshot is None:
+            return
+        workflow = self._shell.get_active_workflow()
+        workflow_id = getattr(
+            self._shell.workflow_session_service,
+            "active_workflow_id",
+            "",
+        )
+        behavior_snapshot = active_behavior_snapshot(self._shell, str(workflow_id))
+        seed_service = SeedValueService()
+        source_values = snapshot.seed_values
+        if not source_values and snapshot.workflow is not None:
+            source_values = seed_service.capture(
+                workflow=snapshot.workflow,
+                behavior_snapshot=None,
+            )
+        result = seed_service.adopt(
+            workflow=workflow,
+            behavior_snapshot=behavior_snapshot,
+            source_values=source_values,
+        )
+        SeedValueProjector(self._shell).project(workflow, result)
+        if result.changed:
+            self._shell.request_session_autosave()
 
     def show_for(self, target: QWidget) -> None:
         """Toggle the queue dropdown anchored to a titlebar segment."""

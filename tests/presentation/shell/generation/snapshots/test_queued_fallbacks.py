@@ -26,10 +26,6 @@ from pytest import MonkeyPatch
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.links.prompt_endpoints import PromptEndpoint, PromptEndpointIndex
 from substitute.domain.node_behavior import PromptRole
-from tests.presentation.shell.generation.snapshots.support import (
-    SeedRandomizationRecorder,
-    replace_seed_randomizer,
-)
 from tests.support.native_cube_workflow import native_cube_workflow_stub
 from substitute.presentation.shell import workspace_controller as mod
 
@@ -45,7 +41,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
     def _serialize_workflow_to_sugar_script(candidate: object) -> str:
         order.append("serialize")
         assert candidate is not workflow
-        assert cast(Any, candidate).seed == "randomized"
+        assert cast(Any, candidate).seed == "original"
         return f"# sugar {cast(Any, candidate).seed}"
 
     view = SimpleNamespace(
@@ -94,14 +90,6 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
         active_cube_stack=None,
     )
     controller = mod.WorkspaceController(view)
-    replace_seed_randomizer(
-        controller,
-        SeedRandomizationRecorder(
-            order,
-            mutate=workflow,
-            value="randomized",
-        ),
-    )
 
     def _prepare_workflow(**kwargs: object) -> object:
         order.append("capture")
@@ -116,7 +104,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["reconcile", "capture", "randomize"]
+    assert order == ["reconcile", "capture"]
     assert len(snapshots) == 1
     assert snapshots[0].workflow_name == "Recipe"
     assert snapshots[0].persistence_sugar_script is None
@@ -223,7 +211,6 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
         active_cube_stack=None,
     )
     controller = mod.WorkspaceController(view)
-    replace_seed_randomizer(controller, SeedRandomizationRecorder(order))
 
     def _prepare_workflow(**kwargs: object) -> object:
         order.append("capture")
@@ -238,7 +225,7 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
 
     snapshots = controller.build_queued_generation_snapshots()
 
-    assert order == ["reconcile", "capture", "randomize"]
+    assert order == ["reconcile", "capture"]
     assert len(snapshots) == 1
     assert snapshots[0].workflow_name == "Recipe"
     assert "Recipe - portrait" not in snapshots[0].workflow_name

@@ -38,7 +38,11 @@ def test_builder_rejects_a_workflow_without_a_canonical_graph() -> None:
     """Generation must not reconstruct a graph from legacy Cube buffers."""
 
     with pytest.raises(ValueError, match="not been migrated"):
-        NativeCubeWorkflowBuilder().build(WorkflowState())
+        NativeCubeWorkflowBuilder().build(
+            WorkflowState(),
+            enabled_node_keys_by_alias={},
+            disabled_node_keys_by_alias={},
+        )
 
 
 def test_builder_projects_stack_order_into_native_cube_geometry() -> None:
@@ -46,7 +50,11 @@ def test_builder_projects_stack_order_into_native_cube_geometry() -> None:
 
     workflow = _workflow()
 
-    graph = NativeCubeWorkflowBuilder().build(workflow)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     assert [node["id"] for node in cast(list[dict[str, object]], graph["nodes"])] == [
         1,
@@ -99,7 +107,11 @@ def test_builder_defers_anima_boundary_types_and_matching_to_sugarcubes() -> Non
     }
     workflow = graph_backed_cube_workflow_from_states(source, target)
 
-    graph = NativeCubeWorkflowBuilder().build(workflow)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     assert graph["links"] == []
     nodes = cast(list[dict[str, object]], graph["nodes"])
@@ -132,7 +144,12 @@ def test_builder_authors_links_and_overrides_as_graph_value_relations() -> None:
         )
     }
 
-    graph = NativeCubeWorkflowBuilder().build(workflow, global_override_scopes=scopes)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+        global_override_scopes=scopes,
+    )
 
     assert graph["links"] == []
     second_document = _document(graph, index=1)
@@ -202,7 +219,11 @@ def test_builder_authors_non_prompt_value_links_without_crossing_boundaries() ->
     cast(dict[str, object], first_sampler["inputs"])["seed"] = 8675309
     second_sampler["node_link"] = {"from_cube": "First", "from_node": "sampler"}
 
-    graph = NativeCubeWorkflowBuilder().build(workflow)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     assert graph["links"] == []
     second_document = _document(graph, index=1)
@@ -252,6 +273,8 @@ def test_builder_preserves_changed_seed_in_graph_relation_identity() -> None:
 
     first = NativeCubeWorkflowBuilder().build(
         workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
         global_override_scopes={
             "seed": GlobalOverrideScope(
                 override_key="seed",
@@ -264,6 +287,8 @@ def test_builder_preserves_changed_seed_in_graph_relation_identity() -> None:
     )
     second = NativeCubeWorkflowBuilder().build(
         workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
         global_override_scopes={
             "seed": GlobalOverrideScope(
                 override_key="seed",
@@ -294,7 +319,11 @@ def test_builder_preserves_local_values_for_explicitly_unlinked_nodes() -> None:
     )
     first_prompt["node_link"] = {"from_cube": None, "from_node": None}
 
-    graph = NativeCubeWorkflowBuilder().build(workflow)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     first_document = _document(graph, index=0)
     implementation = cast(dict[str, object], first_document["implementation"])
@@ -327,7 +356,11 @@ def test_builder_preserves_ordinary_regions_in_graph_backed_cube_workflow() -> N
         "prompt": {"class_type": "PrimitiveString", "inputs": {"text": "edited"}}
     }
 
-    graph = NativeCubeWorkflowBuilder().build(workflow)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     nodes = cast(list[dict[str, object]], graph["nodes"])
     assert [node["id"] for node in nodes] == [1, 2, "ordinary"]
@@ -365,7 +398,11 @@ def test_builder_preserves_manually_wired_cube_edges_exactly() -> None:
         [8, 1, 0, 2, 1, "IMAGE"],
     ]
 
-    graph = NativeCubeWorkflowBuilder().build(workflow)
+    graph = NativeCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
     assert graph["links"] == [
         [7, 1, 1, 2, 0, "IMAGE"],

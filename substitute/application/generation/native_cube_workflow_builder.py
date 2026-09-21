@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 from substitute.domain.common import GlobalOverrideScope, JsonObject
 from substitute.domain.workflow import WorkflowState
@@ -48,6 +48,8 @@ class NativeCubeWorkflowBuilder:
         self,
         workflow: WorkflowState,
         *,
+        enabled_node_keys_by_alias: Mapping[str, Iterable[str]],
+        disabled_node_keys_by_alias: Mapping[str, Iterable[str]],
         global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
         prompt_field_overrides: Mapping[tuple[str, str, str], object] | None = None,
     ) -> JsonObject:
@@ -61,6 +63,8 @@ class NativeCubeWorkflowBuilder:
             )
         return self._graph_backed_builder.build(
             workflow,
+            enabled_node_keys_by_alias=enabled_node_keys_by_alias,
+            disabled_node_keys_by_alias=disabled_node_keys_by_alias,
             global_override_scopes=global_override_scopes,
             prompt_field_overrides=prompt_field_overrides,
         )

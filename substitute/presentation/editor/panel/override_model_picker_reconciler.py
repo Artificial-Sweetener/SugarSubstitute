@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from substitute.application.model_metadata import model_kind_for_field
+from substitute.application.model_metadata.model_field_kind_resolver import (
+    declared_model_kind_for_projected_field,
+)
 from substitute.application.overrides import PinnedOverrideControl
 from substitute.application.ports import NodeDefinitionGateway
 
@@ -41,9 +43,10 @@ def reconcile_model_override_picker(
     if not callable(reconcile_choice_source):
         return
     if (
-        model_kind_for_field(
+        declared_model_kind_for_projected_field(
             class_type=spec.class_type,
             input_key=spec.field_key,
+            field_metadata=spec.meta_info,
         )
         is None
     ):
@@ -63,6 +66,7 @@ def reconcile_model_override_picker(
             cube_alias=spec.cube_alias,
             target_model=str(spec.meta_info.get("target_model", "")),
             thumbnail_repository_available=thumbnail_repository_available,
+            field_metadata=spec.meta_info,
         )
     )
     if snapshot.choice_source is not None:

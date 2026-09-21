@@ -21,7 +21,7 @@ from __future__ import annotations
 from sugarsubstitute_shared.presentation.localization import app_text
 
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Protocol, cast
 from uuid import uuid4
 
@@ -33,7 +33,6 @@ from substitute.application.generation import (
     GenerationPreparationResult,
     GenerationRequest,
     GenerationRunStarted,
-    SeedRandomizationResult,
 )
 from sugarsubstitute_shared.presentation.localization import (
     translate_application_message,
@@ -51,9 +50,7 @@ from substitute.application.prompt_editor.scenes.workflow_analysis import (
     WorkflowScene,
     WorkflowSceneAnalysis,
 )
-from substitute.presentation.shell.workspace_generation_request_builder import (
-    synchronize_generation_request_seed_scopes,
-)
+from substitute.application.generation.seed_value_service import SeedValueService
 
 if TYPE_CHECKING:
     from substitute.application.node_behavior import EditorBehaviorSnapshot
@@ -77,18 +74,6 @@ class SceneGenerationPreflightFailureFactory(Protocol):
         values: dict[str, object] | None = None,
     ) -> GenerationFailure:
         """Return a generation failure for one preflight exception."""
-
-
-class SceneGenerationSeedRandomizer(Protocol):
-    """Randomize seed fields on a live scene generation request."""
-
-    def __call__(
-        self,
-        *,
-        request: GenerationRequest,
-        behavior_snapshot: "EditorBehaviorSnapshot | None",
-    ) -> SeedRandomizationResult:
-        """Apply seed randomization before request capture."""
 
 
 class SceneGenerationPreparationService(Protocol):
@@ -308,18 +293,12 @@ def build_scene_generation_snapshots_from_context(
     *,
     context: SceneGenerationContext,
     preparation_service: SceneGenerationPreparationService,
-    randomize_request_seeds: SceneGenerationSeedRandomizer,
     scene_run_bookkeeping: SceneRunBookkeepingCallback,
 ) -> tuple[GenerationJobSnapshot, ...]:
     """Capture immutable generation snapshots for every analyzed prompt scene."""
 
     request = context.request
     behavior_snapshot = context.behavior_snapshot
-    seed_result = randomize_request_seeds(
-        request=request,
-        behavior_snapshot=behavior_snapshot,
-    )
-    request = synchronize_generation_request_seed_scopes(request, seed_result)
     result = preparation_service.prepare_scene_snapshots(
         request=CapturedGenerationRequest.capture(
             request=request,
@@ -327,15 +306,20 @@ def build_scene_generation_snapshots_from_context(
         ),
         scene_analysis=context.scene_analysis,
     )
+    snapshots = _snapshots_with_seed_values(
+        result.snapshots,
+        request=request,
+        behavior_snapshot=behavior_snapshot,
+    )
     if result.scene_run_id is not None and result.scene_count is not None:
         scene_run_bookkeeping(
             workflow_id=request.workflow_id,
             workflow_name=request.workflow_name,
             scene_run_id=result.scene_run_id,
             scene_count=result.scene_count,
-            snapshots=result.snapshots,
+            snapshots=snapshots,
         )
-    return result.snapshots
+    return snapshots
 
 
 def build_scene_generation_snapshot_from_context(
@@ -343,7 +327,6 @@ def build_scene_generation_snapshot_from_context(
     context: SceneGenerationContext,
     scene_key: str,
     preparation_service: SceneGenerationPreparationService,
-    randomize_request_seeds: SceneGenerationSeedRandomizer,
     preflight_error: SceneGenerationPreflightErrorFactory,
     scene_run_id_factory: Callable[[], str] | None = None,
 ) -> GenerationJobSnapshot:
@@ -357,12 +340,7 @@ def build_scene_generation_snapshot_from_context(
         workflow_id=request.workflow_id,
         preflight_error=preflight_error,
     )
-    seed_result = randomize_request_seeds(
-        request=request,
-        behavior_snapshot=behavior_snapshot,
-    )
-    request = synchronize_generation_request_seed_scopes(request, seed_result)
-    return preparation_service.prepare_scene_snapshot(
+    snapshot = preparation_service.prepare_scene_snapshot(
         request=CapturedGenerationRequest.capture(
             request=request,
             behavior_snapshot=behavior_snapshot,
@@ -370,6 +348,26 @@ def build_scene_generation_snapshot_from_context(
         scene_key=scene_key,
         scene_run_id=(scene_run_id_factory or _default_scene_run_id)(),
     )
+    return _snapshots_with_seed_values(
+        (snapshot,),
+        request=request,
+        behavior_snapshot=behavior_snapshot,
+    )[0]
+
+
+def _snapshots_with_seed_values(
+    snapshots: tuple[GenerationJobSnapshot, ...],
+    *,
+    request: GenerationRequest,
+    behavior_snapshot: "EditorBehaviorSnapshot | None",
+) -> tuple[GenerationJobSnapshot, ...]:
+    """Attach immutable main and variation seed evidence to queued snapshots."""
+
+    seed_values = SeedValueService().capture(
+        workflow=request.workflow,
+        behavior_snapshot=behavior_snapshot,
+    )
+    return tuple(replace(snapshot, seed_values=seed_values) for snapshot in snapshots)
 
 
 def enqueue_prompt_scene_generation(
@@ -414,6 +412,7 @@ def enqueue_prompt_scene_generation(
         )
         return
     enqueue_snapshot(snapshot, callbacks)
+    bindings.randomize_seeds()
 
 
 def generation_callbacks_from_scene_bindings(
@@ -422,7 +421,6 @@ def generation_callbacks_from_scene_bindings(
     """Return application generation callbacks from shell scene bindings."""
 
     return GenerationCallbacks(
-        randomize_seeds=bindings.randomize_seeds,
         on_run_started=bindings.on_run_started,
         on_progress=bindings.on_progress,
         on_model_load_progress=bindings.on_model_load_progress,
@@ -513,7 +511,6 @@ __all__ = [
     "SceneGenerationPreflightErrorFactory",
     "SceneGenerationPreflightFailureFactory",
     "SceneGenerationQueueService",
-    "SceneGenerationSeedRandomizer",
     "SceneRunBookkeeping",
     "SceneRunBookkeepingCallback",
     "WorkspaceSceneGenerationActions",
