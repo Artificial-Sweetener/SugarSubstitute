@@ -548,19 +548,6 @@ next_limit = 879
 debt = "SS-ARCH-054"
 
 [[waivers]]
-id = "SS-WAIVER-R056"
-owner = "canonical prompt layout"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"
-kind = "remediation"
-justification = "The assessed file mixes text measurement and font cache, projection-run to piece partitioning, word wrapping and break policy, decoration keep-group planning, line and fragment construction, source-boundary and caret mapping. Extract text measurement, wrap policy, and source-boundary mapping from line-layout assembly."
-issue = "chore:SS-ARCH-056"
-review_by = 2026-12-15
-max_lines = 1730
-next_limit = 1384
-debt = "SS-ARCH-056"
-
-[[waivers]]
 id = "SS-WAIVER-R057"
 owner = "prompt autocomplete panel"
 rule = "STRUCT003"
@@ -2014,3 +2001,14 @@ justification = "MainWindowInputCanvasComposition and compose_input_canvas_contr
 issue = "chore:SS-WAIVER-S151"
 review_by = 2026-12-15
 max_lines = 509
+
+[[waivers]]
+id = "SS-WAIVER-S152"
+owner = "canonical prompt line assembly"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"
+kind = "structural"
+justification = "PromptProjectionLineLayoutBuilder owns one atomic line-assembly state machine over line width, height, vertical position, pending fragments, caret boundaries, and reusable-suffix convergence. Text and inline placement, wrapping transitions, paragraph and structural-row transitions, line finalization, caret geometry, and snapshot emission must update that state together; extracting one transition family would divide the authoritative layout invariant rather than create an independently changing owner. Measurement, wrap policy, projection partitioning, keep-group planning, and source-boundary resolution are separate collaborators."
+issue = "chore:SS-WAIVER-S152"
+review_by = 2026-12-15
+max_lines = 745
