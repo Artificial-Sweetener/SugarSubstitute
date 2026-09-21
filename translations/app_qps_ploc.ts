@@ -2030,6 +2030,10 @@ Install these nodes now?</source>
       <translation>⟦Dëvïcës: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Diagnostic logs</source>
+      <translation>⟦Dïàgnöstïc lögs ···⟧</translation>
+    </message>
+    <message>
       <source>Diffusion model</source>
       <translation>⟦Dïffüsïön mödël ···⟧</translation>
     </message>
@@ -5564,12 +5568,20 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦SügàrSübstïtütë ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>⟦SügàrSübstïtütë cöüld nöt fïnïsh stàrtïng ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute crashed</source>
       <translation>⟦SügàrSübstïtütë cràshëd ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute did not close normally</source>
       <translation>⟦SügàrSübstïtütë dïd nöt clösë nörmàlly ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>⟦SügàrSübstïtütë ëncöüntërëd à cönfïrmëd stàrtüp fàïlürë. Cöpy thïs rëpört ànd shàrë ït wïth thë màïntàïnërs. ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute is free software, shared in the spirit of collaboration, curiosity, and user freedom.

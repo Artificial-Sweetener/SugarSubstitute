@@ -35,6 +35,9 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     PreparedCrashRun,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.supervised_termination import (
+    SupervisedTermination,
+)
 from sugarsubstitute_shared.application_runtime_mode import (
     APPLICATION_RUNTIME_MODE_ENV,
     PACKAGED_APPLICATION_RUNTIME_MODE,
@@ -68,6 +71,15 @@ class _Activation:
         """Record failed-target rejection."""
 
         self.transitions.append(f"reject:{reason}")
+
+
+class _FailingCommitActivation(_Activation):
+    """Fail after readiness to exercise launcher-initiated candidate termination."""
+
+    def commit(self) -> None:
+        """Raise the activation failure before the candidate can be committed."""
+
+        raise RuntimeError("activation publication failed")
 
 
 class _Supervisor:
@@ -135,6 +147,7 @@ class _CrashSupervisor:
         self._diagnostics_root = diagnostics_root
         self.adopted: list[CandidateProcess] = []
         self.cancellations: list[bool] = []
+        self.termination_reasons: list[str] = []
         self.fallbacks: list[tuple[list[str], dict[str, str]]] = []
 
     def prepare(
@@ -142,10 +155,11 @@ class _CrashSupervisor:
         *,
         layout: InstallLayout,
         environment: Mapping[str, str],
+        command: Sequence[str] = (),
     ) -> PreparedCrashRun:
         """Add a recognizable crash contract to the candidate environment."""
 
-        _ = layout
+        _ = (layout, command)
         prepared_environment = dict(environment)
         prepared_environment["CRASH_CONTRACT"] = "active"
         return PreparedCrashRun(
@@ -160,14 +174,15 @@ class _CrashSupervisor:
         layout: InstallLayout,
         process: CandidateProcess,
         prepared: PreparedCrashRun,
-        expected_cancellation: bool = False,
+        termination: SupervisedTermination = SupervisedTermination(),
     ) -> ClassifiedProcessExit:
         """Record full-lifetime adoption of the ready candidate."""
 
         _ = layout
         _ = prepared
         self.adopted.append(process)
-        self.cancellations.append(expected_cancellation)
+        self.cancellations.append(termination.is_user_cancellation)
+        self.termination_reasons.append(termination.reason.value)
         return ClassifiedProcessExit(0)
 
     def supervise(
@@ -277,3 +292,30 @@ def test_cancelled_candidate_rolls_back_without_failure_report_or_fallback(
     assert activation.transitions == ["rollback"]
     assert crash.fallbacks == []
     assert crash.cancellations == [True]
+    assert crash.termination_reasons == ["user_cancellation"]
+
+
+def test_activation_failure_retains_known_update_termination_reason(
+    tmp_path: Path,
+) -> None:
+    """A launcher-stopped candidate must not be classified as an unknown app crash."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    activation = _FailingCommitActivation()
+    readiness = _Supervisor(fail=False)
+    crash = _CrashSupervisor(layout.appdata_dir / "diagnostics")
+
+    launch_prepared_update(
+        layout=layout,
+        command=("app",),
+        attempted_version="1.0.0",
+        environment={},
+        activation=activation,
+        supervisor=readiness,
+        crash_supervisor=crash,
+    )
+
+    assert readiness.process.return_code == 1
+    assert activation.transitions == ["reject:RuntimeError"]
+    assert crash.termination_reasons == ["update_activation_failure"]
+    assert crash.fallbacks

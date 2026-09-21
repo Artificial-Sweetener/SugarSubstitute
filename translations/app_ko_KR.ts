@@ -115,7 +115,7 @@ Prompt preview:
       <translation>확장 프로그램 요청자 %1개 | %2 | 요약: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="168"></location>
+      <location filename="../substitute/application/errors.py" line="169"></location>
       <source>%1 failed</source>
       <translation>%1 실패</translation>
     </message>
@@ -779,7 +779,7 @@ This is taking much longer than expected</source>
       <translation>Base-Cubes 동기화 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="666"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="677"></location>
       <source>Batch %1</source>
       <translation>배치 %1</translation>
     </message>
@@ -799,7 +799,7 @@ This is taking much longer than expected</source>
       <translation>파랑</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="134"></location>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="142"></location>
       <source>Bounding Box</source>
       <translation>경계 상자</translation>
     </message>
@@ -999,7 +999,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI 확장을 확인하고 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="211"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="229"></location>
       <source>Checking ComfyUI's Python environment.</source>
       <translation>ComfyUI의 Python 환경을 확인하는 중입니다.</translation>
     </message>
@@ -1164,12 +1164,12 @@ This is taking much longer than expected</source>
       <translation>색상 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="206"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="216"></location>
       <source>Choose detector thumbnail</source>
       <translation>감지기 썸네일 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="68"></location>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="76"></location>
       <source>Choose detector thumbnail for %1</source>
       <translation>%1의 감지기 썸네일 선택</translation>
     </message>
@@ -1629,7 +1629,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 환경 상태를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="170"></location>
+      <location filename="../substitute/application/errors.py" line="171"></location>
       <source>Comfy failed</source>
       <translation>Comfy 실패</translation>
     </message>
@@ -1684,7 +1684,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 런타임이 호환되지 않습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="106"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="107"></location>
       <source>Comfy startup logs</source>
       <translation>Comfy 시작 로그</translation>
     </message>
@@ -1944,7 +1944,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI 사용 불가</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="263"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="264"></location>
       <source>ComfyUI version: %1</source>
       <translation>ComfyUI 버전: %1</translation>
     </message>
@@ -2214,7 +2214,7 @@ This is taking much longer than expected</source>
       <translation>큐브 '%1'(%2)</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="238"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="239"></location>
       <source>Cube ID</source>
       <translation>큐브 ID</translation>
     </message>
@@ -2224,7 +2224,7 @@ This is taking much longer than expected</source>
       <translation>큐브 라이브러리</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="308"></location>
+      <location filename="../substitute/application/errors.py" line="309"></location>
       <source>Cube Library Notice</source>
       <translation>큐브 라이브러리 알림</translation>
     </message>
@@ -2249,7 +2249,7 @@ This is taking much longer than expected</source>
       <translation>활성 대상에서 큐브 라이브러리를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="318"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="319"></location>
       <source>Cube Library warnings</source>
       <translation>큐브 라이브러리 경고</translation>
     </message>
@@ -2314,7 +2314,7 @@ This is taking much longer than expected</source>
       <translation>큐브 팩 동기화됨</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="239"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="240"></location>
       <source>Cube alias</source>
       <translation>큐브 별칭</translation>
     </message>
@@ -2372,17 +2372,17 @@ Install these nodes now?</source>
 지금 이 노드를 설치하시겠습니까?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="435"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="446"></location>
       <source>Current image</source>
       <translation>현재 이미지</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="91"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="92"></location>
       <source>Current inputs</source>
       <translation>현재 입력</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="98"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="99"></location>
       <source>Current outputs</source>
       <translation>현재 출력</translation>
     </message>
@@ -2527,9 +2527,14 @@ Install these nodes now?</source>
       <translation>감지된 환경</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="284"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="285"></location>
       <source>Devices: %1</source>
       <translation>장치: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="115"></location>
+      <source>Diagnostic logs</source>
+      <translation>진단 로그</translation>
     </message>
     <message>
       <location filename="../substitute/application/model_metadata/prompt_preset_scope_resolver.py" line="139"></location>
@@ -2727,7 +2732,7 @@ Install these nodes now?</source>
       <translation>타원 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="276"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="277"></location>
       <source>Embedded Python: %1</source>
       <translation>내장 Python: %1</translation>
     </message>
@@ -2787,7 +2792,7 @@ Install these nodes now?</source>
       <translation>오류 색상</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="126"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="127"></location>
       <source>Error summary</source>
       <translation>오류 요약</translation>
     </message>
@@ -2802,12 +2807,12 @@ Install these nodes now?</source>
       <translation>예외</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="138"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="139"></location>
       <source>Exception type: %1</source>
       <translation>예외 유형: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="173"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="174"></location>
       <source>Executed nodes: %1</source>
       <translation>실행된 노드: %1</translation>
     </message>
@@ -3230,7 +3235,7 @@ Install these nodes now?</source>
       <translation>초록</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="191"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="192"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP 상태: %1</translation>
     </message>
@@ -3385,7 +3390,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="622"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="633"></location>
       <source>Image %1</source>
       <translation>이미지 %1</translation>
     </message>
@@ -3625,7 +3630,7 @@ Install these nodes now?</source>
       <translation>나중에</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="292"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="293"></location>
       <source>Launch args: %1</source>
       <translation>실행 인수: %1</translation>
     </message>
@@ -4325,7 +4330,7 @@ Install these nodes now?</source>
       <translation>선택한 모델 다운로드가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="214"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="215"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>노드별 검증 오류가 보고되지 않았습니다.</translation>
     </message>
@@ -4387,17 +4392,17 @@ I’ll bring my own</source>
       <translation>노드</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="206"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="207"></location>
       <source>Node %1%2%3</source>
       <translation>노드 %1%2%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="236"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="237"></location>
       <source>Node ID</source>
       <translation>노드 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="170"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="171"></location>
       <source>Node ID: %1</source>
       <translation>노드 ID: %1</translation>
     </message>
@@ -4407,7 +4412,7 @@ I’ll bring my own</source>
       <translation>노드 작업</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="165"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="166"></location>
       <source>Node context</source>
       <translation>노드 컨텍스트</translation>
     </message>
@@ -4417,12 +4422,12 @@ I’ll bring my own</source>
       <translation>노드 오류</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="237"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="238"></location>
       <source>Node name</source>
       <translation>노드 이름</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="171"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="172"></location>
       <source>Node type: %1</source>
       <translation>노드 유형: %1</translation>
     </message>
@@ -4482,7 +4487,7 @@ I’ll bring my own</source>
       <translation>확인</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="270"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="271"></location>
       <source>OS: %1</source>
       <translation>운영 체제: %1</translation>
     </message>
@@ -4602,7 +4607,7 @@ I’ll bring my own</source>
       <translation>평소 사용하는 바로 가기, 스크립트 또는 실행기로 이 ComfyUI 설치를 직접 여세요. Substitute가 자동으로 감지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="232"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="233"></location>
       <source>Operation</source>
       <translation>작업</translation>
     </message>
@@ -4672,7 +4677,7 @@ I’ll bring my own</source>
       <translation>전체 설정 진행률</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="240"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="241"></location>
       <source>Package</source>
       <translation>패키지</translation>
     </message>
@@ -4742,7 +4747,7 @@ I’ll bring my own</source>
       <translation>지원되는 Danbooru 게시물 또는 이미지 URL을 프롬프트 태그로 붙여넣습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="235"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="236"></location>
       <source>Path</source>
       <translation>경로</translation>
     </message>
@@ -5007,7 +5012,7 @@ I’ll bring my own</source>
       <translation>프롬프트 편집</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="155"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="156"></location>
       <source>Prompt ID: %1</source>
       <translation>프롬프트 ID: %1</translation>
     </message>
@@ -5017,12 +5022,12 @@ I’ll bring my own</source>
       <translation>프롬프트 편집기 동작 및 작성 지원입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="188"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="189"></location>
       <source>Prompt validation errors</source>
       <translation>프롬프트 검증 오류</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="225"></location>
+      <location filename="../substitute/application/errors.py" line="226"></location>
       <source>Prompt validation failed</source>
       <translation>프롬프트 검증 실패</translation>
     </message>
@@ -5052,7 +5057,7 @@ I’ll bring my own</source>
       <translation>PySide6-Fluent-Widgets</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="280"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="281"></location>
       <source>PyTorch: %1</source>
       <translation>PyTorch 버전: %1</translation>
     </message>
@@ -5087,7 +5092,7 @@ I’ll bring my own</source>
       <translation>Python 실행 파일 (python.exe python);;모든 파일 (*)</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="272"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="273"></location>
       <source>Python: %1</source>
       <translation>Python: %1</translation>
     </message>
@@ -5142,7 +5147,7 @@ I’ll bring my own</source>
       <translation>무작위로 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="218"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="219"></location>
       <source>Raw response text:</source>
       <translation>원시 응답 텍스트:</translation>
     </message>
@@ -5227,7 +5232,7 @@ I’ll bring my own</source>
       <translation>새로 고침</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="246"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="256"></location>
       <source>Refresh CivitAI metadata</source>
       <translation>CivitAI 메타데이터 새로 고침</translation>
     </message>
@@ -5751,12 +5756,12 @@ No known extension claimant.</source>
       <translation>현재 선택된 일반 또는 무한 생성 작업을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="259"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="260"></location>
       <source>Runtime and system information</source>
       <translation>런타임 및 시스템 정보</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="131"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="127"></location>
       <source>Runtime context</source>
       <translation>런타임 컨텍스트</translation>
     </message>
@@ -5931,7 +5936,7 @@ No known extension claimant.</source>
       <translation>검사 중…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="505"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="516"></location>
       <source>Scene</source>
       <translation>장면</translation>
     </message>
@@ -5996,7 +6001,7 @@ No known extension claimant.</source>
       <translation>구간 순서 변경</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="133"></location>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="141"></location>
       <source>Segmentation</source>
       <translation>분할</translation>
     </message>
@@ -6356,7 +6361,7 @@ No known extension claimant.</source>
       <translation>저장된 런타임 경로 일부가 이 설치와 더 이상 일치하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <location filename="../substitute/application/crash_reports.py" line="51"></location>
       <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
       <translation>예기치 않은 문제로 SugarSubstitute가 중지되었습니다. 이 보고서를 복사하여 관리자와 공유할 수 있습니다.</translation>
     </message>
@@ -6386,7 +6391,7 @@ No known extension claimant.</source>
       <translation>단계</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="134"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="135"></location>
       <source>Stage: %1</source>
       <translation>단계: %1</translation>
     </message>
@@ -6501,32 +6506,32 @@ No known extension claimant.</source>
       <translation>사용 가능한 경우 연속 또는 대기열 생성 작업을 중지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="139"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="138"></location>
       <source>Substitute BackEnd API version is incompatible.</source>
       <translation>Substitute BackEnd API 버전이 호환되지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="123"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="122"></location>
       <source>Substitute BackEnd and SugarCubes are compatible.</source>
       <translation>Substitute BackEnd와 SugarCubes가 호환됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="112"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="111"></location>
       <source>Substitute BackEnd capabilities could not be read.</source>
       <translation>Substitute BackEnd 기능을 읽지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="163"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="162"></location>
       <source>Substitute BackEnd did not report its extension version.</source>
       <translation>Substitute BackEnd에서 확장 프로그램 버전을 보고하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="152"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="151"></location>
       <source>Substitute BackEnd is missing required features: %1</source>
       <translation>Substitute BackEnd에 필요한 기능이 없습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="183"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="182"></location>
       <source>Substitute BackEnd version is incompatible.</source>
       <translation>Substitute BackEnd 버전이 호환되지 않습니다.</translation>
     </message>
@@ -6766,7 +6771,7 @@ No known extension claimant.</source>
       <translation>설정을 완료하려면 ComfyUI 폴더가 필요합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="229"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="230"></location>
       <source>Substitute operation context</source>
       <translation>Substitute 작업 컨텍스트</translation>
     </message>
@@ -6811,7 +6816,7 @@ No known extension claimant.</source>
       <translation>Substitute가 이 로컬 ComfyUI 설치를 저장하고 준비하여 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="267"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="268"></location>
       <source>Substitute version: %1</source>
       <translation>Substitute 버전: %1</translation>
     </message>
@@ -6882,12 +6887,12 @@ No known extension claimant.</source>
       <translation>SugarCubes 종속성 버전 복구 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="214"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="213"></location>
       <source>SugarCubes did not report its runtime version.</source>
       <translation>SugarCubes에서 런타임 버전을 보고하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="201"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="200"></location>
       <source>SugarCubes is not available on this target.</source>
       <translation>이 대상에서 SugarCubes를 사용할 수 없습니다.</translation>
     </message>
@@ -6912,7 +6917,7 @@ No known extension claimant.</source>
       <translation>SugarCubes 유지 관리 출력을 읽을 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="229"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="228"></location>
       <source>SugarCubes prerelease versions are not allowed in release mode.</source>
       <translation>릴리스 모드에서는 SugarCubes 시험판 버전을 사용할 수 없습니다.</translation>
     </message>
@@ -6942,7 +6947,7 @@ No known extension claimant.</source>
       <translation>SugarCubes에서 기본 큐브 종속성이 여전히 누락되었다고 보고합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="247"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="246"></location>
       <source>SugarCubes version is incompatible.</source>
       <translation>SugarCubes 버전이 호환되지 않습니다.</translation>
     </message>
@@ -6952,14 +6957,24 @@ No known extension claimant.</source>
       <translation>SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="39"></location>
+      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>SugarSubstitute가 시작을 완료하지 못했습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="50"></location>
       <source>SugarSubstitute crashed</source>
       <translation>SugarSubstitute가 충돌했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="41"></location>
+      <location filename="../substitute/application/crash_reports.py" line="56"></location>
       <source>SugarSubstitute did not close normally</source>
       <translation>SugarSubstitute가 정상적으로 종료되지 않았습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="45"></location>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>SugarSubstitute에서 확인된 시작 오류가 발생했습니다. 이 보고서를 복사하여 관리자와 공유하세요.</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/license_text.py" line="23"></location>
@@ -7132,7 +7147,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>목표 크기</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="320"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="321"></location>
       <source>Technical detail</source>
       <translation>기술 세부 정보</translation>
     </message>
@@ -7317,7 +7332,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>운영 체제 자격 증명 저장소에서 키를 거부했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="49"></location>
+      <location filename="../substitute/application/crash_reports.py" line="57"></location>
       <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
       <translation>이전 SugarSubstitute 세션이 종료 절차를 완료하지 못한 채 끝났습니다. 아래 보고서가 원인을 파악하는 데 도움이 될 수 있습니다.</translation>
     </message>
@@ -7332,7 +7347,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>준비 상태 엔드포인트가 제시간에 응답하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="309"></location>
+      <location filename="../substitute/application/errors.py" line="310"></location>
       <source>The recipe loaded with Cube Library warnings.</source>
       <translation>큐브 라이브러리 경고와 함께 레시피를 불러왔습니다.</translation>
     </message>
@@ -7447,12 +7462,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>종료 명령이 완료되기 전에 제한 시간이 초과되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="411"></location>
+      <location filename="../substitute/application/errors.py" line="412"></location>
       <source>The workflow could not be queued because Comfy rejected the prompt.</source>
       <translation>Comfy에서 프롬프트를 거부하여 워크플로를 대기열에 추가하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="410"></location>
+      <location filename="../substitute/application/errors.py" line="411"></location>
       <source>The workflow could not be queued.</source>
       <translation>워크플로를 대기열에 추가하지 못했습니다.</translation>
     </message>
@@ -7597,7 +7612,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>썸네일</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="132"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="133"></location>
       <source>Title: %1</source>
       <translation>제목: %1</translation>
     </message>
@@ -7612,17 +7627,17 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>펼친 큐브 카드와 간결한 큐브 카드 간에 전환합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="193"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="194"></location>
       <source>Top-level error:</source>
       <translation>최상위 오류:</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="241"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="242"></location>
       <source>Trace ID</source>
       <translation>추적 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="84"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="85"></location>
       <source>Traceback</source>
       <translation>트레이스백</translation>
     </message>
@@ -8257,22 +8272,22 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="233"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="234"></location>
       <source>Workflow ID</source>
       <translation>워크플로 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="153"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="154"></location>
       <source>Workflow ID: %1</source>
       <translation>워크플로 ID: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="113"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="114"></location>
       <source>Workflow JSON</source>
       <translation>워크플로 JSON</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="149"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="150"></location>
       <source>Workflow and prompt context</source>
       <translation>워크플로 및 프롬프트 컨텍스트</translation>
     </message>
@@ -8282,7 +8297,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로를 불러오지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="234"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="235"></location>
       <source>Workflow name</source>
       <translation>워크플로 이름</translation>
     </message>
@@ -8452,7 +8467,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>노드 페이로드가 매핑이 아님</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="175"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="176"></location>
       <source>none</source>
       <translation>없음</translation>
     </message>
