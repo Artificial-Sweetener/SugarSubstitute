@@ -18,13 +18,12 @@
 
 from __future__ import annotations
 
-from bisect import bisect_left, bisect_right
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import cast
 
 from PySide6.QtCore import QRectF, QSizeF
-from PySide6.QtGui import QFont, QFontMetricsF, QTextLayout, QTextOption
+from PySide6.QtGui import QFont, QTextLayout
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.presentation.text_coordinates import TextCoordinateMap
@@ -34,13 +33,10 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
-    PromptProjectionDisplayMode,
     PromptProjectionDocument,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
-    PromptProjectionRunKind,
-    PromptProjectionRunRole,
 )
 from ..projection.metrics import (
     PromptProjectionMetrics,
@@ -53,92 +49,24 @@ from .models import (
     PromptProjectionLineSnapshot,
     PromptProjectionTextFragment,
 )
-from ..projection.text_style import projection_text_run_font
 from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from .keep_groups import PromptKeepGroupPlanner, PromptKeepGroupRange
+from .layout_pieces import (
+    PromptInlineObjectLayoutPiece,
+    PromptLayoutPieceBuilder,
+    PromptParagraphBreakLayoutPiece,
+    PromptStructuralRowLayoutPiece,
+    PromptTextLayoutPiece,
+)
 from .region_rows import PromptRegionStructuralRowLayoutBuilder
+from .source_boundaries import (
+    PromptLineBoundary,
+    PromptLineStartBoundary,
+    resolve_line_source_span,
+)
 from .tag_keep_policy import tag_keep_source_ranges_for_layout
-
-
-@dataclass(frozen=True, slots=True)
-class _TextPiece:
-    """Describe one text-only piece emitted while splitting runs around newlines."""
-
-    run: PromptProjectionRun
-    text: str
-    projection_start: int
-    source_positions: Sequence[int]
-
-
-@dataclass(frozen=True, slots=True)
-class _InlineObjectPiece:
-    """Describe one inline object piece emitted for layout."""
-
-    run: PromptProjectionRun
-    size: QSizeF
-
-
-@dataclass(frozen=True, slots=True)
-class _ParagraphBreak:
-    """Describe one explicit paragraph break emitted from a text run newline."""
-
-    projection_start: int
-    projection_end: int
-    source_start: int
-    source_end: int
-
-
-@dataclass(frozen=True, slots=True)
-class _StructuralRowPiece:
-    """Describe one renderer-free structural row emitted by a projection run."""
-
-    run: PromptProjectionRun
-
-
-_LayoutPiece = _TextPiece | _InlineObjectPiece | _ParagraphBreak | _StructuralRowPiece
-
-
-@dataclass(frozen=True, slots=True)
-class _LineStartBoundary:
-    """Describe a source-aware boundary that opens one visual line."""
-
-    projection_position: int
-    source_position: int | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class _LineBoundary:
-    """Describe a source-aware line-local caret boundary."""
-
-    projection_position: int
-    x_position: float
-    source_position: int | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class _KeepGroupRange:
-    """Describe a piece-index range that should be line-broken as one unit."""
-
-    start_index: int
-    end_index: int
-    width: float
-    reason: str
-
-
-@dataclass(frozen=True, slots=True)
-class _PieceSourceRange:
-    """Describe the source range covered by one layout piece."""
-
-    index: int
-    start: int
-    end: int
-
-
-@dataclass(frozen=True, slots=True)
-class _TextBreakDecision:
-    """Describe an accepted text break after enforcing word integrity."""
-
-    consumed_length: int
-    break_before_text: bool = False
+from .text_measurement import PromptTextMeasurementCache
+from .wrap_policy import adjust_break_for_word_integrity, visible_wrap_candidate_length
 
 
 @dataclass(slots=True)
@@ -166,8 +94,6 @@ class _PendingInlineObjectFragment:
 
 _PendingFragment = _PendingTextFragment | _PendingInlineObjectFragment
 
-_WORD_JOINING_CHARACTERS = frozenset(("_", "-", "'"))
-_WIDTH_EPSILON = 0.01
 _MEASUREMENT_CACHE_ENTRY_LIMIT = 8192
 
 type PromptProjectionLineReuseProbe = Callable[
@@ -184,120 +110,6 @@ class PromptProjectionLineLayoutBuildResult:
     source_limited: bool = False
 
 
-@dataclass(slots=True)
-class _TextMeasurementCache:
-    """Cache text measurements during one projection layout snapshot build."""
-
-    no_wrap_option: QTextOption = field(default_factory=lambda: _text_option_no_wrap())
-    wrap_option: QTextOption = field(default_factory=lambda: _text_option_word_wrap())
-    offsets_by_key: dict[tuple[str, str], tuple[float, ...]] = field(
-        default_factory=dict
-    )
-    width_by_key: dict[tuple[str, str], float] = field(default_factory=dict)
-    word_fit_by_key: dict[tuple[str, str, int], bool] = field(default_factory=dict)
-    font_by_run_key: dict[tuple[str, str, bool, str | None], QFont] = field(
-        default_factory=dict
-    )
-    key_by_font_id: dict[int, tuple[QFont, str]] = field(default_factory=dict)
-
-    def font_key(self, font: QFont) -> str:
-        """Return one cached stable key for a retained Qt font wrapper."""
-
-        font_id = id(font)
-        cached = self.key_by_font_id.get(font_id)
-        if cached is not None and cached[0] is font:
-            return cached[1]
-        key = font.toString()
-        self.key_by_font_id[font_id] = (font, key)
-        return key
-
-    def font_for_run(
-        self,
-        run: PromptProjectionRun,
-        base_font: QFont,
-        *,
-        base_font_key: str,
-    ) -> QFont:
-        """Return the projected font for one run using a per-snapshot cache."""
-
-        key = (
-            run.run_id,
-            base_font_key,
-            run.active,
-            run.text_style_variant,
-        )
-        cached_font = self.font_by_run_key.get(key)
-        if cached_font is not None:
-            return cached_font
-        font = projection_text_run_font(run, base_font)
-        self.font_by_run_key[key] = font
-        return font
-
-    def unwrapped_text_offsets(self, text: str, font: QFont) -> tuple[float, ...]:
-        """Return cached unwrapped cursor offsets for every text boundary."""
-
-        if not text:
-            return (0.0,)
-        key = (text, self.font_key(font))
-        cached_offsets = self.offsets_by_key.get(key)
-        if cached_offsets is not None:
-            return cached_offsets
-        offsets = _unwrapped_text_offsets_uncached(
-            text,
-            font,
-            no_wrap_option=self.no_wrap_option,
-        )
-        self.offsets_by_key[key] = offsets
-        self.width_by_key[key] = offsets[-1]
-        return offsets
-
-    def text_width(self, text: str, font: QFont) -> float:
-        """Return cached unwrapped text width."""
-
-        key = (text, self.font_key(font))
-        cached_width = self.width_by_key.get(key)
-        if cached_width is not None:
-            return cached_width
-        return self.unwrapped_text_offsets(text, font)[-1]
-
-    def word_fits_content_width(
-        self,
-        text: str,
-        *,
-        font: QFont,
-        content_width: float,
-    ) -> bool:
-        """Return cached word-fit decisions for one snapshot."""
-
-        key = (text, self.font_key(font), round(content_width * 100))
-        cached_fit = self.word_fit_by_key.get(key)
-        if cached_fit is not None:
-            return cached_fit
-        fits = self.text_width(text, font) <= content_width + _WIDTH_EPSILON
-        self.word_fit_by_key[key] = fits
-        return fits
-
-    def entry_count(self) -> int:
-        """Return the approximate number of cached measurement decisions."""
-
-        return (
-            len(self.offsets_by_key)
-            + len(self.width_by_key)
-            + len(self.word_fit_by_key)
-            + len(self.font_by_run_key)
-            + len(self.key_by_font_id)
-        )
-
-    def clear(self) -> None:
-        """Discard cached text measurement decisions."""
-
-        self.offsets_by_key.clear()
-        self.width_by_key.clear()
-        self.word_fit_by_key.clear()
-        self.font_by_run_key.clear()
-        self.key_by_font_id.clear()
-
-
 class PromptProjectionLineLayoutBuilder:
     """Lay out one projection document into wrapped lines and fragment geometry."""
 
@@ -307,8 +119,9 @@ class PromptProjectionLineLayoutBuilder:
     ) -> None:
         """Store the renderer registry used to measure inline object runs."""
 
-        self._inline_object_renderers = inline_object_renderers
-        self._measurement_cache = _TextMeasurementCache()
+        self._piece_builder = PromptLayoutPieceBuilder(inline_object_renderers)
+        self._keep_group_planner = PromptKeepGroupPlanner()
+        self._measurement_cache = PromptTextMeasurementCache()
         self._region_row_layout = PromptRegionStructuralRowLayoutBuilder()
 
     @prompt_editor_work_event(PromptEditorWorkEvent.LAYOUT_SNAPSHOT)
@@ -408,24 +221,22 @@ class PromptProjectionLineLayoutBuilder:
             if prompt_document_view is not None
             else ()
         )
-        source_split_positions = self._source_split_positions(
+        source_split_positions = self._keep_group_planner.source_split_positions(
             projection_document,
-            prompt_document_view=prompt_document_view,
             tag_keep_ranges=tag_keep_ranges,
             source_start=source_start,
             source_limit=source_limit,
         )
-        layout_pieces = self._layout_pieces(
+        layout_pieces = self._piece_builder.build(
             projection_document,
             base_font=base_font,
             source_split_positions=source_split_positions,
             source_start=source_start,
             source_limit=source_limit,
         )
-        keep_groups = self._keep_groups(
+        keep_groups = self._keep_group_planner.build(
             projection_document,
             layout_pieces=layout_pieces,
-            prompt_document_view=prompt_document_view,
             tag_keep_ranges=tag_keep_ranges,
             base_font=base_font,
             base_font_key=base_font_key,
@@ -439,8 +250,10 @@ class PromptProjectionLineLayoutBuilder:
         )
         line_height = metrics.initial_row_height()
         line_width = 0.0
-        line_start_boundaries = [_LineStartBoundary(projection_start, source_start)]
-        current_boundaries: list[_LineBoundary] = []
+        line_start_boundaries = [
+            PromptLineStartBoundary(projection_start, source_start)
+        ]
+        current_boundaries: list[PromptLineBoundary] = []
         pending_fragments: list[_PendingFragment] = []
         lines: list[PromptProjectionLineSnapshot] = []
         text_fragments: list[PromptProjectionTextFragment] = []
@@ -448,13 +261,13 @@ class PromptProjectionLineLayoutBuilder:
         caret_rects_by_projection_position: dict[int, QRectF] = {}
         reusable_previous_line_index: int | None = None
 
-        def open_line(start_boundaries: list[_LineStartBoundary]) -> None:
+        def open_line(start_boundaries: list[PromptLineStartBoundary]) -> None:
             nonlocal line_height, line_width, line_start_boundaries, current_boundaries
             line_height = metrics.initial_row_height()
             line_width = 0.0
             line_start_boundaries = list(start_boundaries)
             current_boundaries = [
-                _LineBoundary(
+                PromptLineBoundary(
                     boundary.projection_position,
                     content_left,
                     boundary.source_position,
@@ -463,7 +276,7 @@ class PromptProjectionLineLayoutBuilder:
             ]
 
         def finish_line(
-            next_start_boundaries: list[_LineStartBoundary] | None,
+            next_start_boundaries: list[PromptLineStartBoundary] | None,
             *,
             allow_reuse: bool = True,
         ) -> None:
@@ -580,14 +393,7 @@ class PromptProjectionLineLayoutBuilder:
                     caret_rect,
                 )
 
-            (
-                line_source_start,
-                line_source_end,
-                line_source_content_start,
-                line_source_content_end,
-                line_break_start,
-                line_break_end,
-            ) = _line_source_boundaries(
+            source_span = resolve_line_source_span(
                 projection_document,
                 current_boundaries=current_boundaries,
                 next_start_boundaries=next_start_boundaries,
@@ -595,12 +401,12 @@ class PromptProjectionLineLayoutBuilder:
             completed_line = PromptProjectionLineSnapshot(
                 top=line_top,
                 height=line_height,
-                source_start=line_source_start,
-                source_end=line_source_end,
-                source_content_start=line_source_content_start,
-                source_content_end=line_source_content_end,
-                line_break_start=line_break_start,
-                line_break_end=line_break_end,
+                source_start=source_span.source_start,
+                source_end=source_span.source_end,
+                source_content_start=source_span.source_content_start,
+                source_content_end=source_span.source_content_end,
+                line_break_start=source_span.line_break_start,
+                line_break_end=source_span.line_break_end,
                 fragments=tuple(realized_fragments),
                 caret_stops=tuple(realized_caret_stops),
             )
@@ -614,7 +420,7 @@ class PromptProjectionLineLayoutBuilder:
             if next_start_boundaries is not None:
                 open_line(next_start_boundaries)
 
-        def append_inline_object_piece(piece: _InlineObjectPiece) -> None:
+        def append_inline_object_piece(piece: PromptInlineObjectLayoutPiece) -> None:
             """Append one inline object piece without adding a line break."""
 
             nonlocal line_height, line_width
@@ -631,7 +437,7 @@ class PromptProjectionLineLayoutBuilder:
                 )
             )
             current_boundaries.append(
-                _LineBoundary(
+                PromptLineBoundary(
                     piece.run.projection_start,
                     content_left + line_width,
                     piece.run.source_positions[0],
@@ -643,14 +449,14 @@ class PromptProjectionLineLayoutBuilder:
                 object_size,
             )
             current_boundaries.append(
-                _LineBoundary(
+                PromptLineBoundary(
                     piece.run.projection_end,
                     content_left + line_width,
                     piece.run.source_positions[-1],
                 )
             )
 
-        def append_text_piece_unwrapped(piece: _TextPiece) -> None:
+        def append_text_piece_unwrapped(piece: PromptTextLayoutPiece) -> None:
             """Append one text piece as a single unwrapped visual fragment."""
 
             nonlocal line_height, line_width
@@ -679,14 +485,14 @@ class PromptProjectionLineLayoutBuilder:
             )
             if piece.run.source_backed:
                 current_boundaries.append(
-                    _LineBoundary(
+                    PromptLineBoundary(
                         piece.projection_start,
                         content_left + line_width,
                         piece.source_positions[0],
                     )
                 )
                 current_boundaries.append(
-                    _LineBoundary(
+                    PromptLineBoundary(
                         piece.projection_start + len(piece.text),
                         content_left + line_width + consumed_width,
                         piece.source_positions[-1],
@@ -694,17 +500,17 @@ class PromptProjectionLineLayoutBuilder:
                 )
             line_width += consumed_width
 
-        def append_keep_group(group: _KeepGroupRange) -> None:
+        def append_keep_group(group: PromptKeepGroupRange) -> None:
             """Append a fitting keep group on the current visual line."""
 
             for group_piece in layout_pieces[group.start_index : group.end_index]:
-                if isinstance(group_piece, _InlineObjectPiece):
+                if isinstance(group_piece, PromptInlineObjectLayoutPiece):
                     append_inline_object_piece(group_piece)
                     continue
-                if isinstance(group_piece, _TextPiece):
+                if isinstance(group_piece, PromptTextLayoutPiece):
                     append_text_piece_unwrapped(group_piece)
 
-        def place_keep_group(group: _KeepGroupRange) -> None:
+        def place_keep_group(group: PromptKeepGroupRange) -> None:
             """Place one keep group, moving it to the next line when needed."""
 
             if line_width > 0.0 and group.width > content_width - line_width:
@@ -725,36 +531,41 @@ class PromptProjectionLineLayoutBuilder:
                 continue
 
             piece = layout_pieces[piece_index]
-            if isinstance(piece, _ParagraphBreak):
+            if isinstance(piece, PromptParagraphBreakLayoutPiece):
                 next_piece = (
                     layout_pieces[piece_index + 1]
                     if piece_index + 1 < len(layout_pieces)
                     else None
                 )
                 current_boundaries.append(
-                    _LineBoundary(
+                    PromptLineBoundary(
                         piece.projection_start,
                         content_left + line_width,
                         piece.source_start,
                     )
                 )
-                if isinstance(next_piece, _StructuralRowPiece):
+                if isinstance(next_piece, PromptStructuralRowLayoutPiece):
                     current_boundaries.append(
-                        _LineBoundary(
+                        PromptLineBoundary(
                             piece.projection_end,
                             content_left + line_width,
                             next_piece.run.source_start,
                         )
                     )
                 finish_line(
-                    [_LineStartBoundary(piece.projection_end, piece.source_end)]
+                    [
+                        PromptLineStartBoundary(
+                            piece.projection_end,
+                            piece.source_end,
+                        )
+                    ]
                 )
                 piece_index += 1
                 continue
 
-            if isinstance(piece, _StructuralRowPiece):
+            if isinstance(piece, PromptStructuralRowLayoutPiece):
                 follows_structural_row = piece_index > 0 and isinstance(
-                    layout_pieces[piece_index - 1], _StructuralRowPiece
+                    layout_pieces[piece_index - 1], PromptStructuralRowLayoutPiece
                 )
                 leading_caret_rect = caret_rects_by_projection_position.get(
                     piece.run.projection_start
@@ -783,7 +594,7 @@ class PromptProjectionLineLayoutBuilder:
                 pending_fragments = []
                 open_line(
                     [
-                        _LineStartBoundary(
+                        PromptLineStartBoundary(
                             piece.run.projection_end,
                             structural_layout.following_line_source_start,
                         )
@@ -792,7 +603,7 @@ class PromptProjectionLineLayoutBuilder:
                 piece_index += 1
                 continue
 
-            if isinstance(piece, _InlineObjectPiece):
+            if isinstance(piece, PromptInlineObjectLayoutPiece):
                 object_size = QSizeF(
                     min(piece.size.width(), content_width),
                     piece.size.height(),
@@ -809,7 +620,7 @@ class PromptProjectionLineLayoutBuilder:
                     )
                 )
                 current_boundaries.append(
-                    _LineBoundary(
+                    PromptLineBoundary(
                         piece.run.projection_start,
                         content_left + line_width,
                         piece.run.source_positions[0],
@@ -821,7 +632,7 @@ class PromptProjectionLineLayoutBuilder:
                     object_size,
                 )
                 current_boundaries.append(
-                    _LineBoundary(
+                    PromptLineBoundary(
                         piece.run.projection_end,
                         content_left + line_width,
                         piece.run.source_positions[-1],
@@ -830,13 +641,13 @@ class PromptProjectionLineLayoutBuilder:
                 piece_index += 1
                 continue
 
-            cluster: list[_TextPiece] = []
+            cluster: list[PromptTextLayoutPiece] = []
             cluster_font: QFont | None = None
             while piece_index < len(layout_pieces):
                 if piece_index in keep_group_by_start:
                     break
                 next_piece = layout_pieces[piece_index]
-                if not isinstance(next_piece, _TextPiece):
+                if not isinstance(next_piece, PromptTextLayoutPiece):
                     break
                 next_piece_font = measurement_cache.font_for_run(
                     next_piece.run,
@@ -884,7 +695,7 @@ class PromptProjectionLineLayoutBuilder:
                     ),
                 )
                 available_width = max(1.0, content_width - line_width)
-                candidate_length = _visible_wrap_candidate_length(
+                candidate_length = visible_wrap_candidate_length(
                     remaining_text,
                     candidate_length=candidate_length,
                     available_width=available_width,
@@ -896,7 +707,7 @@ class PromptProjectionLineLayoutBuilder:
                         finish_line([])
                         continue
                     candidate_length = 1
-                break_decision = _adjust_break_for_word_integrity(
+                break_decision = adjust_break_for_word_integrity(
                     cluster_text,
                     consumed_cluster_length=consumed_cluster_length,
                     candidate_length=candidate_length,
@@ -961,14 +772,14 @@ class PromptProjectionLineLayoutBuilder:
                     )
                     if text_piece.run.source_backed:
                         current_boundaries.append(
-                            _LineBoundary(
+                            PromptLineBoundary(
                                 text_piece.projection_start + local_start,
                                 content_left + line_width + boundary_offsets[0],
                                 text_piece.source_positions[local_start],
                             )
                         )
                         current_boundaries.append(
-                            _LineBoundary(
+                            PromptLineBoundary(
                                 text_piece.projection_start + local_end,
                                 content_left + line_width + boundary_offsets[-1],
                                 text_piece.source_positions[local_end],
@@ -1004,959 +815,6 @@ class PromptProjectionLineLayoutBuilder:
             reusable_previous_line_index=reusable_previous_line_index,
             source_limited=source_limited,
         )
-
-    def _layout_pieces(
-        self,
-        projection_document: PromptProjectionDocument,
-        *,
-        base_font: QFont,
-        source_split_positions: frozenset[int] = frozenset(),
-        source_start: int = 0,
-        source_limit: int | None = None,
-    ) -> tuple[_LayoutPiece, ...]:
-        """Split visible runs into text pieces, inline objects, and paragraph breaks."""
-
-        pieces: list[_LayoutPiece] = []
-        for run in projection_document.runs:
-            if (
-                source_start > 0
-                and run.source_end <= source_start
-                and run.source_start < source_start
-            ):
-                continue
-            if source_limit is not None and run.source_start > source_limit:
-                break
-            if run.kind is PromptProjectionRunKind.INLINE_OBJECT:
-                token = projection_document.token_by_id(run.token_id)
-                if token is None:
-                    continue
-                renderer = self._inline_object_renderers.renderer_for(run.renderer_key)
-                if renderer is None:
-                    continue
-                pieces.append(
-                    _InlineObjectPiece(
-                        run=run,
-                        size=renderer.measure_inline_object(
-                            run,
-                            token,
-                            base_font=base_font,
-                        ),
-                    )
-                )
-                continue
-            if run.kind is PromptProjectionRunKind.STRUCTURAL_ROW:
-                pieces.append(_StructuralRowPiece(run=run))
-                continue
-
-            display_start = 0
-            if (
-                source_start > 0
-                and run.source_backed
-                and run.source_start < source_start
-            ):
-                display_start = min(
-                    len(run.display_text),
-                    bisect_left(run.source_positions, source_start),
-                )
-            display_end = len(run.display_text)
-            if (
-                source_limit is not None
-                and run.source_backed
-                and run.source_end > source_limit
-            ):
-                display_end = max(
-                    0,
-                    bisect_right(run.source_positions, source_limit) - 1,
-                )
-            piece_start = display_start
-            while True:
-                newline_index = run.display_text.find(
-                    "\n",
-                    piece_start,
-                    display_end,
-                )
-                if newline_index < 0:
-                    if piece_start < display_end:
-                        pieces.extend(
-                            self._split_text_piece(
-                                run,
-                                start=piece_start,
-                                end=display_end,
-                                source_split_positions=source_split_positions,
-                            )
-                        )
-                    break
-                if newline_index > piece_start:
-                    pieces.extend(
-                        self._split_text_piece(
-                            run,
-                            start=piece_start,
-                            end=newline_index,
-                            source_split_positions=source_split_positions,
-                        )
-                    )
-                pieces.append(
-                    _ParagraphBreak(
-                        projection_start=run.projection_start + newline_index,
-                        projection_end=run.projection_start + newline_index + 1,
-                        source_start=run.source_positions[newline_index],
-                        source_end=run.source_positions[newline_index + 1],
-                    )
-                )
-                piece_start = newline_index + 1
-        return tuple(pieces)
-
-    def _split_text_piece(
-        self,
-        run: PromptProjectionRun,
-        *,
-        start: int,
-        end: int,
-        source_split_positions: frozenset[int],
-    ) -> tuple[_TextPiece, ...]:
-        """Split one text run slice at source boundaries needed by keep groups."""
-
-        if not run.source_backed:
-            return (
-                _TextPiece(
-                    run=run,
-                    text=run.display_text[start:end],
-                    projection_start=run.projection_start + start,
-                    source_positions=run.source_positions[start : end + 1],
-                ),
-            )
-        split_offsets = [
-            offset
-            for offset in range(start + 1, end)
-            if run.source_positions[offset] in source_split_positions
-        ]
-        piece_offsets = (start, *split_offsets, end)
-        pieces: list[_TextPiece] = []
-        for piece_start, piece_end in zip(
-            piece_offsets,
-            piece_offsets[1:],
-        ):
-            if piece_end <= piece_start:
-                continue
-            pieces.append(
-                _TextPiece(
-                    run=run,
-                    text=run.display_text[piece_start:piece_end],
-                    projection_start=run.projection_start + piece_start,
-                    source_positions=run.source_positions[piece_start : piece_end + 1],
-                )
-            )
-        return tuple(pieces)
-
-    def _source_split_positions(
-        self,
-        projection_document: PromptProjectionDocument,
-        *,
-        prompt_document_view: PromptDocumentView | None,
-        tag_keep_ranges: tuple[tuple[int, int], ...],
-        source_start: int,
-        source_limit: int | None,
-    ) -> frozenset[int]:
-        """Return source positions where text pieces should split for grouping."""
-
-        split_positions: set[int] = set()
-        if prompt_document_view is not None:
-            for keep_start, keep_end in tag_keep_ranges:
-                split_positions.add(keep_start)
-                split_positions.add(keep_end)
-
-        for run_index, run in enumerate(projection_document.runs):
-            if (
-                source_start > 0
-                and run.source_end <= source_start
-                and run.source_start < source_start
-            ):
-                continue
-            if source_limit is not None and run.source_start > source_limit:
-                break
-            if run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
-                content_run = _next_token_content_run(
-                    projection_document.runs,
-                    run_index=run_index,
-                    token_id=run.token_id,
-                )
-                if content_run is not None:
-                    split_position = _first_word_end_source_position(content_run)
-                    if split_position is not None:
-                        split_positions.add(split_position)
-            if run.role is PromptProjectionRunRole.TOKEN_TRAILING_DECORATION:
-                content_run = _previous_token_content_run(
-                    projection_document.runs,
-                    run_index=run_index,
-                    token_id=run.token_id,
-                )
-                if content_run is not None:
-                    split_position = _last_word_start_source_position(content_run)
-                    if split_position is not None:
-                        split_positions.add(split_position)
-        return frozenset(split_positions)
-
-    def _keep_groups(
-        self,
-        projection_document: PromptProjectionDocument,
-        *,
-        layout_pieces: tuple[_LayoutPiece, ...],
-        prompt_document_view: PromptDocumentView | None,
-        tag_keep_ranges: tuple[tuple[int, int], ...],
-        base_font: QFont,
-        base_font_key: str,
-        content_width: float,
-        measurement_cache: _TextMeasurementCache,
-    ) -> tuple[_KeepGroupRange, ...]:
-        """Return fitting tag and decoration keep groups keyed by piece order."""
-
-        if projection_document.display_mode is PromptProjectionDisplayMode.RAW:
-            return ()
-
-        piece_width_prefix_sums = _piece_width_prefix_sums(
-            tuple(
-                _piece_width(
-                    piece,
-                    base_font=base_font,
-                    base_font_key=base_font_key,
-                    content_width=content_width,
-                    measurement_cache=measurement_cache,
-                )
-                for piece in layout_pieces
-            )
-        )
-        groups: list[_KeepGroupRange] = []
-        occupied_indices: set[int] = set()
-        piece_ranges = _piece_source_ranges(layout_pieces)
-        range_search_start = 0
-        if prompt_document_view is not None:
-            for source_start, source_end in tag_keep_ranges:
-                group, range_search_start = self._source_range_keep_group(
-                    layout_pieces,
-                    piece_ranges=piece_ranges,
-                    search_start_index=range_search_start,
-                    source_start=source_start,
-                    source_end=source_end,
-                    piece_width_prefix_sums=piece_width_prefix_sums,
-                    content_width=content_width,
-                    reason="tag",
-                )
-                if group is None:
-                    continue
-                groups.append(group)
-                occupied_indices.update(range(group.start_index, group.end_index))
-
-        for group in self._decoration_keep_groups(
-            layout_pieces,
-            piece_width_prefix_sums=piece_width_prefix_sums,
-            content_width=content_width,
-            occupied_indices=occupied_indices,
-        ):
-            groups.append(group)
-            occupied_indices.update(range(group.start_index, group.end_index))
-
-        return tuple(sorted(groups, key=lambda group: group.start_index))
-
-    def _source_range_keep_group(
-        self,
-        layout_pieces: tuple[_LayoutPiece, ...],
-        *,
-        piece_ranges: tuple[_PieceSourceRange, ...],
-        search_start_index: int,
-        source_start: int,
-        source_end: int,
-        piece_width_prefix_sums: tuple[float, ...],
-        content_width: float,
-        reason: str,
-    ) -> tuple[_KeepGroupRange | None, int]:
-        """Return one fitting keep group for a source range when possible."""
-
-        start_range_index = _first_piece_range_candidate(
-            piece_ranges,
-            source_start=source_start,
-            search_start_index=search_start_index,
-        )
-        matching_indices = _piece_indices_for_source_range(
-            piece_ranges,
-            source_start=source_start,
-            source_end=source_end,
-            start_range_index=start_range_index,
-        )
-        if not matching_indices:
-            return None, start_range_index
-        start_index = matching_indices[0]
-        end_index = matching_indices[-1] + 1
-        return (
-            self._piece_index_keep_group(
-                layout_pieces,
-                start_index=start_index,
-                end_index=end_index,
-                piece_width_prefix_sums=piece_width_prefix_sums,
-                content_width=content_width,
-                reason=reason,
-            ),
-            start_range_index,
-        )
-
-    def _decoration_keep_groups(
-        self,
-        layout_pieces: tuple[_LayoutPiece, ...],
-        *,
-        piece_width_prefix_sums: tuple[float, ...],
-        content_width: float,
-        occupied_indices: set[int],
-    ) -> tuple[_KeepGroupRange, ...]:
-        """Return fitting decoration-to-content attachment groups."""
-
-        groups: list[_KeepGroupRange] = []
-        for index, piece in enumerate(layout_pieces):
-            if not isinstance(piece, _InlineObjectPiece):
-                continue
-            role = piece.run.role
-            if role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
-                group = self._leading_decoration_group(
-                    layout_pieces,
-                    decoration_index=index,
-                    piece_width_prefix_sums=piece_width_prefix_sums,
-                    content_width=content_width,
-                )
-            elif role is PromptProjectionRunRole.TOKEN_TRAILING_DECORATION:
-                group = self._trailing_decoration_group(
-                    layout_pieces,
-                    decoration_index=index,
-                    piece_width_prefix_sums=piece_width_prefix_sums,
-                    content_width=content_width,
-                )
-            else:
-                group = None
-            if group is None:
-                continue
-            group_indices = set(range(group.start_index, group.end_index))
-            if group_indices & occupied_indices:
-                continue
-            groups.append(group)
-            occupied_indices.update(group_indices)
-        return tuple(groups)
-
-    def _leading_decoration_group(
-        self,
-        layout_pieces: tuple[_LayoutPiece, ...],
-        *,
-        decoration_index: int,
-        piece_width_prefix_sums: tuple[float, ...],
-        content_width: float,
-    ) -> _KeepGroupRange | None:
-        """Return a keep group binding leading decoration to following content."""
-
-        decoration_piece = layout_pieces[decoration_index]
-        if not isinstance(decoration_piece, _InlineObjectPiece):
-            return None
-        content_index = _next_piece_index_for_token_content(
-            layout_pieces,
-            start_index=decoration_index + 1,
-            token_id=decoration_piece.run.token_id,
-        )
-        if content_index is None:
-            return None
-        return self._piece_index_keep_group(
-            layout_pieces,
-            start_index=decoration_index,
-            end_index=content_index + 1,
-            piece_width_prefix_sums=piece_width_prefix_sums,
-            content_width=content_width,
-            reason="leading-decoration",
-        )
-
-    def _trailing_decoration_group(
-        self,
-        layout_pieces: tuple[_LayoutPiece, ...],
-        *,
-        decoration_index: int,
-        piece_width_prefix_sums: tuple[float, ...],
-        content_width: float,
-    ) -> _KeepGroupRange | None:
-        """Return a keep group binding trailing decoration to prior content."""
-
-        decoration_piece = layout_pieces[decoration_index]
-        if not isinstance(decoration_piece, _InlineObjectPiece):
-            return None
-        content_index = _previous_piece_index_for_token_content(
-            layout_pieces,
-            start_index=decoration_index - 1,
-            token_id=decoration_piece.run.token_id,
-        )
-        if content_index is None:
-            return None
-        end_index = decoration_index + 1
-        if end_index < len(layout_pieces) and _is_separator_text_piece(
-            layout_pieces[end_index]
-        ):
-            end_index += 1
-        return self._piece_index_keep_group(
-            layout_pieces,
-            start_index=content_index,
-            end_index=end_index,
-            piece_width_prefix_sums=piece_width_prefix_sums,
-            content_width=content_width,
-            reason="trailing-decoration",
-        )
-
-    def _piece_index_keep_group(
-        self,
-        layout_pieces: tuple[_LayoutPiece, ...],
-        *,
-        start_index: int,
-        end_index: int,
-        piece_width_prefix_sums: tuple[float, ...],
-        content_width: float,
-        reason: str,
-    ) -> _KeepGroupRange | None:
-        """Return a fitting keep group for an explicit piece-index span."""
-
-        if any(
-            isinstance(piece, (_ParagraphBreak, _StructuralRowPiece))
-            for piece in layout_pieces[start_index:end_index]
-        ):
-            return None
-        width = self._piece_range_width(
-            piece_width_prefix_sums,
-            start_index=start_index,
-            end_index=end_index,
-        )
-        if width > content_width:
-            return None
-        return _KeepGroupRange(
-            start_index=start_index,
-            end_index=end_index,
-            width=width,
-            reason=reason,
-        )
-
-    def _piece_range_width(
-        self,
-        piece_width_prefix_sums: tuple[float, ...],
-        *,
-        start_index: int,
-        end_index: int,
-    ) -> float:
-        """Return the unwrapped width of a piece-index span."""
-
-        return piece_width_prefix_sums[end_index] - piece_width_prefix_sums[start_index]
-
-
-def _piece_source_ranges(
-    layout_pieces: tuple[_LayoutPiece, ...],
-) -> tuple[_PieceSourceRange, ...]:
-    """Return source ranges for layout pieces that cover prompt source text."""
-
-    piece_ranges: list[_PieceSourceRange] = []
-    for index, piece in enumerate(layout_pieces):
-        piece_range = _piece_source_range(piece)
-        if piece_range is None:
-            continue
-        start, end = piece_range
-        if end <= start:
-            continue
-        piece_ranges.append(_PieceSourceRange(index=index, start=start, end=end))
-    return tuple(piece_ranges)
-
-
-def _first_piece_range_candidate(
-    piece_ranges: tuple[_PieceSourceRange, ...],
-    *,
-    source_start: int,
-    search_start_index: int,
-) -> int:
-    """Return the first possible piece-range index for a sorted source range."""
-
-    candidate_index = max(0, min(search_start_index, len(piece_ranges)))
-    while (
-        candidate_index < len(piece_ranges)
-        and piece_ranges[candidate_index].end <= source_start
-    ):
-        candidate_index += 1
-    return candidate_index
-
-
-def _piece_indices_for_source_range(
-    piece_ranges: tuple[_PieceSourceRange, ...],
-    *,
-    source_start: int,
-    source_end: int,
-    start_range_index: int,
-) -> tuple[int, ...]:
-    """Return layout piece indices intersecting one sorted source range."""
-
-    matching_indices: list[int] = []
-    range_index = start_range_index
-    while range_index < len(piece_ranges):
-        piece_range = piece_ranges[range_index]
-        if piece_range.start >= source_end:
-            break
-        if piece_range.end > source_start:
-            matching_indices.append(piece_range.index)
-        range_index += 1
-    return tuple(matching_indices)
-
-
-def _piece_intersects_source_range(
-    piece: _LayoutPiece,
-    *,
-    source_start: int,
-    source_end: int,
-) -> bool:
-    """Return whether one layout piece overlaps a half-open source range."""
-
-    piece_range = _piece_source_range(piece)
-    if piece_range is None:
-        return False
-    piece_start, piece_end = piece_range
-    return piece_start < source_end and piece_end > source_start
-
-
-def _piece_source_range(piece: _LayoutPiece) -> tuple[int, int] | None:
-    """Return the source range covered by a layout piece when it has one."""
-
-    if isinstance(piece, (_ParagraphBreak, _StructuralRowPiece)):
-        return None
-    if isinstance(piece, _TextPiece):
-        return (min(piece.source_positions), max(piece.source_positions))
-    return (min(piece.run.source_positions), max(piece.run.source_positions))
-
-
-def _piece_width_prefix_sums(piece_widths: tuple[float, ...]) -> tuple[float, ...]:
-    """Return prefix sums so keep-group range widths are O(1)."""
-
-    prefix_sums = [0.0]
-    for width in piece_widths:
-        prefix_sums.append(prefix_sums[-1] + width)
-    return tuple(prefix_sums)
-
-
-def _piece_width(
-    piece: _LayoutPiece,
-    *,
-    base_font: QFont,
-    base_font_key: str,
-    content_width: float,
-    measurement_cache: _TextMeasurementCache,
-) -> float:
-    """Return the unwrapped visual width of one layout piece."""
-
-    if isinstance(piece, (_ParagraphBreak, _StructuralRowPiece)):
-        return 0.0
-    if isinstance(piece, _InlineObjectPiece):
-        return min(piece.size.width(), content_width)
-    return measurement_cache.text_width(
-        piece.text,
-        measurement_cache.font_for_run(
-            piece.run,
-            base_font,
-            base_font_key=base_font_key,
-        ),
-    )
-
-
-def _text_width(text: str, font: QFont) -> float:
-    """Return the unwrapped text width using the same layout engine as fragments."""
-
-    return _unwrapped_text_offsets(text, font)[-1]
-
-
-def _visible_wrap_candidate_length(
-    text: str,
-    *,
-    candidate_length: int,
-    available_width: float,
-    font: QFont,
-    measurement_cache: _TextMeasurementCache,
-) -> int:
-    """Return the longest Qt wrap candidate whose cursor boundary is visible.
-
-    ``QTextLine.textLength()`` can retain trailing whitespace after its natural
-    width fits the line. The caret still advances through that whitespace, so
-    the projection must move it to the next visual line when its boundary would
-    exceed the available paint width.
-    """
-
-    bounded_length = min(max(1, candidate_length), len(text))
-    boundary_offsets = measurement_cache.unwrapped_text_offsets(text, font)
-    if boundary_offsets[bounded_length] <= available_width + _WIDTH_EPSILON:
-        return bounded_length
-    return max(
-        (
-            index
-            for index in range(1, bounded_length + 1)
-            if boundary_offsets[index] <= available_width + _WIDTH_EPSILON
-        ),
-        default=0,
-    )
-
-
-def _adjust_break_for_word_integrity(
-    text: str,
-    *,
-    consumed_cluster_length: int,
-    candidate_length: int,
-    line_has_content: bool,
-    font: QFont,
-    content_width: float,
-    measurement_cache: _TextMeasurementCache,
-) -> _TextBreakDecision:
-    """Return a break decision that never splits fitting words.
-
-    Qt may propose an intra-word break when only a few characters fit at the end of
-    the current line. Prompt layout treats that as a fallback reserved for words
-    wider than the editor content area, so fitting words move as a whole.
-    """
-
-    remaining_length = len(text) - consumed_cluster_length
-    candidate_length = min(max(1, candidate_length), remaining_length)
-    candidate_break = consumed_cluster_length + candidate_length
-    word_span = _word_span_at_break(text, candidate_break)
-    if word_span is None:
-        return _TextBreakDecision(consumed_length=candidate_length)
-
-    word_start, word_end = word_span
-    if not _word_fits_content_width(
-        text[word_start:word_end],
-        font=font,
-        content_width=content_width,
-        measurement_cache=measurement_cache,
-    ):
-        return _TextBreakDecision(consumed_length=candidate_length)
-
-    if word_start <= consumed_cluster_length:
-        if line_has_content:
-            return _TextBreakDecision(consumed_length=0, break_before_text=True)
-        return _TextBreakDecision(
-            consumed_length=max(1, word_end - consumed_cluster_length)
-        )
-
-    prefix_before_word = text[consumed_cluster_length:word_start]
-    if prefix_before_word.strip():
-        return _TextBreakDecision(consumed_length=word_start - consumed_cluster_length)
-    if line_has_content and prefix_before_word:
-        return _TextBreakDecision(consumed_length=word_start - consumed_cluster_length)
-    if line_has_content:
-        return _TextBreakDecision(consumed_length=0, break_before_text=True)
-    return _TextBreakDecision(consumed_length=word_end - consumed_cluster_length)
-
-
-def _word_span_at_break(text: str, break_index: int) -> tuple[int, int] | None:
-    """Return the whole word around one intra-word break candidate."""
-
-    if break_index <= 0 or break_index >= len(text):
-        return None
-    if not (
-        _is_word_wrap_character(text[break_index - 1])
-        and _is_word_wrap_character(text[break_index])
-    ):
-        return None
-
-    word_start = break_index - 1
-    while word_start > 0 and _is_word_wrap_character(text[word_start - 1]):
-        word_start -= 1
-
-    word_end = break_index + 1
-    while word_end < len(text) and _is_word_wrap_character(text[word_end]):
-        word_end += 1
-    return (word_start, word_end)
-
-
-def _is_word_wrap_character(character: str) -> bool:
-    """Return whether one character belongs to an unbreakable prompt word."""
-
-    return character.isalnum() or character in _WORD_JOINING_CHARACTERS
-
-
-def _word_fits_content_width(
-    text: str,
-    *,
-    font: QFont,
-    content_width: float,
-    measurement_cache: _TextMeasurementCache,
-) -> bool:
-    """Return whether one word can fit on an empty prompt editor line."""
-
-    return measurement_cache.word_fits_content_width(
-        text,
-        font=font,
-        content_width=content_width,
-    )
-
-
-def _unwrapped_text_offsets(text: str, font: QFont) -> tuple[float, ...]:
-    """Return unwrapped cursor offsets for every text boundary."""
-
-    return _unwrapped_text_offsets_uncached(
-        text,
-        font,
-        no_wrap_option=_text_option_no_wrap(),
-    )
-
-
-def _unwrapped_text_offsets_uncached(
-    text: str,
-    font: QFont,
-    *,
-    no_wrap_option: QTextOption,
-) -> tuple[float, ...]:
-    """Return unwrapped cursor offsets without using the per-snapshot cache."""
-
-    if not text:
-        return (0.0,)
-
-    text_layout = QTextLayout(text, font)
-    text_layout.setTextOption(no_wrap_option)
-    text_layout.beginLayout()
-    text_line = text_layout.createLine()
-    if text_line.isValid():
-        text_line.setLineWidth(
-            max(1.0, QFontMetricsF(font).horizontalAdvance(text) + 1.0)
-        )
-    text_layout.endLayout()
-    if not text_line.isValid():
-        return (0.0,)
-    offsets: list[float] = []
-    coordinates = TextCoordinateMap(text)
-    for utf16_index in coordinates.utf16_offsets_by_python_index():
-        cursor_x = cast(
-            tuple[float, int],
-            text_line.cursorToX(utf16_index),
-        )
-        offsets.append(float(cursor_x[0]))
-    return tuple(offsets)
-
-
-def _text_option_no_wrap() -> QTextOption:
-    """Return a QTextOption configured for exact unwrapped measurement."""
-
-    text_option = QTextOption()
-    text_option.setWrapMode(QTextOption.WrapMode.NoWrap)
-    return text_option
-
-
-def _text_option_word_wrap() -> QTextOption:
-    """Return a QTextOption configured for prompt visual word wrapping."""
-
-    text_option = QTextOption()
-    text_option.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
-    return text_option
-
-
-def _next_token_content_run(
-    runs: Sequence[PromptProjectionRun],
-    *,
-    run_index: int,
-    token_id: str | None,
-) -> PromptProjectionRun | None:
-    """Return the next text-content run for the supplied token."""
-
-    for candidate in runs[run_index + 1 :]:
-        if candidate.token_id != token_id:
-            continue
-        if candidate.role is PromptProjectionRunRole.DEFAULT:
-            return candidate
-    return None
-
-
-def _previous_token_content_run(
-    runs: Sequence[PromptProjectionRun],
-    *,
-    run_index: int,
-    token_id: str | None,
-) -> PromptProjectionRun | None:
-    """Return the previous text-content run for the supplied token."""
-
-    for candidate in reversed(runs[:run_index]):
-        if candidate.token_id != token_id:
-            continue
-        if candidate.role is PromptProjectionRunRole.DEFAULT:
-            return candidate
-    return None
-
-
-def _first_word_end_source_position(run: PromptProjectionRun) -> int | None:
-    """Return the source boundary after a run's first visible word."""
-
-    if run.kind is not PromptProjectionRunKind.TEXT:
-        return None
-    text = run.display_text
-    word_start = len(text) - len(text.lstrip())
-    if word_start >= len(text):
-        return None
-    word_end = word_start
-    while word_end < len(text) and not text[word_end].isspace():
-        word_end += 1
-    if word_end >= len(text):
-        return None
-    return run.source_positions[word_end]
-
-
-def _last_word_start_source_position(run: PromptProjectionRun) -> int | None:
-    """Return the source boundary before a run's last visible word."""
-
-    if run.kind is not PromptProjectionRunKind.TEXT:
-        return None
-    text = run.display_text
-    word_end = len(text.rstrip())
-    if word_end <= 0:
-        return None
-    word_start = word_end
-    while word_start > 0 and not text[word_start - 1].isspace():
-        word_start -= 1
-    if word_start <= 0:
-        return None
-    return run.source_positions[word_start]
-
-
-def _next_piece_index_for_token_content(
-    layout_pieces: tuple[_LayoutPiece, ...],
-    *,
-    start_index: int,
-    token_id: str | None,
-) -> int | None:
-    """Return the next content piece belonging to a token."""
-
-    for index in range(start_index, len(layout_pieces)):
-        piece = layout_pieces[index]
-        if isinstance(piece, _ParagraphBreak):
-            return None
-        run = piece.run
-        if run.token_id == token_id and run.role is PromptProjectionRunRole.DEFAULT:
-            return index
-    return None
-
-
-def _previous_piece_index_for_token_content(
-    layout_pieces: tuple[_LayoutPiece, ...],
-    *,
-    start_index: int,
-    token_id: str | None,
-) -> int | None:
-    """Return the previous content piece belonging to a token."""
-
-    for index in range(start_index, -1, -1):
-        piece = layout_pieces[index]
-        if isinstance(piece, _ParagraphBreak):
-            return None
-        run = piece.run
-        if run.token_id == token_id and run.role is PromptProjectionRunRole.DEFAULT:
-            return index
-    return None
-
-
-def _is_separator_text_piece(piece: _LayoutPiece) -> bool:
-    """Return whether one text piece is only comma separator text."""
-
-    if not isinstance(piece, _TextPiece):
-        return False
-    return bool(piece.text) and all(character in ", \t" for character in piece.text)
-
-
-def _line_source_boundaries(
-    projection_document: PromptProjectionDocument,
-    *,
-    current_boundaries: list[_LineBoundary],
-    next_start_boundaries: list[_LineStartBoundary] | None,
-) -> tuple[int, int, int, int, int | None, int | None]:
-    """Return source content and hard line-break boundaries for one visual line."""
-
-    if not projection_document.caret_map.stops:
-        return (0, 0, 0, 0, None, None)
-    first_projection_position = projection_document.caret_map.stops[
-        0
-    ].projection_position
-    ordered_boundaries = tuple(current_boundaries)
-    if ordered_boundaries:
-        start_boundary = ordered_boundaries[0]
-        content_end_boundary = ordered_boundaries[-1]
-    else:
-        fallback_boundary = (
-            next_start_boundaries[0]
-            if next_start_boundaries
-            else _LineStartBoundary(first_projection_position)
-        )
-        start_boundary = _LineBoundary(
-            fallback_boundary.projection_position,
-            0.0,
-            fallback_boundary.source_position,
-        )
-        content_end_boundary = start_boundary
-    start_projection_position = max(
-        start_boundary.projection_position, first_projection_position
-    )
-    content_end_projection_position = max(
-        content_end_boundary.projection_position,
-        first_projection_position,
-    )
-    start_source_position = _source_position_for_line_boundary(
-        projection_document,
-        projection_position=start_projection_position,
-        source_position=start_boundary.source_position,
-    )
-    content_end_source_position = _source_position_for_line_boundary(
-        projection_document,
-        projection_position=content_end_projection_position,
-        source_position=content_end_boundary.source_position,
-    )
-    if (
-        start_boundary.projection_position < first_projection_position
-        and start_boundary.source_position is not None
-    ):
-        start_source_position = start_boundary.source_position
-    if (
-        content_end_boundary.projection_position < first_projection_position
-        and content_end_boundary.source_position is not None
-    ):
-        content_end_source_position = content_end_boundary.source_position
-    source_end_position = max(start_source_position, content_end_source_position)
-    line_break_start: int | None = None
-    line_break_end: int | None = None
-    if next_start_boundaries:
-        next_boundary = next_start_boundaries[0]
-        next_projection_position = max(
-            next_boundary.projection_position,
-            first_projection_position,
-        )
-        next_source_position = _source_position_for_line_boundary(
-            projection_document,
-            projection_position=next_projection_position,
-            source_position=next_boundary.source_position,
-        )
-        if (
-            next_boundary.projection_position < first_projection_position
-            and next_boundary.source_position is not None
-        ):
-            next_source_position = next_boundary.source_position
-        if next_source_position > content_end_source_position:
-            line_break_start = content_end_source_position
-            line_break_end = next_source_position
-            source_end_position = max(source_end_position, next_source_position)
-    return (
-        start_source_position,
-        source_end_position,
-        start_source_position,
-        max(start_source_position, content_end_source_position),
-        line_break_start,
-        line_break_end,
-    )
-
-
-def _source_position_for_line_boundary(
-    projection_document: PromptProjectionDocument,
-    *,
-    projection_position: int,
-    source_position: int | None,
-) -> int:
-    """Return a source boundary, honoring layout-owned source metadata first."""
-
-    if source_position is not None:
-        return source_position
-    return projection_document.caret_map.state_for_projection_position(
-        projection_position
-    ).source_position
 
 
 __all__ = [

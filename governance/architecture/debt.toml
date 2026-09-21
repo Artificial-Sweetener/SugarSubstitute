@@ -660,23 +660,6 @@ responsibilities = [
 next_extraction = "Split feature-specific subfactories from the top-level prompt-editor composition boundary."
 
 [[debts]]
-id = "SS-ARCH-056"
-owner = "canonical prompt layout"
-paths = ["substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"]
-fingerprint = "sha256:3ca14aeb75e1ab86f67253c62d43591643ccdb10c201b93a6ec5fdc9036b17be"
-issue = "chore:SS-ARCH-056"
-review_by = 2026-12-15
-responsibilities = [
-  "text measurement and font cache",
-  "projection-run to piece partitioning",
-  "word wrapping and break policy",
-  "decoration keep-group planning",
-  "line and fragment construction",
-  "source-boundary and caret mapping",
-]
-next_extraction = "Extract text measurement, wrap policy, and source-boundary mapping from line-layout assembly."
-
-[[debts]]
 id = "SS-ARCH-057"
 owner = "prompt autocomplete panel"
 paths = ["substitute/presentation/editor/prompt_editor/overlays/autocomplete_panel.py"]

@@ -197,6 +197,42 @@ def test_projection_layout_cursor_rect_exposes_distinct_emphasis_boundaries() ->
     assert trailing_rect.left() > content_end_rect.left()
 
 
+def test_projection_layout_exposes_distinct_boundaries_around_following_comma() -> None:
+    """Keep the token edge, post-comma edge, and following text separately navigable."""
+
+    source_text = "ornaments, (red:1.10), heart"
+    layout, projection = _layout_for(source_text)
+    token = next(
+        token
+        for token in projection.tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+    )
+    trailing_state = projection.caret_map.state_for_source_position(token.source_end)
+    after_comma_state = projection.caret_map.state_for_source_position(
+        token.source_end + 1
+    )
+    after_space_state = projection.caret_map.state_for_source_position(
+        token.source_end + 2
+    )
+
+    trailing_rect = layout.frame.geometry.caret.cursor_rect(
+        trailing_state,
+        scroll_offset=0.0,
+    )
+    after_comma_rect = layout.frame.geometry.caret.cursor_rect(
+        after_comma_state,
+        scroll_offset=0.0,
+    )
+    after_space_rect = layout.frame.geometry.caret.cursor_rect(
+        after_space_state,
+        scroll_offset=0.0,
+    )
+
+    assert projection.caret_map.next_state(trailing_state) == after_comma_state
+    assert projection.caret_map.next_state(after_comma_state) == after_space_state
+    assert trailing_rect.left() < after_comma_rect.left() < after_space_rect.left()
+
+
 def test_projection_layout_selection_rects_support_partial_collapsed_emphasis_content() -> (
     None
 ):
