@@ -574,19 +574,6 @@ next_limit = 720
 debt = "SS-ARCH-058"
 
 [[waivers]]
-id = "SS-WAIVER-R059"
-owner = "prompt token-weight controls"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"
-kind = "remediation"
-justification = "The assessed file mixes control overlay geometry and visibility, Qt pointer, click, and wheel event routing, step-action commit feedback orchestration, runtime widget lifecycle and passive view publication. Extract Qt input event routing and step-action dispatch from mounted overlay geometry, visibility, and passive view publication."
-issue = "chore:SS-ARCH-059"
-review_by = 2026-12-15
-max_lines = 1087
-next_limit = 750
-debt = "SS-ARCH-059"
-
-[[waivers]]
 id = "SS-WAIVER-R061"
 owner = "prompt projection surface"
 rule = "STRUCT003"
@@ -1997,3 +1984,14 @@ justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, pai
 issue = "chore:SS-WAIVER-S153"
 review_by = 2026-12-15
 max_lines = 587
+
+[[waivers]]
+id = "SS-WAIVER-S154"
+owner = "mounted prompt token-weight controls"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"
+kind = "structural"
+justification = "PromptTokenWeightControls owns one mounted overlay projection over a single prepared geometry snapshot and visible-token state. Visibility, host/viewport transforms, overlay bounds, hit mapping, token-range publication, and passive render-state publication must use the same token and rectangles in one refresh; extracting one family would divide the authoritative mounted geometry or duplicate its coordinate and range invariants. Qt input routing, exact editing, command dispatch, gesture timing, wheel intent, preview layout, geometry calculation, and painting are separate collaborators."
+issue = "chore:SS-WAIVER-S154"
+review_by = 2026-12-15
+max_lines = 743

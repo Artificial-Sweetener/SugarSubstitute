@@ -30,12 +30,14 @@ from ..overlays.token_weight_controls import (
     PromptTokenWeightControls,
     PromptTokenWeightControlsSurface,
 )
+from ..overlays.token_weight_actions import PromptTokenWeightActionCoordinator
 from ..overlays.token_weight_exact_edit import (
     PromptTokenWeightExactEditController,
     PromptTokenWeightExactEditHost,
 )
 from ..overlays.token_weight_geometry import PromptTokenWeightGeometry
 from ..overlays.token_weight_gestures import PromptTokenWeightGestureController
+from ..overlays.token_weight_input_router import PromptTokenWeightInputRouter
 from ..overlays.token_weight_preview import PromptTokenWeightPreviewController
 from ..overlays.token_weight_view import PromptTokenWeightView
 from ..overlays.token_weight_wheel_intent import PromptTokenWeightWheelIntentRouter
@@ -70,6 +72,8 @@ class PromptTokenWeightControlsFactory:
             view_factory=PromptTokenWeightView,
             gesture_controller_factory=self._create_gesture_controller,
             exact_edit_controller_factory=self._create_exact_edit_controller,
+            action_coordinator_factory=PromptTokenWeightActionCoordinator,
+            input_router_factory=PromptTokenWeightInputRouter,
             preview_controller=PromptTokenWeightPreviewController(),
             wheel_intent_router=PromptTokenWeightWheelIntentRouter(
                 self.wheel_intent_owner

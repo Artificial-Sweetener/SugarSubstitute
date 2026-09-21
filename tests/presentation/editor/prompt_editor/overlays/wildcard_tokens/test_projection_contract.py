@@ -142,7 +142,7 @@ def reveal_wildcard_controls(
         box, token
     )
     _send_viewport_mouse_move(box, anchor_rect.center().toPoint())
-    controls._set_pointer_from_viewport(anchor_rect.center())  # noqa: SLF001
+    controls.set_pointer_from_viewport(anchor_rect.center())
     controls.refresh_geometry()
     return controls
 

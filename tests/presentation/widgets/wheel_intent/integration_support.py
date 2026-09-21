@@ -382,7 +382,7 @@ def _reveal_weight_controls_without_dwell(
     process_events(app)
     QTest.mouseMove(box.viewport(), token_point)
     process_events(app)
-    controls._set_pointer_from_viewport(QPointF(token_point))  # noqa: SLF001
+    controls.set_pointer_from_viewport(QPointF(token_point))
     controls.refresh_geometry()
     process_events(app)
     return token_point
