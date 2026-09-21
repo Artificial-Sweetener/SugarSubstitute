@@ -298,9 +298,10 @@ def _region_projection_ownership(
             f"{layout_name}:region_token_ranges:"
             f"actual={actual_token_ranges!r}:expected={expected_token_ranges!r}"
         )
+    caret_state_owner = surface._caret_state_owner
     for caret_name, state in (
-        ("cursor", getattr(surface, "_cursor_state", None)),
-        ("anchor", getattr(surface, "_anchor_state", None)),
+        ("cursor", caret_state_owner.cursor_state),
+        ("anchor", caret_state_owner.anchor_state),
     ):
         source_position = getattr(state, "source_position", None)
         if isinstance(source_position, int) and any(
@@ -438,7 +439,7 @@ def _fresh_projection_maps_current_caret(
 ) -> bool:
     """Return whether fresh layout geometry owns a visible live-source caret."""
 
-    cursor_state = surface._cursor_state
+    cursor_state = surface._caret_state_owner.cursor_state
     cursor_position = int(surface.cursor_position)
     if int(cursor_state.source_position) != cursor_position:
         return False

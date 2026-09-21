@@ -527,10 +527,10 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret, selection, scrolling, and hit testing, fill-band, diagnostic, and transient-paint cache coordination, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, undo, focus, and tooltip routing. Extract remaining source editing, cache coordination, and feature-interaction hosts from the mounted projection surface."
+justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, fill-band, diagnostic, and transient-paint cache coordination, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, undo, focus, and tooltip routing. Extract remaining source editing, cache coordination, and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 3263
+max_lines = 3268
 next_limit = 2813
 debt = "SS-ARCH-061"
 
@@ -1372,7 +1372,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 613
+max_lines = 608
 
 [[waivers]]
 id = "SS-WAIVER-S054"
@@ -1677,7 +1677,7 @@ kind = "structural"
 justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
 issue = "chore:SS-WAIVER-S080"
 review_by = 2026-12-15
-max_lines = 561
+max_lines = 563
 
 [[waivers]]
 id = "SS-WAIVER-S150"

@@ -280,10 +280,12 @@ class _CaretPlacementHarness:
 
         caret_rect = self.assert_caret_valid(label)
         layout_rect = cast(Any, self._surface)._layout.frame.geometry.caret.cursor_rect(
-            cast(Any, self._surface)._cursor_state,
+            cast(Any, self._surface)._caret_state_owner.cursor_state,
             scroll_offset=0.0,
         )
-        assert cast(Any, self._surface)._caret_rect_override is None, (
+        assert (
+            cast(Any, self._surface)._caret_state_owner.caret_rect_override is None
+        ), (
             f"{label}: stale caret rect override remains; "
             f"cursor_position={self._surface.cursor_position} "
             f"text={self._box.toPlainText()!r}"

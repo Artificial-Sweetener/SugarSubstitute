@@ -630,13 +630,13 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:c7c0c06e8cb360048d38b6070dedac517ccb4b164824e6a908e2e7553c2464a1"
+fingerprint = "sha256:e96ab89cfaff828fe0c907b20c49a3c6a1f3d52e6860a29cf3273073b97988be"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
   "source editing and input-method handling",
   "projection, layout, and freshness coordination",
-  "caret, selection, scrolling, and hit testing",
+  "caret geometry effects, selection, scrolling, and hit testing",
   "fill-band, diagnostic, and transient-paint cache coordination",
   "autocomplete, diagnostics, reorder, region, and token-weight interaction hosting",
   "clipboard, undo, focus, and tooltip routing",

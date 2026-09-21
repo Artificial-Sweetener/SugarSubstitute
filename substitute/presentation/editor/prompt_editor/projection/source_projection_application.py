@@ -235,10 +235,13 @@ class PromptSourceProjectionApplication:
     ) -> None:
         """Publish caret state paired with direct transient edit feedback."""
 
-        self._caret_sink._cursor_state = cursor_state
-        self._caret_sink._anchor_state = anchor_state
+        self._caret_sink._caret_state_owner.replace_states(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+            clear_caret_rect_override=True,
+            reset_preferred_x=False,
+        )
         self._caret_sink._sync_editing_session_to_caret_states()
-        self._caret_sink._caret_rect_override = None
         self._caret_sink._ensure_caret_visible()
         self._caret_sink._restart_caret_blink_cycle()
 

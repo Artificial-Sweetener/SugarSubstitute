@@ -38,6 +38,9 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 from substitute.presentation.editor.prompt_editor.projection.freshness_controller import (
     PromptProjectionFreshnessBlockers,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_state_owner import (
+    PromptProjectionCaretStateOwner,
+)
 from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
     PromptLayoutEditToFrameCoordinator,
 )
@@ -138,11 +141,11 @@ class _SourceChangeHost:
             PromptProjectionInlineObjectRendererRegistry(())
         )
         self._caret_visibility_prompt_state_revision = 0
-        self._cursor_state = PromptProjectionCaretState(source_position=0)
-        self._anchor_state = PromptProjectionCaretState(source_position=0)
-        self._caret_rect_override: QRectF | None = None
+        self._caret_state_owner = PromptProjectionCaretStateOwner(
+            PromptProjectionCaretState(source_position=0)
+        )
         self._transient_edit_overlays = PromptProjectionTransientEditOverlayController()
-        self._preferred_x: float | None = 3.0
+        self._caret_state_owner.set_preferred_x(3.0)
         self._scroll_bar = _ScrollBarRecorder()
         self._viewport = _ViewportRecorder()
         self.marked_source_changes: list[tuple[bool, int]] = []

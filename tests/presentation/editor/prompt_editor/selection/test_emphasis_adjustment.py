@@ -314,10 +314,11 @@ def test_projection_selection_ctrl_down_keeps_caret_at_transient_content_end(
     assert focused_token is not None
     assert focused_token.synthetic is True
     assert (
-        surface._cursor_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+        surface._caret_state_owner.cursor_state.placement
+        is PromptProjectionCaretPlacement.TOKEN_CONTENT
     )
-    assert surface._cursor_state.token_id == focused_token.token_id
-    assert surface._cursor_state.token_slot == 3
+    assert surface._caret_state_owner.cursor_state.token_id == focused_token.token_id
+    assert surface._caret_state_owner.cursor_state.token_slot == 3
 
 
 def test_projection_selection_ctrl_session_keeps_caret_at_transient_content_end(
@@ -361,10 +362,11 @@ def test_projection_selection_ctrl_session_keeps_caret_at_transient_content_end(
     assert focused_token is not None
     assert focused_token.synthetic is True
     assert (
-        surface._cursor_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+        surface._caret_state_owner.cursor_state.placement
+        is PromptProjectionCaretPlacement.TOKEN_CONTENT
     )
-    assert surface._cursor_state.token_id == focused_token.token_id
-    assert surface._cursor_state.token_slot == 3
+    assert surface._caret_state_owner.cursor_state.token_id == focused_token.token_id
+    assert surface._caret_state_owner.cursor_state.token_slot == 3
 
 
 def test_projection_selection_ctrl_up_can_restore_emphasis_from_transient_neutral(

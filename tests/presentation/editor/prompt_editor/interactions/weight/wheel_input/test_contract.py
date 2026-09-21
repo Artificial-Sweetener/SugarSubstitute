@@ -220,7 +220,7 @@ def test_overlay_wheel_to_neutral_keeps_caret_at_plain_text_content_end(
     assert box.textCursor().position() == 3
     assert box.textCursor().selectionStart() == 3
     assert box.textCursor().selectionEnd() == 3
-    assert surface._cursor_state.source_position == 3
+    assert surface._caret_state_owner.cursor_state.source_position == 3
 
 
 def test_down_control_does_not_show_pointer_weight_preview(

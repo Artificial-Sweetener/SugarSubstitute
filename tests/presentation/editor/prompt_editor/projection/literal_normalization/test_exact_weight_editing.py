@@ -87,7 +87,7 @@ def test_projection_surface_reclassifies_edited_literal_group_as_existing_emphas
     assert committed_token.value_text == "1.20"
     assert committed_token.editing_value_text is None
     assert box.textCursor().position() == committed_token.source_end
-    assert getattr(surface, "_cursor_state").placement is (
+    assert surface._caret_state_owner.cursor_state.placement is (  # noqa: SLF001
         PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
     )
 

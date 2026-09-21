@@ -51,9 +51,6 @@ from .freshness_controller import (
 from .edit_pipeline_contracts import PromptProjectionApplyPath
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
 from .prompt_state_projection_strategy import PromptStateProjectionStrategy
-from substitute.presentation.editor.prompt_editor.core.projection.caret import (
-    PromptProjectionCaretState,
-)
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
@@ -85,8 +82,6 @@ class PromptProjectionPromptStateHost(Protocol):
     _display_mode: PromptProjectionDisplayMode
     _session: PromptProjectionSession
     _scene_error_keys: frozenset[str]
-    _cursor_state: PromptProjectionCaretState
-    _anchor_state: PromptProjectionCaretState
     _caret_visibility_prompt_state_revision: int | None
     _last_rendered_active_span_range: tuple[int, int] | None
     _layout: PromptLayoutEditToFrameCoordinator

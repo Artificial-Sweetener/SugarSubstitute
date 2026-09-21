@@ -140,16 +140,17 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     projection_session = getattr(surface, "_session", None)
     transient_overlays = getattr(surface, "_transient_edit_overlays", None)
     freshness_controller = getattr(surface, "_projection_freshness_controller", None)
-    caret_state = getattr(surface, "_cursor_state", None)
-    anchor_state = getattr(surface, "_anchor_state", None)
+    caret_state_owner = getattr(surface, "_caret_state_owner", None)
+    caret_state = getattr(caret_state_owner, "cursor_state", None)
+    anchor_state = getattr(caret_state_owner, "anchor_state", None)
     caret_map_document = (
         active_projection_document
         if getattr(projection_session, "autocomplete_preview", None) is not None
         else projection_document
     )
     caret_map = getattr(caret_map_document, "caret_map", None)
-    caret_preferred_x = getattr(surface, "_preferred_x", None)
-    caret_rect_override = getattr(surface, "_caret_rect_override", None)
+    caret_preferred_x = getattr(caret_state_owner, "preferred_x", None)
+    caret_rect_override = getattr(caret_state_owner, "caret_rect_override", None)
     freshness = getattr(freshness_controller, "freshness", None)
     pending_update = getattr(freshness_controller, "has_pending_update", None)
     stale_geometry = getattr(
@@ -418,7 +419,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             caret_rect_override if isinstance(caret_rect_override, QRectF) else None
         ),
         "skip_next_same_source_soft_wrap_move": bool(
-            getattr(surface, "_skip_next_same_source_soft_wrap_move", False)
+            surface is not None
+            and surface._caret_state_owner.source_edit_horizontal_movement_origin_is_pending()
         ),
         "projection_token_count": len(getattr(projection_document, "tokens", ())),
         "projection_run_count": len(getattr(projection_document, "runs", ())),

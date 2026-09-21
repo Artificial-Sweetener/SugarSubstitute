@@ -122,7 +122,7 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
             updated_text=updated_text,
             normalized_text=commit.next_snapshot.source_text,
             region_structure_requires_rebuild=region_structure_requires_rebuild,
-            cursor_state=self._caret_sink._cursor_state,
+            cursor_state=self._caret_sink._caret_state_owner.cursor_state,
         )
         deferral_reason = projection_decision.deferral_reason
         optimistic_prompt_state = (
