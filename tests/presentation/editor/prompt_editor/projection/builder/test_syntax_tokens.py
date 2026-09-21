@@ -93,6 +93,50 @@ def test_projection_builder_emits_projected_runs_for_emphasis_and_wildcard_token
     )
 
 
+def test_projection_builder_keeps_feature_run_and_caret_boundaries_contiguous() -> None:
+    """Compose every inline feature without gaps in projection or source navigation."""
+
+    projection = _build_projection(
+        r"(red:1.10), {animal}, <lora:Unknown\Thing:0.8>, tail",
+        wildcard_resolutions={
+            ("animal", "simple", None): PromptWildcardResolution(
+                identifier="animal",
+                wildcard_form="simple",
+                exists=True,
+            ),
+        },
+    )
+
+    assert [run.projection_start for run in projection.runs] == [
+        0,
+        *(run.projection_end for run in projection.runs[:-1]),
+    ]
+    assert projection.runs[-1].projection_end == len(projection.projection_text)
+    for run in projection.runs:
+        visible_text = (
+            run.display_text
+            if run.kind is PromptProjectionRunKind.TEXT
+            else OBJECT_REPLACEMENT_CHARACTER
+        )
+        assert (
+            projection.projection_text[run.projection_start : run.projection_end]
+            == visible_text
+        )
+    for token in projection.tokens:
+        assert (
+            projection.caret_map.state_for_source_position(
+                token.source_start
+            ).source_position
+            == token.source_start
+        )
+        assert (
+            projection.caret_map.state_for_source_position(
+                token.source_end
+            ).source_position
+            == token.source_end
+        )
+
+
 def test_projection_builder_projects_wildcard_group_tags_without_status_badges() -> (
     None
 ):
