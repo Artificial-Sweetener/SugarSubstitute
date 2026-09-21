@@ -76,6 +76,10 @@ def test_caret_collaborators_mutate_only_the_focused_state_owner() -> None:
             owned_attributes
             & _assigned_self_attributes(path.read_text(encoding="utf-8"))
         )
-    assert "PromptProjectionCaretStateOwner(" in collaborator_paths[0].read_text(
+    foundation_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface_foundation.py"
+    ).read_text(encoding="utf-8")
+    assert "PromptProjectionCaretStateOwner(" in foundation_source
+    assert "PromptProjectionCaretStateOwner(" not in collaborator_paths[0].read_text(
         encoding="utf-8"
     )

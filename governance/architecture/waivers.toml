@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, foundational editor collaborator construction and cyclic lifecycle wiring, and Qt input, focus, viewport, and paint lifecycle routing. Extract foundational editor collaborator construction and cyclic lifecycle wiring from the Qt event surface."
+justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, lifecycle-dependent collaborator construction and cyclic callback wiring, and Qt input, focus, viewport, and paint lifecycle routing. Extract lifecycle-dependent interaction and source-state graph construction from the Qt event surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 1696
-next_limit = 1450
+max_lines = 1651
+next_limit = 1400
 debt = "SS-ARCH-061"
 
 [[waivers]]
