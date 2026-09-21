@@ -25,8 +25,6 @@ from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QCursor,
     QEnterEvent,
-    QFont,
-    QFontMetricsF,
     QKeyEvent,
     QMouseEvent,
     QResizeEvent,
@@ -49,7 +47,10 @@ from .token_weight_geometry import (
     PromptTokenWeightControlGeometry,
     PromptTokenWeightGeometry,
     PromptTokenWeightGeometrySnapshot,
-    tokens_share_content_range,
+)
+from .token_weight_exact_edit import (
+    PromptTokenWeightExactEditController,
+    PromptTokenWeightExactEditPressResult,
 )
 from .token_weight_gestures import (
     PromptTokenWeightControl,
@@ -63,6 +64,8 @@ from .token_weight_view import (
     PromptTokenWeightView,
     PromptTokenWeightViewRenderState,
 )
+from .token_weight_preview import PromptTokenWeightPreviewController
+from .token_weight_wheel_intent import PromptTokenWeightWheelIntentRouter
 
 
 type _TokenControlGeometry = PromptTokenWeightControlGeometry
@@ -110,71 +113,6 @@ class PromptTokenWeightControlsSurface(Protocol):
         """Return the viewport-local painted weight rect for one weighted token."""
 
 
-class PromptTokenWeightExactEditHost(Protocol):
-    """Coordinate projection-owned exact edit lifecycle for token controls."""
-
-    def begin_exact_weight_edit(self, token: PromptProjectionToken) -> None:
-        """Start one projection-owned exact weight edit session."""
-
-    def cancel_exact_weight_edit(self) -> None:
-        """Cancel any active projection-owned exact weight edit session."""
-
-    def finalize_exact_weight_edit(self) -> None:
-        """Commit or cancel the active exact weight edit session."""
-
-    def exact_weight_edit_token(self) -> PromptProjectionToken | None:
-        """Return the projection token currently owning exact edit mode."""
-
-    def exact_weight_edit_active(self) -> bool:
-        """Return whether exact weight edit mode is currently active."""
-
-    def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
-        """Return the viewport-local painted weight rect for one weighted token."""
-
-    def handle_exact_weight_mouse(self, event: QMouseEvent) -> None:
-        """Route viewport input through the native numeric control."""
-
-    def handle_exact_weight_key_press(self, event: QKeyEvent) -> bool:
-        """Handle one exact-weight edit key press."""
-
-    def clear_overlay_emphasis_session_for_exact_weight(self) -> None:
-        """Clear overlay-owned emphasis state after controls lose ownership."""
-
-
-class PromptTokenWeightWheelIntentOwner(Protocol):
-    """Own token-weight wheel dwell, activation, and accent publication."""
-
-    def record_token_pointer_move(
-        self,
-        token: PromptProjectionToken,
-        global_position: QPointF,
-    ) -> None:
-        """Record pointer movement over one numeric token."""
-
-    def activate_token(
-        self,
-        token: PromptProjectionToken,
-        global_position: QPointF,
-    ) -> None:
-        """Record explicit token activation for focus-required wheel mode."""
-
-    def token_wheel_is_allowed(
-        self,
-        token: PromptProjectionToken,
-        event: QWheelEvent,
-    ) -> bool:
-        """Return whether one token may consume wheel input."""
-
-    def refresh_candidate_from_pointer(
-        self,
-        candidate: tuple[PromptProjectionToken, QPointF] | None,
-    ) -> None:
-        """Refresh dwell accent state from the current pointer candidate."""
-
-    def clear_candidate(self) -> None:
-        """Clear token-wheel dwell and accent state."""
-
-
 class PromptTokenWeightViewFactory(Protocol):
     """Create the passive token-weight view for one overlay instance."""
 
@@ -194,6 +132,16 @@ class PromptTokenWeightGestureControllerFactory(Protocol):
         """Return the gesture controller parented to the supplied overlay widget."""
 
 
+class PromptTokenWeightExactEditControllerFactory(Protocol):
+    """Create exact-edit coordination around one overlay gesture owner."""
+
+    def __call__(
+        self,
+        gestures: PromptTokenWeightGestureController,
+    ) -> PromptTokenWeightExactEditController:
+        """Return the exact-edit controller bound to the supplied gestures."""
+
+
 class PromptTokenWeightControls(QWidget):
     """Render token weight controls above the custom prompt projection surface."""
 
@@ -208,11 +156,6 @@ class PromptTokenWeightControls(QWidget):
     CONTROL_MARGIN = 4.0
     OVERLAY_PADDING = 2.0
     HIDE_DELAY_MS = 140
-    WEIGHT_PREVIEW_MS = 240
-    _WEIGHT_PREVIEW_CURSOR_OFFSET = 4.0
-    _WEIGHT_PREVIEW_MARGIN = 6.0
-    _WEIGHT_PREVIEW_HORIZONTAL_PADDING = 3.5
-    _WEIGHT_PREVIEW_VERTICAL_PADDING = 1.0
 
     def __init__(
         self,
@@ -222,13 +165,13 @@ class PromptTokenWeightControls(QWidget):
         geometry: PromptTokenWeightGeometry,
         view_factory: PromptTokenWeightViewFactory,
         gesture_controller_factory: PromptTokenWeightGestureControllerFactory,
-        exact_edit_host: PromptTokenWeightExactEditHost,
-        wheel_intent_owner: PromptTokenWeightWheelIntentOwner,
+        exact_edit_controller_factory: PromptTokenWeightExactEditControllerFactory,
+        preview_controller: PromptTokenWeightPreviewController,
+        wheel_intent_router: PromptTokenWeightWheelIntentRouter,
     ) -> None:
         """Create the non-clipping overlay used for token-adjacent controls."""
 
         self._surface = surface
-        self._exact_edit_host = exact_edit_host
         self._surface_widget = cast(QWidget, surface)
         self._host = host
         super().__init__(self._host)
@@ -236,9 +179,11 @@ class PromptTokenWeightControls(QWidget):
         self._geometry_snapshot = PromptTokenWeightGeometrySnapshot()
         self._view = view_factory(self, surface_widget=self._surface_widget)
         self._gestures = gesture_controller_factory(self)
+        self._exact_edit = exact_edit_controller_factory(self._gestures)
+        self._preview_controller = preview_controller
         self._gestures.hide_timeout.timeout.connect(self._handle_hide_timeout)
         self._gestures.preview_timeout.timeout.connect(self._clear_weight_preview)
-        self._wheel_intent_owner = wheel_intent_owner
+        self._wheel_intent = wheel_intent_router
         self._visible_token: PromptProjectionToken | None = None
         self._increase_rect: QRectF | None = None
         self._decrease_rect: QRectF | None = None
@@ -274,10 +219,10 @@ class PromptTokenWeightControls(QWidget):
             self._hide_controls()
             return
         self._refresh_geometry_snapshot()
-        if self._exact_edit_host.exact_weight_edit_active():
+        if self._exact_edit.active:
             self._gestures.stop_hide_linger()
             self._clear_weight_preview()
-            token = self._exact_edit_host.exact_weight_edit_token()
+            token = self._exact_edit.token
             if token is None:
                 self._cancel_exact_weight_edit()
                 return
@@ -324,7 +269,7 @@ class PromptTokenWeightControls(QWidget):
         """Return whether no interaction state can consume prepared geometry."""
 
         return (
-            not self._exact_edit_host.exact_weight_edit_active()
+            not self._exact_edit.active
             and self._gestures.pointer_host_position is None
             and self._visible_token is None
             and self._gestures.pressed_control is None
@@ -344,16 +289,22 @@ class PromptTokenWeightControls(QWidget):
         self._increase_rect = geometry.increase_rect
         self._decrease_rect = geometry.decrease_rect
         self._weight_hit_rect = geometry.weight_text_rect
-        self._refresh_wheel_intent_candidate_for_geometry(geometry)
+        pointer_position = self._gestures.pointer_host_position
+        self._wheel_intent.refresh_candidate(
+            geometry.token,
+            None
+            if pointer_position is None
+            else self._global_position_from_host_position(pointer_position),
+        )
         self._refresh_overlay_bounds()
 
     def _hide_controls(self) -> None:
         """Hide the overlay and clear any non-pressed visibility state."""
 
         self._set_visible_token(None)
-        self._exact_edit_host.clear_overlay_emphasis_session_for_exact_weight()
+        self._exact_edit.clear_overlay_emphasis_session()
         if self._weighted_token_at_current_pointer() is None:
-            self._clear_wheel_intent_candidate()
+            self._wheel_intent.clear()
         self._increase_rect = None
         self._decrease_rect = None
         self._weight_hit_rect = None
@@ -453,7 +404,7 @@ class PromptTokenWeightControls(QWidget):
             return
         self._cancel_exact_weight_edit()
         self._gestures.clear_transient_state()
-        self._clear_wheel_intent_candidate()
+        self._wheel_intent.clear()
         self.unsetCursor()
         self.refresh_geometry()
 
@@ -476,7 +427,7 @@ class PromptTokenWeightControls(QWidget):
 
         if not self._runtime_widgets_are_valid():
             return False
-        if self._exact_edit_host.exact_weight_edit_active():
+        if self._exact_edit.active:
             event.accept()
             return True
         viewport_position = QPointF(
@@ -493,7 +444,7 @@ class PromptTokenWeightControls(QWidget):
         if not self._runtime_widgets_are_valid():
             return False
         if watched is self._surface.viewport():
-            if self._exact_edit_host.exact_weight_edit_active():
+            if self._exact_edit.active:
                 if event.type() == QEvent.Type.MouseButtonPress:
                     return self._handle_exact_edit_viewport_press(
                         cast(QMouseEvent, event)
@@ -516,12 +467,12 @@ class PromptTokenWeightControls(QWidget):
                         mouse_event.position()
                     )
                 ):
-                    self._activate_wheel_intent_token(
+                    self._wheel_intent.activate(
                         token,
                         mouse_event.globalPosition(),
                     )
                 elif mouse_event.button() == Qt.MouseButton.LeftButton:
-                    self._clear_exact_weight_click_candidate()
+                    self._exact_edit.clear_click_candidate()
             elif event.type() == QEvent.Type.MouseButtonDblClick:
                 mouse_event = cast(QMouseEvent, event)
                 if mouse_event.button() == Qt.MouseButton.LeftButton:
@@ -542,7 +493,7 @@ class PromptTokenWeightControls(QWidget):
                 self._gestures.pointer_host_position = None
                 self._start_hide_timer()
         if watched is self._surface_widget:
-            if self._exact_edit_host.exact_weight_edit_active():
+            if self._exact_edit.active:
                 if event.type() == QEvent.Type.MouseButtonPress:
                     return self._handle_exact_edit_viewport_press(
                         cast(QMouseEvent, event)
@@ -566,15 +517,15 @@ class PromptTokenWeightControls(QWidget):
                         mouse_event.position()
                     )
                 ):
-                    self._activate_wheel_intent_token(
+                    self._wheel_intent.activate(
                         token,
                         mouse_event.globalPosition(),
                     )
                 elif mouse_event.button() == Qt.MouseButton.LeftButton:
-                    self._clear_exact_weight_click_candidate()
+                    self._exact_edit.clear_click_candidate()
         if (
             watched is not self._surface.viewport()
-            and self._exact_edit_host.exact_weight_edit_active()
+            and self._exact_edit.active
             and event.type() == QEvent.Type.KeyPress
         ):
             return self._handle_exact_edit_key_press(cast(QKeyEvent, event))
@@ -633,14 +584,14 @@ class PromptTokenWeightControls(QWidget):
         self._gestures.hovered_control = None
         self.unsetCursor()
         self._gestures.pointer_host_position = None
-        self._clear_wheel_intent_candidate()
+        self._wheel_intent.clear()
         self._start_hide_timer()
         super().leaveEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Capture one pressed control without interfering with text selection."""
 
-        if self._exact_edit_host.exact_weight_edit_active():
+        if self._exact_edit.active:
             if self._handle_exact_edit_overlay_press(event):
                 event.accept()
                 return
@@ -653,7 +604,7 @@ class PromptTokenWeightControls(QWidget):
         if target == "weight":
             visible_token = self._visible_token
             if visible_token is not None:
-                self._activate_wheel_intent_token(
+                self._wheel_intent.activate(
                     visible_token,
                     event.globalPosition(),
                 )
@@ -661,7 +612,7 @@ class PromptTokenWeightControls(QWidget):
                 visible_token is not None
                 and visible_token.kind is not PromptProjectionTokenKind.WILDCARD
             ):
-                if self._gestures.weight_click_starts_exact_edit(
+                if self._exact_edit.click_starts_edit(
                     visible_token,
                     double_click_interval_ms=QApplication.doubleClickInterval(),
                 ):
@@ -669,14 +620,14 @@ class PromptTokenWeightControls(QWidget):
             event.accept()
             return
         if target is None:
-            self._clear_exact_weight_click_candidate()
+            self._exact_edit.clear_click_candidate()
             event.ignore()
             return
-        self._clear_exact_weight_click_candidate()
+        self._exact_edit.clear_click_candidate()
         self._gestures.pressed_control = target
         self._gestures.hovered_control = target
         if self._visible_token is not None:
-            self._activate_wheel_intent_token(
+            self._wheel_intent.activate(
                 self._visible_token,
                 event.globalPosition(),
             )
@@ -687,7 +638,7 @@ class PromptTokenWeightControls(QWidget):
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Start exact edit only from an unambiguous weight double click."""
 
-        if self._exact_edit_host.exact_weight_edit_active():
+        if self._exact_edit.active:
             event.accept()
             return
         if event.button() != Qt.MouseButton.LeftButton:
@@ -707,7 +658,7 @@ class PromptTokenWeightControls(QWidget):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Emit one typed emphasis action when the same control is released."""
 
-        if self._exact_edit_host.exact_weight_edit_active():
+        if self._exact_edit.active:
             event.accept()
             return
         if event.button() != Qt.MouseButton.LeftButton:
@@ -737,10 +688,10 @@ class PromptTokenWeightControls(QWidget):
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Adjust emphasis when the wheel is used over visible controls."""
 
-        if self._exact_edit_host.exact_weight_edit_active():
+        if self._exact_edit.active:
             event.accept()
             return
-        if self._visible_token is not None and not self._token_wheel_is_allowed(
+        if self._visible_token is not None and not self._wheel_intent.wheel_is_allowed(
             self._visible_token,
             event,
         ):
@@ -807,7 +758,7 @@ class PromptTokenWeightControls(QWidget):
         geometry = self._interaction_geometry_at_pointer()
         if geometry is not None:
             self._apply_geometry(geometry)
-            if not self._token_wheel_is_allowed(geometry.token, event):
+            if not self._wheel_intent.wheel_is_allowed(geometry.token, event):
                 return False
             return self._emit_wheel_action(
                 angle_delta_y,
@@ -818,7 +769,7 @@ class PromptTokenWeightControls(QWidget):
         token = self._weighted_token_at_viewport_position(viewport_position)
         if token is None:
             return False
-        if not self._token_wheel_is_allowed(token, event):
+        if not self._wheel_intent.wheel_is_allowed(token, event):
             return False
         self._emit_wheel_step_intent(
             angle_delta_y,
@@ -889,44 +840,31 @@ class PromptTokenWeightControls(QWidget):
         return geometry.weight_text_rect
 
     def _start_exact_weight_edit(self, token: PromptProjectionToken) -> None:
-        """Enter projection-owned exact edit mode for one emphasis number."""
+        """Enter exact edit mode and refresh its overlay presentation."""
 
-        value_text = token.value_text
-        if (
-            value_text is None
-            or token.content_start is None
-            or token.content_end is None
-        ):
+        if not self._exact_edit.start(token):
             return
-        self._gestures.stop_hide_linger()
-        self._clear_weight_preview()
-        self._gestures.pressed_control = None
-        self._gestures.hovered_control = None
         self.unsetCursor()
-        self._exact_edit_host.begin_exact_weight_edit(token)
         self.refresh_geometry()
         self.update()
 
     def _cancel_exact_weight_edit(self) -> None:
         """Exit exact edit mode without mutating prompt text."""
 
-        if not self._exact_edit_host.exact_weight_edit_active():
-            return
-        self._exact_edit_host.cancel_exact_weight_edit()
-        self._clear_exact_weight_click_candidate()
-        self.refresh_geometry()
+        if self._exact_edit.cancel():
+            self.refresh_geometry()
 
     def _maybe_begin_exact_weight_edit_from_click(self, position: QPointF) -> bool:
         """Start exact edit only when two consecutive clicks resolve to the same weight token."""
 
         token = self._weight_token_at_surface_or_viewport_position(position)
         if token is None:
-            self._clear_exact_weight_click_candidate()
+            self._exact_edit.clear_click_candidate()
             return False
         if token.kind is PromptProjectionTokenKind.WILDCARD:
-            self._clear_exact_weight_click_candidate()
+            self._exact_edit.clear_click_candidate()
             return False
-        if self._gestures.weight_click_starts_exact_edit(
+        if self._exact_edit.click_starts_edit(
             token,
             double_click_interval_ms=QApplication.doubleClickInterval(),
         ):
@@ -944,16 +882,10 @@ class PromptTokenWeightControls(QWidget):
     def _handle_exact_edit_viewport_press(self, event: QMouseEvent) -> bool:
         """Finalize exact edit state before outside viewport clicks continue normally."""
 
-        if event.button() != Qt.MouseButton.LeftButton:
+        result = self._exact_edit.handle_viewport_press(event)
+        if result is PromptTokenWeightExactEditPressResult.CONSUMED:
             return True
-        token = self._exact_edit_host.exact_weight_edit_token()
-        weight_rect = (
-            None
-            if token is None
-            else self._exact_edit_host.token_weight_text_rect(token)
-        )
-        if weight_rect is not None and weight_rect.contains(event.position()):
-            self._exact_edit_host.handle_exact_weight_mouse(event)
+        if result is PromptTokenWeightExactEditPressResult.UPDATED:
             self.refresh_geometry()
             event.accept()
             return True
@@ -969,7 +901,7 @@ class PromptTokenWeightControls(QWidget):
     def _handle_exact_edit_key_press(self, event: QKeyEvent) -> bool:
         """Apply native number-editing keys while the exact weight editor is active."""
 
-        handled = self._exact_edit_host.handle_exact_weight_key_press(event)
+        handled = self._exact_edit.handle_key_press(event)
         if handled:
             self.refresh_geometry()
         return handled
@@ -978,9 +910,9 @@ class PromptTokenWeightControls(QWidget):
         """Commit valid exact weight input or cancel invalid input."""
 
         self._run_weight_commit(
-            lambda: self._exact_edit_host.finalize_exact_weight_edit(),
+            self._exact_edit.finalize,
             pointer_global_position=QPointF(QCursor.pos()),
-            source_token=self._exact_edit_host.exact_weight_edit_token(),
+            source_token=self._exact_edit.token,
             show_weight_preview=False,
         )
 
@@ -1091,7 +1023,11 @@ class PromptTokenWeightControls(QWidget):
             self.refresh_geometry()
             if show_weight_preview and source_token is not None:
                 self._show_weight_preview_for_token(
-                    self._resolved_post_action_token(source_token),
+                    self._preview_controller.resolve_post_action_token(
+                        source_token,
+                        visible_token=self._visible_token,
+                        geometry_snapshot=self._geometry_snapshot,
+                    ),
                     pointer_global_position=pointer_global_position,
                 )
             else:
@@ -1134,58 +1070,17 @@ class PromptTokenWeightControls(QWidget):
         """Record token hover intent from one real viewport pointer move."""
 
         token = self._weighted_token_at_viewport_position(event.position())
+        fallback_token: PromptProjectionToken | None = None
         if token is None:
             self._set_pointer_from_viewport(event.position())
             geometry = self._interaction_geometry_at_pointer()
             if geometry is not None:
-                token = geometry.token
-        if token is None:
-            self._clear_wheel_intent_candidate()
-            return
-        global_position = event.globalPosition()
-        self._wheel_intent_owner.record_token_pointer_move(token, global_position)
-        self._wheel_intent_owner.refresh_candidate_from_pointer(
-            (token, QPointF(global_position))
+                fallback_token = geometry.token
+        self._wheel_intent.record_pointer_move(
+            token,
+            fallback_token=fallback_token,
+            global_position=event.globalPosition(),
         )
-
-    def _activate_wheel_intent_token(
-        self,
-        token: PromptProjectionToken,
-        global_position: QPointF,
-    ) -> None:
-        """Record explicit click activation for one numeric token wheel target."""
-
-        self._wheel_intent_owner.activate_token(token, global_position)
-
-    def _clear_wheel_intent_candidate(self) -> None:
-        """Clear any pending or ready token from hover-driven wheel intent."""
-
-        self._wheel_intent_owner.clear_candidate()
-
-    def _refresh_wheel_intent_candidate_for_geometry(
-        self,
-        geometry: _TokenControlGeometry,
-    ) -> None:
-        """Publish the current control-zone token to the wheel-intent owner."""
-
-        pointer_position = self._gestures.pointer_host_position
-        if pointer_position is None:
-            return
-        self._wheel_intent_owner.refresh_candidate_from_pointer(
-            (
-                geometry.token,
-                self._global_position_from_host_position(pointer_position),
-            )
-        )
-
-    def _token_wheel_is_allowed(
-        self,
-        token: PromptProjectionToken,
-        event: QWheelEvent,
-    ) -> bool:
-        """Return whether one token may consume the wheel event."""
-
-        return self._wheel_intent_owner.token_wheel_is_allowed(token, event)
 
     def _global_position_from_host_position(
         self,
@@ -1260,11 +1155,6 @@ class PromptTokenWeightControls(QWidget):
             self._weight_hit_rect
         ).contains(local_position)
 
-    def _clear_exact_weight_click_candidate(self) -> None:
-        """Forget any pending number click waiting for a second unambiguous weight click."""
-
-        self._gestures.clear_click_candidate()
-
     def _host_rect_to_local_rect(self, host_rect: QRectF) -> QRectF:
         """Return one host-local control rect translated into overlay-local coordinates."""
 
@@ -1279,66 +1169,20 @@ class PromptTokenWeightControls(QWidget):
     ) -> None:
         """Show a short-lived weight label above the current mouse pointer."""
 
-        if (
-            token is None
-            or token.value_text is None
-            or not self._runtime_widgets_are_valid()
-        ):
+        if not self._runtime_widgets_are_valid():
             self._clear_weight_preview()
             return
-        preview_text = (
-            token.wildcard_display_tag
-            if token.kind is PromptProjectionTokenKind.WILDCARD
-            else token.value_text
-        )
-        if preview_text is None:
-            self._clear_weight_preview()
-            return
-        preview_font = self._weight_preview_font()
-        metrics = QFontMetricsF(preview_font)
-        text_width = metrics.horizontalAdvance(preview_text)
-        text_height = metrics.height()
-        preview_rect = QRectF(
-            0.0,
-            0.0,
-            text_width + self._WEIGHT_PREVIEW_HORIZONTAL_PADDING * 2.0,
-            text_height + self._WEIGHT_PREVIEW_VERTICAL_PADDING * 2.0,
-        )
         host_point = self._host_point_from_global(pointer_global_position)
-        if host_point is None:
+        preview = self._preview_controller.prepare(
+            token,
+            pointer_host_position=host_point,
+            host_rect=self._host_rect(),
+            base_font=self.font(),
+        )
+        if preview is None:
             self._clear_weight_preview()
             return
-        preview_rect.moveLeft(host_point.x() - preview_rect.width() / 2.0)
-        preview_rect.moveTop(
-            host_point.y() - self._WEIGHT_PREVIEW_CURSOR_OFFSET - preview_rect.height()
-        )
-        host_rect = self._host_rect()
-        if host_rect.isNull():
-            self._clear_weight_preview()
-            return
-        preview_rect.moveLeft(
-            max(
-                host_rect.left() + self._WEIGHT_PREVIEW_MARGIN,
-                min(
-                    preview_rect.left(),
-                    host_rect.right()
-                    - preview_rect.width()
-                    - self._WEIGHT_PREVIEW_MARGIN,
-                ),
-            )
-        )
-        preview_rect.moveTop(
-            max(
-                host_rect.top() + self._WEIGHT_PREVIEW_MARGIN,
-                min(
-                    preview_rect.top(),
-                    host_rect.bottom()
-                    - preview_rect.height()
-                    - self._WEIGHT_PREVIEW_MARGIN,
-                ),
-            )
-        )
-        self._gestures.show_weight_preview(text=preview_text, rect=preview_rect)
+        self._gestures.show_weight_preview(text=preview.text, rect=preview.rect)
         self._refresh_overlay_bounds()
 
     def _host_point_supports_weight_preview(
@@ -1352,24 +1196,6 @@ class PromptTokenWeightControls(QWidget):
         return geometry.anchor_rect.contains(
             host_point
         ) or geometry.increase_rect.contains(host_point)
-
-    def _resolved_post_action_token(
-        self,
-        source_token: PromptProjectionToken,
-    ) -> PromptProjectionToken | None:
-        """Resolve the weighted token that owns the updated value after one mutation."""
-
-        visible_token = self._visible_token
-        resolved_token = self._geometry_snapshot.current_token_for(source_token)
-        if resolved_token is not None:
-            return resolved_token
-        if visible_token is not None and tokens_share_content_range(
-            visible_token, source_token
-        ):
-            return visible_token
-        if visible_token is not None and visible_token.kind is source_token.kind:
-            return visible_token
-        return None
 
     def _current_projection_token_for(
         self,
@@ -1444,16 +1270,6 @@ class PromptTokenWeightControls(QWidget):
                 preview=preview_state,
             )
         )
-
-    def _weight_preview_font(self) -> QFont:
-        """Return the font used by the floating weight preview bubble."""
-
-        font = QFont(self.font())
-        if font.pointSizeF() > 0:
-            font.setPointSizeF(max(8.0, font.pointSizeF() - 1.0))
-        else:
-            font.setPixelSize(max(12, font.pixelSize() - 1))
-        return font
 
 
 def _qt_object_is_valid(candidate: object | None) -> bool:

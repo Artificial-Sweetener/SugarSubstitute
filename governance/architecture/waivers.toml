@@ -579,11 +579,11 @@ owner = "prompt token-weight controls"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"
 kind = "remediation"
-justification = "The assessed file mixes control overlay geometry and visibility, pointer, click, and wheel gesture routing, exact-weight activation and completion gesture routing, token preview and hover state, wheel-intent coordination, runtime widget lifecycle and event filtering. Extract remaining exact-edit activation gestures, wheel-intent, and preview controllers from overlay geometry and widget presentation."
+justification = "The assessed file mixes control overlay geometry and visibility, Qt pointer, click, and wheel event routing, step-action commit feedback orchestration, runtime widget lifecycle and passive view publication. Extract Qt input event routing and step-action dispatch from mounted overlay geometry, visibility, and passive view publication."
 issue = "chore:SS-ARCH-059"
 review_by = 2026-12-15
-max_lines = 1242
-next_limit = 1051
+max_lines = 1087
+next_limit = 750
 debt = "SS-ARCH-059"
 
 [[waivers]]

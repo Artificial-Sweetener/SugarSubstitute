@@ -34,6 +34,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptWeightControlIdentity,
     prompt_weight_control_identity,
 )
+from .token_weight_identity import tokens_share_content_range
 from .token_weight_view import triangle_vertical_inset
 
 
@@ -329,22 +330,6 @@ def token_supports_numeric_controls(token: PromptProjectionToken) -> bool:
     return token.kind in _WEIGHT_CONTROL_TOKEN_KINDS
 
 
-def tokens_share_content_range(
-    left: PromptProjectionToken,
-    right: PromptProjectionToken,
-) -> bool:
-    """Return whether two tokens describe the same weighted source content."""
-
-    if left.content_start is not None and right.content_start is not None:
-        return (
-            left.content_start == right.content_start
-            and left.content_end == right.content_end
-        )
-    return (
-        left.source_start == right.source_start and left.source_end == right.source_end
-    )
-
-
 def stacked_triangle_control_rects(
     *,
     anchor_rect: QRectF,
@@ -392,5 +377,4 @@ __all__ = [
     "PromptTokenWeightProjectionSnapshot",
     "stacked_triangle_control_rects",
     "token_supports_numeric_controls",
-    "tokens_share_content_range",
 ]

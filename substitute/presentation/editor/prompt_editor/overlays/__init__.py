@@ -77,11 +77,16 @@ from .reorder_render_state import (
 from .reorder_view import PromptReorderView
 from .reorder_visual_style import PromptReorderVisualStyle
 from .token_weight_controls import (
-    PromptTokenWeightExactEditHost,
     PromptTokenWeightControls,
     PromptTokenWeightControlsSurface,
+    PromptTokenWeightExactEditControllerFactory,
     PromptTokenWeightGestureControllerFactory,
     PromptTokenWeightViewFactory,
+)
+from .token_weight_exact_edit import (
+    PromptTokenWeightExactEditController,
+    PromptTokenWeightExactEditHost,
+    PromptTokenWeightExactEditPressResult,
 )
 from .token_weight_geometry import (
     PromptTokenWeightControlGeometry,
@@ -148,7 +153,10 @@ __all__ = [
     "SegmentReorderOverlay",
     "PromptTokenWeightControls",
     "PromptTokenWeightControl",
+    "PromptTokenWeightExactEditController",
+    "PromptTokenWeightExactEditControllerFactory",
     "PromptTokenWeightExactEditHost",
+    "PromptTokenWeightExactEditPressResult",
     "PromptTokenWeightControlsSurface",
     "PromptTokenWeightGestureControllerFactory",
     "PromptTokenWeightGestureController",
