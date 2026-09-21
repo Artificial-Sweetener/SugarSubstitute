@@ -66,6 +66,13 @@ def test_canary_isolated_release_train_contract() -> None:
     assert "git/refs/tags/canary-latest" in publication_text
     assert 'git/refs/tags/canary"' not in publication_text
     assert "--clobber" in publication_text
+    assert "Detect existing Stable publication" in publication_text
+    assert (
+        "steps.stable-publication.outputs.already_published != 'true'"
+        in publication_text
+    )
+    assert 'gh release download "$tag"' in publication_text
+    assert 'cmp ".local-release-channel/$asset_name"' in publication_text
     assert 'canary_release_title="Canary $CANDIDATE_VERSION"' in publication_text
     assert "github.ref_name == 'main'" in publication_text
     assert "HEAD_BRANCH: ${{ github.head_ref }}" in policy_text

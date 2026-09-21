@@ -32,7 +32,9 @@ from sugarsubstitute_shared.presentation.localization import (
     translate_application_message,
 )
 from substitute.application.cubes import (
+    CubeAuthoredStateLossError,
     CubeInstanceStateTransferService,
+    CubeStackService,
     LoadedCubeDefinition,
     LoadedCubeRuntime,
 )
@@ -166,6 +168,7 @@ class WorkspaceCubeUpdateView(Protocol):
     workflow_session_service: WorkflowSessionServiceProtocol
     workspace_loaded_cube_surface_actions: LoadedCubeSurfaceActionsProtocol
     workflow_issue_state: WorkflowIssueState
+    cube_stack_service: CubeStackService
 
 
 class WorkspaceCubeUpdateActions:
@@ -402,7 +405,10 @@ class WorkspaceCubeUpdateActions:
             added_control_ids=transfer.report.added_control_ids,
             removed_control_ids=transfer.report.removed_control_ids,
             incompatible_control_ids=transfer.report.incompatible_control_ids,
+            dropped_authored_input_ids=transfer.report.dropped_authored_input_ids,
         )
+        if transfer.report.has_destructive_loss:
+            raise CubeAuthoredStateLossError(transfer.report.dropped_authored_input_ids)
         loaded_runtime = self._view.cube_load_service.build_loaded_cube_runtime(
             candidate.cube_id,
             candidate.cube_alias,
@@ -412,6 +418,11 @@ class WorkspaceCubeUpdateActions:
             cube_load_trace_id=trace_id,
         )
         loaded_runtime.cube_state.update_policy = self._target_update_policy(selection)
+        self._view.cube_stack_service.apply_cube_replacement(
+            workflow,
+            candidate.cube_alias,
+            loaded_runtime.cube_state,
+        )
         mark_stale = getattr(
             self._view.workspace_loaded_cube_surface_actions,
             "mark_loaded_cube_surface_stale",
@@ -423,7 +434,7 @@ class WorkspaceCubeUpdateActions:
                 candidate.cube_alias,
                 reason="cube_definition_updated",
             )
-        workflow.cubes[candidate.cube_alias] = loaded_runtime.cube_state
+        projected_cube = workflow.cubes[candidate.cube_alias]
         _mark_cube_update_surfaces_dirty(self._view, candidate.workflow_id)
         log_info(
             _LOGGER,
@@ -433,8 +444,8 @@ class WorkspaceCubeUpdateActions:
             workflow_id=candidate.workflow_id,
             cube_alias=candidate.cube_alias,
             old_cube_object_id=id(restored_cube),
-            new_cube_object_id=id(loaded_runtime.cube_state),
-            new_buffer_object_id=id(loaded_runtime.cube_buffer),
+            new_cube_object_id=id(projected_cube),
+            new_buffer_object_id=id(projected_cube.buffer),
             loaded_cube_id=loaded_runtime.cube_id,
             loaded_version=loaded_runtime.version,
         )
@@ -451,7 +462,7 @@ class WorkspaceCubeUpdateActions:
             current_version=candidate.current_version,
             latest_version=candidate.latest_version,
             action=selection.action.value,
-            update_policy=loaded_runtime.cube_state.update_policy.value,
+            update_policy=projected_cube.update_policy.value,
         )
         if (
             candidate.workflow_id

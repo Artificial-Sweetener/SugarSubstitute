@@ -37,6 +37,10 @@ from substitute.application.model_metadata import (
     RefreshCancellationToken,
     SetModelThumbnailFromOutputRequest,
     SetModelThumbnailFromOutputResult,
+    ThumbnailAssetRepository,
+)
+from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+    UltralyticsThumbnailAssociationService,
 )
 from substitute.presentation.shell.output_canvas_thumbnail_choices import (
     OutputCanvasThumbnailChoice,
@@ -107,6 +111,10 @@ class ModelMetadataContextActionScheduler:
         output_thumbnail_choices: OutputCanvasThumbnailChoiceProvider | None = None,
         submitter: TaskSubmitter | None = None,
         close_submitter: Callable[[], None] | None = None,
+        ultralytics_thumbnail_associations: (
+            UltralyticsThumbnailAssociationService | None
+        ) = None,
+        thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
     ) -> None:
         """Store the refresh service and initialize duplicate request tracking."""
 
@@ -120,11 +128,64 @@ class ModelMetadataContextActionScheduler:
             scope_id=f"model_metadata_context_actions_{id(self):x}",
         )
         self._close_submitter = close_submitter
+        self._ultralytics_thumbnail_associations = ultralytics_thumbnail_associations
+        self._thumbnail_asset_repository = thumbnail_asset_repository
         self._running_keys: set[tuple[str, str]] = set()
         self._running_thumbnail_keys: set[tuple[str, str, UUID]] = set()
         self._shutdown_requested = False
         self._lock = RLock()
         self._request_id = 0
+
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Present the detector library and persist an accepted association."""
+
+        associations = self._ultralytics_thumbnail_associations
+        asset_repository = self._thumbnail_asset_repository
+        backend_value = target.backend_value or ""
+        if (
+            associations is None
+            or asset_repository is None
+            or not backend_value.strip()
+        ):
+            log_warning(
+                _LOGGER,
+                "Ultralytics thumbnail selection is unavailable",
+                backend_value=backend_value,
+            )
+            return False
+        from substitute.presentation.dialogs.ultralytics_thumbnail_library_modal import (
+            UltralyticsThumbnailLibraryModal,
+        )
+
+        modal = UltralyticsThumbnailLibraryModal(
+            asset_repository=asset_repository,
+            model_display_name=target.display_label() or backend_value,
+            current_asset_name=associations.asset_for_model(backend_value),
+        )
+        modal.exec()
+        asset_name = modal.selected_asset_name
+        if asset_name is None:
+            return False
+        try:
+            associations.assign(backend_value, asset_name)
+        except (OSError, ValueError):
+            log_exception(
+                _LOGGER,
+                "Failed to persist Ultralytics thumbnail association",
+                backend_value=backend_value,
+                asset_name=asset_name,
+            )
+            return False
+        log_info(
+            _LOGGER,
+            "Ultralytics thumbnail association updated",
+            backend_value=backend_value,
+            asset_name=asset_name,
+        )
+        return True
 
     def refresh_civitai_metadata(
         self,

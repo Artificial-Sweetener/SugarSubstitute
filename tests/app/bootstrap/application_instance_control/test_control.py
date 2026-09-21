@@ -279,6 +279,45 @@ def test_rejected_close_does_not_make_live_window_undiscoverable(
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
+def test_accepted_close_cannot_acknowledge_a_rapid_relaunch(
+    tmp_path: Path,
+) -> None:
+    """A shell already closing must release a relaunch to a new supervisor."""
+
+    application = ensure_qt_application()
+    client = _RecordingSupervisorClient()
+    control = ApplicationInstanceControlClient(client)
+    window = _ActivationTrackingWindow()
+    window.show()
+    application.processEvents()
+
+    assert window.close()
+    application.processEvents()
+    assert callable(client.handler)
+    client.handler(
+        RoutedApplicationInvocation(
+            request_id="request-during-close",
+            invocation=ApplicationInvocation.capture(
+                ["Substitute", "rapid-relaunch.sugar"],
+                working_directory=tmp_path,
+            ),
+        )
+    )
+    application.processEvents()
+
+    assert client.receipts == []
+    assert window.raise_requests == 0
+    assert window.activation_requests == 0
+
+    control.close()
+
+    assert client.receipts == [
+        ("request-during-close", "unavailable", "application-closing")
+    ]
+    window.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
 def test_control_bridge_recovers_an_entirely_offscreen_window(tmp_path: Path) -> None:
     """Activation must move an inaccessible shell onto an available monitor."""
 

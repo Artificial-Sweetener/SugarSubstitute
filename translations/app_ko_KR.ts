@@ -14,7 +14,7 @@
       <translation>%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_item_row.py" line="446"></location>
+      <location filename="../substitute/presentation/generation/queue_item_row.py" line="457"></location>
       <source>%1
 
 Prompt preview:
@@ -35,7 +35,7 @@ Prompt preview:
       <translation>%1 %2 %3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="889"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="848"></location>
       <source>%1 %2.</source>
       <translation>%1 %2.</translation>
     </message>
@@ -115,7 +115,7 @@ Prompt preview:
       <translation>확장 프로그램 요청자 %1개 | %2 | 요약: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="168"></location>
+      <location filename="../substitute/application/errors.py" line="169"></location>
       <source>%1 failed</source>
       <translation>%1 실패</translation>
     </message>
@@ -295,7 +295,7 @@ Prompt preview:
       <translation>%1. %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1169"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1121"></location>
       <source>%1/%2: %3 %4 found. Cubes: %5.%6</source>
       <translation>%1/%2: %3 %4 발견. 큐브: %5.%6</translation>
     </message>
@@ -419,7 +419,7 @@ This is taking much longer than expected</source>
       <translation>일러스트와 캐릭터 중심 파인튜닝에 강한 최신 이미지 모델 제품군입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="64"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="66"></location>
       <source>A recovery copy is kept, but explicit saves are the durable project file.</source>
       <translation>복구 사본은 유지되지만 직접 저장한 프로젝트 파일이 영구 파일입니다.</translation>
     </message>
@@ -479,7 +479,7 @@ This is taking much longer than expected</source>
       <translation>강조색</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="492"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="479"></location>
       <source>Actions</source>
       <translation>작업</translation>
     </message>
@@ -509,7 +509,7 @@ This is taking much longer than expected</source>
       <translation>모델 1개 추가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="264"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="254"></location>
       <source>Add Cube Pack</source>
       <translation>큐브 팩 추가</translation>
     </message>
@@ -519,7 +519,7 @@ This is taking much longer than expected</source>
       <translation>CivitAI API 키를 지금 추가하거나 비워 두고 나중에 설정에서 추가하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="428"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="415"></location>
       <source>Add a GitHub Cube Pack to make its cubes available in the picker.</source>
       <translation>GitHub 큐브 팩을 추가하여 선택기에서 해당 큐브를 사용할 수 있게 합니다.</translation>
     </message>
@@ -764,7 +764,7 @@ This is taking much longer than expected</source>
       <translation>기본</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="997"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="956"></location>
       <source>Base Cube Packs are required by Substitute and cannot be removed.</source>
       <translation>기본 큐브 팩은 Substitute에 필요하므로 제거할 수 없습니다.</translation>
     </message>
@@ -779,7 +779,7 @@ This is taking much longer than expected</source>
       <translation>Base-Cubes 동기화 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="616"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="677"></location>
       <source>Batch %1</source>
       <translation>배치 %1</translation>
     </message>
@@ -797,6 +797,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Blue</source>
       <translation>파랑</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="142"></location>
+      <source>Bounding Box</source>
+      <translation>경계 상자</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="54"></location>
@@ -994,7 +999,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI 확장을 확인하고 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="211"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="229"></location>
       <source>Checking ComfyUI's Python environment.</source>
       <translation>ComfyUI의 Python 환경을 확인하는 중입니다.</translation>
     </message>
@@ -1157,6 +1162,16 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
       <source>Choose color</source>
       <translation>색상 선택</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="216"></location>
+      <source>Choose detector thumbnail</source>
+      <translation>감지기 썸네일 선택</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="76"></location>
+      <source>Choose detector thumbnail for %1</source>
+      <translation>%1의 감지기 썸네일 선택</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/jpeg_companion_settings.py" line="118"></location>
@@ -1614,12 +1629,12 @@ This is taking much longer than expected</source>
       <translation>Comfy 환경 상태를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="170"></location>
+      <location filename="../substitute/application/errors.py" line="171"></location>
       <source>Comfy failed</source>
       <translation>Comfy 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="858"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="861"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy를 사용할 수 없습니다</translation>
     </message>
@@ -1639,12 +1654,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 다시 시작 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
-      <source>Comfy restart requested</source>
-      <translation>Comfy 다시 시작 요청됨</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1136"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1088"></location>
       <source>Comfy restart required</source>
       <translation>Comfy 다시 시작 필요</translation>
     </message>
@@ -1674,7 +1684,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 런타임이 호환되지 않습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="106"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="107"></location>
       <source>Comfy startup logs</source>
       <translation>Comfy 시작 로그</translation>
     </message>
@@ -1844,11 +1854,6 @@ This is taking much longer than expected</source>
       <translation>ComfyUI를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
-      <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
-      <translation>복구된 큐브 종속성을 사용하려면 먼저 ComfyUI를 다시 시작해야 합니다.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="134"></location>
       <source>ComfyUI needs repair before it can start</source>
       <translation>ComfyUI를 시작하려면 복구가 필요합니다</translation>
@@ -1939,7 +1944,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI 사용 불가</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="263"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="264"></location>
       <source>ComfyUI version: %1</source>
       <translation>ComfyUI 버전: %1</translation>
     </message>
@@ -2099,12 +2104,12 @@ This is taking much longer than expected</source>
       <translation>연속</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="496"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="498"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>연속 생성에서 준비된 작업이 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="483"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="485"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>연속 생성에는 생성 대기열이 필요합니다.</translation>
     </message>
@@ -2159,12 +2164,12 @@ This is taking much longer than expected</source>
       <translation>종료를 완료하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="784"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="743"></location>
       <source>Could not add %1.</source>
       <translation>%1을(를) 추가하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="634"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="621"></location>
       <source>Could not install required Cube Library nodes.</source>
       <translation>필요한 큐브 라이브러리 노드를 설치하지 못했습니다.</translation>
     </message>
@@ -2174,27 +2179,27 @@ This is taking much longer than expected</source>
       <translation>이미지를 불러오지 못했습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1033"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="992"></location>
       <source>Could not remove %1.</source>
       <translation>%1을(를) 제거하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="955"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="914"></location>
       <source>Could not sync %1.</source>
       <translation>%1을(를) 동기화하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="855"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="814"></location>
       <source>Could not sync Cube Packs.</source>
       <translation>큐브 팩을 동기화하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="895"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="854"></location>
       <source>Could not update %1.</source>
       <translation>%1을(를) 업데이트하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="738"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="697"></location>
       <source>Could not validate %1 on the active target.</source>
       <translation>활성 대상에서 %1을(를) 검증하지 못했습니다.</translation>
     </message>
@@ -2209,22 +2214,22 @@ This is taking much longer than expected</source>
       <translation>큐브 '%1'(%2)</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="238"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="239"></location>
       <source>Cube ID</source>
       <translation>큐브 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="240"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="230"></location>
       <source>Cube Library</source>
       <translation>큐브 라이브러리</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="308"></location>
+      <location filename="../substitute/application/errors.py" line="309"></location>
       <source>Cube Library Notice</source>
       <translation>큐브 라이브러리 알림</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="620"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="607"></location>
       <source>Cube Library dependencies are up to date.</source>
       <translation>큐브 라이브러리 종속성이 최신 상태입니다.</translation>
     </message>
@@ -2234,7 +2239,7 @@ This is taking much longer than expected</source>
       <translation>아직 큐브 라이브러리를 사용할 수 없습니다. Substitute BackEnd가 시작을 마칠 때까지 기다린 후 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="382"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="372"></location>
       <source>Cube Library unavailable</source>
       <translation>큐브 라이브러리 사용 불가</translation>
     </message>
@@ -2244,57 +2249,57 @@ This is taking much longer than expected</source>
       <translation>활성 대상에서 큐브 라이브러리를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="318"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="319"></location>
       <source>Cube Library warnings</source>
       <translation>큐브 라이브러리 경고</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="781"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="740"></location>
       <source>Cube Pack add failed</source>
       <translation>큐브 팩 추가 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="779"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="738"></location>
       <source>Cube Pack added</source>
       <translation>큐브 팩 추가됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="996"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="955"></location>
       <source>Cube Pack cannot be removed</source>
       <translation>큐브 팩을 제거할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1029"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="988"></location>
       <source>Cube Pack remove failed</source>
       <translation>큐브 팩 제거 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1027"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="986"></location>
       <source>Cube Pack removed</source>
       <translation>큐브 팩 제거됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="854"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="813"></location>
       <source>Cube Pack sync failed</source>
       <translation>큐브 팩 동기화 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="950"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="909"></location>
       <source>Cube Pack synced</source>
       <translation>큐브 팩 동기화됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="888"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="847"></location>
       <source>Cube Pack update failed</source>
       <translation>큐브 팩 업데이트 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="886"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="845"></location>
       <source>Cube Pack updated</source>
       <translation>큐브 팩 업데이트됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="737"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="696"></location>
       <source>Cube Pack validation failed</source>
       <translation>큐브 팩 검증 실패</translation>
     </message>
@@ -2304,17 +2309,17 @@ This is taking much longer than expected</source>
       <translation>큐브 팩 및 준비 상태</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="839"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="798"></location>
       <source>Cube Packs synced</source>
       <translation>큐브 팩 동기화됨</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="239"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="240"></location>
       <source>Cube alias</source>
       <translation>큐브 별칭</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1138"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1090"></location>
       <source>Cube dependency repair changed the target environment. Restart ComfyUI before generating with the repaired cubes.</source>
       <translation>큐브 종속성 복구로 대상 환경이 변경되었습니다. 복구된 큐브로 생성하기 전에 ComfyUI를 다시 시작하세요.</translation>
     </message>
@@ -2354,7 +2359,7 @@ This is taking much longer than expected</source>
       <translation>큐브</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="582"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="569"></location>
       <source>Cubes you are subscribed to require additional custom nodes.
 
 %1
@@ -2367,17 +2372,17 @@ Install these nodes now?</source>
 지금 이 노드를 설치하시겠습니까?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="385"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="446"></location>
       <source>Current image</source>
       <translation>현재 이미지</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="91"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="92"></location>
       <source>Current inputs</source>
       <translation>현재 입력</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="98"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="99"></location>
       <source>Current outputs</source>
       <translation>현재 출력</translation>
     </message>
@@ -2477,12 +2482,12 @@ Install these nodes now?</source>
       <translation>종속성 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="615"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="602"></location>
       <source>Dependency repair failed</source>
       <translation>종속성 복구 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="592"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="579"></location>
       <source>Dependency repair skipped</source>
       <translation>종속성 복구 건너뜀</translation>
     </message>
@@ -2522,9 +2527,14 @@ Install these nodes now?</source>
       <translation>감지된 환경</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="284"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="285"></location>
       <source>Devices: %1</source>
       <translation>장치: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="115"></location>
+      <source>Diagnostic logs</source>
+      <translation>진단 로그</translation>
     </message>
     <message>
       <location filename="../substitute/application/model_metadata/prompt_preset_scope_resolver.py" line="139"></location>
@@ -2562,7 +2572,7 @@ Install these nodes now?</source>
       <translation>기존 모델 폴더가 있나요?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="73"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="75"></location>
       <source>Don't Save</source>
       <translation>저장 안 함</translation>
     </message>
@@ -2722,7 +2732,7 @@ Install these nodes now?</source>
       <translation>타원 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="276"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="277"></location>
       <source>Embedded Python: %1</source>
       <translation>내장 Python: %1</translation>
     </message>
@@ -2737,7 +2747,7 @@ Install these nodes now?</source>
       <translation>첫 항목 강조</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="433"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="434"></location>
       <source>Enable</source>
       <translation>활성화</translation>
     </message>
@@ -2782,7 +2792,7 @@ Install these nodes now?</source>
       <translation>오류 색상</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="126"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="127"></location>
       <source>Error summary</source>
       <translation>오류 요약</translation>
     </message>
@@ -2797,12 +2807,12 @@ Install these nodes now?</source>
       <translation>예외</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="138"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="139"></location>
       <source>Exception type: %1</source>
       <translation>예외 유형: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="173"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="174"></location>
       <source>Executed nodes: %1</source>
       <translation>실행된 노드: %1</translation>
     </message>
@@ -2887,7 +2897,7 @@ Install these nodes now?</source>
       <translation>출력 실행 번호를 할당하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="142"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="141"></location>
       <source>Failed to capture Input canvas content for generation.</source>
       <translation>생성에 사용할 입력 캔버스 내용을 캡처하지 못했습니다.</translation>
     </message>
@@ -2908,7 +2918,7 @@ Install these nodes now?</source>
       <translation>사용 가능한 큐브 목록을 불러오지 못했습니다. 큐브 패키지를 확인하고 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="383"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="373"></location>
       <source>Failed to load Cube Library state from the active target.</source>
       <translation>활성 대상에서 큐브 라이브러리 상태를 불러오지 못했습니다.</translation>
     </message>
@@ -3095,7 +3105,7 @@ Install these nodes now?</source>
       <translation>생성</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="489"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="487"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>장면 생성에서 실행 가능한 장면을 찾지 못했습니다: %1</translation>
     </message>
@@ -3110,7 +3120,7 @@ Install these nodes now?</source>
       <translation>생성</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_panel.py" line="193"></location>
+      <location filename="../substitute/presentation/generation/queue_panel.py" line="198"></location>
       <source>Generation Queue :: %1 Pending Jobs</source>
       <translation>생성 대기열 :: 대기 중인 작업 %1개</translation>
     </message>
@@ -3120,7 +3130,7 @@ Install these nodes now?</source>
       <translation>생성 동작 및 생성된 파일입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="158"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="157"></location>
       <source>Generation cannot run because every cube has a runtime error.</source>
       <translation>모든 큐브에 런타임 오류가 있어 생성을 실행할 수 없습니다.</translation>
     </message>
@@ -3145,12 +3155,12 @@ Install these nodes now?</source>
       <translation>%1 중 생성에 실패했습니다: %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="895"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="898"></location>
       <source>Generation preflight failed</source>
       <translation>생성 사전 점검 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="712"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="716"></location>
       <source>Generation preparation failed</source>
       <translation>생성 준비 실패</translation>
     </message>
@@ -3175,22 +3185,22 @@ Install these nodes now?</source>
       <translation>생성 미리 보기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="85"></location>
+      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="86"></location>
       <source>Generation queue</source>
       <translation>생성 대기열</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="546"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>생성 대기열 준비 바인딩을 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="537"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="540"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>생성 대기열 스냅샷 바인딩을 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="708"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
       <source>GitHub URL needed</source>
       <translation>GitHub URL 필요</translation>
     </message>
@@ -3225,7 +3235,7 @@ Install these nodes now?</source>
       <translation>초록</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="191"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="192"></location>
       <source>HTTP status: %1</source>
       <translation>HTTP 상태: %1</translation>
     </message>
@@ -3280,7 +3290,7 @@ Install these nodes now?</source>
       <translation>세부 정보 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="93"></location>
+      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="129"></location>
       <source>Hide Full Queue Panel</source>
       <translation>전체 대기열 패널 숨기기</translation>
     </message>
@@ -3300,7 +3310,7 @@ Install these nodes now?</source>
       <translation>세부 정보 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
+      <location filename="../substitute/presentation/generation/queue_panel.py" line="112"></location>
       <source>Hide full queue panel</source>
       <translation>전체 대기열 패널 숨기기</translation>
     </message>
@@ -3380,7 +3390,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="572"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="633"></location>
       <source>Image %1</source>
       <translation>이미지 %1</translation>
     </message>
@@ -3435,7 +3445,7 @@ Install these nodes now?</source>
       <translation>배포판의 패키지 관리자를 통해 GNOME 키링, KWallet 또는 다른 Secret Service 호환 키링을 설치하고 활성화한 다음 로그인하거나 잠금을 해제하고 Substitute를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="559"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="546"></location>
       <source>Install missing custom nodes required by enabled cubes.</source>
       <translation>활성화된 큐브에 필요한 누락된 사용자 지정 노드를 설치합니다.</translation>
     </message>
@@ -3445,12 +3455,12 @@ Install these nodes now?</source>
       <translation>ComfyUI에서 종속성을 설치하거나 업데이트한 다음 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="580"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="567"></location>
       <source>Install required custom nodes</source>
       <translation>필요한 사용자 지정 노드 설치</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="553"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="540"></location>
       <source>Install required nodes</source>
       <translation>필요한 노드 설치</translation>
     </message>
@@ -3615,12 +3625,12 @@ Install these nodes now?</source>
       <translation>잠재 RGB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="176"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="173"></location>
       <source>Later</source>
       <translation>나중에</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="292"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="293"></location>
       <source>Launch args: %1</source>
       <translation>실행 인수: %1</translation>
     </message>
@@ -3745,7 +3755,7 @@ Install these nodes now?</source>
       <translation>ComfyUI 사용자 지정 노드를 불러오고 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="241"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="231"></location>
       <source>Loading active target Cube Library state.</source>
       <translation>활성 대상의 큐브 라이브러리 상태를 불러오는 중입니다.</translation>
     </message>
@@ -3885,7 +3895,7 @@ Install these nodes now?</source>
       <translation>관리</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_workspace.py" line="337"></location>
+      <location filename="../substitute/presentation/settings/settings_workspace.py" line="336"></location>
       <source>Manage ComfyUI connection, setup, and Python environment.</source>
       <translation>ComfyUI 연결, 설정 및 Python 환경을 관리합니다.</translation>
     </message>
@@ -3965,7 +3975,7 @@ Install these nodes now?</source>
       <translation>Python 종속성 누락: %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="593"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="580"></location>
       <source>Missing cube dependencies still need attention.</source>
       <translation>누락된 큐브 종속성을 아직 확인해야 합니다.</translation>
     </message>
@@ -4230,7 +4240,7 @@ Install these nodes now?</source>
       <translation>구성된 CivitAI API 키가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="426"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="413"></location>
       <source>No Cube Packs tracked</source>
       <translation>추적 중인 큐브 팩 없음</translation>
     </message>
@@ -4265,7 +4275,7 @@ Install these nodes now?</source>
       <translation>사용 가능한 큐브 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="754"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="713"></location>
       <source>No cubes found</source>
       <translation>큐브를 찾을 수 없음</translation>
     </message>
@@ -4320,7 +4330,7 @@ Install these nodes now?</source>
       <translation>선택한 모델 다운로드가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="214"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="215"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>노드별 검증 오류가 보고되지 않았습니다.</translation>
     </message>
@@ -4335,12 +4345,12 @@ Install these nodes now?</source>
       <translation>미리 보기 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="95"></location>
+      <location filename="../substitute/presentation/generation/queue_dropdown.py" line="96"></location>
       <source>No queued jobs</source>
       <translation>대기 중인 작업 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="276"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="266"></location>
       <source>No repository has been validated.</source>
       <translation>검증된 저장소가 없습니다.</translation>
     </message>
@@ -4382,17 +4392,17 @@ I’ll bring my own</source>
       <translation>노드</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="206"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="207"></location>
       <source>Node %1%2%3</source>
       <translation>노드 %1%2%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="236"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="237"></location>
       <source>Node ID</source>
       <translation>노드 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="170"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="171"></location>
       <source>Node ID: %1</source>
       <translation>노드 ID: %1</translation>
     </message>
@@ -4402,7 +4412,7 @@ I’ll bring my own</source>
       <translation>노드 작업</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="165"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="166"></location>
       <source>Node context</source>
       <translation>노드 컨텍스트</translation>
     </message>
@@ -4412,12 +4422,12 @@ I’ll bring my own</source>
       <translation>노드 오류</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="237"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="238"></location>
       <source>Node name</source>
       <translation>노드 이름</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="171"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="172"></location>
       <source>Node type: %1</source>
       <translation>노드 유형: %1</translation>
     </message>
@@ -4477,7 +4487,7 @@ I’ll bring my own</source>
       <translation>확인</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="270"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="271"></location>
       <source>OS: %1</source>
       <translation>운영 체제: %1</translation>
     </message>
@@ -4547,7 +4557,7 @@ I’ll bring my own</source>
       <translation>Sugar 스크립트 열기...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_item_row.py" line="413"></location>
+      <location filename="../substitute/presentation/generation/queue_item_row.py" line="418"></location>
       <source>Open as Workflow Tab</source>
       <translation>워크플로 탭으로 열기</translation>
     </message>
@@ -4597,7 +4607,7 @@ I’ll bring my own</source>
       <translation>평소 사용하는 바로 가기, 스크립트 또는 실행기로 이 ComfyUI 설치를 직접 여세요. Substitute가 자동으로 감지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="232"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="233"></location>
       <source>Operation</source>
       <translation>작업</translation>
     </message>
@@ -4667,7 +4677,7 @@ I’ll bring my own</source>
       <translation>전체 설정 진행률</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="240"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="241"></location>
       <source>Package</source>
       <translation>패키지</translation>
     </message>
@@ -4697,17 +4707,17 @@ I’ll bring my own</source>
       <translation>CivitAI API 키 붙여넣기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="265"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="255"></location>
       <source>Paste a GitHub URL. Substitute validates and syncs the pack.</source>
       <translation>GitHub URL을 붙여넣으세요. Substitute가 팩을 검증하고 동기화합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="709"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="668"></location>
       <source>Paste a GitHub repository URL for a Cube Pack.</source>
       <translation>큐브 팩의 GitHub 저장소 URL을 붙여넣으세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="711"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="670"></location>
       <source>Paste a URL like https://github.com/owner/repository.</source>
       <translation>https://github.com/owner/repository와 같은 URL을 붙여넣으세요.</translation>
     </message>
@@ -4737,7 +4747,7 @@ I’ll bring my own</source>
       <translation>지원되는 Danbooru 게시물 또는 이미지 URL을 프롬프트 태그로 붙여넣습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="235"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="236"></location>
       <source>Path</source>
       <translation>경로</translation>
     </message>
@@ -5002,7 +5012,7 @@ I’ll bring my own</source>
       <translation>프롬프트 편집</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="155"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="156"></location>
       <source>Prompt ID: %1</source>
       <translation>프롬프트 ID: %1</translation>
     </message>
@@ -5012,12 +5022,12 @@ I’ll bring my own</source>
       <translation>프롬프트 편집기 동작 및 작성 지원입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="188"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="189"></location>
       <source>Prompt validation errors</source>
       <translation>프롬프트 검증 오류</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="225"></location>
+      <location filename="../substitute/application/errors.py" line="226"></location>
       <source>Prompt validation failed</source>
       <translation>프롬프트 검증 실패</translation>
     </message>
@@ -5047,7 +5057,7 @@ I’ll bring my own</source>
       <translation>PySide6-Fluent-Widgets</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="280"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="281"></location>
       <source>PyTorch: %1</source>
       <translation>PyTorch 버전: %1</translation>
     </message>
@@ -5082,7 +5092,7 @@ I’ll bring my own</source>
       <translation>Python 실행 파일 (python.exe python);;모든 파일 (*)</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="272"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="273"></location>
       <source>Python: %1</source>
       <translation>Python: %1</translation>
     </message>
@@ -5122,7 +5132,7 @@ I’ll bring my own</source>
       <translation>이 장면을 대기열에 추가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="390"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>이 장면을 대기열에 추가하려면 생성 대기열이 필요합니다.</translation>
     </message>
@@ -5137,7 +5147,7 @@ I’ll bring my own</source>
       <translation>무작위로 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="218"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="219"></location>
       <source>Raw response text:</source>
       <translation>원시 응답 텍스트:</translation>
     </message>
@@ -5222,7 +5232,7 @@ I’ll bring my own</source>
       <translation>새로 고침</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="203"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="256"></location>
       <source>Refresh CivitAI metadata</source>
       <translation>CivitAI 메타데이터 새로 고침</translation>
     </message>
@@ -5242,11 +5252,6 @@ I’ll bring my own</source>
       <translation>탐색하는 동안 오래된 캐시 위키 페이지와 미리 보기 이미지를 필요할 때 새로 고칩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="670"></location>
-      <source>Refreshing Cube Library after restart request.</source>
-      <translation>다시 시작 요청 후 큐브 라이브러리를 새로 고치는 중입니다.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>
       <source>Refreshing...</source>
       <translation>새로 고치는 중...</translation>
@@ -5262,7 +5267,7 @@ I’ll bring my own</source>
       <translation>이 Python, PyTorch, CUDA 및 Windows 설정에 맞는 실패한 네이티브 종속성을 다시 설치하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="335"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="343"></location>
       <source>Reload GUI</source>
       <translation>GUI 다시 불러오기</translation>
     </message>
@@ -5302,12 +5307,12 @@ I’ll bring my own</source>
       <translation>%1 제거</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1006"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="965"></location>
       <source>Remove %1 from the active target?</source>
       <translation>활성 대상에서 %1을(를) 제거하시겠습니까?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1004"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="963"></location>
       <source>Remove Cube Pack</source>
       <translation>큐브 팩 제거</translation>
     </message>
@@ -5342,12 +5347,12 @@ I’ll bring my own</source>
       <translation>예정된 변경 사항 제거 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="475"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="462"></location>
       <source>Remove this Cube Pack from the active target.</source>
       <translation>활성 대상에서 이 큐브 팩을 제거합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1031"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="990"></location>
       <source>Removed %1.</source>
       <translation>%1을(를) 제거했습니다.</translation>
     </message>
@@ -5476,7 +5481,7 @@ No known extension claimant.</source>
       <translation>필수 이미지 입력에 선택된 이미지가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="613"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="600"></location>
       <source>Required nodes installed</source>
       <translation>필요한 노드 설치됨</translation>
     </message>
@@ -5506,7 +5511,7 @@ No known extension claimant.</source>
       <translation>생성 시 와일드카드 해석</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/generation/queue_rows_view.py" line="732"></location>
+      <location filename="../substitute/presentation/generation/queue_rows_view.py" line="734"></location>
       <source>Resolved</source>
       <translation>해결됨</translation>
     </message>
@@ -5521,12 +5526,12 @@ No known extension claimant.</source>
       <translation>ComfyUI 다시 시작</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="647"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="633"></location>
       <source>Restart ComfyUI before using repaired cube dependencies.</source>
       <translation>복구된 큐브 종속성을 사용하기 전에 ComfyUI를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="646"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="632"></location>
       <source>Restart ComfyUI manually</source>
       <translation>ComfyUI 수동으로 다시 시작</translation>
     </message>
@@ -5546,7 +5551,7 @@ No known extension claimant.</source>
       <translation>이 서버는 다시 시작할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="187"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="184"></location>
       <source>Restart now</source>
       <translation>지금 다시 시작</translation>
     </message>
@@ -5556,7 +5561,7 @@ No known extension claimant.</source>
       <translation>다시 시작을 요청했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="115"></location>
       <source>Restart required</source>
       <translation>다시 시작 필요</translation>
     </message>
@@ -5706,7 +5711,7 @@ No known extension claimant.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="402"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="421"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -5751,12 +5756,12 @@ No known extension claimant.</source>
       <translation>현재 선택된 일반 또는 무한 생성 작업을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="259"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="260"></location>
       <source>Runtime and system information</source>
       <translation>런타임 및 시스템 정보</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="118"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="127"></location>
       <source>Runtime context</source>
       <translation>런타임 컨텍스트</translation>
     </message>
@@ -5786,7 +5791,7 @@ No known extension claimant.</source>
       <translation>Safe만</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="69"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="71"></location>
       <source>Save</source>
       <translation>저장</translation>
     </message>
@@ -5816,7 +5821,7 @@ No known extension claimant.</source>
       <translation>변경 사항 저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="58"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="60"></location>
       <source>Save changes to “%1” before continuing?</source>
       <translation>계속하기 전에 “%1”의 변경 사항을 저장할까요?</translation>
     </message>
@@ -5931,17 +5936,17 @@ No known extension claimant.</source>
       <translation>검사 중…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="455"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="516"></location>
       <source>Scene</source>
       <translation>장면</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="448"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="446"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>장면 생성에는 활성 워크플로 프롬프트 인덱스가 필요합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="461"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="459"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>장면 생성에는 첫 번째 긍정 프롬프트에 **장면 마커가 하나 이상 필요합니다.</translation>
     </message>
@@ -5956,7 +5961,7 @@ No known extension claimant.</source>
       <translation>LoRA 예약</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="176"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="183"></location>
       <source>Search %1</source>
       <translation>%1 검색</translation>
     </message>
@@ -5994,6 +5999,11 @@ No known extension claimant.</source>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="137"></location>
       <source>Segment reorder</source>
       <translation>구간 순서 변경</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="141"></location>
+      <source>Segmentation</source>
+      <translation>분할</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="350"></location>
@@ -6211,7 +6221,7 @@ No known extension claimant.</source>
       <translation>세부 정보 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="95"></location>
+      <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="131"></location>
       <source>Show Full Queue Panel</source>
       <translation>전체 대기열 패널 표시</translation>
     </message>
@@ -6351,7 +6361,7 @@ No known extension claimant.</source>
       <translation>저장된 런타임 경로 일부가 이 설치와 더 이상 일치하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <location filename="../substitute/application/crash_reports.py" line="51"></location>
       <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
       <translation>예기치 않은 문제로 SugarSubstitute가 중지되었습니다. 이 보고서를 복사하여 관리자와 공유할 수 있습니다.</translation>
     </message>
@@ -6381,7 +6391,7 @@ No known extension claimant.</source>
       <translation>단계</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="134"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="135"></location>
       <source>Stage: %1</source>
       <translation>단계: %1</translation>
     </message>
@@ -6416,7 +6426,7 @@ No known extension claimant.</source>
       <translation>평소 사용하는 바로 가기, 스크립트 또는 실행기로 이 ComfyUI 설치를 시작하세요. 이 설치 프로그램은 열어 두세요. Substitute가 자동으로 감지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="100"></location>
+      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="103"></location>
       <source>Starting SugarSubstitute.</source>
       <translation>SugarSubstitute를 시작하는 중입니다.</translation>
     </message>
@@ -6496,32 +6506,32 @@ No known extension claimant.</source>
       <translation>사용 가능한 경우 연속 또는 대기열 생성 작업을 중지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="139"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="138"></location>
       <source>Substitute BackEnd API version is incompatible.</source>
       <translation>Substitute BackEnd API 버전이 호환되지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="123"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="122"></location>
       <source>Substitute BackEnd and SugarCubes are compatible.</source>
       <translation>Substitute BackEnd와 SugarCubes가 호환됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="112"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="111"></location>
       <source>Substitute BackEnd capabilities could not be read.</source>
       <translation>Substitute BackEnd 기능을 읽지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="163"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="162"></location>
       <source>Substitute BackEnd did not report its extension version.</source>
       <translation>Substitute BackEnd에서 확장 프로그램 버전을 보고하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="152"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="151"></location>
       <source>Substitute BackEnd is missing required features: %1</source>
       <translation>Substitute BackEnd에 필요한 기능이 없습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="183"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="182"></location>
       <source>Substitute BackEnd version is incompatible.</source>
       <translation>Substitute BackEnd 버전이 호환되지 않습니다.</translation>
     </message>
@@ -6616,7 +6626,7 @@ No known extension claimant.</source>
       <translation>ComfyUI 폴더만으로는 Python 환경을 식별하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="149"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="148"></location>
       <source>Substitute could not load required live Comfy node definitions.</source>
       <translation>필요한 실시간 Comfy 노드 정의를 불러오지 못했습니다.</translation>
     </message>
@@ -6631,7 +6641,7 @@ No known extension claimant.</source>
       <translation>이 ComfyUI 워크플로 문서를 읽지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="269"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="272"></location>
       <source>Substitute could not update this cube from the Cube Library: %1</source>
       <translation>큐브 라이브러리에서 이 큐브를 업데이트하지 못했습니다: %1</translation>
     </message>
@@ -6761,7 +6771,7 @@ No known extension claimant.</source>
       <translation>설정을 완료하려면 ComfyUI 폴더가 필요합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="229"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="230"></location>
       <source>Substitute operation context</source>
       <translation>Substitute 작업 컨텍스트</translation>
     </message>
@@ -6806,7 +6816,7 @@ No known extension claimant.</source>
       <translation>Substitute가 이 로컬 ComfyUI 설치를 저장하고 준비하여 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="267"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="268"></location>
       <source>Substitute version: %1</source>
       <translation>Substitute 버전: %1</translation>
     </message>
@@ -6846,7 +6856,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2771"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2796"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -6877,12 +6887,12 @@ No known extension claimant.</source>
       <translation>SugarCubes 종속성 버전 복구 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="214"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="213"></location>
       <source>SugarCubes did not report its runtime version.</source>
       <translation>SugarCubes에서 런타임 버전을 보고하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="201"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="200"></location>
       <source>SugarCubes is not available on this target.</source>
       <translation>이 대상에서 SugarCubes를 사용할 수 없습니다.</translation>
     </message>
@@ -6907,7 +6917,7 @@ No known extension claimant.</source>
       <translation>SugarCubes 유지 관리 출력을 읽을 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="229"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="228"></location>
       <source>SugarCubes prerelease versions are not allowed in release mode.</source>
       <translation>릴리스 모드에서는 SugarCubes 시험판 버전을 사용할 수 없습니다.</translation>
     </message>
@@ -6937,7 +6947,7 @@ No known extension claimant.</source>
       <translation>SugarCubes에서 기본 큐브 종속성이 여전히 누락되었다고 보고합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="254"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="246"></location>
       <source>SugarCubes version is incompatible.</source>
       <translation>SugarCubes 버전이 호환되지 않습니다.</translation>
     </message>
@@ -6947,14 +6957,24 @@ No known extension claimant.</source>
       <translation>SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="39"></location>
+      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>SugarSubstitute가 시작을 완료하지 못했습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="50"></location>
       <source>SugarSubstitute crashed</source>
       <translation>SugarSubstitute가 충돌했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="41"></location>
+      <location filename="../substitute/application/crash_reports.py" line="56"></location>
       <source>SugarSubstitute did not close normally</source>
       <translation>SugarSubstitute가 정상적으로 종료되지 않았습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="45"></location>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>SugarSubstitute에서 확인된 시작 오류가 발생했습니다. 이 보고서를 복사하여 관리자와 공유하세요.</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/license_text.py" line="23"></location>
@@ -7052,7 +7072,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>기본 생성 컨트롤을 전환하고 표시 모드를 업데이트합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="479"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="466"></location>
       <source>Sync</source>
       <translation>동기화</translation>
     </message>
@@ -7062,7 +7082,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>%1 동기화</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="236"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="226"></location>
       <source>Sync all</source>
       <translation>모두 동기화</translation>
     </message>
@@ -7077,12 +7097,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>동기화 상태</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="840"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="799"></location>
       <source>Synced %1 Cube Packs.</source>
       <translation>큐브 팩 %1개를 동기화했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="953"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="912"></location>
       <source>Synced %1.</source>
       <translation>%1을(를) 동기화했습니다.</translation>
     </message>
@@ -7127,7 +7147,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>목표 크기</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="320"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="321"></location>
       <source>Technical detail</source>
       <translation>기술 세부 정보</translation>
     </message>
@@ -7312,7 +7332,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>운영 체제 자격 증명 저장소에서 키를 거부했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="49"></location>
+      <location filename="../substitute/application/crash_reports.py" line="57"></location>
       <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
       <translation>이전 SugarSubstitute 세션이 종료 절차를 완료하지 못한 채 끝났습니다. 아래 보고서가 원인을 파악하는 데 도움이 될 수 있습니다.</translation>
     </message>
@@ -7327,7 +7347,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>준비 상태 엔드포인트가 제시간에 응답하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="309"></location>
+      <location filename="../substitute/application/errors.py" line="310"></location>
       <source>The recipe loaded with Cube Library warnings.</source>
       <translation>큐브 라이브러리 경고와 함께 레시피를 불러왔습니다.</translation>
     </message>
@@ -7442,12 +7462,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>종료 명령이 완료되기 전에 제한 시간이 초과되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="411"></location>
+      <location filename="../substitute/application/errors.py" line="412"></location>
       <source>The workflow could not be queued because Comfy rejected the prompt.</source>
       <translation>Comfy에서 프롬프트를 거부하여 워크플로를 대기열에 추가하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="410"></location>
+      <location filename="../substitute/application/errors.py" line="411"></location>
       <source>The workflow could not be queued.</source>
       <translation>워크플로를 대기열에 추가하지 못했습니다.</translation>
     </message>
@@ -7482,7 +7502,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 모델들을 저장할 여유 공간이 부족합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="121"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
       <source>These changes will apply after restart.</source>
       <translation>이 변경 사항은 다시 시작한 후 적용됩니다.</translation>
     </message>
@@ -7592,7 +7612,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>썸네일</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="132"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="133"></location>
       <source>Title: %1</source>
       <translation>제목: %1</translation>
     </message>
@@ -7607,17 +7627,17 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>펼친 큐브 카드와 간결한 큐브 카드 간에 전환합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="193"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="194"></location>
       <source>Top-level error:</source>
       <translation>최상위 오류:</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="241"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="242"></location>
       <source>Trace ID</source>
       <translation>추적 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="84"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="85"></location>
       <source>Traceback</source>
       <translation>트레이스백</translation>
     </message>
@@ -7627,7 +7647,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>트레이스백:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="294"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="284"></location>
       <source>Tracked Cube Packs</source>
       <translation>추적 중인 큐브 팩</translation>
     </message>
@@ -7772,7 +7792,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>알 수 없는 버전</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="56"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="58"></location>
       <source>Unsaved work</source>
       <translation>저장하지 않은 작업</translation>
     </message>
@@ -7787,12 +7807,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>보안 CivitAI 자격 증명 저장을 지원하지 않는 플랫폼: %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="84"></location>
+      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="79"></location>
       <source>Untitled Workflow</source>
       <translation>제목 없는 워크플로</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="85"></location>
+      <location filename="../substitute/application/workflows/workflow_tab_service.py" line="80"></location>
       <source>Untitled Workflow (%1)</source>
       <translation>제목 없는 워크플로(%1)</translation>
     </message>
@@ -7972,6 +7992,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>내 현재 ComfyUI 사용에는 로컬 ComfyUI 설치가 들어 있는 폴더가 필요합니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/generation/queue_item_row.py" line="409"></location>
+      <source>Use Seeds in Current Workflow</source>
+      <translation>현재 워크플로에서 시드 사용</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/security/windows_civitai_credential_store.py" line="69"></location>
       <source>Use a supported operating-system credential store, then restart Substitute.</source>
       <translation>지원되는 운영 체제 자격 증명 저장소를 사용한 다음 Substitute를 다시 시작하세요.</translation>
@@ -8057,22 +8082,22 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>%3에서 ComfyUI Python %1(%2)을(를) 사용합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="782"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="741"></location>
       <source>Validated and synced %1.</source>
       <translation>%1을(를) 검증하고 동기화했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1159"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="1111"></location>
       <source>Validation did not return results.</source>
       <translation>검증에서 결과가 반환되지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="755"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="714"></location>
       <source>Validation found no cubes in %1.</source>
       <translation>검증 결과 %1에서 큐브를 찾지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="275"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="265"></location>
       <source>Validation result</source>
       <translation>검증 결과</translation>
     </message>
@@ -8247,22 +8272,22 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="233"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="234"></location>
       <source>Workflow ID</source>
       <translation>워크플로 ID</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="153"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="154"></location>
       <source>Workflow ID: %1</source>
       <translation>워크플로 ID: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="113"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="114"></location>
       <source>Workflow JSON</source>
       <translation>워크플로 JSON</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="149"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="150"></location>
       <source>Workflow and prompt context</source>
       <translation>워크플로 및 프롬프트 컨텍스트</translation>
     </message>
@@ -8272,7 +8297,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로를 불러오지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="234"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="235"></location>
       <source>Workflow name</source>
       <translation>워크플로 이름</translation>
     </message>
@@ -8392,12 +8417,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>%1 제작</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="892"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="851"></location>
       <source>disabled</source>
       <translation>비활성화됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="892"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="851"></location>
       <source>enabled</source>
       <translation>활성화됨</translation>
     </message>
@@ -8407,7 +8432,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>기존 로컬 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="255"></location>
+      <location filename="../substitute/presentation/settings/cube_library_page.py" line="245"></location>
       <source>https://github.com/owner/repository</source>
       <translation>https://github.com/owner/repository</translation>
     </message>
@@ -8442,7 +8467,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>노드 페이로드가 매핑이 아님</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="175"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="176"></location>
       <source>none</source>
       <translation>없음</translation>
     </message>

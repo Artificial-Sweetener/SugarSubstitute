@@ -29,17 +29,26 @@ from sugarsubstitute_shared.launcher_update.process import schedule_launcher_upd
 def main() -> None:
     """Report whether a supposedly independent updater was admitted."""
     root = Path(sys.argv[1])
-    try:
-        pid = schedule_launcher_update(
-            request_path=root / "SugarSubstitute/launcher/updates/pending.json",
-            runtime_python=Path(sys.executable),
-            app_dir=root / "SugarSubstitute/app",
-            relaunch=False,
-            wait_pid=os.getpid(),
+    lease_path = root / "app-lease.lock"
+    handle_path = root / "app-lease-handle.txt"
+    with lease_path.open("wb") as lease:
+        import msvcrt
+
+        os.set_inheritable(lease.fileno(), True)
+        handle_path.write_text(
+            str(msvcrt.get_osfhandle(lease.fileno())), encoding="utf-8"
         )
-        result: dict[str, object] = {"admitted": True, "pid": pid}
-    except OSError as error:
-        result = {"admitted": False, "reason": str(error)}
+        try:
+            pid = schedule_launcher_update(
+                request_path=root / "SugarSubstitute/launcher/updates/pending.json",
+                runtime_python=Path(sys.executable),
+                app_dir=root / "SugarSubstitute/app",
+                relaunch=False,
+                wait_pid=os.getpid(),
+            )
+            result: dict[str, object] = {"admitted": True, "pid": pid}
+        except OSError as error:
+            result = {"admitted": False, "reason": str(error)}
     (root / "admission.json").write_text(json.dumps(result), encoding="utf-8")
 
 

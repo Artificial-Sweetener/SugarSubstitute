@@ -195,10 +195,10 @@ def test_build_direct_comfy_route_probes_can_probe_sugarcubes_dependencies_first
     ]
 
 
-def test_build_sugarcubes_maintenance_command_uses_preflight(
+def test_build_sugarcubes_maintenance_command_uses_version_aware_check(
     tmp_path: Path,
 ) -> None:
-    """Maintenance command should run the read-only dependency preflight by default."""
+    """Maintenance should read versions without synchronizing or repairing."""
 
     paths = startup_harness.HarnessPaths.from_roots(
         sugar_substitute_root=tmp_path / "SugarSubstitute",

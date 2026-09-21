@@ -297,10 +297,12 @@ class SessionSnapshotCaptureAdapter:
             return Path(asset_ref.path)
         if isinstance(asset_ref, ProjectMaskAssetRef):
             projects_dir = Path(self._shell.path_bundle.projects_dir)
-            return projects_dir / workflow_name / "masks" / asset_ref.relative_path
+            storage_owner = asset_ref.storage_owner or workflow_name
+            return projects_dir / storage_owner / "masks" / asset_ref.relative_path
         if isinstance(asset_ref, ProjectAssetRef):
             projects_dir = Path(self._shell.path_bundle.projects_dir)
-            return projects_dir / workflow_name / asset_ref.relative_path
+            storage_owner = asset_ref.storage_owner or workflow_name
+            return projects_dir / storage_owner / asset_ref.relative_path
         if isinstance(asset_ref, ComfyInputAssetRef):
             return None
         return None

@@ -245,8 +245,6 @@ class GenerationService:
     ) -> GenerationStartResult:
         """Start one generation attempt and wire websocket listener callbacks."""
         try:
-            if callbacks.randomize_seeds is not None:
-                callbacks.randomize_seeds()
             workflow = request.workflow
             direct_document = direct_generation_document(workflow)
             direct_plan = (
@@ -295,6 +293,8 @@ class GenerationService:
                     )
             native_cube_workflow = self._native_cube_workflow_builder.build(
                 cast(Any, workflow),
+                enabled_node_keys_by_alias=request.enabled_node_keys_by_alias,
+                disabled_node_keys_by_alias=request.disabled_node_keys_by_alias,
                 global_override_scopes=request.global_override_scopes,
             )
             prepared_request = PreparedGenerationRequest(

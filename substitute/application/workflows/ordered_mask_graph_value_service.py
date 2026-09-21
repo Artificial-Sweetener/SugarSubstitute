@@ -43,10 +43,10 @@ class OrderedMaskGraphValueService:
         workflow: WorkflowState,
         binding: InputCanvasMaskBinding,
         collection: RegionalMaskCollection,
-    ) -> None:
-        """Write every durable regional asset in exact collection order."""
+    ) -> bool:
+        """Write every durable regional asset and report authoritative mutation."""
 
-        self._synchronize(
+        return self._synchronize(
             workflow,
             section_key=binding.section_key,
             node_name=binding.mask_node_name,
@@ -59,10 +59,10 @@ class OrderedMaskGraphValueService:
         workflow: WorkflowState,
         endpoint: InputAssetEndpoint,
         collection: RegionalMaskCollection,
-    ) -> None:
-        """Project a collection through its ordered endpoint without canvas planning."""
+    ) -> bool:
+        """Project a collection and report whether its graph owner was available."""
 
-        self._synchronize(
+        return self._synchronize(
             workflow,
             section_key=endpoint.section_key,
             node_name=endpoint.node_name,
@@ -78,7 +78,7 @@ class OrderedMaskGraphValueService:
         node_name: str,
         field_key: str,
         collection: RegionalMaskCollection,
-    ) -> None:
+    ) -> bool:
         """Write one collection projection to an explicitly owned graph field."""
 
         values = [
@@ -86,13 +86,14 @@ class OrderedMaskGraphValueService:
             for entry in collection.entries
             if isinstance(entry.asset_ref, ProjectMaskAssetRef)
         ]
-        self._graph_sections.set_input_value(
+        mutation = self._graph_sections.set_input_value(
             workflow,
             section_key=section_key,
             node_name=node_name,
             field_key=field_key,
             value=values,
         )
+        return mutation.changed
 
 
 __all__ = ["OrderedMaskGraphValueService"]

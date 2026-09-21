@@ -63,6 +63,17 @@ class EditorSurfacePort(Protocol):
         """Refresh lightweight clean editor projection state."""
 
 
+class CubeStackSurfacePort(Protocol):
+    """Expose Cube Stack reconciliation without exposing the shell."""
+
+    def reconcile_cube_stack(
+        self,
+        workflow_id: str,
+        token: ReconciliationToken,
+    ) -> SurfaceRefreshResult:
+        """Rebuild the workflow's stack from authoritative model state."""
+
+
 class OverrideSurfacePort(Protocol):
     """Expose override toolbar reconciliation without exposing the shell."""
 
@@ -156,6 +167,7 @@ class SessionAutosavePort(Protocol):
 
 
 __all__ = [
+    "CubeStackSurfacePort",
     "EditorSurfacePort",
     "GenerationAvailabilityPort",
     "OverrideSurfacePort",

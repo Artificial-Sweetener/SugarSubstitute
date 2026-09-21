@@ -338,6 +338,7 @@ class WorkspaceGenerationController:
                         for snapshot in snapshots
                     ),
                 )
+                bindings.randomize_seeds()
             return
 
         try:
@@ -350,10 +351,12 @@ class WorkspaceGenerationController:
                 )
             )
             return
-        self._generation_service.run_single_generation(
+        result = self._generation_service.run_single_generation(
             request=replace(request, output_session_id=uuid4().hex),
             callbacks=callbacks,
         )
+        if result.started:
+            bindings.randomize_seeds()
 
     def stop_continuous_generation(self, *, bindings: GenerationUiBindings) -> None:
         """Stop continuous generation and restore button state."""
@@ -405,7 +408,6 @@ class WorkspaceGenerationController:
         """Build callback bridge for generation progress, preview, output, and failure."""
 
         return GenerationCallbacks(
-            randomize_seeds=bindings.randomize_seeds,
             on_run_started=bindings.on_run_started,
             on_progress=bindings.on_progress,
             on_model_load_progress=bindings.on_model_load_progress,
@@ -509,6 +511,7 @@ class WorkspaceGenerationController:
         self._enqueue_snapshot_entry_batch(
             entries,
         )
+        bindings.randomize_seeds()
         for index, snapshot in enumerate(snapshots):
             log_debug(
                 _LOGGER,
@@ -592,6 +595,7 @@ class WorkspaceGenerationController:
                 on_completed=on_preparation_completed,
                 on_failed=on_preparation_failed,
             )
+            bindings.randomize_seeds()
 
     def _enqueue_prepared_snapshots(
         self,
@@ -743,7 +747,6 @@ class WorkspaceGenerationController:
             on_completed = bindings.on_completed
 
         return GenerationCallbacks(
-            randomize_seeds=None,
             on_run_started=bindings.on_run_started,
             on_progress=bindings.on_progress,
             on_model_load_progress=bindings.on_model_load_progress,

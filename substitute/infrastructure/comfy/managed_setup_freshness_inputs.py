@@ -40,8 +40,6 @@ from substitute.infrastructure.comfy.manager_environment import (
 )
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CORE_COMFY_NODEPACKS,
-    SUGARCUBES_BASE_NODEPACK_INSTALLS,
-    SUGARCUBES_COMPANION_NODEPACKS,
     CoreComfyNodepack,
 )
 from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
@@ -193,20 +191,6 @@ def _sugarcubes_baseline_freshness_key(workspace: Path) -> dict[str, object]:
         "host_api": path_signature(
             installed_sugarcubes_root / "sugarcubes" / "host_api.py"
         ),
-        "install_mapping": {
-            node_id: [
-                {
-                    "source_url": candidate.source_url,
-                    "target_folder_name": candidate.target_folder_name,
-                }
-                for candidate in candidates
-            ]
-            for node_id, candidates in sorted(SUGARCUBES_BASE_NODEPACK_INSTALLS.items())
-        },
-        "companions": {
-            node_id: list(companions)
-            for node_id, companions in sorted(SUGARCUBES_COMPANION_NODEPACKS.items())
-        },
     }
 
 

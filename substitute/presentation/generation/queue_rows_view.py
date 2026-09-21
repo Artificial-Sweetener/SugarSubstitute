@@ -221,6 +221,7 @@ class GenerationQueueRowsView(QWidget):
     cancelRequested = Signal(str)
     removeRequested = Signal(str)
     openSnapshotRequested = Signal(str)
+    adoptSeedsRequested = Signal(str)
     moveRequested = Signal(str, int)
 
     def __init__(
@@ -309,6 +310,7 @@ class GenerationQueueRowsView(QWidget):
         row_widget.cancelRequested.connect(self.cancelRequested)
         row_widget.removeRequested.connect(self.removeRequested)
         row_widget.openSnapshotRequested.connect(self.openSnapshotRequested)
+        row_widget.adoptSeedsRequested.connect(self.adoptSeedsRequested)
         row_widget.bodyPressed.connect(self._handle_body_pressed)
         row_widget.bodyMoved.connect(self._handle_body_moved)
         row_widget.bodyReleased.connect(self._handle_body_released)

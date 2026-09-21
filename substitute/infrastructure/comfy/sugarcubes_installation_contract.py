@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 SUGARCUBES_MAINTENANCE_MODULE = "sugarcubes.maintenance"
@@ -42,15 +43,14 @@ def sugarcubes_maintenance_path_for_root(installed_root: Path) -> Path:
     return installed_root / SUGARCUBES_MAINTENANCE_RELATIVE_PATH
 
 
-def build_sugarcubes_maintenance_command(
+def build_sugarcubes_dependency_preflight_command(
     *,
     python_executable: Path,
     workspace: Path,
-    baseline_only: bool,
 ) -> tuple[str, ...]:
-    """Build the public SugarCubes dependency-preflight command."""
+    """Build the authoritative offline cube-dependency readiness check."""
 
-    command = (
+    command: tuple[str, ...] = (
         str(python_executable),
         "-m",
         SUGARCUBES_MAINTENANCE_MODULE,
@@ -59,6 +59,26 @@ def build_sugarcubes_maintenance_command(
         "--workspace",
         str(workspace),
     )
-    if baseline_only:
-        return (*command, "--baseline-only")
+    return command
+
+
+def build_sugarcubes_dependency_repair_command(
+    *,
+    python_executable: Path,
+    workspace: Path,
+    approved_node_ids: Sequence[str],
+) -> tuple[str, ...]:
+    """Build a repair command for every preflight-selected node pack."""
+
+    command: tuple[str, ...] = (
+        str(python_executable),
+        "-m",
+        SUGARCUBES_MAINTENANCE_MODULE,
+        "cube-deps",
+        "repair",
+        "--workspace",
+        str(workspace),
+    )
+    for node_id in approved_node_ids:
+        command = (*command, "--approve", node_id)
     return command

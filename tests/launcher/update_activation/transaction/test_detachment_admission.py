@@ -19,24 +19,72 @@
 from __future__ import annotations
 
 from ctypes import wintypes
+import os
 from pathlib import Path
+import subprocess
+import sys
 from typing import cast
 
+import psutil  # type: ignore[import-untyped]
 import pytest
 
 import sugarsubstitute_shared.windows_independent_process as admission
-from sugarsubstitute_shared.windows_process_job_api import ProcessInformation
+from sugarsubstitute_shared.windows_process_job_api import (
+    APPLICATION_PROCESS_FAMILY_ENV,
+    ProcessInformation,
+)
 
 pytestmark = pytest.mark.platforms("windows")
 
 
+def test_host_contained_helper_relaunches_without_redundant_breakaway(
+    tmp_path: Path,
+) -> None:
+    """Permit the update helper to relaunch inside its remaining host job."""
+    marker = tmp_path / "relaunch-completed.txt"
+    output_path = tmp_path / "relaunch-output.log"
+    environment = dict(os.environ)
+    environment.pop(APPLICATION_PROCESS_FAMILY_ENV, None)
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; "
+            f"Path({str(marker)!r}).write_text('ready', encoding='utf-8')"
+        ),
+    ]
+
+    with output_path.open("wb") as output:
+        process_id = admission.start_independent_windows_process(
+            command,
+            environment=environment,
+            cwd=tmp_path,
+            output_fd=output.fileno(),
+        )
+
+    try:
+        psutil.Process(process_id).wait(timeout=10.0)
+    except psutil.NoSuchProcess:
+        pass
+    assert marker.read_text(encoding="utf-8") == "ready"
+
+
 @pytest.mark.parametrize(
-    "outcome", ["independent", "contained", "query_failure", "resume_failure"]
+    "outcome",
+    [
+        "independent",
+        "host_contained",
+        "owned_breakaway",
+        "owned_contained",
+        "open_failure",
+        "query_failure",
+        "resume_failure",
+    ],
 )
-def test_only_independent_children_can_execute(
+def test_successful_breakaway_children_can_execute(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, outcome: str
 ) -> None:
-    """Resume an independent child, or terminate and reap it without execution."""
+    """Accept only handoffs proven to escape their immediate process family."""
     resumed: list[object] = []
     terminated: list[int] = []
     waited: list[int] = []
@@ -50,7 +98,12 @@ def test_only_independent_children_can_execute(
 
         def __call__(self, handle: object, job: object, result: object) -> bool:
             """Populate the Win32 output parameter at the OS boundary."""
-            cast(wintypes.BOOL, getattr(result, "_obj")).value = outcome == "contained"
+            assert handle == 101
+            cast(wintypes.BOOL, getattr(result, "_obj")).value = (
+                outcome == "owned_contained"
+                if job == 88
+                else outcome in {"host_contained", "owned_breakaway"}
+            )
             return outcome != "query_failure"
 
     class ResumeOperation:
@@ -69,6 +122,13 @@ def test_only_independent_children_can_execute(
 
         IsProcessInJob = QueryMembership()
         ResumeThread = ResumeOperation()
+
+        def OpenJobObjectW(self, access: int, inherit: bool, name: str) -> int:
+            """Open the application family only when its identity is supplied."""
+            assert access == 0x0004
+            assert inherit is False
+            assert name == "fixture-family"
+            return 0 if outcome == "open_failure" else 88
 
         def CloseHandle(self, handle: object) -> bool:
             """Record disposal of the borrowed process and thread references."""
@@ -95,26 +155,59 @@ def test_only_independent_children_can_execute(
 
     def create(*args: object, **kwargs: object) -> ProcessInformation:
         """Require suspension at creation before returning a controlled child."""
-        assert cast(int, kwargs["creation_flags"]) & 0x4
+        creation_flags = cast(int, kwargs["creation_flags"])
+        assert creation_flags & 0x4
+        expects_owned_family_breakaway = bool(environment)
+        assert (
+            bool(creation_flags & subprocess.CREATE_BREAKAWAY_FROM_JOB)
+            is expects_owned_family_breakaway
+        )
+        assert APPLICATION_PROCESS_FAMILY_ENV not in cast(
+            dict[str, str], kwargs["environment"]
+        )
         return process
 
     monkeypatch.setattr(admission, "create_windows_process", create)
     monkeypatch.setattr(admission, "load_kernel", Kernel)
     monkeypatch.setattr(admission, "NativeProcessHandleApi", ProcessLifetime)
-    if outcome != "independent":
-        with pytest.raises(OSError):
+    environment = (
+        {APPLICATION_PROCESS_FAMILY_ENV: "fixture-family"}
+        if outcome.startswith("owned_") or outcome in {"open_failure", "query_failure"}
+        else {}
+    )
+    if outcome in {
+        "owned_contained",
+        "open_failure",
+        "query_failure",
+        "resume_failure",
+    }:
+        with pytest.raises((OSError, PermissionError)):
             admission.start_independent_windows_process(
-                ["fixture.exe"], environment={}, cwd=tmp_path, output_fd=1
+                ["fixture.exe"],
+                environment=environment,
+                cwd=tmp_path,
+                output_fd=1,
             )
         assert resumed == ([102] if outcome == "resume_failure" else [])
-        assert terminated == waited == [101]
+        if outcome == "open_failure":
+            assert not terminated and not waited
+        else:
+            assert terminated == waited == [101]
     else:
         assert (
             admission.start_independent_windows_process(
-                ["fixture.exe"], environment={}, cwd=tmp_path, output_fd=1
+                ["fixture.exe"],
+                environment=environment,
+                cwd=tmp_path,
+                output_fd=1,
             )
             == 103
         )
         assert resumed == [102]
         assert not terminated and not waited
-    assert set(closed) == {101, 102}
+    expected_closed = set()
+    if outcome != "open_failure":
+        expected_closed.update({101, 102})
+    if environment and outcome != "open_failure":
+        expected_closed.add(88)
+    assert set(closed) == expected_closed

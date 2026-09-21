@@ -49,19 +49,51 @@ class OutputInspectionGroupRegistry:
     ) -> tuple[CanvasInspectionGroup, ...]:
         """Replace one workflow's definitions and return every live group."""
 
-        if any(group.workflow_id != workflow_id for group in groups):
-            raise ValueError("detail inspection group workflow does not match owner")
-        if groups:
-            self._groups_by_workflow[workflow_id] = groups
-        else:
-            self._groups_by_workflow.pop(workflow_id, None)
-        return self.live_groups()
+        candidate = self._candidate_groups(workflow_id, groups)
+        live_groups = self._live_groups(candidate)
+        self._groups_by_workflow = candidate
+        return live_groups
+
+    def validate_workflow_groups(
+        self,
+        workflow_id: str,
+        groups: tuple[OutputDetailInspectionGroup, ...],
+    ) -> tuple[CanvasInspectionGroup, ...]:
+        """Validate one replacement without changing retained registry state."""
+
+        return self._live_groups(self._candidate_groups(workflow_id, groups))
 
     def live_groups(self) -> tuple[CanvasInspectionGroup, ...]:
         """Adapt retained definitions to currently admitted compositions."""
 
+        return self._live_groups(self._groups_by_workflow)
+
+    def _candidate_groups(
+        self,
+        workflow_id: str,
+        groups: tuple[OutputDetailInspectionGroup, ...],
+    ) -> dict[str, tuple[OutputDetailInspectionGroup, ...]]:
+        """Return a proposed registry mapping after validating group ownership."""
+
+        if any(group.workflow_id != workflow_id for group in groups):
+            raise ValueError("detail inspection group workflow does not match owner")
+        candidate = dict(self._groups_by_workflow)
+        if groups:
+            candidate[workflow_id] = groups
+        else:
+            candidate.pop(workflow_id, None)
+        return candidate
+
+    def _live_groups(
+        self,
+        groups_by_workflow: dict[str, tuple[OutputDetailInspectionGroup, ...]],
+    ) -> tuple[CanvasInspectionGroup, ...]:
+        """Resolve and validate one complete proposed live group set."""
+
         resolved: list[CanvasInspectionGroup] = []
-        for groups in self._groups_by_workflow.values():
+        group_ids: set[UUID] = set()
+        assigned_compositions: set[UUID] = set()
+        for groups in groups_by_workflow.values():
             for group in groups:
                 composition_ids = tuple(
                     dict.fromkeys(
@@ -72,10 +104,30 @@ class OutputInspectionGroupRegistry:
                     )
                 )
                 if len(composition_ids) > 1:
+                    if group.group_id in group_ids:
+                        raise ValueError("detail inspection group IDs must be unique")
+                    if assigned_compositions.intersection(composition_ids):
+                        raise ValueError(
+                            "inspection targets cannot belong to multiple groups"
+                        )
+                    group_ids.add(group.group_id)
+                    assigned_compositions.update(composition_ids)
                     resolved.append(
                         CanvasInspectionGroup(group.group_id, composition_ids)
                     )
         return tuple(resolved)
+
+    def discard_workflow(
+        self,
+        workflow_id: str,
+    ) -> tuple[CanvasInspectionGroup, ...]:
+        """Discard one closed workflow's definitions and return live survivors."""
+
+        candidate = dict(self._groups_by_workflow)
+        candidate.pop(workflow_id, None)
+        live_groups = self._live_groups(candidate)
+        self._groups_by_workflow = candidate
+        return live_groups
 
     def clear(self) -> None:
         """Release all retained workflow definitions."""

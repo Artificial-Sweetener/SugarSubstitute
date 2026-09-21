@@ -198,6 +198,7 @@ class PromptEditorRealShell(QMainWindow):
         self.model_catalog_service = model_catalog_service
         self.model_choice_resolver = None
         self.model_metadata_context_action_handler = None
+        self.ultralytics_thumbnail_associations = None
         self.empty_model_picker_discovery_controller = SimpleNamespace(
             request_for_empty_picker=lambda _kind: False
         )

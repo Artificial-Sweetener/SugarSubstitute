@@ -24,6 +24,11 @@
     <file alias="22.png">splash_poses/22.png</file>
     <file alias="23.png">splash_poses/23.png</file>
     <file alias="24.png">splash_poses/24.png</file>
+    <file alias="25.png">splash_poses/25.png</file>
+    <file alias="26.png">splash_poses/26.png</file>
+    <file alias="27.png">splash_poses/27.png</file>
+    <file alias="28.png">splash_poses/28.png</file>
+    <file alias="cass.png">splash_poses/cass.png</file>
     <file alias="comfy.png">splash_poses/comfy.png</file>
     <file alias="cubby.png">splash_poses/cubby.png</file>
     <file alias="liz.png">splash_poses/liz.png</file>

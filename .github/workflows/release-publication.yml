@@ -66,15 +66,30 @@ jobs:
           node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('.local-release-channel/manifest.json','utf8')); if(payload.channel!=='stable'||payload.version!==process.env.CANDIDATE_VERSION) process.exit(1)"
           (cd .local-release-channel && sha256sum --check checksums.txt)
 
-      - name: Re-resolve release version after qualification
+      - name: Detect existing Stable publication
         if: github.ref_name == 'main'
+        id: stable-publication
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+        run: |
+          set -euo pipefail
+          tag="v$CANDIDATE_VERSION"
+          if gh release view "$tag" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Re-resolve release version after qualification
+        if: github.ref_name == 'main' && steps.stable-publication.outputs.already_published != 'true'
         id: final-release-version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/resolve-next-release-version.mjs
 
       - name: Require release version stability
-        if: github.ref_name == 'main'
+        if: github.ref_name == 'main' && steps.stable-publication.outputs.already_published != 'true'
         env:
           CANDIDATE_VERSION: ${{ inputs.candidate_version }}
           RESOLVED_VERSION: ${{ steps.final-release-version.outputs.version }}
@@ -83,7 +98,7 @@ jobs:
           test "$RESOLVED_VERSION" = "$CANDIDATE_VERSION"
 
       - name: Configure authorized Stable release push
-        if: github.ref_name == 'main'
+        if: github.ref_name == 'main' && steps.stable-publication.outputs.already_published != 'true'
         env:
           STABLE_RELEASE_DEPLOY_KEY: ${{ secrets.STABLE_RELEASE_DEPLOY_KEY }}
         run: |
@@ -95,7 +110,7 @@ jobs:
           git config --local core.sshCommand "ssh -i '$key_path' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
       - name: Publish exact qualified Stable release with semantic release
-        if: github.ref_name == 'main'
+        if: github.ref_name == 'main' && steps.stable-publication.outputs.already_published != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL: git@github.com:${{ github.repository }}.git
@@ -116,6 +131,12 @@ jobs:
           expected="$(find .local-release-channel -maxdepth 1 -type f ! -name '.release-notes.md' -printf '%f\n' | sort)"
           actual="$(gh release view "$tag" --repo "${{ github.repository }}" --json assets --jq '.assets[].name' | sort)"
           test "$actual" = "$expected"
+          readback_dir="$RUNNER_TEMP/stable-release-readback"
+          mkdir -p "$readback_dir"
+          gh release download "$tag" --repo "${{ github.repository }}" --dir "$readback_dir"
+          while IFS= read -r asset_name; do
+            cmp ".local-release-channel/$asset_name" "$readback_dir/$asset_name"
+          done <<< "$expected"
 
       - name: Download qualified Canary candidate
         if: inputs.candidate_channel == 'canary'

@@ -25,6 +25,7 @@ from substitute.application.generation import (
     GenerationCallbacks,
     GenerationFailure,
     GenerationRequest,
+    GenerationStartResult,
 )
 from substitute.application.generation.job_queue_service import (
     GenerationQueueBatchEntry,
@@ -54,10 +55,14 @@ class _FakeGenerationService:
 
     def run_single_generation(
         self, *, request: GenerationRequest, callbacks: GenerationCallbacks
-    ) -> object:
+    ) -> GenerationStartResult:
         """Record single-generation invocations from controller."""
         self.single_call_args.append({"request": request, "callbacks": callbacks})
-        return object()
+        return GenerationStartResult(
+            started=True,
+            prompt_id="prompt-1",
+            failure=None,
+        )
 
     def interrupt_generation(self) -> InterruptResult:
         """Return deterministic interrupt result while recording invocation count."""

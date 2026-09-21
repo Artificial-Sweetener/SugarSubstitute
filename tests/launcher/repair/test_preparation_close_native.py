@@ -87,13 +87,37 @@ def test_close_cancels_blocked_preparation_and_allows_reopening(
     try:
         window.show()
         window.view.repair_page.primary_button.click()
+        identities: tuple[int, int | None] | None = None
+
+        def blocked_process_identity_is_readable() -> bool:
+            """Capture the cross-process marker only after Windows publishes it readably."""
+
+            nonlocal identities
+            try:
+                payload = json.loads(
+                    (tmp_path / "blocked.json").read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError):
+                return False
+            if not isinstance(payload, dict):
+                return False
+            pid = payload.get("pid")
+            child_pid = payload.get("child_pid")
+            if type(pid) is not int or (
+                child_pid is not None and type(child_pid) is not int
+            ):
+                return False
+            identities = (pid, child_pid)
+            return True
+
         wait_for_qt_condition(
-            lambda: (tmp_path / "blocked.json").exists(), timeout_ms=15000
+            blocked_process_identity_is_readable,
+            timeout_ms=15000,
         )
-        identities = json.loads((tmp_path / "blocked.json").read_text(encoding="utf-8"))
-        processes = [capture_process_identity(identities["pid"])]
-        if identities["child_pid"] is not None:
-            processes.append(capture_process_identity(identities["child_pid"]))
+        assert identities is not None
+        processes = [capture_process_identity(identities[0])]
+        if identities[1] is not None:
+            processes.append(capture_process_identity(identities[1]))
         window.close()
         wait_for_qt_condition(
             lambda: not window.isVisible() and not window.repair_preparation.running,

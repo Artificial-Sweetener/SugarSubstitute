@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify workflow-tab rename mapping policies."""
+"""Verify immutable workflow identity across display-label changes."""
 
 from __future__ import annotations
 
@@ -22,36 +22,19 @@ from substitute.application.workflows import WorkflowSessionService, WorkflowTab
 from substitute.domain.workflow import WorkflowState
 
 
-def test_rekey_workflow_scoped_maps_updates_all_registered_mappings() -> None:
-    """Re-key helper should update every workflow-scoped mapping in place."""
-    service = WorkflowTabService()
-    editor_panels = {"workflow_1": object()}
-    cube_stacks = {"workflow_1": object()}
-    override_managers = {"workflow_1": object()}
+def test_label_rename_decision_preserves_session_identity() -> None:
+    """A display-label decision must never create a session re-key operation."""
 
-    service.rekey_workflow_scoped_maps(
-        old_workflow_id="workflow_1",
-        new_workflow_id="workflow_2",
-        mappings=(editor_panels, cube_stacks, override_managers),
+    session = WorkflowSessionService(WorkflowState, default_workflow_id="stable-id")
+    workflow = session.get_active_workflow()
+
+    decision = WorkflowTabService().resolve_inline_rename(
+        old_workflow_id="stable-id",
+        proposed_name="Renamed Workflow",
+        existing_labels=(),
     )
 
-    assert "workflow_1" not in editor_panels
-    assert "workflow_1" not in cube_stacks
-    assert "workflow_1" not in override_managers
-    assert "workflow_2" in editor_panels
-    assert "workflow_2" in cube_stacks
-    assert "workflow_2" in override_managers
-
-
-def test_session_rename_updates_workflow_map_and_active_key() -> None:
-    """Session rename should move workflow entry and track active workflow id."""
-    session_service = WorkflowSessionService(WorkflowState)
-    creation = session_service.add_workflow("workflow_12345", activate=True)
-
-    renamed = session_service.rename_workflow("workflow_12345", "Recipe Renamed")
-
-    assert renamed is not None
-    assert renamed.active_changed is True
-    assert "workflow_12345" not in session_service.workflows
-    assert session_service.workflows["Recipe Renamed"] is creation.workflow
-    assert session_service.active_workflow_id == "Recipe Renamed"
+    assert decision.accepted is True
+    assert decision.workflow_id == "stable-id"
+    assert session.active_workflow_id == "stable-id"
+    assert session.workflows == {"stable-id": workflow}

@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2900
+max_lines = 2923
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -126,7 +126,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1558
+max_lines = 1557
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -256,7 +256,7 @@ kind = "remediation"
 justification = "The assessed file mixes input route projection and scope binding, input image loading, claiming, and restoration, mask creation, loading, update, and removal, asset ownership cleanup, mask opacity synchronization. Extract image and mask asset lifecycle from route projection and visual-state synchronization."
 issue = "chore:SS-ARCH-023"
 review_by = 2026-12-15
-max_lines = 897
+max_lines = 876
 next_limit = 717
 debt = "SS-ARCH-023"
 
@@ -543,7 +543,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1959
+max_lines = 1966
 next_limit = 1571
 debt = "SS-ARCH-051"
 
@@ -803,7 +803,7 @@ kind = "remediation"
 justification = "The assessed file mixes pack-management settings presentation, asynchronous library operations, GitHub Cube Pack URL parsing and validation, pack and readiness detail projection, dependency repair and restart coordination, operation-result and notification presentation. Extract GitHub pack reference parsing and operation coordination from settings-page presentation."
 issue = "chore:SS-ARCH-074"
 review_by = 2026-12-15
-max_lines = 1160
+max_lines = 1117
 next_limit = 928
 debt = "SS-ARCH-074"
 
@@ -881,7 +881,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Extract editor composition behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 895
+max_lines = 898
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -894,7 +894,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow tabbar construction, canvas and editor scaffold construction, generation progress overlay construction, queue side-panel state and width transitions, workspace widget bundle assembly. Extract the queue side-panel host and feature scaffold builders from workspace bundle assembly."
 issue = "chore:SS-ARCH-081"
 review_by = 2026-12-15
-max_lines = 575
+max_lines = 542
 next_limit = 500
 debt = "SS-ARCH-081"
 
@@ -917,10 +917,10 @@ owner = "workflow surface reconciliation"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workflow_surface_reconciler.py"
 kind = "remediation"
-justification = "The assessed file mixes active surface refresh facade, override synchronization and materialization, input and generation availability refresh, dirty/full projection reconciliation, completion and clean-state publication, legacy dependency adaptation. Separate active feature refresh and legacy adaptation from dirty-surface reconciliation."
+justification = "The assessed file mixes active surface refresh facade, override synchronization and materialization, input and generation availability refresh, dirty/full projection reconciliation, and completion and clean-state publication. Separate the active feature refresh facade from dirty-surface reconciliation."
 issue = "chore:SS-ARCH-083"
 review_by = 2026-12-15
-max_lines = 601
+max_lines = 597
 next_limit = 500
 debt = "SS-ARCH-083"
 
@@ -933,7 +933,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1654
+max_lines = 1606
 next_limit = 1284
 debt = "SS-ARCH-084"
 
@@ -985,7 +985,7 @@ kind = "remediation"
 justification = "The assessed file mixes editable combo-surface painting and caret state, popup lifecycle and keyboard navigation, model catalog resolution and unavailable-state handling, metadata context-menu integration, thumbnail preload routing and cache refresh, model-load progress presentation. Extract thumbnail/metadata coordination and catalog resolution from the mounted field and popup interaction."
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
-max_lines = 1390
+max_lines = 1394
 next_limit = 1130
 debt = "SS-ARCH-090"
 
@@ -1055,7 +1055,7 @@ kind = "structural"
 justification = "GenerationPreparationService owns one deterministic pipeline from a captured workflow state to immutable queued snapshots. Its scene planning, override resolution, serialization, and cache metrics are sequential stages of that one returned contract and share one preparation-state invariant."
 issue = "chore:SS-WAIVER-S005"
 review_by = 2026-12-15
-max_lines = 624
+max_lines = 626
 
 [[waivers]]
 id = "SS-WAIVER-S006"
@@ -1110,7 +1110,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 677
+max_lines = 672
 
 [[waivers]]
 id = "SS-WAIVER-S011"
@@ -1209,7 +1209,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1035
+max_lines = 1017
 
 [[waivers]]
 id = "SS-WAIVER-S022"
@@ -1459,10 +1459,10 @@ owner = "prompt emphasis interaction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/interactions/emphasis_controller.py"
 kind = "structural"
-justification = "PromptEmphasisController owns one keyboard/mouse emphasis adjustment session. Range expansion, action routing, mutation application, transient-neutral state, cursor placement, wheel identity, and feedback all operate on the same active emphasis session."
+justification = "PromptEmphasisController owns one keyboard/mouse emphasis adjustment session. Range expansion, action routing, non-reentrant publication, mutation application, transient-neutral state, cursor placement, wheel identity, and feedback all operate on the same active emphasis session; extracting publication exclusion would divide the session invariant between owners."
 issue = "chore:SS-WAIVER-S046"
 review_by = 2026-12-15
-max_lines = 611
+max_lines = 635
 
 [[waivers]]
 id = "SS-WAIVER-S048"
@@ -1602,10 +1602,10 @@ owner = "generation queue row"
 rule = "STRUCT003"
 path = "substitute/presentation/generation/queue_item_row.py"
 kind = "structural"
-justification = "GenerationQueueItemRow is one mounted row control over one job-row model. Thumbnail, labels, cancel/open actions, drag pointer publication, hover/pressed painting, tooltip, elision, and resize behavior all render or interact with that same row state."
+justification = "GenerationQueueItemRow is one mounted row control over one job-row model. Thumbnail, labels, cancel/open/seed-reuse actions, drag pointer publication, hover/pressed painting, tooltip, elision, and resize behavior all render or interact with that same row state."
 issue = "chore:SS-WAIVER-S060"
 review_by = 2026-12-15
-max_lines = 566
+max_lines = 576
 
 [[waivers]]
 id = "SS-WAIVER-S061"
@@ -1616,7 +1616,7 @@ kind = "structural"
 justification = "GenerationQueueRowsView is one reorderable queue-list control. Row reconciliation, bucket dividers, drag proxy, drop placeholder, autoscroll, insertion targeting, and scroll restoration jointly maintain the visible ordering of the same queue model."
 issue = "chore:SS-WAIVER-S061"
 review_by = 2026-12-15
-max_lines = 697
+max_lines = 699
 
 [[waivers]]
 id = "SS-WAIVER-S062"
@@ -1668,10 +1668,10 @@ owner = "workspace generation activation"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workspace_generation_controller.py"
 kind = "structural"
-justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
+justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, post-admission seed rearming, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 820
+max_lines = 823
 
 [[waivers]]
 id = "SS-WAIVER-S069"
@@ -1704,7 +1704,7 @@ kind = "structural"
 justification = "The module owns one declarative context-menu projection for a model metadata target. Action models, builder, presenter, output-canvas hierarchy expansion, thumbnail choices, and callbacks all produce and execute the same menu contract."
 issue = "chore:SS-WAIVER-S071"
 review_by = 2026-12-15
-max_lines = 507
+max_lines = 566
 
 [[waivers]]
 id = "SS-WAIVER-S073"
@@ -1737,7 +1737,7 @@ kind = "remediation"
 justification = "The assessed file mixes direct, managed, and maintenance startup-cycle orchestration, startup trace, console timeline, and diagnostic parsing, measurement correlation and summary projection, HTTP readiness and route probing, manager configuration mutation and subprocess lifecycle, command-line configuration. Extract process/configuration control and trace interpretation into focused collaborators behind the startup-cycle harness."
 issue = "chore:SS-ARCH-092"
 review_by = 2026-12-15
-max_lines = 2024
+max_lines = 2023
 next_limit = 1619
 debt = "SS-ARCH-092"
 
@@ -1912,7 +1912,7 @@ kind = "structural"
 justification = "This module owns one authorization-preserving projection from authoring payload assets to staged Comfy execution payloads. Image and mask path resolution, channel policy, semantic upload fields, ordered regional masks, required-input failures, and payload immutability all govern that single staging transaction."
 issue = "chore:SS-WAIVER-S119"
 review_by = 2026-12-15
-max_lines = 726
+max_lines = 730
 
 [[waivers]]
 id = "SS-WAIVER-S120"
@@ -1923,7 +1923,7 @@ kind = "structural"
 justification = "This module owns one user-level driver for the real-shell output canvas. Harness-safe shell construction, workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
 issue = "chore:SS-WAIVER-S120"
 review_by = 2026-12-15
-max_lines = 665
+max_lines = 668
 
 [[waivers]]
 id = "SS-WAIVER-S126"

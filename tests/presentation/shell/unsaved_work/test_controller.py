@@ -21,13 +21,18 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any, cast
 
+from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
 import pytest
 
 from substitute.application.workflows.unsaved_work_service import (
     UnsavedWorkDecision,
     UnsavedWorkService,
 )
-from substitute.presentation.shell.unsaved_work_controller import UnsavedWorkController
+from substitute.presentation.shell.unsaved_work_controller import (
+    QtUnsavedWorkPrompt,
+    UnsavedWorkController,
+)
 
 
 class _Prompt:
@@ -96,6 +101,38 @@ def _shell(*, save_result: bool = True) -> SimpleNamespace:
         activations=activations,
         saves=saves,
     )
+
+
+def test_qt_prompt_renders_workflow_name_in_save_warning(
+    qt_application_owner: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The production dialog must interpolate its workflow-name argument."""
+
+    dialogs: list[QMessageBox] = []
+
+    def inspect_dialog(dialog: QMessageBox) -> int:
+        """Capture the rendered warning and dismiss the modal boundary."""
+
+        dialogs.append(dialog)
+        assert dialog.text() == "Save changes to “Portrait Study” before continuing?"
+        assert "%1" not in dialog.text()
+        return int(QMessageBox.DialogCode.Rejected)
+
+    monkeypatch.setattr(QMessageBox, "exec", inspect_dialog)
+    try:
+        assert (
+            QtUnsavedWorkPrompt().decide(
+                parent=cast(QWidget, qt_application_owner.activeWindow()),
+                workflow_name="Portrait Study",
+            )
+            is UnsavedWorkDecision.CANCEL
+        )
+        assert len(dialogs) == 1
+    finally:
+        for dialog in dialogs:
+            dialog.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 @pytest.mark.parametrize(

@@ -27,6 +27,7 @@ class WorkflowSurface(StrEnum):
     """Name workflow-scoped presentation surfaces that can need maintenance."""
 
     EDITOR = "editor"
+    CUBE_STACK = "cube_stack"
     CANVAS = "canvas"
     OVERRIDES = "overrides"
     GENERATION_AVAILABILITY = "generation_availability"
@@ -178,6 +179,7 @@ ALL_WORKFLOW_SURFACES = frozenset(WorkflowSurface)
 CUBE_STRUCTURE_SURFACES = frozenset(
     {
         WorkflowSurface.EDITOR,
+        WorkflowSurface.CUBE_STACK,
         WorkflowSurface.CANVAS,
         WorkflowSurface.OVERRIDES,
         WorkflowSurface.GENERATION_AVAILABILITY,

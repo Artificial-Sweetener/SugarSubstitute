@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from pathlib import Path
+from uuid import UUID, uuid5
+
 from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
 from substitute.domain.workspace_snapshot import (
     EditorViewportSnapshot,
@@ -30,6 +32,7 @@ from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("application.workspace_state.snapshot_normalization_service")
 _SETTINGS_ROUTE = "settings"
+_WORKFLOW_MIGRATION_NAMESPACE = UUID("8a08a4bd-58f4-4b68-926f-1f4f56357d1c")
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +47,7 @@ class SnapshotNormalizationService:
     """Normalize snapshots so restore code receives coherent state."""
 
     def normalize(self, snapshot: WorkspaceSnapshot) -> SnapshotNormalizationResult:
-        """Return a repaired workspace snapshot with warnings for dropped state."""
+        """Return a repaired snapshot without discarding authoritative state."""
 
         warnings: list[str] = []
         log_info(
@@ -55,22 +58,32 @@ class SnapshotNormalizationService:
             tab_order=snapshot.tab_order,
             workflow_ids=tuple(workflow.workflow_id for workflow in snapshot.workflows),
         )
-        workflows = self._normalize_workflows(snapshot.workflows, warnings)
+        workflows, identity_map = self._normalize_workflows(
+            snapshot.workflows,
+            warnings,
+        )
         workflow_ids = {workflow.workflow_id for workflow in workflows}
         tab_order = self._normalize_tab_order(
             requested_tab_order=snapshot.tab_order,
             workflow_ids=workflow_ids,
             workflows=workflows,
+            identity_map=identity_map,
             warnings=warnings,
         )
         active_route = self._normalize_active_route(
-            requested_active_route=snapshot.active_route,
+            requested_active_route=self._mapped_identity(
+                snapshot.active_route,
+                identity_map,
+            ),
             tab_order=tab_order,
             workflow_ids=workflow_ids,
             warnings=warnings,
         )
         active_workflow_id = self._normalize_active_workflow_id(
-            requested_active_workflow_id=snapshot.active_workflow_id,
+            requested_active_workflow_id=self._mapped_identity(
+                snapshot.active_workflow_id,
+                identity_map,
+            ),
             active_route=active_route,
             tab_order=tab_order,
             workflow_ids=workflow_ids,
@@ -105,23 +118,72 @@ class SnapshotNormalizationService:
         self,
         workflows: tuple[WorkflowSnapshot, ...],
         warnings: list[str],
-    ) -> tuple[WorkflowSnapshot, ...]:
-        """Drop duplicate or unusable workflows and normalize each survivor."""
+    ) -> tuple[tuple[WorkflowSnapshot, ...], dict[str, tuple[str, ...]]]:
+        """Retain every workflow while assigning unique runtime identities."""
 
         normalized: list[WorkflowSnapshot] = []
         seen_ids: set[str] = set()
-        for workflow in workflows:
-            if not workflow.workflow_id:
-                warnings.append("Dropped workflow with missing id.")
-                continue
-            if workflow.workflow_id in seen_ids:
-                warnings.append(
-                    f"Dropped duplicate workflow id {workflow.workflow_id}."
+        identity_lists: dict[str, list[str]] = {}
+        for index, workflow in enumerate(workflows):
+            original_id = workflow.workflow_id
+            workflow_id = original_id
+            if not workflow_id or workflow_id in seen_ids:
+                workflow_id = self._migration_workflow_id(
+                    original_id=original_id,
+                    ordinal=index,
+                    occupied=seen_ids,
                 )
-                continue
-            seen_ids.add(workflow.workflow_id)
-            normalized.append(self._normalize_workflow(workflow, warnings))
-        return tuple(normalized)
+                if original_id:
+                    warnings.append(
+                        f"Reassigned duplicate workflow id {original_id} to {workflow_id}."
+                    )
+                else:
+                    warnings.append(f"Assigned missing workflow id {workflow_id}.")
+            seen_ids.add(workflow_id)
+            identity_lists.setdefault(original_id, []).append(workflow_id)
+            normalized.append(
+                self._normalize_workflow(
+                    replace(workflow, workflow_id=workflow_id),
+                    warnings,
+                )
+            )
+        return tuple(normalized), {
+            original: tuple(identities)
+            for original, identities in identity_lists.items()
+        }
+
+    @staticmethod
+    def _migration_workflow_id(
+        *,
+        original_id: str,
+        ordinal: int,
+        occupied: set[str],
+    ) -> str:
+        """Return a deterministic collision-free UUID for an ambiguous record."""
+
+        salt = 0
+        while True:
+            candidate = str(
+                uuid5(
+                    _WORKFLOW_MIGRATION_NAMESPACE,
+                    f"{original_id}\0{ordinal}\0{salt}",
+                )
+            )
+            if candidate not in occupied:
+                return candidate
+            salt += 1
+
+    @staticmethod
+    def _mapped_identity(
+        identity: str,
+        identity_map: dict[str, tuple[str, ...]],
+    ) -> str:
+        """Map a legacy reference to its first retained workflow occurrence."""
+
+        if not identity:
+            return identity
+        matches = identity_map.get(identity)
+        return matches[0] if matches else identity
 
     def _normalize_workflow(
         self,
@@ -141,29 +203,33 @@ class SnapshotNormalizationService:
             warnings.append(
                 f"Removed stale cube aliases from workflow {workflow.workflow_id}."
             )
-        input_images = tuple(
-            image
-            for image in workflow.input_images
-            if self._path_exists(image.path, "input image", image.image_id, warnings)
-        )
-        input_image_ids = {image.image_id for image in input_images}
-        input_masks = tuple(
-            mask
-            for mask in workflow.input_masks
-            if mask.image_id in input_image_ids
-            and self._path_exists(mask.path, "input mask", mask.mask_id, warnings)
-        )
-        output_images = tuple(
-            image
-            for image in workflow.output_images
-            if self._path_exists(image.path, "output image", image.image_id, warnings)
-        )
-        output_uuid_texts = {image.image_id for image in output_images}
+        input_images = workflow.input_images
+        input_masks = workflow.input_masks
+        output_images = workflow.output_images
+        for image in input_images:
+            self._warn_unresolved_path(
+                image.path,
+                "input image",
+                image.image_id,
+                warnings,
+            )
+        for mask in input_masks:
+            self._warn_unresolved_path(
+                mask.path,
+                "input mask",
+                mask.mask_id,
+                warnings,
+            )
+        for output_image in output_images:
+            self._warn_unresolved_path(
+                output_image.path,
+                "output image",
+                output_image.image_id,
+                warnings,
+            )
         normalized_state = self._normalize_workflow_state(
             workflow.workflow,
             stack_order=stack_order,
-            output_uuid_texts=output_uuid_texts,
-            warnings=warnings,
         )
         active_cube_alias = self._normalize_active_cube_alias(
             workflow,
@@ -188,6 +254,8 @@ class SnapshotNormalizationService:
             input_masks=input_masks,
             output_images=output_images,
             editor_viewport=editor_viewport,
+            document_dirty=workflow.document_dirty,
+            document_source_path=workflow.document_source_path,
         )
 
     @staticmethod
@@ -249,23 +317,9 @@ class SnapshotNormalizationService:
         state: WorkflowState,
         *,
         stack_order: list[str],
-        output_uuid_texts: set[str],
-        warnings: list[str],
     ) -> WorkflowState:
-        """Return workflow state with stale output focus references repaired."""
+        """Return a detached workflow state without discarding recoverable references."""
 
-        output_image_uuids = [
-            image_id
-            for image_id in state.output_image_uuids
-            if str(image_id) in output_uuid_texts
-        ]
-        active_output_uuid = state.active_output_uuid
-        if (
-            active_output_uuid is not None
-            and str(active_output_uuid) not in output_uuid_texts
-        ):
-            active_output_uuid = None
-            warnings.append("Cleared stale active output UUID.")
         return replace(
             state,
             cubes=dict(state.cubes),
@@ -277,9 +331,9 @@ class SnapshotNormalizationService:
             override_control_states=dict(state.override_control_states),
             global_override_selections=dict(state.global_override_selections),
             canvas=state.canvas,
-            output_image_uuids=output_image_uuids,
+            output_image_uuids=list(state.output_image_uuids),
             output_focus_mode=state.output_focus_mode,
-            active_output_uuid=active_output_uuid,
+            active_output_uuid=state.active_output_uuid,
             active_output_set_index=state.active_output_set_index,
             active_output_source_key=state.active_output_source_key,
             active_output_scene_key=state.active_output_scene_key,
@@ -293,15 +347,23 @@ class SnapshotNormalizationService:
         requested_tab_order: tuple[str, ...],
         workflow_ids: set[str],
         workflows: tuple[WorkflowSnapshot, ...],
+        identity_map: dict[str, tuple[str, ...]],
         warnings: list[str],
     ) -> tuple[str, ...]:
         """Return a tab order that references each workflow once."""
 
         ordered: list[str] = []
-        for workflow_id in requested_tab_order:
+        consumed: dict[str, int] = {}
+        for requested_id in requested_tab_order:
+            occurrence = consumed.get(requested_id, 0)
+            mapped_ids = identity_map.get(requested_id, ())
+            workflow_id = (
+                mapped_ids[occurrence] if occurrence < len(mapped_ids) else requested_id
+            )
+            consumed[requested_id] = occurrence + 1
             if workflow_id not in workflow_ids:
                 warnings.append(
-                    f"Removed stale workflow id {workflow_id} from tab order."
+                    f"Removed stale workflow id {requested_id} from tab order."
                 )
                 continue
             if workflow_id in ordered:
@@ -361,19 +423,18 @@ class SnapshotNormalizationService:
             warnings.append("Cleared stale active workflow id.")
         return ""
 
-    def _path_exists(
-        self,
+    @staticmethod
+    def _warn_unresolved_path(
         path: Path,
         subject: str,
         identifier: str,
         warnings: list[str],
-    ) -> bool:
-        """Return whether a snapshot path exists, recording drops."""
+    ) -> None:
+        """Record an unresolved path while retaining its authoritative reference."""
 
         if path.exists():
-            return True
-        warnings.append(f"Dropped missing {subject} {identifier}.")
-        return False
+            return
+        warnings.append(f"Retained unresolved {subject} {identifier}.")
 
 
 __all__ = [

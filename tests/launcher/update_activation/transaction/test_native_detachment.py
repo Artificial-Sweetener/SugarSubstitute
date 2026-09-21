@@ -36,11 +36,11 @@ pytestmark = pytest.mark.platforms("windows")
 def test_updater_requires_actual_native_detachment(
     tmp_path: Path, allow_handoff: bool
 ) -> None:
-    """Reject containment before execution, or survive the owner exit.
+    """Reject an owned child or prove a handoff survives the owner exit.
 
-    An outer runner job can prohibit complete detachment even when the fixture's
-    immediate job allows it. That outcome must be an explicit rejection, never
-    a successful handoff to a child still subject to inherited lifetime.
+    An outer runner job may retain the child after it escapes the application's
+    immediate family. The host policy is acceptable when the handoff survives
+    the application owner's verified native exit.
     """
     _request, _python, app = _write_scheduled_update_request(tmp_path)
     with socket.socket() as listener:
@@ -53,8 +53,19 @@ def test_updater_requires_actual_native_detachment(
         (package / "__init__.py").touch()
         (updates / "__init__.py").touch()
         marker = tmp_path / "helper-executed"
+        lease_attempt = tmp_path / "lease-inheritance-attempt.json"
         (updates / "helper.py").write_text(
-            "from pathlib import Path\nimport socket\n"
+            "import ctypes\nfrom ctypes import wintypes\n"
+            "import json\nfrom pathlib import Path\nimport socket\n"
+            f"root = Path({str(tmp_path)!r})\n"
+            "handle = int((root / 'app-lease-handle.txt').read_text(encoding='utf-8'))\n"
+            "written = wintypes.DWORD()\n"
+            "payload = ctypes.create_string_buffer(b'leaked')\n"
+            "kernel = ctypes.WinDLL('kernel32', use_last_error=True)\n"
+            "kernel.WriteFile.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]\n"
+            "kernel.WriteFile.restype = wintypes.BOOL\n"
+            "write_succeeded = bool(kernel.WriteFile(handle, payload, 6, ctypes.byref(written), None))\n"
+            "(root / 'lease-inheritance-attempt.json').write_text(json.dumps({'write_succeeded': write_succeeded, 'written': written.value}), encoding='utf-8')\n"
             f"Path({str(marker)!r}).touch()\n"
             f"with socket.create_connection(('127.0.0.1', {listener.getsockname()[1]}), timeout=10) as s:\n"
             "    s.settimeout(10)\n    s.sendall(b'ready')\n    s.recv(1)\n",
@@ -76,20 +87,25 @@ def test_updater_requires_actual_native_detachment(
             try:
                 assert family.wait(timeout=15) == 0
                 result = json.loads((tmp_path / "admission.json").read_text())
-                if not allow_handoff:
-                    assert result["admitted"] is False, result
-                if result["admitted"]:
+                assert result["admitted"] is allow_handoff, result
+                if allow_handoff:
                     connection, _address = listener.accept()
                     with connection:
                         connection.settimeout(10)
                         assert connection.recv(5) == b"ready"
+                        attempt = json.loads(lease_attempt.read_text(encoding="utf-8"))
+                        assert (tmp_path / "app-lease.lock").read_bytes() == b"", (
+                            "Detached helper inherited the protected lease handle; "
+                            f"write attempt was {attempt!r}."
+                        )
                         connection.sendall(b"x")
                         assert connection.recv(1) == b""
                 else:
-                    assert "job" in result["reason"].lower(), result
+                    assert "process family" in result["reason"].lower(), result
                     assert not marker.exists(), (
                         "Rejected helper executed before admission"
                     )
+                    assert not lease_attempt.exists()
             finally:
                 if family.poll() is None:
                     family.kill()

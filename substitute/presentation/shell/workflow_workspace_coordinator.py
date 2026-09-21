@@ -44,6 +44,9 @@ from substitute.application.workflows import (
     WorkflowSessionService,
     WorkflowTabService,
 )
+from substitute.application.workflows.project_asset_owner_service import (
+    ProjectAssetOwnerService,
+)
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot import (
     EditorViewportSnapshot,
@@ -70,12 +73,6 @@ from substitute.presentation.shell.workflow_route_projector import (
 from substitute.presentation.shell.main_window_canvas_route_adapter import (
     MainWindowCanvasRouteAdapter,
 )
-from substitute.presentation.shell.main_window_editor_surface_adapter import (
-    MainWindowEditorSurfaceAdapter,
-)
-from substitute.presentation.shell.main_window_generation_availability_adapter import (
-    MainWindowGenerationAvailabilityAdapter,
-)
 from substitute.presentation.shell.main_window_override_surface_adapter import (
     MainWindowOverrideSurfaceAdapter,
 )
@@ -85,8 +82,8 @@ from substitute.presentation.shell.main_window_workflow_activity_adapter import 
 from substitute.presentation.shell.main_window_workflow_route_adapter import (
     MainWindowWorkflowRouteAdapter,
 )
-from substitute.presentation.shell.main_window_workflow_session_state_adapter import (
-    MainWindowWorkflowSessionStateAdapter,
+from substitute.presentation.shell.main_window_workflow_surface_composition import (
+    build_main_window_workflow_surface_reconciler,
 )
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
@@ -306,6 +303,9 @@ class WorkflowCanvasProjectionCoordinatorProtocol(Protocol):
 
 class OutputCanvasProjectionCoordinatorProtocol(Protocol):
     """Describe Output canvas projection and pruning behavior."""
+
+    def discard_workflow_projection_state(self, workflow_id: str) -> None:
+        """Release retained navigation/groups while preserving reopenable images."""
 
     def prune_closed_workflow_images(
         self,
@@ -545,13 +545,14 @@ class WorkflowWorkspaceCoordinator:
             surface_registry=self._surface_registry,
             surface_invalidation_service=self._surface_invalidation_service,
         )
-        self._surface_reconciler = surface_reconciler or WorkflowSurfaceReconciler(
-            MainWindowWorkflowSessionStateAdapter(view),
-            canvas_port=canvas_adapter,
-            editor_port=MainWindowEditorSurfaceAdapter(view),
-            override_port=override_adapter,
-            generation_port=MainWindowGenerationAvailabilityAdapter(view),
-            surface_invalidation_service=self._surface_invalidation_service,
+        self._surface_reconciler = (
+            surface_reconciler
+            or build_main_window_workflow_surface_reconciler(
+                view,
+                canvas_port=canvas_adapter,
+                override_port=override_adapter,
+                surface_invalidation_service=self._surface_invalidation_service,
+            )
         )
 
     def activate_workflow(
@@ -1219,16 +1220,7 @@ class WorkflowWorkspaceCoordinator:
         existing_ids = self._view.workflow_session_service.workflows.keys()
         if preferred_workflow_id and preferred_workflow_id not in existing_ids:
             return preferred_workflow_id
-        base = preferred_workflow_id or "reopened_workflow"
-        candidate = f"{base}_reopened"
-        if candidate not in existing_ids:
-            return candidate
-        counter = 2
-        while True:
-            candidate = f"{base}_reopened_{counter}"
-            if candidate not in existing_ids:
-                return candidate
-            counter += 1
+        return self._view.workflow_tab_service.generate_workflow_id(existing_ids)
 
     def _sync_reopen_closed_workflow_action(self) -> None:
         """Refresh presentation command enablement for closed workflow reopen."""
@@ -1454,6 +1446,9 @@ class WorkflowWorkspaceCoordinator:
         )
         self._dispose_workflow_ui(workflow_id)
         self._surface_invalidation_service.remove_workflow(workflow_id)
+        view.output_canvas_projection_coordinator.discard_workflow_projection_state(
+            workflow_id
+        )
         unsaved_work_service = getattr(view, "unsaved_work_service", None)
         remove_document_state = getattr(unsaved_work_service, "remove", None)
         if callable(remove_document_state):
@@ -1491,75 +1486,46 @@ class WorkflowWorkspaceCoordinator:
             )
 
     def rename_workflow(self, old_workflow_id: str, proposed_name: str) -> None:
-        """Resolve inline rename and propagate accepted workflow id changes."""
+        """Rename one workflow label without changing its immutable identity."""
 
         view = self._view
+        tab_item = view.workflow_tabbar.itemMap.get(old_workflow_id)
+        if tab_item is None:
+            return
+        old_label = workflow_tab_source_text(tab_item)
+        existing_labels = {
+            workflow_tab_source_text(item)
+            for workflow_id, item in view.workflow_tabbar.itemMap.items()
+            if workflow_id != old_workflow_id
+        }
         decision = view.workflow_tab_service.resolve_inline_rename(
             old_workflow_id=old_workflow_id,
             proposed_name=proposed_name,
-            existing_tab_keys=view.workflow_tabbar.itemMap.keys(),
-            existing_workflow_ids=view.workflow_session_service.workflows.keys(),
+            existing_labels=existing_labels,
         )
-        tab_item = view.workflow_tabbar.itemMap.get(old_workflow_id)
         if not decision.accepted:
-            if tab_item is not None:
-                set_workflow_tab_source_text(tab_item, old_workflow_id)
+            set_workflow_tab_source_text(tab_item, old_label)
             return
-        if tab_item is None:
+        if old_label == decision.tab_label:
             return
-
-        if old_workflow_id == decision.workflow_id:
-            set_workflow_tab_source_text(tab_item, decision.tab_label)
-            return
-
+        workflow = view.workflow_session_service.get_workflow(old_workflow_id)
+        if isinstance(workflow, WorkflowState):
+            ProjectAssetOwnerService().pin_legacy_owners(
+                workflow,
+                storage_owner=old_label,
+            )
         set_workflow_tab_source_text(tab_item, decision.tab_label)
-        tab_item.setRouteKey(decision.workflow_id)
-        view.workflow_tab_service.rekey_mapping(
-            view.workflow_tabbar.itemMap,
-            old_key=old_workflow_id,
-            new_key=decision.workflow_id,
-        )
-        transition = view.workflow_session_service.rename_workflow(
-            old_workflow_id,
-            decision.workflow_id,
-        )
-        if transition is None:
-            return
-        self._rename_workflow_activity(old_workflow_id, decision.workflow_id)
-        self._surface_invalidation_service.rename_workflow(
-            old_workflow_id,
-            decision.workflow_id,
-        )
         unsaved_work_service = getattr(view, "unsaved_work_service", None)
-        rename_document_state = getattr(unsaved_work_service, "rename", None)
-        if callable(rename_document_state):
-            rename_document_state(old_workflow_id, decision.workflow_id)
         mark_document_dirty = getattr(unsaved_work_service, "mark_dirty", None)
         if callable(mark_document_dirty):
-            mark_document_dirty(decision.workflow_id)
-        workflow_progress_service = getattr(view, "workflow_progress_service", None)
-        rename_workflow_progress = getattr(
-            workflow_progress_service,
-            "rename_workflow",
-            None,
+            mark_document_dirty(old_workflow_id)
+        log_info(
+            _LOGGER,
+            "Renamed workflow display label without changing identity",
+            workflow_id=old_workflow_id,
+            old_label=old_label,
+            new_label=decision.tab_label,
         )
-        if callable(rename_workflow_progress):
-            rename_workflow_progress(old_workflow_id, decision.workflow_id)
-        output_image_pipeline = getattr(view, "output_image_pipeline", None)
-        rename_output_workflow = getattr(output_image_pipeline, "rename_workflow", None)
-        if callable(rename_output_workflow):
-            rename_output_workflow(old_workflow_id, decision.workflow_id)
-        view.workflow_tab_service.rekey_workflow_scoped_maps(
-            old_workflow_id=old_workflow_id,
-            new_workflow_id=decision.workflow_id,
-            mappings=(
-                cast(MutableMapping[str, object], view.editor_panels),
-                cast(MutableMapping[str, object], view.cube_stacks),
-                cast(MutableMapping[str, object], view.override_managers),
-            ),
-        )
-        if transition.active_changed:
-            view.workflow_tabbar.select_workflow_tab(decision.workflow_id, emit=False)
 
     def _buffer_closed_workflow(
         self,
@@ -1776,23 +1742,6 @@ class WorkflowWorkspaceCoordinator:
         if snapshot_capture is None:
             return None
         return cast(WorkflowSnapshotCaptureProtocol, snapshot_capture)
-
-    def _rename_workflow_activity(
-        self,
-        old_workflow_id: str,
-        new_workflow_id: str,
-    ) -> None:
-        """Re-key unread activity for a renamed workflow when supported."""
-
-        view = self._view
-        activity_service = getattr(view, "workflow_activity_service", None)
-        rename_workflow = getattr(activity_service, "rename_workflow", None)
-        if callable(rename_workflow):
-            rename_workflow(old_workflow_id, new_workflow_id)
-        has_unread = getattr(activity_service, "has_unread_result", None)
-        set_unread = getattr(view.workflow_tabbar, "set_workflow_unread_result", None)
-        if callable(has_unread) and callable(set_unread):
-            set_unread(new_workflow_id, bool(has_unread(new_workflow_id)))
 
     def _remove_workflow_activity(self, workflow_id: str) -> None:
         """Remove unread activity for a closed workflow when supported."""

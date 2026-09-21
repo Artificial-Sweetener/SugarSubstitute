@@ -21,6 +21,7 @@ from __future__ import annotations
 import gc
 import os
 from pathlib import Path
+import signal
 import sys
 import threading
 
@@ -34,6 +35,13 @@ from sugarsubstitute_shared.crash_reporting.runtime import (
     install_process_crash_runtime,
     report_active_execution_exception,
 )
+from tests.support.crash_reporting.process_synchronization import (
+    publish_waiting_event,
+)
+
+
+_REAL_CRASHPAD_ENV = "SUGAR_SUBSTITUTE_QUALIFY_REAL_CRASHPAD"
+_UPDATE_MARKER_ENV = "SUGAR_SUBSTITUTE_QUALIFY_UPDATE_MARKER"
 
 
 class _NoopNativeClient(CrashpadNativeClient):
@@ -52,7 +60,7 @@ class _NoopNativeClient(CrashpadNativeClient):
 
 
 def _runtime() -> ProcessCrashRuntime:
-    """Install the real Python crash runtime with only native loading replaced."""
+    """Install the crash runtime with native capture selected by the scenario."""
 
     context = CrashRunContext.from_environment()
     if context is None:
@@ -62,7 +70,9 @@ def _runtime() -> ProcessCrashRuntime:
         application_version="qualification",
         launch_arguments=sys.argv,
         install_root=Path.cwd(),
-        native_client=_NoopNativeClient(),
+        native_client=(
+            None if os.environ.get(_REAL_CRASHPAD_ENV) == "1" else _NoopNativeClient()
+        ),
     )
 
 
@@ -161,6 +171,28 @@ def main() -> int:
         os.abort()
     if mode == "hard_exit":
         os._exit(0)
+    if mode == "hard_exit_one":
+        os._exit(1)
+    if mode == "system_exit_one":
+        raise SystemExit(1)
+    if mode == "controlled_signal_exit":
+        from substitute.app.bootstrap.lifecycle import register_signal_handlers
+
+        register_signal_handlers()
+        signal.raise_signal(signal.SIGTERM)
+    if mode == "wait_for_termination":
+        print("qualification child waiting before readiness", flush=True)
+        publish_waiting_event()
+        threading.Event().wait(timeout=60)
+    if mode == "wait_once_then_clean":
+        marker = Path(os.environ[_UPDATE_MARKER_ENV])
+        if not marker.exists():
+            marker.write_text("candidate started\n", encoding="utf-8")
+            print("qualification update candidate waiting before readiness", flush=True)
+            publish_waiting_event()
+            threading.Event().wait(timeout=60)
+        runtime.request_clean_exit(CleanExitOutcome.CLOSED)
+        return 0
     if mode == "clean":
         runtime.request_clean_exit(CleanExitOutcome.CLOSED)
         return 0

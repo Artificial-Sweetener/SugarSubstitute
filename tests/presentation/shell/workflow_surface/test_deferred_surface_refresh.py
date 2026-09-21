@@ -129,6 +129,11 @@ def test_active_surface_refresh_success_emits_no_info_logs(
         active_override_manager=_OverrideManager(),
         editor_panels={"wf-a": _EditorPanel()},
         override_managers={"wf-a": _OverrideManager()},
+        cube_stacks={},
+        workflow_ui_factory=SimpleNamespace(
+            create_workflow_ui=lambda *_args, **_kwargs: None,
+            reconcile_cube_stack_surface=lambda *_args, **_kwargs: None,
+        ),
         workflow_canvas_projection_coordinator=SimpleNamespace(
             project_workflow=lambda _workflows, workflow_id: calls.append(
                 f"canvas:{workflow_id}"

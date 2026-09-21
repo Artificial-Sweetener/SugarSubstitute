@@ -26,6 +26,7 @@ from substitute.application.workflows import (
     ClosedWorkflowSnapshotService,
     WorkflowSessionService,
     WorkflowTabService,
+    WorkflowAssetService,
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
@@ -88,6 +89,7 @@ def _build_view(
         workflow_tab_service=WorkflowTabService(),
         workflow_session_service=session,
         workflow_tabbar=tabbar,
+        workflow_asset_service=WorkflowAssetService(),
         cube_stacks={
             "wf-a": _deletable("wf-a:cube", calls),
             "wf-b": _deletable("wf-b:cube", calls),
@@ -114,6 +116,9 @@ def _build_view(
             ),
         ),
         output_canvas_projection_coordinator=SimpleNamespace(
+            discard_workflow_projection_state=(
+                lambda workflow_id: calls.append(f"canvas:discard:{workflow_id}")
+            ),
             prune_closed_workflow_images=(
                 lambda _workflow_id, _closed, _remaining: calls.append("canvas:prune")
             ),

@@ -22,6 +22,9 @@ from pathlib import Path
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.application_release_selection import (
+    ApplicationReleaseSelection,
+)
 from tools.ci.historical_nodepack_fixture import (
     historical_sugarcubes_freshness_key,
     historical_sugarcubes_has_maintenance,
@@ -43,6 +46,26 @@ def test_historical_pin_is_read_from_the_installed_app_payload(tmp_path: Path) -
     )
 
     assert read_historical_sugarcubes_version(tmp_path) == "0.11.0"
+
+
+def test_historical_pin_is_read_from_the_selected_release_generation(
+    tmp_path: Path,
+) -> None:
+    """Qualification should inspect the app generation selected by the launcher."""
+
+    generation = "0123456789abcdef0123456789abcdef"
+    selection = ApplicationReleaseSelection(tmp_path)
+    release_root = selection.prepare(generation=generation, version="0.23.0")
+    contract = release_root / "app" / "substitute" / "domain" / "comfy_nodepacks.py"
+    contract.parent.mkdir(parents=True)
+    contract.write_text(
+        'SUGARCUBES_REQUIRED_VERSION = "0.14.2"\n',
+        encoding="utf-8",
+    )
+    (release_root / "runtime").mkdir()
+    selection.activate(generation=generation)
+
+    assert read_historical_sugarcubes_version(tmp_path) == "0.14.2"
 
 
 def test_legacy_minimum_is_read_from_the_installed_app_payload(tmp_path: Path) -> None:

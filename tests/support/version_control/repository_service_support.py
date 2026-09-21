@@ -41,6 +41,7 @@ class RecordingRepositoryService:
     status: str = "## main"
     remotes: Mapping[str, str] = field(default_factory=dict)
     head: str | None = "0" * 40
+    revisions: Mapping[str, str] = field(default_factory=dict)
     calls: list[tuple[str, object]] = field(default_factory=list)
 
     def initialize(self, repository_path: Path, *, branch: str = "main") -> None:
@@ -140,6 +141,17 @@ class RecordingRepositoryService:
         self.calls.append(("head_commit_id", repository_path))
         self._raise_if_failing("head_commit_id")
         return self.head
+
+    def revision_commit_id(
+        self,
+        repository_path: Path,
+        revision: str,
+    ) -> str | None:
+        """Return the configured commit for one local revision."""
+
+        self.calls.append(("revision_commit_id", (repository_path, revision)))
+        self._raise_if_failing("revision_commit_id")
+        return self.revisions.get(revision)
 
     def _raise_if_failing(self, operation: str) -> None:
         """Raise the backend exception configured for one operation."""
