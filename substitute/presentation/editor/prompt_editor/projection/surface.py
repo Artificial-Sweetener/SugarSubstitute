@@ -99,7 +99,6 @@ from ..core.editing.source_commands import PromptSourceEditOrigin
 from ..interactions.cursor_adapter import (
     PromptCursorAdapter,
 )
-from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
 from ..interactions.pointer_ports import PromptSurfacePointerInteractions
 from ..interactions.text_mutation_controller import (
     PromptProjectionTextMutationContext,
@@ -158,11 +157,11 @@ from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
 )
 from .geometry_reuse_warmer import PromptProjectionGeometryReuseWarmer
+from .history_owner import PromptProjectionHistoryOwner
 from .input_method_controller import (
     PromptInputMethodController,
     PromptInputMethodHost,
 )
-from ..layout.checkpoints import capture_layout_checkpoint
 from ..layout.contracts import PromptLayoutDamage
 from .edit_to_frame import (
     PromptLayoutEditToFrameCoordinator,
@@ -479,11 +478,26 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._caret_state_owner = PromptProjectionCaretStateOwner(initial_state)
         self._editing_enabled = True
+        self._history = PromptProjectionHistoryOwner(
+            editing_session=self._editing_session,
+            caret_state=self._caret_state_owner,
+            projection_session=self._session,
+            editor_state=self._editor_state,
+            layout=self._layout,
+            set_cursor_positions=(
+                lambda cursor, anchor: self.set_cursor_positions(
+                    cursor_position=cursor,
+                    anchor_position=anchor,
+                )
+            ),
+            publish_undo_available=self.undoAvailableChanged.emit,
+            publish_redo_available=self.redoAvailableChanged.emit,
+        )
         editing_runtime = editing_runtime_factory(self)
         self._edit_execution = editing_runtime.execution
         self._source_commands = editing_runtime.source_commands
         self._text_mutations = editing_runtime.text_mutations
-        self._clipboard_history_actions = editing_runtime.clipboard_history
+        self._history.bind_clipboard_history(editing_runtime.clipboard_history)
         self._undo_coalescing_actions = editing_runtime.undo_coalescing
         self._input_method_controller: PromptInputMethodController[
             PromptProjectionUndoPayload
@@ -500,7 +514,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cast(PromptSurfaceKeyHost, self),
             deletion_controller=self._deletion_controller,
             text_mutations=self._text_mutations,
-            clipboard_history_actions=lambda: self._clipboard_history_actions,
+            clipboard_history_actions=lambda: self._history.clipboard_history_actions,
             undo_coalescing_actions=lambda: self._undo_coalescing_actions,
         )
         self._wheel_handler = PromptSurfaceWheelHandler(
@@ -672,16 +686,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return self._source_document_adapter.document()
 
-    def can_undo(self) -> bool:
-        """Return whether the custom prompt undo stack can restore a prior edit."""
-
-        return self._editing_session.can_undo()
-
-    def can_redo(self) -> bool:
-        """Return whether the custom prompt redo stack can restore a reverted edit."""
-
-        return self._editing_session.can_redo()
-
     @property
     def edit_execution(
         self,
@@ -699,10 +703,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return self._source_commands
 
     @property
-    def clipboard_history_actions(self) -> PromptClipboardHistoryActions:
-        """Return the composed clipboard/history action owner."""
+    def history(self) -> PromptProjectionHistoryOwner:
+        """Return the owner of undo payloads and clipboard history actions."""
 
-        return self._clipboard_history_actions
+        return self._history
 
     def attach_external_scroll_bar(self, scroll_bar: QScrollBar) -> None:
         """Mirror layout range and scroll offset onto one host-owned scrollbar."""
@@ -2371,17 +2375,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         _ = position
         return None
 
-    def set_clipboard_history_cursor_state(
-        self,
-        cursor_state: PromptCursorState,
-    ) -> None:
-        """Apply a clipboard/history cursor state to projection caret state."""
-
-        self.set_cursor_positions(
-            cursor_position=cursor_state.cursor_position,
-            anchor_position=cursor_state.anchor_position,
-        )
-
     def _delete_viewport_selection(self) -> None:
         """Delete the currently selected raw prompt source text."""
 
@@ -3231,48 +3224,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             or key.segment_index != chip_index
             or key.mode != "preview"
         )
-
-    def undo_restoration_payload(self) -> PromptProjectionUndoPayload:
-        """Return passive projection state for controller-owned undo snapshots."""
-
-        paint_input = self._layout.frame.paint_input
-        return PromptProjectionUndoPayload(
-            cursor_state=self._caret_state_owner.cursor_state,
-            anchor_state=self._caret_state_owner.anchor_state,
-            expanded_source_range=self._session.expanded_source_range,
-            document_view=self._editor_state.projection_semantic.document,
-            render_plan=self._editor_state.projection_semantic.render_plan,
-            layout_checkpoint=capture_layout_checkpoint(
-                self._layout.frame.output,
-                palette_key=int(paint_input.palette.cacheKey()),
-                semantic_palette=paint_input.semantic_palette,
-            ),
-        )
-
-    def undo_comparison_payload(
-        self,
-    ) -> tuple[
-        PromptProjectionCaretState,
-        PromptProjectionCaretState,
-        tuple[int, int] | None,
-    ]:
-        """Return projection state that contributes to undo snapshot equality."""
-
-        return (
-            self._caret_state_owner.cursor_state,
-            self._caret_state_owner.anchor_state,
-            self._session.expanded_source_range,
-        )
-
-    def emit_undo_available_changed(self, available: bool) -> None:
-        """Emit an undo availability transition requested by the edit controller."""
-
-        self.undoAvailableChanged.emit(available)
-
-    def emit_redo_available_changed(self, available: bool) -> None:
-        """Emit a redo availability transition requested by the edit controller."""
-
-        self.redoAvailableChanged.emit(available)
 
     def _move_horizontally(self, direction: int, *, keep_anchor: bool) -> None:
         """Move the caret across plain text or collapsed token boundaries."""

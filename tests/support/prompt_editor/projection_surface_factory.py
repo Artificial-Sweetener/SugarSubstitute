@@ -124,8 +124,8 @@ class TestProjectionEditingRuntimeFactory(
 
         execution = PromptEditExecution(
             session=self._session,
-            undo_payload_provider=surface,
-            availability_signal_sink=surface,
+            undo_payload_provider=surface.history,
+            availability_signal_sink=surface.history,
             commit_sink=surface,
         )
         source_commands = PromptSourceCommandService(
