@@ -37,8 +37,10 @@ from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLayoutSnapshot,
 )
 
-from .tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer import (
     PromptRichInlineObjectRenderer,
 )
 

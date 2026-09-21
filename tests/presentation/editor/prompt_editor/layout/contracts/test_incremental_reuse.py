@@ -38,7 +38,7 @@ from substitute.presentation.editor.prompt_editor.layout.checkpoints import (
     capture_layout_checkpoint,
     restore_layout_checkpoint,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
 )
 from tests.support.prompt_editor.projection_layout_support import (

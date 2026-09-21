@@ -51,7 +51,7 @@ from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRen
 from ..core.projection.document import PromptProjectionDocument
 from ..core.projection.tokens import PromptProjectionToken, PromptProjectionTokenKind
 from .session import PromptProjectionSession
-from .tokens import emphasis_weight_font
+from .inline_renderer_typography import inline_weight_font
 
 
 class PromptExactWeightEditorHost(Protocol):
@@ -121,7 +121,7 @@ class PromptExactWeightEditor(QLineEdit):
             or token.content_end is None
         ):
             return
-        self.setFont(emphasis_weight_font(self._host.font()))
+        self.setFont(inline_weight_font(self._host.font()))
         rect = self._host.token_weight_text_rect(token)
         slot_width = (
             rect.width()

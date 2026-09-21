@@ -595,22 +595,9 @@ kind = "remediation"
 justification = "The assessed file mixes source editing and input-method handling, projection, layout, freshness, and publication coordination, caret, selection, scrolling, and hit testing, paint caches and custom rendering, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, drag/drop, undo, focus, and tooltip routing. Extract input/editing, paint publication, and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 3435
+max_lines = 3441
 next_limit = 2813
 debt = "SS-ARCH-061"
-
-[[waivers]]
-id = "SS-WAIVER-R062"
-owner = "prompt inline token rendering"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/projection/tokens.py"
-kind = "remediation"
-justification = "The assessed file mixes shared inline renderer contract, emphasis measurement and static token painting, wildcard inline rendering, LoRA banner rendering and media presentation, renderer registration and theme adaptation. Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
-issue = "chore:SS-ARCH-062"
-review_by = 2026-12-15
-max_lines = 1333
-next_limit = 1128
-debt = "SS-ARCH-062"
 
 [[waivers]]
 id = "SS-WAIVER-R064"
@@ -1362,7 +1349,7 @@ kind = "structural"
 justification = "PromptHitTester owns one read-only mapping from pointer coordinates to source-backed caret and drag-selection targets over an immutable layout snapshot. All search and distance helpers implement that coordinate-to-caret contract."
 issue = "chore:SS-WAIVER-S044"
 review_by = 2026-12-15
-max_lines = 546
+max_lines = 548
 
 [[waivers]]
 id = "SS-WAIVER-S045"
@@ -1373,7 +1360,7 @@ kind = "structural"
 justification = "PromptSelectionGeometry owns one read-only mapping from source ranges to painted selection fragments over an immutable layout snapshot. Empty lines, line breaks, inline objects, merging, and paint-change comparison share the same source-to-geometry invariant."
 issue = "chore:SS-WAIVER-S045"
 review_by = 2026-12-15
-max_lines = 565
+max_lines = 567
 
 [[waivers]]
 id = "SS-WAIVER-S046"
@@ -1998,4 +1985,15 @@ kind = "structural"
 justification = "PromptProjectionLineLayoutBuilder owns one atomic line-assembly state machine over line width, height, vertical position, pending fragments, caret boundaries, and reusable-suffix convergence. Text and inline placement, wrapping transitions, paragraph and structural-row transitions, line finalization, caret geometry, and snapshot emission must update that state together; extracting one transition family would divide the authoritative layout invariant rather than create an independently changing owner. Measurement, wrap policy, projection partitioning, keep-group planning, and source-boundary resolution are separate collaborators."
 issue = "chore:SS-WAIVER-S152"
 review_by = 2026-12-15
-max_lines = 745
+max_lines = 747
+
+[[waivers]]
+id = "SS-WAIVER-S153"
+owner = "LoRA inline projection rendering"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/projection/lora_renderer.py"
+kind = "structural"
+justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, paint, and interaction-geometry contract for a LoRA projection run. Title elision, stable weight placement, chevron and banner composition, anchor geometry, hit testing, and selection must derive from the same dimensions; extracting a transition or geometry family would duplicate those invariants and permit layout to diverge from painting. PromptLoraThumbnailCache and BannerTextPainter remain independent collaborators, while bounded title segmentation is private memoization keyed by the renderer's font, text, and width inputs."
+issue = "chore:SS-WAIVER-S153"
+review_by = 2026-12-15
+max_lines = 587

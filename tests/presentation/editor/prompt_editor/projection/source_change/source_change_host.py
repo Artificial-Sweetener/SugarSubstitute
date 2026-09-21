@@ -41,7 +41,7 @@ from substitute.presentation.editor.prompt_editor.projection.freshness_controlle
 from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
     PromptLayoutEditToFrameCoordinator,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (

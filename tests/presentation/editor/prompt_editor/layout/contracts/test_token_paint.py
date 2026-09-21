@@ -43,7 +43,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from substitute.presentation.editor.prompt_editor.projection.painter import (
     PromptProjectionPainter,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     _emphasis_decoration_metrics,
     _emphasis_parenthesis_color,
     _emphasis_weight_color,
