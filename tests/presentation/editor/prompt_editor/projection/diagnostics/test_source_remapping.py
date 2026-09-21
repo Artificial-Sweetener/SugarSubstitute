@@ -106,7 +106,6 @@ def test_projection_surface_preserves_diagnostic_fragments_after_hard_line_edit(
     )
     diagnostic_layer_owner = cast(Any, surface)._diagnostic_layer_owner
     diagnostic_layer_owner.preserve_fragment_cache_for_incremental_edit(
-        diagnostics=(remapped_diagnostic,),
         start=edit_start,
         end=edit_start,
         replacement_text="\n",

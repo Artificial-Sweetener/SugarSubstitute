@@ -39,6 +39,7 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 from ..layout.contracts import PromptLayoutDamage
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
 from .caret_state_owner import PromptProjectionCaretStateOwner
+from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .frame_state import PromptProjectionFrameStatePublisher
 from .incremental_edit_contracts import PromptProjectionPlainTextApplyResult
 from .semantic_transition_strategy import PromptSemanticTransitionResult
@@ -62,21 +63,6 @@ class PromptEditPublicationSink(Protocol):
 
     def _sync_editing_session_to_caret_states(self) -> object:
         """Mirror resolved projection caret states into the editing session."""
-
-    def _clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
-        """Discard cached diagnostic fragments."""
-
-    def _preserve_diagnostic_fragment_cache_for_incremental_edit(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-        previous_layout_identity: PromptLayoutIdentity,
-        next_layout_identity: PromptLayoutIdentity,
-        fragment_y_delta: float = 0.0,
-    ) -> None:
-        """Preserve unaffected diagnostic fragments across a local edit."""
 
     def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
         """Refresh prepared paint state after frame publication."""
@@ -107,6 +93,7 @@ class PromptEditPublication:
         editor_state: PromptEditPublicationState,
         frame_state: PromptProjectionFrameStatePublisher,
         layout: PromptLayoutEditToFrameCoordinator,
+        diagnostics: PromptDiagnosticLayerOwner,
     ) -> None:
         """Store explicit revisioned state and the remaining surface effect sink."""
 
@@ -114,6 +101,7 @@ class PromptEditPublication:
         self._editor_state = editor_state
         self._frame_state = frame_state
         self._layout = layout
+        self._diagnostics = diagnostics
 
     def current_layout_identity(self) -> PromptLayoutIdentity | None:
         """Return the active layout identity before a strategy mutates the frame."""
@@ -128,7 +116,7 @@ class PromptEditPublication:
     def clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
         """Clear diagnostic geometry after a deferred terminal outcome."""
 
-        self._sink._clear_diagnostic_fragment_cache(reason=reason)
+        self._diagnostics.clear_fragment_cache(reason=reason)
 
     def publish_trailing_insert(
         self,
@@ -143,7 +131,7 @@ class PromptEditPublication:
         previous_anchor_state = sink._caret_state_owner.anchor_state
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
-        sink._clear_diagnostic_fragment_cache(reason=cache_reason)
+        self._diagnostics.clear_fragment_cache(reason=cache_reason)
         sink._caret_state_owner.replace_states(
             cursor_state=projection_document.caret_map.resolve_state(
                 previous_cursor_state
@@ -174,9 +162,9 @@ class PromptEditPublication:
             self._layout.frame.output
         )
         if previous_layout_identity is None or next_layout_identity is None:
-            sink._clear_diagnostic_fragment_cache(reason="projection_fast_delete")
+            self._diagnostics.clear_fragment_cache(reason="projection_fast_delete")
         else:
-            sink._preserve_diagnostic_fragment_cache_for_incremental_edit(
+            self._diagnostics.preserve_fragment_cache_for_incremental_edit(
                 start=start,
                 end=end,
                 replacement_text="",
@@ -194,7 +182,7 @@ class PromptEditPublication:
         sink = self._sink
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
-        sink._clear_diagnostic_fragment_cache(reason="projection_fast_newline_delete")
+        self._diagnostics.clear_fragment_cache(reason="projection_fast_newline_delete")
         self._finish_trailing_publication()
 
     def publish_incremental(
@@ -219,11 +207,11 @@ class PromptEditPublication:
             self._layout.frame.output
         )
         if previous_layout_identity is None or next_layout_identity is None:
-            sink._clear_diagnostic_fragment_cache(
+            self._diagnostics.clear_fragment_cache(
                 reason="projection_incremental_plain_text"
             )
         else:
-            sink._preserve_diagnostic_fragment_cache_for_incremental_edit(
+            self._diagnostics.preserve_fragment_cache_for_incremental_edit(
                 start=start,
                 end=end,
                 replacement_text=replacement_text,
@@ -252,7 +240,7 @@ class PromptEditPublication:
         sink = self._sink
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
-        sink._clear_diagnostic_fragment_cache(reason="projection_prebuilt_reflow")
+        self._diagnostics.clear_fragment_cache(reason="projection_prebuilt_reflow")
         sink._rebuild_active_projection(commit_projection=True)
         sink._clear_transient_caret_geometry()
         sink._update_incremental_plain_text_projection_paint(layout_result)
@@ -266,7 +254,7 @@ class PromptEditPublication:
         sink = self._sink
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
-        sink._clear_diagnostic_fragment_cache(
+        self._diagnostics.clear_fragment_cache(
             reason="projection_history_checkpoint_restore"
         )
         sink._rebuild_active_projection(commit_projection=True)
@@ -285,7 +273,7 @@ class PromptEditPublication:
         projection_document = result.projection_document
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
-        sink._clear_diagnostic_fragment_cache(
+        self._diagnostics.clear_fragment_cache(
             reason="projection_local_semantic_transition"
         )
         sink._caret_state_owner.replace_states(

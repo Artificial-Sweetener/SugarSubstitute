@@ -206,6 +206,7 @@ class PromptDiagnosticLayerOwner:
             layout_identity=layout_identity,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_CLEAR)
     def clear_fragment_cache(self, *, reason: str) -> None:
         """Discard cached fragments and any layer built from their geometry."""
 
@@ -215,10 +216,10 @@ class PromptDiagnosticLayerOwner:
         self._key = None
         self._publish(EMPTY_DIAGNOSTIC_RENDER_LAYER)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_PRESERVE)
     def preserve_fragment_cache_for_incremental_edit(
         self,
         *,
-        diagnostics: Sequence[PromptDiagnostic],
         start: int,
         end: int,
         replacement_text: str,
@@ -231,7 +232,7 @@ class PromptDiagnosticLayerOwner:
         self.stop_warm()
         self._key = None
         self._preparer.preserve_for_incremental_edit(
-            diagnostics=diagnostics,
+            diagnostics=self._diagnostics(),
             start=start,
             end=end,
             replacement_text=replacement_text,
