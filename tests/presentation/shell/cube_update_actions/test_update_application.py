@@ -279,7 +279,11 @@ def test_graph_backed_update_replaces_canonical_definition_and_passes_preflight(
     assert workflow.direct_workflow is not None
     assert workflow.direct_workflow.cube_analysis is not None
     assert workflow.direct_workflow.cube_analysis.instances[0].cube_version == "2.0"
-    execution_graph = GraphBackedCubeWorkflowBuilder().build(workflow)
+    execution_graph = GraphBackedCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
     definitions = execution_graph["definitions"]
     assert isinstance(definitions, dict)
     subgraphs = definitions["subgraphs"]
@@ -334,7 +338,11 @@ def test_graph_backed_update_all_and_follow_latest_keep_graph_in_sync() -> None:
         "2.0",
     ]
     assert workflow.cubes["Demo"].update_policy is CubeUpdatePolicy.FOLLOW_LATEST
-    GraphBackedCubeWorkflowBuilder().build(workflow)
+    GraphBackedCubeWorkflowBuilder().build(
+        workflow,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )
 
 
 def test_update_matching_version_updates_all_same_version_instances() -> None:

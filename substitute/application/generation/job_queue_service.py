@@ -1145,7 +1145,6 @@ class GenerationJobQueueService:
             )
 
         return GenerationCallbacks(
-            randomize_seeds=None,
             on_run_started=on_run_started,
             on_progress=on_progress,
             on_model_load_progress=on_model_load_progress,

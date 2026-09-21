@@ -90,6 +90,9 @@ class WorkflowUiFactory:
                 model_metadata_action_handler=(
                     self._shell.model_metadata_context_action_handler
                 ),
+                ultralytics_thumbnail_associations=(
+                    self._shell.ultralytics_thumbnail_associations
+                ),
                 empty_model_picker_action=(
                     self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
                 ),

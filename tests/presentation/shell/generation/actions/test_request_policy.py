@@ -20,17 +20,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, cast
-
-from substitute.application.generation import (
-    GenerationRequest,
-    SeedRandomizationResult,
-    SeedRandomizationService,
-)
-from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.presentation.shell.workspace_generation_action_adapter import (
     effective_generation_batch_count,
-    randomize_generation_request_seeds,
 )
 
 
@@ -72,62 +63,3 @@ def test_effective_generation_batch_count_uses_legacy_cluster_fallback() -> None
 
     assert effective_generation_batch_count(view) == 4
     assert effective_generation_batch_count(SimpleNamespace()) == 1
-
-
-def test_randomize_generation_request_seeds_delegates_to_service() -> None:
-    """Seed randomization should delegate workflow mutation to the service port."""
-
-    behavior_snapshot = EditorBehaviorSnapshot(
-        resolved_nodes_by_alias={},
-        field_specs_by_alias={},
-        card_decisions_by_alias={},
-        hidden_field_keys_by_alias={},
-        reveal_entries_by_alias={},
-    )
-    workflow = SimpleNamespace()
-    request = GenerationRequest(
-        workflow_id="workflow-a",
-        workflow_name="Recipe A",
-        workflow=cast(Any, workflow),
-    )
-    calls: list[tuple[object, EditorBehaviorSnapshot | None]] = []
-
-    class _SeedRandomizer:
-        """Record seed randomization calls."""
-
-        def randomize_workflow_seeds(
-            self,
-            *,
-            workflow: object,
-            behavior_snapshot: EditorBehaviorSnapshot | None,
-        ) -> SeedRandomizationResult:
-            """Record request workflow and behavior snapshot."""
-
-            calls.append((workflow, behavior_snapshot))
-            return SeedRandomizationResult()
-
-    randomize_generation_request_seeds(
-        seed_randomization_service=_SeedRandomizer(),
-        request=request,
-        behavior_snapshot=behavior_snapshot,
-    )
-
-    assert calls == [(workflow, behavior_snapshot)]
-
-
-def test_randomize_generation_request_seeds_skips_plain_workflow_for_concrete_service() -> (
-    None
-):
-    """Concrete seed randomizer should ignore plain non-WorkflowState requests."""
-
-    request = GenerationRequest(
-        workflow_id="workflow-a",
-        workflow_name="Recipe A",
-        workflow=cast(Any, SimpleNamespace()),
-    )
-
-    randomize_generation_request_seeds(
-        seed_randomization_service=SeedRandomizationService(),
-        request=request,
-        behavior_snapshot=None,
-    )

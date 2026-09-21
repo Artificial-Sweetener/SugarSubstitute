@@ -30,6 +30,8 @@ from substitute.domain.cube_library import (
 )
 from substitute.domain.generation.seed_control import (
     SeedControlState,
+    nested_seed_control_states_from_json,
+    nested_seed_control_states_to_json,
     seed_control_state_from_json,
     seed_control_state_to_json,
 )
@@ -355,7 +357,7 @@ def _cube_state_to_json(cube: CubeState) -> JsonObject:
         ],
         "dirty": cube.dirty,
         "ui": _cube_ui_to_json(cube),
-        "field_control_states": _nested_seed_control_states_to_json(
+        "field_control_states": nested_seed_control_states_to_json(
             cube.field_control_states
         ),
         "update_policy": cube.update_policy.value,
@@ -394,7 +396,7 @@ def _cube_state_from_json(payload: Mapping[str, object], *, alias: str) -> CubeS
         ],
         dirty=bool(payload.get("dirty", False)),
         ui=ui_payload,
-        field_control_states=_nested_seed_control_states_from_json(
+        field_control_states=nested_seed_control_states_from_json(
             payload.get("field_control_states")
         ),
         update_policy=_cube_update_policy_from_json(payload.get("update_policy")),
@@ -423,32 +425,6 @@ def _seed_control_states_from_json(value: object) -> dict[str, SeedControlState]
     return {
         str(key): seed_control_state_from_json(state) for key, state in value.items()
     }
-
-
-def _nested_seed_control_states_to_json(
-    states: Mapping[str, Mapping[str, SeedControlState]],
-) -> JsonObject:
-    """Return JSON-ready node/field seed control state mappings."""
-
-    return {
-        str(node_name): _seed_control_states_to_json(field_states)
-        for node_name, field_states in states.items()
-    }
-
-
-def _nested_seed_control_states_from_json(
-    value: object,
-) -> dict[str, dict[str, SeedControlState]]:
-    """Build node/field seed control state mappings from decoded JSON."""
-
-    if not isinstance(value, Mapping):
-        return {}
-    nested: dict[str, dict[str, SeedControlState]] = {}
-    for node_name, field_states in value.items():
-        if not isinstance(field_states, Mapping):
-            continue
-        nested[str(node_name)] = _seed_control_states_from_json(field_states)
-    return nested
 
 
 def _cube_ui_to_json(cube: CubeState) -> JsonObject | None:

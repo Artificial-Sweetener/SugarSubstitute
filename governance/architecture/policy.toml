@@ -25,6 +25,7 @@ source_extensions = [
   ".spec",
 ]
 excluded_paths = [
+  "substitute/infrastructure/model_thumbnails/resources/ultralytics_thumbnails_rc.py",
   "substitute/presentation/resources/app_icons_rc.py",
   "substitute/presentation/resources/app_orb_rc.py",
   "substitute/presentation/resources/splash_poses_rc.py",

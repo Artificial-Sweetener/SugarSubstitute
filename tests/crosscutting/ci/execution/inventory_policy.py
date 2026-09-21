@@ -83,6 +83,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/application/model_metadata/model_choice_catalog_index.py": frozenset(
         {"threading.RLock"}
     ),
+    "substitute/application/model_metadata/ultralytics_thumbnail_associations.py": frozenset(
+        {"threading.RLock"}
+    ),
     "substitute/application/model_metadata/rich_choice_resolver.py": frozenset(
         {"threading.RLock"}
     ),
@@ -114,6 +117,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
         {"threading.RLock"}
     ),
     "substitute/infrastructure/localization/comfy_i18n_client.py": frozenset(
+        {"threading.RLock"}
+    ),
+    "substitute/infrastructure/model_thumbnails/bundled_ultralytics_repository.py": frozenset(
         {"threading.RLock"}
     ),
     "substitute/infrastructure/persistence/file_prompt_autocomplete_gateway.py": frozenset(
