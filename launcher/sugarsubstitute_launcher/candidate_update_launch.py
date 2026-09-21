@@ -206,6 +206,11 @@ def launch_prepared_update(
                 termination=SupervisedTermination(
                     reason,
                     str(candidate_error),
+                    (
+                        candidate_error.diagnostics
+                        if isinstance(candidate_error, ApplicationReadinessError)
+                        else {}
+                    ),
                 ),
             )
         activation.reject(type(candidate_error).__name__)

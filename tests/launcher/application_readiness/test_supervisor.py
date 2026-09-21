@@ -36,6 +36,8 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
     READINESS_PATH_ENV,
+    READINESS_SCHEMA_ENV,
+    READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
 )
 
@@ -185,6 +187,7 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
         command=["python", "main.py"],
         environment={
             READINESS_PATH_ENV: str(receipt_path),
+            READINESS_SCHEMA_ENV: str(READINESS_SCHEMA_VERSION),
             READINESS_TOKEN_ENV: "outer-token",
         },
     )
@@ -437,7 +440,7 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
         wait=lambda _seconds: None,
     )
 
-    with pytest.raises(ApplicationReadinessError, match="did not reveal"):
+    with pytest.raises(ApplicationReadinessError, match="did not reveal") as captured:
         supervisor.launch_until_ready(
             layout=layout,
             command=["python", "main.py"],
@@ -446,6 +449,18 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
 
     assert process.terminated is True
     assert process.killed is False
+    assert captured.value.diagnostics == {
+        "readiness_failure_kind": "timeout",
+        "readiness_candidate_pid": str(process.pid),
+        "readiness_elapsed_seconds": "0.900",
+        "readiness_timeout_seconds": "0.500",
+        "readiness_poll_interval_seconds": "0.050",
+        "readiness_receipt_state": "missing",
+        "readiness_outer_contract": "False",
+        "readiness_child_schema": "5",
+        "readiness_outer_schema": "none",
+        "readiness_termination_action": "terminated",
+    }
 
 
 def test_default_supervisor_allows_long_candidate_repair(tmp_path: Path) -> None:
