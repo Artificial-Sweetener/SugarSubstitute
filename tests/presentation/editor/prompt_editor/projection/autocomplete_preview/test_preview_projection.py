@@ -95,7 +95,7 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
 
     preview_suffix = "bright detailed elaborate cinematic "
     surface = surface_for(box)
-    surface.set_autocomplete_preview_state(
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("alpha "),
             suffix_text=preview_suffix,
@@ -147,7 +147,7 @@ def test_prompt_editor_autocomplete_preview_does_not_mutate_source_or_undo(
     surface = surface_for(box)
     can_undo_before = surface.history.can_undo()
 
-    surface.set_autocomplete_preview_state(
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("alpha "),
             suffix_text="bright ",
@@ -179,7 +179,7 @@ def test_prompt_editor_autocomplete_preview_clears_on_selection(
     cursor.setPosition(len("alpha "))
     box.setTextCursor(cursor)
     surface = surface_for(box)
-    surface.set_autocomplete_preview_state(
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("alpha "),
             suffix_text="bright ",
@@ -218,7 +218,7 @@ def test_prompt_editor_autocomplete_preview_clears_on_source_edit(
     process_events(app)
 
     surface = surface_for(box)
-    surface.set_autocomplete_preview_state(
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("alpha "),
             suffix_text="bright ",

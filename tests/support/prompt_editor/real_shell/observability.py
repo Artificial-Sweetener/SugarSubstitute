@@ -69,11 +69,6 @@ class PromptEditorObservability:
             "_autocomplete_preview_projection_owner",
             None,
         )
-        caret_preview_coordinator = getattr(
-            surface,
-            "_caret_autocomplete_preview_coordinator",
-            None,
-        )
         caret_movement_controller = getattr(
             surface,
             "_caret_movement_controller",
@@ -137,13 +132,10 @@ class PromptEditorObservability:
                 surface,
                 "projection source and caret owner",
                 (
-                    "set_autocomplete_preview_state",
                     "_backspace",
                     "_delete",
                     "_flush_pending_projection_update",
                     "_mark_source_text_changed",
-                    "clear_autocomplete_preview_state",
-                    "invalidate_autocomplete_preview_paint",
                 ),
             ),
             (
@@ -154,12 +146,11 @@ class PromptEditorObservability:
             (
                 autocomplete_preview_projection,
                 "autocomplete preview projection owner",
-                ("set_preview_state",),
-            ),
-            (
-                caret_preview_coordinator,
-                "caret autocomplete preview coordinator",
-                ("reconcile_after_caret_state_change",),
+                (
+                    "set_preview_state",
+                    "reconcile_after_caret_state_change",
+                    "_invalidate_paint",
+                ),
             ),
             (
                 caret_movement_controller,

@@ -59,10 +59,10 @@ def test_prompt_editor_private_and_protocol_debt_does_not_grow() -> None:
         "test_private_exemptions": test_private_exemptions,
     }
     maximums = {
-        "protocols": 199,
-        "casts": 194,
+        "protocols": 197,
+        "casts": 139,
         "production_private_exemptions": 0,
-        "test_private_exemptions": 292,
+        "test_private_exemptions": 0,
     }
 
     assert {
@@ -108,6 +108,41 @@ def test_autocomplete_presentation_lifecycle_is_the_only_panel_and_preview_owner
     assert "PromptAutocompleteResultController" not in lifecycle_source
     assert "class PromptAutocompleteSessionPublication" in publication_source
     assert "PromptAutocompletePresentationLifecycle" in publication_source
+
+
+def test_autocomplete_preview_projection_has_one_authoritative_owner() -> None:
+    """Keep preview state, caret reconciliation, and repaint off surface shims."""
+
+    projection_root = PROMPT_PRESENTATION_ROOT / "projection"
+    owner_source = (
+        projection_root / "autocomplete_preview_projection_owner.py"
+    ).read_text(encoding="utf-8")
+    surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    autocomplete_factory_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "autocomplete_factory.py"
+    ).read_text(encoding="utf-8")
+
+    assert not (projection_root / "caret_autocomplete_preview_coordinator.py").exists()
+    assert "Protocol" not in owner_source
+    assert "def reconcile_after_caret_state_change(" in owner_source
+    assert "def _invalidate_paint(" in owner_source
+    assert "def autocomplete_preview(" in surface_source
+    obsolete_surface_methods = (
+        "def set_autocomplete_preview_state(",
+        "def clear_autocomplete_preview_state(",
+        "def current_autocomplete_preview_state(",
+        "def set_session_autocomplete_preview_state(",
+        "def flush_pending_projection_for_autocomplete_preview(",
+        "def base_projection_is_stale_for_autocomplete_preview(",
+        "def rebuild_base_projection_for_autocomplete_preview(",
+        "def rebuild_active_projection_for_autocomplete_preview(",
+        "def invalidate_autocomplete_preview_paint(",
+    )
+    assert not any(method in surface_source for method in obsolete_surface_methods)
+    assert (
+        "projection_collaborators.surface.autocomplete_preview.set_preview_state"
+        in autocomplete_factory_source
+    )
 
 
 def test_autocomplete_query_result_lifecycle_is_the_only_query_cache_owner() -> None:

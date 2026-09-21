@@ -82,9 +82,6 @@ class PromptSurfaceMouseHost(Protocol):
     def prompt_document_view(self) -> PromptDocumentView:
         """Return the current source-backed prompt document view."""
 
-    def clear_autocomplete_preview_state(self) -> None:
-        """Clear any active projection-owned autocomplete preview."""
-
     def _finish_pending_key_edit_block(self, *, reason: str) -> None:
         """Commit key-owned edit groups before pointer interaction mutates state."""
 
@@ -147,12 +144,14 @@ class PromptSurfaceMouseHandler:
         host: PromptSurfaceMouseHost,
         *,
         ensure_pointer_focus: Callable[[], None],
+        clear_autocomplete_preview: Callable[[], None],
         request_lora_context_menu: Callable[[QPointF, QPoint], bool],
     ) -> None:
         """Bind pointer routing to the bounded surface operations it may use."""
 
         self._host = host
         self._ensure_pointer_focus = ensure_pointer_focus
+        self._clear_autocomplete_preview = clear_autocomplete_preview
         self._request_lora_context_menu = request_lora_context_menu
         self._hovered_token_id: str | None = None
         self._mouse_selecting = False
@@ -180,7 +179,7 @@ class PromptSurfaceMouseHandler:
         """Handle one public mouse press event from the surface."""
 
         self._host._finish_pending_key_edit_block(reason="mouse_press")
-        self._host.clear_autocomplete_preview_state()
+        self._clear_autocomplete_preview()
         return self.handle_viewport_mouse_press(
             event,
             viewport_position=self.viewport_position_from_mouse_event(event),

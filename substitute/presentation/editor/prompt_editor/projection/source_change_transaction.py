@@ -47,6 +47,9 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 )
 
 from .freshness_controller import PromptProjectionFreshnessController
+from .autocomplete_preview_projection_owner import (
+    PromptAutocompletePreviewProjectionOwner,
+)
 from .observability import log_projection_timing, projection_observability_started_at
 from .semantic_remap import (
     PromptProjectionOptimisticPromptState,
@@ -84,6 +87,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
         semantic_remapper: PromptProjectionSemanticRemapper,
         session: PromptProjectionSession,
         source_document: PromptProjectionSourceDocument,
+        autocomplete_preview: PromptAutocompletePreviewProjectionOwner,
     ) -> None:
         """Store explicit state owners and focused surface effect sinks."""
 
@@ -95,6 +99,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
         self._semantic_remapper = semantic_remapper
         self._session = session
         self._source_document = source_document
+        self._autocomplete_preview = autocomplete_preview
 
     def apply(
         self,
@@ -133,7 +138,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             projection_decision is not None and projection_decision.can_defer_projection
         )
         if self._session.autocomplete_preview is not None:
-            effect_sink.clear_autocomplete_preview_state()
+            self._autocomplete_preview.clear_preview_state()
         can_preserve_diagnostic_fragment_cache = (
             previous_source_text is not None
             and source_edit_start is not None

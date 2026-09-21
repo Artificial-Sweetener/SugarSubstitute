@@ -206,7 +206,7 @@ class _SourceChangeHost:
 
         return self._editor_state.semantic.document.source_text
 
-    def clear_autocomplete_preview_state(self) -> None:
+    def clear_preview_state(self) -> None:
         """Record authoritative autocomplete preview owner clears."""
 
         self.autocomplete_preview_clear_count += 1

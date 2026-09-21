@@ -121,6 +121,7 @@ def _source_change_applier(
         semantic_remapper=semantic_remapper,
         session=cast(Any, host._session),
         source_document=cast(Any, host._source_document_adapter),
+        autocomplete_preview=cast(Any, host),
     )
     range_application = PromptSourceRangeCommitApplication[_ProjectionPayload](
         cast(Any, host),

@@ -40,7 +40,7 @@ def test_real_shell_reports_stale_visible_ghost_owner_state(
     real_shell_scenario.input.move_cursor_to_end(field)
     editor = field.editor
     surface = cast(Any, getattr(editor, "_surface"))
-    surface.set_autocomplete_preview_state(
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("backpack"),
             suffix_text=" basket",
@@ -48,7 +48,7 @@ def test_real_shell_reports_stale_visible_ghost_owner_state(
     )
     stale_preview_document = cast(Any, surface)._layout.frame.output.projection_document
 
-    surface.set_autocomplete_preview_state(None)
+    surface.autocomplete_preview.set_preview_state(None)
     cast(Any, surface)._layout.set_projection(
         stale_preview_document,
         prompt_document_view=surface.prompt_document_view(),

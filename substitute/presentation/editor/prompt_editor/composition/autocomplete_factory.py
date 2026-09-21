@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 
+from ..autocomplete_preview_state import PromptAutocompletePreviewState
 from ..commands.autocomplete_commands import PromptAutocompleteAcceptance
 from ..commands.contracts import PromptCommandResult
 from ..features import (
@@ -116,10 +117,18 @@ class PromptEditorAutocompleteFactory:
             lora_wall_factory=create_lora_wall,
             lora_thumbnail_cache=projection_collaborators.lora_thumbnail_cache,
         )
+
+        def publish_preview_state(
+            preview_state: PromptAutocompletePreviewState | None,
+        ) -> None:
+            """Publish through the current observable preview owner."""
+
+            projection_collaborators.surface.autocomplete_preview.set_preview_state(
+                preview_state
+            )
+
         ghost_text = PromptAutocompleteGhostTextPublisher(
-            publish_preview_state=(
-                projection_collaborators.surface.set_autocomplete_preview_state
-            ),
+            publish_preview_state=publish_preview_state,
         )
         acceptance = PromptAutocompleteAcceptanceController(
             cursor_position=autocomplete_cursor_position,

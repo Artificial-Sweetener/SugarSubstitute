@@ -1030,7 +1030,7 @@ class PromptEditor(
     ) -> None:
         """Replace the active projection-owned autocomplete preview state."""
 
-        self._surface.set_autocomplete_preview_state(preview_state)
+        self._surface.autocomplete_preview.set_preview_state(preview_state)
 
     def set_search_matches(
         self,
