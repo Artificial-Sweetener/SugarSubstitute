@@ -61,6 +61,30 @@ class CleanExitOutcome(Enum):
     UPDATE_HANDOFF = "update_handoff"
 
 
+class LifecycleMessageState(Enum):
+    """Classify one expected signed lifecycle message."""
+
+    MISSING = "missing"
+    VALID = "valid"
+    INVALID = "invalid"
+
+
+@dataclass(frozen=True, slots=True)
+class CleanExitEvidence:
+    """Describe signed intent and receipt evidence without reducing it to a boolean."""
+
+    intent_state: LifecycleMessageState
+    receipt_state: LifecycleMessageState
+    intent: tuple[CleanExitOutcome, int] | None
+    receipt: tuple[CleanExitOutcome, int] | None
+
+    @property
+    def validates_clean_exit(self) -> bool:
+        """Return whether matching valid intent and completion evidence exists."""
+
+        return self.intent is not None and self.receipt == self.intent
+
+
 @dataclass(frozen=True, slots=True)
 class CrashRunContext:
     """Carry one supervisor-owned run contract into the application process."""
@@ -200,6 +224,15 @@ class CrashRunContext:
     def validates_clean_exit(self, *, process_id: int | None = None) -> bool:
         """Return whether matching signed intent and completion messages exist."""
 
+        return self.inspect_exit_evidence(process_id=process_id).validates_clean_exit
+
+    def inspect_exit_evidence(
+        self,
+        *,
+        process_id: int | None = None,
+    ) -> CleanExitEvidence:
+        """Return the validity and content of both lifecycle messages."""
+
         intent = _read_lifecycle_message(
             self.exit_intent_path,
             run_id=self.run_id,
@@ -214,7 +247,12 @@ class CrashRunContext:
             expected_process_id=process_id,
             phase="complete",
         )
-        return intent is not None and receipt == intent
+        return CleanExitEvidence(
+            intent_state=_message_state(self.exit_intent_path, intent),
+            receipt_state=_message_state(self.exit_receipt_path, receipt),
+            intent=intent,
+            receipt=receipt,
+        )
 
 
 def without_crash_supervision_environment(
@@ -314,6 +352,21 @@ def _read_lifecycle_message(
         return None
 
 
+def _message_state(
+    path: Path,
+    message: tuple[CleanExitOutcome, int] | None,
+) -> LifecycleMessageState:
+    """Distinguish an absent lifecycle message from invalid retained evidence."""
+
+    if message is not None:
+        return LifecycleMessageState.VALID
+    return (
+        LifecycleMessageState.INVALID
+        if path.exists()
+        else LifecycleMessageState.MISSING
+    )
+
+
 def _message_signature(
     *,
     run_id: str,
@@ -337,7 +390,9 @@ __all__ = [
     "CRASH_INCIDENT_ROOT_ENV",
     "CRASH_RUN_ID_ENV",
     "CRASH_RUN_TOKEN_ENV",
+    "CleanExitEvidence",
     "CleanExitOutcome",
     "CrashRunContext",
+    "LifecycleMessageState",
     "without_crash_supervision_environment",
 ]
