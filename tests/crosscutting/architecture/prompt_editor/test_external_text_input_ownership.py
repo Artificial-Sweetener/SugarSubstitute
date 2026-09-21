@@ -29,14 +29,19 @@ def test_surface_and_shell_delegate_external_text_policy_to_interaction_owner() 
     surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
         encoding="utf-8"
     )
+    input_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface_input_runtime.py"
+    ).read_text(encoding="utf-8")
     shell_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
 
     assert "mime_data_has_prompt_plain_text" in owner_source
     assert "prompt_plain_text_from_mime_data" in owner_source
     assert '"drop_plain_text"' in owner_source
     assert '"mime_plain_text"' in owner_source
-    for host_source in (surface_source, shell_source):
-        assert "PromptExternalTextInputOwner(" in host_source
+    assert "PromptExternalTextInputOwner(" in input_runtime_source
+    assert "PromptExternalTextInputOwner(" not in surface_source
+    assert "PromptExternalTextInputOwner(" in shell_source
+    for host_source in (surface_source, shell_source, input_runtime_source):
         assert "mime_data_has_prompt_plain_text" not in host_source
         assert "prompt_plain_text_from_mime_data" not in host_source
         assert "_accept_or_ignore_prompt_mime_event" not in host_source

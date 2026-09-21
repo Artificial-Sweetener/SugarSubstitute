@@ -75,7 +75,8 @@ class PromptEditorObservability:
             None,
         )
         caret_publication = getattr(surface, "_caret_publication", None)
-        text_mutations = getattr(surface, "_text_mutations", None)
+        input_runtime = getattr(surface, "_input_runtime", None)
+        text_mutations = getattr(input_runtime, "text_mutations", None)
         observed_targets = (
             (
                 editor,

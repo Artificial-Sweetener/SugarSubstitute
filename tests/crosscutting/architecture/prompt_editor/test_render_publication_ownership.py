@@ -78,5 +78,5 @@ def test_input_method_controller_owns_qt_event_and_focus_lifecycle() -> None:
     ):
         assert ownership_marker in owner_source
         assert ownership_marker not in surface_source
-    assert "self._input_method_controller.dispatch_event(event)" in surface_source
-    assert "self._input_method_controller.focus_out()" in surface_source
+    assert "self._input_runtime.input_method.dispatch_event(event)" in surface_source
+    assert "self._input_runtime.input_method.focus_out()" in surface_source

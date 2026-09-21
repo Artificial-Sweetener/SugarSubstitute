@@ -32,7 +32,7 @@ def test_surface_delegates_viewport_event_arbitration_to_focused_owner() -> None
 
     assert "if watched is self.viewport():" not in surface_source
     assert "router.handle_viewport_event(event)" in surface_source
-    assert "installEventFilter(self._viewport_event_router)" in surface_source
+    assert "installEventFilter(self._input_runtime.viewport_events)" in surface_source
     assert "class PromptProjectionViewportEventRouter" in router_source
     assert "QEvent.Type.DragEnter" in router_source
     assert "QEvent.Type.MouseButtonDblClick" in router_source
