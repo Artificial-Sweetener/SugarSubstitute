@@ -962,12 +962,12 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
     def canUndo(self) -> bool:  # noqa: N802
         """Return whether the prompt editor has a custom undo transaction."""
 
-        return self._surface.can_undo()
+        return self._surface.history.can_undo()
 
     def canRedo(self) -> bool:  # noqa: N802
         """Return whether the prompt editor has a custom redo transaction."""
 
-        return self._surface.can_redo()
+        return self._surface.history.can_redo()
 
     def source_line_rects(self) -> tuple[PromptProjectionSourceLineRect, ...]:
         """Return visible prompt projection rects for source logical lines."""

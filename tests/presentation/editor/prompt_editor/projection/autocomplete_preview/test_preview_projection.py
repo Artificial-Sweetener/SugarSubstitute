@@ -145,7 +145,7 @@ def test_prompt_editor_autocomplete_preview_does_not_mutate_source_or_undo(
 
     box.textChanged.connect(record_text_changed)
     surface = surface_for(box)
-    can_undo_before = surface.can_undo()
+    can_undo_before = surface.history.can_undo()
 
     surface.set_autocomplete_preview_state(
         PromptAutocompletePreviewState(
@@ -157,7 +157,7 @@ def test_prompt_editor_autocomplete_preview_does_not_mutate_source_or_undo(
 
     assert box.toPlainText() == "alpha omega"
     assert changed_count == 0
-    assert surface.can_undo() is can_undo_before
+    assert surface.history.can_undo() is can_undo_before
 
 
 def test_prompt_editor_autocomplete_preview_clears_on_selection(

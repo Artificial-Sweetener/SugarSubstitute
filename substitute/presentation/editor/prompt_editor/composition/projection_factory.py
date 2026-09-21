@@ -275,7 +275,7 @@ class PromptEditorProjectionFactory:
             danbooru_paste_import_controller=(
                 editing_runtime_builder.danbooru_controller
             ),
-            clipboard_history_controller=surface.clipboard_history_actions,
+            clipboard_history_controller=surface.history.clipboard_history_actions,
             shell_padding_fill_plane=shell_padding_fill_plane,
             fill_plane=fill_plane,
         )

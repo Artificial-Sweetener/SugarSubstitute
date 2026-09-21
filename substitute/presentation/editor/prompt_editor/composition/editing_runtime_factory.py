@@ -96,8 +96,8 @@ class PromptProjectionEditingRuntimeBuilder(
             raise RuntimeError("Prompt editing runtime was already constructed.")
         execution = PromptEditExecution[PromptProjectionUndoPayload](
             session=self.session,
-            undo_payload_provider=surface,
-            availability_signal_sink=surface,
+            undo_payload_provider=surface.history,
+            availability_signal_sink=surface.history,
             commit_sink=surface,
         )
         source_commands = PromptSourceCommandService(
@@ -138,7 +138,7 @@ class PromptProjectionEditingRuntimeBuilder(
         clipboard_history = PromptClipboardHistoryController(
             edit_execution=execution,
             clipboard=QtPromptTextClipboard(),
-            cursor_sink=surface,
+            cursor_sink=surface.history,
             source_commands=source_commands,
             text_mutations=text_mutations,
             danbooru_paste_scheduler=danbooru_controller,
