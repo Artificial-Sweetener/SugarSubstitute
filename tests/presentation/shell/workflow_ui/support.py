@@ -147,6 +147,7 @@ def build_workflow_shell() -> SimpleNamespace:
         "model_choice_resolver": object(),
         "thumbnail_asset_repository": object(),
         "model_metadata_context_action_handler": object(),
+        "ultralytics_thumbnail_associations": object(),
         "empty_model_picker_discovery_controller": SimpleNamespace(
             request_for_empty_picker=lambda _kind: False
         ),

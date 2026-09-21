@@ -17,9 +17,6 @@
 """Verify inferred catalog-backed model-choice routes."""
 
 from __future__ import annotations
-
-from __future__ import annotations
-from __future__ import annotations
 from types import SimpleNamespace
 import pytest
 from substitute.application.node_behavior import FieldBehavior

@@ -53,6 +53,9 @@ from substitute.app.bootstrap.localization_composition import (
 )
 from substitute.app.bootstrap.main_window_runtime import load_main_window_runtime
 from substitute.application.comfy_environment import ComfyEnvironmentService
+from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+    UltralyticsThumbnailAssociationService,
+)
 from substitute.application.execution import (
     DirectExecutionDispatcher,
     ExecutionContext,
@@ -1354,6 +1357,13 @@ def _build_main_window_dependencies(
 
     record_dependency_phase("imports.infrastructure.external.model_metadata")
 
+    from substitute.infrastructure.model_thumbnails import (
+        BundledUltralyticsThumbnailRepository,
+        LayeredThumbnailAssetRepository,
+    )
+
+    record_dependency_phase("imports.infrastructure.model_thumbnails")
+
     from substitute.infrastructure.external.substitute_backend_preview_assets_client import (
         SubstituteBackendPreviewAssetsClient,
     )
@@ -1401,6 +1411,9 @@ def _build_main_window_dependencies(
 
     from substitute.infrastructure.persistence.file_prompt_editor_preference_repository import (
         FilePromptEditorPreferenceRepository,
+    )
+    from substitute.infrastructure.persistence.file_ultralytics_thumbnail_association_repository import (
+        FileUltralyticsThumbnailAssociationRepository,
     )
 
     from substitute.infrastructure.persistence.file_control_binding_preference_repository import (
@@ -1802,6 +1815,15 @@ def _build_main_window_dependencies(
         thumbnail_timeout_seconds=5.0,
     )
     model_metadata_store = model_caches.metadata
+    thumbnail_asset_repository = LayeredThumbnailAssetRepository(
+        (
+            BundledUltralyticsThumbnailRepository(),
+            model_metadata_store,
+        )
+    )
+    ultralytics_thumbnail_associations = UltralyticsThumbnailAssociationService(
+        FileUltralyticsThumbnailAssociationRepository(context.user_settings_dir)
+    )
     record_dependency_checkpoint(
         "model_catalog_recipe_services.metadata_store",
         model_recipe_step_started_at,
@@ -2286,6 +2308,8 @@ def _build_main_window_dependencies(
         ),
         submitter=manual_model_metadata_submitter,
         close_submitter=manual_model_metadata_submitter.close,
+        ultralytics_thumbnail_associations=ultralytics_thumbnail_associations,
+        thumbnail_asset_repository=thumbnail_asset_repository,
     )
     shell_resource_lifecycle.register(
         "manual_model_metadata_context_actions",
@@ -2308,7 +2332,7 @@ def _build_main_window_dependencies(
         lora_catalog_service=prompt_lora_catalog_service,
         scheduled_lora_service=prompt_scheduled_lora_service,
         spellcheck_service=prompt_spellcheck_service,
-        thumbnail_asset_repository=model_metadata_store,
+        thumbnail_asset_repository=thumbnail_asset_repository,
         model_metadata_action_handler=model_metadata_context_action_handler,
         segment_preset_source=LibraryPromptSegmentPresetSource(user_preset_service),
         prompt_task_executor_factory=(
@@ -2562,8 +2586,9 @@ def _build_main_window_dependencies(
         model_update_acquisition_service=model_update_acquisition_service,
         empty_model_picker_discovery_service=(empty_model_picker_discovery_service),
         model_choice_resolver=model_choice_resolver,
-        thumbnail_asset_repository=model_metadata_store,
+        thumbnail_asset_repository=thumbnail_asset_repository,
         model_metadata_context_action_handler=model_metadata_context_action_handler,
+        ultralytics_thumbnail_associations=ultralytics_thumbnail_associations,
         manual_model_metadata_update_sink=manual_model_metadata_update_bridge,
         configure_output_thumbnail_context=configure_output_thumbnail_context,
         node_behavior_service=node_behavior_service,

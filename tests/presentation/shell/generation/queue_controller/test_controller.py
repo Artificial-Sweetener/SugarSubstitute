@@ -30,6 +30,8 @@ from substitute.presentation.shell.generation_queue_controller import (
     GenerationQueueController,
 )
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
+from substitute.domain.generation import GenerationJobSnapshot, GenerationSeedValue
+from substitute.domain.workflow import WorkflowState
 
 
 def test_generation_queue_controller_user_toggle_uses_transition() -> None:
@@ -138,12 +140,14 @@ def test_generation_queue_controller_opens_snapshots_through_owner(
             queue_service: object,
             *,
             open_snapshot_requested: Callable[[str], None],
+            adopt_seeds_requested: Callable[[str], None],
             parent: object,
         ) -> None:
             """Store construction inputs and snapshot callback."""
 
             self.queue_service = queue_service
             self.open_snapshot_requested = open_snapshot_requested
+            self.adopt_seeds_requested = adopt_seeds_requested
             self.parent = parent
             self.hideRequested = FakeSignal()
             open_callbacks.append(open_snapshot_requested)
@@ -185,6 +189,38 @@ def test_generation_queue_controller_opens_snapshots_through_owner(
     assert panels == [surfaces[1]]
     assert shell._generation_queue_dropdown is surfaces[0]
     assert shell.generationQueuePanel is surfaces[1]
+
+
+def test_generation_queue_controller_adopts_snapshot_seed_into_active_override() -> (
+    None
+):
+    """Queue seed reuse should mutate the live authority and request persistence."""
+
+    workflow = WorkflowState(global_overrides={"seed": {"value": 7, "mode": "global"}})
+    snapshot = GenerationJobSnapshot(
+        workflow_id="source",
+        workflow_name="Source",
+        seed_values=(
+            GenerationSeedValue(value=4242, field_key="seed", override_key="seed"),
+        ),
+    )
+    autosaves: list[bool] = []
+    shell = SimpleNamespace(
+        generation_job_queue_service=SimpleNamespace(
+            snapshot_for_job=lambda job_id: snapshot if job_id == "job-1" else None
+        ),
+        workflow_session_service=SimpleNamespace(active_workflow_id="target"),
+        editor_panels={},
+        active_editor_panel=None,
+        active_override_manager=None,
+        get_active_workflow=lambda: workflow,
+        request_session_autosave=lambda: autosaves.append(True),
+    )
+
+    GenerationQueueController(shell).adopt_generation_seeds("job-1")
+
+    assert workflow.global_overrides["seed"]["value"] == 4242
+    assert autosaves == [True]
 
 
 def test_generation_queue_controller_uses_supplied_titlebar_anchor() -> None:
