@@ -31,6 +31,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.caret import (
 )
 
 from .freshness_controller import PromptProjectionFreshnessBlockers
+from .caret_state_owner import PromptProjectionCaretStateOwner
 
 
 class PromptSourceReplacementPointerSink(Protocol):
@@ -75,10 +76,7 @@ class PromptSourceChangeEffectSink(Protocol):
 class PromptSourceChangeCaretSink(Protocol):
     """Publish caret state after source and projection state change together."""
 
-    _cursor_state: PromptProjectionCaretState
-    _anchor_state: PromptProjectionCaretState
-    _caret_rect_override: QRectF | None
-    _preferred_x: float | None
+    _caret_state_owner: PromptProjectionCaretStateOwner
 
     def set_cursor_positions(
         self,

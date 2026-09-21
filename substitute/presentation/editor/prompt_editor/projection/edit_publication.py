@@ -20,12 +20,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.editor.prompt_editor.core.projection.caret import (
-    PromptProjectionCaretState,
-)
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptLayoutIdentity,
 )
@@ -42,6 +38,7 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 
 from ..layout.contracts import PromptLayoutDamage
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .caret_state_owner import PromptProjectionCaretStateOwner
 from .frame_state import PromptProjectionFrameStatePublisher
 from .incremental_edit_contracts import PromptProjectionPlainTextApplyResult
 from .semantic_transition_strategy import PromptSemanticTransitionResult
@@ -57,9 +54,7 @@ PromptEditPublicationState = PromptEditorDocumentState[
 class PromptEditPublicationSink(Protocol):
     """Expose surface effects that remain outside revisioned edit state."""
 
-    _cursor_state: PromptProjectionCaretState
-    _anchor_state: PromptProjectionCaretState
-    _caret_rect_override: QRectF | None
+    _caret_state_owner: PromptProjectionCaretStateOwner
     _last_rendered_active_span_range: tuple[int, int] | None
 
     def _active_span_range(self) -> tuple[int, int] | None:
@@ -144,19 +139,22 @@ class PromptEditPublication:
         """Publish an accepted trailing insertion and remap caret state."""
 
         sink = self._sink
-        previous_cursor_state = sink._cursor_state
-        previous_anchor_state = sink._anchor_state
+        previous_cursor_state = sink._caret_state_owner.cursor_state
+        previous_anchor_state = sink._caret_state_owner.anchor_state
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
         sink._clear_diagnostic_fragment_cache(reason=cache_reason)
-        sink._cursor_state = projection_document.caret_map.resolve_state(
-            previous_cursor_state
-        )
-        sink._anchor_state = projection_document.caret_map.resolve_state(
-            previous_anchor_state
+        sink._caret_state_owner.replace_states(
+            cursor_state=projection_document.caret_map.resolve_state(
+                previous_cursor_state
+            ),
+            anchor_state=projection_document.caret_map.resolve_state(
+                previous_anchor_state
+            ),
+            clear_caret_rect_override=True,
+            reset_preferred_x=False,
         )
         sink._sync_editing_session_to_caret_states()
-        sink._caret_rect_override = None
         self._finish_trailing_publication()
 
     def publish_plain_delete(
@@ -282,19 +280,23 @@ class PromptEditPublication:
         """Publish one same-source semantic document and bounded frame damage."""
 
         sink = self._sink
-        previous_cursor_state = sink._cursor_state
-        previous_anchor_state = sink._anchor_state
+        previous_cursor_state = sink._caret_state_owner.cursor_state
+        previous_anchor_state = sink._caret_state_owner.anchor_state
         projection_document = result.projection_document
         self._editor_state.publish_projection(projection_document)
         sink._last_rendered_active_span_range = sink._active_span_range()
         sink._clear_diagnostic_fragment_cache(
             reason="projection_local_semantic_transition"
         )
-        sink._cursor_state = projection_document.caret_map.resolve_state(
-            previous_cursor_state
-        )
-        sink._anchor_state = projection_document.caret_map.resolve_state(
-            previous_anchor_state
+        sink._caret_state_owner.replace_states(
+            cursor_state=projection_document.caret_map.resolve_state(
+                previous_cursor_state
+            ),
+            anchor_state=projection_document.caret_map.resolve_state(
+                previous_anchor_state
+            ),
+            clear_caret_rect_override=True,
+            reset_preferred_x=False,
         )
         sink._sync_editing_session_to_caret_states()
         sink._rebuild_active_projection(commit_projection=True)

@@ -142,21 +142,24 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
         )
         self._editor_state.stage_edit_semantic(next_projection_semantic)
         if payload is not None:
-            self._caret_sink._cursor_state = payload.cursor_state
-            self._caret_sink._anchor_state = payload.anchor_state
-            self._caret_sink._sync_editing_session_to_caret_states()
+            next_cursor_state = payload.cursor_state
+            next_anchor_state = payload.anchor_state
             self._session.expanded_source_range = payload.expanded_source_range
         else:
-            self._caret_sink._cursor_state = PromptProjectionCaretState(
+            next_cursor_state = PromptProjectionCaretState(
                 source_position=commit.cursor_state.cursor_position
             )
-            self._caret_sink._anchor_state = PromptProjectionCaretState(
+            next_anchor_state = PromptProjectionCaretState(
                 source_position=commit.cursor_state.anchor_position
             )
-            self._caret_sink._sync_editing_session_to_caret_states()
             self._session.expanded_source_range = None
-        self._caret_sink._preferred_x = None
-        self._caret_sink._caret_rect_override = None
+        self._caret_sink._caret_state_owner.replace_states(
+            cursor_state=next_cursor_state,
+            anchor_state=next_anchor_state,
+            clear_caret_rect_override=True,
+            reset_preferred_x=True,
+        )
+        self._caret_sink._sync_editing_session_to_caret_states()
         self._source_document.sync_default_font(self._effect_sink.font())
         self._source_document.replace_text(state.source_text)
         self._effect_sink._mark_source_text_changed(
@@ -176,8 +179,8 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
             previous_document_view=previous_document_view,
             previous_render_plan=previous_render_plan,
             previous_deletion_overlay=previous_deletion_overlay,
-            next_cursor_state=self._caret_sink._cursor_state,
-            next_anchor_state=self._caret_sink._anchor_state,
+            next_cursor_state=self._caret_sink._caret_state_owner.cursor_state,
+            next_anchor_state=self._caret_sink._caret_state_owner.anchor_state,
             can_preserve_diagnostic_fragment_cache=False,
             projection_deferral_reason="history_restore",
             authoritative_semantic_current_before_edit=(

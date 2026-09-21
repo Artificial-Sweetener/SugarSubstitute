@@ -170,7 +170,7 @@ def test_projection_surface_lora_boundary_insert_keeps_inserted_text_plain(
     assert shifted_lora_token.source_start == lora_token.source_start
     assert shifted_lora_token.source_end == lora_token.source_end
     assert surface.cursor_position == insertion_position + 1
-    assert surface._cursor_state.token_id is None  # noqa: SLF001
+    assert surface._caret_state_owner.cursor_state.token_id is None  # noqa: SLF001
     assert [
         (run.kind.name, run.display_text, run.token_id)
         for run in surface.projection_document().runs

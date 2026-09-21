@@ -133,6 +133,7 @@ from .caret_movement_controller import (
     PromptProjectionCaretMovementController,
     PromptProjectionCaretMovementHost,
 )
+from .caret_state_owner import PromptProjectionCaretStateOwner
 from .caret_visual import (
     PromptSurfaceCaretVisualController,
     PromptSurfaceCaretVisualHost,
@@ -426,8 +427,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 0
             )
         )
-        self._cursor_state = initial_state
-        self._anchor_state = initial_state
+        self._caret_state_owner = PromptProjectionCaretStateOwner(initial_state)
         self._editing_enabled = True
         editing_runtime = editing_runtime_factory(self)
         self._edit_execution = editing_runtime.execution
@@ -461,9 +461,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             is_alive=qt_object_is_alive,
             parent=self,
         )
-        self._preferred_x: float | None = None
-        self._caret_rect_override: QRectF | None = None
-        self._skip_next_same_source_soft_wrap_move = False
         self._transient_edit_overlays = source_state_owners.transient_edit_overlays
         self._last_rendered_active_span_range: tuple[int, int] | None = None
         self._overlay_emphasis_accent_range: tuple[int, int] | None = None
@@ -493,7 +490,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
         )
         self._caret_movement_controller = PromptProjectionCaretMovementController(
-            cast(PromptProjectionCaretMovementHost, self)
+            cast(PromptProjectionCaretMovementHost, self),
+            state=self._caret_state_owner,
         )
         self._edit_pipeline = source_state_owners.edit_pipeline
         self._prompt_state_applier = source_state_owners.prompt_state_applier
@@ -736,8 +734,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._layout.frame.paint_input,
             identity=layout_identity,
         )
-        previous_cursor_state = self._cursor_state
-        previous_anchor_state = self._anchor_state
+        previous_cursor_state = self._caret_state_owner.cursor_state
+        previous_anchor_state = self._caret_state_owner.anchor_state
         self._display_mode = display_mode
         self._clear_reorder_projection_and_geometry_caches(
             reason="display_mode_changed"
@@ -1770,7 +1768,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return the token currently owning caret focus when present."""
 
         return self._editor_state.projection.document.token_by_id(
-            self._cursor_state.token_id
+            self._caret_state_owner.cursor_state.token_id
         )
 
     def token_at_viewport_position(
@@ -2466,8 +2464,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return PromptProjectionTextMutationContext(
             selection=self._selection(),
-            cursor_state=self._cursor_state,
-            anchor_state=self._anchor_state,
+            cursor_state=self._caret_state_owner.cursor_state,
+            anchor_state=self._caret_state_owner.anchor_state,
             tokens=tuple(self._editor_state.projection.document.tokens),
             editing_enabled=self._editing_enabled,
         )
@@ -2488,8 +2486,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         return PromptDeletionContext(
             source_text=self._editing_session.source_text,
             cursor_position=self.cursor_position,
-            cursor_state=self._cursor_state,
-            anchor_state=self._anchor_state,
+            cursor_state=self._caret_state_owner.cursor_state,
+            anchor_state=self._caret_state_owner.anchor_state,
             selection=self._selection(),
             projection_document=self._editor_state.projection.document,
             focused_token=token,
@@ -2561,14 +2559,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Synchronize source cursor ownership from projection caret metadata."""
 
         return self._editing_session.set_cursor_positions(
-            cursor_position=self._cursor_state.source_position,
-            anchor_position=self._anchor_state.source_position,
+            cursor_position=self._caret_state_owner.cursor_state.source_position,
+            anchor_position=self._caret_state_owner.anchor_state.source_position,
         )
 
     def _mark_source_edit_horizontal_movement_origin(self) -> None:
         """Make the next horizontal move leave same-source wrap affinity after edits."""
 
-        self._skip_next_same_source_soft_wrap_move = True
+        self._caret_state_owner.mark_source_edit_horizontal_movement_origin()
 
     def _set_caret_states(
         self,
@@ -2613,9 +2611,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
             anchor_position=resolved_anchor_state.source_position,
         ).clamped(len(self.toPlainText()))
         if (
-            self._cursor_state == resolved_cursor_state
-            and self._anchor_state == resolved_anchor_state
-            and self._caret_rect_override == caret_rect_override
+            self._caret_state_owner.matches(
+                cursor_state=resolved_cursor_state,
+                anchor_state=resolved_anchor_state,
+                caret_rect_override=caret_rect_override,
+            )
             and self._editing_session.cursor_state == next_editing_session_state
         ):
             self._ensure_caret_visible()
@@ -2629,14 +2629,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
             return
         self._clear_transient_caret_geometry()
         self._editing_session.set_cursor_state(next_editing_session_state)
-        self._cursor_state = resolved_cursor_state
-        self._anchor_state = resolved_anchor_state
-        self._caret_rect_override = (
-            QRectF(caret_rect_override) if caret_rect_override is not None else None
+        self._caret_state_owner.publish(
+            cursor_state=resolved_cursor_state,
+            anchor_state=resolved_anchor_state,
+            caret_rect_override=caret_rect_override,
+            reset_preferred_x=reset_preferred_x,
         )
-        if reset_preferred_x:
-            self._preferred_x = None
-        self._skip_next_same_source_soft_wrap_move = False
         if collapse_expanded_token and self._session.expanded_source_range is not None:
             self._collapse_expanded_token_if_possible()
         self._caret_autocomplete_preview_coordinator.reconcile_after_caret_state_change(
@@ -2964,8 +2962,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Keep the projection layout width in sync with the viewport."""
 
         super().resizeEvent(event)
-        self._preferred_x = None
-        self._caret_rect_override = None
+        self._caret_state_owner.clear_visual_affinity(reset_preferred_x=True)
         if not self._projection_freshness_controller.has_stale_projection_geometry():
             self._clear_transient_caret_geometry()
         self._clear_reorder_projection_and_geometry_caches(reason="resize")
@@ -3291,11 +3288,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         previous_caret_rect = self._current_caret_rect()
         previous_selection = self._selection()
-        self._cursor_state = cursor_state
-        self._anchor_state = anchor_state
+        self._caret_state_owner.replace_states(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+            clear_caret_rect_override=True,
+            reset_preferred_x=True,
+        )
         self._sync_editing_session_to_caret_states()
-        self._caret_rect_override = None
-        self._preferred_x = None
         self._ensure_caret_visible()
         self._selection_layer_owner.refresh()
         self._diagnostic_layer_owner.refresh(reason="selection_changed")
@@ -3327,8 +3326,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not qt_object_is_alive(self):
             return
         self._cancel_pending_projection_update()
-        previous_cursor_state = self._cursor_state
-        previous_anchor_state = self._anchor_state
+        previous_cursor_state = self._caret_state_owner.cursor_state
+        previous_anchor_state = self._caret_state_owner.anchor_state
         rebuild_started_at = projection_observability_started_at()
         rebuild_result = self._projection_applicator.rebuild_projection(
             self._editor_state.edit_semantic.document,
@@ -3370,10 +3369,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._editor_state.publish_projection(rebuild_result.projection_document)
         self._last_rendered_active_span_range = rebuild_result.active_span_range
         self._clear_diagnostic_fragment_cache(reason=invalidation_reason)
-        self._cursor_state = rebuild_result.cursor_state
-        self._anchor_state = rebuild_result.anchor_state
+        self._caret_state_owner.replace_states(
+            cursor_state=rebuild_result.cursor_state,
+            anchor_state=rebuild_result.anchor_state,
+            clear_caret_rect_override=True,
+            reset_preferred_x=False,
+        )
         self._sync_editing_session_to_caret_states()
-        self._caret_rect_override = None
         self._rebuild_active_projection(commit_projection=True)
         self._lora_feature_delegate.prewarm_visible_banners(self._layout.frame.geometry)
         self._clear_transient_caret_geometry()
@@ -3525,8 +3527,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         paint_input = self._layout.frame.paint_input
         return PromptProjectionUndoPayload(
-            cursor_state=self._cursor_state,
-            anchor_state=self._anchor_state,
+            cursor_state=self._caret_state_owner.cursor_state,
+            anchor_state=self._caret_state_owner.anchor_state,
             expanded_source_range=self._session.expanded_source_range,
             document_view=self._editor_state.projection_semantic.document,
             render_plan=self._editor_state.projection_semantic.render_plan,
@@ -3547,8 +3549,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return projection state that contributes to undo snapshot equality."""
 
         return (
-            self._cursor_state,
-            self._anchor_state,
+            self._caret_state_owner.cursor_state,
+            self._caret_state_owner.anchor_state,
             self._session.expanded_source_range,
         )
 
@@ -3589,7 +3591,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Persist one layout-resolved caret state as the live cursor position."""
 
-        next_anchor_state = self._anchor_state if keep_anchor else caret_state
+        next_anchor_state = (
+            self._caret_state_owner.anchor_state if keep_anchor else caret_state
+        )
         self._set_caret_states(
             cursor_state=caret_state,
             anchor_state=next_anchor_state,
@@ -3603,10 +3607,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if transient_rect is not None:
             self._log_transient_caret_used(operation="document_rect")
             return transient_rect
-        if self._caret_rect_override is not None:
-            return QRectF(self._caret_rect_override)
+        caret_rect_override = self._caret_state_owner.caret_rect_override
+        if caret_rect_override is not None:
+            return caret_rect_override
         return self._layout.frame.geometry.caret.cursor_rect(
-            self._cursor_state,
+            self._caret_state_owner.cursor_state,
             scroll_offset=0.0,
         )
 

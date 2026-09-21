@@ -46,6 +46,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from substitute.presentation.editor.prompt_editor.projection.prepared_frame import (
     PromptProjectionPreparedFrame,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_state_owner import (
+    PromptProjectionCaretStateOwner,
+)
 from .pointer_ports import PromptSurfacePointerInteractions
 
 
@@ -59,7 +62,7 @@ class _PromptSurfaceMouseProjectionSession(Protocol):
 class PromptSurfaceMouseHost(Protocol):
     """Expose bounded surface operations needed by interim pointer routing."""
 
-    _anchor_state: PromptProjectionCaretState
+    _caret_state_owner: PromptProjectionCaretStateOwner
     _focus_host: QWidget | None
     _session: _PromptSurfaceMouseProjectionSession
     _pointer_interactions: PromptSurfacePointerInteractions
@@ -260,7 +263,7 @@ class PromptSurfaceMouseHandler:
         self._mouse_selecting = True
         caret_center_y = host._current_caret_document_rect().center().y()
         self._drag_selection_session = _DragSelectionSession(
-            anchor_state=host._anchor_state,
+            anchor_state=host._caret_state_owner.anchor_state,
             anchor_line_index=geometry.caret.line_index_for_document_y(caret_center_y),
             preferred_line_index=geometry.caret.line_index_for_document_y(
                 caret_center_y
@@ -429,7 +432,9 @@ class PromptSurfaceMouseHandler:
     ) -> None:
         """Persist one layout-resolved caret state as the live cursor position."""
 
-        next_anchor_state = self._host._anchor_state if keep_anchor else caret_state
+        next_anchor_state = (
+            self._host._caret_state_owner.anchor_state if keep_anchor else caret_state
+        )
         self._host._set_caret_states(
             cursor_state=caret_state,
             anchor_state=next_anchor_state,
