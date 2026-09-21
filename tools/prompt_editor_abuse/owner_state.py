@@ -353,7 +353,8 @@ def _region_projection_ownership(
         if structural_line.caret_stops:
             return f"{location}:structural_caret_stops_present"
 
-    chrome = getattr(surface, "_region_chrome", None)
+    chrome_presentation = getattr(surface, "_region_chrome_presentation", None)
+    chrome = getattr(chrome_presentation, "chrome", None)
     snapshot = None if chrome is None else chrome.snapshot_for(output)
     if not separators:
         if snapshot is not None:
@@ -410,7 +411,8 @@ def _raw_region_projection_mismatch(
         return f"{layout_name}:raw_structural_runs_present:{len(structural_runs)}"
     if document.projection_text != document.source_text:
         return f"{layout_name}:raw_projection_not_literal"
-    chrome = getattr(surface, "_region_chrome", None)
+    chrome_presentation = getattr(surface, "_region_chrome_presentation", None)
+    chrome = getattr(chrome_presentation, "chrome", None)
     snapshot = None if chrome is None else chrome.snapshot_for(output)
     if snapshot is None:
         return None

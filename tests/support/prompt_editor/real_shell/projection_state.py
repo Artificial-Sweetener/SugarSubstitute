@@ -103,7 +103,12 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "projection_document",
         None,
     )
-    region_chrome = getattr(surface, "_region_chrome", None)
+    region_chrome_presentation = getattr(
+        surface,
+        "_region_chrome_presentation",
+        None,
+    )
+    region_chrome = getattr(region_chrome_presentation, "chrome", None)
     region_chrome_snapshot_for = getattr(region_chrome, "snapshot_for", None)
     region_chrome_snapshot = (
         region_chrome_snapshot_for(layout_output)
