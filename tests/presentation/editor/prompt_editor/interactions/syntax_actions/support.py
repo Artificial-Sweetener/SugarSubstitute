@@ -25,9 +25,9 @@ from PySide6.QtCore import Qt
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutation,
     PromptMutationService,
 )
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from tests.presentation.editor.prompt_editor.interactions.support.collaborators import (
     SyntaxRendererCoordinatorDouble,
     autocomplete_double,

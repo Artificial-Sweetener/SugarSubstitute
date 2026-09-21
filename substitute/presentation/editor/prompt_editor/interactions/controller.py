@@ -31,9 +31,9 @@ from substitute.application.prompt_editor.document.views import (
     PromptSyntaxSpanView,
 )
 from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutation,
     PromptMutationService,
 )
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
 )

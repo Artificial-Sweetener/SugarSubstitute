@@ -14,31 +14,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Coordinate prompt-domain mutations for the presentation layer."""
+"""Compose prompt mutation-family owners behind one application boundary."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
-
-from substitute.domain.prompt.document.models import (
-    PromptDocument,
-    PromptMutationResult,
-)
-from substitute.domain.prompt.document.ranges import SourceRange
-from substitute.domain.prompt.emphasis.operations import (
-    adjust_lora_weight,
-    decrease_emphasis,
-    increase_emphasis,
-    set_emphasis_weight,
-    set_lora_weight,
-)
-from substitute.domain.prompt.reorder.mutations import reorder_segments
-from substitute.domain.prompt.reorder.models import (
-    PromptGapBlankLineDropTarget as DomainPromptGapBlankLineDropTarget,
-    PromptLineDropTarget as DomainPromptLineDropTarget,
-)
-from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
@@ -47,55 +27,47 @@ from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
 )
-from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.editing.emphasis_mutations import (
+    PromptEmphasisMutationService,
+)
+from substitute.application.prompt_editor.editing.lora_mutations import (
+    PromptLoraMutationService,
+)
+from substitute.application.prompt_editor.editing.mutation_result import (
+    PromptMutation,
+    PromptMutationProjector,
+)
+from substitute.application.prompt_editor.editing.reorder_mutations import (
+    PromptReorderMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_action_router import (
+    PromptSyntaxActionRouter,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptSyntaxAction,
+)
+from substitute.application.prompt_editor.editing.wildcard_mutations import (
+    PromptWildcardMutationService,
+)
 from substitute.application.prompt_editor.reorder.projection import (
     PromptReorderProjectionService,
-)
-from substitute.application.prompt_editor.reorder.serialization import (
-    PromptReorderSerializationService,
-)
-from substitute.application.prompt_editor.reorder.views import (
-    PromptLineDropTarget,
-    PromptReorderDropTarget,
-    PromptReorderLayoutView,
-    PromptReorderStateView,
 )
 from substitute.application.prompt_editor.reorder.semantics import (
     PromptSemanticReorderProjectionService,
     PromptSemanticReorderSerializationService,
 )
-from substitute.application.prompt_editor.editing.syntax_actions import (
-    PromptAdjustEmphasisAction,
-    PromptAdjustEmphasisContentAction,
-    PromptAdjustLoraWeightAction,
-    PromptAdjustWildcardTagAction,
-    PromptConsumeSyntaxAction,
-    PromptSetEmphasisWeightAction,
-    PromptSetEmphasisWeightContentAction,
-    PromptSetLoraWeightAction,
-    PromptSetWildcardTagAction,
-    PromptSyntaxAction,
+from substitute.application.prompt_editor.reorder.serialization import (
+    PromptReorderSerializationService,
 )
-from substitute.application.prompt_editor.editing.structured_syntax import (
-    PromptLogicalSyntaxMutation,
-    PromptStructuredSyntaxMutationAdapter,
+from substitute.application.prompt_editor.reorder.views import (
+    PromptReorderDropTarget,
+    PromptReorderLayoutView,
+    PromptReorderStateView,
 )
-
-_LOGGER = get_logger("application.prompt_editor.editing.mutation_service")
-
-
-@dataclass(frozen=True, slots=True)
-class PromptMutation:
-    """Represent one prompt mutation ready for editor text replacement and refresh."""
-
-    text: str
-    selection_start: int | None
-    selection_end: int | None
-    document_view: PromptDocumentView
 
 
 class PromptMutationService:
-    """Apply prompt mutations and return typed editor updates."""
+    """Expose the complete prompt mutation use case through focused owners."""
 
     def __init__(
         self,
@@ -105,26 +77,47 @@ class PromptMutationService:
         reorder_serialization_service: PromptReorderSerializationService | None = None,
         document_semantics: PromptDocumentSemantics | None = None,
     ) -> None:
-        """Store focused prompt document collaborators for mutation projection."""
+        """Compose syntax-family, reorder, and result-projection collaborators."""
 
-        self._document_projector = document_projector or PromptDocumentProjector()
-        self._document_semantics = (
-            document_semantics or OrdinaryPromptDocumentSemantics()
+        resolved_document_projector = document_projector or PromptDocumentProjector()
+        resolved_semantics = document_semantics or OrdinaryPromptDocumentSemantics()
+        mutation_projector = PromptMutationProjector(resolved_document_projector)
+        self._emphasis_mutations = PromptEmphasisMutationService(
+            resolved_document_projector,
+            mutation_projector,
         )
-        self._structured_syntax_mutations = PromptStructuredSyntaxMutationAdapter(
-            self._document_semantics
+        self._lora_mutations = PromptLoraMutationService(
+            resolved_document_projector,
+            mutation_projector,
         )
-        self._reorder_projection_service = reorder_projection_service or (
+        self._wildcard_mutations = PromptWildcardMutationService(
+            resolved_document_projector,
+            mutation_projector,
+        )
+        resolved_reorder_projection = reorder_projection_service or (
             PromptSemanticReorderProjectionService(
-                document_projector=self._document_projector,
-                document_semantics=self._document_semantics,
+                document_projector=resolved_document_projector,
+                document_semantics=resolved_semantics,
             )
         )
-        self._reorder_serialization_service = reorder_serialization_service or (
+        resolved_reorder_serialization = reorder_serialization_service or (
             PromptSemanticReorderSerializationService(
-                document_projector=self._document_projector,
-                document_semantics=self._document_semantics,
+                document_projector=resolved_document_projector,
+                document_semantics=resolved_semantics,
             )
+        )
+        self._reorder_mutations = PromptReorderMutationService(
+            document_projector=resolved_document_projector,
+            mutation_projector=mutation_projector,
+            reorder_projection_service=resolved_reorder_projection,
+            reorder_serialization_service=resolved_reorder_serialization,
+        )
+        self._syntax_action_router = PromptSyntaxActionRouter(
+            document_semantics=resolved_semantics,
+            mutation_projector=mutation_projector,
+            emphasis_mutations=self._emphasis_mutations,
+            lora_mutations=self._lora_mutations,
+            wildcard_mutations=self._wildcard_mutations,
         )
 
     def apply_syntax_action(
@@ -132,191 +125,9 @@ class PromptMutationService:
         text: str,
         action: PromptSyntaxAction,
     ) -> PromptMutation | None:
-        """Apply one typed syntax action produced by a syntax-aware renderer."""
+        """Route one typed syntax action to its authoritative family owner."""
 
-        if self._document_semantics.uses_structured_prompt_values:
-            mutation = self._structured_syntax_mutations.apply(
-                text,
-                action,
-                apply_logical_action=self._apply_logical_syntax_action,
-            )
-            if mutation is None:
-                return None
-            return PromptMutation(
-                text=mutation.text,
-                selection_start=mutation.selection_start,
-                selection_end=mutation.selection_end,
-                document_view=self._document_projector.build_document_view(
-                    mutation.text
-                ),
-            )
-        return self._apply_unscoped_syntax_action(text, action)
-
-    def _apply_logical_syntax_action(
-        self,
-        text: str,
-        action: PromptSyntaxAction,
-    ) -> PromptLogicalSyntaxMutation | None:
-        """Return the coordinate fields from one ordinary logical mutation."""
-
-        mutation = self._apply_unscoped_syntax_action(text, action)
-        if mutation is None:
-            return None
-        return PromptLogicalSyntaxMutation(
-            text=mutation.text,
-            selection_start=mutation.selection_start,
-            selection_end=mutation.selection_end,
-        )
-
-    def _apply_unscoped_syntax_action(
-        self,
-        text: str,
-        action: PromptSyntaxAction,
-    ) -> PromptMutation | None:
-        """Apply one syntax action to an ordinary logical prompt string."""
-
-        if isinstance(action, PromptAdjustEmphasisAction):
-            mutation = self.adjust_emphasis_for_outer_range(
-                text,
-                outer_start=action.outer_start,
-                outer_end=action.outer_end,
-                delta=action.delta,
-            )
-            if mutation is None:
-                log_debug(
-                    _LOGGER,
-                    "Prompt syntax action target is stale.",
-                    action_type=type(action).__name__,
-                    syntax_kind=action.syntax_kind,
-                    outer_start=action.outer_start,
-                    outer_end=action.outer_end,
-                    prompt_length=len(text),
-                )
-            return mutation
-
-        if isinstance(action, PromptAdjustEmphasisContentAction):
-            return self.adjust_emphasis(
-                text,
-                selection_start=action.content_start,
-                selection_end=action.content_end,
-                delta=action.delta,
-            )
-
-        if isinstance(action, PromptSetEmphasisWeightAction):
-            mutation = self.set_emphasis_weight_for_outer_range(
-                text,
-                outer_start=action.outer_start,
-                outer_end=action.outer_end,
-                weight=action.weight,
-            )
-            if mutation is None:
-                log_debug(
-                    _LOGGER,
-                    "Prompt syntax action target is stale.",
-                    action_type=type(action).__name__,
-                    syntax_kind=action.syntax_kind,
-                    outer_start=action.outer_start,
-                    outer_end=action.outer_end,
-                    prompt_length=len(text),
-                )
-            return mutation
-
-        if isinstance(action, PromptSetEmphasisWeightContentAction):
-            return self.set_emphasis_weight(
-                text,
-                selection_start=action.content_start,
-                selection_end=action.content_end,
-                weight=action.weight,
-            )
-
-        if isinstance(action, PromptAdjustLoraWeightAction):
-            mutation = self.adjust_lora_weight_for_outer_range(
-                text,
-                outer_start=action.outer_start,
-                outer_end=action.outer_end,
-                delta=action.delta,
-            )
-            if mutation is None:
-                log_debug(
-                    _LOGGER,
-                    "Prompt syntax action target is stale.",
-                    action_type=type(action).__name__,
-                    syntax_kind=action.syntax_kind,
-                    outer_start=action.outer_start,
-                    outer_end=action.outer_end,
-                    prompt_length=len(text),
-                )
-            return mutation
-
-        if isinstance(action, PromptSetLoraWeightAction):
-            mutation = self.set_lora_weight_for_outer_range(
-                text,
-                outer_start=action.outer_start,
-                outer_end=action.outer_end,
-                weight=action.weight,
-            )
-            if mutation is None:
-                log_debug(
-                    _LOGGER,
-                    "Prompt syntax action target is stale.",
-                    action_type=type(action).__name__,
-                    syntax_kind=action.syntax_kind,
-                    outer_start=action.outer_start,
-                    outer_end=action.outer_end,
-                    prompt_length=len(text),
-                )
-            return mutation
-
-        if isinstance(action, PromptSetWildcardTagAction):
-            mutation = self.set_wildcard_tag_for_outer_range(
-                text,
-                outer_start=action.outer_start,
-                outer_end=action.outer_end,
-                tag=action.tag,
-            )
-            if mutation is None:
-                log_debug(
-                    _LOGGER,
-                    "Prompt syntax action target is stale or invalid.",
-                    action_type=type(action).__name__,
-                    syntax_kind=action.syntax_kind,
-                    outer_start=action.outer_start,
-                    outer_end=action.outer_end,
-                    prompt_length=len(text),
-                )
-            return mutation
-
-        if isinstance(action, PromptAdjustWildcardTagAction):
-            mutation = self.adjust_wildcard_numeric_tag_for_outer_range(
-                text,
-                outer_start=action.outer_start,
-                outer_end=action.outer_end,
-                current_display_tag=action.current_display_tag,
-                delta=action.delta,
-            )
-            if mutation is None:
-                log_debug(
-                    _LOGGER,
-                    "Prompt syntax action target is stale or not numeric.",
-                    action_type=type(action).__name__,
-                    syntax_kind=action.syntax_kind,
-                    outer_start=action.outer_start,
-                    outer_end=action.outer_end,
-                    prompt_length=len(text),
-                )
-            return mutation
-
-        if isinstance(action, PromptConsumeSyntaxAction):
-            return None
-
-        log_warning(
-            _LOGGER,
-            "Unsupported prompt syntax action.",
-            action_type=type(action).__name__,
-            syntax_kind=_syntax_kind_for_action(action),
-            prompt_length=len(text),
-        )
-        return None
+        return self._syntax_action_router.apply(text, action)
 
     def adjust_emphasis(
         self,
@@ -328,15 +139,12 @@ class PromptMutationService:
     ) -> PromptMutation:
         """Increase or decrease emphasis around the selected text."""
 
-        document = self._document_projector.parse_document(text)
-        selection_range = SourceRange(selection_start, selection_end)
-        step = _to_decimal(delta)
-        result = (
-            increase_emphasis(document, selection_range, step=step)
-            if step >= Decimal("0")
-            else decrease_emphasis(document, selection_range, step=abs(step))
+        return self._emphasis_mutations.adjust(
+            text,
+            selection_start=selection_start,
+            selection_end=selection_end,
+            delta=delta,
         )
-        return self._mutation_from_result(result)
 
     def set_emphasis_weight(
         self,
@@ -346,16 +154,14 @@ class PromptMutationService:
         selection_end: int,
         weight: float | Decimal,
     ) -> PromptMutation:
-        """Set emphasis to one exact weight over the supplied content range."""
+        """Set emphasis to one exact weight over a content range."""
 
-        document = self._document_projector.parse_document(text)
-        selection_range = SourceRange(selection_start, selection_end)
-        result = set_emphasis_weight(
-            document,
-            selection_range,
-            weight=_to_decimal(weight),
+        return self._emphasis_mutations.set_weight(
+            text,
+            selection_start=selection_start,
+            selection_end=selection_end,
+            weight=weight,
         )
-        return self._mutation_from_result(result)
 
     def adjust_emphasis_for_outer_range(
         self,
@@ -365,21 +171,14 @@ class PromptMutationService:
         outer_end: int,
         delta: float | Decimal,
     ) -> PromptMutation | None:
-        """Adjust the emphasis span identified by one exact outer source range."""
+        """Adjust the emphasis span matching one exact outer source range."""
 
-        document = self._document_projector.parse_document(text)
-        target_range = SourceRange(outer_start, outer_end)
-        span = document.emphasis_with_outer_range(target_range)
-        if span is None:
-            return None
-
-        step = _to_decimal(delta)
-        result = (
-            increase_emphasis(document, span.content_range, step=step)
-            if step >= Decimal("0")
-            else decrease_emphasis(document, span.content_range, step=abs(step))
+        return self._emphasis_mutations.adjust_outer_range(
+            text,
+            outer_start=outer_start,
+            outer_end=outer_end,
+            delta=delta,
         )
-        return self._mutation_from_result(result)
 
     def set_emphasis_weight_for_outer_range(
         self,
@@ -389,19 +188,14 @@ class PromptMutationService:
         outer_end: int,
         weight: float | Decimal,
     ) -> PromptMutation | None:
-        """Set one exact weight on the emphasis shell matching the supplied outer range."""
+        """Set the weight of the emphasis span matching one outer range."""
 
-        document = self._document_projector.parse_document(text)
-        target_range = SourceRange(outer_start, outer_end)
-        span = document.emphasis_with_outer_range(target_range)
-        if span is None:
-            return None
-        result = set_emphasis_weight(
-            document,
-            span.content_range,
-            weight=_to_decimal(weight),
+        return self._emphasis_mutations.set_weight_for_outer_range(
+            text,
+            outer_start=outer_start,
+            outer_end=outer_end,
+            weight=weight,
         )
-        return self._mutation_from_result(result)
 
     def adjust_lora_weight_for_outer_range(
         self,
@@ -411,19 +205,14 @@ class PromptMutationService:
         outer_end: int,
         delta: float | Decimal,
     ) -> PromptMutation | None:
-        """Adjust the first weight for the LoRA span matching one outer range."""
+        """Adjust the first weight for the LoRA matching one outer range."""
 
-        document = self._document_projector.parse_document(text)
-        target_range = SourceRange(outer_start, outer_end)
-        span = document.lora_with_outer_range(target_range)
-        if span is None:
-            return None
-        result = adjust_lora_weight(
-            document,
-            span,
-            delta=_to_decimal(delta),
+        return self._lora_mutations.adjust_weight_for_outer_range(
+            text,
+            outer_start=outer_start,
+            outer_end=outer_end,
+            delta=delta,
         )
-        return self._mutation_from_result(result)
 
     def set_lora_weight_for_outer_range(
         self,
@@ -433,19 +222,14 @@ class PromptMutationService:
         outer_end: int,
         weight: float | Decimal,
     ) -> PromptMutation | None:
-        """Set the first weight for the LoRA span matching one outer range."""
+        """Set the first weight for the LoRA matching one outer range."""
 
-        document = self._document_projector.parse_document(text)
-        target_range = SourceRange(outer_start, outer_end)
-        span = document.lora_with_outer_range(target_range)
-        if span is None:
-            return None
-        result = set_lora_weight(
-            document,
-            span,
-            weight=_to_decimal(weight),
+        return self._lora_mutations.set_weight_for_outer_range(
+            text,
+            outer_start=outer_start,
+            outer_end=outer_end,
+            weight=weight,
         )
-        return self._mutation_from_result(result)
 
     def set_wildcard_tag_for_outer_range(
         self,
@@ -455,23 +239,13 @@ class PromptMutationService:
         outer_end: int,
         tag: str,
     ) -> PromptMutation | None:
-        """Set or replace the wildcard tag for one exact placeholder range."""
+        """Set or replace the tag for one wildcard placeholder range."""
 
-        if not _is_valid_wildcard_tag(tag):
-            return None
-        document = self._document_projector.parse_document(text)
-        span = document.wildcard_with_outer_range(SourceRange(outer_start, outer_end))
-        if span is None:
-            return None
-        new_text, selection_position = _replace_wildcard_tag(
+        return self._wildcard_mutations.set_tag_for_outer_range(
             text,
-            content_range=span.content_range,
+            outer_start=outer_start,
+            outer_end=outer_end,
             tag=tag,
-        )
-        return self._mutation_from_document(
-            text=new_text,
-            document=self._document_projector.parse_document(new_text),
-            selection_range=SourceRange(selection_position, selection_position),
         )
 
     def adjust_wildcard_numeric_tag_for_outer_range(
@@ -483,22 +257,14 @@ class PromptMutationService:
         current_display_tag: str,
         delta: int,
     ) -> PromptMutation | None:
-        """Persist a stepped numeric wildcard group tag for one placeholder range."""
+        """Persist a stepped numeric group tag for one wildcard range."""
 
-        if not _is_positive_integer_text(current_display_tag):
-            return None
-        document = self._document_projector.parse_document(text)
-        span = document.wildcard_with_outer_range(SourceRange(outer_start, outer_end))
-        if span is None:
-            return None
-        if span.tag is not None and not _is_positive_integer_text(span.tag):
-            return None
-        adjusted_tag = str(max(1, int(current_display_tag) + delta))
-        return self.set_wildcard_tag_for_outer_range(
+        return self._wildcard_mutations.adjust_numeric_tag_for_outer_range(
             text,
             outer_start=outer_start,
             outer_end=outer_end,
-            tag=adjusted_tag,
+            current_display_tag=current_display_tag,
+            delta=delta,
         )
 
     def reorder_chips(
@@ -508,15 +274,13 @@ class PromptMutationService:
         dragged_chip_index: int,
         drop_target: PromptReorderDropTarget,
     ) -> PromptMutation:
-        """Reorder prompt chips by applying one typed row/gap drop target."""
+        """Reorder prompt chips by applying one typed row or gap target."""
 
-        document = self._document_projector.parse_document(text)
-        result = reorder_segments(
-            document,
-            dragged_segment_index=dragged_chip_index,
-            drop_target=_domain_drop_target_from_application(drop_target),
+        return self._reorder_mutations.reorder_chips(
+            text,
+            dragged_chip_index=dragged_chip_index,
+            drop_target=drop_target,
         )
-        return self._mutation_from_result(result)
 
     def reorder_layout(
         self,
@@ -527,26 +291,10 @@ class PromptMutationService:
     ) -> PromptMutation:
         """Commit one in-session reorder layout back into prompt text."""
 
-        current_document_view = self._document_projector.build_document_view(text)
-        preview_snapshot = (
-            self._reorder_serialization_service.build_reorder_preview_snapshot(
-                current_document_view,
-                layout_view,
-                include_edge_gaps=False,
-            )
-        )
-        selection_range = None
-        if selected_chip_index is not None:
-            selected_range = preview_snapshot.chip_ranges_by_index.get(
-                selected_chip_index
-            )
-            if selected_range is not None:
-                selection_range = SourceRange(*selected_range)
-        mutation_text = preview_snapshot.text
-        return self._mutation_from_document(
-            text=mutation_text,
-            document=self._document_projector.parse_document(mutation_text),
-            selection_range=selection_range,
+        return self._reorder_mutations.reorder_layout(
+            text,
+            layout_view=layout_view,
+            selected_chip_index=selected_chip_index,
         )
 
     def reorder_state(
@@ -558,136 +306,11 @@ class PromptMutationService:
     ) -> PromptMutation:
         """Commit authoritative reorder source state back into prompt text."""
 
-        current_document_view = self._document_projector.build_document_view(text)
-        layout_view = (
-            self._reorder_projection_service.build_reorder_layout_view_from_state(
-                reorder_state
-            )
-        )
-        preview_snapshot = self._reorder_serialization_service.build_reorder_preview_snapshot_from_state(
-            current_document_view,
-            reorder_state,
-            layout_view=layout_view,
-            include_edge_gaps=False,
-        )
-        selection_range = None
-        if selected_chip_index is not None:
-            selected_range = preview_snapshot.chip_ranges_by_index.get(
-                selected_chip_index
-            )
-            if selected_range is not None:
-                selection_range = SourceRange(*selected_range)
-        mutation_text = preview_snapshot.text
-        return self._mutation_from_document(
-            text=mutation_text,
-            document=self._document_projector.parse_document(mutation_text),
-            selection_range=selection_range,
-        )
-
-    def _mutation_from_result(self, result: PromptMutationResult) -> PromptMutation:
-        """Convert one domain mutation result into the application mutation view."""
-
-        return self._mutation_from_document(
-            text=result.text,
-            document=result.document,
-            selection_range=result.selection_range,
-        )
-
-    def _mutation_from_document(
-        self,
-        *,
-        text: str,
-        document: PromptDocument,
-        selection_range: SourceRange | None,
-    ) -> PromptMutation:
-        """Build one prompt mutation from a domain document and optional selection."""
-
-        document_view = self._document_projector.build_document_view_from_document(
-            document
-        )
-        return PromptMutation(
-            text=text,
-            selection_start=None if selection_range is None else selection_range.start,
-            selection_end=None if selection_range is None else selection_range.end,
-            document_view=document_view,
+        return self._reorder_mutations.reorder_state(
+            text,
+            reorder_state=reorder_state,
+            selected_chip_index=selected_chip_index,
         )
 
 
-def _to_decimal(value: float | Decimal) -> Decimal:
-    """Convert one numeric prompt-editor delta into Decimal form."""
-
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
-
-
-def _replace_wildcard_tag(
-    text: str,
-    *,
-    content_range: SourceRange,
-    tag: str,
-) -> tuple[str, int]:
-    """Return text with one wildcard content range rewritten to carry the tag."""
-
-    content = text[content_range.start : content_range.end]
-    base_content, _, _ = content.partition("|")
-    replacement = f"{base_content}|{tag}"
-    selection_position = content_range.start + len(replacement)
-    return (
-        text[: content_range.start] + replacement + text[content_range.end :],
-        selection_position,
-    )
-
-
-def _is_valid_wildcard_tag(tag: str) -> bool:
-    """Return whether one tag string can be parsed as a wildcard tag suffix."""
-
-    return bool(tag) and tag.strip() == tag
-
-
-def _is_positive_integer_text(value: str) -> bool:
-    """Return whether one string is a strict positive integer."""
-
-    return (
-        value.isdecimal()
-        and int(value) > 0
-        and not (len(value) > 1 and value.startswith("0"))
-    )
-
-
-def _syntax_kind_for_action(action: PromptSyntaxAction) -> str:
-    """Return the syntax-kind label exposed by one typed syntax action."""
-
-    return getattr(action, "syntax_kind", "unknown")
-
-
-def _domain_drop_target_from_application(
-    drop_target: PromptReorderDropTarget,
-) -> DomainPromptLineDropTarget | DomainPromptGapBlankLineDropTarget:
-    """Convert one application drop target into the domain reorder target type."""
-
-    if isinstance(drop_target, PromptLineDropTarget):
-        return DomainPromptLineDropTarget(
-            row_index=drop_target.row_index,
-            insertion_index=drop_target.insertion_index,
-        )
-    return DomainPromptGapBlankLineDropTarget(
-        gap_index=drop_target.gap_index,
-        blank_line_index=drop_target.blank_line_index,
-    )
-
-
-__all__ = [
-    "PromptAdjustWildcardTagAction",
-    "PromptAdjustLoraWeightAction",
-    "PromptAdjustEmphasisAction",
-    "PromptAdjustEmphasisContentAction",
-    "PromptConsumeSyntaxAction",
-    "PromptMutation",
-    "PromptMutationService",
-    "PromptSetEmphasisWeightAction",
-    "PromptSetEmphasisWeightContentAction",
-    "PromptSetLoraWeightAction",
-    "PromptSetWildcardTagAction",
-    "PromptSyntaxAction",
-]
+__all__ = ["PromptMutationService"]

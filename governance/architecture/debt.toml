@@ -213,22 +213,6 @@ responsibilities = [
 next_extraction = "Extract toolbar and serialization projections from override mutation and workflow application."
 
 [[debts]]
-id = "SS-ARCH-018"
-owner = "prompt mutation"
-paths = ["substitute/application/prompt_editor/editing/mutation_service.py"]
-fingerprint = "sha256:9367a8b86bca4b669fd7ac335b6a9e3ee45258cd4ef3d19a367a884af5bff936"
-issue = "chore:SS-ARCH-018"
-review_by = 2026-12-15
-responsibilities = [
-  "generic syntax-action routing",
-  "emphasis weight mutation",
-  "LoRA and wildcard mutation",
-  "chip and layout reordering",
-  "application-to-domain mutation adaptation",
-]
-next_extraction = "Extract syntax-family mutation handlers and reorder mutation behind the common PromptMutation result contract."
-
-[[debts]]
 id = "SS-ARCH-021"
 owner = "recipe model resolution"
 paths = ["substitute/application/recipes/model_load_resolution.py"]

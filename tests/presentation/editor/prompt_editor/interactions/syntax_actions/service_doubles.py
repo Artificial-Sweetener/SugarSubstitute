@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import cast
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
-from substitute.application.prompt_editor.editing.mutation_service import PromptMutation
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 
 
 class MutationServiceDouble:
