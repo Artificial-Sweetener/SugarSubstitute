@@ -57,14 +57,6 @@ PromptEditPublicationState = PromptEditorDocumentState[
 class PromptEditPublicationSink(Protocol):
     """Expose surface effects that remain outside revisioned edit state."""
 
-    _last_rendered_active_span_range: tuple[int, int] | None
-
-    def _active_span_range(self) -> tuple[int, int] | None:
-        """Return the active projected span range."""
-
-    def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
-        """Refresh prepared paint state after frame publication."""
-
     def _update_incremental_plain_text_projection_paint(
         self,
         layout_result: PromptLayoutDamage,
@@ -89,6 +81,9 @@ class PromptEditPublication:
         caret_publication: PromptProjectionCaretPublicationOwner,
         overlays: PromptProjectionTransientEditOverlayController,
         rebuild_projection: Callable[[], None],
+        active_span_range: Callable[[], tuple[int, int] | None],
+        publish_active_span_range: Callable[[tuple[int, int] | None], None],
+        rebuild_active_projection: Callable[[bool], None],
     ) -> None:
         """Store explicit revisioned state and the remaining surface effect sink."""
 
@@ -100,6 +95,9 @@ class PromptEditPublication:
         self._caret_publication = caret_publication
         self._overlays = overlays
         self._rebuild_projection = rebuild_projection
+        self._active_span_range = active_span_range
+        self._publish_active_span_range = publish_active_span_range
+        self._rebuild_active_projection = rebuild_active_projection
 
     def current_layout_identity(self) -> PromptLayoutIdentity | None:
         """Return the active layout identity before a strategy mutates the frame."""
@@ -124,9 +122,8 @@ class PromptEditPublication:
     ) -> None:
         """Publish an accepted trailing insertion and remap caret state."""
 
-        sink = self._sink
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         self._diagnostics.clear_fragment_cache(reason=cache_reason)
         self._caret_publication.remap_after_projection_publication(projection_document)
         self._finish_trailing_publication()
@@ -141,9 +138,8 @@ class PromptEditPublication:
     ) -> None:
         """Publish a plain deletion while retaining unaffected diagnostics."""
 
-        sink = self._sink
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         next_layout_identity = self._frame_state.publish_layout(
             self._layout.frame.output
         )
@@ -165,9 +161,8 @@ class PromptEditPublication:
     ) -> None:
         """Publish a newline deletion and invalidate diagnostic geometry."""
 
-        sink = self._sink
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         self._diagnostics.clear_fragment_cache(reason="projection_fast_newline_delete")
         self._finish_trailing_publication()
 
@@ -188,7 +183,7 @@ class PromptEditPublication:
             raise AssertionError("accepted incremental edit omitted frame state")
         sink = self._sink
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         next_layout_identity = self._frame_state.publish_layout(
             self._layout.frame.output
         )
@@ -209,7 +204,7 @@ class PromptEditPublication:
                     else 0.0
                 ),
             )
-        sink._rebuild_active_projection(commit_projection=True)
+        self._rebuild_active_projection(True)
         self._overlays.clear()
         sink._update_incremental_plain_text_projection_paint(layout_result)
 
@@ -225,9 +220,9 @@ class PromptEditPublication:
             raise AssertionError("accepted canonical reflow omitted frame state")
         sink = self._sink
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         self._diagnostics.clear_fragment_cache(reason="projection_prebuilt_reflow")
-        sink._rebuild_active_projection(commit_projection=True)
+        self._rebuild_active_projection(True)
         self._overlays.clear()
         sink._update_incremental_plain_text_projection_paint(layout_result)
 
@@ -239,11 +234,11 @@ class PromptEditPublication:
 
         sink = self._sink
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         self._diagnostics.clear_fragment_cache(
             reason="projection_history_checkpoint_restore"
         )
-        sink._rebuild_active_projection(commit_projection=True)
+        self._rebuild_active_projection(True)
         self._overlays.clear()
         sink.viewport().update()
 
@@ -256,12 +251,12 @@ class PromptEditPublication:
         sink = self._sink
         projection_document = result.projection_document
         self._editor_state.publish_projection(projection_document)
-        sink._last_rendered_active_span_range = sink._active_span_range()
+        self._publish_active_span_range(self._active_span_range())
         self._diagnostics.clear_fragment_cache(
             reason="projection_local_semantic_transition"
         )
         self._caret_publication.remap_after_projection_publication(projection_document)
-        sink._rebuild_active_projection(commit_projection=True)
+        self._rebuild_active_projection(True)
         self._overlays.clear()
         sink._update_incremental_plain_text_projection_paint(result.layout_damage)
 
@@ -269,7 +264,7 @@ class PromptEditPublication:
         """Commit prepared paint state and repaint after a trailing edit."""
 
         sink = self._sink
-        sink._rebuild_active_projection(commit_projection=True)
+        self._rebuild_active_projection(True)
         self._overlays.clear()
         sink.viewport().update()
 

@@ -175,7 +175,7 @@ def test_prompt_editor_raw_toggle_does_not_leave_cleared_transient_projection(
     box.setDisplayMode(PromptProjectionDisplayMode.RAW)
     process_events(app)
 
-    assert surface._active_projection_requires_layout() is False
+    assert surface._active_projection.requires_layout() is False
     assert surface.active_projection_document() is surface.projection_document()
     assert (
         surface._layout.frame.output.projection_document

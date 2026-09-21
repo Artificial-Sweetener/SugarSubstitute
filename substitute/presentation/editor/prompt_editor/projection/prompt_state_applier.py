@@ -79,11 +79,9 @@ class PromptProjectionPromptStateHost(Protocol):
 
     _projection_applicator: PromptProjectionApplicator
     _projection_freshness_controller: PromptProjectionFreshnessController
-    _active_projection_document: PromptProjectionDocument
     _session: PromptProjectionSession
     _scene_error_keys: frozenset[str]
     _caret_visibility_prompt_state_revision: int | None
-    _last_rendered_active_span_range: tuple[int, int] | None
     _layout: PromptLayoutEditToFrameCoordinator
 
     @property
@@ -138,9 +136,6 @@ class PromptProjectionPromptStateHost(Protocol):
 
     exact_weight_editor: PromptExactWeightEditor
 
-    def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
-        """Rebuild the active projection document after committed state changes."""
-
 
 class PromptProjectionPromptStateApplier:
     """Own prompt-state scheduling and apply-path selection."""
@@ -153,6 +148,9 @@ class PromptProjectionPromptStateApplier:
         strategy: PromptStateProjectionStrategy,
         ensure_caret_visible: Callable[[], None],
         rebuild_projection: Callable[[], None],
+        publish_active_span_range: Callable[[tuple[int, int] | None], None],
+        use_committed_active_projection: Callable[[], None],
+        rebuild_active_projection: Callable[[bool], None],
     ) -> None:
         """Create an applier around a projection surface sink."""
 
@@ -161,6 +159,9 @@ class PromptProjectionPromptStateApplier:
         self._strategy = strategy
         self._ensure_caret_visible = ensure_caret_visible
         self._rebuild_projection = rebuild_projection
+        self._publish_active_span_range = publish_active_span_range
+        self._use_committed_active_projection = use_committed_active_projection
+        self._rebuild_active_projection = rebuild_active_projection
 
     def set_prompt_state(
         self,
@@ -403,8 +404,8 @@ class PromptProjectionPromptStateApplier:
         host._projection_freshness_controller.clear_pending_after_immediate_apply()
         host._editor_state.stage_edit_semantic(snapshot)
         host._editor_state.publish_projection(result.projection_document)
-        host._last_rendered_active_span_range = result.active_span_range
-        host._active_projection_document = host._editor_state.projection.document
+        self._publish_active_span_range(result.active_span_range)
+        self._use_committed_active_projection()
         self._frame_state.publish_layout(host._layout.frame.output)
         self._frame_state.publish_prepared_paint(
             host._layout.frame.output,
@@ -424,7 +425,7 @@ class PromptProjectionPromptStateApplier:
         projection_document = host._editor_state.projection.document
         host._editor_state.stage_edit_semantic(snapshot)
         host._editor_state.publish_projection(projection_document)
-        host._active_projection_document = projection_document
+        self._use_committed_active_projection()
         self._frame_state.publish_layout(host._layout.frame.output)
         self._frame_state.publish_prepared_paint(
             host._layout.frame.output,
@@ -608,7 +609,7 @@ class PromptProjectionPromptStateApplier:
                 self._ensure_caret_visible()
                 host._caret_visibility_prompt_state_revision = None
             if fast_insert_applied or scheduled_incremental_applied:
-                host._rebuild_active_projection(commit_projection=True)
+                self._rebuild_active_projection(True)
             self._apply_pending_auto_exact_weight_edit()
             return PromptProjectionPromptStateApplyOutcome(
                 apply_path=apply_path,
