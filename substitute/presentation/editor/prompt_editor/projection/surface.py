@@ -163,6 +163,10 @@ from .surface_input_runtime import (
     PromptProjectionSurfaceInputBindings,
     build_prompt_projection_surface_input_runtime,
 )
+from .surface_graph_effects import (
+    PromptProjectionSurfaceGraphEffects,
+    bind_prompt_projection_surface_graph_effects,
+)
 from .surface_presentation_runtime import (
     PromptProjectionSurfacePresentationBindings,
     PromptProjectionSurfacePresentationRuntime,
@@ -257,10 +261,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._search_highlight_layer = foundation.search_highlight
         self._caret_state_owner = foundation.caret_state
         self._transient_edit_overlays = foundation.transient_overlays
+        graph_effects = PromptProjectionSurfaceGraphEffects()
         self._presentation_runtime: PromptProjectionSurfacePresentationRuntime
         self.exact_weight_editor = PromptExactWeightEditor(
             cast(PromptExactWeightEditorHost, self),
-            rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
+            rebuild_projection=graph_effects.rebuild_projection,
         )
         self._exact_source_editing_enabled = False
         self._reorder: PromptReorderProjectionOwner
@@ -273,11 +278,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             state=self._caret_state_owner,
             editor_state=self._editor_state,
             overlays=self._transient_edit_overlays,
-            freshness_is_stale_safe=(
-                lambda: (
-                    self._projection_freshness_controller.has_stale_projection_geometry()
-                )
-            ),
+            freshness_is_stale_safe=graph_effects.projection_is_stale,
             cursor_position=lambda: self.cursor_position,
             anchor_position=lambda: self.anchor_position,
             committed_document_rect=(
@@ -299,43 +300,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 lambda: self._session.expanded_source_range is not None
             ),
             collapse_expanded_token=self._collapse_expanded_token_if_possible,
-            reconcile_autocomplete=(
-                lambda cursor_position, selection_is_empty: (
-                    self._autocomplete_preview_projection_owner.reconcile_after_caret_state_change(
-                        cursor_position=cursor_position,
-                        selection_is_empty=selection_is_empty,
-                    )
-                )
-            ),
-            refresh_active_projection=(
-                lambda: (
-                    self._presentation_runtime.active_projection.reconcile_current_active_span()
-                )
-            ),
-            ensure_caret_visible=(
-                lambda: self._caret_visual_controller.ensure_caret_visible()
-            ),
-            refresh_caret_layers=lambda: (
-                self._presentation_runtime.render_publication.caret_changed()
-            ),
-            refresh_deferred_caret_layers=(
-                lambda: (
-                    self._presentation_runtime.render_publication.deferred_caret_changed()
-                )
-            ),
-            restart_caret_blink=(
-                lambda: self._caret_visual_controller.restart_caret_blink_cycle(
-                    cursor_flash_time_ms=(
-                        self._caret_visual_controller.cursor_flash_time_ms()
-                    )
-                )
-            ),
+            reconcile_autocomplete=graph_effects.reconcile_autocomplete,
+            refresh_active_projection=graph_effects.refresh_active_projection,
+            ensure_caret_visible=graph_effects.ensure_caret_visible,
+            refresh_caret_layers=graph_effects.refresh_caret_layers,
+            refresh_deferred_caret_layers=(graph_effects.refresh_deferred_caret_layers),
+            restart_caret_blink=graph_effects.restart_caret_blink,
             request_viewport_update=self.viewport().update,
-            update_caret_paint=(
-                lambda previous_rect: self._caret_visual_controller.update_caret_paint(
-                    previous_rect
-                )
-            ),
+            update_caret_paint=graph_effects.update_caret_paint,
             emit_cursor_position_changed=self.cursorPositionChanged.emit,
             surface_state=lambda: surface_probe_state(self),
         )
@@ -356,57 +328,34 @@ class PromptProjectionSurface(QAbstractScrollArea):
             ),
             device_pixel_ratio=lambda: float(self.viewport().devicePixelRatioF()),
             is_alive=lambda: qt_object_is_alive(self),
-            request_update=(
-                lambda: (
-                    self._presentation_runtime.render_publication.diagnostic_layer_changed()
-                )
-            ),
+            request_update=graph_effects.diagnostic_layer_changed,
         )
-        self._autocomplete_preview_projection_owner = PromptAutocompletePreviewProjectionOwner(
-            session=self._session,
-            flush_pending_projection=(
-                lambda: self._flush_pending_projection_update(
-                    reason="autocomplete_preview"
-                )
-            ),
-            base_projection_is_stale=(
-                lambda: (
-                    self._projection_freshness_controller.has_stale_projection_geometry()
-                )
-            ),
-            rebuild_base_projection=lambda: (
-                self._presentation_runtime.rebuild.rebuild()
-            ),
-            rebuild_active_projection=lambda: (
-                self._presentation_runtime.active_projection.rebuild()
-            ),
-            request_repaint=self.viewport().update,
-            surface_state=lambda: surface_probe_state(self),
+        self._autocomplete_preview_projection_owner = (
+            PromptAutocompletePreviewProjectionOwner(
+                session=self._session,
+                flush_pending_projection=(
+                    lambda: self._flush_pending_projection_update(
+                        reason="autocomplete_preview"
+                    )
+                ),
+                base_projection_is_stale=graph_effects.projection_is_stale,
+                rebuild_base_projection=graph_effects.rebuild_projection,
+                rebuild_active_projection=graph_effects.rebuild_active_projection,
+                request_repaint=self.viewport().update,
+                surface_state=lambda: surface_probe_state(self),
+            )
         )
         self._focus_owner = PromptProjectionFocusOwner(
             surface=self,
-            prepare_source_line_chrome=(
-                lambda: (
-                    self._presentation_runtime.render_publication.prepare_focus_chrome()
-                )
-            ),
-            schedule_caret_blink=(
-                lambda reset_cycle: (
-                    self._caret_visual_controller.schedule_caret_blink_sync(
-                        reset_cycle=reset_cycle,
-                        cursor_flash_time_ms=(
-                            self._caret_visual_controller.cursor_flash_time_ms
-                        ),
-                    )
-                )
-            ),
+            prepare_source_line_chrome=graph_effects.prepare_focus_chrome,
+            schedule_caret_blink=graph_effects.schedule_caret_blink,
             parent=self,
         )
         self._mouse_handler = PromptSurfaceMouseHandler(
             cast(PromptSurfaceMouseHost, self),
             caret_publication=self._caret_publication,
             caret_geometry=self._caret_geometry,
-            rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
+            rebuild_projection=graph_effects.rebuild_projection,
             ensure_pointer_focus=self._focus_owner.ensure_pointer_focus,
             clear_autocomplete_preview=(
                 self._autocomplete_preview_projection_owner.clear_preview_state
@@ -458,12 +407,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._input_runtime = input_runtime
         self._geometry_reuse_warmer = PromptProjectionGeometryReuseWarmer(
             is_available=lambda: qt_object_is_alive(self),
-            is_projected=(
-                lambda: (
-                    self._presentation_runtime.rebuild.display_mode
-                    is PromptProjectionDisplayMode.PROJECTED
-                )
-            ),
+            is_projected=graph_effects.is_projected,
             prewarm=(
                 lambda: (
                     self._layout.frame.output.snapshot.prewarm_inline_object_fragment_index()
@@ -545,20 +489,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 selection=self._selection,
                 surface_is_visible=self.isVisible,
                 visible_scroll_bar=self._visible_scroll_bar,
-                is_projected=(
-                    lambda: (
-                        self._presentation_runtime.rebuild.display_mode
-                        is PromptProjectionDisplayMode.PROJECTED
-                    )
-                ),
+                is_projected=graph_effects.is_projected,
                 tokens=lambda: self._editor_state.projection.document.tokens,
-                apply_session_paint_state=(
-                    lambda: (
-                        self._presentation_runtime.active_projection.try_apply_current_session_paint_state()
-                    )
-                ),
+                apply_session_paint_state=graph_effects.apply_session_paint_state,
                 apply_accent_paint_state=self._apply_decoration_accent_paint_state,
-                rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
+                rebuild_projection=graph_effects.rebuild_projection,
                 publish_caret=(
                     lambda cursor_state, anchor_state: self._caret_publication.publish(
                         cursor_state=cursor_state,
@@ -643,6 +578,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
         )
         self._presentation_runtime = presentation_runtime
+        bind_prompt_projection_surface_graph_effects(
+            graph_effects,
+            freshness=self._projection_freshness_controller,
+            autocomplete=self._autocomplete_preview_projection_owner,
+            lifecycle=lifecycle_runtime,
+            presentation=presentation_runtime,
+        )
         bind_prompt_projection_source_lifecycle_effects(
             source_lifecycle_effects,
             lifecycle=lifecycle_runtime,
