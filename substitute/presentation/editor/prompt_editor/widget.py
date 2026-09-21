@@ -192,17 +192,11 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
-    PromptWeightControlIdentity,
 )
 from .projection.undo_payload import PromptProjectionUndoPayload
 from .geometry.models import PromptProjectionSourceLineRect
+from .emphasis_facade import PromptEditorEmphasisFacade
 from .reorder_facade import PromptEditorReorderFacade
-from .projection.session import (
-    PromptEmphasisAdjustmentOwner,
-    PromptEmphasisAdjustmentSession,
-    PromptEmphasisCaretBoundary,
-    PromptTransientNeutralEmphasisOwner,
-)
 from .shell import (
     PromptEditorShell,
     PromptFillPlane,
@@ -218,7 +212,11 @@ from .shell import (
 _LOGGER = get_logger("presentation.editor.prompt_editor")
 
 
-class PromptEditor(PromptEditorReorderFacade, QFluentTextEdit):  # type: ignore[misc]
+class PromptEditor(
+    PromptEditorReorderFacade,
+    PromptEditorEmphasisFacade,
+    QFluentTextEdit,  # type: ignore[misc]
+):
     """Expose the public prompt editor API through a QFluent-faithful shell."""
 
     _AUTOCOMPLETE_MIN_PREFIX = 2
@@ -1108,128 +1106,6 @@ class PromptEditor(PromptEditorReorderFacade, QFluentTextEdit):  # type: ignore[
 
         self._surface.setTextCursor(cursor)
 
-    def pulse_emphasis_feedback(
-        self,
-        *,
-        outer_start: int,
-        outer_end: int,
-    ) -> None:
-        """Delegate one transient emphasis-feedback pulse into the projection surface."""
-
-        self._surface.pulse_emphasis_feedback(
-            outer_start=outer_start,
-            outer_end=outer_end,
-        )
-
-    def set_emphasis_adjustment_session(
-        self,
-        *,
-        owner: PromptEmphasisAdjustmentOwner,
-        content_start: int,
-        content_end: int,
-        caret_boundary: PromptEmphasisCaretBoundary,
-        wheel_intent_identity: PromptWeightControlIdentity | None = None,
-    ) -> None:
-        """Store one active emphasis-adjustment session on the projection surface."""
-
-        self._surface.set_emphasis_adjustment_session(
-            owner=owner,
-            content_start=content_start,
-            content_end=content_end,
-            caret_boundary=caret_boundary,
-            wheel_intent_identity=wheel_intent_identity,
-        )
-
-    def clear_emphasis_adjustment_session(self) -> None:
-        """Clear any active emphasis-adjustment session from the surface."""
-
-        self._surface.clear_emphasis_adjustment_session()
-
-    def emphasis_adjustment_session(self) -> PromptEmphasisAdjustmentSession | None:
-        """Return the active emphasis-adjustment session when one exists."""
-
-        return self._surface.emphasis_adjustment_session()
-
-    def emphasis_adjustment_session_range(self) -> tuple[int, int] | None:
-        """Return the active emphasis-adjustment content range when present."""
-
-        return self._surface.emphasis_adjustment_session_range()
-
-    def emphasis_adjustment_session_matches_range(
-        self,
-        *,
-        content_start: int,
-        content_end: int,
-    ) -> bool:
-        """Return whether the active emphasis-adjustment session owns one range."""
-
-        return self._surface.emphasis_adjustment_session_matches_range(
-            content_start=content_start,
-            content_end=content_end,
-        )
-
-    def prompt_weight_wheel_identity(
-        self,
-        token: PromptProjectionToken,
-    ) -> PromptWeightControlIdentity:
-        """Return stable wheel ownership identity for one prompt weight token."""
-
-        return self._surface.prompt_weight_wheel_identity(token)
-
-    def show_transient_neutral_emphasis(
-        self,
-        *,
-        content_start: int,
-        content_end: int,
-        owner: PromptTransientNeutralEmphasisOwner = (
-            PromptTransientNeutralEmphasisOwner.CARET
-        ),
-    ) -> None:
-        """Project a temporary neutral emphasis shell over one plain content range."""
-
-        self._surface.show_transient_neutral_emphasis(
-            content_start=content_start,
-            content_end=content_end,
-            owner=owner,
-        )
-
-    def clear_transient_neutral_emphasis(self) -> None:
-        """Clear any temporary neutral emphasis shell from the projection surface."""
-
-        self._surface.clear_transient_neutral_emphasis()
-
-    def clear_overlay_owned_transient_neutral_emphasis(self) -> None:
-        """Clear transient neutral emphasis only when overlay interaction owns it."""
-
-        self._surface.clear_overlay_owned_transient_neutral_emphasis()
-
-    def transient_neutral_emphasis_range(self) -> tuple[int, int] | None:
-        """Return the content range currently owned by a temporary neutral shell."""
-
-        return self._surface.transient_neutral_emphasis_range()
-
-    def transient_neutral_emphasis_owner(
-        self,
-    ) -> PromptTransientNeutralEmphasisOwner | None:
-        """Return the owner of the current transient neutral shell when present."""
-
-        return self._surface.transient_neutral_emphasis_owner()
-
-    def set_emphasis_caret_to_content_boundary(
-        self,
-        *,
-        content_start: int,
-        content_end: int,
-        prefer_end: bool,
-    ) -> bool:
-        """Place the caret at one projected emphasis-content boundary when possible."""
-
-        return self._surface.set_emphasis_caret_to_content_boundary(
-            content_start=content_start,
-            content_end=content_end,
-            prefer_end=prefer_end,
-        )
-
     def cursorRect(self) -> QRect:  # noqa: N802
         """Return the viewport-local caret rect from the projection surface."""
 
@@ -1349,7 +1225,7 @@ class PromptEditor(PromptEditorReorderFacade, QFluentTextEdit):  # type: ignore[
             token_wheel_ready=token_wheel_ready,
             token_wheel_allowed=token_wheel_allowed,
             token_wheel_activated=token_wheel_activated,
-            token_range_changed=self._surface.set_wheel_intent_emphasis_accent_range,
+            token_range_changed=self._surface.emphasis.set_wheel_intent_accent_range,
         )
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:

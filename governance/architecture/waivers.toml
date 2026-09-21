@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, autocomplete, diagnostics, and token-weight interaction hosting. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
+justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, and autocomplete and diagnostics interaction hosting. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 2409
-next_limit = 2200
+max_lines = 2279
+next_limit = 2100
 debt = "SS-ARCH-061"
 
 [[waivers]]
@@ -540,11 +540,11 @@ owner = "prompt editor shell"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
 kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility, projection collaborator integration and lifecycle, keyboard, clipboard, context-menu, and focus routing, autocomplete, diagnostics, and weight feature coordination, prompt command execution, state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and remaining host event routing from the QFluent shell and projection composition boundary."
+justification = "The assessed file mixes QFluent text-edit host compatibility, projection collaborator integration and lifecycle, keyboard, clipboard, context-menu, and focus routing, autocomplete and diagnostics feature coordination, prompt command execution, state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and remaining host event routing from the QFluent shell and projection composition boundary."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 1615
-next_limit = 1400
+max_lines = 1517
+next_limit = 1350
 debt = "SS-ARCH-064"
 
 [[waivers]]

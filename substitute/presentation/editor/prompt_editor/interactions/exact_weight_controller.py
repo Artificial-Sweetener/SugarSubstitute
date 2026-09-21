@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from ..projection.emphasis_projection_owner import PromptProjectionEmphasisOwner
 from ..projection.exact_weight_editor import PromptExactWeightEditor
 
 from collections.abc import Callable
@@ -140,15 +141,13 @@ class PromptExactWeightHost(Protocol):
 
 
 class PromptExactWeightProjectionHost(Protocol):
-    """Expose projection-owned exact edit and accent state to interactions."""
+    """Expose focused projection owners used by exact-weight interactions."""
 
     exact_weight_editor: PromptExactWeightEditor
 
-    def set_overlay_emphasis_accent_range(
-        self,
-        outer_range: tuple[int, int] | None,
-    ) -> None:
-        """Apply overlay-owned emphasis accent range to projection paint state."""
+    @property
+    def emphasis(self) -> PromptProjectionEmphasisOwner:
+        """Return the focused emphasis projection owner."""
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the painted weight-text rect for one token."""
@@ -231,7 +230,7 @@ class PromptExactWeightController:
 
         if self._projection_host is None:
             return
-        self._projection_host.set_overlay_emphasis_accent_range(outer_range)
+        self._projection_host.emphasis.set_overlay_accent_range(outer_range)
 
     def handle_visible_token_content_range_changed(
         self,
