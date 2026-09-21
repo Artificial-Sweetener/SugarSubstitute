@@ -54,11 +54,13 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 class PromptSurfaceLoraFeatureHost(Protocol):
     """Expose prepared projection state needed by LoRA viewport feature requests."""
 
-    _editor_state: PromptEditorDocumentState[
-        PromptDocumentView,
-        PromptSyntaxRenderPlan,
-        PromptProjectionDocument,
-    ]
+    @property
+    def editor_state(
+        self,
+    ) -> PromptEditorDocumentState[
+        PromptDocumentView, PromptSyntaxRenderPlan, PromptProjectionDocument
+    ]:
+        """Return the revisioned prompt projection state."""
 
     def viewport(self) -> QWidget:
         """Return the viewport that receives tooltip and repaint events."""
@@ -214,7 +216,7 @@ class PromptSurfaceLoraFeatureDelegate:
         scroll_offset = float(self._host.verticalScrollBar().value())
         device_pixel_ratio = viewport.devicePixelRatioF()
         queued_count = 0
-        for token in self._host._editor_state.projection.document.tokens:
+        for token in self._host.editor_state.projection.document.tokens:
             if token.kind is not PromptProjectionTokenKind.LORA:
                 continue
             if not _is_visible_lora_thumbnail_candidate(token):
@@ -265,7 +267,7 @@ class PromptSurfaceLoraFeatureDelegate:
             return
         scroll_offset = float(self._host.verticalScrollBar().value())
         media_published = False
-        for token in self._host._editor_state.projection.document.tokens:
+        for token in self._host.editor_state.projection.document.tokens:
             if token.kind is not PromptProjectionTokenKind.LORA:
                 continue
             if not any(

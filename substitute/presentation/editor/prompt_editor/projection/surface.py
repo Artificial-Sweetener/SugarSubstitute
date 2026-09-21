@@ -110,7 +110,6 @@ from ..interactions import (
 )
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..qt_lifecycle import qt_object_is_alive
-from .applicator import PromptProjectionApplicator
 from .autocomplete_preview_projection_owner import (
     PromptAutocompletePreviewProjectionOwner,
 )
@@ -120,7 +119,6 @@ from .caret_movement_controller import (
 )
 from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from .caret_publication_owner import PromptProjectionCaretPublicationOwner
-from .caret_state_owner import PromptProjectionCaretStateOwner
 from .caret_visual import PromptSurfaceCaretVisualController
 from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .emphasis_projection_owner import PromptProjectionEmphasisOwner
@@ -130,9 +128,7 @@ from .fill_band_cache import (
 )
 from .frame_state import (
     PromptProjectionEditorState,
-    PromptProjectionFrameStatePublisher,
     PromptProjectionLayoutWidthResolver,
-    build_initial_prompt_projection_state,
 )
 from .focus_owner import PromptProjectionFocusOwner
 from .freshness_controller import (
@@ -146,11 +142,7 @@ from .input_method_controller import (
     PromptInputMethodHost,
 )
 from ..layout.contracts import PromptLayoutDamage
-from .edit_to_frame import (
-    PromptLayoutEditToFrameCoordinator,
-)
 from .lora_surface_features import (
-    PromptSurfaceLoraFeatureDelegate,
     PromptSurfaceLoraFeatureHost,
     PromptSurfaceLoraThumbnailPreloader,
 )
@@ -168,13 +160,13 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from .observability import (
     render_plan_lora_span_count,
 )
-from .content_media_owner import PromptProjectionContentMediaOwner
 from .region_chrome_state import PromptRegionChromeEditTarget
 from .reorder_projection_owner import PromptReorderProjectionOwner
 from ..geometry.models import PromptProjectionSourceLineRect
-from .session import PromptProjectionSession
-from .source_line_chrome import PromptSourceLineChrome
-from .search_highlight_owner import PromptSearchHighlightLayerOwner
+from .surface_foundation import (
+    PromptProjectionSurfaceFoundationBindings,
+    build_prompt_projection_surface_foundation,
+)
 from .surface_presentation_runtime import (
     PromptProjectionSurfacePresentationBindings,
     PromptProjectionSurfacePresentationRuntime,
@@ -187,20 +179,6 @@ from .source_state_wiring import (
     build_prompt_projection_source_state_owners,
 )
 from .theme import qcolor_from_rgb, semantic_palette_from_theme
-from .transient_edit_overlays import PromptProjectionTransientEditOverlayController
-from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
-    PromptEmphasisPrefixRenderer,
-    PromptEmphasisSuffixRenderer,
-)
-from substitute.presentation.editor.prompt_editor.projection.lora_renderer import (
-    PromptLoraInlineObjectRenderer,
-)
-from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
-    PromptProjectionInlineObjectRendererRegistry,
-)
-from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
-    PromptWildcardInlineObjectRenderer,
-)
 from .undo_payload import PromptProjectionUndoPayload
 from .viewport_event_router import PromptProjectionViewportEventRouter
 from ..interactions.deletion_controller import (
@@ -209,7 +187,6 @@ from ..interactions.deletion_controller import (
     PromptDeletionProjectionEffects,
     PromptSurfaceDeletionController,
 )
-from .builder import PromptProjectionBuilder
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.projection_surface")
 
@@ -253,55 +230,40 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         super().__init__(parent)
         self._editing_session = editing_session
-        self._projection_applicator = PromptProjectionApplicator(
-            PromptProjectionBuilder(document_semantics=document_semantics)
+        foundation = build_prompt_projection_surface_foundation(
+            PromptProjectionSurfaceFoundationBindings(
+                host=cast(PromptSurfaceLoraFeatureHost, self),
+                editing_session=editing_session,
+                document_semantics=document_semantics,
+                lora_thumbnail_cache=lora_thumbnail_cache,
+                lora_thumbnail_preloader=lora_thumbnail_preloader,
+                publish_thumbnail_media=self._publish_lora_thumbnail_media,
+                publish_context_menu=(
+                    lambda token, global_pos: self.loraContextMenuRequested.emit(
+                        token,
+                        global_pos,
+                    )
+                ),
+            )
         )
-        thumbnail_cache = lora_thumbnail_cache or PromptLoraThumbnailCache()
-        self._session = PromptProjectionSession()
+        self._projection_applicator = foundation.applicator
+        thumbnail_cache = foundation.thumbnail_cache
+        self._session = foundation.session
+        self._layout = foundation.layout
+        self._content_media_owner = foundation.content_media
+        self._lora_feature_delegate = foundation.lora_features
+        self._editor_state = foundation.editor_state
+        self._frame_state = foundation.frame_state
+        self._source_line_chrome = foundation.source_line_chrome
+        self._search_highlight_layer = foundation.search_highlight
+        self._caret_state_owner = foundation.caret_state
+        self._transient_edit_overlays = foundation.transient_overlays
         self._presentation_runtime: PromptProjectionSurfacePresentationRuntime
         self.exact_weight_editor = PromptExactWeightEditor(
             cast(PromptExactWeightEditorHost, self),
             rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
         )
         self._exact_source_editing_enabled = False
-        self._layout = PromptLayoutEditToFrameCoordinator(
-            PromptProjectionInlineObjectRendererRegistry(
-                (
-                    PromptEmphasisPrefixRenderer(),
-                    PromptEmphasisSuffixRenderer(),
-                    PromptLoraInlineObjectRenderer(thumbnail_cache),
-                    PromptWildcardInlineObjectRenderer(),
-                )
-            )
-        )
-        self._content_media_owner = PromptProjectionContentMediaOwner()
-        self._lora_feature_delegate = PromptSurfaceLoraFeatureDelegate(
-            cast(PromptSurfaceLoraFeatureHost, self),
-            thumbnail_cache=thumbnail_cache,
-            thumbnail_preloader=lora_thumbnail_preloader,
-            publish_thumbnail_media=self._publish_lora_thumbnail_media,
-            publish_context_menu=(
-                lambda token, global_pos: self.loraContextMenuRequested.emit(
-                    token,
-                    global_pos,
-                )
-            ),
-        )
-        update_lora_thumbnail = self._lora_feature_delegate.update_lora_thumbnail_pixmap
-        thumbnail_cache.pixmap_ready.connect(
-            lambda key: update_lora_thumbnail(self._layout.frame.geometry, key)
-        )
-        self._editor_state = build_initial_prompt_projection_state(
-            source=self._editing_session.source_snapshot(),
-            applicator=self._projection_applicator,
-            document_semantics=document_semantics,
-            display_mode=PromptProjectionDisplayMode.PROJECTED,
-            session=self._session,
-            scene_error_keys=frozenset(),
-        )
-        self._frame_state = PromptProjectionFrameStatePublisher(self._editor_state)
-        self._source_line_chrome = PromptSourceLineChrome()
-        self._search_highlight_layer = PromptSearchHighlightLayerOwner()
         self._input_method_controller: PromptInputMethodController
         self._reorder: PromptReorderProjectionOwner
         self._caret_visual_controller: PromptSurfaceCaretVisualController
@@ -309,13 +271,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._autocomplete_preview_projection_owner: (
             PromptAutocompletePreviewProjectionOwner
         )
-        initial_state = (
-            self._editor_state.projection.document.caret_map.state_for_source_position(
-                0
-            )
-        )
-        self._caret_state_owner = PromptProjectionCaretStateOwner(initial_state)
-        self._transient_edit_overlays = PromptProjectionTransientEditOverlayController()
         self._caret_geometry = PromptProjectionCaretGeometryOwner(
             state=self._caret_state_owner,
             editor_state=self._editor_state,
