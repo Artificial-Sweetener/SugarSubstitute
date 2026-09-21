@@ -103,7 +103,7 @@ def test_prompt_preedit_paint_consumes_the_published_shaped_layer(
     event.setAccepted(False)
     QApplication.sendEvent(surface, event)
     controller = cast(Any, surface)._input_method_controller
-    frame = cast(Any, surface)._render_frame_owner.frame
+    frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert event.isAccepted()
     assert controller.render_layer.layout is not None
     assert frame.input_method_layer is controller.render_layer
@@ -168,7 +168,7 @@ def test_focus_out_clears_preedit_and_publishes_an_empty_input_layer(
         QFocusEvent(QEvent.Type.FocusOut, Qt.FocusReason.OtherFocusReason),
     )
 
-    frame = cast(Any, surface)._render_frame_owner.frame
+    frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert not controller.is_composing
     assert controller.render_layer.key is None
     assert frame.input_method_layer is controller.render_layer

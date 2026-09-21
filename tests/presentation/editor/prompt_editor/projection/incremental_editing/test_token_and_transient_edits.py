@@ -63,7 +63,7 @@ def test_projection_surface_kept_tag_edit_uses_fast_path_when_layout_stays_local
         width=520,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -78,7 +78,7 @@ def test_projection_surface_kept_tag_edit_uses_fast_path_when_layout_stays_local
         cursor_position=cursor_position,
         anchor_position=cursor_position,
     )
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     QTest.keyClicks(box, "s")
 
@@ -99,7 +99,7 @@ def test_projection_surface_kept_tag_edge_edit_uses_projection_reuse_fallback(
         width=260,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -121,7 +121,7 @@ def test_projection_surface_kept_tag_edge_edit_uses_projection_reuse_fallback(
             break
     assert configured_width is not None
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     delay_projection_update_scheduler(surface)
     cursor_position = box.toPlainText().index("po") + 2
     surface.set_cursor_positions(
@@ -158,7 +158,7 @@ def test_projection_surface_projected_token_delete_preserves_unaffected_tokens(
         width=360,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -168,7 +168,7 @@ def test_projection_surface_projected_token_delete_preserves_unaffected_tokens(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = box.toPlainText().index("t:")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -201,7 +201,7 @@ def test_projection_surface_source_edit_rejects_stale_content_by_revision(
     )
     surface = surface_for(box)
     render_surface_viewport(surface)
-    compositor = cast(Any, surface)._render_compositor
+    compositor = cast(Any, surface)._presentation_runtime.render_compositor
     initial_cache = compositor.content_cache_snapshot
     assert initial_cache.key is not None
     assert initial_cache.has_pixmap
@@ -243,7 +243,7 @@ def test_projection_surface_transient_edit_reuses_valid_content_cache(
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
     render_surface_viewport(surface)
-    compositor = cast(Any, surface)._render_compositor
+    compositor = cast(Any, surface)._presentation_runtime.render_compositor
     initial_cache = compositor.content_cache_snapshot
     assert initial_cache.key is not None
     assert initial_cache.has_pixmap
@@ -255,7 +255,7 @@ def test_projection_surface_transient_edit_reuses_valid_content_cache(
 
     QTest.keyClicks(box, "xy")
 
-    frame = cast(Any, surface)._render_frame_owner.frame
+    frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert frame.content_mode is PromptProjectionContentPaintMode.CACHED
     assert frame.transient_layer.insertion is not None
     render_surface_viewport(surface)
@@ -307,7 +307,7 @@ def test_projection_surface_backspace_updates_for_immediate_visibility(
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
     committed_height = surface.content_height()
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     caret_publication = surface._caret_publication  # noqa: SLF001
     original_ensure_caret_visible = (  # noqa: SLF001
         caret_publication._ensure_caret_visible
@@ -340,7 +340,7 @@ def test_projection_surface_backspace_updates_for_immediate_visibility(
         collapse_expanded_token_count += 1
         original_collapse_expanded_token()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     monkeypatch.setattr(
         caret_publication,
         "_ensure_caret_visible",
@@ -394,8 +394,8 @@ def test_projection_surface_expanded_token_enter_preserves_semantic_projection(
     surface = surface_for(box)
     expanded_token = first_emphasis_token(box)
     surface._session.expand_token(expanded_token)  # noqa: SLF001
-    surface._projection_rebuild.rebuild()  # noqa: SLF001
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    surface._presentation_runtime.rebuild.rebuild()  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -405,7 +405,7 @@ def test_projection_surface_expanded_token_enter_preserves_semantic_projection(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = box.toPlainText().index(" beta")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -452,8 +452,8 @@ def test_projection_surface_expanded_token_newline_backspace_preserves_semantics
     surface = surface_for(box)
     expanded_token = first_emphasis_token(box)
     surface._session.expand_token(expanded_token)  # noqa: SLF001
-    surface._projection_rebuild.rebuild()  # noqa: SLF001
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    surface._presentation_runtime.rebuild.rebuild()  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -463,7 +463,7 @@ def test_projection_surface_expanded_token_newline_backspace_preserves_semantics
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = box.toPlainText().index("\n") + 1
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -509,7 +509,7 @@ def test_projection_surface_backspace_rebuilds_after_pending_typing_projection(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -519,7 +519,7 @@ def test_projection_surface_backspace_rebuilds_after_pending_typing_projection(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,

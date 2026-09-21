@@ -121,7 +121,7 @@ def capture_reorder_layout(
             (fragment_kind, fragment_value, rectangle_tuple(fragment.rect))
         )
     content_size = snapshot.content_size
-    render_frame = surface._render_frame_owner.frame
+    render_frame = surface._presentation_runtime.render_frame.frame
     region_layer = render_frame.region_layer
     return PromptReorderRenderedLayoutSnapshot(
         label=label,

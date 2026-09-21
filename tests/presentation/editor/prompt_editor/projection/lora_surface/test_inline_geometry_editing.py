@@ -202,7 +202,7 @@ def test_projection_surface_lora_suffix_prefix_defers_without_rebuild(
         cursor_position=lora_token.source_end,
         anchor_position=lora_token.source_end,
     )
-    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -212,7 +212,7 @@ def test_projection_surface_lora_suffix_prefix_defers_without_rebuild(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     surface.textCursor().insertText("<")
 

@@ -42,7 +42,7 @@ def test_search_changes_publish_the_exact_prepared_layer(
     surface.set_search_matches(((0, 5), (11, 5)), active_index=1)
 
     prepared_layer = cast(Any, surface)._search_highlight_layer.layer
-    published_frame = cast(Any, surface)._render_frame_owner.frame
+    published_frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert published_frame.search_layer is prepared_layer
     assert len(published_frame.search_layer.rects) == 2
     assert published_frame.search_layer.key is not None
@@ -51,7 +51,7 @@ def test_search_changes_publish_the_exact_prepared_layer(
     surface.clear_search_matches()
 
     cleared_layer = cast(Any, surface)._search_highlight_layer.layer
-    cleared_frame = cast(Any, surface)._render_frame_owner.frame
+    cleared_frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert cleared_frame.search_layer is cleared_layer
     assert cleared_frame.search_layer.rects == ()
 
@@ -67,7 +67,7 @@ def test_source_line_enablement_publishes_the_prepared_layer_atomically(
     surface.set_source_line_chrome_enabled(True)
 
     prepared_layer = cast(Any, surface)._source_line_chrome.layer
-    published_frame = cast(Any, surface)._render_frame_owner.frame
+    published_frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert prepared_layer.key is not None
     assert prepared_layer.fills
     assert published_frame.source_line_layer is prepared_layer
@@ -75,7 +75,7 @@ def test_source_line_enablement_publishes_the_prepared_layer_atomically(
     surface.set_source_line_chrome_enabled(False)
 
     cleared_layer = cast(Any, surface)._source_line_chrome.layer
-    cleared_frame = cast(Any, surface)._render_frame_owner.frame
+    cleared_frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     assert cleared_layer.key is None
     assert cleared_layer.fills == ()
     assert cleared_frame.source_line_layer is cleared_layer
@@ -90,11 +90,13 @@ def test_caret_change_republishes_source_line_focus_geometry(
     surface = surface_for(box)
     surface.set_cursor_positions(cursor_position=0, anchor_position=0)
     surface.set_source_line_chrome_enabled(True)
-    initial_layer = cast(Any, surface)._render_frame_owner.frame.source_line_layer
+    initial_layer = cast(
+        Any, surface
+    )._presentation_runtime.render_frame.frame.source_line_layer
 
     surface.set_cursor_positions(cursor_position=6, anchor_position=6)
 
-    published_frame = cast(Any, surface)._render_frame_owner.frame
+    published_frame = cast(Any, surface)._presentation_runtime.render_frame.frame
     prepared_layer = cast(Any, surface)._source_line_chrome.layer
     assert published_frame.source_line_layer is prepared_layer
     assert published_frame.source_line_layer is not initial_layer

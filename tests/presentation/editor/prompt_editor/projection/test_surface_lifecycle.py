@@ -181,7 +181,7 @@ def test_projection_surface_prompt_state_ignores_deleted_qt_wrappers(
             reason="test",
         )
     )
-    surface_view._projection_rebuild.rebuild()
+    surface_view._presentation_runtime.rebuild.rebuild()
 
     assert surface.editor_state.projection is previous_projection
     assert surface.editor_state.projection_semantic is previous_projection_semantic

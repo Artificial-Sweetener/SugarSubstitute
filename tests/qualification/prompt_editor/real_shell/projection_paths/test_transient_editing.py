@@ -164,7 +164,7 @@ def test_real_shell_trailing_typing_keeps_caret_aligned_without_erasing_backgrou
     after = real_shell_scenario.input.type_text_and_capture_immediate_state(
         field, "xyz", label="trailing-typing-immediate"
     )
-    command = field.editor._surface._render_frame_owner.frame.transient_layer.insertion
+    command = field.editor._surface._presentation_runtime.render_frame.frame.transient_layer.insertion
     assert command is not None
     assert command.text == "xyz"
     assert before.caret_rect is not None

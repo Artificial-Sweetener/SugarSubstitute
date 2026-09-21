@@ -103,11 +103,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "projection_document",
         None,
     )
-    region_chrome_presentation = getattr(
-        surface,
-        "_region_chrome_presentation",
-        None,
-    )
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    region_chrome_presentation = getattr(presentation_runtime, "region_chrome", None)
     region_chrome = getattr(region_chrome_presentation, "chrome", None)
     region_chrome_snapshot_for = getattr(region_chrome, "snapshot_for", None)
     region_chrome_snapshot = (
@@ -115,7 +112,7 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         if callable(region_chrome_snapshot_for) and layout_output is not None
         else None
     )
-    render_compositor = getattr(surface, "_render_compositor", None)
+    render_compositor = getattr(presentation_runtime, "render_compositor", None)
     content_cache_snapshot = getattr(
         render_compositor,
         "content_cache_snapshot",
@@ -130,7 +127,7 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "last_paint_identity",
         None,
     )
-    render_frame_owner = getattr(surface, "_render_frame_owner", None)
+    render_frame_owner = getattr(presentation_runtime, "render_frame", None)
     render_frame = getattr(render_frame_owner, "frame", None)
     render_frame_paint_identity = getattr(render_frame, "paint_identity", None)
     paint_cache_identity = getattr(paint_cache_key, "paint_identity", None)
@@ -360,7 +357,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             getattr(layout_projection_document, "projection_text", "")
         ),
         "active_projection_layout_required": bool(
-            surface is not None and surface._active_projection.requires_layout()
+            surface is not None
+            and surface._presentation_runtime.active_projection.requires_layout()
         ),
         "layout_uses_projection_document": (
             layout_projection_document is projection_document

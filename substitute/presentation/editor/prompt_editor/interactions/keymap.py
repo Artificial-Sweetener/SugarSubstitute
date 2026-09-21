@@ -52,7 +52,10 @@ class PromptSurfaceKeyHost(Protocol):
 
     emphasisShortcutTriggered: _PromptSurfaceEmphasisShortcutSignal
     _editing_enabled: bool
-    _pointer_interactions: PromptSurfacePointerInteractions
+
+    @property
+    def pointer_interactions(self) -> PromptSurfacePointerInteractions:
+        """Return pointer and regional interaction ports."""
 
     @property
     def anchor_position(self) -> int:
@@ -122,7 +125,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
 
         if event.key() == Qt.Key.Key_F2:
             undo_coalescing.finish_typing_group(reason="rename_prompt_region")
-            if host._pointer_interactions.handle_region_keyboard_rename():
+            if host.pointer_interactions.handle_region_keyboard_rename():
                 event.accept()
                 return True
 

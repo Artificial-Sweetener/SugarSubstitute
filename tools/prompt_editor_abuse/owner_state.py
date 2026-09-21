@@ -354,7 +354,8 @@ def _region_projection_ownership(
         if structural_line.caret_stops:
             return f"{location}:structural_caret_stops_present"
 
-    chrome_presentation = getattr(surface, "_region_chrome_presentation", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    chrome_presentation = getattr(presentation_runtime, "region_chrome", None)
     chrome = getattr(chrome_presentation, "chrome", None)
     snapshot = None if chrome is None else chrome.snapshot_for(output)
     if not separators:
@@ -412,7 +413,8 @@ def _raw_region_projection_mismatch(
         return f"{layout_name}:raw_structural_runs_present:{len(structural_runs)}"
     if document.projection_text != document.source_text:
         return f"{layout_name}:raw_projection_not_literal"
-    chrome_presentation = getattr(surface, "_region_chrome_presentation", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    chrome_presentation = getattr(presentation_runtime, "region_chrome", None)
     chrome = getattr(chrome_presentation, "chrome", None)
     snapshot = None if chrome is None else chrome.snapshot_for(output)
     if snapshot is None:
@@ -473,7 +475,7 @@ def _active_projection_ownership_is_valid(
     """Return whether active projection divergence has a live transient owner."""
 
     active_projection = surface.active_projection_document()
-    if bool(surface._active_projection.requires_layout()):
+    if bool(surface._presentation_runtime.active_projection.requires_layout()):
         return str(active_projection.source_text) == str(
             projection_document.source_text
         )
@@ -492,7 +494,7 @@ def _layout_projection_ownership_is_valid(
     reorder_preview_active = bool(surface.reorder.is_active())
     if reorder_preview_active:
         return True
-    if bool(surface._active_projection.requires_layout()):
+    if bool(surface._presentation_runtime.active_projection.requires_layout()):
         return layout_projection is surface.active_projection_document()
     return str(layout_projection.projection_text) == str(
         projection_document.projection_text

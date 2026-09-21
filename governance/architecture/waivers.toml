@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, projection collaborator graph composition and effect routing, and Qt input, focus, viewport, and paint lifecycle routing. Extract projection collaborator graph construction and late-bound lifecycle wiring from the Qt event surface."
+justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, foundational editor collaborator construction and cyclic lifecycle wiring, and Qt input, focus, viewport, and paint lifecycle routing. Extract foundational editor collaborator construction and cyclic lifecycle wiring from the Qt event surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 1798
-next_limit = 1500
+max_lines = 1696
+next_limit = 1450
 debt = "SS-ARCH-061"
 
 [[waivers]]
@@ -1677,7 +1677,7 @@ kind = "structural"
 justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
 issue = "chore:SS-WAIVER-S080"
 review_by = 2026-12-15
-max_lines = 568
+max_lines = 566
 
 [[waivers]]
 id = "SS-WAIVER-S150"
