@@ -227,6 +227,11 @@ def test_clean_qualification_uses_live_external_comfy_boundary(
 ) -> None:
     """Clean setup must select and probe a continuously owned remote target."""
 
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.require_default_comfy_port_available",
+        lambda: None,
+    )
+
     def install_with_external_probe(**arguments: object) -> None:
         """Model installed onboarding against the supplied external endpoint."""
 
