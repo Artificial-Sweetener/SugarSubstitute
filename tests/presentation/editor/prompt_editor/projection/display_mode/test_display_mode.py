@@ -89,7 +89,7 @@ def _reveal_first_emphasis_controls(box: PromptEditor) -> None:
     QTest.mouseMove(box.viewport(), anchor_rect.center().toPoint())
     process_events(app)
     controls = token_weight_controls_for(box)
-    controls._set_pointer_from_viewport(anchor_rect.center())  # noqa: SLF001
+    controls.set_pointer_from_viewport(anchor_rect.center())
     controls.refresh_geometry()
     process_events(app)
 

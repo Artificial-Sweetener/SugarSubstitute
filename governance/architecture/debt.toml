@@ -693,21 +693,6 @@ responsibilities = [
 next_extraction = "Extract animation/raster ownership and geometry projection from overlay interaction and widget lifecycle."
 
 [[debts]]
-id = "SS-ARCH-059"
-owner = "prompt token-weight controls"
-paths = ["substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"]
-fingerprint = "sha256:3cce44509c975744d159c83b5c0dc8eea51bbd71f37bace838de0b4b75b35aaa"
-issue = "chore:SS-ARCH-059"
-review_by = 2026-12-15
-responsibilities = [
-  "control overlay geometry and visibility",
-  "Qt pointer, click, and wheel event routing",
-  "step-action commit feedback orchestration",
-  "runtime widget lifecycle and passive view publication",
-]
-next_extraction = "Extract Qt input event routing and step-action dispatch from mounted overlay geometry, visibility, and passive view publication."
-
-[[debts]]
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]

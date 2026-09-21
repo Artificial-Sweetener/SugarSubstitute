@@ -77,11 +77,17 @@ from .reorder_render_state import (
 from .reorder_view import PromptReorderView
 from .reorder_visual_style import PromptReorderVisualStyle
 from .token_weight_controls import (
+    PromptTokenWeightActionCoordinatorFactory,
     PromptTokenWeightControls,
     PromptTokenWeightControlsSurface,
     PromptTokenWeightExactEditControllerFactory,
     PromptTokenWeightGestureControllerFactory,
+    PromptTokenWeightInputRouterFactory,
     PromptTokenWeightViewFactory,
+)
+from .token_weight_actions import (
+    PromptTokenWeightActionCoordinator,
+    PromptTokenWeightActionHost,
 )
 from .token_weight_exact_edit import (
     PromptTokenWeightExactEditController,
@@ -101,6 +107,10 @@ from .token_weight_gestures import (
     PromptTokenWeightGestureSnapshot,
     PromptTokenWeightStepIntent,
     PromptTokenWeightWheelStepIntent,
+)
+from .token_weight_input_router import (
+    PromptTokenWeightInputHost,
+    PromptTokenWeightInputRouter,
 )
 from .token_weight_view import (
     PromptTokenWeightControlPaintState,
@@ -153,6 +163,9 @@ __all__ = [
     "SegmentReorderOverlay",
     "PromptTokenWeightControls",
     "PromptTokenWeightControl",
+    "PromptTokenWeightActionCoordinator",
+    "PromptTokenWeightActionCoordinatorFactory",
+    "PromptTokenWeightActionHost",
     "PromptTokenWeightExactEditController",
     "PromptTokenWeightExactEditControllerFactory",
     "PromptTokenWeightExactEditHost",
@@ -166,6 +179,9 @@ __all__ = [
     "PromptTokenWeightGeometry",
     "PromptTokenWeightGeometrySnapshot",
     "PromptTokenWeightGeometrySurface",
+    "PromptTokenWeightInputHost",
+    "PromptTokenWeightInputRouter",
+    "PromptTokenWeightInputRouterFactory",
     "PromptTokenWeightPreviewPaintState",
     "PromptTokenWeightProjectionSnapshot",
     "PromptTokenWeightStepIntent",
