@@ -316,6 +316,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._frame_state = PromptProjectionFrameStatePublisher(self._editor_state)
         self._source_line_chrome = PromptSourceLineChrome()
         self._search_highlight_layer = PromptSearchHighlightLayerOwner()
+        self._render_publication: PromptProjectionRenderPublicationOwner
         self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
             parent=self,
             diagnostics=lambda: self._session.diagnostics,
@@ -333,7 +334,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
             ),
             device_pixel_ratio=lambda: float(self.viewport().devicePixelRatioF()),
             is_alive=lambda: qt_object_is_alive(self),
-            request_update=self._diagnostic_layer_published,
+            request_update=(
+                lambda: self._render_publication.diagnostic_layer_changed()
+            ),
         )
         self._projection_freshness_controller: PromptProjectionFreshnessController
         self._autocomplete_preview_projection_owner = PromptAutocompletePreviewProjectionOwner(
@@ -355,7 +358,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._focus_owner = PromptProjectionFocusOwner(
             surface=self,
-            prepare_source_line_chrome=self._prepare_source_line_chrome_layer,
+            prepare_source_line_chrome=(
+                lambda: self._render_publication.prepare_focus_chrome()
+            ),
             schedule_caret_blink=(
                 lambda reset_cycle: self._schedule_caret_blink_sync(
                     reset_cycle=reset_cycle
@@ -587,6 +592,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
             transient_overlays=self._transient_edit_overlays,
             freshness=self._projection_freshness_controller,
             frame_owner=self._render_frame_owner,
+            active_frame=lambda: self._reorder.active_frame,
+            cursor_position=lambda: self.cursor_position,
+            focus_active=self._focus_owner_has_focus,
             scroll_offset=self._scroll_offset,
             should_paint_caret=self._should_paint_caret,
             current_caret_rect=self._current_caret_rect,
@@ -727,12 +735,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._layout.frame.output,
             self._layout.frame.paint_state,
         )
-        self._selection_layer_owner.refresh()
-        self._diagnostic_layer_owner.refresh(reason="viewport_scrolled")
-        self._prepare_source_line_chrome_layer()
-        self._prepare_search_highlight_layer()
-        self._input_method_controller.refresh_render_layer()
-        self._publish_render_frame()
+        self._render_publication.viewport_scrolled()
         self._wheel_handler.refresh_scroll()
 
     def set_editing_enabled(self, editing_enabled: bool) -> None:
@@ -821,8 +824,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             QEvent.Type.StyleChange,
         }:
             self._reorder.clear_projection_and_geometry(reason="visual_style_changed")
-            self._input_method_controller.refresh_render_layer()
-            self._publish_render_frame()
+            self._render_publication.visual_style_changed()
         super().changeEvent(event)
 
     def projection_document(self) -> PromptProjectionDocument:
@@ -907,7 +909,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         if not self._source_line_chrome.set_enabled(enabled):
             return
-        self._prepare_source_line_chrome_layer()
+        self._render_publication.source_line_configuration_changed()
         self.viewport().update()
 
     def set_source_line_content_left_inset(self, inset: float) -> None:
@@ -1092,16 +1094,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Replace the transient search matches rendered by the projection surface."""
 
         self._session.set_search_matches(matches, active_index=active_index)
-        self._prepare_search_highlight_layer()
-        self._publish_render_frame()
+        self._render_publication.search_changed()
         self.viewport().update()
 
     def clear_search_matches(self) -> None:
         """Clear transient search highlights from the projection surface."""
 
         self._session.clear_search_matches()
-        self._search_highlight_layer.clear()
-        self._publish_render_frame()
+        self._render_publication.search_cleared()
         self.viewport().update()
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
@@ -1437,8 +1437,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self._clear_transient_caret_geometry()
         source_identity = self._editor_state.publish_source(source_snapshot)
         self._reorder.clear_for_source_change()
-        if clear_diagnostic_fragment_cache:
-            self._diagnostic_layer_owner.clear_fragment_cache(reason="source_changed")
+        self._render_publication.source_changed(
+            clear_diagnostic_fragment_cache=clear_diagnostic_fragment_cache
+        )
         self._projection_freshness_controller.mark_source_text_changed(
             deferrable_projection=deferrable_projection,
             source_revision=source_identity.source_revision,
@@ -1844,9 +1845,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._refresh_active_projection_for_caret_state()
         self._ensure_caret_visible()
-        self._selection_layer_owner.refresh()
-        self._diagnostic_layer_owner.refresh(reason="selection_changed")
-        self._prepare_source_line_chrome_layer()
+        self._render_publication.caret_changed()
         self._restart_caret_blink_cycle()
         if selection_paints_changed(previous_selection, self._selection()):
             self.viewport().update()
@@ -2085,7 +2084,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not self._projection_freshness_controller.has_stale_projection_geometry():
             self._clear_transient_caret_geometry()
         self._reorder.clear_projection_and_geometry(reason="resize")
-        self._diagnostic_layer_owner.clear_fragment_cache(reason="resize")
+        self._render_publication.viewport_resized()
         self.refresh_geometry()
         self.viewport().update()
 
@@ -2093,8 +2092,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Restart caret blinking when the surface itself gains focus ownership."""
 
         super().focusInEvent(event)
-        self._prepare_source_line_chrome_layer()
-        self._publish_render_frame()
+        self._render_publication.focus_changed()
         self._schedule_caret_blink_sync(reset_cycle=True)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
@@ -2104,8 +2102,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._input_method_controller.cancel()
         self._finish_pending_key_edit_block(reason="focus_out")
         super().focusOutEvent(event)
-        self._prepare_source_line_chrome_layer()
-        self._publish_render_frame()
+        self._render_publication.focus_changed()
         self._schedule_caret_blink_sync(reset_cycle=False)
 
     def showEvent(self, event: QShowEvent) -> None:
@@ -2128,12 +2125,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         if hasattr(self, "_render_publication"):
             self._render_publication.publish()
-
-    def _diagnostic_layer_published(self) -> None:
-        """Publish a changed diagnostic layer before requesting its repaint."""
-
-        self._publish_render_frame()
-        self.viewport().update()
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """Delegate one prepared frame and event clip to the render compositor."""
@@ -2188,21 +2179,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         viewport.update(repaint_rect)
         viewport.repaint(repaint_rect)
 
-    def _prepare_source_line_chrome_layer(self) -> None:
-        """Prepare source-line commands against the active frame and viewport."""
-
-        if not self._source_line_chrome.enabled:
-            return
-        frame = self._reorder.active_frame
-        self._source_line_chrome.prepare(
-            geometry=frame.geometry,
-            geometry_identity=id(frame.output.snapshot),
-            viewport_rect=QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset(),
-            cursor_position=self.cursor_position,
-            focus_active=self._focus_owner_has_focus(),
-        )
-
     def _focus_owner_has_focus(self) -> bool:
         """Return whether the prompt editor focus owner is active."""
 
@@ -2217,25 +2193,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Publish custom caret state before its scheduled repaint."""
 
         self._publish_render_frame()
-
-    def _prepare_search_highlight_layer(self) -> None:
-        """Prepare search commands against the current layout and viewport."""
-
-        layout_snapshot = self._editor_state.layout
-        if (
-            layout_snapshot is None
-            or layout_snapshot.geometry is not self._layout.frame.output.snapshot
-            or not self._session.search_match_ranges
-        ):
-            self._search_highlight_layer.clear()
-            return
-        self._search_highlight_layer.prepare(
-            geometry=self._layout.frame.geometry,
-            layout_identity=layout_snapshot.identity,
-            match_ranges=self._session.search_match_ranges,
-            active_match_index=self._session.active_search_match_index,
-            palette=self.palette(),
-        )
 
     def _update_incremental_plain_text_projection_paint(
         self,
@@ -2278,8 +2235,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         )
         self._sync_editing_session_to_caret_states()
         self._ensure_caret_visible()
-        self._selection_layer_owner.refresh()
-        self._diagnostic_layer_owner.refresh(reason="selection_changed")
+        self._render_publication.deferred_caret_changed()
         self._restart_caret_blink_cycle()
         if selection_paints_changed(previous_selection, self._selection()):
             self.viewport().update()
@@ -2350,7 +2306,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._editor_state.publish_projection(rebuild_result.projection_document)
         self._last_rendered_active_span_range = rebuild_result.active_span_range
-        self._diagnostic_layer_owner.clear_fragment_cache(reason=invalidation_reason)
+        self._render_publication.projection_rebuilt(
+            invalidation_reason=invalidation_reason
+        )
         self._caret_state_owner.replace_states(
             cursor_state=rebuild_result.cursor_state,
             anchor_state=rebuild_result.anchor_state,
@@ -2391,12 +2349,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             display_mode=self._display_mode,
             commit_projection=commit_projection,
         )
-        self._selection_layer_owner.refresh()
-        self._diagnostic_layer_owner.refresh(reason="layout_synchronized")
-        self._prepare_source_line_chrome_layer()
-        self._prepare_search_highlight_layer()
-        self._input_method_controller.refresh_render_layer()
-        self._publish_render_frame()
+        self._render_publication.layout_synchronized()
 
     def _move_horizontally(self, direction: int, *, keep_anchor: bool) -> None:
         """Move the caret across plain text or collapsed token boundaries."""
