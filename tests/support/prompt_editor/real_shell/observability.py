@@ -74,6 +74,7 @@ class PromptEditorObservability:
             "_caret_movement_controller",
             None,
         )
+        caret_publication = getattr(surface, "_caret_publication", None)
         text_mutations = getattr(surface, "_text_mutations", None)
         observed_targets = (
             (
@@ -156,6 +157,11 @@ class PromptEditorObservability:
                 caret_movement_controller,
                 "projection caret movement owner",
                 ("move_horizontally", "move_vertically"),
+            ),
+            (
+                caret_publication,
+                "projection caret publication owner",
+                ("publish", "publish_deferred", "publish_direct_feedback"),
             ),
         )
         for target, owner, method_names in observed_targets:

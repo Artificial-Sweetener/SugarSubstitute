@@ -47,7 +47,7 @@ from .freshness_controller import (
     PromptProjectionFreshnessController,
 )
 from .observability import log_projection_timing, projection_observability_started_at
-from .source_commit_ports import PromptSourceChangeCaretSink
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .source_edit_projection_policy import PromptSourceEditProjectionDecision
 from .transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
@@ -66,7 +66,7 @@ class PromptSourceProjectionApplication:
 
     def __init__(
         self,
-        caret_sink: PromptSourceChangeCaretSink,
+        caret_publication: PromptProjectionCaretPublicationOwner,
         *,
         projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers],
         editor_state: PromptSourceProjectionEditorState,
@@ -76,7 +76,7 @@ class PromptSourceProjectionApplication:
     ) -> None:
         """Store explicit projection state, pipeline, and caret owners."""
 
-        self._caret_sink = caret_sink
+        self._caret_publication = caret_publication
         self._projection_freshness_blockers = projection_freshness_blockers
         self._editor_state = editor_state
         self._freshness = freshness
@@ -200,12 +200,12 @@ class PromptSourceProjectionApplication:
                 anchor_state=next_anchor_state,
             )
         elif outcome.wrap_reflow_deferred:
-            self._caret_sink._set_deferred_source_caret_states(
+            self._caret_publication.publish_deferred(
                 cursor_state=next_cursor_state,
                 anchor_state=next_anchor_state,
             )
         else:
-            self._caret_sink._set_caret_states(
+            self._caret_publication.publish(
                 cursor_state=next_cursor_state,
                 anchor_state=next_anchor_state,
                 collapse_expanded_token=not outcome.fast_projection_applied,
@@ -235,15 +235,10 @@ class PromptSourceProjectionApplication:
     ) -> None:
         """Publish caret state paired with direct transient edit feedback."""
 
-        self._caret_sink._caret_state_owner.replace_states(
+        self._caret_publication.publish_direct_feedback(
             cursor_state=cursor_state,
             anchor_state=anchor_state,
-            clear_caret_rect_override=True,
-            reset_preferred_x=False,
         )
-        self._caret_sink._sync_editing_session_to_caret_states()
-        self._caret_sink._ensure_caret_visible()
-        self._caret_sink._restart_caret_blink_cycle()
 
 
 __all__ = ["PromptSourceProjectionApplication"]

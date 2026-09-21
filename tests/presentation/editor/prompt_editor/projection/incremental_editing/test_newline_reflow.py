@@ -458,7 +458,7 @@ def test_projection_surface_newline_backspace_flushes_pending_typing_before_dele
     assert surface.has_pending_projection_update() is True
     rebuild_count = 0
     cursor_position = box.toPlainText().index("\n") + 1
-    surface._set_deferred_source_caret_states(  # noqa: SLF001
+    surface._caret_publication.publish_deferred(  # noqa: SLF001
         cursor_state=PromptProjectionCaretState(source_position=cursor_position),
         anchor_state=PromptProjectionCaretState(source_position=cursor_position),
     )

@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source and cursor facade, projection mode, layout, and freshness coordination, and caret geometry effects, selection, scrolling, and hit testing. Extract caret-state publication, visibility, and transient geometry effects from the mounted projection surface."
+justification = "The assessed file mixes a Qt-compatible source and cursor facade, projection mode, layout, and freshness coordination, and caret geometry, scrolling, hit testing, and Qt visual lifecycle. Extract caret geometry resolution, visibility, and transient geometry effects from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 2163
-next_limit = 2100
+max_lines = 2090
+next_limit = 2000
 debt = "SS-ARCH-061"
 
 [[waivers]]

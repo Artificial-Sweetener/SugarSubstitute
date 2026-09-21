@@ -134,6 +134,7 @@ def _source_change_applier(
     transaction = PromptProjectionSourceChangeTransaction[_ProjectionPayload](
         cast(Any, host),
         host._mouse_handler,
+        caret_publication=cast(Any, host),
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
         source_change_publication=source_change_publication,
@@ -144,7 +145,13 @@ def _source_change_applier(
         autocomplete_preview=cast(Any, host),
     )
     range_application = PromptSourceRangeCommitApplication[_ProjectionPayload](
-        cast(Any, host),
+        caret_publication=cast(Any, host),
+        set_cursor_positions=(
+            lambda cursor, anchor: host.set_cursor_positions(
+                cursor_position=cursor,
+                anchor_position=anchor,
+            )
+        ),
         editor_state=cast(Any, host._editor_state),
         projection_facts=projection_facts,
         semantic_remapper=semantic_remapper,
@@ -163,7 +170,12 @@ def _source_change_applier(
     )
     document_application = PromptSourceDocumentCommitApplication[_ProjectionPayload](
         cast(Any, host._scroll_bar),
-        cast(Any, host),
+        set_cursor_positions=(
+            lambda cursor, anchor: host.set_cursor_positions(
+                cursor_position=cursor,
+                anchor_position=anchor,
+            )
+        ),
         schedule_geometry_reuse_warm=lambda reason: host.schedule(reason=reason),
         transaction=transaction,
     )

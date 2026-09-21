@@ -50,6 +50,7 @@ from .autocomplete_preview_projection_owner import (
 )
 from .edit_pipeline import PromptEditPipeline
 from .edit_publication import PromptEditPublication, PromptEditPublicationSink
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
@@ -76,7 +77,6 @@ from .source_change_transaction import (
 )
 from .source_change_publication import PromptSourceChangePublicationOwner
 from .source_commit_ports import (
-    PromptSourceChangeCaretSink,
     PromptSourceCommitPresentationSink,
     PromptSourceReplacementPointerSink,
 )
@@ -134,7 +134,8 @@ class PromptProjectionSourceStateBindings:
     prompt_state_host: PromptProjectionPromptStateHost
     fact_context: PromptSourceEditProjectionFactContext
     source_presentation_sink: PromptSourceCommitPresentationSink
-    source_caret_sink: PromptSourceChangeCaretSink
+    caret_publication: PromptProjectionCaretPublicationOwner
+    set_cursor_positions: Callable[[int, int], object]
     projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers]
     input_method_source_changed: Callable[[], None]
     clear_reorder_for_source_change: Callable[[], None]
@@ -212,6 +213,8 @@ def build_prompt_projection_source_state_owners(
         frame_state=frame_state,
         layout=bindings.layout,
         diagnostics=bindings.diagnostics,
+        caret_publication=bindings.caret_publication,
+        overlays=transient_edit_overlays,
     )
     reflow_strategy = PromptIncrementalReflowStrategy(
         bindings.build_context,
@@ -274,7 +277,7 @@ def build_prompt_projection_source_state_owners(
     )
     semantic_remapper = PromptProjectionSemanticRemapper()
     source_projection_application = PromptSourceProjectionApplication(
-        bindings.source_caret_sink,
+        bindings.caret_publication,
         projection_freshness_blockers=bindings.projection_freshness_blockers,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
@@ -286,6 +289,7 @@ def build_prompt_projection_source_state_owners(
     ](
         bindings.source_presentation_sink,
         bindings.pointer_sink,
+        caret_publication=bindings.caret_publication,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         source_change_publication=source_change_publication,
@@ -296,7 +300,8 @@ def build_prompt_projection_source_state_owners(
         autocomplete_preview=bindings.autocomplete_preview,
     )
     range_application = PromptSourceRangeCommitApplication[PromptProjectionUndoPayload](
-        bindings.source_caret_sink,
+        caret_publication=bindings.caret_publication,
+        set_cursor_positions=bindings.set_cursor_positions,
         editor_state=bindings.editor_state,
         projection_facts=projection_facts,
         semantic_remapper=semantic_remapper,
@@ -307,7 +312,7 @@ def build_prompt_projection_source_state_owners(
         PromptProjectionUndoPayload
     ](
         bindings.source_presentation_sink,
-        bindings.source_caret_sink,
+        bindings.caret_publication,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         source_change_publication=source_change_publication,
@@ -319,7 +324,7 @@ def build_prompt_projection_source_state_owners(
         PromptProjectionUndoPayload
     ](
         bindings.document_scroll_bar,
-        bindings.source_caret_sink,
+        set_cursor_positions=bindings.set_cursor_positions,
         schedule_geometry_reuse_warm=bindings.schedule_geometry_reuse_warm,
         transaction=source_change_transaction,
     )

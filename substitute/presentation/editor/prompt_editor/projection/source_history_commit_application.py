@@ -42,10 +42,8 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 
 from .freshness_controller import PromptProjectionFreshnessController
 from .session import PromptProjectionSession
-from .source_commit_ports import (
-    PromptSourceChangeCaretSink,
-    PromptSourceCommitPresentationSink,
-)
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
+from .source_commit_ports import PromptSourceCommitPresentationSink
 from .source_change_publication import PromptSourceChangePublicationOwner
 from .source_document import PromptProjectionSourceDocument
 from .source_projection_application import PromptSourceProjectionApplication
@@ -67,7 +65,7 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
     def __init__(
         self,
         presentation_sink: PromptSourceCommitPresentationSink,
-        caret_sink: PromptSourceChangeCaretSink,
+        caret_publication: PromptProjectionCaretPublicationOwner,
         *,
         editor_state: PromptSourceHistoryEditorState,
         freshness: PromptProjectionFreshnessController,
@@ -79,7 +77,7 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
         """Store explicit restoration state and publication owners."""
 
         self._presentation_sink = presentation_sink
-        self._caret_sink = caret_sink
+        self._caret_publication = caret_publication
         self._editor_state = editor_state
         self._freshness = freshness
         self._source_change_publication = source_change_publication
@@ -159,13 +157,12 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
                 source_position=commit.cursor_state.anchor_position
             )
             self._session.expanded_source_range = None
-        self._caret_sink._caret_state_owner.replace_states(
+        self._caret_publication.replace_states(
             cursor_state=next_cursor_state,
             anchor_state=next_anchor_state,
             clear_caret_rect_override=True,
             reset_preferred_x=True,
         )
-        self._caret_sink._sync_editing_session_to_caret_states()
         self._source_document.sync_default_font(self._presentation_sink.font())
         self._source_document.replace_text(state.source_text)
         self._projection_application.apply(
@@ -181,8 +178,8 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
             previous_document_view=previous_document_view,
             previous_render_plan=previous_render_plan,
             previous_deletion_overlay=previous_deletion_overlay,
-            next_cursor_state=self._caret_sink._caret_state_owner.cursor_state,
-            next_anchor_state=self._caret_sink._caret_state_owner.anchor_state,
+            next_cursor_state=self._caret_publication.cursor_state,
+            next_anchor_state=self._caret_publication.anchor_state,
             can_preserve_diagnostic_fragment_cache=False,
             projection_deferral_reason="history_restore",
             authoritative_semantic_current_before_edit=(
@@ -190,8 +187,7 @@ class PromptSourceHistoryCommitApplication(Generic[TProjectionPayload]):
             ),
             restore_checkpoint=None if payload is None else payload.layout_checkpoint,
         )
-        self._caret_sink._ensure_caret_visible()
-        self._caret_sink._restart_caret_blink_cycle()
+        self._caret_publication.refresh_visibility()
         self._presentation_sink.textChanged.emit()
         self._presentation_sink.cursorPositionChanged.emit()
 

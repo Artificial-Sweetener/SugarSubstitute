@@ -50,6 +50,9 @@ from substitute.presentation.editor.prompt_editor.projection.prepared_frame impo
 from substitute.presentation.editor.prompt_editor.projection.caret_state_owner import (
     PromptProjectionCaretStateOwner,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_publication_owner import (
+    PromptProjectionCaretPublicationOwner,
+)
 from .pointer_ports import PromptSurfacePointerInteractions
 
 
@@ -111,15 +114,6 @@ class PromptSurfaceMouseHost(Protocol):
     def _scroll_offset(self) -> float:
         """Return the viewport scroll offset used by projection geometry."""
 
-    def _set_caret_states(
-        self,
-        *,
-        cursor_state: PromptProjectionCaretState,
-        anchor_state: PromptProjectionCaretState,
-        caret_rect_override: QRectF | None = None,
-    ) -> None:
-        """Persist projection-backed cursor and anchor states."""
-
     def token_at_viewport_position(
         self,
         position: QPointF,
@@ -143,6 +137,7 @@ class PromptSurfaceMouseHandler:
         self,
         host: PromptSurfaceMouseHost,
         *,
+        caret_publication: PromptProjectionCaretPublicationOwner,
         ensure_pointer_focus: Callable[[], None],
         clear_autocomplete_preview: Callable[[], None],
         request_lora_context_menu: Callable[[QPointF, QPoint], bool],
@@ -150,6 +145,7 @@ class PromptSurfaceMouseHandler:
         """Bind pointer routing to the bounded surface operations it may use."""
 
         self._host = host
+        self._caret_publication = caret_publication
         self._ensure_pointer_focus = ensure_pointer_focus
         self._clear_autocomplete_preview = clear_autocomplete_preview
         self._request_lora_context_menu = request_lora_context_menu
@@ -304,7 +300,7 @@ class PromptSurfaceMouseHandler:
             preferred_line_index=self._drag_selection_session.preferred_line_index,
         )
         self._drag_selection_session.preferred_line_index = drag_target.line_index
-        host._set_caret_states(
+        self._caret_publication.publish(
             cursor_state=drag_target.state,
             anchor_state=self._drag_selection_session.anchor_state,
         )
@@ -435,7 +431,7 @@ class PromptSurfaceMouseHandler:
         next_anchor_state = (
             self._host._caret_state_owner.anchor_state if keep_anchor else caret_state
         )
-        self._host._set_caret_states(
+        self._caret_publication.publish(
             cursor_state=caret_state,
             anchor_state=next_anchor_state,
             caret_rect_override=caret_rect_override,

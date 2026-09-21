@@ -34,7 +34,6 @@ from substitute.presentation.editor.prompt_editor.core.editing.commit import (
 
 from .semantic_remap import PromptProjectionOptimisticPromptState
 from .source_change_transaction import PromptProjectionSourceChangeTransaction
-from .source_commit_ports import PromptSourceChangeCaretSink
 
 TProjectionPayload = TypeVar("TProjectionPayload")
 
@@ -52,15 +51,15 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
     def __init__(
         self,
         scroll_bar: PromptSourceDocumentScrollBar,
-        caret_sink: PromptSourceChangeCaretSink,
         *,
+        set_cursor_positions: Callable[[int, int], object],
         schedule_geometry_reuse_warm: Callable[[str], None],
         transaction: PromptProjectionSourceChangeTransaction[TProjectionPayload],
     ) -> None:
         """Store explicit scroll, caret, warmup, and transaction collaborators."""
 
         self._scroll_bar = scroll_bar
-        self._caret_sink = caret_sink
+        self._set_cursor_positions = set_cursor_positions
         self._schedule_geometry_reuse_warm = schedule_geometry_reuse_warm
         self._transaction = transaction
 
@@ -71,9 +70,9 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
         source_edit = commit.source_edit
         prepared_prompt_state = self._projection_prompt_state(application_state)
         if not commit.source_changed and prepared_prompt_state is None:
-            self._caret_sink.set_cursor_positions(
-                cursor_position=commit.cursor_state.cursor_position,
-                anchor_position=commit.cursor_state.anchor_position,
+            self._set_cursor_positions(
+                commit.cursor_state.cursor_position,
+                commit.cursor_state.anchor_position,
             )
         else:
             self._transaction.apply(

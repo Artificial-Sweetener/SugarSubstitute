@@ -84,7 +84,7 @@ def test_real_shell_removed_token_caret_falls_back_to_its_source_position(
         token_slot=0,
     )
 
-    surface._set_caret_states(  # noqa: SLF001
+    surface._caret_publication.publish(  # noqa: SLF001
         cursor_state=stale_token_state,
         anchor_state=stale_token_state,
         reason="removed-token-regression",
