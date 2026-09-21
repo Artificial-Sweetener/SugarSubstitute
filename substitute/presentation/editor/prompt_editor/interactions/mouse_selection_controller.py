@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -63,7 +64,6 @@ class PromptSurfaceMouseHost(Protocol):
     """Expose bounded surface operations needed by interim pointer routing."""
 
     _caret_state_owner: PromptProjectionCaretStateOwner
-    _focus_host: QWidget | None
     _session: _PromptSurfaceMouseProjectionSession
     _pointer_interactions: PromptSurfacePointerInteractions
 
@@ -149,10 +149,16 @@ class _DragSelectionSession:
 class PromptSurfaceMouseHandler:
     """Route surface pointer events while preserving projection/editing ownership."""
 
-    def __init__(self, host: PromptSurfaceMouseHost) -> None:
+    def __init__(
+        self,
+        host: PromptSurfaceMouseHost,
+        *,
+        ensure_pointer_focus: Callable[[], None],
+    ) -> None:
         """Bind pointer routing to the bounded surface operations it may use."""
 
         self._host = host
+        self._ensure_pointer_focus = ensure_pointer_focus
         self._hovered_token_id: str | None = None
         self._mouse_selecting = False
         self._drag_selection_session: _DragSelectionSession | None = None
@@ -444,13 +450,7 @@ class PromptSurfaceMouseHandler:
     def _ensure_focus_host_owns_pointer_interaction(self) -> None:
         """Restore the pointer interaction focus owner before mutating selection."""
 
-        focus_owner = self._host._focus_host
-        if focus_owner is not None:
-            if not focus_owner.hasFocus():
-                focus_owner.setFocus(Qt.FocusReason.MouseFocusReason)
-            return
-        if not self._host.hasFocus():
-            self._host.setFocus(Qt.FocusReason.MouseFocusReason)
+        self._ensure_pointer_focus()
 
     def _consume_pending_segment_word_selection_click(
         self,
