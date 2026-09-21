@@ -18,13 +18,14 @@
 
 from __future__ import annotations
 
-import errno
 import logging
+import os
 from pathlib import Path
+import shutil
+import tempfile
 
 from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
 from sugarsubstitute_shared.crash_reporting.run_context import (
-    RUNTIME_CONTEXT_FILENAME,
     STARTUP_OUTPUT_FILENAME,
 )
 
@@ -38,8 +39,8 @@ class CompletedRunArtifacts:
         """Limit cleanup to the exact diagnostic namespace of one completed run."""
         self._context = context
 
-    def discard(self, *, minidump: Path | None) -> None:
-        """Keep unavailable evidence and unrelated files without obstructing shutdown."""
+    def discard(self, *, minidump: Path | None, startup_log_path: Path) -> None:
+        """Publish current startup output, then retire this exact run workspace."""
         context = self._context
         if minidump is not None:
             self._unlink(minidump)
@@ -48,17 +49,57 @@ class CompletedRunArtifacts:
             )
             self._unlink(attachment_directory / "python-fault.log")
             self._remove_empty_directory(attachment_directory)
-        for path in (context.exit_intent_path, context.exit_receipt_path):
-            self._unlink(path)
-        self._remove_empty_directory(context.exit_intent_path.parent)
-        incident_directory = context.incident_root / context.run_id
-        for filename in (
-            "python-fault.log",
-            RUNTIME_CONTEXT_FILENAME,
-            STARTUP_OUTPUT_FILENAME,
-        ):
-            self._unlink(incident_directory / filename)
-        self._remove_empty_directory(incident_directory)
+        run_directory = context.run_root / context.run_id
+        startup_published = self._publish_startup_output(
+            run_directory / STARTUP_OUTPUT_FILENAME,
+            startup_log_path,
+        )
+        if not startup_published:
+            return
+        try:
+            shutil.rmtree(run_directory)
+        except FileNotFoundError:
+            return
+        except OSError:
+            _LOGGER.warning(
+                "Completed-run workspace retained because cleanup was unavailable",
+                extra={"run_id": context.run_id, "directory": str(run_directory)},
+                exc_info=True,
+            )
+
+    def _publish_startup_output(self, source: Path, destination: Path) -> bool:
+        """Atomically replace the canonical log and report whether cleanup is safe."""
+
+        try:
+            with source.open("rb") as source_file:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                temporary_path: Path | None = None
+                try:
+                    with tempfile.NamedTemporaryFile(
+                        mode="wb",
+                        dir=destination.parent,
+                        prefix=f".{destination.name}.",
+                        suffix=".tmp",
+                        delete=False,
+                    ) as temporary_file:
+                        temporary_path = Path(temporary_file.name)
+                        shutil.copyfileobj(source_file, temporary_file)
+                        temporary_file.flush()
+                        os.fsync(temporary_file.fileno())
+                    os.replace(temporary_path, destination)
+                finally:
+                    if temporary_path is not None:
+                        temporary_path.unlink(missing_ok=True)
+        except FileNotFoundError:
+            return True
+        except OSError:
+            _LOGGER.warning(
+                "Completed-run startup output could not be published",
+                extra={"run_id": self._context.run_id, "artifact": str(source)},
+                exc_info=True,
+            )
+            return False
+        return True
 
     def _unlink(self, path: Path) -> None:
         """Record retained evidence when the filesystem cannot dispose of it now."""
@@ -72,20 +113,14 @@ class CompletedRunArtifacts:
             )
 
     def _remove_empty_directory(self, path: Path) -> None:
-        """Remove empty scaffolding while preserving any remaining evidence."""
+        """Remove one now-empty Crashpad attachment directory when available."""
+
         try:
             path.rmdir()
         except FileNotFoundError:
             return
-        except OSError as error:
-            if error.errno in (errno.ENOTEMPTY, errno.EEXIST):
-                _LOGGER.debug(
-                    "Completed-run directory retained with remaining evidence",
-                    extra={"run_id": self._context.run_id, "directory": str(path)},
-                )
-                return
-            _LOGGER.warning(
-                "Completed-run diagnostic directory retained because cleanup was unavailable",
+        except OSError:
+            _LOGGER.debug(
+                "Crashpad attachment directory retained with remaining evidence",
                 extra={"run_id": self._context.run_id, "directory": str(path)},
-                exc_info=True,
             )

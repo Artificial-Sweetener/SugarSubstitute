@@ -265,7 +265,7 @@ def test_managed_backend_is_verified_before_clean_live_shell_shutdown(
     monkeypatch.setattr(
         installer_ui_qualification,
         "assert_no_launch_splash_replacement",
-        lambda *_arguments: events.append("single-splash"),
+        lambda **_arguments: events.append("single-splash"),
     )
     monkeypatch.setattr(
         installer_ui_qualification,

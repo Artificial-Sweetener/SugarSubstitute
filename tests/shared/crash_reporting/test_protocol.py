@@ -40,6 +40,10 @@ def test_run_context_round_trips_through_child_environment(tmp_path: Path) -> No
     inherited = CrashRunContext.from_environment(context.environment({"KEEP": "yes"}))
 
     assert inherited == context
+    assert context.run_root == tmp_path / "diagnostics" / "runs"
+    assert context.incident_root == tmp_path / "diagnostics" / "crashes"
+    assert context.exit_intent_path.parent == context.run_root / context.run_id
+    assert context.exit_receipt_path.parent == context.run_root / context.run_id
 
 
 def test_partial_crash_environment_fails_closed() -> None:
