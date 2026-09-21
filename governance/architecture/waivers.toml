@@ -183,19 +183,6 @@ next_limit = 557
 debt = "SS-ARCH-017"
 
 [[waivers]]
-id = "SS-WAIVER-R018"
-owner = "prompt mutation"
-rule = "STRUCT003"
-path = "substitute/application/prompt_editor/editing/mutation_service.py"
-kind = "remediation"
-justification = "The assessed file mixes generic syntax-action routing, emphasis weight mutation, LoRA and wildcard mutation, chip and layout reordering, application-to-domain mutation adaptation. Extract syntax-family mutation handlers and reorder mutation behind the common PromptMutation result contract."
-issue = "chore:SS-ARCH-018"
-review_by = 2026-12-15
-max_lines = 603
-next_limit = 500
-debt = "SS-ARCH-018"
-
-[[waivers]]
 id = "SS-WAIVER-R021"
 owner = "recipe model resolution"
 rule = "STRUCT003"
