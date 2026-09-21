@@ -53,6 +53,9 @@ from substitute.presentation.editor.prompt_editor.projection.caret_state_owner i
 from substitute.presentation.editor.prompt_editor.projection.caret_publication_owner import (
     PromptProjectionCaretPublicationOwner,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_geometry_owner import (
+    PromptProjectionCaretGeometryOwner,
+)
 from .pointer_ports import PromptSurfacePointerInteractions
 
 
@@ -96,9 +99,6 @@ class PromptSurfaceMouseHost(Protocol):
     ) -> object:
         """Persist source-backed cursor positions."""
 
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the current document-local caret rectangle."""
-
     def _emit_mouse_interaction_finished(self) -> None:
         """Publish that a pointer selection interaction has finished."""
 
@@ -138,6 +138,7 @@ class PromptSurfaceMouseHandler:
         host: PromptSurfaceMouseHost,
         *,
         caret_publication: PromptProjectionCaretPublicationOwner,
+        caret_geometry: PromptProjectionCaretGeometryOwner,
         ensure_pointer_focus: Callable[[], None],
         clear_autocomplete_preview: Callable[[], None],
         request_lora_context_menu: Callable[[QPointF, QPoint], bool],
@@ -146,6 +147,7 @@ class PromptSurfaceMouseHandler:
 
         self._host = host
         self._caret_publication = caret_publication
+        self._caret_geometry = caret_geometry
         self._ensure_pointer_focus = ensure_pointer_focus
         self._clear_autocomplete_preview = clear_autocomplete_preview
         self._request_lora_context_menu = request_lora_context_menu
@@ -257,7 +259,7 @@ class PromptSurfaceMouseHandler:
             caret_rect_override=caret_hit.document_rect,
         )
         self._mouse_selecting = True
-        caret_center_y = host._current_caret_document_rect().center().y()
+        caret_center_y = self._caret_geometry.current_document_rect().center().y()
         self._drag_selection_session = _DragSelectionSession(
             anchor_state=host._caret_state_owner.anchor_state,
             anchor_line_index=geometry.caret.line_index_for_document_y(caret_center_y),

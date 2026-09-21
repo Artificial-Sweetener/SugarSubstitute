@@ -122,10 +122,15 @@ def test_projection_surface_caret_sync_ignores_deleted_qt_wrappers(
         lambda _obj: False,
     )
 
-    surface_view._sync_caret_blink_state(reset_cycle=True)
-    surface_view._toggle_caret_blink_visibility()
+    surface_view._caret_visual_controller.sync_caret_blink_state(
+        reset_cycle=True,
+        cursor_flash_time_ms=(
+            surface_view._caret_visual_controller.cursor_flash_time_ms()
+        ),
+    )
+    surface_view._caret_visual_controller.toggle_caret_blink_visibility()
 
-    assert surface_view._caret_can_paint() is False
+    assert surface_view._caret_visual_controller.caret_can_paint() is False
     assert surface_view._caret_visual_controller.blink_enabled is True
     assert surface_view._caret_visual_controller.blink_visible is True
 

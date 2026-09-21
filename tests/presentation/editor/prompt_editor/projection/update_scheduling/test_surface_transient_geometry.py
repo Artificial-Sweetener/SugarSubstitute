@@ -117,7 +117,7 @@ def test_projection_surface_ensure_caret_visible_uses_transient_geometry(
 
     QTest.keyClicks(box, "x")
     flush_semantic_refresh(box)
-    surface._ensure_caret_visible()  # noqa: SLF001
+    surface._caret_visual_controller.ensure_caret_visible()  # noqa: SLF001
 
     assert surface.has_pending_projection_update() is True
     assert rebuild_count == 0

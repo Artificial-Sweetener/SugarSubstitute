@@ -53,6 +53,7 @@ def _strategy(surface: object) -> PromptDeferredFeedbackStrategy:
     host = cast(Any, surface)
     return PromptDeferredFeedbackStrategy(
         cast(PromptDeferredFeedbackContext, surface),
+        caret_geometry=host._caret_geometry,
         editor_state=host._editor_state,
         freshness=host._projection_freshness_controller,
         layout=host._layout,

@@ -183,7 +183,7 @@ def test_projection_surface_auto_exact_weight_edit_uses_existing_click_commit_fl
     process_events(app)
 
     editing_token = first_emphasis_token(box)
-    should_paint_caret = getattr(surface, "_should_paint_caret")
+    should_paint_caret = surface._caret_visual_controller.should_paint_caret  # noqa: SLF001
     assert box.toPlainText() == "(test:1), dog"
     assert editing_token.editing_value_text == "1.20"
     assert not should_paint_caret()

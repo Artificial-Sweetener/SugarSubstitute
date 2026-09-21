@@ -111,7 +111,8 @@ def _scrollbar_page_step(scrollbar: object | None) -> int:
 def _surface_caret_rect(surface: object | None) -> QRectF | None:
     """Return the current surface-owned caret rect without painting."""
 
-    current_caret_rect = getattr(surface, "_current_caret_rect", None)
+    geometry = getattr(surface, "_caret_geometry", None)
+    current_caret_rect = getattr(geometry, "current_viewport_rect", None)
     if not callable(current_caret_rect):
         return None
     rect = current_caret_rect()

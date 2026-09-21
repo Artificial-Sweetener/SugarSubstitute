@@ -233,7 +233,7 @@ class _SourceChangeHost:
             expanded_source_range_active=False,
         )
 
-    def _current_caret_document_rect(self) -> QRectF:
+    def current_document_rect(self) -> QRectF:
         """Return stable caret geometry for transient overlay tests."""
 
         return QRectF(1.0, 2.0, 3.0, 12.0)
@@ -341,11 +341,6 @@ class _SourceChangeHost:
 
         self.caret_visibility_checks += 1
         self.caret_blink_restarts += 1
-
-    def _clear_transient_caret_geometry(self) -> None:
-        """Clear transient caret state."""
-
-        self._transient_edit_overlays.clear()
 
     def _sync_layout_state(self, *, commit_projection: bool = False) -> None:
         """Record layout sync calls."""
