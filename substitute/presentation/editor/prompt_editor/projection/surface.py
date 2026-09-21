@@ -227,7 +227,6 @@ from .reorder_preview_projection_contracts import (
     PromptReorderPreviewProjectionContext,
 )
 from .reorder_preview_projection_owner import PromptReorderPreviewProjectionOwner
-from .reorder_surface_chrome import PromptReorderSurfaceChromeSnapshot
 from .reorder_surface_visual_state import (
     PromptReorderSurfaceVisualContext,
     PromptReorderSurfaceVisualPublication,
@@ -235,11 +234,8 @@ from .reorder_surface_visual_state import (
     empty_reorder_surface_visual_publication,
 )
 from .render_compositor import PromptProjectionRenderCompositor
-from .render_frame import (
-    PromptProjectionContentPaintMode,
-    PromptReorderRenderInstrumentation,
-)
 from .render_frame_owner import PromptProjectionRenderFrameOwner
+from .render_publication_owner import PromptProjectionRenderPublicationOwner
 from .reorder_visual_snapshot import (
     PromptReorderProjectionPaintSnapshot,
     PromptReorderProjectionSnapshotKey,
@@ -537,6 +533,30 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._pointer_interactions = PromptSurfacePointerInteractions()
         self._region_chrome = PromptRegionChrome()
         self._render_frame_owner = PromptProjectionRenderFrameOwner()
+        self._render_publication = PromptProjectionRenderPublicationOwner(
+            surface=self,
+            viewport=self.viewport(),
+            layout=self._layout,
+            editor_state=self._editor_state,
+            session=self._session,
+            reorder_preview=self._reorder_preview_projection,
+            input_method=self._input_method_controller,
+            content_media=self._content_media_owner,
+            selection_layer=self._selection_layer_owner,
+            source_line_chrome=self._source_line_chrome,
+            region_chrome=self._region_chrome,
+            reorder_visual_state=self._reorder_surface_visual_state,
+            search_highlight=self._search_highlight_layer,
+            diagnostics=self._diagnostic_layer_owner,
+            transient_overlays=self._transient_edit_overlays,
+            freshness=self._projection_freshness_controller,
+            frame_owner=self._render_frame_owner,
+            scroll_offset=self._scroll_offset,
+            should_paint_caret=self._should_paint_caret,
+            current_caret_rect=self._current_caret_rect,
+            preview_visible_region=self._preview_visible_region,
+            reorder_preview_generation=self._reorder_preview_generation,
+        )
         self._render_compositor = PromptProjectionRenderCompositor()
         self._layout.frame.set_semantic_palette(semantic_palette_from_theme())
         self._frame_synchronizer = PromptProjectionFrameSynchronizer(
@@ -3078,119 +3098,16 @@ class PromptProjectionSurface(QAbstractScrollArea):
         super().hideEvent(event)
 
     def _publish_render_frame(self) -> None:
-        """Publish every prepared layer and cache input before repaint."""
+        """Delegate complete render-frame publication to its state owner."""
 
-        if not hasattr(self, "_render_frame_owner") or not qt_object_is_alive(self):
-            return
-        viewport = self.viewport()
-        if not qt_object_is_alive(viewport):
-            return
-        viewport_rect = QRectF(viewport.rect())
-        scroll_offset = self._scroll_offset()
-        preview_frame = self._reorder_preview_projection.preview_frame
-        paint_snapshot = self._editor_state.current_paint
-        if preview_frame is not None:
-            paint_input = preview_frame.paint_input
-            metrics = preview_frame.output.configuration.metrics
-            paint_identity = None
-            content_mode = PromptProjectionContentPaintMode.DIRECT_REORDER_PREVIEW
-            reorder_mode = "preview"
-            preview_visible_region = self._preview_visible_region()
-            preview_state = self._reorder_preview_projection.preview_state
-            reorder_instrumentation = PromptReorderRenderInstrumentation(
-                gesture_id=(
-                    None
-                    if preview_state is None
-                    else preview_state.instrumentation_gesture_id
-                ),
-                event_id=(
-                    None
-                    if preview_state is None
-                    else preview_state.instrumentation_event_id
-                ),
-                line_count=preview_frame.output.snapshot.line_count(),
-                text_fragment_count=(
-                    preview_frame.output.snapshot.text_fragment_count()
-                ),
-                inline_object_count=(
-                    preview_frame.output.snapshot.inline_object_fragment_count()
-                ),
-            )
-        else:
-            paint_input = self._layout.frame.paint_input
-            metrics = self._layout.frame.output.configuration.metrics
-            paint_identity = None if paint_snapshot is None else paint_snapshot.identity
-            if self._session.autocomplete_preview is not None:
-                content_mode = (
-                    PromptProjectionContentPaintMode.DIRECT_AUTOCOMPLETE_PREVIEW
-                )
-            elif paint_identity is None:
-                content_mode = PromptProjectionContentPaintMode.DIRECT_UNPREPARED
-            else:
-                content_mode = PromptProjectionContentPaintMode.CACHED
-            reorder_mode = "live"
-            preview_visible_region = None
-            reorder_instrumentation = None
-        self._input_method_controller.refresh_render_layer()
-        caret_visible = (
-            preview_frame is None
-            and not self._input_method_controller.is_composing
-            and self._should_paint_caret()
-        )
-        caret_rect = self._current_caret_rect() if caret_visible else QRectF()
-        self._render_frame_owner.publish(
-            paint_input=paint_input,
-            paint_identity=paint_identity,
-            content_media_identity=self._content_media_owner.identity,
-            content_mode=content_mode,
-            selection_layer=self._selection_layer_owner.layer,
-            source_line_layer=self._source_line_chrome.layer,
-            region_layer=self._region_chrome.active_snapshot,
-            reorder_layer=self._fresh_reorder_surface_chrome(reorder_mode),
-            search_layer=self._search_highlight_layer.layer,
-            diagnostic_layer=self._diagnostic_layer_owner.layer,
-            input_method_layer=self._input_method_controller.render_layer,
-            overlays=self._transient_edit_overlays,
-            freshness_is_stale_safe=(
-                self._projection_freshness_controller.has_stale_projection_geometry()
-            ),
-            source_identity=self._editor_state.source_identity,
-            metrics=metrics,
-            viewport_rect=viewport_rect,
-            scroll_offset=scroll_offset,
-            device_pixel_ratio=float(viewport.devicePixelRatioF()),
-            font=self.font(),
-            palette=self.palette(),
-            caret_visible=caret_visible,
-            caret_rect=caret_rect,
-            preview_content_visible_region=preview_visible_region,
-            reorder_instrumentation=reorder_instrumentation,
-        )
+        if hasattr(self, "_render_publication"):
+            self._render_publication.publish()
 
     def _diagnostic_layer_published(self) -> None:
         """Publish a changed diagnostic layer before requesting its repaint."""
 
         self._publish_render_frame()
         self.viewport().update()
-
-    def _fresh_reorder_surface_chrome(
-        self,
-        mode: str,
-    ) -> PromptReorderSurfaceChromeSnapshot | None:
-        """Return reorder chrome only when it matches the pending render frame."""
-
-        snapshot = self._reorder_surface_visual_state.state.chrome_snapshot
-        if snapshot is None or not snapshot.matches(
-            source_revision=self._editor_state.source.source_revision,
-            viewport_rect=self.viewport().rect(),
-            scroll_offset=int(round(self._scroll_offset())),
-            preview_generation=(
-                self._reorder_preview_generation() if mode == "preview" else None
-            ),
-            mode=mode,
-        ):
-            return None
-        return snapshot
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """Delegate one prepared frame and event clip to the render compositor."""

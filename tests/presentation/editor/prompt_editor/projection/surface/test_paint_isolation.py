@@ -54,9 +54,9 @@ def test_paint_reads_only_event_clip_and_published_render_frame(
         "_publish_render_frame",
         "_should_paint_caret",
         "_preview_visible_region",
-        "_fresh_reorder_surface_chrome",
     ):
         monkeypatch.setattr(surface, method_name, reject_discovery)
+    monkeypatch.setattr(surface._render_publication, "publish", reject_discovery)  # noqa: SLF001
 
     image = render_surface_viewport(surface)
 
