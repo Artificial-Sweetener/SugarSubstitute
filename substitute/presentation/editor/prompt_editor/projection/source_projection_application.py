@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
@@ -41,13 +43,11 @@ from .edit_pipeline_contracts import PromptProjectionSourceChangeApplyRequest
 from .edit_strategy import source_edit_kind
 from .freshness_controller import (
     ProjectionFreshness,
+    PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
 )
 from .observability import log_projection_timing, projection_observability_started_at
-from .source_commit_ports import (
-    PromptSourceChangeCaretSink,
-    PromptSourceChangeEffectSink,
-)
+from .source_commit_ports import PromptSourceChangeCaretSink
 from .source_edit_projection_policy import PromptSourceEditProjectionDecision
 from .transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
@@ -66,9 +66,9 @@ class PromptSourceProjectionApplication:
 
     def __init__(
         self,
-        effect_sink: PromptSourceChangeEffectSink,
         caret_sink: PromptSourceChangeCaretSink,
         *,
+        projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers],
         editor_state: PromptSourceProjectionEditorState,
         freshness: PromptProjectionFreshnessController,
         pipeline: PromptEditPipeline,
@@ -76,8 +76,8 @@ class PromptSourceProjectionApplication:
     ) -> None:
         """Store explicit projection state, pipeline, and caret owners."""
 
-        self._effect_sink = effect_sink
         self._caret_sink = caret_sink
+        self._projection_freshness_blockers = projection_freshness_blockers
         self._editor_state = editor_state
         self._freshness = freshness
         self._pipeline = pipeline
@@ -174,7 +174,7 @@ class PromptSourceProjectionApplication:
                     restore_checkpoint_blockers=(
                         None
                         if restore_checkpoint is None
-                        else self._effect_sink._projection_freshness_blockers()
+                        else self._projection_freshness_blockers()
                     ),
                 )
             )

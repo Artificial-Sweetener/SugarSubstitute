@@ -57,9 +57,10 @@ from .semantic_remap import (
 )
 from .session import PromptProjectionSession
 from .source_commit_ports import (
-    PromptSourceChangeEffectSink,
+    PromptSourceCommitPresentationSink,
     PromptSourceReplacementPointerSink,
 )
+from .source_change_publication import PromptSourceChangePublicationOwner
 from .source_document import PromptProjectionSourceDocument
 from .source_edit_projection_policy import PromptSourceEditProjectionDecision
 from .source_projection_application import PromptSourceProjectionApplication
@@ -78,11 +79,12 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
 
     def __init__(
         self,
-        effect_sink: PromptSourceChangeEffectSink,
+        presentation_sink: PromptSourceCommitPresentationSink,
         pointer_sink: PromptSourceReplacementPointerSink,
         *,
         editor_state: PromptSourceChangeEditorState,
         freshness: PromptProjectionFreshnessController,
+        source_change_publication: PromptSourceChangePublicationOwner,
         projection_application: PromptSourceProjectionApplication,
         semantic_remapper: PromptProjectionSemanticRemapper,
         session: PromptProjectionSession,
@@ -91,10 +93,11 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
     ) -> None:
         """Store explicit state owners and focused surface effect sinks."""
 
-        self._effect_sink = effect_sink
+        self._presentation_sink = presentation_sink
         self._pointer_sink = pointer_sink
         self._editor_state = editor_state
         self._freshness = freshness
+        self._source_change_publication = source_change_publication
         self._projection_application = projection_application
         self._semantic_remapper = semantic_remapper
         self._session = session
@@ -119,7 +122,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
     ) -> None:
         """Apply one prepared source commit through all authoritative owners."""
 
-        effect_sink = self._effect_sink
+        presentation_sink = self._presentation_sink
         text = commit.next_snapshot.source_text
         cursor_position = commit.cursor_state.cursor_position
         anchor_position = commit.cursor_state.anchor_position
@@ -147,7 +150,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             and source_edit_end - source_edit_start <= 1
             and len(source_edit_replacement_text) <= 1
         )
-        effect_sink._mark_source_text_changed(
+        self._source_change_publication.publish(
             deferrable_projection=deferrable_projection,
             source_snapshot=commit.next_snapshot,
             clear_diagnostic_fragment_cache=(
@@ -155,7 +158,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             ),
         )
         if emit_text_changed and refresh_caret_after_prompt_state:
-            effect_sink._caret_visibility_prompt_state_revision = (
+            presentation_sink._caret_visibility_prompt_state_revision = (
                 self._editor_state.source.source_revision
             )
         document_view_started_at = projection_observability_started_at()
@@ -231,7 +234,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
                 default=0,
             )
             if authored_depth >= 2:
-                effect_sink.notify_implicit_parenthesis_authored(authored_depth)
+                presentation_sink.notify_implicit_parenthesis_authored(authored_depth)
         self._pointer_sink.clear_pointer_state_for_source_replacement()
         log_projection_timing(
             "source_change.prepare_document_view",
@@ -240,7 +243,7 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             emit_text_changed=emit_text_changed,
         )
         qtext_document_started_at = projection_observability_started_at()
-        self._source_document.sync_default_font(effect_sink.font())
+        self._source_document.sync_default_font(presentation_sink.font())
         self._source_document.replace_with_range_fallback(
             next_text=text,
             previous_text=previous_source_text,
@@ -277,10 +280,10 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             projection_decision=projection_decision,
         )
         if source_edit_start is not None and source_edit_end is not None:
-            effect_sink._mark_source_edit_horizontal_movement_origin()
+            presentation_sink._mark_source_edit_horizontal_movement_origin()
         if emit_text_changed:
-            effect_sink.textChanged.emit()
-        effect_sink.cursorPositionChanged.emit()
+            presentation_sink.textChanged.emit()
+        presentation_sink.cursorPositionChanged.emit()
 
     def _remap_diagnostics_for_source_edit(
         self,

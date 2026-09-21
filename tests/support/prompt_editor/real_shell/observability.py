@@ -131,12 +131,12 @@ class PromptEditorObservability:
             (
                 surface,
                 "projection source and caret owner",
-                (
-                    "_backspace",
-                    "_delete",
-                    "_flush_pending_projection_update",
-                    "_mark_source_text_changed",
-                ),
+                ("_backspace", "_delete", "_flush_pending_projection_update"),
+            ),
+            (
+                getattr(surface, "_source_change_publication", None),
+                "source change publication owner",
+                ("publish",),
             ),
             (
                 text_mutations,

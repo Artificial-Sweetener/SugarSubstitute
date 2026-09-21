@@ -146,7 +146,12 @@ class _SourceChangeHost:
         self._caret_state_owner.set_preferred_x(3.0)
         self._scroll_bar = _ScrollBarRecorder()
         self._viewport = _ViewportRecorder()
-        self.marked_source_changes: list[tuple[bool, int]] = []
+        self.marked_source_changes = (
+            self._projection_freshness_controller.marked_source_changes
+        )
+        self.input_method_source_changes = 0
+        self.reorder_source_changes = 0
+        self.render_source_changes: list[bool] = []
         self.cursor_position_updates: list[tuple[int, int]] = []
         self.undo_available_emissions: list[bool] = []
         self.redo_available_emissions: list[bool] = []
@@ -233,20 +238,20 @@ class _SourceChangeHost:
 
         return QRectF(1.0, 2.0, 3.0, 12.0)
 
-    def _mark_source_text_changed(
-        self,
-        *,
-        deferrable_projection: bool,
-        source_snapshot: PromptSourceSnapshot,
-        clear_diagnostic_fragment_cache: bool = True,
-    ) -> None:
-        """Record source change freshness inputs."""
+    def record_input_method_source_changed(self) -> None:
+        """Record composition invalidation for a committed source revision."""
 
-        _ = clear_diagnostic_fragment_cache
-        source_identity = self._editor_state.publish_source(source_snapshot)
-        self.marked_source_changes.append(
-            (deferrable_projection, source_identity.source_revision)
-        )
+        self.input_method_source_changes += 1
+
+    def record_reorder_source_changed(self) -> None:
+        """Record reorder invalidation for a committed source revision."""
+
+        self.reorder_source_changes += 1
+
+    def record_render_source_changed(self, clear_fragment_cache: bool) -> None:
+        """Record render invalidation and diagnostic cache policy."""
+
+        self.render_source_changes.append(clear_fragment_cache)
 
     def _rebuild_projection(self) -> None:
         """Record a projection rebuild."""

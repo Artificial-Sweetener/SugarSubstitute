@@ -59,6 +59,9 @@ from substitute.presentation.editor.prompt_editor.projection.source_commit_appli
 from substitute.presentation.editor.prompt_editor.projection.source_change_transaction import (
     PromptProjectionSourceChangeTransaction,
 )
+from substitute.presentation.editor.prompt_editor.projection.source_change_publication import (
+    PromptSourceChangePublicationOwner,
+)
 from substitute.presentation.editor.prompt_editor.projection.semantic_remap import (
     PromptProjectionSemanticRemapper,
 )
@@ -90,6 +93,21 @@ from .source_change_host import _SourceChangeHost
 _ProjectionPayload = PromptProjectionUndoPayload
 
 
+def _source_change_publication(
+    host: _SourceChangeHost,
+) -> PromptSourceChangePublicationOwner:
+    """Compose the production source-revision publication owner for tests."""
+
+    return PromptSourceChangePublicationOwner(
+        editor_state=cast(Any, host._editor_state),
+        freshness=cast(Any, host._projection_freshness_controller),
+        overlays=host._transient_edit_overlays,
+        input_method_source_changed=host.record_input_method_source_changed,
+        clear_reorder_for_source_change=host.record_reorder_source_changed,
+        invalidate_render_for_source_change=host.record_render_source_changed,
+    )
+
+
 def _source_change_applier(
     host: _SourceChangeHost,
 ) -> PromptProjectionSourceCommitApplication[_ProjectionPayload]:
@@ -106,17 +124,19 @@ def _source_change_applier(
     semantic_remapper = PromptProjectionSemanticRemapper()
     projection_application = PromptSourceProjectionApplication(
         cast(Any, host),
-        cast(Any, host),
+        projection_freshness_blockers=host._projection_freshness_blockers,
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
         pipeline=cast(Any, host._edit_pipeline),
         overlays=host._transient_edit_overlays,
     )
+    source_change_publication = _source_change_publication(host)
     transaction = PromptProjectionSourceChangeTransaction[_ProjectionPayload](
         cast(Any, host),
         host._mouse_handler,
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
+        source_change_publication=source_change_publication,
         projection_application=projection_application,
         semantic_remapper=semantic_remapper,
         session=cast(Any, host._session),
@@ -136,6 +156,7 @@ def _source_change_applier(
         cast(Any, host),
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
+        source_change_publication=source_change_publication,
         projection_application=projection_application,
         session=cast(Any, host._session),
         source_document=cast(Any, host._source_document_adapter),
