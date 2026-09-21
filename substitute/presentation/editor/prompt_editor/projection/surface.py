@@ -111,7 +111,6 @@ from .autocomplete_preview_projection_owner import (
     PromptAutocompletePreviewProjectionOwner,
 )
 from .caret_movement_controller import (
-    PromptProjectionCaretMovementController,
     PromptProjectionCaretMovementHost,
 )
 from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
@@ -125,7 +124,6 @@ from .fill_band_cache import (
 )
 from .frame_state import (
     PromptProjectionEditorState,
-    PromptProjectionLayoutWidthResolver,
 )
 from .focus_owner import PromptProjectionFocusOwner
 from .freshness_controller import (
@@ -171,10 +169,13 @@ from .surface_presentation_runtime import (
     build_prompt_projection_surface_presentation_runtime,
 )
 from .refresh_geometry_signature import PromptRefreshGeometryPaintSignature
-from .content_selection_owner import PromptProjectionSelectionLayerOwner
 from .source_state_wiring import (
     PromptProjectionSourceStateBindings,
     build_prompt_projection_source_state_owners,
+)
+from .surface_lifecycle_runtime import (
+    PromptProjectionSurfaceLifecycleBindings,
+    build_prompt_projection_surface_lifecycle_runtime,
 )
 from .theme import qcolor_from_rgb, semantic_palette_from_theme
 from .undo_payload import PromptProjectionUndoPayload
@@ -539,86 +540,65 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._source_document_adapter = source_state_owners.source_document
         self._source_commit_application = source_state_owners.source_commit_application
         self._source_change_publication = source_state_owners.source_change_publication
-        self._layout_width_resolver: PromptProjectionLayoutWidthResolver
-        self._reorder = PromptReorderProjectionOwner(
-            surface=self,
-            viewport=self.viewport(),
-            applicator=self._projection_applicator,
-            thumbnail_cache=thumbnail_cache,
-            editor_state=self._editor_state,
-            layout=self._layout,
-            layout_width=lambda: self._layout_width_resolver.resolve(),
-            scroll_offset=self._scroll_offset,
-            flush_pending_projection=(
-                lambda reason: self._flush_pending_projection_update(reason=reason)
-            ),
-            synchronize_layout=self._sync_layout_state,
-            publish_render_frame=self._publish_render_frame,
-            request_update=self.viewport().update,
-        )
-        self._selection_layer_owner = PromptProjectionSelectionLayerOwner(
-            frame=lambda: self._layout.frame,
-            selection=self._selection,
-            viewport_rect=lambda: QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset,
-            preview_active=self._reorder.is_active,
-        )
-        self._caret_visual_controller = PromptSurfaceCaretVisualController(
-            surface=self,
-            viewport=self.viewport(),
-            geometry=self._caret_geometry,
-            is_alive=qt_object_is_alive,
-            reorder_preview_active=self._reorder.is_active,
-            surface_is_visible=self.isVisible,
-            caret_focus_active=self._focus_owner.caret_focus_owner_has_focus,
-            publish_visual_state=self._publish_render_frame,
-            selection=self._selection,
-            caret_suppressed=lambda: self._session.exact_weight_edit is not None,
-            visible_scroll_bar=self._visible_scroll_bar,
-            parent=self,
-        )
+        self._projection_freshness_controller = source_state_owners.freshness_controller
         self._transient_edit_presentation = (
             source_state_owners.transient_edit_presentation
         )
-        self._emphasis = PromptProjectionEmphasisOwner(
-            session=self._session,
-            is_projected=(
-                lambda: (
-                    self._presentation_runtime.rebuild.display_mode
-                    is PromptProjectionDisplayMode.PROJECTED
-                )
-            ),
-            tokens=lambda: self._editor_state.projection.document.tokens,
-            apply_session_paint_state=(
-                lambda: (
-                    self._presentation_runtime.active_projection.try_apply_current_session_paint_state()
-                )
-            ),
-            apply_accent_paint_state=(
-                lambda: self._apply_decoration_accent_paint_state()
-            ),
-            rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
-            publish_caret=(
-                lambda cursor_state, anchor_state: self._caret_publication.publish(
-                    cursor_state=cursor_state,
-                    anchor_state=anchor_state,
-                )
-            ),
-            parent=self,
-        )
         self._caret_visibility_prompt_state_revision: int | None = None
-        self._projection_freshness_controller = source_state_owners.freshness_controller
-        self._layout_width_resolver = PromptProjectionLayoutWidthResolver(
-            host=self,
-            viewport=self.viewport(),
-            freshness=self._projection_freshness_controller,
+        lifecycle_runtime = build_prompt_projection_surface_lifecycle_runtime(
+            PromptProjectionSurfaceLifecycleBindings(
+                surface=self,
+                viewport=self.viewport(),
+                applicator=self._projection_applicator,
+                thumbnail_cache=thumbnail_cache,
+                editor_state=self._editor_state,
+                layout=self._layout,
+                freshness=self._projection_freshness_controller,
+                caret_state=self._caret_state_owner,
+                caret_publication=self._caret_publication,
+                caret_geometry=self._caret_geometry,
+                caret_movement_host=cast(PromptProjectionCaretMovementHost, self),
+                focus=self._focus_owner,
+                session=self._session,
+                scroll_offset=self._scroll_offset,
+                flush_pending_projection=(
+                    lambda reason: self._flush_pending_projection_update(reason=reason)
+                ),
+                synchronize_layout=self._sync_layout_state,
+                publish_render_frame=self._publish_render_frame,
+                request_update=self.viewport().update,
+                selection=self._selection,
+                surface_is_visible=self.isVisible,
+                visible_scroll_bar=self._visible_scroll_bar,
+                is_projected=(
+                    lambda: (
+                        self._presentation_runtime.rebuild.display_mode
+                        is PromptProjectionDisplayMode.PROJECTED
+                    )
+                ),
+                tokens=lambda: self._editor_state.projection.document.tokens,
+                apply_session_paint_state=(
+                    lambda: (
+                        self._presentation_runtime.active_projection.try_apply_current_session_paint_state()
+                    )
+                ),
+                apply_accent_paint_state=self._apply_decoration_accent_paint_state,
+                rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
+                publish_caret=(
+                    lambda cursor_state, anchor_state: self._caret_publication.publish(
+                        cursor_state=cursor_state,
+                        anchor_state=anchor_state,
+                    )
+                ),
+                parent=self,
+            )
         )
-        self._caret_movement_controller = PromptProjectionCaretMovementController(
-            cast(PromptProjectionCaretMovementHost, self),
-            state=self._caret_state_owner,
-            publication=self._caret_publication,
-            geometry=self._caret_geometry,
-        )
+        self._layout_width_resolver = lifecycle_runtime.layout_width
+        self._reorder = lifecycle_runtime.reorder
+        self._selection_layer_owner = lifecycle_runtime.selection_layer
+        self._caret_visual_controller = lifecycle_runtime.caret_visual
+        self._emphasis = lifecycle_runtime.emphasis
+        self._caret_movement_controller = lifecycle_runtime.caret_movement
         self._edit_pipeline = source_state_owners.edit_pipeline
         self._prompt_state_applier = source_state_owners.prompt_state_applier
         self._presentation_runtime = (

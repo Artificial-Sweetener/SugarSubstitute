@@ -56,8 +56,13 @@ def test_surface_exposes_one_reorder_owner_without_reorder_forwarding_shims() ->
     surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
         encoding="utf-8"
     )
+    lifecycle_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface_lifecycle_runtime.py"
+    ).read_text(encoding="utf-8")
 
-    assert "self._reorder = PromptReorderProjectionOwner(" in surface_source
+    assert "self._reorder = lifecycle_runtime.reorder" in surface_source
+    assert "PromptReorderProjectionOwner(" in lifecycle_runtime_source
+    assert "PromptReorderProjectionOwner(" not in surface_source
     for forbidden_marker in (
         "self._reorder_preview_projection",
         "self._reorder_geometry_owner",

@@ -527,10 +527,10 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, source-state, reorder, caret-visual, and emphasis collaborator construction with cyclic callback wiring, and Qt input, focus, viewport, and paint lifecycle routing. Extract source-state, reorder, caret-visual, and emphasis graph construction from the Qt event surface."
+justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, source-state and presentation runtime binding with late-bound callback cycles, and Qt input, focus, viewport, and paint lifecycle routing. Replace late-bound source-state callbacks with explicit lifecycle effect ports so source and presentation runtimes compose without future surface attributes."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 1625
+max_lines = 1605
 next_limit = 1350
 debt = "SS-ARCH-061"
 
