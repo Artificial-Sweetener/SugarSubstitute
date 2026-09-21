@@ -42,6 +42,7 @@ from .direct_feedback_strategy import (
     PromptDirectFeedbackContext,
     PromptDirectFeedbackStrategy,
 )
+from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
 from .edit_pipeline import PromptEditPipeline
 from .edit_publication import PromptEditPublication, PromptEditPublicationSink
 from .freshness_controller import PromptProjectionFreshnessController
@@ -124,6 +125,7 @@ class PromptProjectionSourceStateBindings:
     source_effect_sink: PromptSourceChangeEffectSink
     source_caret_sink: PromptSourceChangeCaretSink
     document_effect_sink: PromptSourceDocumentCommitEffectSink
+    diagnostics: PromptDiagnosticLayerOwner
 
 
 class _PromptProjectionScheduledUpdateSink:
@@ -172,6 +174,7 @@ def build_prompt_projection_source_state_owners(
         editor_state=bindings.editor_state,
         frame_state=frame_state,
         layout=bindings.layout,
+        diagnostics=bindings.diagnostics,
     )
     reflow_strategy = PromptIncrementalReflowStrategy(
         bindings.build_context,

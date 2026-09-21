@@ -113,7 +113,7 @@ def time_diagnostic_cache_operations(
 
     preserver = cast(
         Callable[..., None],
-        getattr(surface, "_preserve_diagnostic_fragment_cache_for_incremental_edit"),
+        surface._diagnostic_layer_owner.preserve_fragment_cache_for_incremental_edit,
     )
     layout_snapshot = surface._editor_state.layout  # noqa: SLF001
     if layout_snapshot is None:

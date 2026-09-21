@@ -87,7 +87,6 @@ from substitute.shared.logging.logger import (
 from ..autocomplete_preview_state import PromptAutocompletePreviewState
 from ..commands.execution import PromptEditExecution
 from ..commands.source_service import PromptSourceCommandService
-from ..core.state.revisions import PromptLayoutIdentity
 from ..core.state.semantic_state import PromptEditorSemanticSnapshot
 from ..debug_probe import (
     log_prompt_editor_probe,
@@ -368,6 +367,23 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._frame_state = PromptProjectionFrameStatePublisher(self._editor_state)
         self._source_line_chrome = PromptSourceLineChrome()
         self._search_highlight_layer = PromptSearchHighlightLayerOwner()
+        self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
+            parent=self,
+            diagnostics=lambda: self._session.diagnostics,
+            selection=self._selection,
+            geometry=lambda: self._layout.frame.geometry,
+            layout_identity=lambda: self._frame_state.current_layout_identity(
+                self._layout.frame.output
+            ),
+            viewport_rect=lambda: QRectF(self.viewport().rect()),
+            scroll_offset=self._scroll_offset,
+            color_rgba=lambda: int(
+                qcolor_from_rgb(semantic_palette_from_theme().error_foreground).rgba()
+            ),
+            device_pixel_ratio=lambda: float(self.viewport().devicePixelRatioF()),
+            is_alive=lambda: qt_object_is_alive(self),
+            request_update=self._diagnostic_layer_published,
+        )
         self._mouse_handler = PromptSurfaceMouseHandler(
             cast(PromptSurfaceMouseHost, self)
         )
@@ -391,6 +407,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 source_effect_sink=self,
                 source_caret_sink=self,
                 document_effect_sink=self,
+                diagnostics=self._diagnostic_layer_owner,
             ),
             parent=self,
             frame_state=self._frame_state,
@@ -509,23 +526,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             content_left_inset=lambda: self._source_line_chrome.content_left_inset,
             reorder_geometry=self._reorder_geometry_owner.projection_geometry,
             geometry_state=lambda: reorder_geometry_state(self._layout.frame.geometry),
-        )
-        self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
-            parent=self,
-            diagnostics=lambda: self._session.diagnostics,
-            selection=self._selection,
-            geometry=lambda: self._layout.frame.geometry,
-            layout_identity=lambda: self._frame_state.current_layout_identity(
-                self._layout.frame.output
-            ),
-            viewport_rect=lambda: QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset,
-            color_rgba=lambda: int(
-                qcolor_from_rgb(semantic_palette_from_theme().error_foreground).rgba()
-            ),
-            device_pixel_ratio=lambda: float(self.viewport().devicePixelRatioF()),
-            is_alive=lambda: qt_object_is_alive(self),
-            request_update=self._diagnostic_layer_published,
         )
         self._projection_geometry_reuse_warm_timer = QTimer(self)
         self._projection_geometry_reuse_warm_timer.setSingleShot(True)
@@ -1161,7 +1161,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         if diagnostics == self._session.diagnostics:
             return
-        self._clear_diagnostic_fragment_cache(reason="diagnostics_changed")
+        self._diagnostic_layer_owner.clear_fragment_cache(reason="diagnostics_changed")
         self._session.set_diagnostics(diagnostics)
         self._diagnostic_layer_owner.refresh(reason="diagnostics_changed")
 
@@ -1170,7 +1170,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         if not self._session.diagnostics:
             return
-        self._clear_diagnostic_fragment_cache(reason="diagnostics_cleared")
+        self._diagnostic_layer_owner.clear_fragment_cache(reason="diagnostics_cleared")
         self._session.clear_diagnostics()
         self._diagnostic_layer_owner.refresh(reason="diagnostics_cleared")
 
@@ -2017,7 +2017,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if self._reorder_preview_projection.preview_state is not None:
             self._clear_reorder_projection_and_geometry_caches(reason="source_changed")
         if clear_diagnostic_fragment_cache:
-            self._clear_diagnostic_fragment_cache(reason="source_changed")
+            self._diagnostic_layer_owner.clear_fragment_cache(reason="source_changed")
         self._projection_freshness_controller.mark_source_text_changed(
             deferrable_projection=deferrable_projection,
             source_revision=source_identity.source_revision,
@@ -2894,7 +2894,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if not self._projection_freshness_controller.has_stale_projection_geometry():
             self._clear_transient_caret_geometry()
         self._clear_reorder_projection_and_geometry_caches(reason="resize")
-        self._clear_diagnostic_fragment_cache(reason="resize")
+        self._diagnostic_layer_owner.clear_fragment_cache(reason="resize")
         self.refresh_geometry()
         self.viewport().update()
 
@@ -3154,35 +3154,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             return
         self._layout.frame.output.snapshot.prewarm_inline_object_fragment_index()
 
-    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_CLEAR)
-    def _clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
-        """Discard cached diagnostic underline fragments after geometry changes."""
-
-        self._diagnostic_layer_owner.clear_fragment_cache(reason=reason)
-
-    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_PRESERVE)
-    def _preserve_diagnostic_fragment_cache_for_incremental_edit(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-        previous_layout_identity: PromptLayoutIdentity,
-        next_layout_identity: PromptLayoutIdentity,
-        fragment_y_delta: float = 0.0,
-    ) -> None:
-        """Keep unaffected diagnostic fragments after an accepted local edit."""
-
-        self._diagnostic_layer_owner.preserve_fragment_cache_for_incremental_edit(
-            diagnostics=self._session.diagnostics,
-            start=start,
-            end=end,
-            replacement_text=replacement_text,
-            previous_layout_identity=previous_layout_identity,
-            next_layout_identity=next_layout_identity,
-            fragment_y_delta=fragment_y_delta,
-        )
-
     def _update_incremental_plain_text_projection_paint(
         self,
         layout_result: PromptLayoutDamage,
@@ -3296,7 +3267,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._editor_state.publish_projection(rebuild_result.projection_document)
         self._last_rendered_active_span_range = rebuild_result.active_span_range
-        self._clear_diagnostic_fragment_cache(reason=invalidation_reason)
+        self._diagnostic_layer_owner.clear_fragment_cache(reason=invalidation_reason)
         self._caret_state_owner.replace_states(
             cursor_state=rebuild_result.cursor_state,
             anchor_state=rebuild_result.anchor_state,

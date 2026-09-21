@@ -257,11 +257,6 @@ class _SourceChangeHost:
 
         self.rebuilds += 1
 
-    def _clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
-        """Accept diagnostic cache clear calls."""
-
-        _ = reason
-
     def _set_deferred_source_caret_states(
         self,
         *,
