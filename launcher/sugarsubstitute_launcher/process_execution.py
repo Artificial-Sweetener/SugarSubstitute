@@ -28,8 +28,11 @@ from sugarsubstitute_shared.application_launch_context import (
 )
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.crash_reporting.protocol import (
+    CRASH_INCIDENT_ROOT_ENV,
+    CRASH_RUN_ID_ENV,
     without_crash_supervision_environment,
 )
+from sugarsubstitute_shared.crash_reporting.run_context import STARTUP_OUTPUT_FILENAME
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
     standard_child_process_dll_search_path,
@@ -151,7 +154,10 @@ def _spawn_process(
         if not supervised:
             creationflags |= subprocess.CREATE_BREAKAWAY_FROM_JOB
 
-    startup_log_path = startup_log_path or _app_startup_log_path(command)
+    startup_log_path = startup_log_path or _app_startup_log_path(
+        command,
+        environment=environment,
+    )
     startup_log_path.parent.mkdir(parents=True, exist_ok=True)
     with startup_log_path.open("a", encoding="utf-8", errors="replace") as log_file:
         log_file.write("\n--- Starting SugarSubstitute app ---\n")
@@ -225,8 +231,19 @@ def _command_working_directory(command: Sequence[str]) -> Path | None:
     return None
 
 
-def _app_startup_log_path(command: Sequence[str]) -> Path:
+def _app_startup_log_path(
+    command: Sequence[str],
+    *,
+    environment: Mapping[str, str] | None = None,
+) -> Path:
     """Resolve the startup log path from an installed app launch command."""
+
+    if environment is not None:
+        incident_root = environment.get(CRASH_INCIDENT_ROOT_ENV)
+        run_id = environment.get(CRASH_RUN_ID_ENV)
+        if incident_root and run_id and run_id not in {".", ".."}:
+            if "/" not in run_id and "\\" not in run_id:
+                return Path(incident_root) / run_id / STARTUP_OUTPUT_FILENAME
 
     explicit_install_root = explicit_application_launch_install_root(command)
     if explicit_install_root is not None:

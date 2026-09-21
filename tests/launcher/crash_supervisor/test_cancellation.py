@@ -26,6 +26,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.supervised_termination import (
+    SupervisedTermination,
+    SupervisedTerminationReason,
+)
 from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 
 
@@ -58,7 +62,11 @@ def test_only_explicit_user_cancellation_suppresses_an_abnormal_exit_report(
             layout=layout,
             process=_ExitedProcess(),
             prepared=prepared,
-            expected_cancellation=cancelled,
+            termination=(
+                SupervisedTermination(SupervisedTerminationReason.USER_CANCELLATION)
+                if cancelled
+                else SupervisedTermination()
+            ),
         ).return_code
         == 1
     )
@@ -102,7 +110,9 @@ def test_cancellation_outcome_survives_unavailable_diagnostic_cleanup(
             layout=layout,
             process=_ExitedProcess(),
             prepared=prepared,
-            expected_cancellation=True,
+            termination=SupervisedTermination(
+                SupervisedTerminationReason.USER_CANCELLATION
+            ),
         ).return_code
         == 1
     )

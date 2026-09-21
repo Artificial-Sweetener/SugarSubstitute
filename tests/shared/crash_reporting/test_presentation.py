@@ -102,6 +102,7 @@ def test_launcher_crash_surface_copies_opens_github_and_restarts(
         ]
         assert "launcher-presentation-incident" in report.report_text
         assert "RuntimeError: qualified" in report.report_text
+        assert "Diagnostic logs" in report.report_text
         assert "[python-fault.log]\nThread 0x1\nframe.py:42" in report.report_text
         assert SUGARSUBSTITUTE_ISSUES_URL in report.report_text
 
@@ -118,3 +119,68 @@ def test_launcher_crash_surface_copies_opens_github_and_restarts(
         dialog.close()
         delete(dialog)
         application.processEvents()
+
+
+def test_unclean_report_omits_empty_evidence_and_exposes_lifecycle_state() -> None:
+    """A sparse abnormal exit must remain truthful rather than display fake sections."""
+
+    incident = CrashIncident(
+        incident_id="unclean-report",
+        run_id="unclean-run",
+        occurred_at_utc="2026-09-20T20:00:00+00:00",
+        kind=CrashKind.ABNORMAL_EXIT,
+        boundary=CrashBoundary.SUPERVISOR,
+        attribution=CrashAttribution.UNCLEAN_TERMINATION,
+        summary="The process exited without a clean receipt.",
+        process_id=42,
+        exit_code=1,
+        application_version="0.23.5",
+        platform="Windows-11",
+        python_version="3.12",
+        launch_arguments=("main.py",),
+        metadata={
+            "termination_reason": "unknown",
+            "exit_intent_state": "missing",
+            "exit_receipt_state": "missing",
+            "python_fault_log": "empty_or_missing",
+            "startup_output": "empty_or_missing",
+        },
+    )
+
+    report = crash_presentation.build_crash_report_presentation(
+        incident,
+        text_attachments=(("python-fault.log", "\r\n"),),
+    ).report_text
+
+    assert "Kind: abnormal_exit" in report
+    assert "termination_reason: unknown" in report
+    assert "exit_intent_state: missing" in report
+    assert "exit_receipt_state: missing" in report
+    assert "SugarSubstitute version: 0.23.5" in report
+    assert "Traceback\n---------" not in report
+    assert "Diagnostic logs\n---------------" not in report
+    assert report.rstrip().endswith("Launch arguments: main.py")
+
+
+def test_startup_failure_is_not_presented_as_an_application_crash() -> None:
+    """A launcher-confirmed readiness failure must keep its startup identity."""
+
+    incident = CrashIncident(
+        incident_id="startup-report",
+        run_id="startup-run",
+        occurred_at_utc="2026-09-20T20:00:00+00:00",
+        kind=CrashKind.STARTUP,
+        boundary=CrashBoundary.SUPERVISOR,
+        attribution=CrashAttribution.CONFIRMED,
+        summary="The launcher stopped a candidate after readiness failed.",
+        process_id=42,
+        exit_code=1,
+        metadata={"termination_reason": "readiness_failure"},
+    )
+
+    presentation = crash_presentation.build_crash_report_presentation(incident)
+
+    assert str(presentation.title) == "SugarSubstitute could not finish starting"
+    assert "Kind: startup" in presentation.report_text
+    assert "Operation: application_startup" in presentation.report_text
+    assert "SugarSubstitute crashed" not in presentation.report_text

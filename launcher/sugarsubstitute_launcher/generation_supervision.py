@@ -33,6 +33,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.supervised_termination import (
+    SupervisedTermination,
+    SupervisedTerminationReason,
+)
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 
@@ -70,7 +74,11 @@ class LauncherGenerationSupervisor:
     ) -> int:
         """Retire failed startup while preserving authenticated Close and handoff."""
         crash = ApplicationCrashSupervisor()
-        prepared = crash.prepare(layout=layout, environment=environment)
+        prepared = crash.prepare(
+            layout=layout,
+            environment=environment,
+            command=command,
+        )
         try:
             process = self._readiness.launch_until_ready(
                 layout=layout, command=command, environment=prepared.environment
@@ -81,7 +89,9 @@ class LauncherGenerationSupervisor:
                     layout=layout,
                     process=cancelled.terminated_process,
                     prepared=prepared,
-                    expected_cancellation=True,
+                    termination=SupervisedTermination(
+                        SupervisedTerminationReason.USER_CANCELLATION
+                    ),
                 )
             return 0
         except ApplicationReadinessError as error:
@@ -91,6 +101,10 @@ class LauncherGenerationSupervisor:
                     process=error.terminated_process,
                     prepared=prepared,
                     present_report=False,
+                    termination=SupervisedTermination(
+                        SupervisedTerminationReason.GENERATION_READINESS_FAILURE,
+                        str(error),
+                    ),
                 )
                 if classified.return_code == 0 and classified.incident_id is None:
                     return 0
