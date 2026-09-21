@@ -57,7 +57,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from substitute.application.prompt_editor.diagnostics.models import PromptDiagnostic
 from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
@@ -325,6 +324,8 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
             parent=self,
             diagnostics=lambda: self._session.diagnostics,
+            replace_diagnostics=self._session.set_diagnostics,
+            clear_diagnostics=self._session.clear_diagnostics,
             selection=self._selection,
             geometry=lambda: self._layout.frame.geometry,
             layout_identity=lambda: self._frame_state.current_layout_identity(
@@ -650,6 +651,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Return the focused emphasis projection owner for interaction wiring."""
 
         return self._emphasis
+
+    @property
+    def diagnostics(self) -> PromptDiagnosticLayerOwner:
+        """Return the owner of diagnostic state and render-layer publication."""
+
+        return self._diagnostic_layer_owner
 
     @property
     def anchor_position(self) -> int:
@@ -1162,27 +1169,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._search_highlight_layer.clear()
         self._publish_render_frame()
         self.viewport().update()
-
-    def set_diagnostics(
-        self,
-        diagnostics: tuple[PromptDiagnostic, ...],
-    ) -> None:
-        """Replace transient diagnostics rendered by the projection surface."""
-
-        if diagnostics == self._session.diagnostics:
-            return
-        self._diagnostic_layer_owner.clear_fragment_cache(reason="diagnostics_changed")
-        self._session.set_diagnostics(diagnostics)
-        self._diagnostic_layer_owner.refresh(reason="diagnostics_changed")
-
-    def clear_diagnostics(self) -> None:
-        """Clear transient diagnostics from the projection surface."""
-
-        if not self._session.diagnostics:
-            return
-        self._diagnostic_layer_owner.clear_fragment_cache(reason="diagnostics_cleared")
-        self._session.clear_diagnostics()
-        self._diagnostic_layer_owner.refresh(reason="diagnostics_cleared")
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the caret or token focus."""

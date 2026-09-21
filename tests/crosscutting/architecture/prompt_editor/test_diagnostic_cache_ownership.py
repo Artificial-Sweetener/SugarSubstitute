@@ -21,8 +21,8 @@ from __future__ import annotations
 from .inventory import PROMPT_PRESENTATION_ROOT
 
 
-def test_diagnostic_owner_receives_cache_operations_without_surface_shims() -> None:
-    """Keep cache invalidation, preservation, and observability with its owner."""
+def test_diagnostic_owner_receives_publication_without_surface_shims() -> None:
+    """Keep diagnostic publication, caching, and observability with its owner."""
 
     projection_root = PROMPT_PRESENTATION_ROOT / "projection"
     surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
@@ -32,12 +32,17 @@ def test_diagnostic_owner_receives_cache_operations_without_surface_shims() -> N
     owner_source = (projection_root / "diagnostic_layer_owner.py").read_text(
         encoding="utf-8"
     )
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
 
     obsolete_surface_methods = (
         "def _clear_diagnostic_fragment_cache(",
         "def _preserve_diagnostic_fragment_cache_for_incremental_edit(",
     )
     assert all(method not in surface_source for method in obsolete_surface_methods)
+    assert "def set_diagnostics(" not in surface_source
+    assert "def clear_diagnostics(" not in surface_source
+    assert "def diagnostics(self) -> PromptDiagnosticLayerOwner:" in surface_source
+    assert "surface=self._surface.diagnostics" in widget_source
     assert "diagnostics: PromptDiagnosticLayerOwner" in publication_source
     assert "self._diagnostics.clear_fragment_cache(" in publication_source
     assert (
@@ -46,3 +51,5 @@ def test_diagnostic_owner_receives_cache_operations_without_surface_shims() -> N
     )
     assert "PromptEditorWorkEvent.DIAGNOSTIC_CACHE_CLEAR" in owner_source
     assert "PromptEditorWorkEvent.DIAGNOSTIC_CACHE_PRESERVE" in owner_source
+    assert "def set_diagnostics(" in owner_source
+    assert "def clear_diagnostics(" in owner_source

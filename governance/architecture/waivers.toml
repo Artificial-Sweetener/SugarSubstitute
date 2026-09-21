@@ -527,10 +527,10 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, and autocomplete and diagnostics interaction hosting. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
+justification = "The assessed file mixes source editing and input-method handling, projection, layout, and freshness coordination, caret geometry effects, selection, scrolling, and hit testing, and autocomplete interaction hosting and diagnostic render-layer integration. Extract remaining source editing and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 2279
+max_lines = 2267
 next_limit = 2100
 debt = "SS-ARCH-061"
 

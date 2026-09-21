@@ -502,7 +502,7 @@ class PromptEditor(
         )
         self._diagnostics_feature_controller = PromptDiagnosticsFeatureController(
             host=self,
-            surface=self._surface,
+            surface=self._surface.diagnostics,
             feature_profile=self._feature_profile_controller,
             wildcard_feature=self._wildcard_diagnostics_presentation,
             document_semantics=self._document_semantics,

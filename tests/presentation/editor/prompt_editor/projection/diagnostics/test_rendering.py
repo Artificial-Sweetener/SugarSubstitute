@@ -64,7 +64,7 @@ def test_projection_surface_diagnostic_renders_wavy_error_underline(
     assert fragments
     before = render_surface_viewport(surface)
 
-    surface.set_diagnostics(
+    surface.diagnostics.set_diagnostics(
         (
             PromptDiagnostic(
                 diagnostic_id=f"spelling:0:{len(word)}:{word}",
@@ -102,7 +102,7 @@ def test_projection_surface_wildcard_diagnostic_follows_projected_token(
     assert fragments
     before = render_surface_viewport(surface)
 
-    surface.set_diagnostics(
+    surface.diagnostics.set_diagnostics(
         (
             PromptDiagnostic(
                 diagnostic_id="wildcard:0:11:simple:missing:",
