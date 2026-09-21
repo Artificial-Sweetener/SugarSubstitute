@@ -49,6 +49,7 @@ from tools.ci.installer_ui_qualification import (
 from tools.ci.loopback_port_lease import LoopbackPortLease
 from tools.ci.verify_installer_lifecycle import (
     _parse_args,
+    require_default_comfy_port_available,
 )
 
 
@@ -86,6 +87,24 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     assert arguments.timeout_seconds == 1200.0
     assert arguments.source_cache == Path("source-cache")
     assert arguments.candidate_installer == Path("candidate-installer")
+
+
+def test_installer_qualification_rejects_an_occupied_default_comfy_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unattended qualification must not wait on an invisible conflict dialog."""
+
+    def reject_reservation(**_arguments: object) -> object:
+        """Model an existing listener owning the default ComfyUI port."""
+
+        from tools.ci.loopback_port_lease import LoopbackPortLeaseError
+
+        raise LoopbackPortLeaseError("occupied")
+
+    monkeypatch.setattr(LoopbackPortLease, "acquire", reject_reservation)
+
+    with pytest.raises(InstallerLifecycleError, match="127.0.0.1:8188"):
+        require_default_comfy_port_available()
 
 
 def test_candidate_update_uses_historical_launcher_before_verification(

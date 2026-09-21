@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 
 from sugarsubstitute_shared.crash_reporting.protocol import (
+    CRASH_RUN_ROOT_ENV,
     CRASH_RUN_TOKEN_ENV,
     CleanExitOutcome,
     CrashRunContext,
@@ -44,6 +45,20 @@ def test_run_context_round_trips_through_child_environment(tmp_path: Path) -> No
     assert context.incident_root == tmp_path / "diagnostics" / "crashes"
     assert context.exit_intent_path.parent == context.run_root / context.run_id
     assert context.exit_receipt_path.parent == context.run_root / context.run_id
+
+
+def test_predecessor_run_context_derives_the_missing_run_workspace(
+    tmp_path: Path,
+) -> None:
+    """A complete pre-run-workspace contract must survive an in-place update."""
+
+    context = CrashRunContext.create(tmp_path / "diagnostics")
+    predecessor_environment = context.environment()
+    predecessor_environment.pop(CRASH_RUN_ROOT_ENV)
+
+    inherited = CrashRunContext.from_environment(predecessor_environment)
+
+    assert inherited == context
 
 
 def test_partial_crash_environment_fails_closed() -> None:
