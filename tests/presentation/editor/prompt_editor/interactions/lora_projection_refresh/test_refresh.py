@@ -31,8 +31,10 @@ from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
     PromptEditorDocumentState,

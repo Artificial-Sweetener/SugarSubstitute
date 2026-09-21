@@ -71,7 +71,7 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView

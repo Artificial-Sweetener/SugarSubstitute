@@ -30,8 +30,10 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.commit import (
     PromptReorderLayoutCommitRequest,

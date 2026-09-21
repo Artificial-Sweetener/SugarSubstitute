@@ -38,7 +38,7 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptEmphasisRendererView,
     PromptLoraRendererSpanView,
     PromptLoraRendererView,

@@ -26,7 +26,7 @@ import pytest
 from PySide6.QtGui import QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget

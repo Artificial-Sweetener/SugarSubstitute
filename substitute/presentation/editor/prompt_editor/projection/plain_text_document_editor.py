@@ -22,7 +22,7 @@ from substitute.application.prompt_editor.document.views import PromptDocumentVi
 from substitute.application.prompt_editor.editing.region_structure_edits import (
     region_structure_edit_requires_rebuild,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (

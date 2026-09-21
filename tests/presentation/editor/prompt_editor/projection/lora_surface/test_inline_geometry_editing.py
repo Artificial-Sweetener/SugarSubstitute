@@ -26,9 +26,11 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,

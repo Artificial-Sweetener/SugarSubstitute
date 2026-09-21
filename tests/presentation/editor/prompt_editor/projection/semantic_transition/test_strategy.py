@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
