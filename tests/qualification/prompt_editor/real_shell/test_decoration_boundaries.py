@@ -137,6 +137,58 @@ def test_space_insertion_stays_at_each_decoration_boundary(
     assert not snapshot_invariant_violations(after)
 
 
+def test_horizontal_navigation_exposes_each_emphasis_boundary_once(
+    harness: PromptEditorRealShellScenario,
+) -> None:
+    """Move once for each visible boundary around an emphasis decoration."""
+
+    source_text = "ornaments, (red:1.10) heart"
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, PromptProjectionTokenKind.EMPHASIS)
+    content_start = probe.place_caret(field, token, "content_start")
+
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    leading = harness.snapshots.capture(field, label="emphasis-leading-after-left")
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    preceding_text = harness.snapshots.capture(
+        field,
+        label="emphasis-preceding-text-after-left",
+    )
+
+    assert token.content_start is not None
+    assert content_start.cursor_position == token.content_start
+    assert leading.cursor_position == token.source_start
+    assert leading.caret_state_placement == "token_leading_edge"
+    assert preceding_text.cursor_position == token.source_start - 1
+    assert preceding_text.caret_state_placement == "plain_text"
+    assert content_start.caret_rect is not None
+    assert leading.caret_rect is not None
+    assert preceding_text.caret_rect is not None
+    assert preceding_text.caret_rect[0] < leading.caret_rect[0]
+    assert leading.caret_rect[0] < content_start.caret_rect[0]
+
+    harness.input.press_key(field, Qt.Key.Key_Right)
+    returned_leading = harness.snapshots.capture(
+        field,
+        label="emphasis-leading-after-right",
+    )
+    harness.input.press_key(field, Qt.Key.Key_Right)
+    returned_content = harness.snapshots.capture(
+        field,
+        label="emphasis-content-after-right",
+    )
+
+    assert returned_leading.cursor_position == token.source_start
+    assert returned_leading.caret_rect == leading.caret_rect
+    assert returned_content.cursor_position == token.content_start
+    assert returned_content.caret_rect == content_start.caret_rect
+    assert not snapshot_invariant_violations(returned_content)
+
+
 def test_additional_tag_remains_inside_weighted_emphasis(
     harness: PromptEditorRealShellScenario,
 ) -> None:

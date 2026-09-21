@@ -158,10 +158,8 @@ def test_projection_layout_hit_testing_resolves_emphasis_edges_and_internal_cont
     assert trailing_state.source_position == token.source_end
 
 
-def test_projection_layout_cursor_rect_supports_distinct_logical_emphasis_caret_states() -> (
-    None
-):
-    """Caret geometry should expose token-edge and content-boundary states separately."""
+def test_projection_layout_cursor_rect_exposes_distinct_emphasis_boundaries() -> None:
+    """Caret geometry should expose every visible emphasis boundary separately."""
 
     layout, projection = _layout_for("(cat:1.05), suffix")
     token = next(
@@ -193,7 +191,7 @@ def test_projection_layout_cursor_rect_supports_distinct_logical_emphasis_caret_
         scroll_offset=0.0,
     )
 
-    assert leading_rect.left() == content_start_rect.left()
+    assert leading_rect.left() < content_start_rect.left()
     assert after_c_rect.left() > content_start_rect.left()
     assert content_end_rect.left() > after_c_rect.left()
     assert trailing_rect.left() > content_end_rect.left()
