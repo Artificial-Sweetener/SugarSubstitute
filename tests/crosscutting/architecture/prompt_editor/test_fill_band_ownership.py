@@ -30,9 +30,14 @@ def test_projection_surface_delegates_complete_fill_band_publication() -> None:
     owner_source = (
         PROMPT_PRESENTATION_ROOT / "projection" / "fill_band_owner.py"
     ).read_text(encoding="utf-8")
+    query_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "presentation_query_owner.py"
+    ).read_text(encoding="utf-8")
 
-    assert "self._fill_band_owner.visible_rects()" in surface_source
-    assert "self._fill_band_owner.color()" in surface_source
+    assert "self._presentation_queries.visible_fill_band_rects()" in surface_source
+    assert "self._presentation_queries.fill_band_color()" in surface_source
+    assert "self._fill_bands.visible_rects()" in query_source
+    assert "self._fill_bands.color()" in query_source
     assert "PromptProjectionFillBandCacheKey" not in surface_source
     assert "PromptProjectionFillBandBuildRequest" not in surface_source
     assert "_fill_band_cache" not in surface_source

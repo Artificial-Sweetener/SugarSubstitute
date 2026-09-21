@@ -171,6 +171,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from .observability import (
     render_plan_lora_span_count,
 )
+from .presentation_query_owner import PromptProjectionPresentationQueryOwner
 from .content_media_owner import PromptProjectionContentMediaOwner
 from .region_chrome_presentation import PromptRegionChromePresentationOwner
 from .region_chrome_state import PromptRegionChromeEditTarget
@@ -184,6 +185,9 @@ from ..geometry.models import PromptProjectionSourceLineRect
 from .session import PromptProjectionSession
 from .source_line_chrome import PromptSourceLineChrome
 from .search_highlight_owner import PromptSearchHighlightLayerOwner
+from .search_presentation_owner import PromptSearchPresentationOwner
+from .scene_diagnostics_owner import PromptSceneDiagnosticsOwner
+from .source_line_presentation_owner import PromptSourceLinePresentationOwner
 from .refresh_geometry_signature import PromptRefreshGeometryPaintSignature
 from .content_selection_owner import PromptProjectionSelectionLayerOwner
 from .source_state_wiring import (
@@ -264,6 +268,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._session = PromptProjectionSession()
         self._projection_rebuild: PromptProjectionRebuildOwner
         self._active_projection: PromptActiveProjectionOwner
+        self._presentation_queries: PromptProjectionPresentationQueryOwner
+        self._scene_diagnostics: PromptSceneDiagnosticsOwner
+        self._search_presentation: PromptSearchPresentationOwner
+        self._source_line_presentation: PromptSourceLinePresentationOwner
         self.exact_weight_editor = PromptExactWeightEditor(
             cast(PromptExactWeightEditorHost, self),
             rebuild_projection=lambda: self._projection_rebuild.rebuild(),
@@ -296,14 +304,13 @@ class PromptProjectionSurface(QAbstractScrollArea):
         thumbnail_cache.pixmap_ready.connect(
             lambda key: update_lora_thumbnail(self._layout.frame.geometry, key)
         )
-        self._scene_error_keys: frozenset[str] = frozenset()
         self._editor_state = build_initial_prompt_projection_state(
             source=self._editing_session.source_snapshot(),
             applicator=self._projection_applicator,
             document_semantics=document_semantics,
             display_mode=PromptProjectionDisplayMode.PROJECTED,
             session=self._session,
-            scene_error_keys=self._scene_error_keys,
+            scene_error_keys=frozenset(),
         )
         self._frame_state = PromptProjectionFrameStatePublisher(self._editor_state)
         self._source_line_chrome = PromptSourceLineChrome()
@@ -754,6 +761,32 @@ class PromptProjectionSurface(QAbstractScrollArea):
             ),
             content_height_sink=self.contentHeightChanged.emit,
         )
+        self._scene_diagnostics = PromptSceneDiagnosticsOwner(
+            flush_pending_projection=(
+                lambda reason: self._flush_pending_projection_update(reason=reason)
+            ),
+            clear_hovered_token=(
+                lambda: self._mouse_handler.clear_hovered_token(update=False)
+            ),
+            rebuild_projection=lambda: self._projection_rebuild.rebuild(),
+        )
+        self._search_presentation = PromptSearchPresentationOwner(
+            session=self._session,
+            publish_changed=self._render_publication.search_changed,
+            publish_cleared=self._render_publication.search_cleared,
+            request_update=self.viewport().update,
+        )
+        self._source_line_presentation = PromptSourceLinePresentationOwner(
+            chrome=self._source_line_chrome,
+            flush_pending_projection=(
+                lambda reason: self._flush_pending_projection_update(reason=reason)
+            ),
+            synchronize_layout=self._sync_layout_state,
+            publish_configuration_changed=(
+                self._render_publication.source_line_configuration_changed
+            ),
+            request_update=self.viewport().update,
+        )
         self._active_projection = PromptActiveProjectionOwner(
             surface=self,
             viewport=self.viewport(),
@@ -770,12 +803,29 @@ class PromptProjectionSurface(QAbstractScrollArea):
             reorder_active=self._reorder.is_active,
             active_span_range=self._active_span_range,
             decoration_accent_ranges=self._decoration_accent_ranges,
-            scene_error_keys=lambda: self._scene_error_keys,
+            scene_error_keys=lambda: self._scene_diagnostics.keys,
             synchronize_layout=(
                 lambda commit: self._sync_layout_state(commit_projection=commit)
             ),
             publish_render_frame=self._publish_render_frame,
             surface_state=lambda: surface_probe_state(self),
+        )
+        self._presentation_queries = PromptProjectionPresentationQueryOwner(
+            editor_state=self._editor_state,
+            active_document=lambda: self._active_projection.document,
+            layout=self._layout,
+            freshness=self._projection_freshness_controller,
+            source_line_chrome=self._source_line_chrome,
+            fill_bands=self._fill_band_owner,
+            reorder_preview=self._reorder.preview,
+            flush_pending_projection=(
+                lambda reason: self._flush_pending_projection_update(reason=reason)
+            ),
+            viewport_rect=lambda: QRectF(self.viewport().rect()),
+            scroll_offset=self._scroll_offset,
+            cursor_position=lambda: self.cursor_position,
+            hovered_token_id=lambda: self._mouse_handler.hovered_token_id,
+            focused_token_id=lambda: self._caret_state_owner.cursor_state.token_id,
         )
         self._projection_rebuild = PromptProjectionRebuildOwner(
             surface=self,
@@ -793,7 +843,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             ),
             cancel_pending_projection=self._cancel_pending_projection_update,
             decoration_accent_ranges=self._decoration_accent_ranges,
-            scene_error_keys=lambda: self._scene_error_keys,
+            scene_error_keys=lambda: self._scene_diagnostics.keys,
             font=self.font,
             palette=self.palette,
             clear_reorder=(
@@ -986,32 +1036,22 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def projection_document(self) -> PromptProjectionDocument:
         """Return the committed token-aware projection document."""
 
-        return self._editor_state.projection.document
+        return self._presentation_queries.projection_document
 
     def active_projection_document(self) -> PromptProjectionDocument:
         """Return the current geometry-bearing projection document."""
 
-        return self._active_projection.document
+        return self._presentation_queries.active_projection_document
 
     def content_height(self) -> float:
         """Return the current laid-out projection content height."""
 
-        preview_frame = self._reorder.preview.preview_frame
-        if preview_frame is not None:
-            return preview_frame.output.snapshot.content_size.height()
-        committed_metrics = self._projection_freshness_controller.committed_metrics
-        if self._projection_freshness_controller.can_use_committed_passive_metrics():
-            assert committed_metrics is not None
-            return committed_metrics.content_height
-        self._flush_pending_projection_update(
-            reason="content_height_initial_or_unavailable"
-        )
-        return self._layout.frame.output.snapshot.content_size.height()
+        return self._presentation_queries.content_height()
 
     def text_line_height(self) -> float:
         """Return the row height owned by the current prepared layout."""
 
-        return self._layout.frame.output.configuration.metrics.text_line_height
+        return self._presentation_queries.text_line_height()
 
     def source_range_fragments(
         self,
@@ -1021,75 +1061,47 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> tuple[QRectF, ...]:
         """Return the wrapped viewport fragments covering one raw source range."""
 
-        self._flush_pending_projection_update(reason="source_range_fragments")
-        return self._layout.frame.geometry.selection.source_range_fragments(
-            start,
-            end,
-            viewport_rect=QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset(),
-        )
+        return self._presentation_queries.source_range_fragments(start=start, end=end)
 
     def source_line_rects(self) -> tuple[PromptProjectionSourceLineRect, ...]:
         """Return visible source logical line rects aligned to prompt projection."""
 
-        self.has_pending_projection_update()
-        self._flush_pending_projection_update(reason="source_line_rects")
-        rects = self._source_line_chrome.source_line_rects(
-            geometry=self._layout.frame.geometry,
-            viewport_rect=QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset(),
-        )
-        return rects
+        return self._presentation_queries.source_line_rects()
 
     def visible_prompt_fill_band_rects(self) -> tuple[PromptFillBandRect, ...]:
         """Return visible prompt fill band rows in projection viewport coordinates."""
 
-        return self._fill_band_owner.visible_rects()
+        return self._presentation_queries.visible_fill_band_rects()
 
     def prompt_fill_band_color(self) -> QColor:
         """Return the alternating prompt fill color used beneath projection painting."""
 
-        return self._fill_band_owner.color()
+        return self._presentation_queries.fill_band_color()
 
     def current_source_line_index(self) -> int:
         """Return the newline-delimited source line containing the cursor."""
 
-        self._flush_pending_projection_update(reason="current_source_line_index")
-        return self._source_line_chrome.current_source_line_index(
-            geometry=self._layout.frame.geometry,
-            cursor_position=self.cursor_position,
-        )
+        return self._presentation_queries.current_source_line_index()
 
     def set_source_line_chrome_enabled(self, enabled: bool) -> None:
         """Enable source logical line backgrounds for wrapper-provided editor chrome."""
 
-        if not self._source_line_chrome.set_enabled(enabled):
-            return
-        self._render_publication.source_line_configuration_changed()
-        self.viewport().update()
+        self._source_line_presentation.set_enabled(enabled)
 
     def set_source_line_content_left_inset(self, inset: float) -> None:
         """Reserve viewport-local space for source line numbers."""
 
-        inset = max(0.0, inset)
-        if abs(self._source_line_chrome.content_left_inset - inset) < 0.01:
-            return
-        self._flush_pending_projection_update(
-            reason="set_source_line_content_left_inset"
-        )
-        self._source_line_chrome.set_content_left_inset(inset)
-        self._sync_layout_state()
-        self.viewport().update()
+        self._source_line_presentation.set_content_left_inset(inset)
 
     def set_scene_error_keys(self, scene_error_keys: frozenset[str]) -> None:
         """Replace scene keys that should render as title-level diagnostics."""
 
-        if self._scene_error_keys == scene_error_keys:
-            return
-        self._flush_pending_projection_update(reason="set_scene_error_keys")
-        self._scene_error_keys = scene_error_keys
-        self._mouse_handler.clear_hovered_token(update=False)
-        self._projection_rebuild.rebuild()
+        self._scene_diagnostics.set_keys(scene_error_keys)
+
+    def scene_error_keys(self) -> frozenset[str]:
+        """Return scene keys currently included in projection builds."""
+
+        return self._scene_diagnostics.keys
 
     def set_search_matches(
         self,
@@ -1099,54 +1111,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Replace the transient search matches rendered by the projection surface."""
 
-        self._session.set_search_matches(matches, active_index=active_index)
-        self._render_publication.search_changed()
-        self.viewport().update()
+        self._search_presentation.set_matches(matches, active_index=active_index)
 
     def clear_search_matches(self) -> None:
         """Clear transient search highlights from the projection surface."""
 
-        self._session.clear_search_matches()
-        self._render_publication.search_cleared()
-        self.viewport().update()
+        self._search_presentation.clear_matches()
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the caret or token focus."""
 
-        token = self._focused_or_hovered_token(prefer_hovered=False)
-        if token is not None:
-            return next(
-                (
-                    span
-                    for span in reversed(
-                        self._editor_state.projection_semantic.render_plan.syntax_spans
-                    )
-                    if span.start == token.source_start and span.end == token.source_end
-                ),
-                None,
-            )
-        position = self.cursor_position
-        for span in reversed(
-            self._editor_state.projection_semantic.render_plan.syntax_spans
-        ):
-            if span.start < position < span.end:
-                return span
-        return None
+        return self._presentation_queries.active_syntax_span()
 
     def hovered_token(self) -> PromptProjectionToken | None:
         """Return the token currently under the pointer when present."""
 
-        hovered_token_id = self._mouse_handler.hovered_token_id
-        if hovered_token_id is None:
-            return None
-        return self._layout.frame.paint_input.effective_token(hovered_token_id)
+        return self._presentation_queries.hovered_token()
 
     def focused_token(self) -> PromptProjectionToken | None:
         """Return the token currently owning caret focus when present."""
 
-        return self._editor_state.projection.document.token_by_id(
-            self._caret_state_owner.cursor_state.token_id
-        )
+        return self._presentation_queries.focused_token()
 
     def token_at_viewport_position(
         self,
@@ -1154,26 +1139,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptProjectionToken | None:
         """Return the projected token painted under one viewport-local point."""
 
-        return self._layout.frame.geometry.tokens.token_at_viewport_position(
-            position,
-            scroll_offset=self._scroll_offset(),
-        )
+        return self._presentation_queries.token_at_viewport_position(position)
 
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local anchor rect used by any token controls."""
 
-        return self._layout.frame.geometry.tokens.token_anchor_rect(
-            token,
-            scroll_offset=self._scroll_offset(),
-        )
+        return self._presentation_queries.token_anchor_rect(token)
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local projection-owned weight slot for one emphasis token."""
 
-        return self._layout.frame.geometry.tokens.token_weight_text_rect(
-            token,
-            scroll_offset=self._scroll_offset(),
-        )
+        return self._presentation_queries.token_weight_text_rect(token)
 
     def toPlainText(self) -> str:
         """Return the current raw prompt source text."""
@@ -1502,7 +1478,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Track active syntax ownership without rebuilding projection geometry."""
 
         _ = cursor_position
-        focused_or_hovered_token = self._focused_or_hovered_token(prefer_hovered=False)
+        focused_or_hovered_token = self._presentation_queries.focused_or_hovered_token(
+            prefer_hovered=False
+        )
         next_active_span_range = (
             (focused_or_hovered_token.source_start, focused_or_hovered_token.source_end)
             if focused_or_hovered_token is not None
@@ -2098,34 +2076,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if collapsed:
             self._projection_rebuild.rebuild()
 
-    def _focused_or_hovered_token(
-        self,
-        *,
-        prefer_hovered: bool,
-    ) -> PromptProjectionToken | None:
-        """Return the hovered or focused token according to the supplied preference."""
-
-        if prefer_hovered:
-            hovered_token = self.hovered_token()
-            if hovered_token is not None:
-                return hovered_token
-        focused_token = self.focused_token()
-        if focused_token is not None:
-            return focused_token
-        if not prefer_hovered:
-            return self.hovered_token()
-        return None
-
     def _active_span_range(self) -> tuple[int, int] | None:
         """Return the syntax range that should render as active in the projection."""
 
-        token = self._focused_or_hovered_token(prefer_hovered=False)
-        if token is not None:
-            return (token.source_start, token.source_end)
-        active_span = self.active_syntax_span()
-        if active_span is None:
-            return None
-        return (active_span.start, active_span.end)
+        return self._presentation_queries.active_span_range()
 
     def _visible_scroll_bar(self) -> QScrollBar:
         """Return the scrollbar that currently owns the visible scroll offset."""

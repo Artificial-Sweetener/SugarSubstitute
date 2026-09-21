@@ -126,7 +126,7 @@ class PromptIncrementalReflowStrategy:
             session=context._session,
             active_span_range=None,
             decoration_accent_ranges=context._decoration_accent_ranges(),
-            scene_error_keys=context._scene_error_keys,
+            scene_error_keys=context.scene_error_keys(),
         )
         if (
             result.status is PromptProjectionPlainTextApplyStatus.REJECTED
@@ -164,7 +164,7 @@ class PromptIncrementalReflowStrategy:
             blockers=context._projection_freshness_blockers(),
             session=context._session,
             decoration_accent_ranges=context._decoration_accent_ranges(),
-            scene_error_keys=context._scene_error_keys,
+            scene_error_keys=context.scene_error_keys(),
         )
         if projection_document is None:
             return None

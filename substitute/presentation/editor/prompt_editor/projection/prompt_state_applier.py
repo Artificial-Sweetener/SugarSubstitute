@@ -80,7 +80,6 @@ class PromptProjectionPromptStateHost(Protocol):
     _projection_applicator: PromptProjectionApplicator
     _projection_freshness_controller: PromptProjectionFreshnessController
     _session: PromptProjectionSession
-    _scene_error_keys: frozenset[str]
     _caret_visibility_prompt_state_revision: int | None
     _layout: PromptLayoutEditToFrameCoordinator
 
@@ -104,6 +103,9 @@ class PromptProjectionPromptStateHost(Protocol):
 
     def display_mode(self) -> PromptProjectionDisplayMode:
         """Return the current projection display mode."""
+
+    def scene_error_keys(self) -> frozenset[str]:
+        """Return scene diagnostics included in projection builds."""
 
     def viewport(self) -> QWidget:
         """Return the projection viewport sink."""
@@ -392,7 +394,7 @@ class PromptProjectionPromptStateApplier:
                 session=host._session,
                 active_span_range=active_span_range,
                 decoration_accent_ranges=host._decoration_accent_ranges(),
-                scene_error_keys=host._scene_error_keys,
+                scene_error_keys=host.scene_error_keys(),
                 current_document=host._editor_state.projection.document,
                 frame=host._layout.frame,
             )

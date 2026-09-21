@@ -108,7 +108,7 @@ class PromptSemanticTransitionStrategy:
             session=context._session,
             active_span_range=None,
             decoration_accent_ranges=context._decoration_accent_ranges(),
-            scene_error_keys=context._scene_error_keys,
+            scene_error_keys=context.scene_error_keys(),
         )
         layout_damage = self._layout.set_projection_after_source_edit(
             projection_document,
