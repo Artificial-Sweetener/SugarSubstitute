@@ -80,7 +80,6 @@ class PromptProjectionPromptStateHost(Protocol):
     _projection_applicator: PromptProjectionApplicator
     _projection_freshness_controller: PromptProjectionFreshnessController
     _active_projection_document: PromptProjectionDocument
-    _display_mode: PromptProjectionDisplayMode
     _session: PromptProjectionSession
     _scene_error_keys: frozenset[str]
     _caret_visibility_prompt_state_revision: int | None
@@ -104,6 +103,9 @@ class PromptProjectionPromptStateHost(Protocol):
     @property
     def anchor_position(self) -> int:
         """Return the current source anchor position."""
+
+    def display_mode(self) -> PromptProjectionDisplayMode:
+        """Return the current projection display mode."""
 
     def viewport(self) -> QWidget:
         """Return the projection viewport sink."""
@@ -136,9 +138,6 @@ class PromptProjectionPromptStateHost(Protocol):
 
     exact_weight_editor: PromptExactWeightEditor
 
-    def _rebuild_projection(self) -> None:
-        """Run the surface-owned full projection rebuild sink."""
-
     def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
         """Rebuild the active projection document after committed state changes."""
 
@@ -153,6 +152,7 @@ class PromptProjectionPromptStateApplier:
         frame_state: PromptProjectionFrameStatePublisher,
         strategy: PromptStateProjectionStrategy,
         ensure_caret_visible: Callable[[], None],
+        rebuild_projection: Callable[[], None],
     ) -> None:
         """Create an applier around a projection surface sink."""
 
@@ -160,6 +160,7 @@ class PromptProjectionPromptStateApplier:
         self._frame_state = frame_state
         self._strategy = strategy
         self._ensure_caret_visible = ensure_caret_visible
+        self._rebuild_projection = rebuild_projection
 
     def set_prompt_state(
         self,
@@ -386,7 +387,7 @@ class PromptProjectionPromptStateApplier:
                 document_view,
                 render_plan,
                 source_changed=source_changed,
-                display_mode=host._display_mode,
+                display_mode=host.display_mode(),
                 session=host._session,
                 active_span_range=active_span_range,
                 decoration_accent_ranges=host._decoration_accent_ranges(),
@@ -575,7 +576,7 @@ class PromptProjectionPromptStateApplier:
                     selection_end=max(host.cursor_position, host.anchor_position),
                 )
             if not fast_insert_applied and not scheduled_incremental_applied:
-                host._rebuild_projection()
+                self._rebuild_projection()
             apply_path = (
                 PromptProjectionApplyPath.FAST_TRAILING
                 if fast_insert_applied

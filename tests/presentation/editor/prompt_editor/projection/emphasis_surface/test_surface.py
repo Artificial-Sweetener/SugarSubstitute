@@ -195,7 +195,9 @@ def test_projection_surface_pulses_emphasis_feedback_without_rebuild(
     surface = surface_for(box)
     token = first_emphasis_token(box)
     rebuild_calls: list[str] = []
-    cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
+    cast(Any, surface)._projection_rebuild.rebuild = lambda: rebuild_calls.append(
+        "rebuild"
+    )
 
     surface.emphasis.pulse_feedback(
         outer_start=token.source_start,
@@ -219,7 +221,7 @@ def test_projection_surface_applies_changed_emphasis_prompt_state_incrementally(
     surface = surface_for(box)
     document_view, render_plan = _prompt_state_for_projection_text("(cat:1.10), suffix")
     rebuild_calls: list[str] = []
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
 
     def record_rebuild() -> None:
         """Record and perform the authoritative projection rebuild."""
@@ -227,7 +229,7 @@ def test_projection_surface_applies_changed_emphasis_prompt_state_incrementally(
         rebuild_calls.append("rebuild")
         original_rebuild_projection()
 
-    cast(Any, surface)._rebuild_projection = record_rebuild
+    cast(Any, surface)._projection_rebuild.rebuild = record_rebuild
 
     surface_source_commands(surface).replace_document_text_with_prompt_state(
         "(cat:1.10), suffix",
@@ -257,7 +259,9 @@ def test_projection_surface_reflows_when_emphasis_prompt_state_changes_geometry(
         "(cat:10.00), suffix"
     )
     rebuild_calls: list[str] = []
-    cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
+    cast(Any, surface)._projection_rebuild.rebuild = lambda: rebuild_calls.append(
+        "rebuild"
+    )
 
     surface_source_commands(surface).replace_document_text_with_prompt_state(
         "(cat:10.00), suffix",

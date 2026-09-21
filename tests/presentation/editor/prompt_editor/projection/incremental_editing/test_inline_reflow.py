@@ -67,7 +67,7 @@ def test_projection_surface_applies_local_middle_comma_without_rebuild(
         width=1000,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -77,7 +77,7 @@ def test_projection_surface_applies_local_middle_comma_without_rebuild(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len("test")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -168,7 +168,7 @@ def test_projection_surface_wrapped_visual_line_suffix_typing_uses_authoritative
         )
         and text[position] not in {"\n", "\r"}
     )
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -178,7 +178,7 @@ def test_projection_surface_wrapped_visual_line_suffix_typing_uses_authoritative
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     surface.set_cursor_positions(
         cursor_position=cursor_position,
         anchor_position=cursor_position,
@@ -243,7 +243,7 @@ def test_projection_surface_fallback_backspace_uses_canonical_reflow_without_ove
         flush_projection_update_scheduler(surface)
         process_events(ensure_qapp())
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -253,7 +253,7 @@ def test_projection_surface_fallback_backspace_uses_canonical_reflow_without_ove
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     monkeypatch.setattr(
         PromptSourceEditProjectionFactResolver,
         "resolve",

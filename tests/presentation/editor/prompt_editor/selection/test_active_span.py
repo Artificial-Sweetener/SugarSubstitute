@@ -52,8 +52,8 @@ def test_projection_surface_set_active_span_does_not_rebuild_projection_geometry
 
     rebuild_calls: list[str] = []
     monkeypatch.setattr(
-        surface,
-        "_rebuild_projection",
+        surface._projection_rebuild,  # noqa: SLF001
+        "rebuild",
         lambda: rebuild_calls.append("rebuild"),
     )
 

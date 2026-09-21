@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol
 
 from PySide6.QtWidgets import QWidget
@@ -64,9 +65,6 @@ class PromptEditPublicationSink(Protocol):
     def _rebuild_active_projection(self, *, commit_projection: bool = False) -> None:
         """Refresh prepared paint state after frame publication."""
 
-    def _rebuild_projection(self) -> None:
-        """Run one canonical projection rebuild."""
-
     def _update_incremental_plain_text_projection_paint(
         self,
         layout_result: PromptLayoutDamage,
@@ -90,6 +88,7 @@ class PromptEditPublication:
         diagnostics: PromptDiagnosticLayerOwner,
         caret_publication: PromptProjectionCaretPublicationOwner,
         overlays: PromptProjectionTransientEditOverlayController,
+        rebuild_projection: Callable[[], None],
     ) -> None:
         """Store explicit revisioned state and the remaining surface effect sink."""
 
@@ -100,6 +99,7 @@ class PromptEditPublication:
         self._diagnostics = diagnostics
         self._caret_publication = caret_publication
         self._overlays = overlays
+        self._rebuild_projection = rebuild_projection
 
     def current_layout_identity(self) -> PromptLayoutIdentity | None:
         """Return the active layout identity before a strategy mutates the frame."""
@@ -109,7 +109,7 @@ class PromptEditPublication:
     def rebuild_projection(self) -> None:
         """Publish the terminal canonical projection rebuild."""
 
-        self._sink._rebuild_projection()
+        self._rebuild_projection()
 
     def clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
         """Clear diagnostic geometry after a deferred terminal outcome."""

@@ -25,8 +25,8 @@ from substitute.devtools.prompt_editor_performance.instrumentation import (
     instrument_prompt_editor,
 )
 from substitute.devtools.prompt_editor_performance.metrics import Instrumentation
-from substitute.presentation.editor.prompt_editor.projection.surface import (
-    PromptProjectionSurface,
+from substitute.presentation.editor.prompt_editor.projection.rebuild_owner import (
+    PromptProjectionRebuildOwner,
 )
 from substitute.presentation.editor.prompt_editor.shell import (
     prompt_text_menu as prompt_context_menu_module,
@@ -86,12 +86,12 @@ def test_instrumentation_context_observes_decorated_owner_boundary() -> None:
 def test_instrumentation_context_does_not_patch_prompt_editor_owners() -> None:
     """Keep measured owner methods stable throughout an instrumented run."""
 
-    original = PromptProjectionSurface._rebuild_projection
+    original = PromptProjectionRebuildOwner.rebuild
 
     with instrument_prompt_editor(Instrumentation.create()):
-        assert PromptProjectionSurface._rebuild_projection is original
+        assert PromptProjectionRebuildOwner.rebuild is original
 
-    assert PromptProjectionSurface._rebuild_projection is original
+    assert PromptProjectionRebuildOwner.rebuild is original
 
 
 def test_instrumentation_can_delegate_context_menu_suppression() -> None:

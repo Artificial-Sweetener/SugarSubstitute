@@ -104,7 +104,7 @@ class PromptSemanticTransitionStrategy:
         projection_document = self._applicator.build_projection(
             document_view,
             render_plan,
-            display_mode=context._display_mode,
+            display_mode=context.display_mode(),
             session=context._session,
             active_span_range=None,
             decoration_accent_ranges=context._decoration_accent_ranges(),

@@ -54,7 +54,7 @@ def test_projection_surface_cursor_rect_uses_transient_geometry_during_pending_t
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -64,7 +64,7 @@ def test_projection_surface_cursor_rect_uses_transient_geometry_during_pending_t
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -97,7 +97,7 @@ def test_projection_surface_ensure_caret_visible_uses_transient_geometry(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -107,7 +107,7 @@ def test_projection_surface_ensure_caret_visible_uses_transient_geometry(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -170,7 +170,7 @@ def test_projection_surface_hit_testing_flushes_pending_projection_update(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -180,7 +180,7 @@ def test_projection_surface_hit_testing_flushes_pending_projection_update(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -285,7 +285,7 @@ def test_projection_surface_resize_does_not_flush_pending_projection_update(
         rebuild_count += 1
 
     monkeypatch.setattr(surface, "_flush_pending_projection_update", record_flush)
-    monkeypatch.setattr(surface, "_rebuild_projection", record_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", record_rebuild)
 
     surface.resize(surface.width() + 24, surface.height() + 8)
     process_events(ensure_qapp())

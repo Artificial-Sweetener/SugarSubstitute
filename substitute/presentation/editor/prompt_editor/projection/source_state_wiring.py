@@ -135,6 +135,7 @@ class PromptProjectionSourceStateBindings:
     transient_edit_overlays: PromptProjectionTransientEditOverlayController
     set_cursor_positions: Callable[[int, int], object]
     ensure_caret_visible: Callable[[], None]
+    rebuild_projection: Callable[[], None]
     projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers]
     input_method_source_changed: Callable[[], None]
     clear_reorder_for_source_change: Callable[[], None]
@@ -214,6 +215,7 @@ def build_prompt_projection_source_state_owners(
         diagnostics=bindings.diagnostics,
         caret_publication=bindings.caret_publication,
         overlays=transient_edit_overlays,
+        rebuild_projection=bindings.rebuild_projection,
     )
     reflow_strategy = PromptIncrementalReflowStrategy(
         bindings.build_context,
@@ -266,6 +268,7 @@ def build_prompt_projection_source_state_owners(
         frame_state=frame_state,
         strategy=prompt_state_strategy,
         ensure_caret_visible=bindings.ensure_caret_visible,
+        rebuild_projection=bindings.rebuild_projection,
     )
     scheduled_update_sink.wire(prompt_state_applier)
     projection_facts = PromptSourceEditProjectionFactResolver(

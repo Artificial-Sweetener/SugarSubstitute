@@ -108,9 +108,6 @@ class PromptSurfaceMouseHost(Protocol):
     def has_pending_projection_update(self) -> bool:
         """Return whether projection work is waiting on the freshness owner."""
 
-    def _rebuild_projection(self) -> None:
-        """Refresh projection state after token expansion changes session state."""
-
     def _scroll_offset(self) -> float:
         """Return the viewport scroll offset used by projection geometry."""
 
@@ -139,6 +136,7 @@ class PromptSurfaceMouseHandler:
         *,
         caret_publication: PromptProjectionCaretPublicationOwner,
         caret_geometry: PromptProjectionCaretGeometryOwner,
+        rebuild_projection: Callable[[], None],
         ensure_pointer_focus: Callable[[], None],
         clear_autocomplete_preview: Callable[[], None],
         request_lora_context_menu: Callable[[QPointF, QPoint], bool],
@@ -148,6 +146,7 @@ class PromptSurfaceMouseHandler:
         self._host = host
         self._caret_publication = caret_publication
         self._caret_geometry = caret_geometry
+        self._rebuild_projection = rebuild_projection
         self._ensure_pointer_focus = ensure_pointer_focus
         self._clear_autocomplete_preview = clear_autocomplete_preview
         self._request_lora_context_menu = request_lora_context_menu
@@ -362,7 +361,7 @@ class PromptSurfaceMouseHandler:
                 event.accept()
                 return True
             host._session.expand_token(token)
-            host._rebuild_projection()
+            self._rebuild_projection()
             host.set_cursor_positions(
                 cursor_position=token.source_end,
                 anchor_position=token.source_start,

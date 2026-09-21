@@ -37,7 +37,7 @@ from substitute.presentation.editor.prompt_editor.projection import (
     prompt_state_applier as prompt_state_applier_module,
 )
 from substitute.presentation.editor.prompt_editor.projection import (
-    surface as prompt_surface_module,
+    rebuild_owner as projection_rebuild_owner_module,
 )
 from substitute.presentation.editor.prompt_editor.projection.paint_state import (
     PromptProjectionPaintStateBuilder,
@@ -164,7 +164,11 @@ def test_projection_surface_prompt_state_ignores_deleted_qt_wrappers(
     previous_projection = surface.editor_state.projection
     previous_projection_semantic = surface.editor_state.projection_semantic
     surface_view = cast(Any, surface)
-    monkeypatch.setattr(prompt_surface_module, "qt_object_is_alive", lambda _obj: False)
+    monkeypatch.setattr(
+        projection_rebuild_owner_module,
+        "qt_object_is_alive",
+        lambda _obj: False,
+    )
     monkeypatch.setattr(
         prompt_state_applier_module, "qt_object_is_alive", lambda _obj: False
     )
@@ -177,7 +181,7 @@ def test_projection_surface_prompt_state_ignores_deleted_qt_wrappers(
             reason="test",
         )
     )
-    surface_view._rebuild_projection()
+    surface_view._projection_rebuild.rebuild()
 
     assert surface.editor_state.projection is previous_projection
     assert surface.editor_state.projection_semantic is previous_projection_semantic

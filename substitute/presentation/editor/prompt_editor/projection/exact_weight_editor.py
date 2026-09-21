@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Protocol
 
 from PySide6.QtCore import (
@@ -71,9 +72,6 @@ class PromptExactWeightEditorHost(Protocol):
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the authoritative viewport-local weight bounds."""
 
-    def _rebuild_projection(self) -> None:
-        """Publish a projection after native edit state changes."""
-
 
 class PromptExactWeightEditor(QLineEdit):
     """Keep text, selection, caret, clipboard, and undo under Qt's input owner."""
@@ -81,11 +79,17 @@ class PromptExactWeightEditor(QLineEdit):
     commit_requested = Signal()
     cancel_requested = Signal()
 
-    def __init__(self, host: PromptExactWeightEditorHost) -> None:
+    def __init__(
+        self,
+        host: PromptExactWeightEditorHost,
+        *,
+        rebuild_projection: Callable[[], None],
+    ) -> None:
         """Mount one native input whose geometry derives from the token projection."""
 
         super().__init__(host.viewport())
         self._host = host
+        self._rebuild_projection = rebuild_projection
         self._publishing = False
         self.setObjectName("PromptExactWeightEditor")
         self.setFrame(False)
@@ -144,7 +148,7 @@ class PromptExactWeightEditor(QLineEdit):
             caret_index=self.cursorPosition(),
             select_all=True,
         )
-        self._host._rebuild_projection()
+        self._rebuild_projection()
         self.refresh_geometry()
         self.show()
         self.raise_()
@@ -173,7 +177,7 @@ class PromptExactWeightEditor(QLineEdit):
             return
         self._host._session.clear_exact_weight_edit()
         self.hide()
-        self._host._rebuild_projection()
+        self._rebuild_projection()
 
     def token(self) -> PromptProjectionToken | None:
         """Resolve the edited token from its source identity after projection changes."""
@@ -325,7 +329,7 @@ class PromptExactWeightEditor(QLineEdit):
                 caret_index=self.cursorPosition(),
                 select_all=select_all,
             )
-            self._host._rebuild_projection()
+            self._rebuild_projection()
             self.refresh_geometry()
         finally:
             self._publishing = False

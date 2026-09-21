@@ -57,7 +57,7 @@ def test_projection_surface_empty_middle_line_typing_uses_incremental_layout(
         width=360,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -67,7 +67,7 @@ def test_projection_surface_empty_middle_line_typing_uses_incremental_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     empty_line_position = box.toPlainText().index("\n\n") + 1
     surface.set_cursor_positions(
         cursor_position=empty_line_position,
@@ -97,7 +97,7 @@ def test_projection_surface_middle_plain_backspace_publishes_real_layout(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -107,7 +107,7 @@ def test_projection_surface_middle_plain_backspace_publishes_real_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = box.toPlainText().index(" beta")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -162,7 +162,7 @@ def test_projection_surface_middle_plain_typing_publishes_real_layout(
     )
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -172,7 +172,7 @@ def test_projection_surface_middle_plain_typing_publishes_real_layout(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     cursor_position = box.toPlainText().index(" beta")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -222,7 +222,7 @@ def test_projection_surface_word_edge_typing_keeps_word_wrap_integrity(
         width=260,
     )
     surface = surface_for(box)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._projection_rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -234,7 +234,7 @@ def test_projection_surface_word_edge_typing_keeps_word_wrap_integrity(
 
     configure_trailing_word_wrap_boundary(box, surface)
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._projection_rebuild, "rebuild", count_rebuild)
     delay_projection_update_scheduler(surface)
     surface.set_cursor_positions(
         cursor_position=len(box.toPlainText()),

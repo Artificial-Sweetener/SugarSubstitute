@@ -189,7 +189,7 @@ class PromptProjectionProbes:
         target = self._input.focus_editor(field)
         surface = cast(Any, field.editor)._surface
         edit_pipeline = surface._edit_pipeline
-        original_rebuild = surface._rebuild_projection
+        original_rebuild = surface._projection_rebuild.rebuild
         original_apply = edit_pipeline.apply
         canonical_rebuild_count = 0
         apply_paths: list[str] = []
@@ -218,7 +218,7 @@ class PromptProjectionProbes:
 
             layout_rejection_reasons.append(reason)
 
-        surface._rebuild_projection = counted_rebuild
+        surface._projection_rebuild.rebuild = counted_rebuild
         edit_pipeline.apply = recorded_apply
         surface._layout.set_incremental_rejection_observer(record_layout_rejection)
         started_at = perf_counter()
@@ -226,7 +226,7 @@ class PromptProjectionProbes:
             input_action(target)
             wait_for_queued_qt_turn()
         finally:
-            surface._rebuild_projection = original_rebuild
+            surface._projection_rebuild.rebuild = original_rebuild
             edit_pipeline.apply = original_apply
             surface._layout.set_incremental_rejection_observer(None)
 
