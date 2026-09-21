@@ -298,9 +298,9 @@ def test_projection_surface_coalesces_repeated_simple_typed_projection_rebuilds(
     overlay = valid_transient_insertion_overlay(surface)
     assert overlay is not None
     assert overlay.text == "xy"
-    overlay_rect = cast(Any, surface)._transient_insertion_overlay_viewport_rect(
-        overlay
-    )
+    overlay_rect = cast(
+        Any, surface
+    )._transient_edit_presentation.insertion_overlay_viewport_rect(overlay)
     expected_text_width = QFontMetricsF(box.font()).horizontalAdvance("xy")
     assert overlay_rect.width() == pytest.approx(expected_text_width)
     flush_semantic_refresh(box)

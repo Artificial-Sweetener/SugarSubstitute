@@ -58,6 +58,7 @@ def _strategy(surface: object) -> PromptDeferredFeedbackStrategy:
         layout=host._layout,
         overlays=host._transient_edit_overlays,
         source_line_chrome=host._source_line_chrome,
+        presentation=host._transient_edit_presentation,
     )
 
 

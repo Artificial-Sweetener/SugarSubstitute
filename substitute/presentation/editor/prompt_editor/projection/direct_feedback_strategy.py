@@ -37,10 +37,9 @@ from .edit_pipeline_contracts import PromptProjectionSourceChangeApplyRequest
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
 from .freshness_controller import PromptProjectionFreshnessController
 from .transient_edit_overlays import (
-    PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
-    PromptProjectionTransientInsertionOverlay,
 )
+from .transient_edit_presentation_owner import PromptTransientEditPresentation
 
 PromptDirectFeedbackEditorState = PromptEditorDocumentState[
     PromptDocumentView,
@@ -50,24 +49,10 @@ PromptDirectFeedbackEditorState = PromptEditorDocumentState[
 
 
 class PromptDirectFeedbackContext(Protocol):
-    """Expose current caret geometry and bounded feedback repaint effects."""
+    """Expose current caret geometry for bounded direct feedback."""
 
     def _current_caret_document_rect(self) -> QRectF:
         """Return the committed document-local caret rectangle."""
-
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Repaint changed transient insertion feedback."""
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Repaint changed transient deletion feedback."""
 
 
 class PromptDirectFeedbackStrategy:
@@ -81,6 +66,7 @@ class PromptDirectFeedbackStrategy:
         freshness: PromptProjectionFreshnessController,
         layout: PromptLayoutEditToFrameCoordinator,
         overlays: PromptProjectionTransientEditOverlayController,
+        presentation: PromptTransientEditPresentation,
     ) -> None:
         """Store explicit state, freshness, geometry, and overlay owners."""
 
@@ -89,6 +75,7 @@ class PromptDirectFeedbackStrategy:
         self._freshness = freshness
         self._layout = layout
         self._overlays = overlays
+        self._presentation = presentation
 
     def try_defer_direct(
         self,
@@ -140,11 +127,11 @@ class PromptDirectFeedbackStrategy:
             insertion_overlay=insertion_overlay,
             deletion_overlay=None,
         )
-        self._context._update_transient_insertion_overlay_paint(
+        self._presentation.update_insertion_overlay_paint(
             previous_insertion_overlay,
             insertion_overlay,
         )
-        self._context._update_transient_deletion_overlay_paint(
+        self._presentation.update_deletion_overlay_paint(
             request.previous_deletion_overlay,
             None,
         )

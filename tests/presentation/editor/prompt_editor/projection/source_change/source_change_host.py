@@ -54,9 +54,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
     PromptProjectionDisplayMode,
 )
 from substitute.presentation.editor.prompt_editor.projection.transient_edit_overlays import (
-    PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
-    PromptProjectionTransientInsertionOverlay,
 )
 
 from .projection_state import (
@@ -159,8 +157,6 @@ class _SourceChangeHost:
         self.autocomplete_preview_clear_count = 0
         self.layout_sync_commits = 0
         self.horizontal_origin_marks = 0
-        self.transient_insert_paint_updates = 0
-        self.transient_delete_paint_updates = 0
         self.caret_visibility_checks = 0
         self.caret_blink_restarts = 0
         self.implicit_parenthesis_depth = 0
@@ -297,28 +293,6 @@ class _SourceChangeHost:
         """Record caret visibility checks."""
 
         self.caret_visibility_checks += 1
-
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Record insertion overlay paint updates."""
-
-        _ = previous_overlay
-        _ = next_overlay
-        self.transient_insert_paint_updates += 1
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Record deletion overlay paint updates."""
-
-        _ = previous_overlay
-        _ = next_overlay
-        self.transient_delete_paint_updates += 1
 
     def _restart_caret_blink_cycle(self) -> None:
         """Record caret blink restart."""

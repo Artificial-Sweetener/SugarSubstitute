@@ -18,9 +18,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_models import (
@@ -83,6 +85,7 @@ from .source_history_commit_application import PromptSourceHistoryCommitApplicat
 from .source_range_commit_application import PromptSourceRangeCommitApplication
 from .source_document import PromptProjectionSourceDocument
 from .transient_edit_overlays import PromptProjectionTransientEditOverlayController
+from .transient_edit_presentation_owner import PromptTransientEditPresentationOwner
 from .trailing_edit_strategy import PromptTrailingEditStrategy
 from .undo_payload import PromptProjectionUndoPayload
 from .update_scheduler import PendingProjectionUpdate
@@ -97,6 +100,7 @@ class PromptProjectionSourceStateOwners:
         PromptProjectionUndoPayload
     ]
     transient_edit_overlays: PromptProjectionTransientEditOverlayController
+    transient_edit_presentation: PromptTransientEditPresentationOwner
     freshness_controller: PromptProjectionFreshnessController
     edit_pipeline: PromptEditPipeline
     prompt_state_applier: PromptProjectionPromptStateApplier
@@ -126,6 +130,9 @@ class PromptProjectionSourceStateBindings:
     source_caret_sink: PromptSourceChangeCaretSink
     document_effect_sink: PromptSourceDocumentCommitEffectSink
     diagnostics: PromptDiagnosticLayerOwner
+    transient_viewport: QWidget
+    transient_scroll_offset: Callable[[], float]
+    transient_publish_render_frame: Callable[[], None]
 
 
 class _PromptProjectionScheduledUpdateSink:
@@ -160,6 +167,13 @@ def build_prompt_projection_source_state_owners(
     scheduled_update_sink = _PromptProjectionScheduledUpdateSink()
     source_document = PromptProjectionSourceDocument(parent=parent)
     transient_edit_overlays = PromptProjectionTransientEditOverlayController()
+    transient_edit_presentation = PromptTransientEditPresentationOwner(
+        overlays=transient_edit_overlays,
+        metrics=lambda: bindings.layout.frame.output.configuration.metrics,
+        scroll_offset=bindings.transient_scroll_offset,
+        viewport=bindings.transient_viewport,
+        publish_render_frame=bindings.transient_publish_render_frame,
+    )
     freshness_controller = PromptProjectionFreshnessController(
         apply_update=scheduled_update_sink.apply_update,
         parent=parent,
@@ -195,6 +209,7 @@ def build_prompt_projection_source_state_owners(
         freshness=freshness_controller,
         layout=bindings.layout,
         overlays=transient_edit_overlays,
+        presentation=transient_edit_presentation,
     )
     deferred_strategy = PromptDeferredFeedbackStrategy(
         bindings.deferred_feedback_context,
@@ -203,6 +218,7 @@ def build_prompt_projection_source_state_owners(
         layout=bindings.layout,
         overlays=transient_edit_overlays,
         source_line_chrome=bindings.source_line_chrome,
+        presentation=transient_edit_presentation,
     )
     edit_pipeline = PromptEditPipeline(
         direct_feedback_strategy=direct_feedback_strategy,
@@ -291,6 +307,7 @@ def build_prompt_projection_source_state_owners(
         source_document=source_document,
         source_commit_application=source_commit_application,
         transient_edit_overlays=transient_edit_overlays,
+        transient_edit_presentation=transient_edit_presentation,
         freshness_controller=freshness_controller,
         edit_pipeline=edit_pipeline,
         prompt_state_applier=prompt_state_applier,
