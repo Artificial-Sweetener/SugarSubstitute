@@ -30,6 +30,10 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashKind,
 )
 from sugarsubstitute_shared.crash_reporting import presentation as crash_presentation
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+    DiagnosticValue,
+)
 from sugarsubstitute_shared.issue_tracker import SUGARSUBSTITUTE_ISSUES_URL
 from sugarsubstitute_shared.presentation.error_report_window import (
     SharedErrorReportWindow,
@@ -145,6 +149,7 @@ def test_unclean_report_omits_empty_evidence_and_exposes_lifecycle_state() -> No
             "python_fault_log": "empty_or_missing",
             "startup_output": "empty_or_missing",
         },
+        diagnostic_context=_diagnostic_context(),
     )
 
     report = crash_presentation.build_crash_report_presentation(
@@ -156,7 +161,12 @@ def test_unclean_report_omits_empty_evidence_and_exposes_lifecycle_state() -> No
     assert "termination_reason: unknown" in report
     assert "exit_intent_state: missing" in report
     assert "exit_receipt_state: missing" in report
-    assert "SugarSubstitute version: 0.23.5" in report
+    assert "SugarSubstitute payload version: 0.24.1" in report
+    assert "Supervising launcher version: 0.24.1" in report
+    assert "ComfyUI version: 0.28.0" in report
+    assert "Operating system: Windows 11 build 26100" in report
+    assert "Physical memory: 64.0 GiB" in report
+    assert "GPU: NVIDIA GeForce RTX 5090" in report
     assert "Traceback\n---------" not in report
     assert "Diagnostic logs\n---------------" not in report
     assert report.rstrip().endswith("Launch arguments: main.py")
@@ -184,3 +194,60 @@ def test_startup_failure_is_not_presented_as_an_application_crash() -> None:
     assert "Kind: startup" in presentation.report_text
     assert "Operation: application_startup" in presentation.report_text
     assert "SugarSubstitute crashed" not in presentation.report_text
+
+
+def test_readiness_timeout_names_supervisor_termination_and_deadline() -> None:
+    """A launcher timeout must not masquerade as an internal application crash."""
+
+    incident = CrashIncident(
+        incident_id="readiness-timeout",
+        run_id="readiness-timeout-run",
+        occurred_at_utc="2026-09-21T20:00:00+00:00",
+        kind=CrashKind.STARTUP_READINESS_TIMEOUT,
+        boundary=CrashBoundary.SUPERVISOR,
+        attribution=CrashAttribution.CONFIRMED,
+        summary="The launcher terminated the application after readiness timed out.",
+        process_id=42,
+        exit_code=1,
+        metadata={
+            "termination_reason": "readiness_failure",
+            "readiness_timeout_seconds": "3600.0",
+            "readiness_failure_kind": "timeout",
+            "readiness_termination_action": "terminated",
+        },
+    )
+
+    report = crash_presentation.build_crash_report_presentation(incident).report_text
+
+    assert "Kind: startup_readiness_timeout" in report
+    assert "Operation: application_startup" in report
+    assert "readiness_timeout_seconds: 3600.0" in report
+    assert "readiness_termination_action: terminated" in report
+    assert "SugarSubstitute crashed" not in report
+
+
+def _diagnostic_context() -> CrashDiagnosticContext:
+    """Return complete deterministic report identity for presentation proof."""
+
+    def value(content: str, source: str) -> DiagnosticValue:
+        """Create one concise available test value."""
+
+        return DiagnosticValue.available(content, source=source)
+
+    return CrashDiagnosticContext(
+        substitute_version=value("0.24.1", "application_payload"),
+        substitute_release_version=value("0.24.1", "launcher_state"),
+        supervising_launcher_version=value("0.24.1", "running_launcher"),
+        installed_launcher_version=value("0.24.1", "launcher_installation_record"),
+        comfyui_version=value("0.28.0", "comfyui_version.py"),
+        comfyui_commit=value("0123456789abcdef", "comfyui_git_head"),
+        operating_system=value("Windows 11 build 26100", "python_platform"),
+        system_architecture=value("AMD64", "python_platform"),
+        python_version=value("3.13.12", "python_runtime"),
+        python_architecture=value("64-bit", "python_runtime"),
+        processor=value("Intel Core i9-14900K", "python_platform"),
+        logical_processor_count=value("32", "operating_system"),
+        physical_memory=value("64.0 GiB", "psutil"),
+        gpu=value("NVIDIA GeForce RTX 5090", "nvidia-smi"),
+        readiness_schema=value("5", "running_launcher"),
+    )

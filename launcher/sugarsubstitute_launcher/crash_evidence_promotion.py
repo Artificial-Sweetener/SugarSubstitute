@@ -29,6 +29,9 @@ from sugarsubstitute_shared.crash_reporting.run_context import (
     STARTUP_OUTPUT_FILENAME,
 )
 from sugarsubstitute_shared.crash_reporting.store import CrashIncidentStore
+from launcher.sugarsubstitute_launcher.crash_launcher_log import (
+    LAUNCHER_LOG_TAIL_FILENAME,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,6 +68,7 @@ class CrashIncidentEvidencePromoter:
         for filename in (
             "python-fault.log",
             STARTUP_OUTPUT_FILENAME,
+            LAUNCHER_LOG_TAIL_FILENAME,
             RUNTIME_CONTEXT_FILENAME,
             "exit-intent.json",
             "exit-receipt.json",

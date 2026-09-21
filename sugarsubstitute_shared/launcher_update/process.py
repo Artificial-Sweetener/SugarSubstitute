@@ -33,6 +33,9 @@ from sugarsubstitute_shared.launcher_update.targets import (
 from sugarsubstitute_shared.crash_reporting.protocol import (
     without_crash_supervision_environment,
 )
+from sugarsubstitute_shared.application_readiness import (
+    without_application_readiness_environment,
+)
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
     standard_child_process_dll_search_path,
@@ -71,8 +74,8 @@ def schedule_launcher_update(
         else None,
     )
     request.save(request_path)
-    environment = without_crash_supervision_environment(
-        clean_frozen_parent_environment()
+    environment = without_application_readiness_environment(
+        without_crash_supervision_environment(clean_frozen_parent_environment())
     )
     install_root = operational_path(request.install_root)
     target = launcher_bundle_target_for_key(request.target_key)
@@ -108,8 +111,8 @@ def relaunch_updated_launcher(executable_path: Path) -> None:
         _start_independent(
             [subprocess_path(executable_path)],
             cwd=executable_path.parent,
-            environment=without_crash_supervision_environment(
-                clean_frozen_parent_environment()
+            environment=without_application_readiness_environment(
+                without_crash_supervision_environment(clean_frozen_parent_environment())
             ),
             output_fd=output.fileno(),
         )

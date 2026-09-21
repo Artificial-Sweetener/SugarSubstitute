@@ -1729,6 +1729,11 @@ This is taking much longer than expected</source>
       <translation>ComfyUI를 계속 시작할 수 있지만 일부 SugarCubes 워크플로를 올바르게 실행하려면 점검이 필요할 수 있습니다.</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="212"></location>
+      <source>ComfyUI commit</source>
+      <translation>ComfyUI 커밋</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="476"></location>
       <source>ComfyUI connection</source>
       <translation>ComfyUI 연결</translation>
@@ -1942,6 +1947,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/application/generation/failure_summary.py" line="88"></location>
       <source>ComfyUI unavailable</source>
       <translation>ComfyUI 사용 불가</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="211"></location>
+      <source>ComfyUI version</source>
+      <translation>ComfyUI 버전</translation>
     </message>
     <message>
       <location filename="../substitute/application/error_report_builder.py" line="264"></location>
@@ -2532,7 +2542,7 @@ Install these nodes now?</source>
       <translation>장치: %1</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="115"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="119"></location>
       <source>Diagnostic logs</source>
       <translation>진단 로그</translation>
     </message>
@@ -3095,6 +3105,11 @@ Install these nodes now?</source>
       <translation>GNU 일반 공중 사용 허가서 v3</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="223"></location>
+      <source>GPU</source>
+      <translation>그래픽 프로세서(GPU)</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="444"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>이 세션에서는 GUI를 다시 시작할 수 없습니다.</translation>
@@ -3480,6 +3495,11 @@ Install these nodes now?</source>
       <translation>설치된 사용자 지정 노드</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="208"></location>
+      <source>Installed launcher version</source>
+      <translation>설치된 런처 버전</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1177"></location>
       <source>Installed packages</source>
       <translation>설치된 패키지</translation>
@@ -3633,6 +3653,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/error_report_builder.py" line="293"></location>
       <source>Launch args: %1</source>
       <translation>실행 인수: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="226"></location>
+      <source>Launch arguments</source>
+      <translation>실행 인수</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="434"></location>
@@ -3818,6 +3843,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="109"></location>
       <source>Log excerpt:</source>
       <translation>로그 발췌:</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="219"></location>
+      <source>Logical processor count</source>
+      <translation>논리 프로세서 수</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="323"></location>
@@ -4607,6 +4637,11 @@ I’ll bring my own</source>
       <translation>평소 사용하는 바로 가기, 스크립트 또는 실행기로 이 ComfyUI 설치를 직접 여세요. Substitute가 자동으로 감지합니다.</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="213"></location>
+      <source>Operating system</source>
+      <translation>운영 체제</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/error_report_builder.py" line="233"></location>
       <source>Operation</source>
       <translation>작업</translation>
@@ -4765,6 +4800,11 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/onboarding/onboarding_connection_settings.py" line="170"></location>
       <source>Performance and updates</source>
       <translation>성능 및 업데이트</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="222"></location>
+      <source>Physical memory</source>
+      <translation>물리 메모리</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="65"></location>
@@ -4997,6 +5037,11 @@ I’ll bring my own</source>
       <translation>이전 일치 항목(Shift+Enter)</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="217"></location>
+      <source>Processor</source>
+      <translation>프로세서</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="228"></location>
       <source>Project</source>
       <translation>프로젝트</translation>
@@ -5062,9 +5107,19 @@ I’ll bring my own</source>
       <translation>PyTorch 버전: %1</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="215"></location>
+      <source>Python</source>
+      <translation>Python 런타임</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="918"></location>
       <source>Python %1 at %2</source>
       <translation>%2의 Python %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="216"></location>
+      <source>Python architecture</source>
+      <translation>Python 아키텍처</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="190"></location>
@@ -5160,6 +5215,11 @@ I’ll bring my own</source>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="193"></location>
       <source>Readiness errors</source>
       <translation>준비 상태 오류</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="224"></location>
+      <source>Readiness schema</source>
+      <translation>준비 상태 스키마</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="144"></location>
@@ -5759,11 +5819,6 @@ No known extension claimant.</source>
       <location filename="../substitute/application/error_report_builder.py" line="260"></location>
       <source>Runtime and system information</source>
       <translation>런타임 및 시스템 정보</translation>
-    </message>
-    <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="127"></location>
-      <source>Runtime context</source>
-      <translation>런타임 컨텍스트</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="252"></location>
@@ -6990,9 +7045,19 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
 간단히 말해 SugarSubstitute를 배우고, 필요에 맞게 수정하고, 토대로 삼고, 변경 사항을 공유할 수 있습니다. 전체 GPLv3 라이선스 전문은 이 화면에서 확인할 수 있으며 해당 권리와 의무에 대한 법적 기준입니다.</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="196"></location>
+      <source>SugarSubstitute payload version</source>
+      <translation>SugarSubstitute 페이로드 버전</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/about/models.py" line="26"></location>
       <source>SugarSubstitute provides a focused PySide6 workspace for ComfyUI, with cube-based workflow composition, managed model metadata, prompt tooling, and integrated image canvas workflows.</source>
       <translation>SugarSubstitute는 큐브 기반 워크플로 구성, 관리형 모델 메타데이터, 프롬프트 도구 및 통합 이미지 캔버스 워크플로를 갖춘 ComfyUI용 집중형 PySide6 작업 공간을 제공합니다.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="200"></location>
+      <source>SugarSubstitute recorded release version</source>
+      <translation>SugarSubstitute 기록 릴리스 버전</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_compatibility.py" line="67"></location>
@@ -7038,6 +7103,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1660"></location>
       <source>Summary unavailable</source>
       <translation>요약 사용 불가</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="204"></location>
+      <source>Supervising launcher version</source>
+      <translation>감독 런처 버전</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1761"></location>
@@ -7105,6 +7175,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="912"></location>
       <source>Synced %1.</source>
       <translation>%1을(를) 동기화했습니다.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="214"></location>
+      <source>System architecture</source>
+      <translation>시스템 아키텍처</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/generation_page.py" line="279"></location>

@@ -23,8 +23,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Self
 
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+)
 
-CRASH_INCIDENT_SCHEMA_VERSION = 1
+CRASH_INCIDENT_SCHEMA_VERSION = 2
+_LEGACY_CRASH_INCIDENT_SCHEMA_VERSION = 1
 
 
 class CrashKind(Enum):
@@ -38,6 +42,7 @@ class CrashKind(Enum):
     ABORT = "abort"
     ABNORMAL_EXIT = "abnormal_exit"
     STARTUP = "startup"
+    STARTUP_READINESS_TIMEOUT = "startup_readiness_timeout"
 
 
 class CrashBoundary(Enum):
@@ -85,6 +90,7 @@ class CrashIncident:
     breadcrumbs: tuple[str, ...] = ()
     attachments: tuple[str, ...] = ()
     metadata: Mapping[str, str] = field(default_factory=dict)
+    diagnostic_context: CrashDiagnosticContext | None = None
 
     def __post_init__(self) -> None:
         """Reject identifiers and attachments that cannot be stored safely."""
@@ -127,6 +133,11 @@ class CrashIncident:
             "breadcrumbs": list(self.breadcrumbs),
             "attachments": list(self.attachments),
             "metadata": dict(self.metadata),
+            "diagnostic_context": (
+                self.diagnostic_context.to_json()
+                if self.diagnostic_context is not None
+                else None
+            ),
         }
 
     @classmethod
@@ -135,7 +146,11 @@ class CrashIncident:
 
         if not isinstance(payload, Mapping):
             raise ValueError("Crash incident must be a JSON object.")
-        if payload.get("schema_version") != CRASH_INCIDENT_SCHEMA_VERSION:
+        schema_version = payload.get("schema_version")
+        if schema_version not in {
+            _LEGACY_CRASH_INCIDENT_SCHEMA_VERSION,
+            CRASH_INCIDENT_SCHEMA_VERSION,
+        }:
             raise ValueError("Crash incident schema version is unsupported.")
         try:
             return cls(
@@ -160,6 +175,12 @@ class CrashIncident:
                 breadcrumbs=_string_tuple(payload, "breadcrumbs"),
                 attachments=_string_tuple(payload, "attachments"),
                 metadata=_string_mapping(payload, "metadata"),
+                diagnostic_context=(
+                    CrashDiagnosticContext.from_json(payload.get("diagnostic_context"))
+                    if schema_version == CRASH_INCIDENT_SCHEMA_VERSION
+                    and payload.get("diagnostic_context") is not None
+                    else None
+                ),
             )
         except (TypeError, ValueError) as error:
             raise ValueError("Crash incident payload is invalid.") from error
