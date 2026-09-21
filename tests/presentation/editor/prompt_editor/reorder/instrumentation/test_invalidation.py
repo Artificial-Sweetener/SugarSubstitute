@@ -158,8 +158,8 @@ def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
     before = _performance_counters(overlay)
 
     before_geometry_generation = overlay.geometry_generation_state().generation_id
-    cast(Any, overlay)._autoscroll.apply_step_for_tests()
-    cast(Any, overlay)._autoscroll.apply_step_for_tests()
+    cast(Any, overlay)._runtime.autoscroll.apply_step_for_tests()
+    cast(Any, overlay)._runtime.autoscroll.apply_step_for_tests()
 
     after_ticks_before_flush = _performance_counters(overlay)
 

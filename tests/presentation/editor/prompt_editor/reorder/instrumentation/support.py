@@ -267,7 +267,7 @@ def _assert_plain_alt_keeps_surface_text_ownership(
     assert surface_chrome is not None
     assert surface_chrome.mode == "live"
     assert surface_chrome.chips
-    assert cast(Any, overlay)._live_visual_owner.visual_snapshots_by_index == {}
+    assert cast(Any, overlay)._runtime.live_visuals.visual_snapshots_by_index == {}
 
 
 def _counter_delta(

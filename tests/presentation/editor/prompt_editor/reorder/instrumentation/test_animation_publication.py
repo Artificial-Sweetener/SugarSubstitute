@@ -116,7 +116,7 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
     _process_events(app)
     overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
     monkeypatch.setattr(
-        cast(Any, overlay)._raster_publication_owner,
+        cast(Any, overlay)._runtime.raster,
         "entries_for",
         lambda _lane, **_kwargs: {},
     )
@@ -124,7 +124,7 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    cast(Any, overlay)._preview_paint_snapshots.clear()
+    cast(Any, overlay)._runtime.preview_paint_snapshots.clear()
     surface = surface_for(box)
     current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
     box.set_reorder_surface_visual_publication(
@@ -161,7 +161,7 @@ def test_reorder_animation_fallback_keeps_final_preview_correct(
     overlay = _open_reorder_overlay(editor)
     dragged_chip = _overlay_chip_by_segment_index(overlay, 3)
     target_chip = _overlay_chip_by_segment_index(overlay, 1)
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     applied_generations: list[int] = []
 
     def no_op_apply_plan(plan: Any, **_context: Any) -> None:

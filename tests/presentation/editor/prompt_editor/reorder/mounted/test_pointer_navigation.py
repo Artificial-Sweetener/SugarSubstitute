@@ -236,7 +236,7 @@ def test_segment_reorder_overlay_autoscrolls_editor_scrollbar_while_dragging_nea
         ),
         10,
     )
-    cast(Any, overlay)._autoscroll.apply_step_for_tests()
+    cast(Any, overlay)._runtime.autoscroll.apply_step_for_tests()
     scrolled = scrollbar.value() > initial_scroll_value
     QTest.mouseRelease(
         dragged_chip.overlay,

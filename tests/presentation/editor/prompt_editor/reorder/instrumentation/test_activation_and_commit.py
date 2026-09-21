@@ -157,7 +157,7 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
 
     assert box.toPlainText() == "alpha,beta,"
     assert box.canUndo() is can_undo_before
-    assert overlay._render_publication.publication.unsafe_transient_indices == ()
+    assert overlay._runtime.render.publication.unsafe_transient_indices == ()
     after_release = _performance_counters(overlay)
     assert (
         after_release["drag_proxy_render_state_rebuild_count"]
@@ -217,7 +217,7 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
     cursor.setPosition(2)
     box.setTextCursor(cursor)
     overlay = _open_reorder_overlay(box)
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
     QTest.keyClick(box, Qt.Key.Key_Right)
@@ -239,7 +239,7 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
         else {chip.segment_index for chip in surface_chrome.chips}
     )
     rendered_indices = surface_indices | {chip.segment_index for chip in active_chips}
-    expected_indices = set(cast(Any, overlay)._preview_visual_owner.visuals_by_index)
+    expected_indices = set(cast(Any, overlay)._runtime.preview_visuals.visuals_by_index)
 
     assert rendered_indices == expected_indices
     assert not animation_owner.publication.displacement_rects_by_index

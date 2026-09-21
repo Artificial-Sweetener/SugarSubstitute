@@ -124,9 +124,9 @@ def test_real_shell_alt_arrow_keeps_held_chip_border_owned(
         segment_index=held_segment_index,
         label="before-move",
     )
-    animation_owner = overlay._animation_presentation
+    animation_owner = overlay._runtime.animation
     animation_owner.set_duration_ms(1000)
-    render_owner = overlay._render_publication
+    render_owner = overlay._runtime.render
     original_sync = render_owner.sync
     animation_frames: list[PromptReorderChipChromeSnapshot] = []
 

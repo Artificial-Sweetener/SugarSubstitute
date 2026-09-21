@@ -82,6 +82,7 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
     view = f"{prefix}overlays.reorder_view"
     overlay = f"{prefix}overlays.reorder_overlay"
     factory = f"{prefix}composition.reorder_overlay_factory"
+    runtime_factory = f"{prefix}composition.reorder_overlay_runtime_factory"
     gesture_controller = f"{prefix}overlays.reorder_gesture_controller"
     interaction_geometry = f"{prefix}projection.reorder_interaction_geometry"
     interaction_state = f"{prefix}projection.reorder_interaction_geometry_state"
@@ -95,6 +96,7 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         f"{prefix}interactions.reorder_interaction",
         f"{prefix}widget",
         factory,
+        runtime_factory,
     }
 
     assert {surface_chrome, visual_snapshot} <= graph[surface_visual_state]
@@ -207,7 +209,6 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
     assert render_state in graph[view]
     assert {
         animation_presentation,
-        commit_snapshot,
         landing_request_owner,
         live_visual_owner,
         pointer_drag_completion_owner,
@@ -221,9 +222,9 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         render_publication_owner,
         visual_mode,
         visual_session,
-        visual_owner,
         viewport_frame_refresh,
-    } <= graph[overlay]
+    } <= graph[runtime_factory]
+    assert commit_snapshot in graph[overlay]
     assert drop_actual_observation not in graph[overlay]
     assert graph[interaction_metrics] == set()
     assert interaction_metrics in graph[overlay]
@@ -242,7 +243,7 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         landing_models,
         f"{prefix}projection.reorder_chip_geometry",
     }
-    assert interaction_diagnostics in graph[overlay]
+    assert interaction_diagnostics in graph[runtime_factory]
     assert {
         chip_visuals,
         drop_actual_observation,
@@ -250,13 +251,13 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         reorder_telemetry,
     } <= graph[drop_commit_diagnostics]
     assert graph[drop_commit_diagnostics].isdisjoint(forbidden_outer)
-    assert drop_commit_diagnostics in graph[overlay]
+    assert drop_commit_diagnostics in graph[runtime_factory]
     assert graph[interaction_intents] == {
         "substitute.application.prompt_editor.reorder.intents",
         gesture_controller,
     }
     assert graph[interaction_intents].isdisjoint(forbidden_outer)
-    assert interaction_intents in graph[overlay]
+    assert interaction_intents in graph[runtime_factory]
     assert graph[insertion_marker_owner] == {
         interaction_diagnostics,
         interaction_geometry,
@@ -279,7 +280,7 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         }
         | forbidden_outer
     )
-    assert insertion_marker_owner in graph[overlay]
+    assert insertion_marker_owner in graph[runtime_factory]
     assert {
         chip_visuals,
         displacement_intent,
@@ -288,9 +289,9 @@ def test_reorder_overlay_surface_publication_flows_outward_to_qt_adapters() -> N
         f"{prefix}projection.reorder_keyboard_navigation",
     } <= graph[keyboard_interaction]
     assert graph[keyboard_interaction].isdisjoint(forbidden_outer)
-    assert keyboard_interaction in graph[overlay]
-    assert drag_proxy_visual_owner in graph[overlay]
-    assert {visual_owner, overlay} <= graph[factory]
+    assert keyboard_interaction in graph[runtime_factory]
+    assert drag_proxy_visual_owner in graph[runtime_factory]
+    assert {visual_owner, overlay, runtime_factory} <= graph[factory]
     assert not (
         PROMPT_PRESENTATION_ROOT / "overlays" / "reorder_paint_ownership.py"
     ).exists()

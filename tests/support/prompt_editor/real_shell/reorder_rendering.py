@@ -162,7 +162,7 @@ def capture_reorder_chip_chrome(
     """Capture the paint owners and border style for one semantic reorder chip."""
 
     overlay = cast(Any, field.editor)._segment_overlay
-    publication = overlay._render_publication.publication
+    publication = overlay._runtime.render.publication
     overlay_state = publication.overlay_state
     overlay_chips = (
         overlay_state.preview_chips
@@ -179,7 +179,7 @@ def capture_reorder_chip_chrome(
         for chip in overlay_chips
         if chip.segment_index == segment_index
     )
-    animation = overlay._animation_presentation.publication
+    animation = overlay._runtime.animation.publication
     return PromptReorderChipChromeSnapshot(
         label=label,
         segment_index=segment_index,

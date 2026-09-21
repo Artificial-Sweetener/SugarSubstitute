@@ -627,23 +627,6 @@ responsibilities = [
 next_extraction = "Extract field sizing policy and visibility registration from row construction."
 
 [[debts]]
-id = "SS-ARCH-058"
-owner = "prompt reorder overlay"
-paths = ["substitute/presentation/editor/prompt_editor/overlays/reorder_overlay.py"]
-fingerprint = "sha256:65dcc576448957c61ad648efb46fb07d144afb6c2336d1fc4a9dab5c673da5a7"
-issue = "chore:SS-ARCH-058"
-review_by = 2026-12-15
-responsibilities = [
-  "overlay widget lifecycle and painting",
-  "pointer and keyboard drag session",
-  "animation state and raster warmup",
-  "reorder geometry and landing projection",
-  "autoscroll invalidation",
-  "performance counters and diagnostic publication",
-]
-next_extraction = "Extract animation/raster ownership and geometry projection from overlay interaction and widget lifecycle."
-
-[[debts]]
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]

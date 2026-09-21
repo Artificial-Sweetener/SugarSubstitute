@@ -71,7 +71,7 @@ def _overlay_preview_segment_indices(overlay: QWidget) -> list[int]:
 def _overlay_blank_line_target_visuals(overlay: QWidget) -> tuple[object, ...]:
     """Return the current virtual blank-line target visuals for the reorder overlay."""
 
-    visuals = cast(Any, overlay)._geometry.state.drop_target_visuals
+    visuals = cast(Any, overlay)._runtime.geometry.state.drop_target_visuals
     return tuple(
         visual
         for visual in cast(tuple[object, ...], visuals)
