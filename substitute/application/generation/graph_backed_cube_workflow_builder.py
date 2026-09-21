@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from copy import deepcopy
 
 from substitute.domain.common import GlobalOverrideScope, JsonObject
@@ -28,6 +28,7 @@ from substitute.application.workflows.composed_value_annotation_service import (
 )
 
 from .cube_convenience_materializer import CubeConvenienceMaterializer
+from .cube_activation_materializer import CubeActivationMaterializer
 
 
 class GraphBackedCubeWorkflowBuilder:
@@ -36,16 +37,22 @@ class GraphBackedCubeWorkflowBuilder:
     def __init__(
         self,
         materializer: CubeConvenienceMaterializer | None = None,
+        activation_materializer: CubeActivationMaterializer | None = None,
     ) -> None:
-        """Capture the shared Substitute-convenience materializer."""
+        """Capture value and activation materializers for executable documents."""
 
         self._materializer = materializer or CubeConvenienceMaterializer()
+        self._activation_materializer = (
+            activation_materializer or CubeActivationMaterializer()
+        )
         self._composition_annotations = ComposedValueAnnotationService()
 
     def build(
         self,
         workflow: WorkflowState,
         *,
+        enabled_node_keys_by_alias: Mapping[str, Iterable[str]],
+        disabled_node_keys_by_alias: Mapping[str, Iterable[str]],
         global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
         prompt_field_overrides: Mapping[tuple[str, str, str], object] | None = None,
     ) -> JsonObject:
@@ -62,6 +69,11 @@ class GraphBackedCubeWorkflowBuilder:
         buffers = self._materializer.materialize_buffers(
             workflow,
             prompt_field_overrides=prompt_field_overrides,
+        )
+        self._activation_materializer.materialize(
+            buffers,
+            enabled_node_keys_by_alias=enabled_node_keys_by_alias,
+            disabled_node_keys_by_alias=disabled_node_keys_by_alias,
         )
         nodes = graph.get("nodes")
         definitions = graph.get("definitions")

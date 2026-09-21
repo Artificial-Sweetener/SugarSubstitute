@@ -108,7 +108,6 @@ def test_timing_event_updates_running_job_before_completion_callback() -> None:
     observed_on_completion: list[float | None] = []
     callbacks = _callbacks(recorder)
     callbacks = GenerationCallbacks(
-        randomize_seeds=callbacks.randomize_seeds,
         on_run_started=callbacks.on_run_started,
         on_progress=callbacks.on_progress,
         on_model_load_progress=callbacks.on_model_load_progress,

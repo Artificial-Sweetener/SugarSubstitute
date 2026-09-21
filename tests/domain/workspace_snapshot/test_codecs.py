@@ -358,6 +358,39 @@ def test_workflow_state_codec_round_trips_seed_control_states() -> None:
     assert restored.override_control_states["seed"].mode == SeedMode.FIXED
 
 
+def test_direct_workflow_codec_round_trips_seed_control_states() -> None:
+    """Direct workflow snapshots should persist local SeedBox modes."""
+
+    state = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("demo.json"),
+            source_workflow={"nodes": {}},
+            buffer={"nodes": {}},
+            field_control_states={
+                "Variation": {
+                    "variation_seed": SeedControlState(SeedMode.FIXED),
+                }
+            },
+        )
+    )
+
+    payload = workflow_state_to_json(state)
+    restored = workflow_state_from_json(payload)
+
+    direct_payload = payload["direct_workflow"]
+    assert isinstance(direct_payload, dict)
+    assert direct_payload["field_control_states"] == {
+        "Variation": {"variation_seed": {"mode": "fixed"}}
+    }
+    assert restored.direct_workflow is not None
+    assert (
+        restored.direct_workflow.field_control_states["Variation"][
+            "variation_seed"
+        ].mode
+        is SeedMode.FIXED
+    )
+
+
 def test_workflow_state_codec_defaults_missing_seed_control_states() -> None:
     """Older workflow snapshots should restore absent seed modes as implicit random."""
 

@@ -18,16 +18,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 
 from substitute.application.model_metadata import (
     ModelCatalogItem,
     RichChoiceContext,
+    RichChoiceResolution,
     RichChoiceResolver,
 )
 from substitute.application.model_metadata.model_field_kind_resolver import (
-    declared_model_kind_for_field,
+    declared_model_kind_for_projected_field,
+)
+from substitute.application.model_metadata.ultralytics_visual_catalog import (
+    ULTRALYTICS_MODEL_KIND,
+    ultralytics_visual_resolution,
+)
+from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
+    UltralyticsThumbnailAssociationService,
 )
 from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
@@ -58,11 +66,17 @@ def known_model_kind(
 
     if not isinstance(request.node_type, str):
         return None
-    model_kind = declared_model_kind_for_field(
+    model_kind = declared_model_kind_for_projected_field(
         class_type=request.node_type,
         input_key=request.key,
+        field_metadata=request.field_metadata,
     )
-    if model_kind is None or model_kind not in resolver.enabled_kinds:
+    if model_kind is None:
+        return None
+    if (
+        model_kind not in resolver.enabled_kinds
+        and model_kind != ULTRALYTICS_MODEL_KIND
+    ):
         return None
     return model_kind
 
@@ -75,17 +89,24 @@ def build_known_model_snapshot(
     resolver: RichChoiceResolver,
     options: Sequence[str],
     catalog_items: Sequence[ModelCatalogItem] | None,
+    ultralytics_thumbnail_associations: (
+        UltralyticsThumbnailAssociationService | None
+    ) = None,
 ) -> PanelModelChoiceSnapshot:
     """Preserve exact choices and the picker while enrichment becomes available."""
 
-    resolution = replace(
-        catalog_resolution(
-            options=options,
-            catalog_items=catalog_items or (),
-            matched_kind=model_kind,
-            reason="authoritative model field identity",
-        ),
-        should_use_rich_picker=True,
+    resolution = (
+        _ultralytics_resolution(options, ultralytics_thumbnail_associations)
+        if model_kind == ULTRALYTICS_MODEL_KIND
+        else replace(
+            catalog_resolution(
+                options=options,
+                catalog_items=catalog_items or (),
+                matched_kind=model_kind,
+                reason="authoritative model field identity",
+            ),
+            should_use_rich_picker=True,
+        )
     )
     return PanelModelChoiceSnapshot(
         identity=identity,
@@ -103,7 +124,7 @@ def build_known_model_snapshot(
         ),
         resolution=resolution,
         choice_source=PanelPreparedModelChoiceSource(
-            resolver=resolver,
+            resolver=(None if model_kind == ULTRALYTICS_MODEL_KIND else resolver),
             options=options,
             context=RichChoiceContext(
                 node_class=(
@@ -114,6 +135,14 @@ def build_known_model_snapshot(
                 model_kind=model_kind,
             ),
             initial_resolution=resolution,
+            refresh_resolution=(
+                _ultralytics_refresh_callback(
+                    options,
+                    ultralytics_thumbnail_associations,
+                )
+                if model_kind == ULTRALYTICS_MODEL_KIND
+                else None
+            ),
         ),
         search_placeholder=rich_choice_search_placeholder((model_kind,)),
         thumbnail_readiness=thumbnail_readiness_for_resolution(
@@ -121,6 +150,30 @@ def build_known_model_snapshot(
             repository_available=request.thumbnail_repository_available,
         ),
     )
+
+
+def _ultralytics_resolution(
+    options: Sequence[str],
+    associations: UltralyticsThumbnailAssociationService | None,
+) -> RichChoiceResolution:
+    """Resolve packaged visuals with the latest explicit user associations."""
+
+    return ultralytics_visual_resolution(
+        tuple(options),
+        thumbnail_associations=(
+            associations.associations() if associations is not None else None
+        ),
+    )
+
+
+def _ultralytics_refresh_callback(
+    options: Sequence[str],
+    associations: UltralyticsThumbnailAssociationService | None,
+) -> Callable[[], RichChoiceResolution]:
+    """Return a refresh callback that preserves stable authoritative options."""
+
+    stable_options = tuple(options)
+    return lambda: _ultralytics_resolution(stable_options, associations)
 
 
 __all__ = ["build_known_model_snapshot", "known_model_kind"]

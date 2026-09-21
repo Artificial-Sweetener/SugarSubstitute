@@ -57,6 +57,7 @@ _LOGGER = get_logger("presentation.editor.panel.factories.numeric")
 _SPINNER_SLIDER_VISUAL_HEIGHT = 22
 SPINNER_SLIDER_INPUTS = {
     "denoise",
+    "variation_strength",
 }
 SPINNER_SLIDER_LABELS = {
     "scale factor",

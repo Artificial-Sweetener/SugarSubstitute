@@ -239,6 +239,30 @@ def test_numeric_factory_builds_seedbox_for_comfy_noise_seed(
     assert widget.value == 0
 
 
+def test_numeric_factory_builds_seedbox_for_variation_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SimpleSyrup's variation seed should use the standard SeedBox control."""
+
+    monkeypatch.setattr(numeric_factory, "SeedBox", _FakeSeedBox)
+
+    widget = NumericFieldFactory().build_field_widget(
+        NumericFieldBuildRequest(
+            parent=None,
+            node_name="Variation",
+            key="variation_seed",
+            value=123,
+            field_meta={},
+            field_type="INT",
+            field_presentation=FieldPresentation.SEED_BOX,
+            constraints={"min": 0, "max": 18_446_744_073_709_551_615, "step": 1},
+        )
+    )
+
+    assert isinstance(widget, _FakeSeedBox)
+    assert widget.value == 123
+
+
 def test_numeric_factory_does_not_infer_seedbox_from_raw_field_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -363,6 +387,59 @@ def test_numeric_factory_spinner_slider_matches_normalized_label(
     )
 
     assert widget is not None
+
+
+def test_numeric_factory_uses_spinner_slider_for_variation_strength(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Seed variation strength should use the shared spinner-slider control."""
+
+    captured: dict[str, object] = {}
+
+    def _fake_spinner_slider(
+        parent: object,
+        value: object,
+        min_val: object,
+        max_val: object,
+        step_val: object,
+    ) -> object:
+        """Record the variation-strength spinner-slider arguments."""
+
+        captured.update(
+            {
+                "parent": parent,
+                "value": value,
+                "min": min_val,
+                "max": max_val,
+                "step": step_val,
+            }
+        )
+        return object()
+
+    monkeypatch.setattr(
+        numeric_factory, "_build_spinner_slider_widget", _fake_spinner_slider
+    )
+
+    widget = NumericFieldFactory().build_field_widget(
+        NumericFieldBuildRequest(
+            parent="parent",
+            node_name="SimpleSyrup.SeedVariation",
+            key="variation_strength",
+            value=0.25,
+            field_meta={},
+            field_type="FLOAT",
+            constraints={"min": 0.0, "max": 1.0, "step": 0.01},
+        )
+    )
+
+    assert widget is not None
+    assert captured == {
+        "parent": "parent",
+        "value": 0.25,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+    }
 
 
 def test_numeric_factory_spinner_slider_declines_qt_unsafe_range(

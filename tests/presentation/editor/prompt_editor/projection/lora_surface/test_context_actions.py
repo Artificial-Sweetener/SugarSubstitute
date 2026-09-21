@@ -93,6 +93,15 @@ class _MetadataActionHandler:
 
         _ = (target, image_id)
 
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Reject detector-thumbnail actions on LoRA projections."""
+
+        _ = target
+        return False
+
 
 def _metadata_menu_actions(
     items: tuple[ModelMetadataMenuItem, ...],

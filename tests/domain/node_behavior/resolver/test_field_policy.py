@@ -50,16 +50,20 @@ def test_resolver_marks_steps_and_cfg_as_optional_override_candidates() -> None:
         assert override_behavior.pin_policy == expected_policy
 
 
-def test_resolver_owns_seedbox_presentation_for_both_comfy_aliases() -> None:
-    """Seed aliases should resolve one presentation contract before Qt rendering."""
+def test_resolver_owns_seedbox_presentation_for_seed_fields() -> None:
+    """Seed fields should resolve one presentation contract before Qt rendering."""
 
     resolved = resolve_node_behavior(
         node_name="sampler",
         class_type="SamplerCustom",
-        input_keys=("seed", "noise_seed", "ordinary_int"),
+        input_keys=("seed", "noise_seed", "variation_seed", "ordinary_int"),
         context=context(node_name="sampler", class_type="SamplerCustom"),
     )
 
     assert resolved.fields["seed"].presentation is FieldPresentation.SEED_BOX
     assert resolved.fields["noise_seed"].presentation is FieldPresentation.SEED_BOX
+    variation = resolved.fields["variation_seed"]
+    assert variation.presentation is FieldPresentation.SEED_BOX
+    assert variation.override_behavior.override_key is None
+    assert variation.override_behavior.pin_policy is OverridePinPolicy.NEVER
     assert resolved.fields["ordinary_int"].presentation is FieldPresentation.STANDARD

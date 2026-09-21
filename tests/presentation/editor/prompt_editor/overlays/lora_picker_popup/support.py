@@ -96,6 +96,15 @@ class _MetadataActionHandler:
 
         _ = (target, image_id)
 
+    def choose_ultralytics_thumbnail(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> bool:
+        """Reject detector-thumbnail actions on LoRA surfaces."""
+
+        _ = target
+        return False
+
 
 def ensure_qapp() -> QApplication:
     """Return a running Qt application for picker model tests."""

@@ -275,7 +275,6 @@ class _FakeAssetStagingService:
 def _build_generation_callbacks(recorder: _CallbackRecorder) -> GenerationCallbacks:
     """Create callback wiring that appends events into recorder lists."""
     return GenerationCallbacks(
-        randomize_seeds=lambda: None,
         on_run_started=lambda event: recorder.run_started.append(event),
         on_progress=lambda event: recorder.progress.append(event),
         on_model_load_progress=lambda _event: None,
@@ -376,4 +375,8 @@ def _build_native_workflow(workflow: WorkflowLike | None = None) -> dict[str, ob
     resolved = workflow or _build_workflow()
     if not isinstance(resolved, WorkflowState):
         raise TypeError("Native workflow fixture requires graph-backed state.")
-    return NativeCubeWorkflowBuilder().build(resolved)
+    return NativeCubeWorkflowBuilder().build(
+        resolved,
+        enabled_node_keys_by_alias={},
+        disabled_node_keys_by_alias={},
+    )

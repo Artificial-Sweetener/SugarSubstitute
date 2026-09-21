@@ -209,6 +209,9 @@ _FIELD_DEFAULTS: Final[dict[str, FieldBehaviorPatch]] = {
             toolbar_order=60,
         ),
     ),
+    "variation_seed": FieldBehaviorPatch(
+        presentation=FieldPresentation.SEED_BOX,
+    ),
     "sampler_name": FieldBehaviorPatch(
         override_behavior=OverrideBehaviorPatch(
             override_key="sampler_name",
