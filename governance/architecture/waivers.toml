@@ -535,19 +535,6 @@ next_limit = 879
 debt = "SS-ARCH-054"
 
 [[waivers]]
-id = "SS-WAIVER-R057"
-owner = "prompt autocomplete panel"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/overlays/autocomplete_panel.py"
-kind = "remediation"
-justification = "The assessed file mixes overlay protocol and render-state models, tag row measurement and custom painting, LoRA wall navigation adaptation, panel content reconciliation and selection, overlay sizing, visibility, and activation lifecycle. Extract row rendering and LoRA-wall adaptation from panel state, layout, and visibility ownership."
-issue = "chore:SS-ARCH-057"
-review_by = 2026-12-15
-max_lines = 695
-next_limit = 556
-debt = "SS-ARCH-057"
-
-[[waivers]]
 id = "SS-WAIVER-R058"
 owner = "prompt reorder overlay"
 rule = "STRUCT003"

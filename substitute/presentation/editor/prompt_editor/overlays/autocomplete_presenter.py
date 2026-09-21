@@ -34,15 +34,15 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
 )
 
-from .autocomplete_panel import (
+from .autocomplete_contracts import (
     PromptAutocompleteActivationIntent,
     PromptAutocompleteLoraWall,
     PromptAutocompleteLoraWallRenderState,
-    PromptAutocompletePanel,
     PromptAutocompletePanelRenderState,
     PromptAutocompleteRowRenderState,
-    format_prompt_autocomplete_popularity,
 )
+from .autocomplete_panel import PromptAutocompletePanel
+from .autocomplete_row import format_prompt_autocomplete_popularity
 
 
 class PromptAutocompletePresenter(Protocol):
