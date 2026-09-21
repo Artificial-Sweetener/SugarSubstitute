@@ -60,3 +60,32 @@ def test_lifecycle_composes_after_source_freshness_is_available() -> None:
         "lifecycle_runtime = build_prompt_projection_surface_lifecycle_runtime("
     )
     assert source_state_index < freshness_index < lifecycle_index
+
+
+def test_source_state_uses_an_explicit_late_bound_effect_port() -> None:
+    """Keep source composition independent of future surface-owned runtimes."""
+
+    projection_root = PROMPT_PRESENTATION_ROOT / "projection"
+    surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    source_wiring_source = (projection_root / "source_state_wiring.py").read_text(
+        encoding="utf-8"
+    )
+    source_block_start = surface_source.index(
+        "source_state_owners = build_prompt_projection_source_state_owners("
+    )
+    source_block_end = surface_source.index(
+        "self._source_document_adapter =", source_block_start
+    )
+    source_block = surface_source[source_block_start:source_block_end]
+
+    assert "lifecycle_effects=source_lifecycle_effects" in source_block
+    assert "self._presentation_runtime" not in source_block
+    assert "self._caret_visual_controller" not in source_block
+    assert "self._reorder" not in source_block
+    assert "bindings.lifecycle_effects" in source_wiring_source
+
+    presentation_index = surface_source.index("self._presentation_runtime =")
+    effect_binding_index = surface_source.index(
+        "bind_prompt_projection_source_lifecycle_effects("
+    )
+    assert presentation_index < effect_binding_index

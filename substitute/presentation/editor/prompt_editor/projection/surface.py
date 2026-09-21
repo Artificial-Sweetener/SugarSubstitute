@@ -173,6 +173,10 @@ from .source_state_wiring import (
     PromptProjectionSourceStateBindings,
     build_prompt_projection_source_state_owners,
 )
+from .source_lifecycle_effects import (
+    PromptProjectionSourceLifecycleEffects,
+    bind_prompt_projection_source_lifecycle_effects,
+)
 from .surface_lifecycle_runtime import (
     PromptProjectionSurfaceLifecycleBindings,
     build_prompt_projection_surface_lifecycle_runtime,
@@ -467,6 +471,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             ),
             parent=self,
         )
+        source_lifecycle_effects = PromptProjectionSourceLifecycleEffects()
         source_state_owners = build_prompt_projection_source_state_owners(
             PromptProjectionSourceStateBindings(
                 applicator=self._projection_applicator,
@@ -490,40 +495,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
                         anchor_position=anchor,
                     )
                 ),
-                ensure_caret_visible=(
-                    lambda: self._caret_visual_controller.ensure_caret_visible()
-                ),
-                rebuild_projection=lambda: self._presentation_runtime.rebuild.rebuild(),
                 active_span_range=self._active_span_range,
-                publish_active_span_range=(
-                    lambda value: (
-                        self._presentation_runtime.active_projection.publish_rendered_active_span_range(
-                            value
-                        )
-                    )
-                ),
-                use_committed_active_projection=(
-                    lambda: (
-                        self._presentation_runtime.active_projection.use_committed_projection()
-                    )
-                ),
-                rebuild_active_projection=(
-                    lambda commit: self._presentation_runtime.active_projection.rebuild(
-                        commit_projection=commit
-                    )
-                ),
+                lifecycle_effects=source_lifecycle_effects,
                 projection_freshness_blockers=self._projection_freshness_blockers,
                 input_method_source_changed=self._input_runtime.input_method.source_changed,
-                clear_reorder_for_source_change=(
-                    lambda: self._reorder.clear_for_source_change()
-                ),
-                invalidate_render_for_source_change=(
-                    lambda clear_fragment_cache: (
-                        self._presentation_runtime.render_publication.source_changed(
-                            clear_diagnostic_fragment_cache=clear_fragment_cache
-                        )
-                    )
-                ),
                 document_scroll_bar=self.verticalScrollBar(),
                 schedule_geometry_reuse_warm=(
                     lambda reason: self._geometry_reuse_warmer.schedule(reason=reason)
@@ -601,77 +576,77 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._caret_movement_controller = lifecycle_runtime.caret_movement
         self._edit_pipeline = source_state_owners.edit_pipeline
         self._prompt_state_applier = source_state_owners.prompt_state_applier
-        self._presentation_runtime = (
-            build_prompt_projection_surface_presentation_runtime(
-                PromptProjectionSurfacePresentationBindings(
-                    surface=self,
-                    viewport=self.viewport(),
-                    applicator=self._projection_applicator,
-                    editor_state=self._editor_state,
-                    session=self._session,
-                    layout=self._layout,
-                    frame_state=self._frame_state,
-                    freshness=self._projection_freshness_controller,
-                    width_resolver=self._layout_width_resolver,
-                    source_document=self._source_document_adapter,
-                    source_line_chrome=self._source_line_chrome,
-                    search_highlight=self._search_highlight_layer,
-                    input_method=self._input_runtime.input_method,
-                    content_media=self._content_media_owner,
-                    selection_layer=self._selection_layer_owner,
-                    diagnostics=self._diagnostic_layer_owner,
-                    transient_overlays=self._transient_edit_overlays,
-                    reorder=self._reorder,
-                    caret_state=self._caret_state_owner,
-                    caret_publication=self._caret_publication,
-                    caret_geometry=self._caret_geometry,
-                    live_source_text=self.toPlainText,
-                    viewport_rect=lambda: QRectF(self.viewport().rect()),
-                    scroll_offset=self._scroll_offset,
-                    cursor_position=lambda: self.cursor_position,
-                    focus_active=self._focus_owner_has_focus,
-                    selection=self._selection,
-                    active_span_range=self._active_span_range,
-                    decoration_accent_ranges=self._decoration_accent_ranges,
-                    flush_pending_projection=(
-                        lambda reason: self._flush_pending_projection_update(
-                            reason=reason
+        presentation_runtime = build_prompt_projection_surface_presentation_runtime(
+            PromptProjectionSurfacePresentationBindings(
+                surface=self,
+                viewport=self.viewport(),
+                applicator=self._projection_applicator,
+                editor_state=self._editor_state,
+                session=self._session,
+                layout=self._layout,
+                frame_state=self._frame_state,
+                freshness=self._projection_freshness_controller,
+                width_resolver=self._layout_width_resolver,
+                source_document=self._source_document_adapter,
+                source_line_chrome=self._source_line_chrome,
+                search_highlight=self._search_highlight_layer,
+                input_method=self._input_runtime.input_method,
+                content_media=self._content_media_owner,
+                selection_layer=self._selection_layer_owner,
+                diagnostics=self._diagnostic_layer_owner,
+                transient_overlays=self._transient_edit_overlays,
+                reorder=self._reorder,
+                caret_state=self._caret_state_owner,
+                caret_publication=self._caret_publication,
+                caret_geometry=self._caret_geometry,
+                live_source_text=self.toPlainText,
+                viewport_rect=lambda: QRectF(self.viewport().rect()),
+                scroll_offset=self._scroll_offset,
+                cursor_position=lambda: self.cursor_position,
+                focus_active=self._focus_owner_has_focus,
+                selection=self._selection,
+                active_span_range=self._active_span_range,
+                decoration_accent_ranges=self._decoration_accent_ranges,
+                flush_pending_projection=(
+                    lambda reason: self._flush_pending_projection_update(reason=reason)
+                ),
+                cancel_pending_projection=self._cancel_pending_projection_update,
+                clear_hovered_token=(
+                    lambda: self._mouse_handler.clear_hovered_token(update=False)
+                ),
+                hovered_token_id=lambda: self._mouse_handler.hovered_token_id,
+                prewarm_visible_banners=(
+                    lambda: self._lora_feature_delegate.prewarm_visible_banners(
+                        self._layout.frame.geometry
+                    )
+                ),
+                font=self.font,
+                palette=self.palette,
+                should_paint_caret=(self._caret_visual_controller.should_paint_caret),
+                current_caret_rect=self._caret_geometry.current_viewport_rect,
+                scroll_range_sink=(
+                    lambda page_step, scroll_range: (
+                        self._input_runtime.wheel.sync_external_scroll_range(
+                            page_step=page_step,
+                            scroll_range=scroll_range,
                         )
-                    ),
-                    cancel_pending_projection=self._cancel_pending_projection_update,
-                    clear_hovered_token=(
-                        lambda: self._mouse_handler.clear_hovered_token(update=False)
-                    ),
-                    hovered_token_id=lambda: self._mouse_handler.hovered_token_id,
-                    prewarm_visible_banners=(
-                        lambda: self._lora_feature_delegate.prewarm_visible_banners(
-                            self._layout.frame.geometry
-                        )
-                    ),
-                    font=self.font,
-                    palette=self.palette,
-                    should_paint_caret=(
-                        self._caret_visual_controller.should_paint_caret
-                    ),
-                    current_caret_rect=self._caret_geometry.current_viewport_rect,
-                    scroll_range_sink=(
-                        lambda page_step, scroll_range: (
-                            self._input_runtime.wheel.sync_external_scroll_range(
-                                page_step=page_step,
-                                scroll_range=scroll_range,
-                            )
-                        )
-                    ),
-                    content_height_sink=self.contentHeightChanged.emit,
-                    invalidate_backing=self.backingFillInvalidated.emit,
-                    ensure_caret_visible=(
-                        self._caret_visual_controller.ensure_caret_visible
-                    ),
-                    emit_cursor_position_changed=self.cursorPositionChanged.emit,
-                    request_update=self.viewport().update,
-                    surface_state=lambda: surface_probe_state(self),
-                )
+                    )
+                ),
+                content_height_sink=self.contentHeightChanged.emit,
+                invalidate_backing=self.backingFillInvalidated.emit,
+                ensure_caret_visible=(
+                    self._caret_visual_controller.ensure_caret_visible
+                ),
+                emit_cursor_position_changed=self.cursorPositionChanged.emit,
+                request_update=self.viewport().update,
+                surface_state=lambda: surface_probe_state(self),
             )
+        )
+        self._presentation_runtime = presentation_runtime
+        bind_prompt_projection_source_lifecycle_effects(
+            source_lifecycle_effects,
+            lifecycle=lifecycle_runtime,
+            presentation=presentation_runtime,
         )
 
         self.setFrameShape(QAbstractScrollArea.Shape.NoFrame)
