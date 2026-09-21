@@ -17,6 +17,7 @@
 """Verify crash presentation without an existing application window."""
 
 from pathlib import Path
+from typing import IO, Any, cast
 
 import pytest
 from PySide6.QtCore import QTimer
@@ -68,8 +69,8 @@ def test_complete_crash_report_embeds_sanitized_text_attachments(
     store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
     directory = store.record(incident)
     (directory / "python-fault.log").write_text(
-        f"frame below {layout.root} api_key=private-value\n"
-        f"{'x' * 131_072}retained-tail",
+        f"HEAD-EVIDENCE frame below {layout.root} api_key=private-value\n"
+        f"{'x' * 600_000}TAIL-EVIDENCE",
         encoding="utf-8",
     )
     (directory / "native.dmp").write_bytes(b"binary dump content")
@@ -80,10 +81,63 @@ def test_complete_crash_report_embeds_sanitized_text_attachments(
     )
 
     assert "[python-fault.log]" in presentation.report_text
+    assert "Diagnostic logs" in presentation.report_text
+    assert "\nTraceback\n---------\n" not in presentation.report_text
     assert "frame below <install-root> api_key=<redacted>" in (presentation.report_text)
     assert "private-value" not in presentation.report_text
-    assert "retained-tail" in presentation.report_text
+    assert "HEAD-EVIDENCE" in presentation.report_text
+    assert "diagnostic attachment truncated" in presentation.report_text
+    assert "TAIL-EVIDENCE" in presentation.report_text
+    assert len(presentation.report_text) < 300_000
     assert "binary dump content" not in presentation.report_text
+
+
+def test_complete_report_skips_unreadable_log_but_keeps_remaining_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One inaccessible attachment must not make the copyable report useless."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    incident = CrashIncident(
+        incident_id="partially-readable",
+        run_id="partially-readable",
+        occurred_at_utc="2026-09-20T02:00:00+00:00",
+        kind=CrashKind.ABNORMAL_EXIT,
+        boundary=CrashBoundary.SUPERVISOR,
+        attribution=CrashAttribution.UNCLEAN_TERMINATION,
+        summary="Synthetic interruption",
+        process_id=42,
+        attachments=("python-fault.log", "startup-output.log"),
+    )
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    directory = store.record(incident)
+    fault_log = directory / "python-fault.log"
+    fault_log.write_text("locked fault evidence", encoding="utf-8")
+    (directory / "startup-output.log").write_text(
+        "remaining startup evidence",
+        encoding="utf-8",
+    )
+    original_open = Path.open
+
+    def deny_fault_log(path: Path, *args: Any, **kwargs: Any) -> IO[Any]:
+        """Reject only the selected log while leaving the report store usable."""
+
+        if path == fault_log:
+            raise PermissionError("diagnostic is locked")
+        return cast(IO[Any], original_open(path, *args, **kwargs))
+
+    monkeypatch.setattr(Path, "open", deny_fault_log)
+
+    report = crash_report_application._build_complete_crash_report(
+        layout,
+        incident,
+    ).report_text
+
+    assert "locked fault evidence" not in report
+    assert "[python-fault.log]" not in report
+    assert "[startup-output.log]\nremaining startup evidence" in report
+    assert "Traceback\n---------" not in report
 
 
 @pytest.mark.parametrize("continue_launch", [False, True])
@@ -111,9 +165,12 @@ def test_crash_report_presents_a_visible_standalone_window(
         attribution=CrashAttribution.CONFIRMED,
         summary="Synthetic interruption",
         process_id=42,
+        attachments=("startup-output.log",),
     )
     store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
-    store.record(incident)
+    incident_directory = store.record(incident)
+    retained_log = incident_directory / "startup-output.log"
+    retained_log.write_text("durable startup evidence\n", encoding="utf-8")
     observations: list[bool] = []
     restart_calls: list[bool] = []
 
@@ -162,6 +219,9 @@ def test_crash_report_presents_a_visible_standalone_window(
             [True] if restart_requested and not continue_launch else []
         )
         assert store.pending() == ()
+        assert (incident_directory / "incident.json").is_file()
+        assert (incident_directory / "acknowledged").is_file()
+        assert retained_log.read_text(encoding="utf-8") == "durable startup evidence\n"
     finally:
         for widget in application.topLevelWidgets():
             if widget not in initial_widgets and isValid(widget):

@@ -59,9 +59,13 @@ from tools.ci.installer_ui_qualification import (  # noqa: E402
     verify_main_shell_evidence,
 )
 from tools.ci.installed_version_evidence import assert_installed_version  # noqa: E402
-from tools.ci.loopback_port_lease import LoopbackPortLease  # noqa: E402
+from tools.ci.loopback_port_lease import (  # noqa: E402
+    LoopbackPortLease,
+    LoopbackPortLeaseError,
+)
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
+_DEFAULT_COMFY_PORT = 8188
 _REQUIRED_INSTALLER_EVENTS = (
     "installer.window.ready",
     "installer.install.clicked",
@@ -85,6 +89,7 @@ def verify_clean_install(
     """Install and prove the completion button reveals the post-splash shell."""
 
     _require_empty_install_root(install_root)
+    require_default_comfy_port_available()
     qualification_deadline = time.monotonic() + timeout_seconds
     with ExternalComfyReadinessServer() as external_comfy:
         with candidate_release_source(
@@ -150,6 +155,7 @@ def verify_upgrade(
     """Install history and reach the candidate shell through one launch action."""
 
     _require_empty_install_root(install_root)
+    require_default_comfy_port_available()
     qualification_deadline = time.monotonic() + timeout_seconds
     managed_workspace = install_root.resolve() / "comfyui"
     managed_model_root = install_root.resolve() / "qualified-models"
@@ -226,6 +232,20 @@ def _require_empty_install_root(install_root: Path) -> None:
         raise InstallerLifecycleError(
             f"Qualification install root is not empty: {install_root}"
         )
+
+
+def require_default_comfy_port_available() -> None:
+    """Reject host contamination that would open an unattended startup dialog."""
+
+    try:
+        with LoopbackPortLease.acquire(candidate_ports=(_DEFAULT_COMFY_PORT,)):
+            pass
+    except LoopbackPortLeaseError as error:
+        raise InstallerLifecycleError(
+            "Installer qualification requires 127.0.0.1:8188 to be available; "
+            "an existing listener would open the interactive ComfyUI conflict "
+            "dialog and invalidate unattended readiness evidence."
+        ) from error
 
 
 def _remaining_qualification_timeout(deadline: float, *, phase: str) -> float:

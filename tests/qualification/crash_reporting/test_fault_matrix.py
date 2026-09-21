@@ -25,11 +25,22 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 import sys
+import threading
 
 import pytest
 
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
+)
+from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
+    ApplicationLifecycleSupervisor,
+)
+from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+    ApplicationReadinessError,
+    ApplicationReadinessSupervisor,
+)
+from launcher.sugarsubstitute_launcher.crash_report_application import (
+    _build_complete_crash_report,
 )
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
@@ -44,6 +55,10 @@ from sugarsubstitute_shared.crash_reporting import (
 )
 from substitute.application.crash_reports import build_crash_error_report
 from substitute.application.error_report_builder import render_error_report
+from tests.support.crash_reporting.process_synchronization import (
+    controlled_expiry_clock,
+    synchronized_process_starter,
+)
 
 
 _CHILD_MODULE = "tests.support.crash_reporting.fault_child"
@@ -118,6 +133,24 @@ _FAULTS = (
         CrashBoundary.SUPERVISOR,
         CrashAttribution.UNCLEAN_TERMINATION,
     ),
+    ExpectedFault(
+        "hard_exit_one",
+        CrashKind.ABNORMAL_EXIT,
+        CrashBoundary.SUPERVISOR,
+        CrashAttribution.UNCLEAN_TERMINATION,
+    ),
+    ExpectedFault(
+        "system_exit_one",
+        CrashKind.ABNORMAL_EXIT,
+        CrashBoundary.SUPERVISOR,
+        CrashAttribution.UNCLEAN_TERMINATION,
+    ),
+    ExpectedFault(
+        "controlled_signal_exit",
+        CrashKind.ABNORMAL_EXIT,
+        CrashBoundary.SUPERVISOR,
+        CrashAttribution.UNCLEAN_TERMINATION,
+    ),
 )
 
 
@@ -171,10 +204,40 @@ def test_real_process_fault_is_durable_and_presented(
     assert incident.kind is expected.kind
     assert incident.boundary is expected.boundary
     assert incident.attribution is expected.attribution
-    assert incident.attachments == (
-        () if expected.mode == "startup" else ("python-fault.log",)
+    assert "startup-output.log" in incident.attachments
+    assert ("python-fault.log" in incident.attachments) is (
+        expected.mode
+        not in {
+            "startup",
+            "hard_exit",
+            "hard_exit_one",
+            "system_exit_one",
+            "controlled_signal_exit",
+        }
     )
+    report_text = _build_complete_crash_report(layout, incident).report_text
+    assert f"Kind: {expected.kind.value}" in report_text
+    assert "\r" not in report_text
+    assert "termination_reason: unknown" in report_text
+    assert "Runtime context\n---------------\n" in report_text
+    assert "Diagnostic logs\n---------------\n[startup-output.log]" in report_text or (
+        "Diagnostic logs\n---------------\n[python-fault.log]" in report_text
+        and "[startup-output.log]" in report_text
+    )
+    assert "\nTraceback\n---------\n\n" not in report_text
+    if expected.mode == "startup":
+        assert incident.metadata["runtime_context_source"] == "supervisor_fallback"
+        assert "qualified pre-runtime startup failure" in report_text
+        assert "Operating system: " in report_text
+        assert "Python: " in report_text
+        assert "Launch arguments: " in report_text
     if expected.mode == "privacy":
+        assert "qualification-secret" not in report_text
+        assert "argument-secret" not in report_text
+        assert "private-value" not in report_text
+        assert str(Path.cwd()) not in report_text
+        assert "<redacted>" in report_text
+        assert "<diagnostic-root-1>" in report_text
         report_text = render_error_report(build_crash_error_report(incident))
         assert "qualification-secret" not in report_text
         assert "argument-secret" not in report_text
@@ -212,6 +275,118 @@ def test_real_process_clean_exit_creates_no_incident(tmp_path: Path) -> None:
         CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes").pending()
         == ()
     )
+    crash_root = layout.appdata_dir / "diagnostics" / "crashes"
+    assert not crash_root.exists() or tuple(crash_root.iterdir()) == ()
+
+
+@pytest.mark.platforms("windows")
+def test_real_readiness_termination_is_actionable_startup_failure(
+    tmp_path: Path,
+) -> None:
+    """A real job termination must preserve why the launcher stopped the process."""
+
+    layout = InstallLayout.from_root(tmp_path / "readiness-timeout")
+    crash_supervisor = ApplicationCrashSupervisor(
+        process_starter=_start_child,
+        reporter_starter=lambda _layout, _incident_id, _environment: None,
+        native_runtime_resolver=lambda _layout: (
+            tmp_path / "unused-handler",
+            tmp_path / "unused-client",
+        ),
+    )
+    readiness_supervisor = ApplicationReadinessSupervisor(
+        timeout_seconds=0.5,
+        process_starter=synchronized_process_starter(),
+        monotonic=controlled_expiry_clock(),
+    )
+    lifecycle = ApplicationLifecycleSupervisor(
+        readiness_supervisor=readiness_supervisor,
+        crash_supervisor=crash_supervisor,
+    )
+
+    with pytest.raises(ApplicationReadinessError) as raised:
+        lifecycle.supervise(
+            layout=layout,
+            command=(sys.executable, "-m", _CHILD_MODULE, "wait_for_termination"),
+            environment=os.environ,
+        )
+
+    incidents = CrashIncidentStore(
+        layout.appdata_dir / "diagnostics" / "crashes"
+    ).pending()
+    assert len(incidents) == 1
+    incident = incidents[0]
+    assert raised.value.incident_id == incident.incident_id
+    assert incident.kind is CrashKind.STARTUP
+    assert incident.attribution is CrashAttribution.CONFIRMED
+    assert incident.exit_code == 1
+    assert incident.metadata["termination_reason"] == "readiness_failure"
+    assert incident.metadata["exit_intent_state"] == "missing"
+    assert incident.metadata["exit_receipt_state"] == "missing"
+    report = _build_complete_crash_report(layout, incident).report_text
+    assert "Title: SugarSubstitute could not finish starting" in report
+    assert "Kind: startup" in report
+    assert "termination_reason: readiness_failure" in report
+    assert "qualification child waiting before readiness" in report
+    assert "Traceback\n---------" not in report
+
+
+@pytest.mark.platforms("windows")
+def test_real_unknown_external_termination_still_produces_actionable_report(
+    tmp_path: Path,
+) -> None:
+    """An unexplained job termination must retain context without inventing a crash."""
+
+    layout = InstallLayout.from_root(tmp_path / "unknown-termination")
+    owner = ApplicationCrashSupervisor(
+        process_starter=_start_child,
+        reporter_starter=lambda _layout, _incident_id, _environment: None,
+        native_runtime_resolver=lambda _layout: (
+            tmp_path / "unused-handler",
+            tmp_path / "unused-client",
+        ),
+    )
+    command = (sys.executable, "-m", _CHILD_MODULE, "wait_for_termination")
+    prepared = owner.prepare(
+        layout=layout,
+        environment=os.environ,
+        command=command,
+    )
+    process, _startup_output = _start_child(command, prepared.environment)
+    runtime_context = (
+        prepared.context.run_root / prepared.context.run_id / "runtime-context.json"
+    )
+    for _ in range(1_000):
+        if runtime_context.is_file():
+            break
+        threading.Event().wait(timeout=0.01)
+    assert runtime_context.is_file()
+
+    process.terminate()
+    owner.supervise_process(
+        layout=layout,
+        process=process,
+        prepared=prepared,
+        present_report=False,
+    )
+
+    incident = CrashIncidentStore(prepared.context.incident_root).pending()[0]
+    assert incident.kind is CrashKind.ABNORMAL_EXIT
+    assert incident.attribution is CrashAttribution.UNCLEAN_TERMINATION
+    assert incident.metadata["termination_reason"] == "unknown"
+    assert incident.metadata["runtime_context_source"] == "application"
+    assert incident.application_version == "qualification"
+    assert incident.attachments == (
+        "startup-output.log",
+        "runtime-context.json",
+    )
+    report = _build_complete_crash_report(layout, incident).report_text
+    assert "Title: SugarSubstitute did not close normally" in report
+    assert "Kind: abnormal_exit" in report
+    assert "termination_reason: unknown" in report
+    assert "qualification child waiting before readiness" in report
+    assert "Python: " in report
+    assert "Traceback\n---------" not in report
 
 
 @pytest.mark.platforms("windows")
@@ -250,7 +425,16 @@ def test_real_launcher_ui_child_crash_is_durable_and_presented(
     assert incidents[0].kind is CrashKind.PYTHON_UNHANDLED
     assert incidents[0].boundary is CrashBoundary.PROCESS_MAIN
     assert incidents[0].attribution is CrashAttribution.CONFIRMED
-    assert incidents[0].attachments == ("python-fault.log",)
+    assert incidents[0].attachments == (
+        "python-fault.log",
+        "startup-output.log",
+        "runtime-context.json",
+    )
+    incident_directory = (
+        layout.appdata_dir / "diagnostics" / "crashes" / incidents[0].incident_id
+    )
+    assert (incident_directory / "runtime-context.json").is_file()
+    assert tuple((layout.appdata_dir / "diagnostics" / "runs").glob("*")) == ()
 
 
 class _RealCandidateReadiness:

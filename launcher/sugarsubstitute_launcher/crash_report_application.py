@@ -38,6 +38,9 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashIncidentStore,
 )
 from sugarsubstitute_shared.crash_reporting.redaction import CrashReportRedactor
+from sugarsubstitute_shared.crash_reporting.run_context import (
+    CrashRunRuntimeContextStore,
+)
 from sugarsubstitute_shared.crash_reporting.presentation import (
     build_crash_report_presentation,
 )
@@ -115,15 +118,32 @@ def _build_complete_crash_report(
     """Build one copyable report containing every readable attached crash log."""
 
     store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
-    redactor = CrashReportRedactor(home=Path.home(), install_root=layout.root)
+    runtime_context = CrashRunRuntimeContextStore(store.root).load(incident.run_id)
+    additional_roots = (
+        (Path(runtime_context.install_root),)
+        if runtime_context is not None
+        and Path(runtime_context.install_root).resolve() != layout.root.resolve()
+        else ()
+    )
+    redactor = CrashReportRedactor(
+        home=Path.home(),
+        install_root=layout.root,
+        additional_roots=additional_roots,
+    )
     text_attachments = tuple(
-        (filename, redactor.complete_text(content))
+        (filename, redactor.complete_text(_normalize_diagnostic_text(content)))
         for filename, content in store.read_text_attachments(incident)
     )
     return build_crash_report_presentation(
         incident,
         text_attachments=text_attachments,
     )
+
+
+def _normalize_diagnostic_text(content: str) -> str:
+    """Normalize platform line endings without changing diagnostic wording."""
+
+    return "\n".join(content.splitlines())
 
 
 def _restart_application(layout: InstallLayout) -> None:

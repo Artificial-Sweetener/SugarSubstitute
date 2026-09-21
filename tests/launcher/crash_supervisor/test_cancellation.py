@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -26,6 +27,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.supervised_termination import (
+    SupervisedTermination,
+    SupervisedTerminationReason,
+)
 from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 
 
@@ -58,7 +63,11 @@ def test_only_explicit_user_cancellation_suppresses_an_abnormal_exit_report(
             layout=layout,
             process=_ExitedProcess(),
             prepared=prepared,
-            expected_cancellation=cancelled,
+            termination=(
+                SupervisedTermination(SupervisedTerminationReason.USER_CANCELLATION)
+                if cancelled
+                else SupervisedTermination()
+            ),
         ).return_code
         == 1
     )
@@ -83,26 +92,30 @@ def test_cancellation_outcome_survives_unavailable_diagnostic_cleanup(
         )
     )
     prepared = owner.prepare(layout=layout, environment={})
-    fault_log = (
-        prepared.context.incident_root / prepared.context.run_id / "python-fault.log"
-    )
+    fault_log = prepared.context.run_root / prepared.context.run_id / "python-fault.log"
     fault_log.parent.mkdir(parents=True)
     fault_log.write_text("retained diagnostic", encoding="utf-8")
-    unlink = Path.unlink
+    remove_tree = shutil.rmtree
 
-    def unavailable(path: Path, missing_ok: bool = False) -> None:
-        """Simulate the filesystem refusing deletion of an open diagnostic file."""
-        if path == fault_log:
+    def unavailable(path: Path) -> None:
+        """Simulate the filesystem refusing deletion of this run workspace."""
+
+        if Path(path) == fault_log.parent:
             raise PermissionError("file is still in use")
-        unlink(path, missing_ok=missing_ok)
+        remove_tree(path)
 
-    monkeypatch.setattr(Path, "unlink", unavailable)
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.completed_run_artifacts.shutil.rmtree",
+        unavailable,
+    )
     assert (
         owner.supervise_process(
             layout=layout,
             process=_ExitedProcess(),
             prepared=prepared,
-            expected_cancellation=True,
+            termination=SupervisedTermination(
+                SupervisedTerminationReason.USER_CANCELLATION
+            ),
         ).return_code
         == 1
     )

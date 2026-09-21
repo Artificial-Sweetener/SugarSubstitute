@@ -26,6 +26,7 @@ from sugarsubstitute_shared.crash_reporting import (
 )
 from substitute.application.crash_reports import build_crash_error_report
 from substitute.application.error_report_builder import render_error_report
+from substitute.application.errors import ErrorReportKind
 
 
 def test_confirmed_crash_projects_every_diagnostic_into_standard_report() -> None:
@@ -80,3 +81,30 @@ def test_unclean_termination_is_not_falsely_labeled_a_crash() -> None:
     report = build_crash_error_report(incident)
 
     assert str(report.title) == "SugarSubstitute did not close normally"
+    assert report.kind is ErrorReportKind.APPLICATION_LIFECYCLE
+
+
+def test_startup_incident_projects_as_lifecycle_failure_not_internal_crash() -> None:
+    """Known readiness termination should use truthful startup presentation."""
+
+    incident = CrashIncident(
+        incident_id="incident-3",
+        run_id="run-3",
+        occurred_at_utc="2026-09-20T12:00:00+00:00",
+        kind=CrashKind.STARTUP,
+        boundary=CrashBoundary.SUPERVISOR,
+        attribution=CrashAttribution.CONFIRMED,
+        summary="Readiness timed out",
+        process_id=42,
+        exit_code=1,
+        metadata={"termination_reason": "readiness_failure"},
+    )
+
+    report = build_crash_error_report(incident)
+    rendered = render_error_report(report)
+
+    assert report.kind is ErrorReportKind.APPLICATION_LIFECYCLE
+    assert str(report.title) == "SugarSubstitute could not finish starting"
+    assert "Operation: application_startup" in rendered
+    assert "Termination Reason: readiness_failure" in rendered
+    assert "SugarSubstitute crashed" not in rendered

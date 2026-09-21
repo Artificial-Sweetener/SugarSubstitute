@@ -170,7 +170,7 @@ Vista previa del prompt:
       <translation>%1 extensiones solicitantes | %2 | resumen: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="168"></location>
+      <location filename="../substitute/application/errors.py" line="169"></location>
       <source>%1 failed</source>
       <translation>%1 fallidos</translation>
     </message>
@@ -834,7 +834,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudieron sincronizar los cubos base</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="666"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="677"></location>
       <source>Batch %1</source>
       <translation>Lote %1</translation>
     </message>
@@ -854,7 +854,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Azul</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="134"></location>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="142"></location>
       <source>Bounding Box</source>
       <translation>Cuadro delimitador</translation>
     </message>
@@ -1054,7 +1054,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Comprobando las extensiones de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="211"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="229"></location>
       <source>Checking ComfyUI's Python environment.</source>
       <translation>Comprobando el entorno de Python de ComfyUI.</translation>
     </message>
@@ -1219,12 +1219,12 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Elegir color</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="206"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="216"></location>
       <source>Choose detector thumbnail</source>
       <translation>Elegir miniatura del detector</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="68"></location>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="76"></location>
       <source>Choose detector thumbnail for %1</source>
       <translation>Elegir miniatura de detector para %1</translation>
     </message>
@@ -1684,7 +1684,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>El estado del entorno de Comfy no está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="170"></location>
+      <location filename="../substitute/application/errors.py" line="171"></location>
       <source>Comfy failed</source>
       <translation>Comfy ha fallado</translation>
     </message>
@@ -1739,7 +1739,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>El entorno de ejecución de Comfy no es compatible</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="106"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="107"></location>
       <source>Comfy startup logs</source>
       <translation>Registros de inicio de Comfy</translation>
     </message>
@@ -1999,7 +1999,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>ComfyUI no disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="263"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="264"></location>
       <source>ComfyUI version: %1</source>
       <translation>Versión de ComfyUI: %1</translation>
     </message>
@@ -2269,7 +2269,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Cubo «%1» (%2)</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="238"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="239"></location>
       <source>Cube ID</source>
       <translation>ID del cubo</translation>
     </message>
@@ -2279,7 +2279,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Biblioteca de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="308"></location>
+      <location filename="../substitute/application/errors.py" line="309"></location>
       <source>Cube Library Notice</source>
       <translation>Aviso de la biblioteca de cubos</translation>
     </message>
@@ -2304,7 +2304,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>La biblioteca de cubos no está disponible en el destino activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="318"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="319"></location>
       <source>Cube Library warnings</source>
       <translation>Advertencias de la biblioteca de cubos</translation>
     </message>
@@ -2369,7 +2369,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Paquetes de cubos sincronizados</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="239"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="240"></location>
       <source>Cube alias</source>
       <translation>Alias del cubo</translation>
     </message>
@@ -2427,17 +2427,17 @@ Install these nodes now?</source>
 ¿Quieres instalar estos nodos ahora?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="435"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="446"></location>
       <source>Current image</source>
       <translation>Imagen actual</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="91"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="92"></location>
       <source>Current inputs</source>
       <translation>Entradas actuales</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="98"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="99"></location>
       <source>Current outputs</source>
       <translation>Salidas actuales</translation>
     </message>
@@ -2582,9 +2582,14 @@ Install these nodes now?</source>
       <translation>Configuración detectada</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="284"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="285"></location>
       <source>Devices: %1</source>
       <translation>Dispositivos: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="115"></location>
+      <source>Diagnostic logs</source>
+      <translation>Registros de diagnóstico</translation>
     </message>
     <message>
       <location filename="../substitute/application/model_metadata/prompt_preset_scope_resolver.py" line="139"></location>
@@ -2782,7 +2787,7 @@ Install these nodes now?</source>
       <translation>Selección elíptica</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="276"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="277"></location>
       <source>Embedded Python: %1</source>
       <translation>Python integrado: %1</translation>
     </message>
@@ -2842,7 +2847,7 @@ Install these nodes now?</source>
       <translation>Color de error</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="126"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="127"></location>
       <source>Error summary</source>
       <translation>Resumen de errores</translation>
     </message>
@@ -2857,12 +2862,12 @@ Install these nodes now?</source>
       <translation>Excepción</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="138"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="139"></location>
       <source>Exception type: %1</source>
       <translation>Tipo de excepción: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="173"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="174"></location>
       <source>Executed nodes: %1</source>
       <translation>Nodos ejecutados: %1</translation>
     </message>
@@ -3285,7 +3290,7 @@ Install these nodes now?</source>
       <translation>Verde</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="191"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="192"></location>
       <source>HTTP status: %1</source>
       <translation>Estado HTTP: %1</translation>
     </message>
@@ -3440,7 +3445,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="622"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="633"></location>
       <source>Image %1</source>
       <translation>Imagen %1</translation>
     </message>
@@ -3680,7 +3685,7 @@ Install these nodes now?</source>
       <translation>Más tarde</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="292"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="293"></location>
       <source>Launch args: %1</source>
       <translation>Argumentos de inicio: %1</translation>
     </message>
@@ -4380,7 +4385,7 @@ Install these nodes now?</source>
       <translation>No se seleccionaron descargas de modelos.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="214"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="215"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>No se notificaron errores de validación específicos de nodos.</translation>
     </message>
@@ -4442,17 +4447,17 @@ Usaré el mío.</translation>
       <translation>Nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="206"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="207"></location>
       <source>Node %1%2%3</source>
       <translation>Nodo %1%2%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="236"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="237"></location>
       <source>Node ID</source>
       <translation>ID del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="170"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="171"></location>
       <source>Node ID: %1</source>
       <translation>ID del nodo: %1</translation>
     </message>
@@ -4462,7 +4467,7 @@ Usaré el mío.</translation>
       <translation>Acciones del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="165"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="166"></location>
       <source>Node context</source>
       <translation>Contexto del nodo</translation>
     </message>
@@ -4472,12 +4477,12 @@ Usaré el mío.</translation>
       <translation>Errores del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="237"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="238"></location>
       <source>Node name</source>
       <translation>Nombre del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="171"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="172"></location>
       <source>Node type: %1</source>
       <translation>Tipo de nodo: %1</translation>
     </message>
@@ -4537,7 +4542,7 @@ Usaré el mío.</translation>
       <translation>Aceptar</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="270"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="271"></location>
       <source>OS: %1</source>
       <translation>SO: %1</translation>
     </message>
@@ -4657,7 +4662,7 @@ Usaré el mío.</translation>
       <translation>Abre esta instalación de ComfyUI con el acceso directo, script o iniciador que uses habitualmente. Substitute la detectará automáticamente.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="232"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="233"></location>
       <source>Operation</source>
       <translation>Operación</translation>
     </message>
@@ -4727,7 +4732,7 @@ Usaré el mío.</translation>
       <translation>Progreso general de configuración</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="240"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="241"></location>
       <source>Package</source>
       <translation>Paquete</translation>
     </message>
@@ -4797,7 +4802,7 @@ Usaré el mío.</translation>
       <translation>Pega URL compatibles de publicaciones o imágenes de Danbooru como etiquetas del prompt.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="235"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="236"></location>
       <source>Path</source>
       <translation>Ruta</translation>
     </message>
@@ -5062,7 +5067,7 @@ Usaré el mío.</translation>
       <translation>Edición de prompts</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="155"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="156"></location>
       <source>Prompt ID: %1</source>
       <translation>ID del prompt: %1</translation>
     </message>
@@ -5072,12 +5077,12 @@ Usaré el mío.</translation>
       <translation>Comportamiento del editor de prompts y ayuda para la redacción.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="188"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="189"></location>
       <source>Prompt validation errors</source>
       <translation>Errores de validación del prompt</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="225"></location>
+      <location filename="../substitute/application/errors.py" line="226"></location>
       <source>Prompt validation failed</source>
       <translation>No se pudo validar el prompt</translation>
     </message>
@@ -5107,7 +5112,7 @@ Usaré el mío.</translation>
       <translation>PySide6-Fluent-Widgets</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="280"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="281"></location>
       <source>PyTorch: %1</source>
       <translation>Versión de PyTorch: %1</translation>
     </message>
@@ -5142,7 +5147,7 @@ Usaré el mío.</translation>
       <translation>Ejecutable de Python (python.exe python);;Todos los archivos (*)</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="272"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="273"></location>
       <source>Python: %1</source>
       <translation>Python: %1</translation>
     </message>
@@ -5197,7 +5202,7 @@ Usaré el mío.</translation>
       <translation>Aleatorizar</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="218"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="219"></location>
       <source>Raw response text:</source>
       <translation>Texto de respuesta sin procesar:</translation>
     </message>
@@ -5282,7 +5287,7 @@ Usaré el mío.</translation>
       <translation>Actualizar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="246"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="256"></location>
       <source>Refresh CivitAI metadata</source>
       <translation>Actualizar los metadatos de CivitAI</translation>
     </message>
@@ -5806,12 +5811,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Ejecuta la acción de generación normal o infinita seleccionada actualmente.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="259"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="260"></location>
       <source>Runtime and system information</source>
       <translation>Información del entorno de ejecución y del sistema</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="131"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="127"></location>
       <source>Runtime context</source>
       <translation>Contexto de ejecución</translation>
     </message>
@@ -5986,7 +5991,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Examinando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="505"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="516"></location>
       <source>Scene</source>
       <translation>Escena</translation>
     </message>
@@ -6051,7 +6056,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reordenación de segmentos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="133"></location>
+      <location filename="../substitute/presentation/dialogs/ultralytics_thumbnail_library_modal.py" line="141"></location>
       <source>Segmentation</source>
       <translation>Segmentación</translation>
     </message>
@@ -6411,7 +6416,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Algunas rutas guardadas del entorno de ejecución ya no coinciden con esta instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <location filename="../substitute/application/crash_reports.py" line="51"></location>
       <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
       <translation>Algo inesperado detuvo SugarSubstitute. Puedes copiar este informe y compartirlo con los responsables del mantenimiento.</translation>
     </message>
@@ -6441,7 +6446,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Etapa</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="134"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="135"></location>
       <source>Stage: %1</source>
       <translation>Etapa: %1</translation>
     </message>
@@ -6556,32 +6561,32 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Detiene la generación continua o en cola cuando está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="139"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="138"></location>
       <source>Substitute BackEnd API version is incompatible.</source>
       <translation>La versión de la API de Substitute BackEnd no es compatible.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="123"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="122"></location>
       <source>Substitute BackEnd and SugarCubes are compatible.</source>
       <translation>Substitute BackEnd y SugarCubes son compatibles.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="112"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="111"></location>
       <source>Substitute BackEnd capabilities could not be read.</source>
       <translation>No se pudieron leer las capacidades de Substitute BackEnd.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="163"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="162"></location>
       <source>Substitute BackEnd did not report its extension version.</source>
       <translation>Substitute BackEnd no comunicó la versión de su extensión.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="152"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="151"></location>
       <source>Substitute BackEnd is missing required features: %1</source>
       <translation>A Substitute BackEnd le faltan funciones necesarias: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="183"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="182"></location>
       <source>Substitute BackEnd version is incompatible.</source>
       <translation>La versión de Substitute BackEnd no es compatible.</translation>
     </message>
@@ -6821,7 +6826,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute necesita una carpeta de ComfyUI para terminar la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="229"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="230"></location>
       <source>Substitute operation context</source>
       <translation>Contexto de operación de Substitute</translation>
     </message>
@@ -6866,7 +6871,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute guarda, prepara e inicia esta instalación local de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="267"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="268"></location>
       <source>Substitute version: %1</source>
       <translation>Versión de Substitute: %1</translation>
     </message>
@@ -6937,12 +6942,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>No se pudieron reparar las versiones de las dependencias de SugarCubes</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="214"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="213"></location>
       <source>SugarCubes did not report its runtime version.</source>
       <translation>SugarCubes no comunicó la versión de su entorno de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="201"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="200"></location>
       <source>SugarCubes is not available on this target.</source>
       <translation>SugarCubes no está disponible en este destino.</translation>
     </message>
@@ -6967,7 +6972,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>No se pudo leer la salida de mantenimiento de SugarCubes</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="229"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="228"></location>
       <source>SugarCubes prerelease versions are not allowed in release mode.</source>
       <translation>Las versiones preliminares de SugarCubes no están permitidas en el modo de lanzamiento.</translation>
     </message>
@@ -6997,7 +7002,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>SugarCubes aún indica que faltan dependencias básicas de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/backend_compatibility.py" line="247"></location>
+      <location filename="../substitute/application/backend_compatibility.py" line="246"></location>
       <source>SugarCubes version is incompatible.</source>
       <translation>La versión de SugarCubes no es compatible.</translation>
     </message>
@@ -7007,14 +7012,24 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="39"></location>
+      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>SugarSubstitute no pudo terminar de iniciarse</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="50"></location>
       <source>SugarSubstitute crashed</source>
       <translation>SugarSubstitute se bloqueó</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="41"></location>
+      <location filename="../substitute/application/crash_reports.py" line="56"></location>
       <source>SugarSubstitute did not close normally</source>
       <translation>SugarSubstitute no se cerró correctamente</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="45"></location>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>SugarSubstitute encontró un fallo de inicio confirmado. Copia este informe y compártelo con el equipo de mantenimiento.</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/license_text.py" line="23"></location>
@@ -7187,7 +7202,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Tamaño objetivo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="320"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="321"></location>
       <source>Technical detail</source>
       <translation>Detalle técnico</translation>
     </message>
@@ -7372,7 +7387,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El almacén de credenciales del sistema operativo rechazó la clave.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/crash_reports.py" line="49"></location>
+      <location filename="../substitute/application/crash_reports.py" line="57"></location>
       <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
       <translation>La sesión anterior de SugarSubstitute terminó sin completar el cierre. El informe siguiente puede ayudar a determinar el motivo.</translation>
     </message>
@@ -7387,7 +7402,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El punto de comprobación de disponibilidad no respondió a tiempo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="309"></location>
+      <location filename="../substitute/application/errors.py" line="310"></location>
       <source>The recipe loaded with Cube Library warnings.</source>
       <translation>La receta se cargó con advertencias de la biblioteca de cubos.</translation>
     </message>
@@ -7502,12 +7517,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El comando de finalización no terminó antes de agotarse el tiempo de espera.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="411"></location>
+      <location filename="../substitute/application/errors.py" line="412"></location>
       <source>The workflow could not be queued because Comfy rejected the prompt.</source>
       <translation>No se pudo añadir el flujo de trabajo a la cola porque Comfy rechazó el prompt.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/errors.py" line="410"></location>
+      <location filename="../substitute/application/errors.py" line="411"></location>
       <source>The workflow could not be queued.</source>
       <translation>No se pudo añadir el flujo de trabajo a la cola.</translation>
     </message>
@@ -7652,7 +7667,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Miniaturas</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="132"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="133"></location>
       <source>Title: %1</source>
       <translation>Título: %1</translation>
     </message>
@@ -7667,17 +7682,17 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Alterna entre tarjetas de cubos expandidas y compactas.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="193"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="194"></location>
       <source>Top-level error:</source>
       <translation>Error de nivel superior:</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="241"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="242"></location>
       <source>Trace ID</source>
       <translation>ID de seguimiento</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="84"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="85"></location>
       <source>Traceback</source>
       <translation>Traza inversa</translation>
     </message>
@@ -8312,22 +8327,22 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Flujo de trabajo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="233"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="234"></location>
       <source>Workflow ID</source>
       <translation>ID del flujo de trabajo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="153"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="154"></location>
       <source>Workflow ID: %1</source>
       <translation>ID del flujo de trabajo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="113"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="114"></location>
       <source>Workflow JSON</source>
       <translation>JSON del flujo de trabajo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="149"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="150"></location>
       <source>Workflow and prompt context</source>
       <translation>Contexto del flujo de trabajo y del prompt</translation>
     </message>
@@ -8337,7 +8352,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo cargar el flujo de trabajo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="234"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="235"></location>
       <source>Workflow name</source>
       <translation>Nombre del flujo de trabajo</translation>
     </message>
@@ -8507,7 +8522,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>la carga útil del nodo no es una asignación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/error_report_builder.py" line="175"></location>
+      <location filename="../substitute/application/error_report_builder.py" line="176"></location>
       <source>none</source>
       <translation>ninguno</translation>
     </message>
