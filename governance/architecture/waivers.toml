@@ -587,19 +587,6 @@ next_limit = 1051
 debt = "SS-ARCH-059"
 
 [[waivers]]
-id = "SS-WAIVER-R060"
-owner = "prompt projection construction"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/projection/builder.py"
-kind = "remediation"
-justification = "The assessed file mixes base run construction, syntax renderer-view adaptation, LoRA collapse and status projection, exact-weight edit projection, inline preview insertion and run splitting, projection range recomputation. Extract LoRA, exact-weight, and inline-preview feature projectors from base run construction."
-issue = "chore:SS-ARCH-060"
-review_by = 2026-12-15
-max_lines = 1058
-next_limit = 846
-debt = "SS-ARCH-060"
-
-[[waivers]]
 id = "SS-WAIVER-R061"
 owner = "prompt projection surface"
 rule = "STRUCT003"
