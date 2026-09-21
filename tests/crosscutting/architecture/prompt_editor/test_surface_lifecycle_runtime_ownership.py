@@ -97,6 +97,9 @@ def test_pre_source_owners_use_an_explicit_graph_effect_port() -> None:
     surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
         encoding="utf-8"
     )
+    interaction_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface_interaction_runtime.py"
+    ).read_text(encoding="utf-8")
     graph_start = surface_source.index(
         "graph_effects = PromptProjectionSurfaceGraphEffects()"
     )
@@ -108,8 +111,9 @@ def test_pre_source_owners_use_an_explicit_graph_effect_port() -> None:
     assert "self._presentation_runtime." not in graph_block
     assert "self._projection_freshness_controller." not in graph_block
     assert "self._caret_visual_controller." not in graph_block
-    assert "graph_effects.rebuild_projection" in graph_block
-    assert "graph_effects.ensure_caret_visible" in graph_block
+    assert "graph_effects=graph_effects" in graph_block
+    assert "graph_effects.rebuild_projection" in interaction_runtime_source
+    assert "graph_effects.ensure_caret_visible" in interaction_runtime_source
 
     presentation_index = surface_source.index("self._presentation_runtime =")
     effect_binding_index = surface_source.index(

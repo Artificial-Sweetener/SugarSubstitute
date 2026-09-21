@@ -630,15 +630,15 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:a193aa7fd4835182bb1df2c8b98acafd5ec239740b11e953e5eb19d5a6b82bb3"
+fingerprint = "sha256:8b4c7ea9416af1d60126fa5dbce4344dd707f69c49339fb1064fda51c02df9dd"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
   "Qt-compatible source, cursor, and external editor facade",
-  "caret, autocomplete, focus, and pointer owner construction",
+  "diagnostic, history, and remaining projection runtime coordination",
   "Qt input, focus, viewport, and paint lifecycle routing",
 ]
-next_extraction = "Extract the now cycle-free caret, autocomplete, focus, and pointer construction into a cohesive pre-source interaction runtime."
+next_extraction = "Move diagnostic construction into presentation ownership, then extract history and remaining projection runtime coordination from the Qt event surface."
 
 [[debts]]
 id = "SS-ARCH-064"
