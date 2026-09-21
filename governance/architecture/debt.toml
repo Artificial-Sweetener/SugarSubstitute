@@ -630,15 +630,15 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:8b4c7ea9416af1d60126fa5dbce4344dd707f69c49339fb1064fda51c02df9dd"
+fingerprint = "sha256:eb812a95022e60b4c0bcad765211125a0d2e8ac13d187373644461eab81f65e7"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
   "Qt-compatible source, cursor, and external editor facade",
-  "diagnostic, history, and remaining projection runtime coordination",
+  "projection source, lifecycle, and presentation runtime coordination",
   "Qt input, focus, viewport, and paint lifecycle routing",
 ]
-next_extraction = "Move diagnostic construction into presentation ownership, then extract history and remaining projection runtime coordination from the Qt event surface."
+next_extraction = "Extract source, lifecycle, and presentation orchestration into one explicit surface composition runtime, leaving the widget as the Qt event adapter and public facade."
 
 [[debts]]
 id = "SS-ARCH-064"

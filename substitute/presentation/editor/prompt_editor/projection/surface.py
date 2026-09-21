@@ -159,6 +159,10 @@ from .surface_input_runtime import (
     PromptProjectionSurfaceInputBindings,
     build_prompt_projection_surface_input_runtime,
 )
+from .surface_diagnostic_runtime import (
+    PromptProjectionSurfaceDiagnosticBindings,
+    build_prompt_projection_surface_diagnostics,
+)
 from .surface_interaction_runtime import (
     PromptProjectionSurfaceInteractionBindings,
     build_prompt_projection_surface_interaction_runtime,
@@ -185,7 +189,6 @@ from .surface_lifecycle_runtime import (
     PromptProjectionSurfaceLifecycleBindings,
     build_prompt_projection_surface_lifecycle_runtime,
 )
-from .theme import qcolor_from_rgb, semantic_palette_from_theme
 from .undo_payload import PromptProjectionUndoPayload
 from ..interactions.deletion_controller import (
     PromptDeletionContext,
@@ -301,42 +304,20 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._reorder: PromptReorderProjectionOwner
         self._caret_visual_controller: PromptSurfaceCaretVisualController
         self._projection_freshness_controller: PromptProjectionFreshnessController
-        self._diagnostic_layer_owner = PromptDiagnosticLayerOwner(
-            parent=self,
-            diagnostics=lambda: self._session.diagnostics,
-            replace_diagnostics=self._session.set_diagnostics,
-            clear_diagnostics=self._session.clear_diagnostics,
-            selection=self._selection,
-            geometry=lambda: self._layout.frame.geometry,
-            layout_identity=lambda: self._frame_state.current_layout_identity(
-                self._layout.frame.output
-            ),
-            viewport_rect=lambda: QRectF(self.viewport().rect()),
-            scroll_offset=self._scroll_offset,
-            color_rgba=lambda: int(
-                qcolor_from_rgb(semantic_palette_from_theme().error_foreground).rgba()
-            ),
-            device_pixel_ratio=lambda: float(self.viewport().devicePixelRatioF()),
-            is_alive=lambda: qt_object_is_alive(self),
-            request_update=graph_effects.diagnostic_layer_changed,
+        self._diagnostic_layer_owner = build_prompt_projection_surface_diagnostics(
+            PromptProjectionSurfaceDiagnosticBindings(
+                parent=self,
+                viewport=self.viewport(),
+                session=self._session,
+                layout=self._layout,
+                frame_state=self._frame_state,
+                graph_effects=graph_effects,
+                selection=self._selection,
+                scroll_offset=self._scroll_offset,
+                is_alive=lambda: qt_object_is_alive(self),
+            )
         )
         self._editing_enabled = True
-        self._history = PromptProjectionHistoryOwner(
-            editing_session=self._editing_session,
-            caret_state=self._caret_state_owner,
-            projection_session=self._session,
-            editor_state=self._editor_state,
-            layout=self._layout,
-            set_cursor_positions=(
-                lambda cursor, anchor: self.set_cursor_positions(
-                    cursor_position=cursor,
-                    anchor_position=anchor,
-                )
-            ),
-            publish_undo_available=self.undoAvailableChanged.emit,
-            publish_redo_available=self.redoAvailableChanged.emit,
-        )
-        editing_runtime = editing_runtime_factory(self)
         input_runtime = build_prompt_projection_surface_input_runtime(
             PromptProjectionSurfaceInputBindings(
                 input_method_host=cast(PromptInputMethodHost, self),
@@ -344,11 +325,23 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 deletion_projection_effects=cast(PromptDeletionProjectionEffects, self),
                 key_host=cast(PromptSurfaceKeyHost, self),
                 wheel_host=cast(PromptSurfaceWheelHost, self),
+                editing_runtime_host=self,
+                editing_runtime_factory=editing_runtime_factory,
+                editing_session=self._editing_session,
+                caret_state=self._caret_state_owner,
+                projection_session=self._session,
+                editor_state=self._editor_state,
                 viewport=self.viewport(),
                 layout=self._layout,
                 mouse=self._mouse_handler,
-                history=self._history,
-                editing_runtime=editing_runtime,
+                set_cursor_positions=(
+                    lambda cursor, anchor: self.set_cursor_positions(
+                        cursor_position=cursor,
+                        anchor_position=anchor,
+                    )
+                ),
+                publish_undo_available=self.undoAvailableChanged.emit,
+                publish_redo_available=self.redoAvailableChanged.emit,
                 external_text_insertion=self._insert_external_mime_text,
                 finish_pending_key_edit_block=(
                     lambda reason: self._finish_pending_key_edit_block(reason=reason)
@@ -361,6 +354,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             )
         )
         self._input_runtime = input_runtime
+        self._history = input_runtime.history
         self._geometry_reuse_warmer = PromptProjectionGeometryReuseWarmer(
             is_available=lambda: qt_object_is_alive(self),
             is_projected=graph_effects.is_projected,

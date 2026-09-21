@@ -37,6 +37,7 @@ def test_surface_delegates_complete_source_input_runtime_construction() -> None:
         "PromptSurfaceWheelHandler(",
         "PromptExternalTextInputOwner(",
         "PromptProjectionViewportEventRouter(",
+        "PromptProjectionHistoryOwner(",
     ):
         assert construction_marker in runtime_source
         assert construction_marker not in surface_source

@@ -50,6 +50,7 @@ from ..projection.editing_runtime import (
     PromptProjectionEditingRuntime,
     PromptProjectionEditingRuntimeFactory,
 )
+from ..projection.history_owner import PromptProjectionHistoryOwner
 from ..projection.surface import PromptProjectionSurface
 from ..projection.undo_payload import PromptProjectionUndoPayload
 
@@ -89,6 +90,7 @@ class PromptProjectionEditingRuntimeBuilder(
     def __call__(
         self,
         surface: PromptProjectionSurface,
+        history: PromptProjectionHistoryOwner,
     ) -> PromptProjectionEditingRuntime[PromptProjectionUndoPayload]:
         """Create the runtime once, after the surface can serve as its sinks."""
 
@@ -96,8 +98,8 @@ class PromptProjectionEditingRuntimeBuilder(
             raise RuntimeError("Prompt editing runtime was already constructed.")
         execution = PromptEditExecution[PromptProjectionUndoPayload](
             session=self.session,
-            undo_payload_provider=surface.history,
-            availability_signal_sink=surface.history,
+            undo_payload_provider=history,
+            availability_signal_sink=history,
             commit_sink=surface,
         )
         source_commands = PromptSourceCommandService(
@@ -138,7 +140,7 @@ class PromptProjectionEditingRuntimeBuilder(
         clipboard_history = PromptClipboardHistoryController(
             edit_execution=execution,
             clipboard=QtPromptTextClipboard(),
-            cursor_sink=surface.history,
+            cursor_sink=history,
             source_commands=source_commands,
             text_mutations=text_mutations,
             danbooru_paste_scheduler=danbooru_controller,
