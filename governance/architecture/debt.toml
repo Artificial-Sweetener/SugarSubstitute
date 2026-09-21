@@ -627,21 +627,6 @@ responsibilities = [
 next_extraction = "Extract field sizing policy and visibility registration from row construction."
 
 [[debts]]
-id = "SS-ARCH-054"
-owner = "prompt editor composition"
-paths = ["substitute/presentation/editor/prompt_editor/composition/factory.py"]
-fingerprint = "sha256:fbc216485149057fc1d421aec3a23a2be98ccc37c39948137b00a324280f1f34"
-issue = "chore:SS-ARCH-054"
-review_by = 2026-12-15
-responsibilities = [
-  "Danbooru dialog and external-action composition",
-  "prompt service and context-insertion composition",
-  "syntax and interaction collaborator composition",
-  "top-level bundle assembly",
-]
-next_extraction = "Extract syntax and interaction collaborator composition from service and final bundle assembly."
-
-[[debts]]
 id = "SS-ARCH-058"
 owner = "prompt reorder overlay"
 paths = ["substitute/presentation/editor/prompt_editor/overlays/reorder_overlay.py"]
@@ -679,7 +664,7 @@ next_extraction = "Extract input/editing, paint publication, and feature-interac
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:fac9b23e9121b1e6b925f93916056f86edfc4058322de4da99228201bfd25296"
+fingerprint = "sha256:a4cd81f8febdf8f465f76c3a2220d4a98f805d31c89bd6970102d902d05d569c"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [

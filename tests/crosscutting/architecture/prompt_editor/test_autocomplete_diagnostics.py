@@ -301,7 +301,7 @@ def test_weight_interaction_stays_below_general_interaction_routing() -> None:
         PROMPT_PRESENTATION_ROOT / "interactions" / "mouse_selection_controller.py"
     ).read_text(encoding="utf-8")
     factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+        PROMPT_PRESENTATION_ROOT / "composition" / "syntax_factory.py"
     ).read_text(encoding="utf-8")
     signal_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "signal_bindings.py"
@@ -389,7 +389,7 @@ def test_wildcard_diagnostics_and_autocomplete_owners_stay_separate() -> None:
         PROMPT_PRESENTATION_ROOT / "features" / "wildcard_diagnostics.py"
     ).read_text(encoding="utf-8")
     factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+        PROMPT_PRESENTATION_ROOT / "composition" / "service_factory.py"
     ).read_text(encoding="utf-8")
     diagnostics_lifecycle_source = (
         PROMPT_PRESENTATION_ROOT / "features" / "diagnostics_provider_lifecycle.py"

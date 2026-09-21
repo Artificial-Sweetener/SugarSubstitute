@@ -133,18 +133,23 @@ from .composition import (
     DanbooruWikiLookupDispatcherFactory,
     PromptEditorAutocompleteFactory,
     PromptEditorCompositionContext,
-    PromptEditorCompositionFactory,
     PromptEditorConstructionInputs,
     PromptEditorConstructionObserver,
+    PromptEditorDanbooruFactory,
     PromptEditorExecutionFactory,
     PromptEditorMenuFactory,
     PromptEditorProjectionFactory,
+    PromptEditorServiceFactory,
+    PromptEditorSyntaxFactory,
     PromptEditorTaskExecutorFactory,
     apply_prompt_editor_initial_layout,
     bind_prompt_editor_diagnostics_signals,
     bind_prompt_editor_signals,
+    build_context_insertion_service,
     build_external_url_action_runner,
     build_prompt_document_service,
+    build_resize_handle,
+    bundle_collaborators,
     qt_object_is_alive,
     wire_prompt_editor_construction_lifecycle,
 )
@@ -416,7 +421,6 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             level="debug",
         )
         self.setAcceptDrops(True)
-        composition_factory = PromptEditorCompositionFactory()
         composition_context = PromptEditorCompositionContext(
             editor=self,
             shell_viewport=self._shell_viewport(),
@@ -430,6 +434,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             composition_context,
         )
         menu_factory = PromptEditorMenuFactory(composition_context)
+        danbooru_factory = PromptEditorDanbooruFactory(composition_context)
         phase_started_at = construction_observer.started_at()
         projection_collaborators = PromptEditorProjectionFactory(
             construction_inputs,
@@ -469,7 +474,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         self._surface.raise_()
         self._context_insertion: PromptContextInsertionService[
             PromptProjectionUndoPayload
-        ] = composition_factory.build_context_insertion_service(
+        ] = build_context_insertion_service(
             projection_collaborators,
             cursor_provider=self.textCursor,
             context_insert_state_provider=(
@@ -489,10 +494,12 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         self._external_url_action_runner: PromptExternalUrlActionRunner = (
             build_external_url_action_runner(open_url)
         )
-        service_collaborators = composition_factory.build_service_collaborators(
+        service_collaborators = PromptEditorServiceFactory(
             construction_inputs,
             composition_context,
             execution_factory,
+            danbooru_factory,
+        ).build(
             projection_collaborators,
             self._context_insertion,
             cursor_provider=self.textCursor,
@@ -522,7 +529,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             service_collaborators.danbooru_action_controller
         )
         self._danbooru_dialog_runner: PromptDanbooruDialogRunner = (
-            composition_factory.build_danbooru_dialog_runner(
+            danbooru_factory.build_dialog_runner(
                 action_controller=self._danbooru_action_controller,
                 lookup_dispatcher_factory=(
                     construction_inputs.danbooru_lookup_dispatcher_factory
@@ -596,10 +603,10 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             level="debug",
         )
         phase_started_at = construction_observer.started_at()
-        syntax_collaborators = composition_factory.build_syntax_collaborators(
+        syntax_collaborators = PromptEditorSyntaxFactory(
             construction_inputs,
-            composition_context,
             execution_factory,
+        ).build(
             projection_collaborators,
             service_collaborators,
             self._autocomplete,
@@ -800,8 +807,8 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             level="debug",
         )
         phase_started_at = construction_observer.started_at()
-        resize_handle = composition_factory.build_resize_handle(composition_context)
-        collaborators = composition_factory.bundle_collaborators(
+        resize_handle = build_resize_handle(composition_context)
+        collaborators = bundle_collaborators(
             projection_collaborators,
             service_collaborators,
             self._autocomplete,
