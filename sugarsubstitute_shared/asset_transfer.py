@@ -81,3 +81,25 @@ class ObservedAssetTransfer:
                 },
             )
             self._observer = None
+
+
+class ObservedActivity:
+    """Isolate a best-effort activity observer from authoritative work."""
+
+    def __init__(self, observer: Callable[[], None] | None = None) -> None:
+        """Store the observer until it fails once."""
+
+        self._observer = observer
+
+    def record(self) -> None:
+        """Report one completed work unit without changing transaction behavior."""
+
+        if self._observer is None:
+            return
+        try:
+            self._observer()
+        except Exception:
+            _LOGGER.exception(
+                "Activity observer failed; continuing authoritative work."
+            )
+            self._observer = None

@@ -22,8 +22,8 @@ from collections.abc import Iterator
 
 import pytest
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QGraphicsOpacityEffect, QWidget
-from qfluentwidgets import IndeterminateProgressBar, ProgressBar  # type: ignore[import-untyped]
+from PySide6.QtWidgets import QWidget
+from qfluentwidgets import ProgressBar  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.application.installation.progress import (
     InstallationProgress,
@@ -33,7 +33,7 @@ from launcher.sugarsubstitute_launcher.ui.installation_progress_page import (
     InstallationProgressPage,
 )
 from tests.launcher.support import launcher_test_application
-from tests.support.qt.semantic_wait import wait_for_qt_condition, wait_for_qt_signal
+from tests.support.qt.semantic_wait import wait_for_qt_signal
 
 
 @pytest.fixture
@@ -64,15 +64,12 @@ def test_console_activity_does_not_advance_fill_or_replace_stage(
     headline = page.activity_label.text()
     page.append_log("Resolved 184 packages; preparing wheel cache")
     assert isinstance(page.progress_bar, ProgressBar)
-    assert page.progress_bar.value() == 2
-    assert page.progress_bar.maximum() == 4
+    assert page.progress_bar.visible_fraction == pytest.approx(2 / 4)
     assert page.activity_label.text() == headline
     assert "184 packages" in page.progress_log.log_view.toPlainText()
     assert not page.progress_log.isVisible()
-    effect = page.progress_bar.graphicsEffect()
-    assert isinstance(effect, QGraphicsOpacityEffect)
-    wait_for_qt_condition(lambda: effect.opacity() < 0.95)
-    assert page.progress_bar.value() == 2
+    assert page.progress_bar.activity_running
+    assert page.progress_bar.visible_fraction == pytest.approx(2 / 4)
 
 
 def test_failure_preserves_completed_work_and_retry_resumes(
@@ -82,21 +79,19 @@ def test_failure_preserves_completed_work_and_retry_resumes(
     page = progress_page
     page.set_progress(InstallationProgress(InstallationStage.RUNTIME))
     page.show_failure("The runtime could not be prepared.")
-    assert page.progress_bar.value() == 2
+    assert page.progress_bar.visible_fraction == pytest.approx(2 / 4)
     assert page.activity_label.text() == "The runtime could not be prepared."
     assert page.progress_log.isVisible()
-    effect = page.progress_bar.graphicsEffect()
-    assert isinstance(effect, QGraphicsOpacityEffect)
-    assert effect.opacity() == 1.0
+    assert not page.progress_bar.activity_running
     page.set_progress(InstallationProgress(InstallationStage.RUNTIME))
     assert "Installing Python runtime" in page.activity_label.text()
     page.set_progress(InstallationProgress(InstallationStage.RUNTIME, True))
-    assert page.progress_bar.value() == 3
+    assert page.progress_bar.visible_fraction == pytest.approx(3 / 4)
     page.set_progress(InstallationProgress(InstallationStage.HANDOFF))
-    assert page.progress_bar.value() == 3
+    assert page.progress_bar.visible_fraction == pytest.approx(3 / 4)
     page.set_progress(InstallationProgress(InstallationStage.HANDOFF, True))
-    assert page.progress_bar.value() == 4
-    assert effect.opacity() == 1.0
+    assert page.progress_bar.visible_fraction == 1.0
+    assert not page.progress_bar.activity_running
     assert page.activity_label.text() == "Waiting for the setup window to open."
 
 
@@ -109,7 +104,7 @@ def test_safe_close_message_survives_remaining_worker_events(
     page.show_stopping("Finishing the current setup step before closing.")
     page.append_log("Installed 10 packages")
     page.set_progress(InstallationProgress(InstallationStage.RUNTIME, True))
-    assert page.progress_bar.value() == 3
+    assert page.progress_bar.visible_fraction == pytest.approx(3 / 4)
     assert page.activity_label.text().startswith(
         "Finishing the current setup step before closing."
     )
@@ -127,30 +122,30 @@ def test_details_toggle_reports_geometry_without_resetting_progress(
     page.details_button.click()
     assert not page.progress_log.isVisible()
     assert changed.count() == 2
-    assert page.progress_bar.value() == 1
+    assert page.progress_bar.visible_fraction == pytest.approx(1 / 4)
 
 
 def test_preparation_shows_activity_before_any_stage_has_completed(
     progress_page: InstallationProgressPage,
 ) -> None:
-    """Show Fluent activity at zero completion and retire it at a real milestone."""
+    """Keep one Fluent activity bar visible across the first real milestone."""
     page = progress_page
     page.set_progress(InstallationProgress(InstallationStage.PREPARATION))
-    activity = page.findChild(IndeterminateProgressBar)
-    assert activity is not None
-    assert activity.isVisible()
-    assert activity.isStarted()
-    assert page.progress_bar.value() == 0
-    assert not page.progress_bar.isVisible()
-    page.hide()
-    assert not activity.isStarted()
-    page.show()
-    assert activity.isStarted()
-    page.set_progress(InstallationProgress(InstallationStage.PREPARATION, True))
-    assert not activity.isVisible()
-    assert not activity.isStarted()
     assert page.progress_bar.isVisible()
-    assert page.progress_bar.value() == 1
+    assert page.progress_bar.activity_running
+    assert page.progress_bar.value() == 0
+    page.append_log("Resolved installer payload")
+    assert page.progress_bar.activity_running
+    page.hide()
+    assert not page.progress_bar.activity_running
+    page.show()
+    assert not page.progress_bar.activity_running
+    page.append_log("Preparation continued")
+    assert page.progress_bar.activity_running
+    page.set_progress(InstallationProgress(InstallationStage.PREPARATION, True))
+    assert page.progress_bar.activity_running
+    assert page.progress_bar.isVisible()
+    assert page.progress_bar.visible_fraction == pytest.approx(1 / 4)
 
 
 def test_preparation_failure_stops_activity_without_claiming_progress(
@@ -159,13 +154,11 @@ def test_preparation_failure_stops_activity_without_claiming_progress(
     """Keep failed preparation stationary and resume activity on retry."""
     page = progress_page
     page.set_progress(InstallationProgress(InstallationStage.PREPARATION))
-    activity = page.findChild(IndeterminateProgressBar)
-    assert activity is not None
     page.show_failure("Preparation failed")
-    assert not activity.isStarted()
-    assert not activity.isVisible()
+    assert not page.progress_bar.activity_running
     assert page.progress_bar.isVisible()
     assert page.progress_bar.value() == 0
     page.set_progress(InstallationProgress(InstallationStage.PREPARATION))
-    assert activity.isVisible()
-    assert activity.isStarted()
+    assert not page.progress_bar.activity_running
+    page.append_log("Retry preparation output")
+    assert page.progress_bar.activity_running

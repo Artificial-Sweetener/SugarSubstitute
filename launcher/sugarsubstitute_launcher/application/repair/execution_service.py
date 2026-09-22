@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 
 from sugarsubstitute_shared.installation_mutation import (
@@ -143,7 +145,11 @@ class RepairExecutionService:
                 observer=self._progress_observer,
             )
             progress.begin(RepairStage.VALIDATE_INPUT)
-            self._validate_staging(request=request, launcher_target=launcher_target)
+            self._validate_staging(
+                request=request,
+                launcher_target=launcher_target,
+                activity_observer=progress.record_activity,
+            )
             request = stage_repair_attempt(request)
             plan = RepairPlanService().build_application_plan(
                 layout=layout,
@@ -257,8 +263,14 @@ class RepairExecutionService:
             ownership=ownership,
             destination=candidate,
         )
-        candidate_digest = directory_tree_sha256(candidate)
-        verify_directory_tree_sha256(candidate, expected=candidate_digest)
+        candidate_digest = directory_tree_sha256(
+            candidate, activity_observer=progress.record_activity
+        )
+        verify_directory_tree_sha256(
+            candidate,
+            expected=candidate_digest,
+            activity_observer=progress.record_activity,
+        )
         protected = {"user", "models", "input", "output", "custom_nodes"}
         replacement_names = frozenset(
             child.name for child in candidate.iterdir() if child.name not in protected
@@ -315,16 +327,19 @@ class RepairExecutionService:
         *,
         request: PreparedRepairRequest,
         launcher_target: LauncherBundleTarget,
+        activity_observer: Callable[[], None],
     ) -> None:
         """Revalidate immutable staging receipts and exact artifact contracts."""
 
         verify_directory_tree_sha256(
             request.staged_app_dir,
             expected=request.staged_app_sha256,
+            activity_observer=activity_observer,
         )
         verify_directory_tree_sha256(
             request.staged_launcher_dir,
             expected=request.staged_launcher_sha256,
+            activity_observer=activity_observer,
         )
         validate_app_payload(request.staged_app_dir)
         if inspect_app_payload_version(request.staged_app_dir) != request.version:

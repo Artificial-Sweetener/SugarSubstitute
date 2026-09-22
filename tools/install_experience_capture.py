@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage, QPainter, QPalette
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QProgressBar, QWidget
 
 if TYPE_CHECKING:
     from substitute.presentation.onboarding import OnboardingWindow
@@ -74,6 +74,15 @@ def capture_onboarding_checkpoint(
     path.parent.mkdir(parents=True, exist_ok=True)
     save_opaque_dark_widget_capture(capture_widget or window, path)
     current = window.page_stack.currentWidget()
+    visible_progress_bars = (
+        [
+            bar.objectName()
+            for bar in current.findChildren(QProgressBar)
+            if bar.isVisibleTo(current)
+        ]
+        if current is not None
+        else []
+    )
     evidence.append(
         {
             "scenario": f"comfy-setup/{scenario}/{checkpoint}",
@@ -81,12 +90,43 @@ def capture_onboarding_checkpoint(
             "route": scenario,
             "page": current.objectName() if current is not None else "",
             "primary_action": window.primary_button.text(),
+            "visible_progress_bars": visible_progress_bars,
             "screenshot": str(path),
         }
     )
 
 
+def capture_model_download_progress_checkpoint(
+    window: OnboardingWindow,
+    artifact_root: Path,
+    scenario: str,
+    evidence: list[dict[str, object]],
+) -> None:
+    """Render measured model transfer through the production provisioning page."""
+
+    window.provisioning_page.set_progress(
+        completed_tasks=1,
+        total_tasks=6,
+        active=True,
+    )
+    window.provisioning_page.set_model_download_progress(
+        completed_bytes=512 * 1024 * 1024,
+        total_bytes=2 * 1024 * 1024 * 1024,
+        current_item="example-model.safetensors",
+        current_item_index=1,
+        total_items=2,
+    )
+    capture_onboarding_checkpoint(
+        window,
+        artifact_root,
+        scenario,
+        "provisioning-model-download",
+        evidence,
+    )
+
+
 __all__ = [
+    "capture_model_download_progress_checkpoint",
     "capture_onboarding_checkpoint",
     "prepare_opaque_dark_capture_surface",
     "save_opaque_dark_widget_capture",

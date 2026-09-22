@@ -35,6 +35,9 @@ class StartupProgressSplash(SplashCloseProtocol, Protocol):
     def set_progress(self, progress: SplashProgress, *, status: str) -> None:
         """Present producer-owned progress and localized status."""
 
+    def record_activity(self) -> None:
+        """Report one queue boundary as observed startup work."""
+
 
 class StartupSplashProgress:
     """Translate authoritative queue boundaries into stage-based splash completion."""
@@ -48,6 +51,7 @@ class StartupSplashProgress:
         splash = self._splash()
         if splash is None:
             return
+        splash.record_activity()
         splash.set_progress(
             SplashProgress(progress.completed, progress.total + 1),
             status=render_application_text(
