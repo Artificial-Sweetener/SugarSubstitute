@@ -101,7 +101,7 @@ def test_prompt_field_actions_exclude_generic_editing_commands(
             "prompt.select_all",
         }
     )
-    insert_state = cast(Any, editor)._shell_context_menu.consume_context_insert_state()
+    insert_state = cast(Any, editor)._menu_runtime.shell.consume_context_insert_state()
     assert insert_state.insert_position == 5
     assert insert_state.should_replace_selection is False
 
@@ -111,7 +111,7 @@ def test_prompt_field_actions_exclude_generic_editing_commands(
     editor.field_action_entries(FieldActionContext(QPoint(20, 30)))
     selection_state = cast(
         Any, editor
-    )._shell_context_menu.consume_context_insert_state()
+    )._menu_runtime.shell.consume_context_insert_state()
     assert selection_state.insert_position is None
     assert selection_state.should_replace_selection is True
 

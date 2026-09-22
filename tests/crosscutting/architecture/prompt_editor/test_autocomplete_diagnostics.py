@@ -281,6 +281,9 @@ def test_diagnostics_provider_and_refresh_owners_stay_outside_feature_controller
         PROMPT_PRESENTATION_ROOT / "features" / "context_menu_snapshot_assembly.py"
     ).read_text(encoding="utf-8")
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    menu_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
+    ).read_text(encoding="utf-8")
 
     assert "class PromptDiagnosticsProviderLifecycle" in provider_source
     assert "class PromptDiagnosticsRefreshLifecycle" in refresh_source
@@ -315,9 +318,8 @@ def test_diagnostics_provider_and_refresh_owners_stay_outside_feature_controller
     assert "PySide6" not in presentation_source
     assert "from .diagnostics_controller import" not in context_menu_snapshot_source
     assert "PromptContextMenuDiagnosticsPort" in context_menu_snapshot_source
-    assert (
-        "diagnostics=self._diagnostics_feature_controller.presentation" in widget_source
-    )
+    assert "diagnostics=features.diagnostics.presentation" in menu_runtime_source
+    assert "PromptContextMenuSnapshotAssembler(" not in widget_source
 
 
 def test_weight_interaction_stays_below_general_interaction_routing() -> None:
@@ -471,6 +473,9 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
     menu_factory_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "menu_factory.py"
     ).read_text(encoding="utf-8")
+    menu_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
+    ).read_text(encoding="utf-8")
     deleted_action_adapter = (
         PROMPT_PRESENTATION_ROOT / "features" / "context_menu_actions.py"
     )
@@ -500,7 +505,9 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
     assert "self._preparation.prepare_selection(" in presenter_source
     assert "self._preparation.prepare_opening(" in presenter_source
     assert "self._snapshot_reader.snapshot_for_menu(" in presenter_source
-    assert "self._context_menu_snapshot_assembler" in widget_source
-    assert "self._context_menu_preparation" in widget_source
+    assert "PromptContextMenuSnapshotAssembler(" in menu_runtime_source
+    assert "build_context_menu_preparation(" in menu_runtime_source
+    assert "PromptContextMenuSnapshotAssembler(" not in widget_source
+    assert "build_context_menu_preparation(" not in widget_source
     assert "snapshot_reader: PromptContextMenuSnapshotAssembler" in menu_factory_source
     assert "preparation: PromptContextMenuPreparationLifecycle" in menu_factory_source

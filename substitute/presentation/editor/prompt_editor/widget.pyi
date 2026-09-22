@@ -88,6 +88,7 @@ from substitute.presentation.widgets.menu_model import MenuEntry
 from .autocomplete_preview_state import PromptAutocompletePreviewState
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
+    PromptEditorMenuRuntime,
     PromptEditorTaskExecutorFactory,
 )
 from .commands.autocomplete_commands import PromptAutocompleteAcceptance
@@ -109,12 +110,9 @@ from .overlays import (
     PromptTokenWeightControls,
 )
 from .features import (
-    PromptContextMenuPreparationLifecycle,
-    PromptContextMenuSnapshotAssembler,
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
     PromptLoraMetadataPresentation,
-    PromptLoraMetadataRefreshLifecycle,
 )
 from .interactions import (
     PromptReorderOverlayPort,
@@ -149,12 +147,10 @@ class PromptEditor(QWidget):
     _surface: Any
     _feature_profile_controller: PromptFeatureProfileController
     _diagnostics_feature_controller: PromptDiagnosticsFeatureController
-    _context_menu_snapshot_assembler: PromptContextMenuSnapshotAssembler
-    _context_menu_preparation: PromptContextMenuPreparationLifecycle
+    _menu_runtime: PromptEditorMenuRuntime
     _syntax_profile: PromptSyntaxProfile
     _weight_interaction: PromptWeightInteraction
     _lora_metadata_presentation: PromptLoraMetadataPresentation
-    _lora_metadata_refresh: PromptLoraMetadataRefreshLifecycle
 
     def __init__(
         self,

@@ -367,7 +367,7 @@ def test_prompt_editor_lora_picker_insertion_uses_shared_schedule_text(
     editor.setPlainText("")
     process_events(app)
 
-    cast(Any, editor)._lora_picker_popup_presenter.insert_lora_schedule(
+    cast(Any, editor)._menu_runtime.lora_picker.insert_lora_schedule(
         _lora_item(
             display_name="Friendly Midna",
             basename="raw_midna",

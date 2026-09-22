@@ -37,6 +37,13 @@ from .danbooru_factory import PromptEditorDanbooruFactory
 from .projection_factory import PromptEditorProjectionFactory
 from .syntax_factory import PromptEditorSyntaxFactory
 from .menu_factory import PromptEditorMenuFactory
+from .menu_runtime import (
+    PromptEditorMenuActionBindings,
+    PromptEditorMenuFeatureOwners,
+    PromptEditorMenuHostBindings,
+    PromptEditorMenuRuntime,
+    build_prompt_editor_menu_runtime,
+)
 from .service_factory import PromptEditorServiceFactory
 from .signal_bindings import (
     PromptEditorDiagnosticsControllerBinding,
@@ -63,6 +70,10 @@ __all__ = [
     "PromptEditorDanbooruFactory",
     "PromptEditorExecutionFactory",
     "PromptEditorMenuFactory",
+    "PromptEditorMenuActionBindings",
+    "PromptEditorMenuFeatureOwners",
+    "PromptEditorMenuHostBindings",
+    "PromptEditorMenuRuntime",
     "PromptEditorProjectionFactory",
     "PromptEditorServiceFactory",
     "PromptEditorSyntaxFactory",
@@ -80,6 +91,7 @@ __all__ = [
     "build_context_insertion_service",
     "build_external_url_action_runner",
     "build_prompt_document_service",
+    "build_prompt_editor_menu_runtime",
     "build_resize_handle",
     "bundle_collaborators",
     "is_deleted_qt_object_error",

@@ -293,7 +293,7 @@ def test_prompt_editor_lora_civitai_action_opens_token_url(
         model_page_url=model_page_url,
     )
 
-    presenter = cast(Any, editor)._inline_lora_menu_presenter
+    presenter = cast(Any, editor)._menu_runtime.inline_lora
     action = presenter.page_action_for_token_context(presenter.token_context(token))
 
     assert action is not None
@@ -329,7 +329,7 @@ def test_prompt_editor_lora_banner_menu_includes_refresh_action(
         model_page_url=model_page_url,
     )
 
-    presenter = cast(Any, editor)._inline_lora_menu_presenter
+    presenter = cast(Any, editor)._menu_runtime.inline_lora
     menu_items = presenter.metadata_actions_for_token_context(
         presenter.token_context(token)
     )
