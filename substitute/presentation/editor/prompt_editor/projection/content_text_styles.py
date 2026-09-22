@@ -18,9 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
 
 from PySide6.QtGui import QColor, QFont, QPalette
 
@@ -44,22 +42,27 @@ class PromptProjectionTextPaintStyle:
 
 
 class PromptProjectionBaseTextStyles:
-    """Own immutable base styles prepared once per projection and theme."""
+    """Own lazily prepared base styles for one projection and theme."""
 
     def __init__(
         self,
-        styles_by_run_id: Mapping[str, PromptProjectionTextPaintStyle],
+        projection_document: PromptProjectionDocument,
         *,
         fallback_font: QFont,
         fallback_color: QColor,
         selected_color: QColor,
+        palette: QPalette,
+        semantic_palette: SemanticPalette | None,
     ) -> None:
-        """Retain detached Qt values behind a read-only run mapping."""
+        """Retain style inputs and defer work until a run is actually painted."""
 
-        self._styles_by_run_id = MappingProxyType(dict(styles_by_run_id))
+        self._projection_document = projection_document
+        self._styles_by_run_id: dict[str, PromptProjectionTextPaintStyle] = {}
         self._fallback_font = QFont(fallback_font)
         self._fallback_color = QColor(fallback_color)
         self._selected_color = QColor(selected_color)
+        self._palette = QPalette(palette)
+        self._semantic_palette = semantic_palette
 
     @property
     def fallback_font(self) -> QFont:
@@ -80,9 +83,22 @@ class PromptProjectionBaseTextStyles:
         return self._selected_color
 
     def style_for_run(self, run_id: str) -> PromptProjectionTextPaintStyle | None:
-        """Return the prepared base style for one run identity."""
+        """Return one cached base style, preparing it on first visible use."""
 
-        return self._styles_by_run_id.get(run_id)
+        prepared = self._styles_by_run_id.get(run_id)
+        if prepared is not None:
+            return prepared
+        run = self._projection_document.run_by_id(run_id)
+        if run is None:
+            return None
+        prepared = text_style_for_run(
+            run,
+            base_font=self._fallback_font,
+            palette=self._palette,
+            semantic_palette=self._semantic_palette,
+        )
+        self._styles_by_run_id[run_id] = prepared
+        return prepared
 
 
 def prepare_base_text_styles(
@@ -92,22 +108,15 @@ def prepare_base_text_styles(
     palette: QPalette,
     semantic_palette: SemanticPalette | None,
 ) -> PromptProjectionBaseTextStyles:
-    """Prepare all base run styles during geometry or theme publication."""
+    """Prepare immutable style inputs without walking the full document."""
 
-    styles = {
-        run.run_id: text_style_for_run(
-            run,
-            base_font=base_font,
-            palette=palette,
-            semantic_palette=semantic_palette,
-        )
-        for run in projection_document.runs
-    }
     return PromptProjectionBaseTextStyles(
-        styles,
+        projection_document,
         fallback_font=base_font,
         fallback_color=palette.color(QPalette.ColorRole.Text),
         selected_color=palette.color(QPalette.ColorRole.HighlightedText),
+        palette=palette,
+        semantic_palette=semantic_palette,
     )
 
 

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from time import perf_counter, thread_time
+from collections.abc import Callable
 from typing import Any, cast
 
 from PySide6.QtTest import QTest
@@ -48,6 +49,7 @@ def dispatch_typed_text(
     runtime_telemetry: bool,
     counter_probe: PromptAbuseActionCounterProbe,
     counter_deltas: list[PromptAbuseActionOwnerDelta],
+    complete_action: Callable[[str | None], None] | None,
 ) -> tuple[PromptAbuseDispatchSample, ...]:
     """Dispatch and time every character while checking exact source order."""
 
@@ -95,6 +97,8 @@ def dispatch_typed_text(
                 if is_final_unit and action.expected_anchor_position is not None
                 else expected_start
             )
+            if complete_action is not None:
+                complete_action(checkpoint_source)
             source_exact = actual_source == checkpoint_source
             caret_exact = actual_cursor_position == checkpoint_cursor
             feature_exact, feature_mismatch = (
@@ -102,7 +106,10 @@ def dispatch_typed_text(
                 if is_final_unit
                 else (True, None)
             )
-            owner_state = capture_prompt_editor_owner_state(editor)
+            owner_state = capture_prompt_editor_owner_state(
+                editor,
+                validate_layout_fragments=False,
+            )
             samples.append(
                 PromptAbuseDispatchSample(
                     action_index=action_index,
@@ -161,7 +168,10 @@ def dispatch_typed_text(
                 )
             )
     if action.expected_source is not None and expected_source != action.expected_source:
-        owner_state = capture_prompt_editor_owner_state(editor)
+        owner_state = capture_prompt_editor_owner_state(
+            editor,
+            validate_layout_fragments=False,
+        )
         samples.append(
             PromptAbuseDispatchSample(
                 action_index=action_index,
@@ -221,6 +231,7 @@ def dispatch_event_drain(
     runtime_telemetry: bool,
     counter_probe: PromptAbuseActionCounterProbe,
     counter_deltas: list[PromptAbuseActionOwnerDelta],
+    complete_action: Callable[[str | None], None] | None,
 ) -> tuple[PromptAbuseDispatchSample, ...]:
     """Time each event-loop turn without instrumenting between drain cycles."""
 
@@ -239,6 +250,8 @@ def dispatch_event_drain(
             measured_cycles.append(
                 (dispatch_ms, dispatch_thread_cpu_ms, runtime_probe.finish_sample())
             )
+            if complete_action is not None:
+                complete_action(action.expected_source)
             counter_deltas.append(
                 counter_probe.finish_unit(
                     action_index=action_index,
@@ -251,7 +264,10 @@ def dispatch_event_drain(
         editor, action.expected_cursor_position
     )
     prompt_editor = cast(Any, editor)
-    owner_state = capture_prompt_editor_owner_state(editor)
+    owner_state = capture_prompt_editor_owner_state(
+        editor,
+        validate_layout_fragments=False,
+    )
     actual_source = str(prompt_editor.toPlainText())
     actual_cursor_position, actual_anchor_position = capture_prompt_cursor_positions(
         editor

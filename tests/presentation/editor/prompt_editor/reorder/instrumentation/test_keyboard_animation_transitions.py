@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -134,7 +138,7 @@ def test_reorder_keyboard_blank_line_animation_survives_overlay_resize(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
@@ -182,7 +186,7 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 

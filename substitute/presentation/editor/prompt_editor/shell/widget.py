@@ -39,7 +39,7 @@ class PromptEditorPublicWidgetBoundary:
 
 @dataclass(frozen=True, slots=True)
 class PromptEditorHostFacadeInventory:
-    """Classify every current ``PromptEditor`` method for Phase 20 extraction."""
+    """Classify every current ``PromptEditor`` method by authoritative owner."""
 
     public_compatibility: tuple[str, ...]
     lifecycle_signal_owner: tuple[str, ...]
@@ -47,7 +47,6 @@ class PromptEditorHostFacadeInventory:
     feature_action_presentation: tuple[str, ...]
     external_action_execution: tuple[str, ...]
     command_source_adapter: tuple[str, ...]
-    obsolete_internal_bridge: tuple[str, ...]
 
 
 PROMPT_EDITOR_PUBLIC_WIDGET_SIGNALS = (
@@ -150,9 +149,6 @@ PROMPT_EDITOR_PUBLIC_WIDGET_BOUNDARY = PromptEditorPublicWidgetBoundary(
 PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
     public_compatibility=(
         "__init__",
-        "_autocomplete_panel",
-        "_segment_overlay",
-        "_token_weight_control_overlay",
         "viewport",
         "verticalScrollBar",
         "document",
@@ -267,11 +263,6 @@ PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
         "execute_weight_action",
         "execute_reorder_action",
         "execute_source_replacement",
-    ),
-    obsolete_internal_bridge=(
-        "_refresh_scene_context_identity",
-        "_set_context_menu_insert_state_for_tests",
-        "_set_context_menu_selection_state_for_tests",
     ),
 )
 

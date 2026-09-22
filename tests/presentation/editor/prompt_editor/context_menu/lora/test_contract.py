@@ -17,8 +17,6 @@
 """Verify LoRA scheduling and trigger-word context-menu contracts."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from typing import Any, cast
 import pytest
 from PySide6.QtGui import QFontMetrics, QTextCursor
@@ -49,6 +47,7 @@ from tests.presentation.editor.prompt_editor.context_menu.menu_rows import (
 from tests.presentation.editor.prompt_editor.context_menu.trigger_actions import (
     trigger_words_action_for_lora,
 )
+from tests.support.prompt_editor.runtime_owners import set_context_menu_insert_state
 
 
 def test_prompt_editor_lora_context_menu_preserves_qfluent_text_actions(
@@ -274,7 +273,7 @@ def test_prompt_editor_trigger_action_uses_context_position_without_deleting_bla
     stale_cursor = editor.textCursor()
     stale_cursor.setPosition(7)
     editor.setTextCursor(stale_cursor)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=6)
+    set_context_menu_insert_state(editor, insert_position=6)
 
     action = trigger_words_action_for_lora(
         editor,
@@ -307,7 +306,8 @@ def test_prompt_editor_trigger_action_ignores_selection_created_by_context_click
     incidental_cursor.setPosition(7)
     incidental_cursor.setPosition(8, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(incidental_cursor)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(
+    set_context_menu_insert_state(
+        editor,
         insert_position=6,
         should_replace_selection=False,
     )
@@ -343,7 +343,7 @@ def test_prompt_editor_trigger_action_replaces_selection_like_paste(
     cursor.setPosition(7)
     cursor.setPosition(8, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=6)
+    set_context_menu_insert_state(editor, insert_position=6)
 
     action = trigger_words_action_for_lora(
         editor,

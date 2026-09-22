@@ -347,3 +347,11 @@ def flush_semantic_refresh(box: PromptEditor) -> None:
     )._runtime.core.syntax.interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
         reason="test"
     )
+
+
+def submit_scheduled_semantic_refresh(box: PromptEditor) -> None:
+    """Deliver queued semantics through the production debounce callback path."""
+
+    interaction = cast(Any, box)._runtime.core.syntax.interaction_controller  # noqa: SLF001
+    semantic_refresh = interaction._semantic_refresh  # noqa: SLF001
+    semantic_refresh._debouncer.flush(reason="test_scheduled")  # noqa: SLF001

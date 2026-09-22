@@ -151,7 +151,7 @@ class PromptProjectionPromptStateApplier:
         ensure_caret_visible: Callable[[], None],
         rebuild_projection: Callable[[], None],
         publish_active_span_range: Callable[[tuple[int, int] | None], None],
-        use_committed_active_projection: Callable[[], None],
+        reconcile_committed_active_projection: Callable[[], None],
         rebuild_active_projection: Callable[[bool], None],
     ) -> None:
         """Create an applier around a projection surface sink."""
@@ -162,7 +162,9 @@ class PromptProjectionPromptStateApplier:
         self._ensure_caret_visible = ensure_caret_visible
         self._rebuild_projection = rebuild_projection
         self._publish_active_span_range = publish_active_span_range
-        self._use_committed_active_projection = use_committed_active_projection
+        self._reconcile_committed_active_projection = (
+            reconcile_committed_active_projection
+        )
         self._rebuild_active_projection = rebuild_active_projection
 
     def set_prompt_state(
@@ -407,7 +409,7 @@ class PromptProjectionPromptStateApplier:
         host._editor_state.stage_edit_semantic(snapshot)
         host._editor_state.publish_projection(result.projection_document)
         self._publish_active_span_range(result.active_span_range)
-        self._use_committed_active_projection()
+        self._reconcile_committed_active_projection()
         self._frame_state.publish_layout(host._layout.frame.output)
         self._frame_state.publish_prepared_paint(
             host._layout.frame.output,
@@ -427,7 +429,7 @@ class PromptProjectionPromptStateApplier:
         projection_document = host._editor_state.projection.document
         host._editor_state.stage_edit_semantic(snapshot)
         host._editor_state.publish_projection(projection_document)
-        self._use_committed_active_projection()
+        self._reconcile_committed_active_projection()
         self._frame_state.publish_layout(host._layout.frame.output)
         self._frame_state.publish_prepared_paint(
             host._layout.frame.output,

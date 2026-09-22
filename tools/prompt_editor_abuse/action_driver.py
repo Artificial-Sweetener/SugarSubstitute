@@ -39,6 +39,8 @@ from .owner_state import (
 )
 from .runtime_probe import PromptAbuseRuntimeProbe
 
+type PromptAbuseActionCompletion = Callable[[str | None], None]
+
 
 def dispatch_action(
     host: PromptAbuseActionHost,
@@ -50,7 +52,7 @@ def dispatch_action(
     runtime_telemetry: bool = False,
     counter_probe: PromptAbuseActionCounterProbe | None = None,
     counter_deltas: list[PromptAbuseActionOwnerDelta] | None = None,
-    complete_action: Callable[[], None] | None = None,
+    complete_action: PromptAbuseActionCompletion | None = None,
 ) -> tuple[PromptAbuseDispatchSample, ...]:
     """Dispatch one action and return low-overhead timing evidence."""
 
@@ -68,6 +70,7 @@ def dispatch_action(
             runtime_telemetry=runtime_telemetry,
             counter_probe=counter_probe,
             counter_deltas=counter_deltas,
+            complete_action=complete_action,
         )
     if action.kind in {"event_turn", "drain_events"}:
         return dispatch_event_drain(
@@ -78,6 +81,7 @@ def dispatch_action(
             runtime_telemetry=runtime_telemetry,
             counter_probe=counter_probe,
             counter_deltas=counter_deltas,
+            complete_action=complete_action,
         )
     action_label = _action_label(action)
     counter_probe.begin_unit()
@@ -90,7 +94,7 @@ def dispatch_action(
         dispatch_ms = (perf_counter() - started_at) * 1_000.0
         runtime_sample = runtime_probe.finish_sample()
     if complete_action is not None:
-        complete_action()
+        complete_action(action.expected_source)
     source_exact = host.source_actions.source_matches(editor, action.expected_source)
     caret_exact = host.source_actions.caret_matches(
         editor, action.expected_cursor_position
@@ -99,7 +103,10 @@ def dispatch_action(
         editor, action.expected_anchor_position
     )
     feature_exact, feature_mismatch = host.capture_feature_checkpoint(editor, action)
-    owner_state = capture_prompt_editor_owner_state(editor)
+    owner_state = capture_prompt_editor_owner_state(
+        editor,
+        validate_layout_fragments=False,
+    )
     actual_cursor_position, actual_anchor_position = capture_prompt_cursor_positions(
         editor
     )
@@ -203,7 +210,7 @@ def _dispatch_single_action(
         host.source_actions.move_cursor(editor, action)
     elif action.kind == "resize":
         assert action.viewport_size is not None
-        cast(Any, editor).resize(*action.viewport_size)
+        host.resize_editor(editor, *action.viewport_size)
     elif action.kind == "scroll":
         host.scroll_editor(editor, action.value)
     elif action.kind == "focus_cycle":

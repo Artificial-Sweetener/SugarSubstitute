@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 from PySide6.QtCore import QLineF, QPoint, QRectF
@@ -80,11 +84,11 @@ def capture_source_line_chrome(
                 (color.red(), color.green(), color.blue(), color.alpha()),
             )
         )
-    segment_overlay = editor._segment_overlay
+    overlay = segment_overlay(editor)
     return PromptSourceLineChromeRenderProbe(
         label=label,
         reorder_overlay_active=bool(
-            isinstance(segment_overlay, QWidget) and segment_overlay.isVisible()
+            isinstance(overlay, QWidget) and overlay.isVisible()
         ),
         projection_preview_active=preview_frame is not None,
         line_colors=tuple(line_colors),
@@ -161,7 +165,8 @@ def capture_reorder_chip_chrome(
 ) -> PromptReorderChipChromeSnapshot:
     """Capture the paint owners and border style for one semantic reorder chip."""
 
-    overlay = cast(Any, field.editor)._segment_overlay
+    overlay = segment_overlay(field.editor)
+    assert overlay is not None
     publication = overlay._runtime.render.publication
     overlay_state = publication.overlay_state
     overlay_chips = (

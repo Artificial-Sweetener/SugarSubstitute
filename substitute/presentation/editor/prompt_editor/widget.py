@@ -114,12 +114,7 @@ from .composition import (
     build_prompt_editor_host_runtime,
 )
 from .features import PromptSegmentPresetSource
-from .interactions import PromptReorderOverlayPort
 from .interactions.cursor_adapter import PromptCursorAdapter
-from .overlays import (
-    PromptAutocompletePanel,
-    PromptTokenWeightControls,
-)
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
@@ -401,11 +396,6 @@ class PromptEditor(
             level="debug",
         )
 
-    @property
-    def _autocomplete_panel(self) -> PromptAutocompletePanel | None:
-        """Expose the live autocomplete panel for prompt-editor tests and wiring."""
-        return self._runtime.core.autocomplete.autocomplete.panel
-
     def _mounted_projection_or_none(self) -> PromptEditorProjectionCollaborators | None:
         """Return projection ownership when the staged runtime has published it."""
 
@@ -413,16 +403,6 @@ class PromptEditor(
         if not isinstance(runtime, PromptEditorRuntimeMount):
             return None
         return runtime.projection_or_none
-
-    @property
-    def _segment_overlay(self) -> PromptReorderOverlayPort | None:
-        """Expose the live segment reorder overlay for prompt-editor tests."""
-        return self._runtime.core.syntax.interaction_controller.segment_overlay
-
-    @property
-    def _token_weight_control_overlay(self) -> PromptTokenWeightControls:
-        """Expose the live token weight controls for prompt-editor tests."""
-        return self._runtime.core.syntax.token_weight_controls
 
     def viewport(self) -> QWidget:
         """Return the projection viewport used by prompt-editor overlays and tests."""
@@ -595,6 +575,18 @@ class PromptEditor(
         """Return whether projected presentation is waiting to catch up."""
 
         return self._runtime.projection.surface.has_pending_projection_update()
+
+    def requires_immediate_semantic_refresh(self) -> bool:
+        """Return whether the latest edit requires synchronous token semantics."""
+
+        return self._runtime.projection.surface.requires_immediate_semantic_refresh()
+
+    def requires_semantic_refresh_before_boundary(self) -> bool:
+        """Return whether the latest edit can change syntax at a boundary key."""
+
+        return (
+            self._runtime.projection.surface.requires_semantic_refresh_before_boundary()
+        )
 
     def flush_pending_projection_update(self, *, reason: str) -> None:
         """Synchronously apply pending projected presentation work."""
@@ -947,38 +939,6 @@ class PromptEditor(
 
         self._runtime.features.catalog_refresh.refresh_prompt_segment_presets(
             reason=reason
-        )
-
-    def _set_context_menu_insert_state_for_tests(
-        self,
-        *,
-        insert_position: int | None,
-        should_replace_selection: bool | None = None,
-    ) -> None:
-        """Set shell-owned context-menu insert state for compatibility tests."""
-
-        self._runtime.host.menu.shell.set_context_insert_state(
-            insert_position=insert_position,
-            should_replace_selection=should_replace_selection,
-        )
-
-    def _set_context_menu_selection_state_for_tests(
-        self,
-        *,
-        had_selection: bool | None,
-        selection_snapshot: tuple[int, int, str] | None,
-    ) -> None:
-        """Set shell-owned context-menu selection state for compatibility tests."""
-
-        selected_text = selection_snapshot[2] if selection_snapshot is not None else ""
-        self._runtime.host.menu.prompt_requests.prepare_prompt_menu_selection(
-            selected_text=selected_text,
-            selection_snapshot=selection_snapshot if had_selection else None,
-            reason="test_context_menu_selection_state",
-        )
-        self._runtime.host.menu.shell.set_selection_press_state(
-            had_selection=had_selection,
-            selection_snapshot=selection_snapshot,
         )
 
 

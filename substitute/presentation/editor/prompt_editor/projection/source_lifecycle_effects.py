@@ -34,7 +34,7 @@ class PromptProjectionSourceLifecycleEffectBindings:
     ensure_caret_visible: Callable[[], None]
     rebuild_projection: Callable[[], None]
     publish_active_span_range: Callable[[tuple[int, int] | None], None]
-    use_committed_active_projection: Callable[[], None]
+    reconcile_committed_active_projection: Callable[[], None]
     rebuild_active_projection: Callable[[bool], None]
     clear_reorder_for_source_change: Callable[[], None]
     invalidate_render_for_source_change: Callable[[bool], None]
@@ -73,10 +73,10 @@ class PromptProjectionSourceLifecycleEffects:
 
         self._require_bindings().publish_active_span_range(value)
 
-    def use_committed_active_projection(self) -> None:
-        """Restore committed active-projection state."""
+    def reconcile_committed_active_projection(self) -> None:
+        """Adopt committed state unless transient geometry remains authoritative."""
 
-        self._require_bindings().use_committed_active_projection()
+        self._require_bindings().reconcile_committed_active_projection()
 
     def rebuild_active_projection(self, commit_projection: bool) -> None:
         """Rebuild active-projection state with the requested commit policy."""
@@ -127,8 +127,8 @@ def bind_prompt_projection_source_lifecycle_effects(
                     )
                 )
             ),
-            use_committed_active_projection=(
-                lambda: presentation.active_projection.use_committed_projection()
+            reconcile_committed_active_projection=(
+                lambda: presentation.active_projection.reconcile_committed_projection()
             ),
             rebuild_active_projection=(
                 lambda commit: presentation.active_projection.rebuild(

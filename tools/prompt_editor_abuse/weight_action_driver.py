@@ -31,6 +31,8 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 )
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 
+from tests.support.prompt_editor.runtime_owners import token_weight_controls
+
 
 class PromptWeightActionDriver:
     """Own weighted-token pointer state and abuse action delivery."""
@@ -80,7 +82,7 @@ class PromptWeightActionDriver:
 
         prompt_editor = cast(PromptEditor, editor)
         token = _first_weighted_token(prompt_editor)
-        controls = prompt_editor._token_weight_control_overlay
+        controls = token_weight_controls(prompt_editor)
         _reveal_weight_controls(prompt_editor, token)
         control_rect = (
             controls.increase_rect if direction == "up" else controls.decrease_rect
@@ -108,7 +110,7 @@ class PromptWeightActionDriver:
             )
         viewport = prompt_editor.viewport()
         global_position = viewport.mapToGlobal(weight_rect.center().toPoint())
-        target = prompt_editor._token_weight_control_overlay
+        target = token_weight_controls(prompt_editor)
         QTest.mouseDClick(
             target,
             Qt.MouseButton.LeftButton,
@@ -152,7 +154,7 @@ def _reveal_weight_controls(
     if anchor_rect is None:
         raise RuntimeError("Prompt abuse weighted token has no control anchor.")
     viewport = prompt_editor.viewport()
-    controls = prompt_editor._token_weight_control_overlay
+    controls = token_weight_controls(prompt_editor)
     reset_point = QPoint(
         max(1, viewport.width() - 3),
         max(1, viewport.height() - 3),

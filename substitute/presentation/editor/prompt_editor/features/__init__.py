@@ -21,11 +21,7 @@ from ..commands.feature_commands import (
     PromptFeatureSnapshotIdentity,
 )
 
-from .catalog_snapshots import (
-    PHASE23_CATALOG_FOREGROUND_INVENTORY,
-    CatalogForegroundConsumer,
-    CatalogForegroundPathInventoryItem,
-    CatalogLookupClassification,
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
@@ -215,13 +211,9 @@ __all__ = [
     "PromptContextMenuSnapshotIdentity",
     "PromptContextMenuSnapshotReadiness",
     "PromptContextMenuSnapshotRequest",
-    "CatalogForegroundConsumer",
-    "CatalogForegroundPathInventoryItem",
-    "CatalogLookupClassification",
     "CatalogSnapshotIdentity",
     "CatalogSnapshotReadiness",
     "CatalogSnapshotStatus",
-    "PHASE23_CATALOG_FOREGROUND_INVENTORY",
     "PromptAutocompleteLoraCatalogSnapshotProvider",
     "PromptAutocompleteQueryController",
     "PromptAutocompleteQuerySourceSnapshot",

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from collections.abc import Iterator
 from typing import Any, cast
 
@@ -244,7 +248,7 @@ def _open_reorder_overlay(box: PromptEditor) -> SegmentReorderOverlay:
     app = _ensure_qapp()
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    return cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    return cast(SegmentReorderOverlay, segment_overlay(box))
 
 
 def _assert_plain_alt_keeps_surface_text_ownership(

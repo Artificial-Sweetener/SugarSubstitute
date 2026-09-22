@@ -35,6 +35,9 @@ from substitute.application.prompt_editor.diagnostics.spellcheck import (
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogLookup,
 )
+from substitute.presentation.editor.prompt_editor.async_work.scheduled_lora_dispatcher import (
+    PromptScheduledLoraContextCoordinator,
+)
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.devtools.prompt_editor_performance.fakes import (
     autocomplete_gateway,
@@ -223,7 +226,9 @@ def run_scenario(
 def configure_danbooru_import(editor: PromptEditor) -> None:
     """Configure deterministic Danbooru URL import for paste measurements."""
 
-    paste_import_controller = getattr(editor, "_danbooru_paste_import_controller")
+    paste_import_controller = (
+        editor._runtime.projection.danbooru_paste_import_controller
+    )
     paste_import_controller.configure_danbooru_url_import(
         danbooru_url_import_service(),
         enabled=True,
@@ -269,11 +274,10 @@ def prepare_context_menu_scenario(
 def prime_scheduled_lora_context(editor: PromptEditor) -> None:
     """Populate cached scheduled-LoRA context without resolving during menu open."""
 
-    autocomplete = editor._runtime.core.autocomplete.autocomplete
-    context_controller = getattr(autocomplete, "_scheduled_lora_context", None)
-    provider = getattr(context_controller, "_context_provider", None)
-    if provider is None:
-        return
+    provider = cast(
+        PromptScheduledLoraContextCoordinator,
+        editor._runtime.core.services.scheduled_lora_context_provider,
+    )
     prompt_text = editor.toPlainText()
     cache_key = provider.cache_key_for_prompt(prompt_text)
     provider.complete_for_tests(

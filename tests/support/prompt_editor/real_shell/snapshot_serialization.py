@@ -92,6 +92,8 @@ def snapshot_json(snapshot: PromptEditorStateSnapshot) -> dict[str, object]:
         "viewport_revision": snapshot.viewport_revision,
         "paint_revision": snapshot.paint_revision,
         "semantic_is_current": snapshot.semantic_is_current,
+        "semantic_refresh_pending": snapshot.semantic_refresh_pending,
+        "semantic_refresh_active": snapshot.semantic_refresh_active,
         "projection_is_current": snapshot.projection_is_current,
         "layout_is_current": snapshot.layout_is_current,
         "paint_is_current": snapshot.paint_is_current,

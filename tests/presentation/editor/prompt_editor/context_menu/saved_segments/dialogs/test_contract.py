@@ -17,9 +17,6 @@
 """Verify saved-segment dialog, selection, and insertion contracts."""
 
 from __future__ import annotations
-
-from __future__ import annotations
-from __future__ import annotations
 from typing import Any, cast
 import pytest
 from PySide6.QtGui import QTextCursor
@@ -57,6 +54,7 @@ from tests.presentation.editor.prompt_editor.context_menu.saved_segments.mountin
     _trigger_save_prompt_segment,
     create_prompt_editor_with_segments,
 )
+from tests.support.prompt_editor.runtime_owners import set_context_menu_selection_state
 
 
 def test_prompt_editor_save_segment_dialog_flow_preserves_selected_text(
@@ -250,7 +248,8 @@ def test_prompt_editor_save_segment_uses_pre_context_click_selection_snapshot(
     cursor.setPosition(0)
     cursor.setPosition(3, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
-    cast(Any, editor)._set_context_menu_selection_state_for_tests(
+    set_context_menu_selection_state(
+        editor,
         had_selection=True,
         selection_snapshot=(0, 3, "art"),
     )

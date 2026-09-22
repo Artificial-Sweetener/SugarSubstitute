@@ -113,9 +113,11 @@ class PromptActiveProjectionOwner:
 
         self._rendered_active_span_range = active_span_range
 
-    def use_committed_projection(self) -> None:
-        """Adopt the authoritative committed projection as the active document."""
+    def reconcile_committed_projection(self) -> None:
+        """Adopt committed geometry unless a transient document still owns layout."""
 
+        if self.requires_layout():
+            return
         self._document = self._editor_state.projection.document
 
     def publish_committed_projection(
@@ -125,7 +127,7 @@ class PromptActiveProjectionOwner:
     ) -> None:
         """Adopt a committed projection and its already-rendered active span."""
 
-        self.use_committed_projection()
+        self.reconcile_committed_projection()
         self.publish_rendered_active_span_range(active_span_range)
 
     def rebuild(self, *, commit_projection: bool = False) -> None:
@@ -176,8 +178,11 @@ class PromptActiveProjectionOwner:
         )
 
     def refresh_paint_state(self) -> None:
-        """Refresh geometry-neutral projection paint state from current session state."""
+        """Refresh paint state without discarding geometry-bearing transients."""
 
+        if self.requires_layout():
+            self.rebuild()
+            return
         self._refresh_paint_state_for(self._current_active_span_range())
 
     def reconcile_active_span(
@@ -187,6 +192,9 @@ class PromptActiveProjectionOwner:
         """Publish paint state when the visible active syntax span changes."""
 
         if active_span_range == self._rendered_active_span_range:
+            return
+        if self.requires_layout():
+            self.rebuild()
             return
         if self._display_mode() is not PromptProjectionDisplayMode.PROJECTED:
             self._rendered_active_span_range = active_span_range
@@ -201,6 +209,8 @@ class PromptActiveProjectionOwner:
     def try_apply_current_session_paint_state(self) -> bool:
         """Apply session-only projection changes when layout geometry is unchanged."""
 
+        if self.requires_layout():
+            return False
         result = self._applicator.apply_reusable_projection_paint_state(
             self._editor_state.projection_semantic.document,
             self._editor_state.projection_semantic.render_plan,
@@ -234,7 +244,7 @@ class PromptActiveProjectionOwner:
             self._layout.frame.output.projection_document
             is self._editor_state.projection.document
         ):
-            self.use_committed_projection()
+            self.reconcile_committed_projection()
             return
         log_prompt_editor_probe(
             "surface.restore_base_projection_layout.begin",
@@ -244,7 +254,7 @@ class PromptActiveProjectionOwner:
             self._editor_state.projection.document,
             prompt_document_view=self._editor_state.projection_semantic.document,
         )
-        self.use_committed_projection()
+        self.reconcile_committed_projection()
         self._synchronize_layout(False)
         self._viewport.update()
         log_prompt_editor_probe(

@@ -85,10 +85,14 @@ def snapshot_invariant_violations(
             "caret_state_cursor_mismatch:"
             f"{snapshot.caret_state_source_position}:{snapshot.cursor_position}"
         )
-    projection_is_allowed_to_lag = (
+    projection_is_deferred = (
         snapshot.projection_has_pending_update
         and snapshot.projection_has_stale_geometry
     )
+    semantics_are_deferred = (
+        snapshot.semantic_refresh_pending or snapshot.semantic_refresh_active
+    )
+    projection_is_allowed_to_lag = projection_is_deferred or semantics_are_deferred
     if not projection_is_allowed_to_lag:
         if not snapshot.semantic_is_current:
             violations.append("semantic_revision_lineage_stale")

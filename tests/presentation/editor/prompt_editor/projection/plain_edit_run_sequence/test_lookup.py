@@ -163,3 +163,27 @@ def test_position_lookup_honors_shared_run_boundary_preference() -> None:
     assert previous_run is not None
     assert next_run.run_id == "run:2"
     assert previous_run.run_id == "run:1"
+
+
+def test_stable_run_metadata_does_not_materialize_shifted_suffix() -> None:
+    """Identifier and reuse queries must remain independent of suffix length."""
+
+    base_runs = _CountingRunSequence(tuple(_run(index) for index in range(128)))
+    edited_run = _run(4)
+    runs = PromptProjectionPlainEditRunSequence(
+        base_runs,
+        edited_run_index=4,
+        edited_run=edited_run,
+        coordinates=PromptProjectionPlainEditCoordinates(
+            source_start=4,
+            source_end=4,
+            source_delta=1,
+            projection_start=4,
+            projection_delta=1,
+        ),
+    )
+
+    assert runs.preserves_run_identity("run:120")
+    assert not runs.preserves_run_identity("run:4")
+    assert runs.run_ids() == frozenset(f"run:{index}" for index in range(128))
+    assert base_runs.read_count <= 129

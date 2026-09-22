@@ -28,6 +28,7 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 )
 
 from .models import PromptAbuseAction
+from tests.support.prompt_editor.runtime_owners import lora_picker_presenter
 from .source_action_driver import PromptAbuseSourceActionDriver
 
 
@@ -49,7 +50,7 @@ class PromptAbuseFeatureActionDriver:
     def open_lora_picker(self, editor: object) -> None:
         """Open the production LoRA picker and require a visible populated popup."""
 
-        presenter = cast(Any, editor)._lora_picker_popup_presenter
+        presenter = lora_picker_presenter(editor)
         presenter.open_lora_picker()
         popup = presenter._popup
         if popup is None or not popup.isVisible():
@@ -61,7 +62,7 @@ class PromptAbuseFeatureActionDriver:
     def activate_first_lora_picker_item(self, editor: object) -> None:
         """Activate the first real picker row through its production signal."""
 
-        presenter = cast(Any, editor)._lora_picker_popup_presenter
+        presenter = lora_picker_presenter(editor)
         popup = presenter._popup
         if popup is None or not popup.isVisible():
             raise RuntimeError("Prompt abuse LoRA picker activation requires a popup.")

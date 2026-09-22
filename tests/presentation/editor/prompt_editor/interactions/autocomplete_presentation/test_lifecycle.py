@@ -66,6 +66,7 @@ class _RecordingPresenter:
 
         self.visible = visible
         self.presented_sessions: list[AutocompleteSession] = []
+        self.geometry_refreshes = 0
         self.hide_calls = 0
         self.activation_handler: Callable[[object], None] | None = None
         self.selection_changed_handler: Callable[[int], None] | None = None
@@ -130,6 +131,11 @@ class _RecordingPresenter:
 
         return self.visible
 
+    def refresh_geometry(self) -> None:
+        """Record one geometry-only presentation refresh."""
+
+        self.geometry_refreshes += 1
+
     def hide(self) -> None:
         """Record explicit hide requests."""
 
@@ -181,13 +187,14 @@ def test_geometry_refresh_reuses_prepared_session_without_query_work() -> None:
 
     lifecycle.refresh_geometry()
 
-    assert presenter.presented_sessions == [sessions.session]
-    assert sink.states[-1] is not None
+    assert presenter.presented_sessions == []
+    assert presenter.geometry_refreshes == 1
+    assert sink.states == []
     assert sessions.has_active_session() is True
 
 
-def test_hidden_panel_clears_existing_ghost_preview() -> None:
-    """Clear the projection preview if prepared panel presentation is unavailable."""
+def test_geometry_refresh_does_not_republish_or_clear_ghost_preview() -> None:
+    """Leave ghost publication to session and visibility transitions."""
 
     sessions = _active_sessions()
     presenter = _RecordingPresenter(visible=True)
@@ -201,12 +208,11 @@ def test_hidden_panel_clears_existing_ghost_preview() -> None:
         ghost_text_enabled=True,
     )
     lifecycle.refresh_geometry()
-    presenter.visible = False
-
     lifecycle.refresh_geometry()
 
-    assert presenter.presented_sessions == [sessions.session, sessions.session]
-    assert sink.states[-1] is None
+    assert presenter.presented_sessions == []
+    assert presenter.geometry_refreshes == 2
+    assert sink.states == []
 
 
 def test_inactive_geometry_refresh_does_not_request_panel_or_preview_work() -> None:
@@ -226,4 +232,5 @@ def test_inactive_geometry_refresh_does_not_request_panel_or_preview_work() -> N
     lifecycle.refresh_geometry()
 
     assert presenter.presented_sessions == []
+    assert presenter.geometry_refreshes == 0
     assert sink.states == []

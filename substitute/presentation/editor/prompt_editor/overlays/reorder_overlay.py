@@ -83,6 +83,8 @@ from ..interactions.reorder_interaction_metrics import (
 from .reorder_keyboard_interaction import (
     PromptReorderKeyboardVisualContext,
 )
+from .reorder_landing_models import PromptReorderLandingShadowCounters
+from .reorder_landing_state import PromptReorderLandingState
 from .reorder_pointer_regions import (
     PromptReorderPointerRegion,
 )
@@ -388,6 +390,14 @@ class SegmentReorderOverlay(QWidget):
         """Return deterministic reorder owner counters for diagnostics."""
 
         return self._runtime.performance.snapshot()
+
+    def landing_shadow_diagnostics(
+        self,
+    ) -> tuple[PromptReorderLandingState, PromptReorderLandingShadowCounters]:
+        """Return immutable landing state and counters from their shared owner."""
+
+        landing = self._runtime.performance.landing_preview
+        return landing.state.publication, landing.counters
 
     def show_overlay(self) -> None:
         """Show the overlay without changing prompt source."""

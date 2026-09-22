@@ -66,8 +66,20 @@ def capture_prompt_cursor_positions(editor: object) -> tuple[int, int]:
     return int(surface.cursor_position), int(surface.anchor_position)
 
 
-def capture_prompt_editor_owner_state(editor: object) -> PromptAbuseOwnerState:
-    """Return immediate owner agreement without processing queued events."""
+def capture_prompt_editor_owner_state(
+    editor: object,
+    *,
+    validate_layout_fragments: bool = True,
+) -> PromptAbuseOwnerState:
+    """Return immediate owner agreement without processing queued events.
+
+    Args:
+        editor: Mounted production prompt editor.
+        validate_layout_fragments: Whether to walk every layout fragment and
+            prove its semantic owner. Timed dispatch probes disable this
+            document-wide diagnostic; the separate visual correctness replay
+            enables it at every painted checkpoint.
+    """
 
     prompt_editor = cast(Any, editor)
     source_text = str(prompt_editor.toPlainText())
@@ -93,8 +105,10 @@ def capture_prompt_editor_owner_state(editor: object) -> PromptAbuseOwnerState:
     semantic_current = (
         None if semantic_source is None else semantic_source == source_text
     )
-    fragment_ownership_valid, fragment_ownership_mismatch = _layout_fragment_ownership(
-        surface
+    fragment_ownership_valid, fragment_ownership_mismatch = (
+        _layout_fragment_ownership(surface)
+        if validate_layout_fragments
+        else (None, None)
     )
     if projection_current is None or surface is None:
         return PromptAbuseOwnerState(

@@ -35,6 +35,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 )
 
 from ..async_work import PromptScheduledLoraContextProvider
+from ..async_work import PromptEditorDebouncer
 from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .lora_action_snapshots import (
     PromptLoraActionSnapshot,
@@ -60,6 +61,8 @@ class PromptLoraTriggerWordHost(Protocol):
 class PromptLoraTriggerWordController:
     """Coordinate one authoritative LoRA context and action projection boundary."""
 
+    DEFAULT_SOURCE_SETTLE_DELAY_MS = 90
+
     def __init__(
         self,
         *,
@@ -70,6 +73,7 @@ class PromptLoraTriggerWordController:
         catalog_revision: Callable[[], Hashable | None],
         trigger_words_enabled: Callable[[], bool],
         effective_prompts: Callable[[], tuple[str, ...]],
+        source_change_debouncer: PromptEditorDebouncer | None = None,
     ) -> None:
         """Store lifecycle, identity, and pure projection collaborators."""
 
@@ -78,6 +82,7 @@ class PromptLoraTriggerWordController:
         self._feature_profile_id = feature_profile_id
         self._catalog_revision = catalog_revision
         self._effective_prompts = effective_prompts
+        self._source_change_debouncer = source_change_debouncer
         self._projector = PromptLoraTriggerWordProjector(
             context_actions=PromptLoraContextActionController(
                 scheduled_lora_service=scheduled_lora_service,
@@ -90,6 +95,18 @@ class PromptLoraTriggerWordController:
 
     def handle_source_changed(self) -> None:
         """Warm authoritative scheduled-LoRA context after every source commit."""
+
+        debouncer = self._source_change_debouncer
+        if debouncer is None:
+            self.prewarm_current_source()
+            return
+        debouncer.request(
+            self._prewarm_after_source_settle,
+            reason="prompt_source_changed",
+        )
+
+    def _prewarm_after_source_settle(self) -> None:
+        """Warm the latest source after coalesced edits become idle."""
 
         self.prewarm_current_source()
 

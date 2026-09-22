@@ -16,6 +16,10 @@
 
 """Verify floating reorder widgets follow their mounted editor lifetime."""
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import cast
 
 from PySide6.QtCore import QCoreApplication, QEvent, Qt
@@ -43,7 +47,7 @@ def test_closed_overlay_can_receive_font_changes_and_reopen(
     real_shell_scenario.input.focus_editor(field)
     QTest.keyPress(field.editor, Qt.Key.Key_Alt)
     real_shell_scenario.wait_for_queued_delivery()
-    overlay = cast(SegmentReorderOverlay, getattr(field.editor, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(field.editor))
     proxy = overlay.drag_proxy_widget()
     overlay.close()
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
@@ -68,7 +72,7 @@ def test_destroyed_overlay_releases_proxy_from_surviving_visual_host(
     real_shell_scenario.input.focus_editor(field)
     QTest.keyPress(field.editor, Qt.Key.Key_Alt)
     real_shell_scenario.wait_for_queued_delivery()
-    overlay = cast(SegmentReorderOverlay, getattr(field.editor, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(field.editor))
     proxy = overlay.drag_proxy_widget()
     host = proxy.parentWidget()
     destroy_qt_object(overlay)

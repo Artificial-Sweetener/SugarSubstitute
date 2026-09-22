@@ -145,12 +145,18 @@ class _TimingEditor:
 class _LifecycleRequester:
     """Record lifecycle snapshots requested by timing tests."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, active_session: bool = True) -> None:
         """Initialize snapshot accounting."""
 
+        self.active_session = active_session
         self.retarget_snapshots: list[PromptAutocompleteSourceSnapshot] = []
         self.refresh_snapshots: list[PromptAutocompleteSourceSnapshot] = []
         self.dismiss_reasons: list[str] = []
+
+    def has_active_session(self) -> bool:
+        """Return whether timing should prepare immediate retarget work."""
+
+        return self.active_session
 
     def retarget_from_source_snapshot(
         self,
@@ -290,3 +296,4 @@ def test_lora_prefix_refreshes_without_edit_delay() -> None:
         controller.handle_post_key_press(key_event(Qt.Key.Key_A, text=text[-1]))
 
         assert timers[-1].started_intervals == [0]
+        assert lifecycle.retarget_snapshots == []

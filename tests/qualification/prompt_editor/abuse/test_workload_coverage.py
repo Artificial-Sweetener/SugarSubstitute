@@ -39,6 +39,8 @@ def test_hostile_workloads_cover_typing_edits_lifecycle_and_layout_pressure() ->
     assert {
         "mixed-destructive-editing",
         "paste-undo-redo",
+        "decoration-content-end-continuation",
+        "decorated-comma-boundary-navigation",
         "scene-marker-creation",
         "selection-replace-delete",
         "resize-wrap-churn",

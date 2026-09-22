@@ -530,7 +530,7 @@ kind = "structural"
 justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
 issue = "chore:SS-WAIVER-S156"
 review_by = 2026-12-15
-max_lines = 1115
+max_lines = 1129
 
 [[waivers]]
 id = "SS-WAIVER-S157"
@@ -541,7 +541,7 @@ kind = "structural"
 justification = "PromptEditor owns one host-facing QObject contract: the concrete QFluent widget identity, public compatibility methods and signals, Qt virtual lifecycle, and ordered publication of the mounted runtime behind that identity. Text, cursor, undo, projection, feature, focus, drag, clipboard, and sizing entry points must remain methods or overrides on the same QObject so callers, Qt dispatch, signal connections, parentage, and object lifetime agree. Extracting the thin delegations into another collaborator would either remove them from the public widget, retain forwarding shims with duplicate API ownership, or fragment one facade into mixins with no independent state, lifecycle, or change cadence; extracting Qt overrides would still require proxy overrides and split super-call and widget-lifetime invariants. Command, reorder, emphasis, staged runtime publication, shell callbacks, panel wheel routing, feature behavior, and projection behavior remain separate focused owners; this module only mounts and exposes them through the canonical widget contract."
 issue = "chore:SS-WAIVER-S157"
 review_by = 2026-12-15
-max_lines = 784
+max_lines = 747
 
 [[waivers]]
 id = "SS-WAIVER-R065"
@@ -1203,7 +1203,7 @@ kind = "structural"
 justification = "PromptSemanticRefreshController owns one stale-safe async refresh state machine. Queueing, flush, cancellation, task completion, freshness validation, source-identity rebase, publication, and failure logging all operate on the same active and pending request state."
 issue = "chore:SS-WAIVER-S037"
 review_by = 2026-12-15
-max_lines = 526
+max_lines = 529
 
 [[waivers]]
 id = "SS-WAIVER-S038"
@@ -1269,7 +1269,7 @@ kind = "structural"
 justification = "PromptWildcardAutocompletePresentation owns one asynchronous, cache-bounded wildcard query lifecycle. Request identity, cache identity, stale-result rejection, completion/failure publication, test completion hooks, and visible snapshot all share one state."
 issue = "chore:SS-WAIVER-S043"
 review_by = 2026-12-15
-max_lines = 574
+max_lines = 580
 
 [[waivers]]
 id = "SS-WAIVER-S044"
@@ -1368,7 +1368,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 613
+max_lines = 615
 
 [[waivers]]
 id = "SS-WAIVER-S054"
@@ -1640,7 +1640,7 @@ kind = "structural"
 justification = "This module owns one pure decision table for converting a prompt-abuse action and its measured counters into structural violations. The action classifications, counter limits, exact expectations, and violation formatting implement one atomic policy contract whose rules must be reviewed and changed together."
 issue = "chore:SS-WAIVER-S076"
 review_by = 2026-12-15
-max_lines = 630
+max_lines = 656
 
 [[waivers]]
 id = "SS-WAIVER-S077"
@@ -1651,7 +1651,7 @@ kind = "structural"
 justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities."
 issue = "chore:SS-WAIVER-S077"
 review_by = 2026-12-15
-max_lines = 611
+max_lines = 612
 
 [[waivers]]
 id = "SS-WAIVER-S078"
@@ -1673,7 +1673,7 @@ kind = "structural"
 justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
 issue = "chore:SS-WAIVER-S080"
 review_by = 2026-12-15
-max_lines = 569
+max_lines = 579
 
 [[waivers]]
 id = "SS-WAIVER-S150"

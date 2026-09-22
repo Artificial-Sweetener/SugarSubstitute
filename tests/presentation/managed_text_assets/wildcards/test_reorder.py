@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from pathlib import Path
 from typing import Any, cast
 
@@ -84,7 +88,7 @@ def test_wildcard_modal_alt_reorders_tags_within_and_across_values(
 
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     app.processEvents()
-    overlay = cast(QWidget, editor._segment_overlay)
+    overlay = cast(QWidget, segment_overlay(editor))
     assert len(cast(Any, overlay).pointer_region_rects()) == 5
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     app.processEvents()
@@ -217,7 +221,7 @@ def test_wildcard_modal_mouse_drag_preview_preserves_rendered_zebra(
 
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     app.processEvents()
-    overlay = cast(QWidget, editor._segment_overlay)
+    overlay = cast(QWidget, segment_overlay(editor))
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
     second_chip = _overlay_chip_by_segment_index(overlay, 1)
     _drag_reorder_chip_to_global(
@@ -288,7 +292,7 @@ def test_wildcard_modal_alt_reorders_csv_tags_without_moving_headers(
 
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     app.processEvents()
-    overlay = cast(QWidget, editor._segment_overlay)
+    overlay = cast(QWidget, segment_overlay(editor))
     assert len(cast(Any, overlay).pointer_region_rects()) == 5
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     app.processEvents()

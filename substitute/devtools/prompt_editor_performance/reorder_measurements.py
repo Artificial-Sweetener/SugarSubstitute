@@ -82,7 +82,7 @@ class ReorderPointerTarget:
 def current_reorder_overlay(editor: PromptEditor) -> SegmentReorderOverlay:
     """Return the active reorder overlay created by the real editor."""
 
-    overlay = getattr(editor, "_segment_overlay", None)
+    overlay = editor._runtime.core.syntax.interaction_controller.segment_overlay
     if not isinstance(overlay, SegmentReorderOverlay):
         raise RuntimeError("Alt did not create a prompt reorder overlay.")
     return overlay

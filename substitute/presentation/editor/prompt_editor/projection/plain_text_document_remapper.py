@@ -38,6 +38,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.runs import (
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
+    PromptProjectionTokenKind,
 )
 from substitute.presentation.text_coordinates import TextCoordinateMap
 
@@ -47,8 +48,12 @@ from .plain_edit_caret_sequence import (
     MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH,
     PromptProjectionPlainEditCaretStopSequence,
 )
-from .plain_edit_coordinates import PromptProjectionPlainEditCoordinates
+from .plain_edit_coordinates import (
+    PromptProjectionPlainEditCoordinates,
+    remap_source_position,
+)
 from .plain_edit_run_sequence import PromptProjectionPlainEditRunSequence
+from .plain_edit_token_sequence import PromptProjectionPlainEditTokenSequence
 from .plain_text_edit_policy import run_has_contiguous_source_positions
 
 
@@ -83,13 +88,33 @@ def apply_plain_text_document_edit(
         source_delta=source_delta,
         projection_delta=projection_delta,
     )
-    if editable_token_id is None:
-        coordinates = PromptProjectionPlainEditCoordinates(
-            source_start=edit.start,
-            source_end=edit.end,
-            source_delta=source_delta,
-            projection_start=first_dirty_projection_position,
-            projection_delta=projection_delta,
+    coordinates = PromptProjectionPlainEditCoordinates(
+        source_start=edit.start,
+        source_end=edit.end,
+        source_delta=source_delta,
+        projection_start=first_dirty_projection_position,
+        projection_delta=projection_delta,
+    )
+    editable_token = (
+        None
+        if editable_token_id is None
+        else previous_document.token_by_id(editable_token_id)
+    )
+    lazy_editable_token = (
+        editable_token
+        if editable_token is not None
+        and editable_token.kind is PromptProjectionTokenKind.EMPHASIS
+        else None
+    )
+    if editable_token_id is None or lazy_editable_token is not None:
+        next_edited_token = (
+            None
+            if lazy_editable_token is None
+            else _edit_text_content_token(
+                lazy_editable_token,
+                edit=edit,
+                source_delta=source_delta,
+            )
         )
         next_runs: Sequence[PromptProjectionRun] = PromptProjectionPlainEditRunSequence(
             previous_document.runs,
@@ -97,20 +122,22 @@ def apply_plain_text_document_edit(
             edited_run=next_edited_run,
             coordinates=coordinates,
         )
-        next_tokens: Sequence[PromptProjectionToken] = tuple(
-            _remap_token_after_source_edit(
-                token,
+        next_tokens: Sequence[PromptProjectionToken] = (
+            PromptProjectionPlainEditTokenSequence(
+                previous_document.tokens,
                 edit=edit,
-                delta=source_delta,
-                editable_content=False,
+                edited_token=next_edited_token,
             )
-            for token in previous_document.tokens
         )
-        if _plain_edit_supports_lazy_caret_transform(edit) and callable(
-            getattr(
-                previous_document.caret_map.stops,
-                "visual_index_for_state",
-                None,
+        if (
+            editable_token_id is None
+            and _plain_edit_supports_lazy_caret_transform(edit)
+            and callable(
+                getattr(
+                    previous_document.caret_map.stops,
+                    "visual_index_for_state",
+                    None,
+                )
             )
         ):
             edited_stops = PromptProjectionPlainEditCaretStopSequence(
@@ -304,7 +331,8 @@ def _edit_source_backed_text_run(
         display_text=next_display_text,
         source_positions=(
             range(run.source_start, next_source_end + 1)
-            if run_has_contiguous_source_positions(run)
+            if isinstance(run.source_positions, range)
+            and run_has_contiguous_source_positions(run)
             else next_source_positions
         ),
         projection_end=run.projection_end + projection_delta,
@@ -360,6 +388,30 @@ def _remap_token_after_source_edit(
     )
 
 
+def _edit_text_content_token(
+    token: PromptProjectionToken,
+    *,
+    edit: PromptProjectionIncrementalEdit,
+    source_delta: int,
+) -> PromptProjectionToken:
+    """Return one editable text token aligned to its updated source content."""
+
+    remapped = _remap_token_after_source_edit(
+        token,
+        edit=edit,
+        delta=source_delta,
+        editable_content=True,
+    )
+    if remapped.content_start is None or remapped.content_end is None:
+        raise ValueError("Editable text token has no content range.")
+    return replace(
+        remapped,
+        display_text=edit.next_source_text[
+            remapped.content_start : remapped.content_end
+        ],
+    )
+
+
 def _remap_optional_position_after_source_edit(
     position: int | None,
     *,
@@ -388,17 +440,15 @@ def _remap_position_after_source_edit(
     delta: int,
     move_insert_boundary: bool,
 ) -> int:
-    """Return a source position shifted across a non-overlapping edit."""
+    """Delegate one source position to the shared coordinate policy."""
 
-    if edit_start == edit_end:
-        if position > edit_start or (move_insert_boundary and position == edit_start):
-            return position + delta
-        return position
-    if position >= edit_end:
-        return position + delta
-    if position > edit_start:
-        return edit_start
-    return position
+    return remap_source_position(
+        position,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        delta=delta,
+        move_insert_boundary=move_insert_boundary,
+    )
 
 
 __all__ = ["apply_plain_text_document_edit"]

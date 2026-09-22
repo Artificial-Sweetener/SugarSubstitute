@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    token_weight_controls,
+)
+
 from typing import Any, cast
 
 
@@ -247,5 +251,5 @@ def token_weight_controls_for(box: PromptEditor) -> PromptTokenWeightControls:
 
     return cast(
         PromptTokenWeightControls,
-        getattr(box, "_token_weight_control_overlay"),
+        token_weight_controls(box),
     )

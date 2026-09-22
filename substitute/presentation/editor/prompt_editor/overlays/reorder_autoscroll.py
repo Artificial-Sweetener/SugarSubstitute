@@ -134,7 +134,7 @@ class PromptReorderAutoscrollOwner:
         self._target_refresh_count = 0
 
     def counters(self) -> dict[str, int]:
-        """Return test-facing autoscroll counters."""
+        """Return structured autoscroll lifecycle counters."""
 
         return {
             "autoscroll_pointer_update_count": self._pointer_update_count,
@@ -214,11 +214,6 @@ class PromptReorderAutoscrollOwner:
 
         self._direction = 0
         self._timer.stop()
-
-    def apply_step_for_tests(self) -> None:
-        """Advance one autoscroll tick deterministically in tests."""
-
-        self._apply_step()
 
     def _apply_step(self) -> None:
         """Advance the editor scrollbar one step while dragging near an edge."""

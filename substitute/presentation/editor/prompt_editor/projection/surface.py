@@ -787,6 +787,18 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return self._projection_freshness_controller.has_pending_update()
 
+    def requires_immediate_semantic_refresh(self) -> bool:
+        """Return whether the latest source edit requires current token semantics."""
+
+        return self._source_change_publication.requires_immediate_semantic_refresh()
+
+    def requires_semantic_refresh_before_boundary(self) -> bool:
+        """Return whether the latest edit can change syntax at a boundary key."""
+
+        return (
+            self._source_change_publication.requires_semantic_refresh_before_boundary()
+        )
+
     def flush_pending_projection_update(self, *, reason: str) -> None:
         """Synchronously apply pending projected presentation work."""
 
@@ -1180,6 +1192,12 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Keep the projection layout width in sync with the viewport."""
 
+        log_prompt_editor_probe(
+            "surface.resize",
+            old_size=event.oldSize(),
+            new_size=event.size(),
+            viewport_size=self.viewport().size(),
+        )
         super().resizeEvent(event)
         self._caret_state_owner.clear_visual_affinity(reset_preferred_x=True)
         if not self._projection_freshness_controller.has_stale_projection_geometry():

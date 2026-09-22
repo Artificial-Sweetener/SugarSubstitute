@@ -274,8 +274,8 @@ def build_prompt_projection_source_state_owners(
         ensure_caret_visible=bindings.lifecycle_effects.ensure_caret_visible,
         rebuild_projection=bindings.lifecycle_effects.rebuild_projection,
         publish_active_span_range=bindings.lifecycle_effects.publish_active_span_range,
-        use_committed_active_projection=(
-            bindings.lifecycle_effects.use_committed_active_projection
+        reconcile_committed_active_projection=(
+            bindings.lifecycle_effects.reconcile_committed_active_projection
         ),
         rebuild_active_projection=bindings.lifecycle_effects.rebuild_active_projection,
     )

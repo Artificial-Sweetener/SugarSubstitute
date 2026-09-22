@@ -159,6 +159,14 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             clear_diagnostic_fragment_cache=(
                 not can_preserve_diagnostic_fragment_cache
             ),
+            requires_immediate_semantic_refresh=(
+                projection_decision is None
+                or projection_decision.requires_immediate_semantic_refresh
+            ),
+            requires_semantic_refresh_before_boundary=(
+                projection_decision is None
+                or projection_decision.requires_semantic_refresh_before_boundary
+            ),
         )
         if emit_text_changed and refresh_caret_after_prompt_state:
             presentation_sink._caret_visibility_prompt_state_revision = (

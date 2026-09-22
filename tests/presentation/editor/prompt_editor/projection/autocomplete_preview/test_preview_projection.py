@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
@@ -28,6 +32,7 @@ from substitute.domain.prompt.features.models import (
     PromptEditorFeatureProfile,
     PromptFeatureDecision,
 )
+from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
 from substitute.presentation.editor.prompt_editor.autocomplete_preview_state import (
     PromptAutocompletePreviewState,
 )
@@ -108,6 +113,48 @@ def test_prompt_editor_autocomplete_preview_reflows_downstream_text(
     assert len(line_texts) > 1
     assert "".join(line_texts) == f"alpha {preview_suffix}omega"
     assert line_texts[-1].endswith("omega")
+
+
+def test_active_span_refresh_preserves_autocomplete_preview_layout_ownership(
+    widgets: list[QWidget],
+) -> None:
+    """Active-span paint refresh must keep transient preview geometry mounted."""
+
+    app = ensure_qapp()
+    box = create_prompt_editor(
+        prompt_autocomplete_gateway=StaticPromptAutocompleteGateway({}),
+    )
+    box.show()
+    box.setFocus()
+    box.setPlainText("alpha omega")
+    widgets.append(box)
+    process_events(app)
+
+    cursor = box.textCursor()
+    cursor.setPosition(len("alpha "))
+    box.setTextCursor(cursor)
+    process_events(app)
+
+    surface = surface_for(box)
+    surface.autocomplete_preview.set_preview_state(
+        PromptAutocompletePreviewState(
+            source_position=len("alpha "),
+            suffix_text="bright ",
+        )
+    )
+    process_events(app)
+
+    surface.set_active_span(
+        PromptSyntaxSpanView(kind="emphasis", start=0, end=5, depth=0),
+        cursor_position=len("alpha "),
+    )
+    process_events(app)
+
+    assert surface.active_projection_document().projection_text == "alpha bright omega"
+    assert (
+        surface._layout.frame.output.projection_document  # noqa: SLF001
+        is surface.active_projection_document()
+    )
 
 
 def test_prompt_editor_autocomplete_preview_does_not_mutate_source_or_undo(
@@ -291,7 +338,7 @@ def test_prompt_editor_disabled_ghost_text_keeps_autocomplete_panel(
     QTest.keyClicks(box, "1g")
     process_events(app)
 
-    panel = getattr(box, "_autocomplete_panel")
+    panel = autocomplete_panel(box)
     assert isinstance(panel, PromptAutocompletePanel)
     assert panel.is_panel_visible() is True
     assert box.toPlainText() == "1g"

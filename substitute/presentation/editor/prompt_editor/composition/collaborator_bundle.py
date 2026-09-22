@@ -148,7 +148,7 @@ class PromptEditorConstructionInputs:
 
 @dataclass(frozen=True, slots=True)
 class PromptEditorCollaborators:
-    """Name the collaborators that composition will construct in later Phase 1 steps."""
+    """Name the complete collaborator set constructed by editor composition."""
 
     lora_thumbnail_cache: PromptLoraThumbnailCache
     lora_thumbnail_preloader: PromptLoraThumbnailPreloader

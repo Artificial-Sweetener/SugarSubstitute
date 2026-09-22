@@ -20,6 +20,30 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .incremental_edit_contracts import PromptProjectionIncrementalEdit
+
+
+@dataclass(frozen=True, slots=True)
+class PromptSourceEditCoordinates:
+    """Carry source-only coordinates shared by token and run remapping."""
+
+    start: int
+    end: int
+    delta: int
+
+    @classmethod
+    def from_incremental_edit(
+        cls,
+        edit: PromptProjectionIncrementalEdit,
+    ) -> PromptSourceEditCoordinates:
+        """Return compact source coordinates for one incremental edit."""
+
+        return cls(
+            start=edit.start,
+            end=edit.end,
+            delta=len(edit.replacement_text) - (edit.end - edit.start),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class PromptProjectionPlainEditCoordinates:
@@ -32,4 +56,51 @@ class PromptProjectionPlainEditCoordinates:
     projection_delta: int
 
 
-__all__ = ["PromptProjectionPlainEditCoordinates"]
+def remap_source_position(
+    position: int,
+    *,
+    edit_start: int,
+    edit_end: int,
+    delta: int,
+    move_insert_boundary: bool,
+) -> int:
+    """Return one position shifted across a non-overlapping source edit."""
+
+    if edit_start == edit_end:
+        if position > edit_start or (move_insert_boundary and position == edit_start):
+            return position + delta
+        return position
+    if position >= edit_end:
+        return position + delta
+    if position > edit_start:
+        return edit_start
+    return position
+
+
+def remap_optional_source_position(
+    position: int | None,
+    *,
+    edit_start: int,
+    edit_end: int,
+    delta: int,
+    move_insert_boundary: bool,
+) -> int | None:
+    """Return an optional position shifted across one source edit."""
+
+    if position is None:
+        return None
+    return remap_source_position(
+        position,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        delta=delta,
+        move_insert_boundary=move_insert_boundary,
+    )
+
+
+__all__ = [
+    "PromptProjectionPlainEditCoordinates",
+    "PromptSourceEditCoordinates",
+    "remap_optional_source_position",
+    "remap_source_position",
+]

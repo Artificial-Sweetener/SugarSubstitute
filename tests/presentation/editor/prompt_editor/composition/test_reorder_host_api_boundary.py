@@ -470,7 +470,6 @@ def _host_facade_inventory_methods() -> set[str]:
         *PROMPT_EDITOR_HOST_FACADE_INVENTORY.feature_action_presentation,
         *PROMPT_EDITOR_HOST_FACADE_INVENTORY.external_action_execution,
         *PROMPT_EDITOR_HOST_FACADE_INVENTORY.command_source_adapter,
-        *PROMPT_EDITOR_HOST_FACADE_INVENTORY.obsolete_internal_bridge,
     }
 
 

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 
+from collections.abc import Callable
 from typing import Any, cast
 
 from substitute.application.prompt_editor.lora.scheduled import (
@@ -43,6 +44,46 @@ from .support import (
     _metadata_owners,
     _trigger_controller,
 )
+
+
+class _ManualDebouncer:
+    """Expose deterministic delivery for source-prewarm scheduling tests."""
+
+    def __init__(self) -> None:
+        """Create an idle callback owner."""
+
+        self._callback: Callable[[], None] | None = None
+
+    @property
+    def is_pending(self) -> bool:
+        """Return whether a callback awaits delivery."""
+
+        return self._callback is not None
+
+    def request(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Retain only the latest non-blank request."""
+
+        assert reason
+        self._callback = callback
+
+    def flush(self, *, reason: str) -> bool:
+        """Deliver and clear the pending callback."""
+
+        assert reason
+        callback = self._callback
+        self._callback = None
+        if callback is None:
+            return False
+        callback()
+        return True
+
+    def cancel(self, *, reason: str) -> bool:
+        """Clear the pending callback without delivery."""
+
+        assert reason
+        pending = self._callback is not None
+        self._callback = None
+        return pending
 
 
 def test_lora_metadata_controller_uses_matching_cached_action_snapshot() -> None:
@@ -354,4 +395,29 @@ def test_trigger_word_controller_prewarms_raw_and_effective_scene_prompts() -> N
 
     controller.handle_source_changed()
 
+    assert host.prewarm_prompts == [host.toPlainText(), "scene-a", "scene-b"]
+
+
+def test_trigger_word_controller_coalesces_source_prewarm_when_scheduled() -> None:
+    """Keep source commits fast while warming the latest effective prompts."""
+
+    host = _LoraMetadataHost()
+    debouncer = _ManualDebouncer()
+    controller = PromptLoraTriggerWordController(
+        host=host,
+        scheduled_lora_service=PromptScheduledLoraService(),
+        scheduled_lora_context=cast(Any, host),
+        feature_profile_id=lambda: "profile-a",
+        catalog_revision=lambda: "catalog-a",
+        trigger_words_enabled=lambda: True,
+        effective_prompts=lambda: ("scene-a", "scene-b"),
+        source_change_debouncer=debouncer,
+    )
+
+    controller.handle_source_changed()
+    controller.handle_source_changed()
+
+    assert debouncer.is_pending
+    assert host.prewarm_prompts == []
+    assert debouncer.flush(reason="test")
     assert host.prewarm_prompts == [host.toPlainText(), "scene-a", "scene-b"]
