@@ -178,6 +178,8 @@ from .geometry.models import PromptProjectionSourceLineRect
 from .command_facade import PromptEditorCommandFacade
 from .emphasis_facade import PromptEditorEmphasisFacade
 from .reorder_facade import PromptEditorReorderFacade
+from .rendering_facade import build_prompt_editor_rendering_facade
+from .scene_facade import build_prompt_editor_scene_facade
 from .shell import (
     PromptEditorShell,
     PromptFillPlane,
@@ -562,6 +564,11 @@ class PromptEditor(
         self._autocomplete_query_result_lifecycle = (
             autocomplete_collaborators.query_result_lifecycle
         )
+        self._scene_facade = build_prompt_editor_scene_facade(
+            self,
+            self._scene_context_publication,
+            self._autocomplete_query_result_lifecycle,
+        )
         construction_observer.log_timing(
             "Initialized prompt editor autocomplete services",
             started_at=phase_started_at,
@@ -605,6 +612,11 @@ class PromptEditor(
             syntax_collaborators.syntax_renderer_coordinator
         )
         self._interaction_controller = syntax_collaborators.interaction_controller
+        self._rendering_facade = build_prompt_editor_rendering_facade(
+            self._surface,
+            self._interaction_controller,
+            self.richPromptRenderingEnabledChanged.emit,
+        )
         self._key_router = build_prompt_editor_key_router(
             self._interaction_controller,
             self._surface,
@@ -989,35 +1001,12 @@ class PromptEditor(
     def set_scene_autocomplete_titles(self, titles: tuple[str, ...]) -> None:
         """Replace workflow scene titles offered by line-start autocomplete."""
 
-        self._refresh_scene_context_identity()
-        self._scene_context_publication.set_scene_autocomplete_titles(titles)
-        self._autocomplete_query_result_lifecycle.refresh_active_scene_session()
+        self._scene_facade.set_autocomplete_titles(titles)
 
     def set_queueable_scene_keys(self, scene_keys: frozenset[str]) -> None:
         """Replace normalized scene keys that may be queued from this editor."""
 
-        self._refresh_scene_context_identity()
-        self._scene_context_publication.set_queueable_scene_keys(scene_keys)
-
-    def _refresh_scene_context_identity(self) -> None:
-        """Publish current editor metadata identity to the scene feature owner."""
-
-        metadata = self.property("input_metadata")
-        if not isinstance(metadata, dict):
-            self._scene_context_publication.set_context_identity(
-                cube_context_id=None,
-                scene_context_id=None,
-            )
-            return
-        cube_context_id = (
-            metadata.get("cube_alias"),
-            metadata.get("node_name"),
-            metadata.get("key"),
-        )
-        self._scene_context_publication.set_context_identity(
-            cube_context_id=cube_context_id,
-            scene_context_id=cube_context_id,
-        )
+        self._scene_facade.set_queueable_keys(scene_keys)
 
     def textCursor(self) -> PromptCursorAdapter:
         """Return the source-backed cursor wrapper used by controller seams."""
@@ -1083,18 +1072,17 @@ class PromptEditor(
     def displayMode(self) -> PromptProjectionDisplayMode:  # noqa: N802
         """Return the current visible prompt display mode."""
 
-        return self._surface.display_mode()
+        return self._rendering_facade.display_mode
 
     def setDisplayMode(self, display_mode: PromptProjectionDisplayMode) -> None:  # noqa: N802
         """Replace the visible prompt display mode without changing source text."""
 
-        self._surface.set_display_mode(display_mode)
-        self._interaction_controller.handle_cursor_position_changed()
+        self._rendering_facade.set_display_mode(display_mode)
 
     def richPromptRenderingEnabled(self) -> bool:  # noqa: N802
         """Return whether rich projected prompt rendering is enabled."""
 
-        return self.displayMode() is PromptProjectionDisplayMode.PROJECTED
+        return self._rendering_facade.rich_rendering_enabled
 
     def field_action_entries(
         self,
@@ -1112,15 +1100,7 @@ class PromptEditor(
     def setRichPromptRenderingEnabled(self, enabled: bool) -> None:  # noqa: N802
         """Toggle rich prompt rendering and exact source editing."""
 
-        previous_enabled = self.richPromptRenderingEnabled()
-        if enabled:
-            self._surface.set_exact_source_editing_enabled(False)
-            self.setDisplayMode(PromptProjectionDisplayMode.PROJECTED)
-        else:
-            self._surface.set_exact_source_editing_enabled(True)
-            self.setDisplayMode(PromptProjectionDisplayMode.RAW)
-        if previous_enabled != enabled:
-            self.richPromptRenderingEnabledChanged.emit(enabled)
+        self._rendering_facade.set_rich_rendering_enabled(enabled)
 
     def source_range_fragments(
         self,
