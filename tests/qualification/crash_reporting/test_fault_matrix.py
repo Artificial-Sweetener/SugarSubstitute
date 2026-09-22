@@ -219,7 +219,8 @@ def test_real_process_fault_is_durable_and_presented(
     assert f"Kind: {expected.kind.value}" in report_text
     assert "\r" not in report_text
     assert "termination_reason: unknown" in report_text
-    assert "Runtime context\n---------------\n" in report_text
+    assert "Runtime and system information" in report_text
+    assert "Operating system:" in report_text
     assert "Diagnostic logs\n---------------\n[startup-output.log]" in report_text or (
         "Diagnostic logs\n---------------\n[python-fault.log]" in report_text
         and "[startup-output.log]" in report_text
@@ -317,7 +318,7 @@ def test_real_readiness_termination_is_actionable_startup_failure(
     assert len(incidents) == 1
     incident = incidents[0]
     assert raised.value.incident_id == incident.incident_id
-    assert incident.kind is CrashKind.STARTUP
+    assert incident.kind is CrashKind.STARTUP_READINESS_TIMEOUT
     assert incident.attribution is CrashAttribution.CONFIRMED
     assert incident.exit_code == 1
     assert incident.metadata["termination_reason"] == "readiness_failure"

@@ -104,6 +104,7 @@ class LauncherGenerationSupervisor:
                     termination=SupervisedTermination(
                         SupervisedTerminationReason.GENERATION_READINESS_FAILURE,
                         str(error),
+                        error.diagnostics,
                     ),
                 )
                 if classified.return_code == 0 and classified.incident_id is None:

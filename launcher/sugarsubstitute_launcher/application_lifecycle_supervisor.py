@@ -121,6 +121,7 @@ class ApplicationLifecycleSupervisor:
                     termination=SupervisedTermination(
                         SupervisedTerminationReason.READINESS_FAILURE,
                         str(error),
+                        error.diagnostics,
                     ),
                 )
                 if outcome.incident_id is None:

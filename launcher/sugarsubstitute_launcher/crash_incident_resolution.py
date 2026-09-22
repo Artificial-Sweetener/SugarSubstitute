@@ -46,6 +46,9 @@ from sugarsubstitute_shared.crash_reporting.run_context import (
     CrashRunRuntimeContext,
     CrashRunRuntimeContextStore,
 )
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+)
 
 
 def resolve_process_incident(
@@ -61,6 +64,7 @@ def resolve_process_incident(
     launch_arguments: tuple[str, ...],
     termination: SupervisedTermination,
     exit_evidence: CleanExitEvidence,
+    diagnostic_context: CrashDiagnosticContext | None,
 ) -> CrashIncident:
     """Enrich in-process evidence or synthesize an accurate termination report."""
 
@@ -103,6 +107,7 @@ def resolve_process_incident(
             diagnostic_attachments=evidence.attachment_names,
             runtime_context=runtime_context,
             metadata=metadata,
+            diagnostic_context=diagnostic_context,
         )
         evidence_promoter.retire(evidence)
         return incident
@@ -129,6 +134,7 @@ def resolve_process_incident(
         launch_arguments=runtime_context.launch_arguments,
         attachments=evidence.attachment_names,
         metadata=metadata,
+        diagnostic_context=diagnostic_context,
     )
     store.record(incident)
     evidence_promoter.retire(evidence)
@@ -159,6 +165,7 @@ def _enrich_existing_incident(
     diagnostic_attachments: tuple[str, ...],
     runtime_context: CrashRunRuntimeContext,
     metadata: dict[str, str],
+    diagnostic_context: CrashDiagnosticContext | None,
 ) -> CrashIncident:
     """Add supervisor evidence without replacing authoritative in-process facts."""
 
@@ -178,6 +185,7 @@ def _enrich_existing_incident(
         python_version=existing.python_version or runtime_context.python_version,
         launch_arguments=existing.launch_arguments or runtime_context.launch_arguments,
         metadata={**existing.metadata, **metadata},
+        diagnostic_context=existing.diagnostic_context or diagnostic_context,
     )
     store.record(incident)
     return incident
@@ -194,7 +202,11 @@ def _synthesized_termination(
 
     if termination.is_startup_failure:
         return (
-            CrashKind.STARTUP,
+            (
+                CrashKind.STARTUP_READINESS_TIMEOUT
+                if termination.metadata.get("readiness_failure_kind") == "timeout"
+                else CrashKind.STARTUP
+            ),
             CrashBoundary.SUPERVISOR,
             CrashAttribution.CONFIRMED,
             "SugarSubstitute did not complete startup before its process ended.",
@@ -267,6 +279,7 @@ def _termination_metadata(
         metadata["exit_receipt_outcome"] = exit_evidence.receipt[0].value
     if termination.detail:
         metadata["termination_detail"] = termination.detail
+    metadata.update(termination.metadata)
     return metadata
 
 

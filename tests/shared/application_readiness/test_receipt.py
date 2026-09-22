@@ -18,11 +18,15 @@
 
 from __future__ import annotations
 
+import pytest
+
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_COMPATIBILITY_SCHEMA_VERSION,
     READINESS_SCHEMA_VERSION,
     REQUIRED_READINESS_MILESTONES,
+    without_application_readiness_environment,
 )
 
 
@@ -90,6 +94,22 @@ def test_schema_four_receipt_remains_parseable_without_attestation_chain() -> No
     assert receipt.attester_pids == ()
 
 
+def test_current_receipt_can_write_the_schema_four_compatibility_contract() -> None:
+    """Emit the exact milestone contract accepted by deployed v0.23 launchers."""
+
+    payload = ApplicationReadinessReceipt(
+        pid=123,
+        parent_pid=122,
+        token="legacy-token",
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+        attester_pids=(121,),
+    ).to_json(schema_version=READINESS_COMPATIBILITY_SCHEMA_VERSION)
+
+    assert payload["schema_version"] == 4
+    assert "attester_pids" not in payload
+    assert ApplicationReadinessReceipt.from_json(payload).attester_pids == ()
+
+
 def test_current_receipt_rejects_invalid_attestation_chain() -> None:
     """Reject non-positive or non-integer process identities in the chain."""
 
@@ -107,3 +127,50 @@ def test_current_receipt_rejects_invalid_attestation_chain() -> None:
         pass
     else:
         raise AssertionError("Current readiness evidence accepted an invalid chain.")
+
+
+@pytest.mark.parametrize("schema_version", range(1, READINESS_SCHEMA_VERSION + 1))
+def test_receipt_serializes_for_every_supported_supervisor_schema(
+    schema_version: int,
+) -> None:
+    """A current launcher must relay readiness to every historical supervisor."""
+
+    source = ApplicationReadinessReceipt(
+        pid=123,
+        parent_pid=122,
+        token="launch-token",
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+        attester_pids=(121,),
+    )
+
+    payload = source.to_json(schema_version=schema_version)
+    parsed = ApplicationReadinessReceipt.from_json(payload)
+
+    assert payload["schema_version"] == schema_version
+    assert parsed.pid == source.pid
+    assert parsed.token == source.token
+    assert ("parent_pid" in payload) is (schema_version >= 3)
+    assert ("milestones" in payload) is (schema_version >= 4)
+    assert ("attester_pids" in payload) is (schema_version >= 5)
+    if schema_version == 1:
+        assert parsed.surface is ApplicationReadinessSurface.LEGACY_VISIBLE_SHELL
+    else:
+        assert parsed.surface is source.surface
+
+
+def test_detached_environment_removes_every_readiness_contract() -> None:
+    """A top-level relaunch must not retain direct or delegated readiness state."""
+
+    source = {
+        "SUGAR_SUBSTITUTE_READINESS_PATH": "direct.json",
+        "SUGAR_SUBSTITUTE_READINESS_TOKEN": "direct-token",
+        "SUGAR_SUBSTITUTE_READINESS_SCHEMA": "5",
+        "SUGAR_SUBSTITUTE_READINESS_DELEGATION_PATH": "outer.json",
+        "SUGAR_SUBSTITUTE_READINESS_DELEGATION_TOKEN": "outer-token",
+        "SUGAR_SUBSTITUTE_READINESS_DELEGATION_SCHEMA": "3",
+        "PRESERVED": "yes",
+    }
+
+    detached = without_application_readiness_environment(source)
+
+    assert detached == {"PRESERVED": "yes"}

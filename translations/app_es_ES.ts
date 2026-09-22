@@ -1784,6 +1784,11 @@ Está tardando mucho más de lo esperado</translation>
       <translation>ComfyUI puede continuar iniciándose, pero algunos flujos de trabajo de SugarCubes podrían necesitar atención antes de ejecutarse correctamente.</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="212"></location>
+      <source>ComfyUI commit</source>
+      <translation>Commit de ComfyUI</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="476"></location>
       <source>ComfyUI connection</source>
       <translation>Conexión con ComfyUI</translation>
@@ -1997,6 +2002,11 @@ Está tardando mucho más de lo esperado</translation>
       <location filename="../substitute/application/generation/failure_summary.py" line="88"></location>
       <source>ComfyUI unavailable</source>
       <translation>ComfyUI no disponible</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="211"></location>
+      <source>ComfyUI version</source>
+      <translation>Versión de ComfyUI</translation>
     </message>
     <message>
       <location filename="../substitute/application/error_report_builder.py" line="264"></location>
@@ -2587,7 +2597,7 @@ Install these nodes now?</source>
       <translation>Dispositivos: %1</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="115"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="119"></location>
       <source>Diagnostic logs</source>
       <translation>Registros de diagnóstico</translation>
     </message>
@@ -3150,6 +3160,11 @@ Install these nodes now?</source>
       <translation>Licencia Pública General de GNU v3</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="223"></location>
+      <source>GPU</source>
+      <translation>Procesador gráfico (GPU)</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="444"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>El reinicio de la interfaz no está disponible en esta sesión.</translation>
@@ -3535,6 +3550,11 @@ Install these nodes now?</source>
       <translation>Nodos personalizados instalados</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="208"></location>
+      <source>Installed launcher version</source>
+      <translation>Versión del iniciador instalado</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1177"></location>
       <source>Installed packages</source>
       <translation>Paquetes instalados</translation>
@@ -3688,6 +3708,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/error_report_builder.py" line="293"></location>
       <source>Launch args: %1</source>
       <translation>Argumentos de inicio: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="226"></location>
+      <source>Launch arguments</source>
+      <translation>Argumentos de inicio</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="434"></location>
@@ -3873,6 +3898,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="109"></location>
       <source>Log excerpt:</source>
       <translation>Fragmento del registro:</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="219"></location>
+      <source>Logical processor count</source>
+      <translation>Número de procesadores lógicos</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="323"></location>
@@ -4662,6 +4692,11 @@ Usaré el mío.</translation>
       <translation>Abre esta instalación de ComfyUI con el acceso directo, script o iniciador que uses habitualmente. Substitute la detectará automáticamente.</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="213"></location>
+      <source>Operating system</source>
+      <translation>Sistema operativo</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/error_report_builder.py" line="233"></location>
       <source>Operation</source>
       <translation>Operación</translation>
@@ -4820,6 +4855,11 @@ Usaré el mío.</translation>
       <location filename="../substitute/presentation/onboarding/onboarding_connection_settings.py" line="170"></location>
       <source>Performance and updates</source>
       <translation>Rendimiento y actualizaciones</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="222"></location>
+      <source>Physical memory</source>
+      <translation>Memoria física</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="65"></location>
@@ -5052,6 +5092,11 @@ Usaré el mío.</translation>
       <translation>Coincidencia anterior (Mayús+Intro)</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="217"></location>
+      <source>Processor</source>
+      <translation>Procesador</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="228"></location>
       <source>Project</source>
       <translation>Proyecto</translation>
@@ -5117,9 +5162,19 @@ Usaré el mío.</translation>
       <translation>Versión de PyTorch: %1</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="215"></location>
+      <source>Python</source>
+      <translation>Entorno Python</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="918"></location>
       <source>Python %1 at %2</source>
       <translation>Python %1 en %2</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="216"></location>
+      <source>Python architecture</source>
+      <translation>Arquitectura de Python</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="190"></location>
@@ -5215,6 +5270,11 @@ Usaré el mío.</translation>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="193"></location>
       <source>Readiness errors</source>
       <translation>Errores de disponibilidad</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="224"></location>
+      <source>Readiness schema</source>
+      <translation>Esquema de disponibilidad</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="144"></location>
@@ -5814,11 +5874,6 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/application/error_report_builder.py" line="260"></location>
       <source>Runtime and system information</source>
       <translation>Información del entorno de ejecución y del sistema</translation>
-    </message>
-    <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="127"></location>
-      <source>Runtime context</source>
-      <translation>Contexto de ejecución</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="252"></location>
@@ -7045,9 +7100,19 @@ La Licencia Pública General de GNU, versión 3, protege tu derecho a usar el pr
 En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir tus cambios. El texto completo de la licencia GPLv3 está disponible en esta pantalla y constituye la autoridad legal que rige estos derechos y responsabilidades.</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="196"></location>
+      <source>SugarSubstitute payload version</source>
+      <translation>Versión de la carga de SugarSubstitute</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/about/models.py" line="26"></location>
       <source>SugarSubstitute provides a focused PySide6 workspace for ComfyUI, with cube-based workflow composition, managed model metadata, prompt tooling, and integrated image canvas workflows.</source>
       <translation>SugarSubstitute ofrece un espacio de trabajo específico de PySide6 para ComfyUI, con composición de flujos de trabajo mediante cubos, metadatos administrados de modelos, herramientas para prompts y flujos integrados de lienzos de imágenes.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="200"></location>
+      <source>SugarSubstitute recorded release version</source>
+      <translation>Versión de lanzamiento registrada de SugarSubstitute</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_compatibility.py" line="67"></location>
@@ -7093,6 +7158,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1660"></location>
       <source>Summary unavailable</source>
       <translation>Resumen no disponible</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="204"></location>
+      <source>Supervising launcher version</source>
+      <translation>Versión del iniciador supervisor</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1761"></location>
@@ -7160,6 +7230,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="912"></location>
       <source>Synced %1.</source>
       <translation>Se sincronizó %1.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="214"></location>
+      <source>System architecture</source>
+      <translation>Arquitectura del sistema</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/generation_page.py" line="279"></location>

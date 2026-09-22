@@ -33,6 +33,7 @@ from launcher.sugarsubstitute_launcher.update_activation import (
 )
 from launcher.sugarsubstitute_launcher.update_activation_journal import (
     UpdateRecoveryError,
+    update_journal_path,
 )
 from launcher.sugarsubstitute_launcher.update_activation_recovery import (
     recover_interrupted_update,
@@ -70,7 +71,7 @@ def test_pending_update_rolls_back_app_runtime_and_state(tmp_path: Path) -> None
     assert (layout.app_dir / "version.txt").read_text() == "old-app"
     assert (layout.runtime_dir / "version.txt").read_text() == "old-runtime"
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.3.0"
-    assert not (layout.launcher_dir / "pending-app-update.json").exists()
+    assert not update_journal_path(layout).exists()
 
 
 def test_pending_update_commit_advances_state_and_removes_backups(
@@ -107,7 +108,7 @@ def test_pending_update_commit_advances_state_and_removes_backups(
     assert (layout.runtime_dir / "version.txt").read_text() == "candidate-runtime"
     assert not (layout.root / "app_previous").exists()
     assert not (layout.root / "runtime_previous").exists()
-    assert not (layout.launcher_dir / "pending-app-update.json").exists()
+    assert not update_journal_path(layout).exists()
     assert rollback_store.load() is None
 
 
@@ -151,7 +152,7 @@ def test_generation_rollback_keeps_interrupted_candidate_retryable(
     activation.rollback()
 
     assert not UpdateQuarantine(layout.root).contains(version="0.4.0", sha256=digest)
-    assert not (layout.launcher_dir / "pending-app-update.json").exists()
+    assert not update_journal_path(layout).exists()
 
 
 def test_interrupted_commit_finishes_proven_update(

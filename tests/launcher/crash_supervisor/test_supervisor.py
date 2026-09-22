@@ -40,6 +40,9 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashKind,
 )
 from sugarsubstitute_shared.crash_reporting.protocol import CRASHPAD_DATABASE_ENV
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+)
 
 
 def _start_process(
@@ -59,6 +62,14 @@ def test_supervisor_accepts_only_authenticated_clean_completion(tmp_path: Path) 
 
     layout = InstallLayout.from_root(tmp_path / "install")
     reports: list[str] = []
+
+    def reject_unnecessary_diagnostics(
+        _layout: InstallLayout,
+    ) -> CrashDiagnosticContext:
+        """Fail if a clean launch performs crash-only system inspection."""
+
+        raise AssertionError("Clean runs must not collect crash diagnostics.")
+
     layout.logs_dir.mkdir(parents=True)
     (layout.logs_dir / "app-startup.log").write_text(
         "stale startup evidence\n",
@@ -79,6 +90,7 @@ def test_supervisor_accepts_only_authenticated_clean_completion(tmp_path: Path) 
         reporter_starter=lambda _layout, incident_id, _environment: reports.append(
             incident_id
         ),
+        diagnostic_context_collector=reject_unnecessary_diagnostics,
     ).supervise(
         layout=layout,
         command=(sys.executable, "-c", script),
@@ -194,6 +206,11 @@ def test_supervisor_preserves_known_readiness_failure_instead_of_calling_it_cras
         environment={},
         command=("python", "main.py", "--access-token=argument-secret"),
     )
+    layout.logs_dir.mkdir(parents=True, exist_ok=True)
+    (layout.logs_dir / "launcher.log").write_text(
+        "readiness_failure_kind=timeout timeout_seconds=3600\n",
+        encoding="utf-8",
+    )
     startup_output = (
         prepared.context.run_root / prepared.context.run_id / "startup-output.log"
     )
@@ -220,13 +237,18 @@ def test_supervisor_preserves_known_readiness_failure_instead_of_calling_it_cras
         termination=SupervisedTermination(
             SupervisedTerminationReason.READINESS_FAILURE,
             detail,
+            {
+                "readiness_failure_kind": "timeout",
+                "readiness_timeout_seconds": "3600.0",
+                "readiness_termination_action": "terminated",
+            },
         ),
     )
 
     incident = CrashIncidentStore(prepared.context.incident_root).pending()[0]
     assert outcome.incident_id == incident.incident_id
     assert reports == [incident.incident_id]
-    assert incident.kind is CrashKind.STARTUP
+    assert incident.kind is CrashKind.STARTUP_READINESS_TIMEOUT
     assert incident.attribution is CrashAttribution.CONFIRMED
     assert incident.metadata["termination_reason"] == "readiness_failure"
     assert incident.metadata["exit_intent_state"] == "missing"
@@ -234,7 +256,18 @@ def test_supervisor_preserves_known_readiness_failure_instead_of_calling_it_cras
     assert incident.metadata["termination_detail"] == (
         "Readiness timed out below <install-root> api_key=<redacted>"
     )
-    assert incident.attachments == ("startup-output.log",)
+    assert incident.metadata["readiness_timeout_seconds"] == "3600.0"
+    assert incident.metadata["readiness_termination_action"] == "terminated"
+    assert incident.attachments == ("startup-output.log", "launcher-tail.log")
+    launcher_tail = (
+        CrashIncidentStore(prepared.context.incident_root)
+        .attachment_path(incident.incident_id, "launcher-tail.log")
+        .read_text(encoding="utf-8")
+    )
+    assert (
+        "readiness_failure_kind=timeout timeout_seconds=3600"
+        in launcher_tail.splitlines()
+    )
     assert "argument-secret" not in " ".join(incident.launch_arguments)
 
 

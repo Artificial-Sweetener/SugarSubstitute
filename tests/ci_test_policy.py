@@ -338,14 +338,10 @@ ISOLATED_TEST_MODULES = frozenset(
         # This real prompt-card layout owner is stable in a fresh native Qt
         # process but can abort after unrelated Qt work in one reused worker.
         "tests/presentation/editor/node_card/prompt_mode/test_card_contract.py",
-        # This launcher setup owner is stable in a fresh native Qt process but
-        # can abort after unrelated Qt work in one reused worker.
-        "tests/launcher/installation_workflow/test_successful_setup.py",
         # These launcher failure-surface owners construct the production Fluent
         # report modal after worker-thread completion. They are stable in fresh
         # native Qt processes but can stall after unrelated Qt work in a reused
-        # xdist worker; concurrent fresh processes remain independent.
-        "tests/launcher/installation_workflow/test_handoff_failure.py",
+        # xdist worker.
         "tests/launcher/installation_workflow/test_initial_failure.py",
         "tests/launcher/installation_workflow/test_runtime_failure.py",
         # This real mouse-interaction owner is stable in a fresh native Qt
@@ -374,6 +370,12 @@ ISOLATED_TEST_MODULES = frozenset(
 
 SERIAL_TEST_MODULES: Final[frozenset[str]] = frozenset(
     {
+        # Concurrent fresh Windows processes alternately stalled these two
+        # production launcher workflows, while both pass promptly alone and
+        # successful setup passed five independent fresh-process repetitions.
+        # Preserve process isolation and remove their native UI contention.
+        "tests/launcher/installation_workflow/test_handoff_failure.py",
+        "tests/launcher/installation_workflow/test_successful_setup.py",
         # This model-picker module exercises real top-level window activation
         # and native focus transfer. Concurrent Qt worker processes compete
         # for that single operating-system focus owner, while repeated

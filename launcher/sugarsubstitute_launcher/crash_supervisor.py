@@ -29,6 +29,12 @@ import time
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.crash_diagnostic_context import (
+    collect_crash_diagnostic_context,
+)
+from launcher.sugarsubstitute_launcher.crash_launcher_log import (
+    capture_launcher_log_tail,
+)
 from launcher.sugarsubstitute_launcher.completed_run_artifacts import (
     CompletedRunArtifacts,
 )
@@ -44,9 +50,8 @@ from launcher.sugarsubstitute_launcher.process_execution import (
 from launcher.sugarsubstitute_launcher.supervised_termination import (
     SupervisedTermination,
 )
-from launcher.sugarsubstitute_launcher.application.repair.payload_version import (
-    RepairPayloadVersionError,
-    inspect_app_payload_version,
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
 )
 from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
 from sugarsubstitute_shared.crash_reporting.redaction import CrashReportRedactor
@@ -72,6 +77,7 @@ ProcessStarter = Callable[
 ]
 ReporterStarter = Callable[[InstallLayout, str, Mapping[str, str]], None]
 NativeRuntimeResolver = Callable[[InstallLayout], tuple[Path, Path]]
+DiagnosticContextCollector = Callable[[InstallLayout], CrashDiagnosticContext]
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +91,7 @@ class PreparedCrashRun:
     platform: str = "unknown"
     python_version: str = "unknown"
     launch_arguments: tuple[str, ...] = ()
+    diagnostic_context: CrashDiagnosticContext | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +111,7 @@ class ApplicationCrashSupervisor:
         process_starter: ProcessStarter | None = None,
         reporter_starter: ReporterStarter | None = None,
         native_runtime_resolver: NativeRuntimeResolver | None = None,
+        diagnostic_context_collector: DiagnosticContextCollector | None = None,
         time_ns: Callable[[], int] = time.time_ns,
     ) -> None:
         """Store process, reporter, and clock boundaries for deterministic proof."""
@@ -112,6 +120,9 @@ class ApplicationCrashSupervisor:
         self._reporter_starter = reporter_starter or present_crash_report
         self._native_runtime_resolver = (
             native_runtime_resolver or _installed_native_runtime
+        )
+        self._diagnostic_context_collector = (
+            diagnostic_context_collector or collect_crash_diagnostic_context
         )
         self._time_ns = time_ns
 
@@ -161,7 +172,6 @@ class ApplicationCrashSupervisor:
             context=context,
             environment=context.environment(environment),
             started_at_ns=self._time_ns(),
-            application_version=_installed_application_version(layout),
             platform=platform.platform(),
             python_version=sys.version,
             launch_arguments=CrashReportRedactor(
@@ -181,13 +191,22 @@ class ApplicationCrashSupervisor:
     ) -> ClassifiedProcessExit:
         """Return the authoritative termination classification after diagnostic cleanup."""
 
-        if termination.detail:
+        if termination.detail or termination.metadata:
+            redactor = CrashReportRedactor(
+                home=Path.home(),
+                install_root=layout.root,
+            )
             termination = replace(
                 termination,
-                detail=CrashReportRedactor(
-                    home=Path.home(),
-                    install_root=layout.root,
-                ).text(termination.detail),
+                detail=(
+                    redactor.text(termination.detail)
+                    if termination.detail is not None
+                    else None
+                ),
+                metadata={
+                    key: redactor.text(value)
+                    for key, value in termination.metadata.items()
+                },
             )
         return_code = process.wait()
         context = prepared.context
@@ -214,18 +233,26 @@ class ApplicationCrashSupervisor:
                 )
             return ClassifiedProcessExit(return_code)
 
+        diagnostic_context = (
+            prepared.diagnostic_context or self._diagnostic_context_collector(layout)
+        )
+        capture_launcher_log_tail(layout=layout, context=context)
         incident = resolve_process_incident(
             layout=layout,
             context=context,
             process_id=process.pid,
             return_code=return_code,
             minidump=minidump,
-            application_version=prepared.application_version,
+            application_version=(
+                prepared.application_version
+                or diagnostic_context.substitute_version.value
+            ),
             platform_name=prepared.platform,
             python_version=prepared.python_version,
             launch_arguments=prepared.launch_arguments,
             termination=termination,
             exit_evidence=exit_evidence,
+            diagnostic_context=diagnostic_context,
         )
         if present_report:
             try:
@@ -263,15 +290,6 @@ def _installed_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
     """Return the native runtime bundled beside the installed launcher."""
 
     return layout.crashpad_handler_path, layout.crashpad_client_library_path
-
-
-def _installed_application_version(layout: InstallLayout) -> str | None:
-    """Read application version metadata without importing application code."""
-
-    try:
-        return inspect_app_payload_version(layout.app_dir)
-    except RepairPayloadVersionError:
-        return None
 
 
 __all__ = [
