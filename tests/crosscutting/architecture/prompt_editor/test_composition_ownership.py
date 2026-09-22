@@ -40,7 +40,7 @@ def _class_methods(path_name: str, class_name: str) -> set[str]:
 
 
 def test_projection_and_execution_composition_have_direct_owners() -> None:
-    """Keep projection and async construction out of the mixed factory."""
+    """Keep projection and async construction behind the core runtime."""
     assert not (PROMPT_PRESENTATION_ROOT / "composition" / "factory.py").exists()
     execution_methods = _class_methods(
         "execution_factory.py",
@@ -55,8 +55,14 @@ def test_projection_and_execution_composition_have_direct_owners() -> None:
     assert "build" in projection_methods
 
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
-    assert "PromptEditorExecutionFactory(" in widget_source
-    assert "PromptEditorProjectionFactory(" in widget_source
+    core_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "core_runtime.py"
+    ).read_text(encoding="utf-8")
+    assert "build_prompt_editor_core_runtime(" in widget_source
+    assert "PromptEditorExecutionFactory(" in core_runtime_source
+    assert "PromptEditorProjectionFactory(" in core_runtime_source
+    assert "PromptEditorExecutionFactory(" not in widget_source
+    assert "PromptEditorProjectionFactory(" not in widget_source
 
 
 def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
@@ -78,7 +84,11 @@ def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
     menu_runtime_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
     ).read_text(encoding="utf-8")
-    assert "PromptEditorAutocompleteFactory(" in widget_source
+    core_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "core_runtime.py"
+    ).read_text(encoding="utf-8")
+    assert "PromptEditorAutocompleteFactory(" in core_runtime_source
+    assert "PromptEditorAutocompleteFactory(" not in widget_source
     assert "build_prompt_editor_menu_runtime(" in widget_source
     assert "PromptEditorMenuFactory(" in menu_runtime_source
     assert "PromptContextMenuSnapshotAssembler(" in menu_runtime_source
@@ -89,13 +99,17 @@ def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
 
 
 def test_syntax_interaction_composition_has_a_direct_owner() -> None:
-    """Keep syntax, reorder, and weight construction out of the mixed factory."""
+    """Keep syntax, reorder, and weight construction behind the core runtime."""
     syntax_methods = _class_methods("syntax_factory.py", "PromptEditorSyntaxFactory")
 
     assert "build" in syntax_methods
 
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
-    assert "PromptEditorSyntaxFactory(" in widget_source
+    core_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "core_runtime.py"
+    ).read_text(encoding="utf-8")
+    assert "PromptEditorSyntaxFactory(" in core_runtime_source
+    assert "PromptEditorSyntaxFactory(" not in widget_source
 
 
 def test_shell_mechanics_have_one_runtime_composition_owner() -> None:

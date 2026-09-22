@@ -32,7 +32,9 @@ def test_diagnostic_owner_receives_publication_without_surface_shims() -> None:
     owner_source = (projection_root / "diagnostic_layer_owner.py").read_text(
         encoding="utf-8"
     )
-    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    core_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "core_runtime.py"
+    ).read_text(encoding="utf-8")
 
     obsolete_surface_methods = (
         "def _clear_diagnostic_fragment_cache(",
@@ -42,7 +44,7 @@ def test_diagnostic_owner_receives_publication_without_surface_shims() -> None:
     assert "def set_diagnostics(" not in surface_source
     assert "def clear_diagnostics(" not in surface_source
     assert "def diagnostics(self) -> PromptDiagnosticLayerOwner:" in surface_source
-    assert "surface=self._surface.diagnostics" in widget_source
+    assert "surface=projection.surface.diagnostics" in core_runtime_source
     assert "diagnostics: PromptDiagnosticLayerOwner" in publication_source
     assert "self._diagnostics.clear_fragment_cache(" in publication_source
     assert (

@@ -45,19 +45,20 @@ def test_build_external_fixture_uses_the_callers_root_and_allocated_port(
 def test_reset_external_comfy_root_recreates_empty_directory(tmp_path: Path) -> None:
     """Reset should delete existing contents and recreate an empty fixture root."""
 
-    fixture = external_comfy_fixture.ExternalComfyFixture(
-        workspace_root=tmp_path / "external",
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8190),
+    fixture = external_comfy_fixture.build_external_fixture(
+        resolve_scenario_paths(tmp_path)
     )
-    fixture.workspace_root.mkdir(parents=True)
-    (fixture.workspace_root / "old.txt").write_text("stale", encoding="utf-8")
+    try:
+        fixture.workspace_root.mkdir(parents=True)
+        (fixture.workspace_root / "old.txt").write_text("stale", encoding="utf-8")
 
-    result = external_comfy_fixture.reset_external_comfy_root(fixture)
+        result = external_comfy_fixture.reset_external_comfy_root(fixture)
 
-    assert result == fixture.workspace_root
-    assert fixture.workspace_root.exists() is True
-    assert list(fixture.workspace_root.iterdir()) == []
-    fixture.close()
+        assert result == fixture.workspace_root
+        assert fixture.workspace_root.exists() is True
+        assert list(fixture.workspace_root.iterdir()) == []
+    finally:
+        fixture.close()
 
 
 def test_close_releases_endpoint_that_never_reached_launch(tmp_path: Path) -> None:
