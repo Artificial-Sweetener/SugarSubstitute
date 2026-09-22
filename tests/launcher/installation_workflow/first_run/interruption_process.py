@@ -34,6 +34,7 @@ from launcher.sugarsubstitute_launcher.payload_models import (
 from launcher.sugarsubstitute_launcher.update_activation_journal import (
     write_update_journal_data,
 )
+from sugarsubstitute_shared.launcher_update.persistence import replace_atomic
 
 
 def main() -> int:
@@ -41,7 +42,7 @@ def main() -> int:
     layout = InstallLayout.from_root(Path(sys.argv[1]))
     boundary = sys.argv[3]
     write_text = Path.write_text
-    atomic_replace = os.replace
+    atomic_replace = replace_atomic
     promote_app = PendingUpdateActivation.promote_app
 
     def interrupt_journal(path: Path, payload: dict[str, object]) -> None:
@@ -61,9 +62,7 @@ def main() -> int:
             os._exit(73)
         return result
 
-    def interrupt_atomic_replace(
-        source: str | os.PathLike[str], target: str | os.PathLike[str]
-    ) -> None:
+    def interrupt_atomic_replace(source: Path, target: Path) -> None:
         """Interrupt configuration publication before or after its atomic replace."""
         if boundary == "config_partial" and Path(target) == layout.config_path:
             write_text(Path(source), "{", encoding="utf-8")
@@ -75,7 +74,14 @@ def main() -> int:
             os._exit(73)
 
     with (
-        patch.object(os, "replace", interrupt_atomic_replace),
+        patch(
+            "launcher.sugarsubstitute_launcher.config.replace_atomic",
+            interrupt_atomic_replace,
+        ),
+        patch(
+            "launcher.sugarsubstitute_launcher.update_state.replace_atomic",
+            interrupt_atomic_replace,
+        ),
         patch(
             "launcher.sugarsubstitute_launcher.update_activation."
             "write_update_journal_data",

@@ -18,8 +18,12 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+import json
 from pathlib import Path
+from threading import Event
+from typing import IO
 
 import pytest
 
@@ -66,6 +70,42 @@ def test_launcher_update_state_round_trips_json(tmp_path: Path) -> None:
         '  "schema_version": 1',
         "}",
     ]
+
+
+@pytest.mark.platforms("windows")
+def test_launcher_update_state_reader_does_not_block_atomic_commit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep a polling reader from denying the mutation owner's state commit."""
+
+    path = tmp_path / "state.json"
+    original_state = LauncherUpdateState(installed_app_version="0.23.0")
+    committed_state = LauncherUpdateState(installed_app_version="0.25.0.320")
+    original_state.save(path)
+    reader_opened = Event()
+    release_reader = Event()
+    original_load = json.load
+
+    def hold_open_reader(source: IO[str]) -> object:
+        """Pause parsing while the production reader retains its native handle."""
+
+        reader_opened.set()
+        assert release_reader.wait(timeout=10)
+        return original_load(source)
+
+    monkeypatch.setattr(json, "load", hold_open_reader)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        loaded = pool.submit(LauncherUpdateState.load, path)
+        assert reader_opened.wait(timeout=10)
+        try:
+            committed_state.save(path)
+        finally:
+            release_reader.set()
+
+        assert loaded.result(timeout=10) == original_state
+
+    assert LauncherUpdateState.load(path) == committed_state
 
 
 def test_update_check_policy_respects_cli_and_config_disables(tmp_path: Path) -> None:

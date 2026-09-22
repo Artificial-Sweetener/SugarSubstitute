@@ -26,6 +26,11 @@ from pathlib import Path
 import secrets
 from typing import Any, Self
 
+from sugarsubstitute_shared.launcher_update.persistence import (
+    open_atomic_read,
+    replace_atomic,
+)
+
 
 UPDATE_STATE_SCHEMA_VERSION = 1
 
@@ -46,7 +51,8 @@ class LauncherUpdateState:
 
         if not path.is_file():
             return cls()
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        with open_atomic_read(path) as source:
+            payload = json.load(source)
         if not isinstance(payload, dict):
             raise ValueError(f"Launcher update state must be a JSON object: {path}")
         schema_version = payload.get("schema_version")
@@ -86,7 +92,7 @@ class LauncherUpdateState:
                 json.dumps(self.to_json(), indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
-            os.replace(temporary_path, path)
+            replace_atomic(temporary_path, path)
         finally:
             try:
                 temporary_path.unlink()
