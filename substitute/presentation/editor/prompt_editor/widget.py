@@ -146,7 +146,6 @@ from .features import (
 from .interactions import (
     PromptContextMenuRequestPresenter,
     PromptDanbooruDialogRunner,
-    PromptExternalTextInputOwner,
     PromptExternalUrlActionRunner,
     PromptInlineLoraContextMenuPresenter,
     PromptLoraPickerPopupPresenter,
@@ -178,6 +177,7 @@ from .catalog_refresh_facade import build_prompt_editor_catalog_refresh_facade
 from .command_facade import PromptEditorCommandFacade
 from .document_facade import build_prompt_editor_document_facade
 from .emphasis_facade import PromptEditorEmphasisFacade
+from .external_input_facade import build_prompt_editor_external_input_facade
 from .reorder_facade import PromptEditorReorderFacade
 from .rendering_facade import build_prompt_editor_rendering_facade
 from .scene_facade import build_prompt_editor_scene_facade
@@ -416,8 +416,10 @@ class PromptEditor(
             projection_collaborators.lora_thumbnail_preloader
         )
         self._surface = projection_collaborators.surface
-        self._external_text_input = PromptExternalTextInputOwner(
-            self._insert_external_mime_text
+        self._external_input_facade = build_prompt_editor_external_input_facade(
+            self,
+            self._surface,
+            self._clipboard_paste_completion,
         )
         self.setFocusProxy(self._surface)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -1191,49 +1193,27 @@ class PromptEditor(
     def canInsertFromMimeData(self, source: QMimeData) -> bool:  # noqa: N802
         """Return whether external MIME data may become prompt source text."""
 
-        return self._external_text_input.can_insert(source)
+        return self._external_input_facade.can_insert(source)
 
     def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
         """Insert prompt-safe MIME text through the source command boundary."""
 
-        self._external_text_input.insert(source)
+        self._external_input_facade.insert(source)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Accept only prompt-safe plain text drag payloads."""
 
-        self._external_text_input.accept_or_ignore_drag(event)
+        self._external_input_facade.accept_or_ignore_drag(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         """Keep rejecting non-text drag payloads while the pointer moves."""
 
-        self._external_text_input.accept_or_ignore_drag(event)
+        self._external_input_facade.accept_or_ignore_drag(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Insert prompt-safe dropped text and reject rich/file payloads."""
 
-        self._external_text_input.drop(
-            event,
-            viewport_position=self._viewport_position_for_host_drop(event),
-        )
-
-    def _insert_external_mime_text(
-        self,
-        text: str,
-        *,
-        command_name: str,
-        viewport_position: QPoint | None,
-    ) -> None:
-        """Commit accepted external text through shell editing ownership."""
-
-        if viewport_position is not None:
-            self.setTextCursor(self.cursorForPosition(viewport_position))
-        self._surface.insert_external_text(text, command_name=command_name)
-        self._clipboard_paste_completion.complete(command_name)
-
-    def _viewport_position_for_host_drop(self, event: QDropEvent) -> QPoint:
-        """Return a host drop position in projection-viewport coordinates."""
-
-        return self.viewport().mapFrom(self, event.position().toPoint())
+        self._external_input_facade.drop(event)
 
     def undo(self) -> None:
         """Undo the previous prompt edit."""
