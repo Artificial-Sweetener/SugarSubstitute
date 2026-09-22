@@ -32,8 +32,10 @@ from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
 from substitute.infrastructure.comfy.managed_process_query import (
-    get_listener_pid,
+    ListenerPidQueryResult,
+    ListenerPidQueryStatus,
     get_process_command_line,
+    query_listener_pid,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -53,6 +55,7 @@ class ManagedListenerStatus(str, Enum):
     OWNED_HEALTHY = "owned_healthy"
     OWNED_STALE = "owned_stale"
     FOREIGN = "foreign"
+    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)
@@ -150,9 +153,24 @@ def probe_managed_listener(
         workspace=workspace,
     )
     endpoint_listening = is_endpoint_listening(host, port)
-    listener_pid = get_listener_pid(host, port) if endpoint_listening else None
+    listener_query = (
+        query_listener_pid(host, port)
+        if endpoint_listening
+        else ListenerPidQueryResult(ListenerPidQueryStatus.ABSENT)
+    )
+    listener_pid = listener_query.pid
 
     if endpoint_listening:
+        if listener_query.status is not ListenerPidQueryStatus.RESOLVED:
+            return ManagedListenerProbeResult(
+                status=ManagedListenerStatus.UNKNOWN,
+                reason=(
+                    "The managed ComfyUI address is listening, but Substitute could "
+                    "not resolve its process ownership."
+                ),
+                metadata=metadata,
+            )
+        assert listener_pid is not None
         if (
             metadata_matches
             and metadata is not None
@@ -203,25 +221,14 @@ def probe_managed_listener(
 
 def _is_owned_listener_alive(
     metadata: ManagedProcessMetadata,
-    listener_pid: int | None,
+    listener_pid: int,
 ) -> bool:
     """Return whether the resolved listener still belongs to the owned metadata record."""
 
     if metadata.containment_mode == "windows_job_object":
-        return listener_pid is not None and _inspect_windows_job(
-            metadata, listener_pid=listener_pid
-        )
+        return _inspect_windows_job(metadata, listener_pid=listener_pid)
     if not _is_owned_process_identity_alive(metadata):
         return False
-    if listener_pid is None:
-        log_warning(
-            _LOGGER,
-            "Managed listener pid could not be resolved; falling back to metadata pid",
-            pid=metadata.pid,
-            host=metadata.host,
-            port=metadata.port,
-        )
-        return True
     return listener_pid == metadata.pid
 
 

@@ -18,24 +18,54 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import Enum
 import os
 import subprocess
 
-from substitute.shared.logging.logger import get_logger, log_debug, log_warning
+from substitute.infrastructure.comfy.windows_tcp_listener_query import (
+    get_windows_tcp_listener_pid,
+)
+from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("infrastructure.comfy.managed_process_query")
 _QUERY_TIMEOUT_SECONDS = 5
 _LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
-def get_listener_pid(host: str, port: int) -> int | None:
-    """Return the listener pid for one local TCP endpoint when available."""
+class ListenerPidQueryStatus(str, Enum):
+    """Describe whether local listener ownership was resolved conclusively."""
+
+    RESOLVED = "resolved"
+    ABSENT = "absent"
+    UNAVAILABLE = "unavailable"
+
+
+@dataclass(frozen=True, slots=True)
+class ListenerPidQueryResult:
+    """Carry one typed listener-ownership query outcome."""
+
+    status: ListenerPidQueryStatus
+    pid: int | None = None
+
+    def __post_init__(self) -> None:
+        """Require a positive PID exactly when ownership was resolved."""
+
+        if self.status is ListenerPidQueryStatus.RESOLVED:
+            if self.pid is None or self.pid <= 0:
+                raise ValueError("A resolved listener query requires a positive PID.")
+        elif self.pid is not None:
+            raise ValueError("An unresolved listener query cannot carry a PID.")
+
+
+def query_listener_pid(host: str, port: int) -> ListenerPidQueryResult:
+    """Return a typed ownership result for one local TCP endpoint."""
 
     if host not in _LOCAL_HOSTS:
-        return None
+        return ListenerPidQueryResult(ListenerPidQueryStatus.UNAVAILABLE)
     if os.name == "nt":
-        return _get_listener_pid_windows(host, port)
-    return _get_listener_pid_posix(port)
+        return _query_listener_pid_windows(host, port)
+    return _query_listener_pid_posix(port)
 
 
 def get_process_command_line(pid: int) -> str | None:
@@ -46,37 +76,24 @@ def get_process_command_line(pid: int) -> str | None:
     return _get_process_command_line_posix(pid)
 
 
-def _get_listener_pid_windows(host: str, port: int) -> int | None:
-    """Resolve the Windows owning pid for one listening TCP endpoint."""
+def _query_listener_pid_windows(host: str, port: int) -> ListenerPidQueryResult:
+    """Resolve Windows listener ownership without starting a subprocess."""
 
-    script = (
-        "$connection = Get-NetTCPConnection "
-        f"-LocalAddress '{host}' -LocalPort {port} -State Listen "
-        "-ErrorAction SilentlyContinue | Select-Object -First 1;"
-        "if ($null -ne $connection) { Write-Output $connection.OwningProcess }"
-    )
-    result = _run_query(
-        ["powershell", "-NoProfile", "-Command", script],
-        operation="listener_pid",
-        host=host,
-        port=port,
-    )
-    if result is None:
-        return None
-    output = result.stdout.strip()
-    if not output:
-        return None
     try:
-        return int(output)
-    except ValueError:
-        log_debug(
+        pid = get_windows_tcp_listener_pid(host, port)
+    except (OSError, ValueError) as error:
+        log_warning(
             _LOGGER,
-            "Unexpected Windows listener pid output",
+            "Native Windows listener ownership query was unavailable",
             host=host,
             port=port,
-            output=output,
+            error_type=type(error).__name__,
+            error_code=getattr(error, "winerror", None),
         )
-        return None
+        return ListenerPidQueryResult(ListenerPidQueryStatus.UNAVAILABLE)
+    if pid is None:
+        return ListenerPidQueryResult(ListenerPidQueryStatus.ABSENT)
+    return ListenerPidQueryResult(ListenerPidQueryStatus.RESOLVED, pid)
 
 
 def _get_process_command_line_windows(pid: int) -> str | None:
@@ -99,21 +116,28 @@ def _get_process_command_line_windows(pid: int) -> str | None:
     return output or None
 
 
-def _get_listener_pid_posix(port: int) -> int | None:
-    """Resolve the POSIX owning pid for one listening TCP endpoint."""
+def _query_listener_pid_posix(port: int) -> ListenerPidQueryResult:
+    """Resolve the POSIX owning PID with an explicit availability outcome."""
 
     commands = (
         ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
         ["ss", "-ltnp", f"sport = :{port}"],
     )
+    completed_query = False
     for command in commands:
         result = _run_query(command, operation="listener_pid", port=port)
         if result is None:
             continue
+        completed_query = True
         pid = _parse_posix_listener_pid(command[0], result.stdout)
         if pid is not None:
-            return pid
-    return None
+            return ListenerPidQueryResult(ListenerPidQueryStatus.RESOLVED, pid)
+    status = (
+        ListenerPidQueryStatus.ABSENT
+        if completed_query
+        else ListenerPidQueryStatus.UNAVAILABLE
+    )
+    return ListenerPidQueryResult(status)
 
 
 def _get_process_command_line_posix(pid: int) -> str | None:
@@ -185,4 +209,9 @@ def _parse_posix_listener_pid(command_name: str, output: str) -> int | None:
     return int("".join(digits)) if digits else None
 
 
-__all__ = ["get_listener_pid", "get_process_command_line"]
+__all__ = [
+    "ListenerPidQueryResult",
+    "ListenerPidQueryStatus",
+    "get_process_command_line",
+    "query_listener_pid",
+]

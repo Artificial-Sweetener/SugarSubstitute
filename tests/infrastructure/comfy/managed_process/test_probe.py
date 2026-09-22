@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import subprocess
 
 import pytest
 
@@ -32,7 +31,11 @@ from substitute.infrastructure.comfy.managed_process_probe import (
     is_process_running,
     probe_managed_listener,
 )
-from substitute.infrastructure.comfy.managed_process_query import get_listener_pid
+from substitute.infrastructure.comfy.managed_process_query import (
+    ListenerPidQueryResult,
+    ListenerPidQueryStatus,
+    query_listener_pid,
+)
 
 
 def test_probe_managed_listener_treats_stale_metadata_without_process_as_absent(
@@ -167,19 +170,58 @@ def test_is_process_running_treats_windows_access_denied_as_alive(
     assert is_process_running(321) is True
 
 
-def test_windows_listener_pid_timeout_degrades_to_unresolved(
+def test_windows_listener_api_failure_is_reported_as_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A slow Windows ownership query must not crash desktop startup."""
+    """A native ownership failure must remain distinct from an absent listener."""
 
     monkeypatch.setattr(os, "name", "nt", raising=False)
 
-    def _raise_timeout(*_args: object, **_kwargs: object) -> None:
-        raise subprocess.TimeoutExpired(cmd="powershell", timeout=5)
+    def unavailable(_host: str, _port: int) -> int | None:
+        """Simulate an unavailable Windows IP Helper query."""
+
+        raise OSError("IP Helper unavailable")
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.managed_process_query.subprocess.run",
-        _raise_timeout,
+        "substitute.infrastructure.comfy.managed_process_query."
+        "get_windows_tcp_listener_pid",
+        unavailable,
     )
 
-    assert get_listener_pid("127.0.0.1", 8188) is None
+    assert query_listener_pid("127.0.0.1", 8188) == ListenerPidQueryResult(
+        ListenerPidQueryStatus.UNAVAILABLE
+    )
+
+
+def test_probe_does_not_call_unavailable_ownership_foreign(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A query outage must not become a false foreign-listener diagnosis."""
+
+    metadata = ManagedProcessMetadata(
+        pid=321,
+        host="127.0.0.1",
+        port=8188,
+        workspace_path=tmp_path / "comfyui",
+    )
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.managed_process_probe.is_endpoint_listening",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.managed_process_probe.query_listener_pid",
+        lambda *_args, **_kwargs: ListenerPidQueryResult(
+            ListenerPidQueryStatus.UNAVAILABLE
+        ),
+    )
+
+    result = probe_managed_listener(
+        host="127.0.0.1",
+        port=8188,
+        workspace=tmp_path / "comfyui",
+        metadata=metadata,
+    )
+
+    assert result.status is ManagedListenerStatus.UNKNOWN
+    assert "could not resolve" in result.reason

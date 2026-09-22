@@ -99,6 +99,15 @@ def resolve_managed_listener(
             )
         registry.clear_if_pid_matches(stale_pid)
         return None
+    if probe.status is ManagedListenerStatus.UNKNOWN:
+        runtime_service.record_launch(
+            status=ManagedRuntimeLaunchStatus.UNKNOWN,
+            detail=probe.reason,
+        )
+        raise RuntimeError(
+            "Substitute could not verify ownership of the process using the managed "
+            f"ComfyUI address {endpoint.host}:{endpoint.port}."
+        )
     runtime_service.record_launch(
         status=ManagedRuntimeLaunchStatus.FOREIGN_LISTENER_BLOCKED,
         detail=probe.reason,
