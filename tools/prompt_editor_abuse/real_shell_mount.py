@@ -36,7 +36,10 @@ from .restored_mounts import (
     mount_cached_workspace_prompt,
     mount_image_sugar_script_prompt,
 )
-from .shell_action_host import RealShellPromptAbuseActionHost
+from .shell_action_host import (
+    RealShellPromptAbuseActionHost,
+    resize_real_shell_prompt_editor,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +85,18 @@ def prepare_prompt_abuse_real_shell_mount(
     """Mount and prepare one field before measured or instrumented actions."""
 
     requested_width, requested_height = scenario.viewport_size
-    harness.shell.resize(
-        max(1040, requested_width * 2 + 100),
-        max(760, requested_height + 240),
+    resize_real_shell_prompt_editor(
+        harness,
+        requested_width=requested_width,
+        requested_height=requested_height,
     )
     harness.wait_for_queued_delivery()
     field = _mount_prompt_field(harness, scenario, alias=alias)
-    _apply_requested_editor_panel_width(harness, requested_width=requested_width)
+    resize_real_shell_prompt_editor(
+        harness,
+        requested_width=requested_width,
+        requested_height=requested_height,
+    )
     field.editor.setManualScrollHeight(requested_height)
     harness.wait_for_queued_delivery()
     harness.input.set_source_cursor_position(field, scenario.cursor_position)
@@ -119,34 +127,6 @@ def _mount_prompt_field(
         alias=alias,
         initial_text=scenario.initial_text,
     )
-
-
-def _apply_requested_editor_panel_width(
-    harness: PromptEditorRealShellScenario,
-    *,
-    requested_width: int,
-) -> None:
-    """Give the production editor panel enough splitter space for the workload."""
-
-    splitter = harness.shell.splitter
-    sizes = list(splitter.sizes())
-    details_index = splitter.indexOf(harness.shell.editor_output_container)
-    canvas_index = splitter.indexOf(harness.shell.canvas_host_container)
-    if details_index < 0 or canvas_index < 0:
-        return
-    fixed_total = sum(
-        size
-        for index, size in enumerate(sizes)
-        if index not in {details_index, canvas_index}
-    )
-    transferable_total = max(0, sum(sizes) - fixed_total)
-    details_width = min(
-        max(1, requested_width + 300),
-        max(1, transferable_total - 100),
-    )
-    sizes[details_index] = details_width
-    sizes[canvas_index] = max(100, transferable_total - details_width)
-    splitter.setSizes(sizes)
 
 
 __all__ = [

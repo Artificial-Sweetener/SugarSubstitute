@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from typing import cast
 
 from PySide6.QtTest import QTest
@@ -62,7 +66,7 @@ def test_prompt_editor_real_widget_hide_event_clears_autocomplete_state(
     QTest.keyClicks(editor, "1g")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert panel.is_panel_visible() is True
     assert editor_autocomplete_preview_text(editor) == "irl"
 

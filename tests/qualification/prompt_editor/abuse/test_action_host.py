@@ -131,8 +131,17 @@ def test_reorder_host_resolves_destination_after_drag_start_settles_geometry(
         SimpleNamespace(startDragDistance=lambda: 10),
     )
     host = PromptReorderAbuseActionHost()
+    editor = SimpleNamespace(
+        _runtime=SimpleNamespace(
+            core=SimpleNamespace(
+                syntax=SimpleNamespace(
+                    interaction_controller=SimpleNamespace(segment_overlay=overlay)
+                )
+            )
+        )
+    )
 
-    host.reorder_drag_press(SimpleNamespace(_segment_overlay=overlay), "1:0")
-    host.reorder_drag_threshold(SimpleNamespace(_segment_overlay=overlay))
+    host.reorder_drag_press(editor, "1:0")
+    host.reorder_drag_threshold(editor)
 
     assert host._target == QPoint(410, 60)

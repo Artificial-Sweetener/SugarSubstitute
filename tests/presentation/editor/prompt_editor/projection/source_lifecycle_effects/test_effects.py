@@ -47,8 +47,8 @@ def test_source_lifecycle_effects_forward_every_bound_operation() -> None:
             publish_active_span_range=(
                 lambda value: calls.append(("publish_active_span_range", value))
             ),
-            use_committed_active_projection=(
-                lambda: calls.append(("use_committed_active_projection",))
+            reconcile_committed_active_projection=(
+                lambda: calls.append(("reconcile_committed_active_projection",))
             ),
             rebuild_active_projection=(
                 lambda commit: calls.append(("rebuild_active_projection", commit))
@@ -67,7 +67,7 @@ def test_source_lifecycle_effects_forward_every_bound_operation() -> None:
     effects.ensure_caret_visible()
     effects.rebuild_projection()
     effects.publish_active_span_range((2, 5))
-    effects.use_committed_active_projection()
+    effects.reconcile_committed_active_projection()
     effects.rebuild_active_projection(True)
     effects.clear_reorder_for_source_change()
     effects.invalidate_render_for_source_change(False)
@@ -76,7 +76,7 @@ def test_source_lifecycle_effects_forward_every_bound_operation() -> None:
         ("ensure_caret_visible",),
         ("rebuild_projection",),
         ("publish_active_span_range", (2, 5)),
-        ("use_committed_active_projection",),
+        ("reconcile_committed_active_projection",),
         ("rebuild_active_projection", True),
         ("clear_reorder_for_source_change",),
         ("invalidate_render_for_source_change", False),
@@ -91,7 +91,7 @@ def test_source_lifecycle_effects_reject_rebinding() -> None:
         ensure_caret_visible=lambda: None,
         rebuild_projection=lambda: None,
         publish_active_span_range=lambda _value: None,
-        use_committed_active_projection=lambda: None,
+        reconcile_committed_active_projection=lambda: None,
         rebuild_active_projection=lambda _commit: None,
         clear_reorder_for_source_change=lambda: None,
         invalidate_render_for_source_change=lambda _clear_cache: None,

@@ -68,6 +68,8 @@ class PromptSourceChangePublicationOwner:
         self._input_method_source_changed = input_method_source_changed
         self._clear_reorder_for_source_change = clear_reorder_for_source_change
         self._invalidate_render_for_source_change = invalidate_render_for_source_change
+        self._immediate_semantic_refresh_revision: int | None = None
+        self._semantic_boundary_refresh_revision: int | None = None
 
     def publish(
         self,
@@ -75,6 +77,8 @@ class PromptSourceChangePublicationOwner:
         deferrable_projection: bool,
         source_snapshot: PromptSourceSnapshot,
         clear_diagnostic_fragment_cache: bool = True,
+        requires_immediate_semantic_refresh: bool = True,
+        requires_semantic_refresh_before_boundary: bool = True,
     ) -> PromptSourceIdentity:
         """Publish one source revision with all dependent invalidation effects."""
 
@@ -82,6 +86,16 @@ class PromptSourceChangePublicationOwner:
         if not deferrable_projection:
             self._overlays.clear()
         source_identity = self._editor_state.publish_source(source_snapshot)
+        self._immediate_semantic_refresh_revision = (
+            source_identity.source_revision
+            if requires_immediate_semantic_refresh
+            else None
+        )
+        self._semantic_boundary_refresh_revision = (
+            source_identity.source_revision
+            if requires_semantic_refresh_before_boundary
+            else None
+        )
         self._clear_reorder_for_source_change()
         self._invalidate_render_for_source_change(clear_diagnostic_fragment_cache)
         self._freshness.mark_source_text_changed(
@@ -89,6 +103,22 @@ class PromptSourceChangePublicationOwner:
             source_revision=source_identity.source_revision,
         )
         return source_identity
+
+    def requires_immediate_semantic_refresh(self) -> bool:
+        """Return whether the latest source revision needs synchronous semantics."""
+
+        return (
+            self._immediate_semantic_refresh_revision
+            == self._editor_state.source_identity.source_revision
+        )
+
+    def requires_semantic_refresh_before_boundary(self) -> bool:
+        """Return whether the latest revision can change syntax at a boundary."""
+
+        return (
+            self._semantic_boundary_refresh_revision
+            == self._editor_state.source_identity.source_revision
+        )
 
 
 __all__ = ["PromptSourceChangePublicationOwner"]

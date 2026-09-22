@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 import pytest
@@ -89,7 +93,7 @@ def test_reorder_keyboard_end_of_line_separator_uses_preceding_chip(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
 
     assert overlay.active_segment_index() == 7
     before = _performance_counters(overlay)
@@ -132,7 +136,7 @@ def test_reorder_keyboard_targets_blank_line_before_next_populated_row(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     before = _performance_counters(overlay)
 
     QTest.keyClick(box, movement_key)
@@ -178,7 +182,7 @@ def test_reorder_vertical_keyboard_move_animates_to_lane_geometry(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     animation_owner = cast(Any, overlay)._runtime.animation
     original_apply_plan = animation_owner.apply_plan
     recorded_plans: list[Any] = []
@@ -234,7 +238,7 @@ def test_reorder_keyboard_boundary_noop_builds_no_animation_plan(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     before = _performance_counters(overlay)
 
     QTest.keyClick(box, Qt.Key.Key_Left)

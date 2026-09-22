@@ -37,7 +37,7 @@ from substitute.domain.prompt.features.models import (
 from substitute.presentation.editor.prompt_editor.features.autocomplete_result_controller import (
     PromptAutocompleteResultController,
 )
-from substitute.presentation.editor.prompt_editor.features.catalog_snapshots import (
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,

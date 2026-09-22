@@ -290,6 +290,108 @@ def test_keymap_routes_reorder_keys_as_typed_intents() -> None:
     assert host.commit_intents == [PromptReorderCommitIntent(reason="alt_release")]
 
 
+def test_keymap_flushes_semantics_before_navigation_reaches_surface() -> None:
+    """Caret movement must resolve pending syntax before autocomplete delegation."""
+
+    keymap_mod = importlib.import_module(
+        "substitute.presentation.editor.prompt_editor.interactions.keymap"
+    )
+    calls: list[str] = []
+
+    class _Host:
+        """Record the ordered text-mode key routing boundary."""
+
+        interaction_mode = PromptEditorInteractionMode.TEXT_EDITING
+
+        def enter_segment_reorder_mode_from_keymap(self) -> None:
+            """Reject unexpected reorder entry."""
+
+            raise AssertionError("unexpected reorder entry")
+
+        def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+            """Record semantic publication before downstream key routing."""
+
+            calls.append(f"flush:{reason}")
+
+        def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
+            """Record conditional boundary preparation when requested."""
+
+            calls.append(f"boundary:{reason}")
+
+        def handle_autocomplete_key_press_from_keymap(self, event: object) -> bool:
+            """Record the surface-adjacent autocomplete routing step."""
+
+            _ = event
+            calls.append("autocomplete")
+            return False
+
+    class _Weights:
+        """Decline exact-weight routing for the navigation test."""
+
+        def handle_exact_weight_key_press(self, event: object) -> bool:
+            """Record weight routing after semantic publication."""
+
+            _ = event
+            calls.append("weights")
+            return False
+
+    keymap = keymap_mod.PromptKeymapController(_Host(), weights=_Weights())
+
+    assert keymap.handle_key_press(_key_event(Qt.Key.Key_Left)) is False
+    assert calls == ["flush:semantic_navigation_key", "weights", "autocomplete"]
+
+
+def test_keymap_routes_space_through_conditional_semantic_boundary() -> None:
+    """Space asks the interaction owner whether pending syntax needs publication."""
+
+    keymap_mod = importlib.import_module(
+        "substitute.presentation.editor.prompt_editor.interactions.keymap"
+    )
+    calls: list[str] = []
+
+    class _Host:
+        """Record conditional semantic-boundary routing."""
+
+        interaction_mode = PromptEditorInteractionMode.TEXT_EDITING
+
+        def enter_segment_reorder_mode_from_keymap(self) -> None:
+            """Reject unexpected reorder entry."""
+
+            raise AssertionError("unexpected reorder entry")
+
+        def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+            """Reject unconditional semantic work for Space."""
+
+            raise AssertionError(reason)
+
+        def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
+            """Record the conditional semantic boundary."""
+
+            calls.append(f"boundary:{reason}")
+
+        def handle_autocomplete_key_press_from_keymap(self, event: object) -> bool:
+            """Record autocomplete routing after boundary preparation."""
+
+            _ = event
+            calls.append("autocomplete")
+            return False
+
+    class _Weights:
+        """Decline exact-weight routing for the boundary test."""
+
+        def handle_exact_weight_key_press(self, event: object) -> bool:
+            """Record weight routing after boundary preparation."""
+
+            _ = event
+            calls.append("weights")
+            return False
+
+    keymap = keymap_mod.PromptKeymapController(_Host(), weights=_Weights())
+
+    assert keymap.handle_key_press(_key_event(Qt.Key.Key_Space, text=" ")) is False
+    assert calls == ["boundary:semantic_boundary_key", "weights", "autocomplete"]
+
+
 def _controller_for_reorder_text(
     text: str,
     *,
@@ -335,7 +437,8 @@ def _key_event(
     key: Qt.Key,
     *,
     modifiers: Qt.KeyboardModifier = Qt.KeyboardModifier.NoModifier,
+    text: str = "",
 ) -> Any:
     """Return a minimal key event while preserving Qt enum runtime values."""
 
-    return key_event(cast(int, key), modifiers=modifiers)
+    return key_event(cast(int, key), modifiers=modifiers, text=text)

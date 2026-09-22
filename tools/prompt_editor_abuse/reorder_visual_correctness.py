@@ -37,6 +37,7 @@ from .real_shell_mount import (
     create_prompt_abuse_real_shell_harness,
     prepare_prompt_abuse_real_shell_mount,
 )
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 from substitute.presentation.editor.prompt_editor.overlays.reorder_visual_cache import (
     translated_snapshot_offset,
 )
@@ -222,7 +223,7 @@ def _capture_editor_backing_store(editor: object) -> _CapturedEditorFrame | None
 def _reorder_animation_active(editor: Any) -> bool:
     """Return whether overlay geometry is moving relative to its last painted frame."""
 
-    overlay = editor._segment_overlay
+    overlay = segment_overlay(editor)
     if overlay is None:
         return False
     publication = overlay._runtime.animation.publication
@@ -332,7 +333,7 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
     """Return visible semantic scene-title runs lacking their expected glyphs."""
 
     prompt_editor = cast(Any, editor)
-    if prompt_editor._segment_overlay is not None:
+    if segment_overlay(prompt_editor) is not None:
         return ()
     surface = prompt_editor._runtime.projection.surface
     preview_frame = surface.reorder.preview.preview_frame
@@ -400,7 +401,7 @@ def _missing_scene_title_text(editor: object, image: QImage) -> tuple[str, ...]:
 def _expected_reorder_chip_text(editor: Any) -> tuple[_ExpectedChipText, ...]:
     """Return per-chip text expectations from the active production projection."""
 
-    overlay = editor._segment_overlay
+    overlay = segment_overlay(editor)
     if overlay is None:
         return ()
     state = overlay._view.render_state
@@ -481,7 +482,7 @@ def _reorder_publication_evidence(
 ) -> str:
     """Describe authoritative paint ownership for missing visible chip text."""
 
-    overlay = editor._segment_overlay
+    overlay = segment_overlay(editor)
     if overlay is None:
         return "overlay=none"
     prepared = overlay._runtime.render.publication

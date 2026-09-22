@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 
@@ -57,7 +61,7 @@ def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
 
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     immediate = _performance_counters(overlay)
     view = overlay.findChild(PromptReorderView, "segmentReorderView")
     assert view is not None
@@ -192,7 +196,7 @@ def test_plain_alt_keeps_surface_text_after_theme_or_font_invalidation(
     _assert_plain_alt_keeps_surface_text_ownership(overlay)
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None
 
     reopened_overlay = _open_reorder_overlay(box)
     _assert_plain_alt_keeps_surface_text_ownership(reopened_overlay)

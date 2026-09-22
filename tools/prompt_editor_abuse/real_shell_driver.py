@@ -44,11 +44,13 @@ from .models import (
     PromptAbuseScenarioResult,
 )
 from .qt_exception_capture import PromptAbuseQtExceptionCapture
+from .owner_state import capture_prompt_editor_owner_state
 from .real_shell_mount import (
     create_prompt_abuse_real_shell_harness,
     prepare_prompt_abuse_real_shell_mount,
 )
 from .reorder_visual_correctness import capture_prompt_reorder_visual_violations
+from .text_visual_correctness import capture_prompt_text_visual_violations
 
 _SETTLE_TIMEOUT_MS = 3_000.0
 _LOGGER = get_logger(__name__)
@@ -107,6 +109,12 @@ def run_real_shell_scenario(
         scenario,
         artifact_root=artifact_root,
     )
+    if repetition == 0:
+        visual_violations += capture_prompt_text_visual_violations(
+            scenario,
+            repetition=repetition,
+            artifact_root=artifact_root,
+        )
     if visual_violations:
         result = replace(
             result,
@@ -242,6 +250,13 @@ def _capture_real_shell_correctness(
         label=f"{scenario.name}-repetition-{repetition}",
     )
     prompt_editor = cast(Any, field.editor)
+    owner_state = capture_prompt_editor_owner_state(prompt_editor)
+    invariant_violations = list(snapshot_invariant_violations(snapshot))
+    if owner_state.layout_fragment_ownership_valid is False:
+        invariant_violations.append(
+            "layout_fragment_owner_invalid:final:"
+            f"{owner_state.layout_fragment_ownership_mismatch}"
+        )
     return PromptAbuseCorrectnessSnapshot(
         actual_text=snapshot.source_text,
         projection_current=(
@@ -252,7 +267,7 @@ def _capture_real_shell_correctness(
             prompt_editor._runtime.projection.surface.editor_state.semantic.document.source_text
             == scenario.expected_text
         ),
-        invariant_violations=snapshot_invariant_violations(snapshot),
+        invariant_violations=tuple(invariant_violations),
     )
 
 

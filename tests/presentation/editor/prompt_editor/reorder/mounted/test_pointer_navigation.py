@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QScrollArea, QWidget
 from substitute.application.prompt_editor.reorder.intents import (
     PromptReorderCommitIntent,
 )
+from tests.support.prompt_editor.runtime_owners import apply_reorder_autoscroll_step
 
 from .mount_support import (
     ensure_qapp,
@@ -236,7 +237,7 @@ def test_segment_reorder_overlay_autoscrolls_editor_scrollbar_while_dragging_nea
         ),
         10,
     )
-    cast(Any, overlay)._runtime.autoscroll.apply_step_for_tests()
+    apply_reorder_autoscroll_step(cast(Any, overlay)._runtime.autoscroll)
     scrolled = scrollbar.value() > initial_scroll_value
     QTest.mouseRelease(
         dragged_chip.overlay,

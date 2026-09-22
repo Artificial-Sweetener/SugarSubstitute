@@ -120,6 +120,8 @@ class PromptSemanticRefreshHost(Protocol):
 class PromptSemanticRefreshController:
     """Own semantic refresh debounce, execution, cancellation, and freshness."""
 
+    DEFAULT_SETTLE_DELAY_MS = 90
+
     def __init__(
         self,
         *,
@@ -495,7 +497,9 @@ def build_prompt_semantic_refresh_controller(
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
         request_channel=request_channel,
-        debouncer=QtPromptEditorDebouncer(interval_ms=0),
+        debouncer=QtPromptEditorDebouncer(
+            interval_ms=PromptSemanticRefreshController.DEFAULT_SETTLE_DELAY_MS
+        ),
         stale_result_guard=PromptStaleResultGuard(),
         shutdown_callback=lambda: executor.shutdown(
             wait=False,

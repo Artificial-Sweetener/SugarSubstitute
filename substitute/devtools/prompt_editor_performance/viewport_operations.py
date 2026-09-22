@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from time import perf_counter
-from typing import cast
 
 from PySide6.QtCore import QPoint
 from PySide6.QtGui import QContextMenuEvent
@@ -27,9 +26,6 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    PromptShellContextMenuController,
-)
 
 from .event_loop import process_events
 from .reorder_measurements import surface_for
@@ -112,10 +108,7 @@ def time_focus_operations(
 def time_context_menu_open(app: QApplication, editor: PromptEditor) -> float:
     """Measure prompt context-menu opening with menu execution patched to no-op."""
 
-    context_menu = cast(
-        PromptShellContextMenuController,
-        getattr(editor, "_shell_context_menu"),
-    )
+    context_menu = editor._runtime.host.menu.shell
     position = editor.cursorRect().center()
     global_position = editor.mapToGlobal(position)
     event = QContextMenuEvent(

@@ -157,6 +157,12 @@ class PromptSourceEditProjectionFactResolver:
             start,
             document=document,
         )
+        insertion_inside_text_content = (
+            self._facts.source_insertion_is_inside_text_content(
+                start,
+                document=document,
+            )
+        )
         deletion_intersects_projected_token = (
             self._facts.source_range_intersects_tokens(
                 start=start,
@@ -173,7 +179,9 @@ class PromptSourceEditProjectionFactResolver:
             origin=origin,
             updated_text=updated_text,
             normalized_text=normalized_text,
-            edit_inside_projected_token=insertion_inside_projected_token,
+            edit_inside_projected_token=(
+                insertion_inside_projected_token and not insertion_inside_text_content
+            ),
             delete_intersects_projected_token=(deletion_intersects_projected_token),
             typed_character_requires_immediate_projection=(
                 typed_character_requires_projection
@@ -200,6 +208,7 @@ class PromptSourceEditProjectionFactResolver:
             syntax_sensitive_prefix_deferrable=(syntax_sensitive_prefix_deferrable),
             insertion_inside_projected_token=insertion_inside_projected_token,
             deletion_intersects_projected_token=(deletion_intersects_projected_token),
+            insertion_inside_text_content=insertion_inside_text_content,
         )
 
     def _insertion_overlay_can_defer(

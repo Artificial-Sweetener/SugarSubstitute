@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel as runtime_autocomplete_panel,
+)
+
 from typing import Any, cast
 
 from PySide6.QtWidgets import QWidget
@@ -92,7 +96,7 @@ def short_repr(value: object) -> str:
 def autocomplete_panel(editor: PromptEditor) -> QWidget | None:
     """Return the composed autocomplete panel when normal construction created it."""
 
-    panel = getattr(editor, "_autocomplete_panel", None)
+    panel = runtime_autocomplete_panel(editor)
     return panel if isinstance(panel, QWidget) else None
 
 

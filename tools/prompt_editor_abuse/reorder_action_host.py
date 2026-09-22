@@ -41,6 +41,7 @@ from substitute.domain.prompt.reorder.mutations import (
 
 from .action_host import PromptAbuseActionHost
 from .models import PromptAbuseAction
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 
 
 class PromptReorderAbuseActionHost(PromptAbuseActionHost):
@@ -62,7 +63,7 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         if separator != ":":
             raise ValueError(f"Invalid reorder drag descriptor {value!r}.")
         prompt_editor = cast(Any, editor)
-        overlay = cast(QWidget, prompt_editor._segment_overlay)
+        overlay = cast(QWidget, segment_overlay(prompt_editor))
         source_index = _resolved_segment_index(source_text, overlay)
         target_index = _resolved_segment_index(target_text, overlay)
         source_chip = overlay_chip(overlay, source_index)
@@ -197,7 +198,7 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
 
         source_chip = self._require_active_drag()
         prompt_editor = cast(Any, editor)
-        overlay = cast(QWidget, prompt_editor._segment_overlay)
+        overlay = cast(QWidget, segment_overlay(prompt_editor))
         scrollbar = prompt_editor.verticalScrollBar()
         initial_value = int(scrollbar.value())
         edge_global = overlay.mapToGlobal(
@@ -217,7 +218,7 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         QTest.keyClick(target, Qt.Key.Key_Escape, delay=0)
         self._source_chip = None
         self._target_segment_index = None
-        if cast(Any, editor)._segment_overlay is not None:
+        if segment_overlay(editor) is not None:
             raise RuntimeError("Reorder drag Escape did not close reorder mode.")
 
     def capture_feature_checkpoint(
@@ -228,7 +229,7 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         """Require the measured threshold action to activate the real gesture."""
 
         exact, mismatch = super().capture_feature_checkpoint(editor, action)
-        overlay = cast(Any, editor)._segment_overlay
+        overlay = segment_overlay(editor)
         mismatches = [item for item in (mismatch,) if item is not None]
         dragged_segment_index = (
             None
@@ -530,7 +531,7 @@ def _reorder_landing_shadow_mismatch(overlay: Any) -> str | None:
         and (landing_preview.geometry is not None or landing_preview.visual is not None)
     ):
         return None
-    landing = overlay._landing_visual
+    landing_state, landing_counters = overlay.landing_shadow_diagnostics()
     return (
         "reorder_landing_shadow:"
         f"target={gesture.active_drop_target!r}:"
@@ -542,8 +543,8 @@ def _reorder_landing_shadow_mismatch(overlay: Any) -> str | None:
         f"visual={
             False if landing_preview is None else landing_preview.visual is not None
         }:"
-        f"skip={landing.state.publication.last_preview_skip_reason}:"
-        f"counters={landing.counters()!r}"
+        f"skip={landing_state.last_preview_skip_reason}:"
+        f"counters={landing_counters!r}"
     )
 
 

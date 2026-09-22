@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from typing import cast
 
 from PySide6.QtCore import Qt
@@ -68,7 +72,7 @@ def test_prompt_editor_real_widget_uses_comma_delimited_space_tag_matching(
     QTest.keyClicks(editor, "1girl, long ha")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert gateway.calls[-1] == ("long ha", 10)
     assert editor.toPlainText() == "1girl, long ha"
     assert panel.is_panel_visible() is True
@@ -107,7 +111,7 @@ def test_prompt_editor_real_widget_uses_suffix_fallback_without_leading_comma(
     QTest.keyClicks(editor, "ha")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert ("1girl blue ha", 10) in gateway.calls
     assert gateway.calls[-1] == ("ha", 10)
     assert editor.toPlainText() == "1girl blue ha solo"
@@ -146,7 +150,7 @@ def test_prompt_editor_real_widget_accepts_underscore_input_as_spaced_completion
     assert gateway.calls[-1] == ("long_ha", 10)
     assert editor_autocomplete_preview_text(editor) == "ir"
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     row = panel_rows(panel)[0]
     QTest.mouseClick(row, Qt.MouseButton.LeftButton, pos=row.rect().center())
     process_events(app)
@@ -178,7 +182,7 @@ def test_prompt_editor_real_widget_hides_noop_autocomplete_suggestion_for_fully_
 
     panel = cast(
         PromptAutocompletePanel | None,
-        getattr(editor, "_autocomplete_panel"),
+        autocomplete_panel(editor),
     )
     assert gateway.calls[-1] == ("looking at viewer", 10)
     assert panel is None or panel.is_panel_visible() is False
@@ -207,7 +211,7 @@ def test_prompt_editor_real_widget_ignores_quoted_and_bracketed_commas_for_autoc
     QTest.keyClicks(editor, '"cat, dog", [bird, fish], long ha')
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert gateway.calls[-1] == ("long ha", 10)
     assert panel.is_panel_visible() is True
     assert editor_autocomplete_preview_text(editor) == "ir"
@@ -241,7 +245,7 @@ def test_prompt_editor_real_widget_ignores_braced_commas_for_autocomplete(
     QTest.keyClicks(editor, "{animal, texture}, long ha")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert gateway.calls[-1] == ("long ha", 10)
     assert panel.is_panel_visible() is True
     assert editor_autocomplete_preview_text(editor) == "ir"

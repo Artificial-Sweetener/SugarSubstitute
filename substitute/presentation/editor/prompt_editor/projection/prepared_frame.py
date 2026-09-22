@@ -217,12 +217,8 @@ class PromptProjectionPreparedFrame:
         configuration = output.configuration
         snapshot = output.snapshot
         projection_document = output.projection_document
-        self._projection_token_ids = frozenset(
-            token.token_id for token in projection_document.tokens
-        )
-        self._projection_run_ids = frozenset(
-            run.run_id for run in projection_document.runs
-        )
+        self._projection_token_ids = projection_document.token_ids()
+        self._projection_run_ids = projection_document.run_ids()
         self._geometry = PromptProjectionGeometry(
             PromptProjectionGeometryInput(
                 projection_document=projection_document,
@@ -237,7 +233,6 @@ class PromptProjectionPreparedFrame:
         )
         self._base_inline_bindings = prepare_base_inline_bindings(
             projection_document,
-            snapshot,
             renderers=configuration.inline_object_renderers,
         )
         self._publish_base_text_styles()

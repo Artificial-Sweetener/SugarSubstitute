@@ -64,6 +64,10 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     """Return source, caret, and projection state from the real projection owner."""
 
     runtime = getattr(editor, "_runtime", None)
+    core = getattr(runtime, "core", None)
+    syntax = getattr(core, "syntax", None)
+    interaction_controller = getattr(syntax, "interaction_controller", None)
+    semantic_refresh = getattr(interaction_controller, "_semantic_refresh", None)
     projection = getattr(runtime, "projection_or_none", None)
     surface = getattr(projection, "surface", None)
     editor_state = getattr(surface, "editor_state", None)
@@ -296,6 +300,12 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "paint_revision": paint_revision,
         "semantic_is_current": (
             bool(getattr(revision_graph, "semantic_is_current", False))
+        ),
+        "semantic_refresh_pending": (
+            getattr(semantic_refresh, "_pending_request", None) is not None
+        ),
+        "semantic_refresh_active": (
+            getattr(semantic_refresh, "_active_task_identity", None) is not None
         ),
         "projection_is_current": (
             bool(getattr(revision_graph, "projection_is_current", False))

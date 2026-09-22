@@ -98,6 +98,13 @@ class PromptAbuseActionHost:
         target.setFocus(Qt.FocusReason.OtherFocusReason)
         self._event_loop.process_events(cycles=2)
 
+    def resize_editor(self, editor: object, width: int, height: int) -> None:
+        """Resize through the editor's durable manual-height owner."""
+
+        prompt_editor = cast(Any, editor)
+        prompt_editor.setManualScrollHeight(height)
+        prompt_editor.resize(width, height)
+
     def workflow_round_trip(self) -> tuple[tuple[str, float], ...]:
         """Switch workflows and return one timing for each visible transition."""
 

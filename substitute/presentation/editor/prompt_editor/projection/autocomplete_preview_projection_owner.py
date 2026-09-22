@@ -107,7 +107,7 @@ class PromptAutocompletePreviewProjectionOwner:
         cursor_position: int,
         selection_is_empty: bool,
     ) -> None:
-        """Clear or rebuild preview projection after committed caret movement."""
+        """Clear preview state that no longer matches the committed caret."""
 
         preview_state = self.state
         log_prompt_editor_probe(
@@ -124,8 +124,7 @@ class PromptAutocompletePreviewProjectionOwner:
             self.clear_preview_state()
             action = "clear"
         else:
-            self._rebuild_active()
-            action = "rebuild"
+            action = "retain"
         log_prompt_editor_probe(
             "autocomplete_preview_owner.reconcile_caret.end",
             owner_id=id(self),

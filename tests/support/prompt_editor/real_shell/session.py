@@ -83,6 +83,7 @@ from substitute.presentation.editor.panel.view import EditorPanel
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
+from substitute.presentation.resources.cube_icon_factory import CubeIconFactory
 from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
 )
@@ -204,6 +205,7 @@ class PromptEditorRealShell(QMainWindow):
         )
         self.thumbnail_asset_repository = thumbnail_asset_repository
         self.user_preset_service = user_preset_service
+        self.cube_icon_factory = CubeIconFactory()
         self.workflow_issue_state = None
         self.editor_panel_execution_factories = (
             immediate_editor_panel_execution_factories()

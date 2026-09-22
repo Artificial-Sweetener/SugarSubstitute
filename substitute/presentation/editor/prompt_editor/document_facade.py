@@ -54,6 +54,7 @@ class PromptEditorDocumentBindings:
     publish_interaction_semantics_changed: Callable[[], None]
     publish_diagnostics_semantics_changed: Callable[[], None]
     publish_lora_source_changed: Callable[[], None]
+    flush_semantic_refresh: Callable[..., None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,16 +67,19 @@ class PromptEditorDocumentFacade:
         """Replace the full normalized prompt source."""
 
         self.bindings.set_plain_text(text)
+        self.bindings.flush_semantic_refresh(reason="set_plain_text")
 
     def set_source_text(self, text: str) -> None:
         """Replace the full exact prompt source."""
 
         self.bindings.set_source_text(text)
+        self.bindings.flush_semantic_refresh(reason="set_source_text")
 
     def replace_baseline_text(self, text: str, *, exact_source: bool = False) -> None:
         """Replace restored source and establish a new undo baseline."""
 
         self.bindings.replace_baseline_text(text, exact_source=exact_source)
+        self.bindings.flush_semantic_refresh(reason="replace_baseline_text")
 
     def replace_baseline_document(
         self,
@@ -104,6 +108,7 @@ class PromptEditorDocumentFacade:
         """Replace document text through one grouped edit."""
 
         self.bindings.replace_document_text(text)
+        self.bindings.flush_semantic_refresh(reason="replace_document_text")
 
     def replace_document_text_with_prompt_state(
         self,
@@ -118,6 +123,9 @@ class PromptEditorDocumentFacade:
             text,
             document_view=document_view,
             render_plan=render_plan,
+        )
+        self.bindings.flush_semantic_refresh(
+            reason="replace_document_text_with_prompt_state"
         )
 
 
@@ -148,6 +156,7 @@ def build_prompt_editor_document_facade(
                 diagnostics.handle_document_semantics_changed
             ),
             publish_lora_source_changed=lora_trigger_words.handle_source_changed,
+            flush_semantic_refresh=interaction.flush_pending_semantic_refresh,
         )
     )
 

@@ -403,8 +403,29 @@ def _edit_action_violations(
         "instrumented_danbooru_import_apply_count",
         0.0,
     )
-    limits = _DANBOORU_IMPORT_EDIT_LIMITS if danbooru_import_count else _EDIT_LIMITS
+    autocomplete_preview_count = counters.get(
+        "instrumented_autocomplete_preview_update_count",
+        0.0,
+    )
+    limits = (
+        _DANBOORU_IMPORT_EDIT_LIMITS
+        if danbooru_import_count
+        else {
+            **_EDIT_LIMITS,
+            "instrumented_layout_snapshot_count": (
+                2.0 if autocomplete_preview_count else 1.0
+            ),
+        }
+    )
     violations = list(_counter_limit_violations(delta, counters, limits))
+    violations.extend(
+        _maximum_counter_violations(
+            delta,
+            counters,
+            counter_name="instrumented_autocomplete_preview_update_count",
+            maximum=1.0,
+        )
+    )
     if not danbooru_import_count:
         canonical_document_count = counters.get(
             "instrumented_document_view_build_count",
@@ -415,7 +436,12 @@ def _edit_action_violations(
                 delta,
                 counters,
                 counter_name="instrumented_projection_document_build_count",
-                maximum=min(2.0, canonical_document_count + 1.0),
+                maximum=min(
+                    3.0,
+                    canonical_document_count
+                    + 1.0
+                    + min(1.0, autocomplete_preview_count),
+                ),
             )
         )
     violations.extend(

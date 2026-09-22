@@ -261,6 +261,8 @@ class PromptEditorSnapshotCapture:
             viewport_revision=_optional_int(projection_state["viewport_revision"]),
             paint_revision=_optional_int(projection_state["paint_revision"]),
             semantic_is_current=bool(projection_state["semantic_is_current"]),
+            semantic_refresh_pending=bool(projection_state["semantic_refresh_pending"]),
+            semantic_refresh_active=bool(projection_state["semantic_refresh_active"]),
             projection_is_current=bool(projection_state["projection_is_current"]),
             layout_is_current=bool(projection_state["layout_is_current"]),
             paint_is_current=bool(projection_state["paint_is_current"]),

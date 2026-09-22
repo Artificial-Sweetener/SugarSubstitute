@@ -182,7 +182,18 @@ def test_build_reorder_measurement_state_prepares_preview_and_base_state() -> No
 def test_current_reorder_overlay_requires_real_overlay() -> None:
     """Overlay lookup should fail closed when Alt did not create the overlay."""
 
-    editor = cast(PromptEditor, object())
+    editor = cast(
+        PromptEditor,
+        SimpleNamespace(
+            _runtime=SimpleNamespace(
+                core=SimpleNamespace(
+                    syntax=SimpleNamespace(
+                        interaction_controller=SimpleNamespace(segment_overlay=None)
+                    )
+                )
+            )
+        ),
+    )
 
     with pytest.raises(RuntimeError, match="Alt did not create"):
         current_reorder_overlay(editor)

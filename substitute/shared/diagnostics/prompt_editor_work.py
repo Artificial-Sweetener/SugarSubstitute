@@ -96,8 +96,13 @@ class PromptEditorWorkEvent(StrEnum):
 class PromptEditorWorkObserver(Protocol):
     """Receive one completed owner operation from an instrumented editor run."""
 
-    def record(self, event: PromptEditorWorkEvent, elapsed_ms: float) -> None:
-        """Record one operation without inspecting the measured owner."""
+    def record(
+        self,
+        event: PromptEditorWorkEvent,
+        elapsed_ms: float,
+        owner: object | None = None,
+    ) -> None:
+        """Record one operation and its owner when the boundary exposes one."""
 
 
 _ACTIVE_OBSERVER: PromptEditorWorkObserver | None = None
@@ -145,9 +150,17 @@ def prompt_editor_work_event(
             try:
                 result = operation(*args, **kwargs)
             except BaseException:
-                observer.record(event, (perf_counter() - started_at) * 1_000.0)
+                observer.record(
+                    event,
+                    (perf_counter() - started_at) * 1_000.0,
+                    args[0] if args else None,
+                )
                 raise
-            observer.record(event, (perf_counter() - started_at) * 1_000.0)
+            observer.record(
+                event,
+                (perf_counter() - started_at) * 1_000.0,
+                args[0] if args else None,
+            )
             return result
 
         return measured
@@ -231,6 +244,7 @@ def prompt_editor_work_result_event(
                 observer.record(
                     measured_event,
                     (perf_counter() - started_at) * 1_000.0,
+                    args[0] if args else None,
                 )
             return result
 

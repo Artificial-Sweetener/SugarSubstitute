@@ -69,7 +69,8 @@ def test_refresh_geometry_preserves_active_session_and_updates_surfaces() -> Non
 
     autocomplete_stack.input_adapter.refresh_geometry()
 
-    assert presenter.presented_sessions == [session]
+    assert presenter.presented_sessions == []
+    assert presenter.geometry_refreshes == 1
     assert session_controller.session is session
 
 
@@ -140,16 +141,20 @@ def test_panel_hide_clears_existing_autocomplete_ghost_text() -> None:
             source_text="1g",
         )
     )
-    autocomplete_stack = build_test_autocomplete_stack(
+    ghost_publisher = PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state,
+    )
+    build_test_autocomplete_stack(
         editor,
         prompt_autocomplete_gateway=EmptyAutocompleteGateway(),
         autocomplete_presenter=presenter,
-        autocomplete_ghost_text_publisher=PromptAutocompleteGhostTextPublisher(
-            publish_preview_state=editor.set_autocomplete_preview_state,
-        ),
+        autocomplete_ghost_text_publisher=ghost_publisher,
         autocomplete_session_controller=session_controller,
     )
-    autocomplete_stack.input_adapter.refresh_geometry()
+    ghost_publisher.publish_for_session(
+        session_controller.session,
+        source_snapshot=session_controller.ghost_text_source_snapshot,
+    )
     assert editor.autocomplete_preview_state is not None
 
     presenter.set_visible(False)

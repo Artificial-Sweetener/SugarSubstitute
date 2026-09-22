@@ -64,6 +64,9 @@ PromptAutocompleteDismissReason = Literal[
 class PromptAutocompleteLifecycleRequester(Protocol):
     """Request autocomplete lifecycle updates from prepared source snapshots."""
 
+    def has_active_session(self) -> bool:
+        """Return whether source edits have a live session to retarget."""
+
     def retarget_from_source_snapshot(
         self,
         snapshot: "PromptAutocompleteSourceSnapshot",
@@ -96,6 +99,15 @@ class PromptAutocompleteRefreshTimer(Protocol):
 
     def stop(self) -> None:
         """Stop the timer."""
+
+
+@dataclass(frozen=True, slots=True)
+class PromptAutocompleteEditState:
+    """Carry cheap source state needed before full query preparation."""
+
+    source_text: str
+    cursor_position: int
+    has_selection: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +179,17 @@ class PromptAutocompleteSourceSnapshotController:
             refresh_intent=refresh_intent,
         )
 
+    def edit_state(self) -> PromptAutocompleteEditState:
+        """Return source and cursor state without building a document view."""
+
+        source_text = self._source_text()
+        cursor_position, has_selection = self._cursor_state()
+        return PromptAutocompleteEditState(
+            source_text=source_text,
+            cursor_position=cursor_position,
+            has_selection=has_selection,
+        )
+
 
 class PromptAutocompleteTimingController:
     """Own autocomplete debounce, timer lifecycle, and source snapshot requests."""
@@ -236,8 +259,8 @@ class PromptAutocompleteTimingController:
     def handle_post_key_press(self, event: QKeyEvent) -> None:
         """Schedule autocomplete work after the editor has applied a key press."""
 
-        prefix_snapshot = self._lora_prefix_snapshot()
-        if prefix_snapshot is not None and prefix_snapshot.has_selection:
+        prefix_state = self._lora_prefix_edit_state()
+        if prefix_state is not None and prefix_state.has_selection:
             self.schedule_refresh(
                 delay_ms=0,
                 query_hint="post_edit",
@@ -245,10 +268,9 @@ class PromptAutocompleteTimingController:
                 refresh_intent="typing",
             )
             return
-        if prefix_snapshot is not None and self._should_refresh_lora_prefix_immediately(
-            prefix_snapshot
+        if prefix_state is not None and self._should_refresh_lora_prefix_immediately(
+            prefix_state
         ):
-            self._retarget_from_source_snapshot(prefix_snapshot)
             self.schedule_refresh(
                 delay_ms=0,
                 query_hint="lora_prefix",
@@ -380,6 +402,8 @@ class PromptAutocompleteTimingController:
     ) -> bool:
         """Prepare a snapshot and retarget active autocomplete immediately."""
 
+        if not self._lifecycle_requester.has_active_session():
+            return False
         snapshot = self._source_snapshots.snapshot(
             query_reason=query_reason,
             refresh_intent=refresh_intent,
@@ -431,19 +455,16 @@ class PromptAutocompleteTimingController:
         finally:
             self._active_refresh_revision = previous_active_revision
 
-    def _lora_prefix_snapshot(self) -> PromptAutocompleteSourceSnapshot | None:
-        """Return a prepared snapshot when LoRA prefix probing is enabled."""
+    def _lora_prefix_edit_state(self) -> PromptAutocompleteEditState | None:
+        """Return cheap edit state when LoRA prefix probing is enabled."""
 
         if not self._lora_autocomplete_enabled():
             return None
-        return self._source_snapshots.snapshot(
-            query_reason="lora_prefix_probe",
-            refresh_intent="typing",
-        )
+        return self._source_snapshots.edit_state()
 
     @staticmethod
     def _should_refresh_lora_prefix_immediately(
-        snapshot: PromptAutocompleteSourceSnapshot,
+        snapshot: PromptAutocompleteEditState,
     ) -> bool:
         """Return whether the current edit is entering an unclosed LoRA prefix."""
 
@@ -503,6 +524,7 @@ class PromptAutocompleteTimingController:
 
 
 __all__ = [
+    "PromptAutocompleteEditState",
     "PromptAutocompleteDismissReason",
     "PromptAutocompleteLifecycleRequester",
     "PromptAutocompleteRefreshTimer",

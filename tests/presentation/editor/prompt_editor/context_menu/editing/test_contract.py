@@ -41,6 +41,7 @@ from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     process_events,
 )
 from tests.support.prompt_editor.projection_engine_support import surface_for
+from tests.support.prompt_editor.runtime_owners import set_context_menu_insert_state
 from substitute.presentation.widgets.menu_model import MenuItem
 
 pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
@@ -416,7 +417,7 @@ def test_prompt_editor_host_facade_context_insert_preserves_focus_target(
     editor.setPlainText("alpha")
     editor.setFocus()
     process_events(app)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=5)
+    set_context_menu_insert_state(editor, insert_position=5)
 
     cast(Any, editor)._runtime.core.context_insertion.insert_context_menu_text(
         ", beta",

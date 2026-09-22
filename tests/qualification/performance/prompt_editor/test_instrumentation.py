@@ -49,6 +49,35 @@ def test_instrumentation_observer_records_stable_owner_event() -> None:
     assert instrumentation.editing_replace_range.elapsed_ms == 2.5
 
 
+def test_instrumentation_observer_attributes_events_to_exact_owner() -> None:
+    """Distinguish identical work performed by separate mounted editors."""
+
+    instrumentation = Instrumentation.create()
+    observer = PromptEditorInstrumentationObserver(instrumentation)
+    measured_owner = object()
+    unrelated_owner = object()
+
+    observer.record(
+        PromptEditorWorkEvent.SURFACE_RESIZE_EVENT,
+        1.0,
+        measured_owner,
+    )
+    observer.record(
+        PromptEditorWorkEvent.SURFACE_RESIZE_EVENT,
+        2.0,
+        unrelated_owner,
+    )
+
+    assert instrumentation.surface_resize_event.count == 2
+    assert (
+        observer.owner_event_count(
+            PromptEditorWorkEvent.SURFACE_RESIZE_EVENT,
+            measured_owner,
+        )
+        == 1
+    )
+
+
 def test_instrumentation_supports_every_stable_owner_event() -> None:
     """Keep the stable event contract and benchmark counters exhaustive."""
 

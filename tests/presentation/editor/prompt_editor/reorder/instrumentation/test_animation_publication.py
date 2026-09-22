@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 import pytest
@@ -61,7 +65,7 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     surface = surface_for(box)
 
     QTest.keyClick(box, Qt.Key.Key_Left)
@@ -114,7 +118,7 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     monkeypatch.setattr(
         cast(Any, overlay)._runtime.raster,
         "entries_for",

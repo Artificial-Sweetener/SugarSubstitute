@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+    segment_overlay,
+)
+
 from typing import cast
 
 from PySide6.QtCore import Qt
@@ -75,7 +80,7 @@ def test_prompt_editor_real_widget_enters_reorder_mode_once_and_closes_without_m
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     process_events(app)
 
-    first_overlay = getattr(editor, "_segment_overlay")
+    first_overlay = segment_overlay(editor)
     assert first_overlay is not None
     assert _reorder_preview_document(editor) is None
     assert first_overlay.isVisible() is True
@@ -85,14 +90,14 @@ def test_prompt_editor_real_widget_enters_reorder_mode_once_and_closes_without_m
 
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     process_events(app)
-    assert getattr(editor, "_segment_overlay") is first_overlay
+    assert segment_overlay(editor) is first_overlay
 
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     process_events(app)
 
     assert editor.toPlainText() == "alpha,beta,"
     assert _reorder_preview_document(editor) is None
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None
 
 
 def test_prompt_editor_real_widget_entering_reorder_mode_dismisses_autocomplete(
@@ -116,7 +121,7 @@ def test_prompt_editor_real_widget_entering_reorder_mode_dismisses_autocomplete(
     QTest.keyClicks(editor, "alpha, beta, 1g")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert panel.is_panel_visible() is True
     assert editor_autocomplete_preview_text(editor) == "irl"
 
@@ -125,6 +130,6 @@ def test_prompt_editor_real_widget_entering_reorder_mode_dismisses_autocomplete(
 
     assert panel.is_panel_visible() is False
     assert editor_autocomplete_preview_text(editor) == ""
-    reorder_overlay = getattr(editor, "_segment_overlay")
+    reorder_overlay = segment_overlay(editor)
     assert reorder_overlay is not None
     assert reorder_overlay.parentWidget() is editor.viewport()

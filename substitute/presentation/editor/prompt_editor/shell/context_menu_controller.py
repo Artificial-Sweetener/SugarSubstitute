@@ -391,7 +391,7 @@ class PromptShellContextMenuController:
         insert_position: int | None,
         should_replace_selection: bool | None = None,
     ) -> None:
-        """Set context-menu insert state for tests and delegated commands."""
+        """Set context-menu insertion state for the next delegated command."""
 
         self._last_context_menu_insert_position = insert_position
         self._context_menu_should_replace_selection = should_replace_selection
@@ -402,7 +402,7 @@ class PromptShellContextMenuController:
         had_selection: bool | None,
         selection_snapshot: PromptShellSelectionSnapshot | None,
     ) -> None:
-        """Set captured context-menu selection state for tests."""
+        """Set captured context-menu selection state for the next command."""
 
         self._last_context_menu_press_had_selection = had_selection
         self._last_context_menu_selection_snapshot = selection_snapshot

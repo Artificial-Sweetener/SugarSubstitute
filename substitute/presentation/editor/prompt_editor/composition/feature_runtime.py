@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..async_work import QtPromptEditorMainThreadDispatcher
+from ..async_work import QtPromptEditorDebouncer, QtPromptEditorMainThreadDispatcher
 from ..catalog_refresh_facade import (
     PromptEditorCatalogRefreshFacade,
     build_prompt_editor_catalog_refresh_facade,
@@ -100,6 +100,12 @@ def build_prompt_editor_feature_runtime(
             lambda: services.feature_profile_controller.lora_trigger_words_enabled
         ),
         effective_prompts=services.scene_position_preparation.effective_prompt_texts,
+        source_change_debouncer=QtPromptEditorDebouncer(
+            interval_ms=(
+                PromptLoraTriggerWordController.DEFAULT_SOURCE_SETTLE_DELAY_MS
+            ),
+            parent=context.editor,
+        ),
     )
     document = build_prompt_editor_document_facade(
         inputs.prompt_document_semantics,

@@ -183,6 +183,7 @@ class PromptProjectionRebuildOwner:
             return
         self._cancel_pending_projection()
         rebuild_started_at = projection_observability_started_at()
+        mount_committed_layout = not self._active_projection_requires_layout()
         rebuild_result = self._applicator.rebuild_projection(
             self._editor_state.edit_semantic.document,
             self._editor_state.edit_semantic.render_plan,
@@ -198,6 +199,7 @@ class PromptProjectionRebuildOwner:
             semantic_palette=semantic_palette_from_theme(),
             previous_cursor_state=self._caret_state.cursor_state,
             previous_anchor_state=self._caret_state.anchor_state,
+            mount_committed_layout=mount_committed_layout,
         )
         log_projection_timing(
             "surface.rebuild_projection",

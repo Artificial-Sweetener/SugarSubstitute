@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from .models import PromptAbuseAction
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 
 
 def capture_action_checkpoint(
@@ -83,7 +84,7 @@ def capture_action_checkpoint(
             action.expected_token_kinds,
         )
     if action.expected_reorder_chip_texts is not None:
-        overlay = prompt_editor._segment_overlay
+        overlay = segment_overlay(prompt_editor)
         actual_chip_texts = (
             ()
             if overlay is None

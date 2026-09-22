@@ -173,7 +173,7 @@ def lora_projection_collapse_summary(
     display_mode: PromptProjectionDisplayMode,
     candidates: tuple[PromptProjectionCollapseCandidate, ...],
 ) -> PromptLoraProjectionCollapseSummary:
-    """Return aggregate LoRA collapse diagnostics for tests and logging."""
+    """Return aggregate LoRA collapse diagnostics for logging."""
 
     return PromptLoraProjectionCollapseSummary(
         source_text_length=len(document_view.source_text),

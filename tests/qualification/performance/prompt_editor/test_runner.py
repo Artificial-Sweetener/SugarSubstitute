@@ -32,8 +32,12 @@ from substitute.devtools.prompt_editor_performance.metrics import (
     Instrumentation,
     ScenarioResult,
 )
+from substitute.devtools.prompt_editor_performance.qt_app import (
+    prompt_performance_application,
+)
 from substitute.devtools.prompt_editor_performance.scenarios import (
     ALL_PROMPT_EDITOR_FEATURES,
+    DANBOORU_IMPORT_URL,
     Scenario,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
@@ -273,6 +277,43 @@ def test_settle_prompt_editor_publishes_setup_before_measurement(
         "performance_setup"
     ]
     assert processed_apps == [app]
+
+
+def test_context_menu_scenario_uses_the_mounted_menu_owner() -> None:
+    """Exercise context-menu timing through the production-mounted runtime."""
+
+    result = runner.run_scenario(
+        prompt_performance_application(),
+        Scenario(
+            "context-menu-mounted-owner",
+            "alpha, beta",
+            operation="context_menu",
+            cursor_position=2,
+        ),
+        observe_owner_work=False,
+    )
+
+    assert result.operations == 1
+    assert result.max_ms >= 0.0
+
+
+def test_danbooru_paste_scenario_uses_the_mounted_projection_owner() -> None:
+    """Exercise paste-import timing through the production-mounted runtime."""
+
+    result = runner.run_scenario(
+        prompt_performance_application(),
+        Scenario(
+            "danbooru-paste-mounted-owner",
+            "alpha, beta",
+            operation="paste_import",
+            clipboard_text=DANBOORU_IMPORT_URL,
+            danbooru_import_enabled=True,
+        ),
+        observe_owner_work=False,
+    )
+
+    assert result.operations == 1
+    assert result.max_ms >= 0.0
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

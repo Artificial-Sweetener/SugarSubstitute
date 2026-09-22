@@ -63,6 +63,11 @@ class _DocumentRecorder:
 
         self.calls.append("lora")
 
+    def flush_semantic_refresh(self, *, reason: str) -> None:
+        """Record synchronous semantic publication for document commands."""
+
+        self.calls.append(("semantic_flush", reason))
+
 
 def test_semantics_change_replaces_exact_baseline_before_invalidating_features() -> (
     None
@@ -78,6 +83,7 @@ def test_semantics_change_replaces_exact_baseline_before_invalidating_features()
     assert recorder.calls == [
         ("semantics", semantics),
         ("baseline", "raw, source", True),
+        ("semantic_flush", "replace_baseline_text"),
         "interaction",
         "diagnostics",
         "lora",
@@ -96,6 +102,7 @@ def test_stable_semantics_replaces_baseline_without_false_invalidation() -> None
     assert recorder.calls == [
         ("semantics", semantics),
         ("baseline", "restored", True),
+        ("semantic_flush", "replace_baseline_text"),
     ]
 
 
@@ -114,5 +121,6 @@ def _facade(recorder: _DocumentRecorder) -> PromptEditorDocumentFacade:
             publish_interaction_semantics_changed=recorder.interaction_changed,
             publish_diagnostics_semantics_changed=recorder.diagnostics_changed,
             publish_lora_source_changed=recorder.lora_changed,
+            flush_semantic_refresh=recorder.flush_semantic_refresh,
         )
     )

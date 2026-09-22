@@ -67,3 +67,28 @@ def test_source_change_publication_invalidates_exact_dependent_state(
     assert host.reorder_source_changes == 1
     assert host.render_source_changes == [False]
     assert host.marked_source_changes == [(deferrable_projection, 8)]
+    assert owner.requires_immediate_semantic_refresh()
+    assert owner.requires_semantic_refresh_before_boundary()
+
+
+def test_source_change_publication_scopes_semantic_urgency_to_latest_revision() -> None:
+    """Only the current source revision may request synchronous semantics."""
+
+    host = _SourceChangeHost()
+    owner = _source_change_publication(host)
+
+    owner.publish(
+        deferrable_projection=True,
+        source_snapshot=PromptSourceSnapshot(source_text="alpha", source_revision=8),
+        requires_immediate_semantic_refresh=True,
+    )
+    assert owner.requires_immediate_semantic_refresh()
+
+    owner.publish(
+        deferrable_projection=True,
+        source_snapshot=PromptSourceSnapshot(source_text="alphax", source_revision=9),
+        requires_immediate_semantic_refresh=False,
+        requires_semantic_refresh_before_boundary=False,
+    )
+    assert not owner.requires_immediate_semantic_refresh()
+    assert not owner.requires_semantic_refresh_before_boundary()

@@ -17,8 +17,6 @@
 """Verify saved prompt-segment actions and dialog contracts."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from typing import Any, cast
 import pytest
 from PySide6.QtGui import QTextCursor
@@ -50,6 +48,7 @@ from tests.presentation.editor.prompt_editor.context_menu.saved_segments.mountin
     _PromptSegmentPresetSource,
     create_prompt_editor_with_segments,
 )
+from tests.support.prompt_editor.runtime_owners import set_context_menu_selection_state
 
 
 def test_prompt_editor_segment_source_uses_custom_qfluent_menu(
@@ -172,7 +171,8 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
     cursor.setPosition(0)
     cursor.setPosition(5, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
-    cast(Any, editor)._set_context_menu_selection_state_for_tests(
+    set_context_menu_selection_state(
+        editor,
         had_selection=True,
         selection_snapshot=(0, 5, "alpha"),
     )

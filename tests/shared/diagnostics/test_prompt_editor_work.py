@@ -41,11 +41,18 @@ class _RecordingObserver:
     """Collect owner events for focused observation tests."""
 
     events: list[tuple[PromptEditorWorkEvent, float]] = field(default_factory=list)
+    owners: list[object | None] = field(default_factory=list)
 
-    def record(self, event: PromptEditorWorkEvent, elapsed_ms: float) -> None:
+    def record(
+        self,
+        event: PromptEditorWorkEvent,
+        elapsed_ms: float,
+        owner: object | None = None,
+    ) -> None:
         """Append one measured event."""
 
         self.events.append((event, elapsed_ms))
+        self.owners.append(owner)
 
 
 def test_disabled_owner_observation_skips_clock_and_counter(
@@ -89,6 +96,25 @@ def test_enabled_owner_observation_records_elapsed_event(
 
     assert observer.events[0][0] is PromptEditorWorkEvent.EDITING_REPLACE_RANGE
     assert observer.events[0][1] == pytest.approx(4.0)
+
+
+def test_decorated_method_observation_includes_exact_owner() -> None:
+    """Expose method ownership so multi-editor probes can isolate work."""
+
+    observer = _RecordingObserver()
+
+    class _Owner:
+        """Provide one representative observed method."""
+
+        @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_RESIZE_EVENT)
+        def resize(self) -> None:
+            """Represent one owner-scoped operation."""
+
+    owner = _Owner()
+    with observe_prompt_editor_work(observer):
+        owner.resize()
+
+    assert observer.owners == [owner]
 
 
 def test_result_classification_records_only_selected_event() -> None:

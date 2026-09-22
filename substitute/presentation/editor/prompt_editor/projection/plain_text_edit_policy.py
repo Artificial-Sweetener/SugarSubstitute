@@ -27,6 +27,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.runs import (
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
+    PromptProjectionTokenKind,
 )
 
 from .incremental_edit_contracts import PromptProjectionIncrementalEdit
@@ -129,6 +130,39 @@ def source_backed_plain_text_run_for_edit(
     return None
 
 
+def source_backed_editable_token_text_run_for_edit(
+    edit: PromptProjectionIncrementalEdit,
+    runs: Sequence[PromptProjectionRun],
+    tokens: Sequence[PromptProjectionToken],
+) -> PromptProjectionRun | None:
+    """Return an editable token-content run containing one bounded edit."""
+
+    editable_token_ids = frozenset(
+        token.token_id
+        for token in tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+        and token.supports_text_content_navigation
+        and token.content_start is not None
+        and token.content_end is not None
+        and token.content_start <= edit.start
+        and edit.end <= token.content_end
+    )
+    if not editable_token_ids:
+        return None
+    return next(
+        (
+            run
+            for run in runs
+            if run.kind is PromptProjectionRunKind.TEXT
+            and run.source_backed
+            and run.token_id in editable_token_ids
+            and run.source_start <= edit.start
+            and edit.end <= run.source_end
+        ),
+        None,
+    )
+
+
 def projection_position_for_source_boundary(
     run: PromptProjectionRun,
     source_position: int,
@@ -161,5 +195,6 @@ __all__ = [
     "plain_text_edit_is_supported",
     "projection_position_for_source_boundary",
     "run_has_contiguous_source_positions",
+    "source_backed_editable_token_text_run_for_edit",
     "source_backed_plain_text_run_for_edit",
 ]

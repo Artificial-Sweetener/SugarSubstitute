@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import cast
 
 from PySide6.QtCore import Qt
@@ -91,7 +95,7 @@ def test_prompt_editor_real_widget_commits_alt_left_keyboard_reorder(
     process_events(app)
 
     assert _reorder_preview_text(editor) == "beta, alpha, gamma"
-    overlay = cast(SegmentReorderOverlay, getattr(editor, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(editor))
     latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (1, 0, 2)
@@ -104,7 +108,7 @@ def test_prompt_editor_real_widget_commits_alt_left_keyboard_reorder(
     assert editor.toPlainText() == "beta, alpha, gamma"
     assert editor.textCursor().selectionStart() == 1
     assert editor.textCursor().selectionEnd() == 1
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None
     assert editor.hasFocus() is True
 
 
@@ -125,7 +129,7 @@ def test_prompt_editor_real_widget_commits_alt_right_keyboard_reorder(
     process_events(app)
 
     assert _reorder_preview_text(editor) == "alpha, gamma, beta"
-    overlay = cast(SegmentReorderOverlay, getattr(editor, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(editor))
     latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (0, 2, 1)
@@ -135,7 +139,7 @@ def test_prompt_editor_real_widget_commits_alt_right_keyboard_reorder(
     process_events(app)
 
     assert editor.toPlainText() == "alpha, gamma, beta"
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None
 
 
 def test_prompt_editor_real_widget_commits_alt_up_keyboard_reorder(
@@ -156,7 +160,7 @@ def test_prompt_editor_real_widget_commits_alt_up_keyboard_reorder(
     process_events(app)
 
     assert _reorder_preview_text(editor) == "alpha,\n\ngamma,\nbeta"
-    overlay = cast(SegmentReorderOverlay, getattr(editor, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(editor))
     latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (0, 1, 2)
@@ -166,7 +170,7 @@ def test_prompt_editor_real_widget_commits_alt_up_keyboard_reorder(
     process_events(app)
 
     assert editor.toPlainText() == "alpha,\n\ngamma,\nbeta"
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None
 
 
 def test_prompt_editor_real_widget_clamps_alt_up_to_first_slot_on_top_lane(
@@ -191,7 +195,7 @@ def test_prompt_editor_real_widget_clamps_alt_up_to_first_slot_on_top_lane(
     process_events(app)
 
     assert editor.toPlainText() == "beta, alpha, gamma"
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None
 
 
 def test_prompt_editor_real_widget_commits_alt_down_keyboard_reorder(
@@ -214,7 +218,7 @@ def test_prompt_editor_real_widget_commits_alt_down_keyboard_reorder(
     process_events(app)
 
     assert _reorder_preview_text(editor) == "alpha,\n\n\nbeta, gamma"
-    overlay = cast(SegmentReorderOverlay, getattr(editor, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(editor))
     latest_snapshot = overlay.commit_snapshot()
     assert latest_snapshot is not None
     assert latest_snapshot.ordered_chip_indices == (0, 2, 1)
@@ -224,7 +228,7 @@ def test_prompt_editor_real_widget_commits_alt_down_keyboard_reorder(
     process_events(app)
 
     assert editor.toPlainText() == "alpha,\n\n\nbeta, gamma"
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None
 
 
 def test_prompt_editor_real_widget_clamps_alt_down_to_last_slot_on_bottom_lane(
@@ -249,4 +253,4 @@ def test_prompt_editor_real_widget_clamps_alt_down_to_last_slot_on_bottom_lane(
     process_events(app)
 
     assert editor.toPlainText() == "alpha, gamma, beta"
-    assert getattr(editor, "_segment_overlay") is None
+    assert segment_overlay(editor) is None

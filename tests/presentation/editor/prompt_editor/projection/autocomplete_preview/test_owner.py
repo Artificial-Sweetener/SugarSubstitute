@@ -163,8 +163,8 @@ def test_preview_owner_clears_preview_after_selection_starts() -> None:
     assert recorder.paint_invalidation_count == 1
 
 
-def test_preview_owner_rebuilds_when_preview_still_matches_caret() -> None:
-    """A same-position caret refresh rebuilds instead of clearing valid preview."""
+def test_preview_owner_retains_matching_preview_without_rebuilding() -> None:
+    """Leave the shared caret publication path to refresh a matching preview once."""
 
     preview = _preview()
     recorder = _PreviewProjectionRecorder(
@@ -178,5 +178,5 @@ def test_preview_owner_rebuilds_when_preview_still_matches_caret() -> None:
     )
 
     assert owner.state == preview
-    assert recorder.active_rebuild_count == 1
+    assert recorder.active_rebuild_count == 0
     assert recorder.paint_invalidation_count == 0

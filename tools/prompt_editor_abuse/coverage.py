@@ -132,6 +132,12 @@ _SCENARIO_OPERATIONS: Final[dict[str, frozenset[PromptEditorOperation]]] = {
     "paste-undo-redo": frozenset(
         {PromptEditorOperation.PASTE, PromptEditorOperation.UNDO_REDO}
     ),
+    "decoration-content-end-continuation": frozenset(
+        {PromptEditorOperation.TYPE, PromptEditorOperation.EMPHASIS_SYNTAX}
+    ),
+    "decorated-comma-boundary-navigation": frozenset(
+        {PromptEditorOperation.LEFT_RIGHT, PromptEditorOperation.EMPHASIS_SYNTAX}
+    ),
     "scene-marker-creation": frozenset(
         {
             PromptEditorOperation.ENTER,

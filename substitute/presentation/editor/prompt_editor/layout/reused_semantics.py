@@ -63,6 +63,16 @@ class PromptReusedLineSemanticResolver:
     ) -> PromptReusedFragmentIdentity | None:
         """Return the new run/token IDs when visible fragment content still matches."""
 
+        preserves_identity = getattr(
+            self._projection_document.runs,
+            "preserves_run_identity",
+            None,
+        )
+        if callable(preserves_identity) and bool(preserves_identity(fragment.run_id)):
+            return PromptReusedFragmentIdentity(
+                run_id=fragment.run_id,
+                token_id=fragment.token_id,
+            )
         run = self._run_for_projection_position(
             fragment.projection_start + projection_delta
         )

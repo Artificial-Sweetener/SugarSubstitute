@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 import pytest
@@ -56,7 +60,7 @@ def test_reorder_alt_left_builds_keyboard_animation_plan(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     animation_owner = cast(Any, overlay)._runtime.animation
     original_apply_plan = animation_owner.apply_plan
     recorded_plans: list[Any] = []
@@ -107,7 +111,7 @@ def test_reorder_keyboard_animation_first_frame_is_coherent(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     render_publication = cast(Any, overlay)._runtime.render
     original_sync = render_publication.sync
     animation_frames: list[
@@ -176,7 +180,7 @@ def test_reorder_alt_right_captures_commit_snapshot_before_animation(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     animation_owner = cast(Any, overlay)._runtime.animation
     original_apply_plan = animation_owner.apply_plan
     observed_orders: list[tuple[int, ...] | None] = []

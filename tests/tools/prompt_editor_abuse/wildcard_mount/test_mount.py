@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    token_weight_controls,
+)
+
 from pathlib import Path
 
 from shiboken6 import isValid
@@ -37,7 +41,7 @@ def test_wildcard_abuse_mount_destroys_generated_modal_owner(tmp_path: Path) -> 
     with mount_wildcard_editor(scenario, artifact_root=tmp_path) as mounted:
         modal = mounted.modal
         owner = mounted.owner
-        controls = mounted.editor._token_weight_control_overlay
+        controls = token_weight_controls(mounted.editor)
 
     assert not isValid(modal)
     assert owner is not None

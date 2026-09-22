@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 from PySide6.QtCore import Qt
@@ -117,7 +121,8 @@ def test_real_shell_alt_arrow_keeps_held_chip_border_owned(
 
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     real_shell_scenario.wait_for_queued_delivery()
-    overlay = cast(Any, editor)._segment_overlay
+    overlay = segment_overlay(editor)
+    assert overlay is not None
     held_segment_index = overlay.active_segment_index()
     assert held_segment_index is not None
     before_move = capture_reorder_chip_chrome(

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from typing import cast
 
 from PySide6.QtTest import QTest
@@ -62,7 +66,7 @@ def test_prompt_editor_real_widget_repositions_panel_when_editor_moves(
     QTest.keyClicks(editor, "1g")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     initial_geometry = panel.geometry()
     editor.move(180, 92)
     process_events(app)
@@ -94,7 +98,7 @@ def test_prompt_editor_real_widget_repositions_panel_when_editor_resizes(
     QTest.keyClicks(editor, "alpha alpha alpha alpha alpha, 1g")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     initial_geometry = panel.geometry()
     editor.resize(140, editor.height())
     process_events(app)
@@ -130,7 +134,7 @@ def test_prompt_editor_real_widget_repositions_panel_when_vertical_scrollbar_mov
     QTest.keyClicks(editor, "1g")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     scrollbar = editor.verticalScrollBar()
     assert scrollbar.maximum() > 0
     initial_geometry = panel.geometry()
