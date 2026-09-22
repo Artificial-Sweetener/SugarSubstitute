@@ -124,23 +124,21 @@ def test_pre_source_owners_use_an_explicit_graph_effect_port() -> None:
     )
     source_block = composition_source[source_start:source_end]
 
-    graph_port_index = surface_source.index(
+    graph_port_index = composition_source.index(
         "graph_effects = PromptProjectionSurfaceGraphEffects()"
     )
-    interaction_index = surface_source.index(
-        "interaction_runtime = build_prompt_projection_surface_interaction_runtime("
+    interaction_index = composition_source.index(
+        "interaction = build_prompt_projection_surface_interaction_runtime("
     )
-    composition_index = surface_source.index(
-        "composition_runtime = build_prompt_projection_surface_composition_runtime("
-    )
-    assert graph_port_index < interaction_index < composition_index
+    assert graph_port_index < interaction_index < source_start
     assert "presentation." not in source_block
     assert "lifecycle." not in source_block
-    assert "graph_effects=graph_effects" in surface_source
+    assert "graph_effects=graph_effects" in composition_source
     assert "graph_effects=bindings.graph_effects" not in source_block
     assert "graph_effects.rebuild_projection" in interaction_runtime_source
     assert "graph_effects.ensure_caret_visible" in interaction_runtime_source
     assert "bind_prompt_projection_surface_graph_effects(" not in surface_source
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source
 
     presentation_index = composition_source.index(
         "presentation = build_prompt_projection_surface_presentation_runtime("

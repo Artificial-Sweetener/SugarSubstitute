@@ -630,11 +630,11 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:fce75857955cc7c640e9a8ba07fd372d28f178660e126266fdb2bd8a065a6759"
+fingerprint = "sha256:9c0a75390435da9f5db6e8801ec4f63fe84ef0f26cd99defea9e4d2093978195"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
-  "projection collaborator composition and public adapter publication",
+  "typed host-port binding and collaborator adapter publication",
   "Qt-compatible source, cursor, projection-query, and external editor facade",
   "Qt input, focus, viewport, and paint lifecycle routing",
 ]

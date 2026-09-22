@@ -29,6 +29,9 @@ def test_surface_delegates_source_independent_foundation_construction() -> None:
     foundation_source = (projection_root / "surface_foundation.py").read_text(
         encoding="utf-8"
     )
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     for construction_marker in (
         "PromptProjectionApplicator(",
@@ -40,7 +43,9 @@ def test_surface_delegates_source_independent_foundation_construction() -> None:
     ):
         assert construction_marker in foundation_source
         assert construction_marker not in surface_source
-    assert "build_prompt_projection_surface_foundation(" in surface_source
+    assert "build_prompt_projection_surface_foundation(" in composition_source
+    assert "build_prompt_projection_surface_foundation(" not in surface_source
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source
 
 
 def test_lora_features_consume_public_editor_state_contract() -> None:
