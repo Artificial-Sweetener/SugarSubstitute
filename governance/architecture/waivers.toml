@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The assessed file mixes a Qt-compatible source, cursor, and external editor facade, projection source, lifecycle, and presentation runtime coordination, and Qt input, focus, viewport, and paint lifecycle routing. Extract source, lifecycle, and presentation orchestration into one explicit surface composition runtime, leaving the widget as the Qt event adapter and public facade."
+justification = "Source, lifecycle, and presentation graph construction now belongs to surface_composition_runtime. The assessed file still mixes projection collaborator composition and public adapter publication, a Qt-compatible source, cursor, projection-query, and external editor facade, and Qt input, focus, viewport, and paint lifecycle routing. Extract the source, cursor, and projection-query facade from collaborator publication and Qt event routing, updating internal consumers to depend on the focused facade owner."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 1472
-next_limit = 1350
+max_lines = 1361
+next_limit = 1200
 debt = "SS-ARCH-061"
 
 [[waivers]]

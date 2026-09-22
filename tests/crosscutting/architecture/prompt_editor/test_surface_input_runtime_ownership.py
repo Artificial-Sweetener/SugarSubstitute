@@ -47,7 +47,9 @@ def test_surface_delegates_complete_source_input_runtime_construction() -> None:
 def test_source_state_composes_after_initialized_input_runtime() -> None:
     """Prevent source publication from closing over a future IME controller."""
 
-    surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
+    projection_root = PROMPT_PRESENTATION_ROOT / "projection"
+    surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
         encoding="utf-8"
     )
 
@@ -55,7 +57,19 @@ def test_source_state_composes_after_initialized_input_runtime() -> None:
         "input_runtime = build_prompt_projection_surface_input_runtime("
     )
     input_method_index = surface_source.index("self._input_runtime = input_runtime")
-    source_state_index = surface_source.index(
-        "source_state_owners = build_prompt_projection_source_state_owners("
+    composition_index = surface_source.index(
+        "composition_runtime = build_prompt_projection_surface_composition_runtime("
     )
-    assert input_runtime_index < input_method_index < source_state_index
+    source_state_index = composition_source.index(
+        "source = build_prompt_projection_source_state_owners("
+    )
+    source_state_end = composition_source.index(
+        "lifecycle = build_prompt_projection_surface_lifecycle_runtime("
+    )
+    source_state_block = composition_source[source_state_index:source_state_end]
+
+    assert input_runtime_index < input_method_index < composition_index
+    assert "input_runtime=input_runtime" in surface_source[composition_index:]
+    assert "input_method_source_changed=input_runtime.input_method.source_changed" in (
+        source_state_block
+    )
