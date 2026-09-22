@@ -24,11 +24,7 @@ from PySide6.QtCore import QObject
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
-from ..shell import (
-    PromptShellQFluentChrome,
-    PromptShellScrollDelegate,
-    PromptShellSizingController,
-)
+from ..shell import PromptEditorShellRuntime
 from .collaborator_bundle import PromptEditorCollaborators
 
 
@@ -37,9 +33,7 @@ class PromptEditorSignalHost(Protocol):
 
     textChanged: Any
     cursorPositionChanged: Any
-    _qfluent_chrome: PromptShellQFluentChrome
-    _scroll_delegate: PromptShellScrollDelegate
-    _sizing: PromptShellSizingController
+    _shell_runtime: PromptEditorShellRuntime
 
     def installEventFilter(self, event_filter: QObject) -> None:  # noqa: N802
         """Install one event filter on the host editor."""
@@ -99,9 +93,9 @@ def bind_prompt_editor_signals(
     surface.attach_focus_host(surface)
     surface.set_wheel_scroll_permission(editor._allow_surface_wheel_scroll)
     surface.installEventFilter(cast(QObject, editor))
-    editor._scroll_delegate.bind_host_scroll_delegate_to_surface(surface)
+    editor._shell_runtime.scrolling.bind_host_scroll_delegate_to_surface(surface)
     surface.contentHeightChanged.connect(
-        editor._sizing.handle_surface_content_height_changed
+        editor._shell_runtime.sizing.handle_surface_content_height_changed
     )
     surface.textChanged.connect(editor._handle_surface_text_changed)
     surface.cursorPositionChanged.connect(editor.cursorPositionChanged)
@@ -113,7 +107,7 @@ def bind_prompt_editor_signals(
         collaborators.inline_lora_menu_presenter.show_lora_context_menu
     )
     surface.backingFillInvalidated.connect(
-        editor._qfluent_chrome.handle_surface_backing_fill_invalidated
+        editor._shell_runtime.chrome.handle_surface_backing_fill_invalidated
     )
 
     editor.installEventFilter(token_weight_controls)
@@ -142,7 +136,7 @@ def bind_prompt_editor_signals(
         weight_interaction.handle_visible_token_content_range_changed
     )
     editor.verticalScrollBar().valueChanged.connect(
-        editor._scroll_delegate.handle_viewport_scroll_value_changed
+        editor._shell_runtime.scrolling.handle_viewport_scroll_value_changed
     )
     editor._shell_viewport().installEventFilter(cast(QObject, editor))
     editor.viewport().installEventFilter(cast(QObject, editor))

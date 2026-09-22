@@ -149,8 +149,8 @@ def wait_for_prompt_sizing_idle(box: PromptEditor) -> None:
     """Wait until projection, shell sizing, and host geometry have settled."""
 
     editor = cast(Any, box)
-    sizing = editor._sizing
-    scroll_delegate = editor._scroll_delegate
+    sizing = editor._shell_runtime.sizing
+    scroll_delegate = editor._shell_runtime.scrolling
     surface = editor._surface
     semantic_wait.wait_for_qt_condition(
         lambda: (

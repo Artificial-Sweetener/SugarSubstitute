@@ -26,11 +26,7 @@ from typing import Any, Literal, Protocol, cast
 from substitute.shared.logging.logger import Clock, log_timing
 
 from ..qt_lifecycle import qt_object_is_alive
-from ..shell import (
-    PromptShellQFluentChrome,
-    PromptShellScrollDelegate,
-    PromptShellSizingController,
-)
+from ..shell import PromptEditorShellRuntime
 
 _PROMPT_EDITOR_CONSTRUCTION_LOG_FIELDS = frozenset(
     {
@@ -89,9 +85,7 @@ class PromptEditorConstructionLifecycleHost(Protocol):
 class PromptEditorInitialLayoutHost(Protocol):
     """Describe construction-time layout hooks owned by later shell phases."""
 
-    _qfluent_chrome: PromptShellQFluentChrome
-    _scroll_delegate: PromptShellScrollDelegate
-    _sizing: PromptShellSizingController
+    _shell_runtime: PromptEditorShellRuntime
 
     def minimumEditorHeight(self) -> int:  # noqa: N802
         """Return the preferred minimum editor height."""
@@ -199,10 +193,10 @@ def wire_prompt_editor_construction_lifecycle(
 def apply_prompt_editor_initial_layout(editor: PromptEditorInitialLayoutHost) -> None:
     """Apply construction-time style, geometry, placeholder, and height hooks."""
 
-    editor._qfluent_chrome.sync_surface_style()
-    editor._scroll_delegate.layout_surface()
-    editor._qfluent_chrome.apply_placeholder_visibility()
-    editor._sizing.apply_preferred_height(editor.minimumEditorHeight())
+    editor._shell_runtime.chrome.sync_surface_style()
+    editor._shell_runtime.scrolling.layout_surface()
+    editor._shell_runtime.chrome.apply_placeholder_visibility()
+    editor._shell_runtime.sizing.apply_preferred_height(editor.minimumEditorHeight())
 
 
 def is_deleted_qt_object_error(error: RuntimeError) -> bool:

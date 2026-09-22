@@ -132,6 +132,7 @@ from .projection.session import (
     PromptTransientNeutralEmphasisOwner,
 )
 from .projection.reorder_preview import PromptReorderPreviewState
+from .shell import PromptEditorShellRuntime
 
 class PromptEditor(QWidget):
     textChanged: Any
@@ -148,6 +149,7 @@ class PromptEditor(QWidget):
     _feature_profile_controller: PromptFeatureProfileController
     _diagnostics_feature_controller: PromptDiagnosticsFeatureController
     _menu_runtime: PromptEditorMenuRuntime
+    _shell_runtime: PromptEditorShellRuntime
     _syntax_profile: PromptSyntaxProfile
     _weight_interaction: PromptWeightInteraction
     _lora_metadata_presentation: PromptLoraMetadataPresentation

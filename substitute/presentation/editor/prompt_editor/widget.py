@@ -148,9 +148,6 @@ from .interactions import (
     PromptReorderOverlayPort,
     PromptWheelScrollResult,
 )
-from .interactions.clipboard_paste_completion import (
-    PromptClipboardPasteCompletionOwner,
-)
 from .interactions.cursor_adapter import PromptCursorAdapter
 from .host_event_router import (
     PromptEditorHostEventBindings,
@@ -178,14 +175,13 @@ from .reorder_facade import PromptEditorReorderFacade
 from .rendering_facade import build_prompt_editor_rendering_facade
 from .scene_facade import build_prompt_editor_scene_facade
 from .shell import (
-    PromptEditorShell,
+    PromptEditorShellRuntimeBindings,
+    PromptEditorShellRuntimeMount,
     PromptFillPlane,
     PromptResizeHandle,
     PromptShellChromeSurface,
-    PromptShellQFluentChrome,
-    PromptShellScrollDelegate,
     PromptShellScrollSurface,
-    PromptShellSizingController,
+    build_prompt_editor_shell_runtime,
 )
 
 _LOGGER = get_logger("presentation.editor.prompt_editor")
@@ -287,97 +283,62 @@ class PromptEditor(
         init_started_at = construction_observer.started_at()
         phase_started_at = construction_observer.started_at()
         super().__init__(parent)
-        self._clipboard_paste_completion = PromptClipboardPasteCompletionOwner()
-        self._shell = PromptEditorShell(
-            host=self,
-            shell_viewport=super().viewport(),
-        )
-        self._qfluent_chrome = PromptShellQFluentChrome(
-            host=self,
-            shell_viewport=super().viewport(),
-            content_viewport=self._content_viewport_for_chrome,
-            apply_host_placeholder=self._apply_host_placeholder_for_chrome,
-            source_text=self.toPlainText,
-            surface=self._surface_for_chrome,
-            shell_padding_fill_plane=(
-                self._shell_padding_fill_plane_for_scroll_delegate
+        shell_viewport = super().viewport()
+        self._shell_runtime = build_prompt_editor_shell_runtime(
+            PromptEditorShellRuntimeMount(
+                widget=self,
+                chrome_host=self,
+                scroll_host=self,
+                sizing_host=self,
+                shell_viewport=shell_viewport,
+                maximum_visible_lines=maximum_visible_lines,
+                resized=self.resized,
+                manual_scroll_height_changed=self.manualScrollHeightChanged,
             ),
-            fill_plane=self._fill_plane_for_scroll_delegate,
-            sync_surface_scroll_metrics_from_host=(
-                lambda: self._scroll_delegate.sync_surface_scroll_metrics_from_host()
+            PromptEditorShellRuntimeBindings(
+                content_viewport=self._content_viewport_for_chrome,
+                apply_host_placeholder=self._apply_host_placeholder_for_chrome,
+                source_text=self.toPlainText,
+                chrome_surface=self._surface_for_chrome,
+                scroll_surface=self._surface_for_scroll_delegate,
+                shell_padding_fill_plane=(
+                    self._shell_padding_fill_plane_for_scroll_delegate
+                ),
+                fill_plane=self._fill_plane_for_scroll_delegate,
+                token_weight_controls=(self._token_weight_controls_for_scroll_delegate),
+                update_backing_fill=lambda rect: self._update_backing_fill_for_chrome(
+                    rect
+                ),
+                finish_pending_key_edit_block=(
+                    lambda reason: self._edit_execution.finish_pending_key_edit_block(
+                        reason=reason
+                    )
+                ),
+                schedule_lora_metadata_catchup=(
+                    lambda: (
+                        self._catalog_refresh_facade.schedule_lora_metadata_catchup_if_needed()
+                    )
+                ),
+                handle_focus_out=self._handle_focus_out_for_chrome,
+                handle_hide=self._handle_hide_for_chrome,
+                handle_move=self._handle_move_for_chrome,
+                handle_viewport_wheel_event=(
+                    lambda event: self._handle_viewport_wheel_event(event)
+                ),
+                host_scrollbar=self._host_scrollbar_for_scroll_delegate,
+                handle_viewport_scroll=self._handle_viewport_scroll_for_scroll_delegate,
+                handle_resize=self._handle_resize_for_scroll_delegate,
+                surface_content_height=self._surface_content_height_for_sizing,
+                projection_line_height=self._projection_line_height_for_sizing,
+                surface_is_alive=self._surface_is_alive_for_sizing,
+                update_fill_planes=self._update_sizing_fill_planes,
+                resize_handle=self._resize_handle_for_sizing,
+                ancestor_external_wheel_handler=self._ancestor_external_wheel_handler,
             ),
-            update_backing_fill=lambda rect: self._update_backing_fill_for_chrome(rect),
-            finish_pending_key_edit_block=(
-                lambda reason: self._edit_execution.finish_pending_key_edit_block(
-                    reason=reason
-                )
-            ),
-            schedule_lora_metadata_catchup=(
-                lambda: (
-                    self._catalog_refresh_facade.schedule_lora_metadata_catchup_if_needed()
-                )
-            ),
-            handle_focus_out=self._handle_focus_out_for_chrome,
-            handle_hide=self._handle_hide_for_chrome,
-            handle_move=self._handle_move_for_chrome,
-            schedule_manual_height_layout_reapply=(
-                lambda: self._sizing.schedule_manual_height_layout_reapply()
-            ),
-            observes_manual_resize_bounds_viewport=(
-                lambda watched: self._sizing.observes_manual_resize_bounds_viewport(
-                    watched
-                )
-            ),
-            schedule_shell_geometry_sync=(
-                lambda: self._scroll_delegate.schedule_shell_geometry_sync()
-            ),
-            handle_viewport_wheel_event=(
-                lambda event: self._handle_viewport_wheel_event(event)
-            ),
-        )
-        self._scroll_delegate = PromptShellScrollDelegate(
-            host=self,
-            shell_viewport=super().viewport(),
-            host_scrollbar=self._host_scrollbar_for_scroll_delegate,
-            surface=self._surface_for_scroll_delegate,
-            shell_padding_fill_plane=(
-                self._shell_padding_fill_plane_for_scroll_delegate
-            ),
-            fill_plane=self._fill_plane_for_scroll_delegate,
-            token_weight_controls=self._token_weight_controls_for_scroll_delegate,
-            handle_content_height_changed=(
-                lambda content_height: (
-                    self._sizing.handle_surface_content_height_changed(content_height)
-                )
-            ),
-            layout_resize_handle=lambda: self._sizing.layout_resize_handle(),
-            handle_viewport_scroll=self._handle_viewport_scroll_for_scroll_delegate,
-            handle_resize=self._handle_resize_for_scroll_delegate,
-            resized=self.resized,
-        )
-        self._sizing = PromptShellSizingController(
-            host=self,
-            maximum_visible_lines=maximum_visible_lines,
-            manual_scroll_height_changed=self.manualScrollHeightChanged,
-            surface_content_height=self._surface_content_height_for_sizing,
-            projection_line_height=self._projection_line_height_for_sizing,
-            surface_is_alive=self._surface_is_alive_for_sizing,
-            sync_surface_scroll_metrics_from_host=(
-                self._scroll_delegate.sync_surface_scroll_metrics_from_host
-            ),
-            sync_host_scrollbar_shell=(self._scroll_delegate.sync_host_scrollbar_shell),
-            schedule_shell_geometry_sync=(
-                self._scroll_delegate.schedule_shell_geometry_sync
-            ),
-            update_fill_planes=self._update_sizing_fill_planes,
-            resize_handle=self._resize_handle_for_sizing,
-            visible_scrollbar=self._scroll_delegate.visible_scrollbar,
-            ancestor_external_wheel_handler=self._ancestor_external_wheel_handler,
         )
         self.setAcceptRichText(False)
         self.setUndoRedoEnabled(False)
         self.setCursorWidth(0)
-        self._scroll_delegate.configure_host_scroll_delegate()
 
         construction_observer.log_timing(
             "Initialized prompt editor host shell",
@@ -404,7 +365,7 @@ class PromptEditor(
             construction_inputs,
             composition_context,
             execution_factory,
-        ).build(paste_completed=self._clipboard_paste_completion.complete)
+        ).build(paste_completed=self._shell_runtime.paste_completion.complete)
         self._lora_thumbnail_cache = projection_collaborators.lora_thumbnail_cache
         self._lora_thumbnail_preloader = (
             projection_collaborators.lora_thumbnail_preloader
@@ -413,7 +374,7 @@ class PromptEditor(
         self._external_input_facade = build_prompt_editor_external_input_facade(
             self,
             self._surface,
-            self._clipboard_paste_completion,
+            self._shell_runtime.paste_completion,
         )
         self.setFocusProxy(self._surface)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -438,8 +399,8 @@ class PromptEditor(
         self._fill_plane = projection_collaborators.fill_plane
         self._shell_padding_fill_plane.lower()
         self._fill_plane.lower()
-        self._qfluent_chrome.configure_owned_fill_plane()
-        self._qfluent_chrome.bind_theme_refresh()
+        self._shell_runtime.chrome.configure_owned_fill_plane()
+        self._shell_runtime.chrome.bind_theme_refresh()
         self._surface.raise_()
         self._context_insertion: PromptContextInsertionService[
             PromptProjectionUndoPayload
@@ -620,7 +581,9 @@ class PromptEditor(
             self._interaction_controller,
             self._surface,
         )
-        self._clipboard_paste_completion.bind_interaction(self._interaction_controller)
+        self._shell_runtime.paste_completion.bind_interaction(
+            self._interaction_controller
+        )
         self._weight_interaction = syntax_collaborators.weight_interaction
         self._autocomplete_refresh_controller = (
             syntax_collaborators.autocomplete_timing_controller
@@ -727,13 +690,13 @@ class PromptEditor(
                 surface=self._surface,
                 shell_viewport=self._shell_viewport(),
                 content_viewport=self.viewport(),
-                handle_focus_in=self._qfluent_chrome.handle_focus_in,
+                handle_focus_in=self._shell_runtime.chrome.handle_focus_in,
                 schedule_focus_out_cleanup=(
-                    self._qfluent_chrome.schedule_focus_out_cleanup
+                    self._shell_runtime.chrome.schedule_focus_out_cleanup
                 ),
                 handle_key_press=self._key_router.handle_key_press,
                 handle_key_release=self._key_router.handle_key_release,
-                handle_chrome_event=self._qfluent_chrome.handle_event_filter,
+                handle_chrome_event=self._shell_runtime.chrome.handle_event_filter,
                 record_context_menu_press=(
                     self._menu_runtime.shell.record_context_menu_press
                 ),
@@ -838,28 +801,28 @@ class PromptEditor(
 
     def lineHeight(self) -> int:  # noqa: N802
         """Return the live single-line text height used by the grow policy."""
-        return self._sizing.line_height()
+        return self._shell_runtime.sizing.line_height()
 
     def minimumEditorHeight(self) -> int:  # noqa: N802
         """Return the shell height for one visible line inside the QFluent host."""
-        return self._sizing.minimum_editor_height()
+        return self._shell_runtime.sizing.minimum_editor_height()
 
     def manualScrollHeight(self) -> int | None:  # noqa: N802
         """Return the user-requested durable manual prompt height."""
-        return self._sizing.manual_scroll_height()
+        return self._shell_runtime.sizing.manual_scroll_height()
 
     def setManualScrollHeight(self, height: int | None) -> None:  # noqa: N802
         """Apply a user-requested durable manual prompt height."""
-        self._sizing.set_manual_scroll_height(height)
+        self._shell_runtime.sizing.set_manual_scroll_height(height)
 
     def sizeHint(self) -> QSize:
         """Return a size hint whose height tracks the current fixed shell height."""
-        return self._sizing.size_hint()
+        return self._shell_runtime.sizing.size_hint()
 
     def minimumSizeHint(self) -> QSize:
         """Return a minimum size hint whose height tracks the current shell height."""
 
-        return self._sizing.minimum_size_hint()
+        return self._shell_runtime.sizing.minimum_size_hint()
 
     def toPlainText(self) -> str:
         """Return the raw prompt source text owned by the projection surface."""
@@ -1174,7 +1137,7 @@ class PromptEditor(
     def setPlaceholderText(self, text: str) -> None:  # noqa: N802
         """Store placeholder text while keeping the host document visually empty."""
 
-        self._qfluent_chrome.set_placeholder_text(text)
+        self._shell_runtime.chrome.set_placeholder_text(text)
 
     def setReadOnly(self, read_only: bool) -> None:  # noqa: N802
         """Apply read-only state to both the QFluent shell and projection surface."""
@@ -1186,20 +1149,20 @@ class PromptEditor(
     def placeholderText(self) -> str:  # noqa: N802
         """Return the configured placeholder text for the prompt editor shell."""
 
-        return self._qfluent_chrome.placeholder_text()
+        return self._shell_runtime.chrome.placeholder_text()
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         """Refresh dirty LoRA metadata when a visible editor gains focus."""
 
         super().focusInEvent(event)
-        self._qfluent_chrome.handle_focus_in()
+        self._shell_runtime.chrome.handle_focus_in()
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Clear autocomplete after focus leaves the editor interaction flow."""
 
-        self._qfluent_chrome.finish_pending_focus_out_edit_block()
+        self._shell_runtime.chrome.finish_pending_focus_out_edit_block()
         super().focusOutEvent(event)
-        self._qfluent_chrome.schedule_focus_out_cleanup(event.reason())
+        self._shell_runtime.chrome.schedule_focus_out_cleanup(event.reason())
 
     def changeEvent(self, event: QEvent) -> None:
         """Keep the projection surface aligned to host font and palette changes."""
@@ -1207,7 +1170,7 @@ class PromptEditor(
         super().changeEvent(event)
         if not hasattr(self, "_surface"):
             return
-        self._qfluent_chrome.handle_change_event(event)
+        self._shell_runtime.chrome.handle_change_event(event)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Route viewport-owned geometry and context-menu events back to the host."""
@@ -1222,14 +1185,14 @@ class PromptEditor(
     def hideEvent(self, event: QHideEvent) -> None:
         """Close autocomplete when the prompt editor itself is hidden."""
 
-        self._qfluent_chrome.handle_hide()
+        self._shell_runtime.chrome.handle_hide()
         super().hideEvent(event)
 
     def showEvent(self, event: QShowEvent) -> None:
         """Refresh dirty LoRA metadata after a hidden editor becomes visible."""
 
         super().showEvent(event)
-        self._qfluent_chrome.handle_show()
+        self._shell_runtime.chrome.handle_show()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Route prompt-editor key handling through the interaction controller."""
@@ -1272,19 +1235,19 @@ class PromptEditor(
     def focusNextPrevChild(self, next: bool) -> bool:  # noqa: A002
         """Keep Tab inside the prompt editor so autocomplete acceptance can own it."""
 
-        return self._qfluent_chrome.focus_next_prev_child(next)
+        return self._shell_runtime.chrome.focus_next_prev_child(next)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Refresh manual layout and schedule shell geometry after resizing."""
 
         super().resizeEvent(event)
-        self._qfluent_chrome.handle_resize()
+        self._shell_runtime.chrome.handle_resize()
 
     def moveEvent(self, event: QMoveEvent) -> None:
         """Reposition autocomplete surfaces when layouts move the prompt editor."""
 
         super().moveEvent(event)
-        self._qfluent_chrome.handle_move()
+        self._shell_runtime.chrome.handle_move()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Refresh autocomplete after caret movement caused by mouse interaction."""
@@ -1295,8 +1258,8 @@ class PromptEditor(
     def _handle_surface_text_changed(self) -> None:
         """Propagate surface text changes through the public prompt-editor signal."""
 
-        self._qfluent_chrome.apply_placeholder_visibility()
-        self._qfluent_chrome.update_fill_planes()
+        self._shell_runtime.chrome.apply_placeholder_visibility()
+        self._shell_runtime.chrome.update_fill_planes()
         self.textChanged.emit()
 
     def _allow_surface_wheel_scroll(self, event: QWheelEvent) -> bool:
@@ -1462,7 +1425,7 @@ class PromptEditor(
             and hasattr(self, "_shell_padding_fill_plane")
         ):
             return
-        self._shell.update_backing_fill(
+        self._shell_runtime.shell.update_backing_fill(
             rect=rect,
             surface=self._surface,
             fill_plane=self._fill_plane,
