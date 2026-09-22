@@ -38,9 +38,12 @@ from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
+    READINESS_COMPATIBILITY_SCHEMA_VERSION,
     READINESS_DELEGATION_PATH_ENV,
     READINESS_DELEGATION_TOKEN_ENV,
     READINESS_PATH_ENV,
+    READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
     publish_application_readiness_receipt,
 )
@@ -77,6 +80,7 @@ class _ReadinessContract:
     child_token: str
     outer_receipt_path: Path | None
     outer_token: str | None
+    outer_schema_version: int | None
 
 
 class ApplicationReadinessSupervisor:
@@ -130,6 +134,13 @@ class ApplicationReadinessSupervisor:
         child_environment = dict(environment)
         child_environment[READINESS_PATH_ENV] = str(receipt_path)
         child_environment[READINESS_TOKEN_ENV] = token
+        child_environment[READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV] = ",".join(
+            str(version)
+            for version in (
+                READINESS_COMPATIBILITY_SCHEMA_VERSION,
+                READINESS_SCHEMA_VERSION,
+            )
+        )
         if contract.outer_receipt_path is not None and contract.outer_token is not None:
             child_environment[READINESS_DELEGATION_PATH_ENV] = str(
                 contract.outer_receipt_path
@@ -216,6 +227,9 @@ class ApplicationReadinessSupervisor:
         outer_path = delegated_path or external_path
         outer_token = delegated_token or external_token
         if outer_path and outer_token:
+            outer_schema_version = _select_outer_schema_version(
+                environment.get(READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV)
+            )
             return _ReadinessContract(
                 child_receipt_path=(
                     layout.launcher_dir
@@ -225,12 +239,14 @@ class ApplicationReadinessSupervisor:
                 child_token=self._token_factory(),
                 outer_receipt_path=Path(outer_path).expanduser().resolve(),
                 outer_token=outer_token,
+                outer_schema_version=outer_schema_version,
             )
         return _ReadinessContract(
             child_receipt_path=layout.launcher_dir / "readiness" / "candidate.json",
             child_token=self._token_factory(),
             outer_receipt_path=None,
             outer_token=None,
+            outer_schema_version=None,
         )
 
     @staticmethod
@@ -241,18 +257,33 @@ class ApplicationReadinessSupervisor:
     ) -> None:
         """Preserve the painted process while attesting through this process hop."""
 
-        if contract.outer_receipt_path is None or contract.outer_token is None:
+        if (
+            contract.outer_receipt_path is None
+            or contract.outer_token is None
+            or contract.outer_schema_version is None
+        ):
             return
-        publish_application_readiness_receipt(
-            receipt_path=contract.outer_receipt_path,
-            receipt=ApplicationReadinessReceipt(
+        if contract.outer_schema_version == READINESS_COMPATIBILITY_SCHEMA_VERSION:
+            outer_receipt = ApplicationReadinessReceipt(
+                pid=os.getpid(),
+                token=contract.outer_token,
+                surface=receipt.surface,
+                parent_pid=os.getppid(),
+                milestones=receipt.milestones,
+            )
+        else:
+            outer_receipt = ApplicationReadinessReceipt(
                 pid=receipt.pid,
                 token=contract.outer_token,
                 surface=receipt.surface,
                 parent_pid=receipt.parent_pid,
                 milestones=receipt.milestones,
                 attester_pids=_extended_attestation_chain(receipt),
-            ),
+            )
+        publish_application_readiness_receipt(
+            receipt_path=contract.outer_receipt_path,
+            receipt=outer_receipt,
+            schema_version=contract.outer_schema_version,
         )
 
     @staticmethod
@@ -319,6 +350,35 @@ def _start_candidate_process(
         command, environment=environment, allow_handoff=True
     )
     return process, log_path
+
+
+def _select_outer_schema_version(advertised_versions: str | None) -> int:
+    """Select the strongest mutually supported outer receipt schema.
+
+    A missing advertisement identifies launchers deployed before schema
+    negotiation. Those launchers require the schema-4 process-hop projection.
+    """
+
+    if advertised_versions is None:
+        return READINESS_COMPATIBILITY_SCHEMA_VERSION
+    raw_versions = advertised_versions.split(",")
+    if not raw_versions or any(
+        not raw_version or not raw_version.isdecimal() for raw_version in raw_versions
+    ):
+        raise ApplicationReadinessError(
+            "Application readiness schema capabilities are invalid."
+        )
+    compatible_versions = {
+        int(raw_version)
+        for raw_version in raw_versions
+        if int(raw_version)
+        in {READINESS_COMPATIBILITY_SCHEMA_VERSION, READINESS_SCHEMA_VERSION}
+    }
+    if not compatible_versions:
+        raise ApplicationReadinessError(
+            "Application readiness schema capabilities are incompatible."
+        )
+    return max(compatible_versions)
 
 
 def _extended_attestation_chain(

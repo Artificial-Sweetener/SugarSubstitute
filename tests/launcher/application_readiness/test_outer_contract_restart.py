@@ -35,6 +35,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
     READINESS_DELEGATION_PATH_ENV,
     READINESS_DELEGATION_TOKEN_ENV,
     READINESS_PATH_ENV,
@@ -150,6 +151,7 @@ def test_supervisor_replaces_outer_receipt_across_authorized_restart(
         token_factory=iter(("onboarding-token", "main-shell-token")).__next__,
     )
     outer_environment = {
+        READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
         READINESS_PATH_ENV: str(receipt_path),
         READINESS_TOKEN_ENV: "outer-token",
     }
@@ -226,6 +228,7 @@ def test_nested_supervisor_projects_final_surface_to_original_outer_contract(
         layout=layout,
         command=["setup.exe", "--launcher-ui-child"],
         environment={
+            READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
             READINESS_PATH_ENV: str(outer_receipt_path),
             READINESS_TOKEN_ENV: "outer-token",
         },
@@ -366,6 +369,7 @@ def test_supervisor_replaces_outer_receipt_across_real_processes(
         "time.sleep(1)"
     )
     outer_environment = {
+        READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
         READINESS_PATH_ENV: str(receipt_path),
         READINESS_TOKEN_ENV: "outer-token",
     }
