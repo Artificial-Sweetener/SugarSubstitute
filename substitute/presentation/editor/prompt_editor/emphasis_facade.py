@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptWeightControlIdentity,
@@ -29,13 +31,15 @@ from .projection.session import (
     PromptEmphasisCaretBoundary,
     PromptTransientNeutralEmphasisOwner,
 )
-from .projection.surface import PromptProjectionSurface
+
+if TYPE_CHECKING:
+    from .runtime_mount import PromptEditorRuntimeMount
 
 
 class PromptEditorEmphasisFacade:
     """Adapt the stable editor host contract to projection emphasis ownership."""
 
-    _surface: PromptProjectionSurface
+    _runtime: PromptEditorRuntimeMount
 
     def pulse_emphasis_feedback(
         self,
@@ -45,7 +49,7 @@ class PromptEditorEmphasisFacade:
     ) -> None:
         """Publish one bounded emphasis-decoration feedback pulse."""
 
-        self._surface.emphasis.pulse_feedback(
+        self._runtime.projection.surface.emphasis.pulse_feedback(
             outer_start=outer_start,
             outer_end=outer_end,
         )
@@ -61,7 +65,7 @@ class PromptEditorEmphasisFacade:
     ) -> None:
         """Store one active emphasis-adjustment session."""
 
-        self._surface.emphasis.set_adjustment_session(
+        self._runtime.projection.surface.emphasis.set_adjustment_session(
             owner=owner,
             content_start=content_start,
             content_end=content_end,
@@ -72,17 +76,17 @@ class PromptEditorEmphasisFacade:
     def clear_emphasis_adjustment_session(self) -> None:
         """Clear the active emphasis-adjustment session."""
 
-        self._surface.emphasis.clear_adjustment_session()
+        self._runtime.projection.surface.emphasis.clear_adjustment_session()
 
     def emphasis_adjustment_session(self) -> PromptEmphasisAdjustmentSession | None:
         """Return the active emphasis-adjustment session."""
 
-        return self._surface.emphasis.adjustment_session()
+        return self._runtime.projection.surface.emphasis.adjustment_session()
 
     def emphasis_adjustment_session_range(self) -> tuple[int, int] | None:
         """Return the active emphasis-adjustment content range."""
 
-        return self._surface.emphasis.adjustment_session_range()
+        return self._runtime.projection.surface.emphasis.adjustment_session_range()
 
     def emphasis_adjustment_session_matches_range(
         self,
@@ -92,9 +96,11 @@ class PromptEditorEmphasisFacade:
     ) -> bool:
         """Return whether the active emphasis-adjustment session owns one range."""
 
-        return self._surface.emphasis.adjustment_session_matches_range(
-            content_start=content_start,
-            content_end=content_end,
+        return (
+            self._runtime.projection.surface.emphasis.adjustment_session_matches_range(
+                content_start=content_start,
+                content_end=content_end,
+            )
         )
 
     def prompt_weight_wheel_identity(
@@ -103,7 +109,7 @@ class PromptEditorEmphasisFacade:
     ) -> PromptWeightControlIdentity:
         """Return stable wheel ownership identity for one prompt weight token."""
 
-        return self._surface.emphasis.wheel_identity(token)
+        return self._runtime.projection.surface.emphasis.wheel_identity(token)
 
     def show_transient_neutral_emphasis(
         self,
@@ -116,7 +122,7 @@ class PromptEditorEmphasisFacade:
     ) -> None:
         """Project a temporary neutral emphasis shell over plain content."""
 
-        self._surface.emphasis.show_transient_neutral(
+        self._runtime.projection.surface.emphasis.show_transient_neutral(
             content_start=content_start,
             content_end=content_end,
             owner=owner,
@@ -125,24 +131,24 @@ class PromptEditorEmphasisFacade:
     def clear_transient_neutral_emphasis(self) -> None:
         """Clear the temporary neutral emphasis shell."""
 
-        self._surface.emphasis.clear_transient_neutral()
+        self._runtime.projection.surface.emphasis.clear_transient_neutral()
 
     def clear_overlay_owned_transient_neutral_emphasis(self) -> None:
         """Clear transient neutral emphasis only when overlay interaction owns it."""
 
-        self._surface.emphasis.clear_overlay_owned_transient_neutral()
+        self._runtime.projection.surface.emphasis.clear_overlay_owned_transient_neutral()
 
     def transient_neutral_emphasis_range(self) -> tuple[int, int] | None:
         """Return the range owned by the temporary neutral emphasis shell."""
 
-        return self._surface.emphasis.transient_neutral_range()
+        return self._runtime.projection.surface.emphasis.transient_neutral_range()
 
     def transient_neutral_emphasis_owner(
         self,
     ) -> PromptTransientNeutralEmphasisOwner | None:
         """Return the owner of the temporary neutral emphasis shell."""
 
-        return self._surface.emphasis.transient_neutral_owner()
+        return self._runtime.projection.surface.emphasis.transient_neutral_owner()
 
     def set_emphasis_caret_to_content_boundary(
         self,
@@ -153,7 +159,7 @@ class PromptEditorEmphasisFacade:
     ) -> bool:
         """Place the caret at one projected emphasis-content boundary."""
 
-        return self._surface.emphasis.set_caret_to_content_boundary(
+        return self._runtime.projection.surface.emphasis.set_caret_to_content_boundary(
             content_start=content_start,
             content_end=content_end,
             prefer_end=prefer_end,

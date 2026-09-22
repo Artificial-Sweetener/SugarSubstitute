@@ -150,7 +150,7 @@ def _flush_preview_sync(editor: PromptEditor) -> None:
     publication_owner = cast(
         Any,
         editor,
-    )._interaction_controller._reorder._overlay_session._preview_publication
+    )._runtime.core.syntax.interaction_controller._reorder._overlay_session._preview_publication
     if publication_owner.has_pending():
         for _ in range(2):
             publication_owner._scheduler._timer._run()
@@ -260,7 +260,7 @@ def _assert_plain_alt_keeps_surface_text_ownership(
     assert state.raster_paint_count == 0
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface.reorder.presentation.visual_state.state.chrome_snapshot
+    )._editor._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.mode == "live"
     assert surface_chrome.chips

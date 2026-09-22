@@ -56,8 +56,12 @@ class PromptEditorObservability:
         if id(editor) in self._observed_editor_ids:
             return
         self._observed_editor_ids.add(id(editor))
-        surface = getattr(editor, "_surface", None)
-        interaction = getattr(editor, "_interaction_controller", None)
+        runtime = getattr(editor, "_runtime", None)
+        projection = getattr(runtime, "projection_or_none", None)
+        core = getattr(runtime, "core_or_none", None)
+        surface = getattr(projection, "surface", None)
+        syntax = getattr(core, "syntax", None)
+        interaction = getattr(syntax, "interaction_controller", None)
         autocomplete = getattr(interaction, "_autocomplete", None)
         autocomplete_timing = getattr(
             interaction,

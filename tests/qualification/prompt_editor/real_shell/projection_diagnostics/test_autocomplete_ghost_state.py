@@ -39,7 +39,7 @@ def test_real_shell_reports_stale_visible_ghost_owner_state(
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="backpack")
     real_shell_scenario.input.move_cursor_to_end(field)
     editor = field.editor
-    surface = cast(Any, getattr(editor, "_surface"))
+    surface = cast(Any, editor._runtime.projection.surface)
     surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("backpack"),

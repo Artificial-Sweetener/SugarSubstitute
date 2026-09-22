@@ -225,7 +225,7 @@ def show_prompt_editor(
 def surface_for(box: PromptEditor) -> PromptProjectionSurface:
     """Return the live projection surface owned by one prompt editor."""
 
-    return cast(PromptProjectionSurface, getattr(box, "_surface"))
+    return box._runtime.projection.surface
 
 
 def set_prompt_cursor_position(box: PromptEditor, position: int) -> None:

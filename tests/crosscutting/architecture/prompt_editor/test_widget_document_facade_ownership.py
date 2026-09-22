@@ -39,7 +39,4 @@ def test_document_facade_owns_semantic_replacement_transaction() -> None:
         assert ownership_marker in facade_source
         assert ownership_marker not in widget_source
 
-    assert (
-        "self._document_facade.replace_baseline_document(text, document_semantics)"
-        in widget_source
-    )
+    assert "self._runtime.features.document.replace_baseline_document(" in widget_source

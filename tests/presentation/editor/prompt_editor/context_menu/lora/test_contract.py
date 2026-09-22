@@ -68,7 +68,11 @@ def test_prompt_editor_lora_context_menu_preserves_qfluent_text_actions(
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
     menu_type = PromptTextMenu
-    menu = menu_type(editor, schedule_lora=lambda: None)
+    menu = menu_type(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
+    )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
 
     assert "Cancel" not in action_texts
@@ -114,6 +118,7 @@ def test_prompt_editor_general_context_menu_nests_single_trigger_action(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         trigger_word_actions=(
             trigger_words_action_for_lora(
                 editor,
@@ -173,6 +178,7 @@ def test_phase24_1_context_menu_groups_multiple_trigger_actions(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         trigger_word_actions=(first_action, second_action),
     )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
@@ -212,7 +218,7 @@ def test_prompt_editor_trigger_action_label_elides_to_total_menu_budget(
 
     label = PromptTriggerWordActionAdapter(
         action_parent=editor,
-        text_insertion_executor=cast(Any, editor)._context_insertion,
+        text_insertion_executor=cast(Any, editor)._runtime.core.context_insertion,
         identity_validator=lambda _identity: True,
     ).trigger_words_action_label(long_name)
 
@@ -367,7 +373,7 @@ def test_prompt_editor_lora_picker_insertion_uses_shared_schedule_text(
     editor.setPlainText("")
     process_events(app)
 
-    cast(Any, editor)._menu_runtime.lora_picker.insert_lora_schedule(
+    cast(Any, editor)._runtime.host.menu.lora_picker.insert_lora_schedule(
         _lora_item(
             display_name="Friendly Midna",
             basename="raw_midna",

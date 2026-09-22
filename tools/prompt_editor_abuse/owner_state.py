@@ -62,7 +62,7 @@ def capture_prompt_cursor_positions(editor: object) -> tuple[int, int]:
     """Return the authoritative source cursor and anchor positions."""
 
     prompt_editor = cast(Any, editor)
-    surface = prompt_editor._surface
+    surface = prompt_editor._runtime.projection.surface
     return int(surface.cursor_position), int(surface.anchor_position)
 
 
@@ -71,7 +71,9 @@ def capture_prompt_editor_owner_state(editor: object) -> PromptAbuseOwnerState:
 
     prompt_editor = cast(Any, editor)
     source_text = str(prompt_editor.toPlainText())
-    surface = getattr(prompt_editor, "_surface", None)
+    runtime = getattr(prompt_editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
     editor_state = getattr(surface, "editor_state", None)
     projection_snapshot = getattr(editor_state, "projection", None)
     projection_document = getattr(projection_snapshot, "document", None)

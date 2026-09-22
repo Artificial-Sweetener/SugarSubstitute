@@ -216,7 +216,8 @@ class PromptContextMenuProbe:
         )
 
         editor = field.editor
-        surface = getattr(editor, "_surface")
+        runtime = getattr(editor, "_runtime")
+        surface = runtime.projection.surface
         projection_document = surface.projection_document()
         token = next(
             (
@@ -240,7 +241,7 @@ class PromptContextMenuProbe:
 
         RoundMenu.exec = capture_exec
         try:
-            presenter = getattr(editor, "_menu_runtime").inline_lora
+            presenter = runtime.host.menu.inline_lora
             presenter.show_lora_context_menu(
                 token,
                 editor.viewport().mapToGlobal(editor.viewport().rect().center()),
@@ -283,7 +284,7 @@ def viewport_position_for_source_text(editor: PromptEditor, text: str) -> QPoint
 def prepared_lora_action_snapshot(editor: PromptEditor, prompt_text: str) -> object:
     """Return the current prepared LoRA action snapshot without deriving it."""
 
-    controller = getattr(editor, "_lora_trigger_word_controller")
+    controller = getattr(editor, "_runtime").features.lora_trigger_words
     return controller.snapshot_for_prompt(prompt_text=prompt_text)
 
 
@@ -293,7 +294,9 @@ def cached_scheduled_loras(
 ) -> tuple[object, ...] | None:
     """Return cached scheduled LoRAs exposed by the production editor."""
 
-    controller = getattr(editor, "_lora_trigger_word_controller", None)
+    runtime = getattr(editor, "_runtime", None)
+    features = getattr(runtime, "features", None)
+    controller = getattr(features, "lora_trigger_words", None)
     cached_scheduled_loras = getattr(controller, "cached_scheduled_loras", None)
     if not callable(cached_scheduled_loras):
         return None

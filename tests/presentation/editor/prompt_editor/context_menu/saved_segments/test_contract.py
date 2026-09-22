@@ -86,6 +86,7 @@ def test_prompt_editor_context_menu_adds_save_segment_for_selection(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         prompt_segment_model=PromptSegmentPresetMenuModel(),
         save_prompt_segment=lambda: None,
     )
@@ -107,6 +108,7 @@ def test_prompt_editor_context_menu_groups_prompt_utilities_before_rich_renderin
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         selected_prompt_text="long hair",
         save_prompt_segment=lambda: None,
         lookup_danbooru_wiki=lambda: None,
@@ -149,7 +151,7 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
         _ = self
         insert_state = cast(
             Any, editor
-        )._menu_runtime.shell.consume_context_insert_state()
+        )._runtime.host.menu.shell.consume_context_insert_state()
         observed_insert_states.append(
             (
                 insert_state.insert_position,
@@ -159,7 +161,7 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "beta")
     )
 
@@ -171,7 +173,7 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
         had_selection=True,
         selection_snapshot=(0, 5, "alpha"),
     )
-    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "alpha")
     )
 
@@ -215,7 +217,7 @@ def test_prompt_editor_context_menu_uses_cached_segment_menu_model(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "alpha")
     )
 

@@ -45,7 +45,7 @@ def capture_source_line_chrome(
     """Render source-line chrome headlessly using active preview geometry."""
 
     wait_for_queued_qt_turn()
-    surface = cast(Any, editor)._surface
+    surface = cast(Any, editor)._runtime.projection.surface
     preview_frame = surface.reorder.preview.preview_frame
     frame = preview_frame if preview_frame is not None else surface._layout.frame
     viewport = surface.viewport()
@@ -98,7 +98,7 @@ def capture_reorder_layout(
 ) -> PromptReorderRenderedLayoutSnapshot:
     """Capture the exact preview-or-live frame currently rendered by the surface."""
 
-    surface = cast(Any, field.editor)._surface
+    surface = cast(Any, field.editor)._runtime.projection.surface
     preview_frame = surface.reorder.preview.preview_frame
     frame = preview_frame if preview_frame is not None else surface._layout.frame
     output = frame.output

@@ -114,7 +114,7 @@ class RealShellPromptDecorationBoundaryProbe:
     ) -> PromptProjectionToken:
         """Return the sole production token of the requested kind."""
 
-        surface = cast(Any, field.editor)._surface
+        surface = cast(Any, field.editor)._runtime.projection.surface
         tokens = surface.projection_document().tokens
         matching_tokens = tuple(token for token in tokens if token.kind is kind)
         if len(matching_tokens) != 1:

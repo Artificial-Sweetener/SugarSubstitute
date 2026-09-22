@@ -41,8 +41,8 @@ def test_key_router_owns_feature_and_projection_precedence() -> None:
         assert ownership_marker in router_source
         assert ownership_marker not in widget_source
 
-    assert "self._key_router.handle_key_press(event)" in widget_source
-    assert "self._key_router.handle_key_release(event)" in widget_source
+    assert "self._runtime.core.key_router.handle_key_press(event)" in widget_source
+    assert "self._runtime.core.key_router.handle_key_release(event)" in widget_source
 
 
 def test_key_router_owns_post_key_classification() -> None:

@@ -404,8 +404,8 @@ def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
     assert "self._catchup_pending" in refresh_source
     assert "PromptLoraPickerSnapshotController" not in refresh_source
     assert "PySide6" not in refresh_source
-    assert "self._lora_metadata_presentation" in widget_source
-    assert "self._catalog_refresh_facade" in widget_source
+    assert "self._runtime.features.catalog_refresh" in widget_source
+    assert "self._catalog_refresh_facade" not in widget_source
     assert "_lora_metadata_feature_controller" not in widget_source
     assert "lora_metadata: PromptLoraMetadataPresentation" in menu_factory_source
 

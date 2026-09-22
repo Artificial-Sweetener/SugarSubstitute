@@ -38,5 +38,10 @@ def test_rendering_facade_owns_mode_coordination() -> None:
         assert ownership_marker in facade_source
         assert ownership_marker not in widget_source
 
-    assert "self._rendering_facade.set_display_mode(display_mode)" in widget_source
-    assert "self._rendering_facade.set_rich_rendering_enabled(enabled)" in widget_source
+    assert (
+        "self._runtime.core.rendering.set_display_mode(display_mode)" in widget_source
+    )
+    assert (
+        "self._runtime.core.rendering.set_rich_rendering_enabled(enabled)"
+        in widget_source
+    )

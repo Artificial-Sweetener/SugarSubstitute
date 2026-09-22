@@ -81,7 +81,7 @@ def test_prompt_editor_scroll_keeps_projection_surface_pinned_in_shell_viewport(
         text="\n".join(f"line {index}" for index in range(30)),
         width=320,
     )
-    surface = getattr(box, "_surface")
+    surface = box._runtime.projection.surface
     host_scrollbar = support.QFluentTextEdit.verticalScrollBar(box)
     editor_scrollbar = box.verticalScrollBar()
 
@@ -111,7 +111,7 @@ def test_prompt_editor_one_wheel_notch_uses_line_based_scroll_delta(
     reference.setPlainText("\n".join(f"line {index}" for index in range(30)))
     reference.show()
     support.process_events(app)
-    surface = getattr(box, "_surface")
+    surface = box._runtime.projection.surface
     host_scrollbar = support.QFluentTextEdit.verticalScrollBar(box)
     scrollbar = box.verticalScrollBar()
     scrollbar.setValue(0)
@@ -174,7 +174,7 @@ def test_prompt_editor_keeps_projection_surface_pinned_after_viewport_resize_eve
     )
     projection_viewport = box.viewport()
     initial_viewport_width = projection_viewport.width()
-    surface = getattr(box, "_surface")
+    surface = box._runtime.projection.surface
     shell_viewport = support.cast(
         support.Callable[[], support.QWidget], getattr(box, "_shell_viewport")
     )

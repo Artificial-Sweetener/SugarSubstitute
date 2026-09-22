@@ -70,8 +70,9 @@ def test_wildcard_modal_alt_reorders_tags_within_and_across_values(
     editor.setFocus()
     app.processEvents()
 
-    document_view = editor._document_service.build_document_view(editor.toPlainText())
-    session = editor._document_service.build_reorder_session_view(document_view)
+    document_service = editor._runtime.core.syntax.document_service
+    document_view = document_service.build_document_view(editor.toPlainText())
+    session = document_service.build_reorder_session_view(document_view)
 
     assert tuple(chip.text for chip in session.chips) == (
         "1girl",
@@ -274,8 +275,9 @@ def test_wildcard_modal_alt_reorders_csv_tags_without_moving_headers(
     editor.setFocus()
     app.processEvents()
 
-    document_view = editor._document_service.build_document_view(source)
-    session = editor._document_service.build_reorder_session_view(document_view)
+    document_service = editor._runtime.core.syntax.document_service
+    document_view = document_service.build_document_view(source)
+    session = document_service.build_reorder_session_view(document_view)
     assert tuple(chip.text for chip in session.chips) == (
         "1girl",
         "blonde hair",

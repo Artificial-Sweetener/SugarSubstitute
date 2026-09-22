@@ -125,7 +125,8 @@ def test_lora_autocomplete_accept_materializes_chip_immediately(
         has_selection=False,
     )
     assert query is not None
-    query_lifecycle = cast(Any, box)._autocomplete_query_result_lifecycle
+    runtime = cast(Any, box)._runtime
+    query_lifecycle = runtime.core.autocomplete.query_result_lifecycle
     query_lifecycle.refresh_results_for_query_state(
         PromptAutocompleteQueryState(
             source_revision=0,
@@ -137,7 +138,7 @@ def test_lora_autocomplete_accept_materializes_chip_immediately(
         )
     )
 
-    cast(Any, box)._autocomplete.accept_lora_selection()
+    runtime.core.autocomplete.autocomplete.accept_lora_selection()
 
     assert box.toPlainText() == f"<lora:{prompt_name}:1.00>"
     assert PromptProjectionTokenKind.LORA in projection_token_kinds(surface_for(box))

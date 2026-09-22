@@ -100,9 +100,7 @@ def test_prompt_editor_projection_palette_refreshes_after_qfluent_theme_switch()
             with fluent_theme(Theme.LIGHT):
                 process_events(app)
 
-                projection_palette = (
-                    prompt_editor._surface._layout.frame.paint_input.palette
-                )
+                projection_palette = prompt_editor._runtime.projection.surface._layout.frame.paint_input.palette
                 host_palette = prompt_editor.palette()
                 for role in (
                     QPalette.ColorRole.Text,
@@ -440,7 +438,9 @@ def test_prompt_editor_hover_shell_pixels_match_qfluent_reference() -> None:
             prompt_editor = create_prompt_editor()
             reference = create_reference_text_edit()
             try:
-                prompt_editor._surface.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                prompt_editor._runtime.projection.surface.setFocusPolicy(
+                    Qt.FocusPolicy.NoFocus
+                )
                 reference.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 show_text_widget(prompt_editor, width=320, text="alpha beta")
                 QTest.mouseMove(prompt_editor, prompt_editor.rect().center())
@@ -475,7 +475,9 @@ def test_prompt_editor_read_only_pixels_match_qfluent_reference() -> None:
             prompt_editor = create_prompt_editor()
             reference = create_reference_text_edit()
             try:
-                prompt_editor._surface.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                prompt_editor._runtime.projection.surface.setFocusPolicy(
+                    Qt.FocusPolicy.NoFocus
+                )
                 reference.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 show_text_widget(
                     prompt_editor,

@@ -149,9 +149,10 @@ def wait_for_prompt_sizing_idle(box: PromptEditor) -> None:
     """Wait until projection, shell sizing, and host geometry have settled."""
 
     editor = cast(Any, box)
-    sizing = editor._shell_runtime.sizing
-    scroll_delegate = editor._shell_runtime.scrolling
-    surface = editor._surface
+    runtime = editor._runtime
+    sizing = runtime.shell.sizing
+    scroll_delegate = runtime.shell.scrolling
+    surface = runtime.projection.surface
     semantic_wait.wait_for_qt_condition(
         lambda: (
             not surface.has_pending_projection_update()
@@ -178,7 +179,7 @@ def default_scroll_height(box: PromptEditor) -> int:
 def resize_handle_for(box: PromptEditor) -> QWidget:
     """Return the prompt editor's private resize handle for contract tests."""
 
-    return cast(QWidget, getattr(box, "_resize_handle"))
+    return box._runtime.host.resize_handle
 
 
 def set_manual_scroll_height(box: PromptEditor, height: int) -> None:
@@ -191,13 +192,13 @@ def set_manual_scroll_height(box: PromptEditor, height: int) -> None:
 def fill_plane_for(box: PromptEditor) -> QWidget:
     """Return the prompt editor's private fill plane."""
 
-    return cast(QWidget, getattr(box, "_fill_plane"))
+    return box._runtime.projection.fill_plane
 
 
 def delay_projection_update_scheduler(box: PromptEditor) -> None:
     """Keep safe-typing projection updates pending until a test flushes them."""
 
-    surface = cast(Any, getattr(box, "_surface"))
+    surface = cast(Any, box._runtime.projection.surface)
     scheduler = surface._projection_freshness_controller.update_scheduler  # noqa: SLF001
     scheduler._fixed_interval_ms = 1000  # noqa: SLF001
     scheduler._interval_ms = 1000  # noqa: SLF001
@@ -207,14 +208,16 @@ def delay_projection_update_scheduler(box: PromptEditor) -> None:
 def flush_projection_update_scheduler(box: PromptEditor) -> None:
     """Apply any delayed safe-typing projection update before test cleanup."""
 
-    surface = cast(Any, getattr(box, "_surface"))
+    surface = cast(Any, box._runtime.projection.surface)
     surface._projection_freshness_controller.update_scheduler.flush_now(reason="test")  # noqa: SLF001
 
 
 def flush_semantic_refresh(box: PromptEditor) -> None:
     """Apply queued semantic prompt state before projection scheduling assertions."""
 
-    cast(Any, box)._interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
+    cast(
+        Any, box
+    )._runtime.core.syntax.interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
         reason="test"
     )
 

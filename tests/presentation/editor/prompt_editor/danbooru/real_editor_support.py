@@ -101,7 +101,9 @@ def configure_danbooru_url_import(
 ) -> None:
     """Configure Danbooru paste/import through the composed editor controller."""
 
-    cast(Any, editor)._danbooru_paste_import_controller.configure_danbooru_url_import(
+    cast(
+        Any, editor
+    )._runtime.projection.danbooru_paste_import_controller.configure_danbooru_url_import(
         cast(DanbooruUrlImportService, service),
         enabled=True,
         dispatcher=dispatcher,

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
@@ -33,45 +33,34 @@ from substitute.application.prompt_editor.reorder.commit import (
     PromptReorderLayoutCommitRequest,
 )
 
-from .commands.autocomplete_commands import (
-    PromptAutocompleteAcceptance,
-    PromptAutocompleteCommandService,
-)
+from .commands.autocomplete_commands import PromptAutocompleteAcceptance
 from .commands.contracts import PromptCommandResult, PromptCommandTextReplacement
 from .commands.diagnostic_commands import (
     PromptDiagnosticAction,
     PromptDiagnosticCommandResult,
-    PromptDiagnosticCommandService,
 )
 from .commands.reorder_commands import (
     PromptReorderCommandResult,
-    PromptReorderCommandService,
 )
-from .commands.source_service import PromptSourceCommandService
 from .commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
-    PromptWeightCommandService,
 )
 from .core.state.revisions import PromptSourceIdentity
-from .projection.undo_payload import PromptProjectionUndoPayload
+
+if TYPE_CHECKING:
+    from .runtime_mount import PromptEditorRuntimeMount
 
 
 class PromptEditorCommandFacade:
     """Route public prepared commands to their focused execution services."""
 
-    _source_commands: PromptSourceCommandService[PromptProjectionUndoPayload]
-    _autocomplete_commands: PromptAutocompleteCommandService[
-        PromptProjectionUndoPayload
-    ]
-    _diagnostic_commands: PromptDiagnosticCommandService[PromptProjectionUndoPayload]
-    _weight_commands: PromptWeightCommandService[PromptProjectionUndoPayload]
-    _reorder_commands: PromptReorderCommandService[PromptProjectionUndoPayload]
+    _runtime: PromptEditorRuntimeMount
 
     def prompt_command_source_identity(self) -> PromptSourceIdentity:
         """Return the current source identity for prepared prompt commands."""
 
-        return self._source_commands.source_identity()
+        return self._runtime.projection.source_commands.source_identity()
 
     def execute_autocomplete_acceptance(
         self,
@@ -81,7 +70,7 @@ class PromptEditorCommandFacade:
 
         return cast(
             PromptCommandResult[object],
-            self._autocomplete_commands.execute(acceptance),
+            self._runtime.projection.autocomplete_commands.execute(acceptance),
         )
 
     def execute_diagnostic_action(
@@ -92,7 +81,7 @@ class PromptEditorCommandFacade:
 
         return cast(
             PromptDiagnosticCommandResult[object],
-            self._diagnostic_commands.execute(action),
+            self._runtime.projection.diagnostic_commands.execute(action),
         )
 
     def execute_weight_action(
@@ -107,7 +96,7 @@ class PromptEditorCommandFacade:
 
         return cast(
             PromptWeightCommandResult[object],
-            self._weight_commands.execute(
+            self._runtime.projection.weight_commands.execute(
                 request,
                 mutation_service=mutation_service,
                 syntax_service=syntax_service,
@@ -127,7 +116,7 @@ class PromptEditorCommandFacade:
 
         return cast(
             PromptReorderCommandResult[object],
-            self._reorder_commands.execute(
+            self._runtime.projection.reorder_commands.execute(
                 request,
                 mutation_service=mutation_service,
                 syntax_service=syntax_service,
@@ -145,7 +134,7 @@ class PromptEditorCommandFacade:
 
         return cast(
             PromptCommandResult[object],
-            self._source_commands.execute_source_replacement(
+            self._runtime.projection.source_commands.execute_source_replacement(
                 replacement,
                 command_name=command_name,
             ),

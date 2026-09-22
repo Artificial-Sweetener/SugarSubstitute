@@ -175,7 +175,7 @@ def test_real_shell_scene_typing_coalesces_against_live_previous_source(
 
     initial_text = "quality\n**Portrait\nstudio"
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text=initial_text)
-    surface = cast(Any, field.editor)._surface
+    surface = cast(Any, field.editor)._runtime.projection.surface
     delay_projection_update_scheduler(surface)
     real_shell_scenario.input.set_source_cursor_position(field, 0)
 

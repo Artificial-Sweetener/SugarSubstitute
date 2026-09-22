@@ -538,10 +538,10 @@ owner = "prompt editor shell"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
 kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility and Qt lifecycle overrides, core, feature, and host runtime collaborator exposure and public facade, shell runtime adapter callbacks and editor-panel wheel routing. Consolidate runtime publication fields into explicit mounted state and extract shell adapter callbacks and editor-panel wheel routing into a focused host adapter, then assess whether the remaining public Qt facade is one cohesive structural owner."
+justification = "The assessed file mixes QFluent text-edit host compatibility and Qt lifecycle overrides, public prompt-editor facade routing to the mounted owner graph, and shell runtime adapter callbacks and editor-panel wheel routing. Extract shell adapter callbacks and editor-panel wheel routing into a focused host adapter, then assess whether the remaining public Qt facade and lifecycle overrides form one cohesive structural owner."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 982
+max_lines = 938
 next_limit = 800
 debt = "SS-ARCH-064"
 
@@ -1675,7 +1675,7 @@ kind = "structural"
 justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
 issue = "chore:SS-WAIVER-S080"
 review_by = 2026-12-15
-max_lines = 566
+max_lines = 569
 
 [[waivers]]
 id = "SS-WAIVER-S150"

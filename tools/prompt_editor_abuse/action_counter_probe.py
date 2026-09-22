@@ -122,7 +122,9 @@ def _numeric_reorder_counters(overlay: Any | None) -> dict[str, float]:
 def _prompt_editor_counters(editor: object) -> dict[str, float]:
     """Return existing editor counters without triggering owner preparation."""
 
-    surface = getattr(editor, "_surface", None)
+    runtime = getattr(editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
     presentation_runtime = getattr(surface, "_presentation_runtime", None)
     region_chrome_presentation = getattr(
         presentation_runtime,

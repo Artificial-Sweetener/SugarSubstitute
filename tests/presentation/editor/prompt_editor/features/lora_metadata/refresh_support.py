@@ -20,6 +20,7 @@ from __future__ import annotations
 
 
 import importlib
+from types import SimpleNamespace
 from typing import Any, cast
 
 from substitute.application.prompt_editor.lora.catalog_models import (
@@ -157,6 +158,9 @@ class _PromptEditorLoraMetadataRefreshDouble:
                 update_host=lambda: None,
                 refresh_segment_presets=lambda _reason: None,
             ),
+        )
+        self._runtime = SimpleNamespace(
+            features=SimpleNamespace(catalog_refresh=self._catalog_refresh_facade)
         )
         if dirty:
             self._lora_metadata_refresh.mark_dirty()

@@ -171,7 +171,7 @@ def test_segment_reorder_overlay_hosts_passive_reorder_view(
     assert view.render_state.live_chips == ()
     surface_chrome = cast(
         Any, editor
-    )._surface.reorder.presentation.visual_state.state.chrome_snapshot
+    )._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert len(surface_chrome.chips) == 3
     assert view.render_state.preview_active is False

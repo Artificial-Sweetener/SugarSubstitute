@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 from PySide6.QtGui import QTextCursor
@@ -109,7 +110,14 @@ class _MeasurementEditorDouble:
         """Initialize projection and semantic setup records."""
 
         self.projection_flush_reasons: list[str] = []
-        self._interaction_controller = _InteractionControllerDouble()
+        interaction_controller = _InteractionControllerDouble()
+        self._runtime = SimpleNamespace(
+            core=SimpleNamespace(
+                syntax=SimpleNamespace(
+                    interaction_controller=interaction_controller,
+                )
+            )
+        )
 
     def flush_pending_projection_update(self, *, reason: str) -> None:
         """Record one projection-owner flush."""
@@ -261,7 +269,9 @@ def test_settle_prompt_editor_publishes_setup_before_measurement(
     )
 
     assert editor.projection_flush_reasons == ["performance_setup"]
-    assert editor._interaction_controller.flush_reasons == ["performance_setup"]
+    assert editor._runtime.core.syntax.interaction_controller.flush_reasons == [
+        "performance_setup"
+    ]
     assert processed_apps == [app]
 
 

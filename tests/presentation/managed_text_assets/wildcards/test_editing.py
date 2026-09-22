@@ -58,7 +58,9 @@ def test_wildcard_modal_context_insert_preserves_csv_and_cursor(
     cursor.setPosition(len("value\nalpha"))
     editor.setTextCursor(cursor)
 
-    result = editor._context_insertion.insert_context_menu_text(', "detail"')
+    result = editor._runtime.core.context_insertion.insert_context_menu_text(
+        ', "detail"'
+    )
     app.processEvents()
 
     assert result.status == "applied"
@@ -90,7 +92,8 @@ def test_wildcard_modal_projects_prompt_syntax_inside_quoted_csv_values(
     app.processEvents()
 
     token_kinds = {
-        token.kind.value for token in editor._surface.projection_document().tokens
+        token.kind.value
+        for token in editor._runtime.projection.surface.projection_document().tokens
     }
 
     assert token_kinds == {"emphasis", "wildcard", "lora"}

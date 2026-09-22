@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -78,7 +79,9 @@ class _EditorWithCounters:
     def __init__(self, surface: object) -> None:
         """Store the marker surface returned by ``surface_for``."""
 
-        self._surface = surface
+        self._runtime = SimpleNamespace(
+            projection=SimpleNamespace(surface=surface),
+        )
 
     def reorder_geometry_cache_counters(self) -> dict[str, object]:
         """Return counters that include unsupported values."""

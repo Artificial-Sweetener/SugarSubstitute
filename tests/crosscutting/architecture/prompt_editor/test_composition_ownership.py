@@ -175,3 +175,31 @@ def test_shell_mechanics_have_one_runtime_composition_owner() -> None:
     assert "self._scroll_delegate" not in widget_source
     assert "self._sizing" not in widget_source
     assert "self._clipboard_paste_completion" not in widget_source
+
+
+def test_widget_publishes_one_staged_runtime_without_collaborator_aliases() -> None:
+    """Keep mounted collaborator identity and lifecycle in one explicit owner."""
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    mount_source = (PROMPT_PRESENTATION_ROOT / "runtime_mount.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "self._runtime = PromptEditorRuntimeMount()" in widget_source
+    assert "self._runtime.mount_shell(shell_runtime)" in widget_source
+    assert "mount_projection=self._runtime.mount_projection" in widget_source
+    assert "self._runtime.mount_core(core_runtime)" in widget_source
+    assert "self._runtime.mount_features(feature_runtime)" in widget_source
+    assert "mount_runtime=self._runtime.mount_host" in widget_source
+    assert "core.projection is not projection" in mount_source
+
+    for replaced_alias in (
+        "self._shell_runtime =",
+        "self._surface =",
+        "self._interaction_controller =",
+        "self._diagnostics_feature_controller =",
+        "self._menu_runtime =",
+        "self._document_facade =",
+        "self._catalog_refresh_facade =",
+    ):
+        assert replaced_alias not in widget_source

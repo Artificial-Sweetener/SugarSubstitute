@@ -162,7 +162,7 @@ def test_real_shell_scene_marker_typing_preserves_unmapped_source_caret(
     assert field.editor.toPlainText() == expected_text
     assert tuple(
         token.display_text
-        for token in field.editor._surface.projection_document().tokens  # noqa: SLF001
+        for token in field.editor._runtime.projection.surface.projection_document().tokens  # noqa: SLF001
         if token.kind.value == "scene"
     ) == ("Burst Scene", "Landscape")
 

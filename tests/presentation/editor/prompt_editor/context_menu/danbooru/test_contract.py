@@ -87,6 +87,7 @@ def test_prompt_editor_context_menu_adds_danbooru_wiki_action_for_selection(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         selected_prompt_text="long hair",
         lookup_danbooru_wiki=lambda: triggered.append("wiki"),
         danbooru_wiki_lookup_enabled=True,
@@ -128,6 +129,7 @@ def test_prompt_editor_context_menu_omits_danbooru_wiki_action_without_selection
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         selected_prompt_text="",
         lookup_danbooru_wiki=lambda: None,
         danbooru_wiki_lookup_enabled=True,
@@ -156,6 +158,7 @@ def test_phase24_1_context_menu_omits_disabled_danbooru_lookup(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         selected_prompt_text="long hair",
         lookup_danbooru_wiki=lambda: None,
         danbooru_wiki_lookup_enabled=False,
@@ -220,7 +223,7 @@ def test_prompt_editor_danbooru_wiki_action_opens_native_dialog(
     process_events(app)
     prompt_widgets.extend([host, editor])
 
-    cast(Any, editor)._danbooru_dialog_runner.open_wiki_for_selection("long hair")
+    cast(Any, editor)._runtime.core.danbooru_dialog.open_wiki_for_selection("long hair")
 
     assert dialog_calls == [("long hair", host, True)]
 
@@ -281,7 +284,7 @@ def test_prompt_editor_danbooru_wiki_dialog_uses_top_level_window_parent(
     process_events(app)
     prompt_widgets.extend([shell, panel, nested_host, editor])
 
-    cast(Any, editor)._danbooru_dialog_runner.open_wiki_for_selection("long hair")
+    cast(Any, editor)._runtime.core.danbooru_dialog.open_wiki_for_selection("long hair")
 
     assert dialog_parents == [shell]
 
@@ -355,7 +358,7 @@ def test_prompt_editor_context_menu_lookup_action_uses_selected_prompt_text(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "long hair")
     )
 

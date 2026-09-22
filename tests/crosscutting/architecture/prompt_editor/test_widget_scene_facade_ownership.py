@@ -41,5 +41,5 @@ def test_scene_facade_owns_identity_and_dependent_refresh() -> None:
         assert ownership_marker in facade_source
         assert ownership_marker not in widget_source
 
-    assert "self._scene_facade.set_autocomplete_titles(titles)" in widget_source
-    assert "self._scene_facade.set_queueable_keys(scene_keys)" in widget_source
+    assert "self._runtime.core.scene.set_autocomplete_titles(titles)" in widget_source
+    assert "self._runtime.core.scene.set_queueable_keys(scene_keys)" in widget_source

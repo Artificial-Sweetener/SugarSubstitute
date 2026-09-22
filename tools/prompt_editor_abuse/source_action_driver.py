@@ -116,7 +116,7 @@ class PromptAbuseSourceActionDriver:
     def viewport_point_for_source_position(editor: Any, position: int) -> QPoint:
         """Return a viewport point on one authoritative source caret boundary."""
 
-        surface = editor._surface
+        surface = editor._runtime.projection.surface
         caret_state = surface.projection_document().caret_map.state_for_source_position(
             position
         )
