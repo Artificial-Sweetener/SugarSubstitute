@@ -4105,11 +4105,6 @@ Install these nodes now?</source>
       <translation>No se pudo descargar el modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="145"></location>
-      <source>Model download progress</source>
-      <translation>Progreso de descarga de modelos</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="340"></location>
       <source>Model download returned invalid results.</source>
       <translation>La descarga del modelo devolvió resultados no válidos.</translation>
@@ -6289,11 +6284,6 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="262"></location>
       <source>Setup stopped before ComfyUI was ready. Review the setup log for details, then try again.</source>
       <translation>La configuración se detuvo antes de que ComfyUI estuviera listo. Revisa el registro de configuración para obtener más información y vuelve a intentarlo.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="131"></location>
-      <source>Setup task activity</source>
-      <translation>Actividad de tareas de configuración</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="194"></location>

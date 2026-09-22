@@ -52,6 +52,7 @@ def test_installer_handoff_builds_stable_launcher_command(tmp_path: Path) -> Non
         f"--install-root={subprocess_path(layout.root)}",
         "--handoff-geometry=10,20,1200,800",
         "--locale=ja",
+        "--launch-intent=setup",
         "--unrelated-internal-flag",
     ]
 
@@ -60,6 +61,7 @@ def test_installer_handoff_builds_stable_launcher_command(tmp_path: Path) -> Non
         f"--install-root={subprocess_path(layout.root)}",
         "--handoff-geometry=10,20,1200,800",
         "--locale=ja",
+        "--launch-intent=setup",
     ]
 
 

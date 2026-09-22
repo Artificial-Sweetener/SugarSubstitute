@@ -27,8 +27,11 @@ import pytest
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import application_launch
 from launcher.sugarsubstitute_launcher import launcher_ui_supervision
+from launcher.sugarsubstitute_launcher import installed_app_handoff
 from launcher.sugarsubstitute_launcher import splash_session
+from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 from tests.launcher.application_launch.instance_routing_support import (
     BrokerDouble,
     installed_layout,
@@ -145,7 +148,98 @@ def test_primary_fresh_setup_authorizes_the_launcher_ui_child(
         "supervise_launcher_window",
         supervise_setup,
     )
+    monkeypatch.setattr(
+        splash_session,
+        "start_launcher_splash_session",
+        lambda **_kwargs: pytest.fail("Fresh setup must not create a splash."),
+    )
 
     assert launcher_app.main([f"--install-root={install_root}"]) == 0
     assert observed_environments[0]["TEST_INSTANCE_BROKER"] == "connected"
+    assert broker.closed
+
+
+def test_setup_handoff_never_creates_launcher_splash(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Setup intent must reach the app while every launcher splash stays absent."""
+
+    layout = installed_layout(tmp_path)
+    broker = BrokerDouble()
+    handoffs: list[tuple[object, object, object]] = []
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        application_launch,
+        "elect_application",
+        lambda _layout, _arguments: broker,
+    )
+    monkeypatch.setattr(
+        splash_session,
+        "start_launcher_splash_session",
+        lambda **_kwargs: pytest.fail("Setup launch must not create a splash."),
+    )
+    monkeypatch.setattr(
+        installed_app_handoff,
+        "complete_installed_app_handoff",
+        lambda **kwargs: handoffs.append(
+            (
+                kwargs["splash_session"],
+                kwargs["launch_intent"],
+                kwargs["no_update_check"],
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        launcher_ui_supervision,
+        "supervise_launcher_window",
+        lambda **_kwargs: pytest.fail("Installed setup handoff must not open repair."),
+    )
+
+    assert launcher_app.main(["--launch-intent=setup"]) == 0
+    assert handoffs == [(None, ApplicationLaunchIntent.SETUP, True)]
+    assert broker.closed
+
+
+def test_resumed_runtime_setup_never_creates_launcher_splash(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Persisted installer work must resume without an intervening splash."""
+
+    layout = installed_layout(tmp_path)
+    LauncherConfig.from_layout(
+        layout=layout,
+        release_source=None,
+        runtime_setup_pending=True,
+    ).save(layout.config_path)
+    (layout.app_dir / "requirements.txt").write_text("PySide6\n", encoding="utf-8")
+    broker = BrokerDouble()
+    repair_routes: list[object] = []
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        application_launch,
+        "elect_application",
+        lambda _layout, _arguments: broker,
+    )
+    monkeypatch.setattr(
+        splash_session,
+        "start_launcher_splash_session",
+        lambda **_kwargs: pytest.fail("Resumed setup must not create a splash."),
+    )
+
+    def supervise_resumed_setup(**kwargs: object) -> int:
+        """Record that unfinished setup resumes through the non-repair window."""
+
+        repair_routes.append(kwargs["repair"])
+        return 0
+
+    monkeypatch.setattr(
+        launcher_ui_supervision,
+        "supervise_launcher_window",
+        supervise_resumed_setup,
+    )
+
+    assert launcher_app.main([]) == 0
+    assert repair_routes == [False]
     assert broker.closed

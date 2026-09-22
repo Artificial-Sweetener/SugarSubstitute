@@ -178,6 +178,16 @@ def test_early_launch_splash_skips_no_comfy_startup(tmp_path: Path) -> None:
     ) == (None, None)
 
 
+def test_early_launch_splash_skips_setup_handoff(tmp_path: Path) -> None:
+    """Initial and resumed setup must enter onboarding without an app splash."""
+
+    assert early_launch_splash.start_early_launch_splash(
+        ["main.py", "--launch-intent=setup"],
+        tmp_path,
+        "en",
+    ) == (None, None)
+
+
 def test_early_launch_splash_skips_startup_harness(
     monkeypatch: Any,
     tmp_path: Path,

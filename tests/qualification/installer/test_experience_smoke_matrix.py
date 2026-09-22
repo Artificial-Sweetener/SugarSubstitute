@@ -98,6 +98,15 @@ def test_headless_smoke_renders_complete_matrix_without_side_effects() -> None:
         for key in scenarios
     )
     assert "restored" in cast(str, scenarios["repair-rollback"]["status"])
+    assert scenarios["comfy-setup/managed-sdxl-and-anima/provisioning"][
+        "visible_progress_bars"
+    ] == ["OnboardingOverallProgressBar"]
+    assert scenarios["comfy-setup/managed-sdxl-and-anima/provisioning-model-download"][
+        "visible_progress_bars"
+    ] == ["OnboardingOverallProgressBar"]
+    assert scenarios["comfy-setup/managed-sdxl-and-anima/setup-log"][
+        "visible_progress_bars"
+    ] == ["OnboardingOverallProgressBar"]
     assert (
         scenarios["comfy-setup/managed-civitai-unavailable/model-provider-recovery"][
             "page"

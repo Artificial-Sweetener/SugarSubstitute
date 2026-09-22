@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
@@ -210,13 +211,31 @@ def should_attempt_installed_app_launch(
     args: LauncherArguments,
     candidate: LauncherStartupCandidate,
 ) -> bool:
-    """Return whether one candidate warrants immediate splash presentation."""
+    """Return whether one candidate warrants immediate splash presentation.
+
+    A pending repair journal can temporarily hide an otherwise launchable
+    installation by quarantining its configuration or application payload.  It
+    still represents an ordinary installed launch, so present the splash before
+    recovery restores and reassesses that payload.
+    """
 
     if args.continue_install or args.repair:
         return False
-    return candidate.installed_config_found and is_installed_app_launchable(
-        candidate.layout
-    )
+    if InstallationRecovery(candidate.layout).pending:
+        return True
+    if not candidate.installed_config_found:
+        return False
+    try:
+        if LauncherConfig.load(candidate.layout.config_path).runtime_setup_pending:
+            return False
+    except (OSError, ValueError) as error:
+        logging.getLogger(__name__).debug(
+            "Could not inspect runtime setup phase before splash routing | "
+            "install_root=%s",
+            candidate.layout.root,
+            exc_info=error,
+        )
+    return is_installed_app_launchable(candidate.layout)
 
 
 def _matches_installed_executable(

@@ -100,7 +100,6 @@ class RepairController(QObject):
                 completed=value.completed,
                 total=value.total,
             )
-        self._window.progress_view.pulse_activity()
 
     @Slot(str)
     def _output(self, line: str) -> None:
