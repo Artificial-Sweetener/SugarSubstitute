@@ -102,13 +102,13 @@ from substitute.presentation.widgets.wheel_permission import wheel_event_is_allo
 from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
-from .async_work import QtPromptEditorMainThreadDispatcher
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
     PromptEditorCompositionContext,
     PromptEditorConstructionInputs,
     PromptEditorConstructionObserver,
     PromptEditorCoreRuntimeBindings,
+    PromptEditorFeatureRuntimeBindings,
     PromptEditorMenuActionBindings,
     PromptEditorMenuFeatureOwners,
     PromptEditorMenuHostBindings,
@@ -118,6 +118,7 @@ from .composition import (
     bind_prompt_editor_diagnostics_signals,
     bind_prompt_editor_signals,
     build_prompt_editor_core_runtime,
+    build_prompt_editor_feature_runtime,
     build_prompt_editor_menu_runtime,
     build_resize_handle,
     bundle_collaborators,
@@ -127,8 +128,6 @@ from .composition import (
 from .features import (
     PromptDanbooruPasteImportController,
     PromptFeatureProfileController,
-    PromptLoraMetadataPresentation,
-    PromptLoraTriggerWordController,
     PromptSceneContextPublication,
     PromptScenePositionContextPreparation,
     PromptSearchFeatureController,
@@ -154,9 +153,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptProjectionToken,
 )
 from .geometry.models import PromptProjectionSourceLineRect
-from .catalog_refresh_facade import build_prompt_editor_catalog_refresh_facade
 from .command_facade import PromptEditorCommandFacade
-from .document_facade import build_prompt_editor_document_facade
 from .emphasis_facade import PromptEditorEmphasisFacade
 from .reorder_facade import PromptEditorReorderFacade
 from .shell import (
@@ -255,7 +252,6 @@ class PromptEditor(
         parent = construction_inputs.parent
         maximum_visible_lines = construction_inputs.maximum_visible_lines
         prompt_lora_catalog_service = construction_inputs.prompt_lora_catalog_service
-        thumbnail_asset_repository = construction_inputs.thumbnail_asset_repository
         prompt_spellcheck_service = construction_inputs.prompt_spellcheck_service
 
         construction_observer = PromptEditorConstructionObserver(_LOGGER)
@@ -419,52 +415,21 @@ class PromptEditor(
         self._autocomplete_refresh_controller = (
             syntax_collaborators.autocomplete_timing_controller
         )
-        self._lora_metadata_presentation = PromptLoraMetadataPresentation(
-            identity_port=self,
-            feature_profile=self._feature_profile_controller,
-            lora_catalog=prompt_lora_catalog_service,
-            lora_schedule_service=(service_collaborators.lora_schedule_service),
-            scheduled_lora_service=(
-                service_collaborators.prompt_scheduled_lora_service
+        feature_runtime = build_prompt_editor_feature_runtime(
+            construction_inputs,
+            composition_context,
+            core_runtime,
+            PromptEditorFeatureRuntimeBindings(
+                lora_metadata_identity=self,
+                lora_trigger_word_host=self,
+                is_visible=self.isVisible,
+                update_host=self.update,
             ),
-            thumbnail_repository_available=(thumbnail_asset_repository is not None),
         )
-        self._catalog_refresh_facade = build_prompt_editor_catalog_refresh_facade(
-            is_visible=self.isVisible,
-            interaction=self._interaction_controller,
-            lora_presentation=self._lora_metadata_presentation,
-            dispatcher=QtPromptEditorMainThreadDispatcher(self),
-            thumbnail_cache=self._lora_thumbnail_cache,
-            surface=self._surface,
-            segment_presets=self._segment_preset_controller,
-            update_host=self.update,
-        )
-        self._lora_trigger_word_controller = PromptLoraTriggerWordController(
-            host=self,
-            scheduled_lora_service=(
-                service_collaborators.prompt_scheduled_lora_service
-            ),
-            scheduled_lora_context=(
-                service_collaborators.scheduled_lora_context_provider
-            ),
-            feature_profile_id=(
-                lambda: self._feature_profile_controller.identity.feature_profile_id
-            ),
-            catalog_revision=(
-                lambda: self._lora_metadata_presentation.snapshot.catalog_revision
-            ),
-            trigger_words_enabled=(
-                lambda: self._feature_profile_controller.lora_trigger_words_enabled
-            ),
-            effective_prompts=self._scene_position_preparation.effective_prompt_texts,
-        )
-        self._document_facade = build_prompt_editor_document_facade(
-            self._document_semantics,
-            self._source_commands,
-            self._interaction_controller,
-            self._diagnostics_feature_controller,
-            self._lora_trigger_word_controller,
-        )
+        self._lora_metadata_presentation = feature_runtime.lora_metadata
+        self._catalog_refresh_facade = feature_runtime.catalog_refresh
+        self._lora_trigger_word_controller = feature_runtime.lora_trigger_words
+        self._document_facade = feature_runtime.document
         self._menu_runtime = build_prompt_editor_menu_runtime(
             composition_context,
             PromptEditorMenuFeatureOwners(
