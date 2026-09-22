@@ -35,6 +35,8 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
+    READINESS_COMPATIBILITY_SCHEMA_VERSION,
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
 )
@@ -184,6 +186,7 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
         layout=layout,
         command=["python", "main.py"],
         environment={
+            READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
             READINESS_PATH_ENV: str(receipt_path),
             READINESS_TOKEN_ENV: "outer-token",
         },
@@ -198,6 +201,91 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
     assert forwarded.parent_pid == 999
     assert os.getpid() in forwarded.attester_pids
     assert os.getppid() in forwarded.attester_pids
+
+
+def test_supervisor_projects_schema_four_identity_for_legacy_parent(
+    tmp_path: Path,
+) -> None:
+    """An unadvertised outer contract must remain valid for the v0.23 launcher."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    process = _CandidateProcess()
+    receipt_path = tmp_path / "qualification" / "candidate.json"
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Publish a schema-five child proof behind the legacy outer contract."""
+
+        assert environment[READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV] == "4,5"
+        _publish_test_receipt(
+            receipt_path=Path(environment[READINESS_PATH_ENV]),
+            pid=process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.MAIN_SHELL,
+        )
+        return process, tmp_path / "startup.log"
+
+    result = ApplicationReadinessSupervisor(
+        timeout_seconds=5,
+        process_starter=start,
+        monotonic=_increasing_clock(),
+        wait=lambda _seconds: None,
+    ).launch_until_ready(
+        layout=layout,
+        command=["python", "main.py"],
+        environment={
+            READINESS_PATH_ENV: str(receipt_path),
+            READINESS_TOKEN_ENV: "v0.23-token",
+        },
+    )
+
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert result is process
+    assert payload == {
+        "milestones": [
+            "process_started",
+            "surface_painted",
+            "event_loop_turn_completed",
+        ],
+        "parent_pid": os.getppid(),
+        "pid": os.getpid(),
+        "schema_version": READINESS_COMPATIBILITY_SCHEMA_VERSION,
+        "surface": "main_shell",
+        "token": "v0.23-token",
+    }
+
+
+def test_supervisor_rejects_incompatible_outer_schema_capability(
+    tmp_path: Path,
+) -> None:
+    """A future-only parent contract must fail before starting a child."""
+
+    started = False
+
+    def start(
+        _command: Sequence[str],
+        _environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Record any forbidden process start."""
+
+        nonlocal started
+        started = True
+        return _CandidateProcess(), tmp_path / "startup.log"
+
+    with pytest.raises(ApplicationReadinessError, match="incompatible"):
+        ApplicationReadinessSupervisor(process_starter=start).launch_until_ready(
+            layout=InstallLayout.from_root(tmp_path / "install"),
+            command=["python", "main.py"],
+            environment={
+                READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "6",
+                READINESS_PATH_ENV: str(tmp_path / "receipt.json"),
+                READINESS_TOKEN_ENV: "future-token",
+            },
+        )
+
+    assert started is False
 
 
 def test_supervisor_rejects_partial_outer_readiness_contract(tmp_path: Path) -> None:

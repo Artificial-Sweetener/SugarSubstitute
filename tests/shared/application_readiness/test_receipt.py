@@ -21,6 +21,7 @@ from __future__ import annotations
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_COMPATIBILITY_SCHEMA_VERSION,
     READINESS_SCHEMA_VERSION,
     REQUIRED_READINESS_MILESTONES,
 )
@@ -88,6 +89,22 @@ def test_schema_four_receipt_remains_parseable_without_attestation_chain() -> No
     )
 
     assert receipt.attester_pids == ()
+
+
+def test_current_receipt_can_write_the_schema_four_compatibility_contract() -> None:
+    """Emit the exact milestone contract accepted by deployed v0.23 launchers."""
+
+    payload = ApplicationReadinessReceipt(
+        pid=123,
+        parent_pid=122,
+        token="legacy-token",
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+        attester_pids=(121,),
+    ).to_json(schema_version=READINESS_COMPATIBILITY_SCHEMA_VERSION)
+
+    assert payload["schema_version"] == 4
+    assert "attester_pids" not in payload
+    assert ApplicationReadinessReceipt.from_json(payload).attester_pids == ()
 
 
 def test_current_receipt_rejects_invalid_attestation_chain() -> None:
