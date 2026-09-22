@@ -240,8 +240,6 @@ PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
         "prompt_surface_handle_wheel_scroll",
         "prompt_surface_wheel_event_is_allowed",
         "forward_wheel_event_to_editor_panel",
-        "has_lora_spans_for_metadata",
-        "refresh_lora_render_metadata_now",
         "mark_lora_metadata_dirty",
         "refresh_lora_metadata_if_visible",
         "clear_lora_thumbnail_cache",
@@ -293,10 +291,7 @@ PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
         "_update_sizing_fill_planes",
         "_resize_handle_for_sizing",
     ),
-    feature_action_presentation=(
-        "_refresh_lora_render_metadata_after_catalog_update",
-        "_schedule_lora_metadata_catchup_if_needed",
-    ),
+    feature_action_presentation=(),
     external_action_execution=(),
     command_source_adapter=(
         "prompt_command_source_identity",

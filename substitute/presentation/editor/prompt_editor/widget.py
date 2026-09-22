@@ -137,7 +137,6 @@ from .features import (
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
     PromptLoraMetadataPresentation,
-    PromptLoraMetadataRefreshLifecycle,
     PromptLoraTriggerWordController,
     PromptSceneContextPublication,
     PromptScenePositionContextPreparation,
@@ -175,6 +174,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 )
 from .projection.undo_payload import PromptProjectionUndoPayload
 from .geometry.models import PromptProjectionSourceLineRect
+from .catalog_refresh_facade import build_prompt_editor_catalog_refresh_facade
 from .command_facade import PromptEditorCommandFacade
 from .document_facade import build_prompt_editor_document_facade
 from .emphasis_facade import PromptEditorEmphasisFacade
@@ -318,7 +318,9 @@ class PromptEditor(
                 )
             ),
             schedule_lora_metadata_catchup=(
-                lambda: self._schedule_lora_metadata_catchup_if_needed()
+                lambda: (
+                    self._catalog_refresh_facade.schedule_lora_metadata_catchup_if_needed()
+                )
             ),
             handle_focus_out=self._handle_focus_out_for_chrome,
             handle_hide=self._handle_hide_for_chrome,
@@ -637,10 +639,15 @@ class PromptEditor(
             ),
             thumbnail_repository_available=(thumbnail_asset_repository is not None),
         )
-        self._lora_metadata_refresh = PromptLoraMetadataRefreshLifecycle(
-            host=self,
-            presentation=self._lora_metadata_presentation,
+        self._catalog_refresh_facade = build_prompt_editor_catalog_refresh_facade(
+            is_visible=self.isVisible,
+            interaction=self._interaction_controller,
+            lora_presentation=self._lora_metadata_presentation,
             dispatcher=QtPromptEditorMainThreadDispatcher(self),
+            thumbnail_cache=self._lora_thumbnail_cache,
+            surface=self._surface,
+            segment_presets=self._segment_preset_controller,
+            update_host=self.update,
         )
         self._lora_trigger_word_controller = PromptLoraTriggerWordController(
             host=self,
@@ -1436,16 +1443,6 @@ class PromptEditor(
 
         return True
 
-    def has_lora_spans_for_metadata(self) -> bool:
-        """Return whether the current semantic snapshot contains LoRA spans."""
-
-        return self._interaction_controller.has_lora_spans()
-
-    def refresh_lora_render_metadata_now(self, *, reason: str) -> bool:
-        """Refresh catalog-backed LoRA render metadata through interactions."""
-
-        return self._interaction_controller.refresh_lora_render_metadata(reason=reason)
-
     def _source_position_for_global_pos(self, global_pos: QPoint) -> int:
         """Return the prompt source position under one global menu point."""
 
@@ -1455,34 +1452,22 @@ class PromptEditor(
     def mark_lora_metadata_dirty(self) -> None:
         """Mark this editor's catalog-backed LoRA metadata as stale."""
 
-        self._lora_metadata_refresh.mark_dirty()
+        self._catalog_refresh_facade.mark_lora_metadata_dirty()
 
     def refresh_lora_metadata_if_visible(self) -> bool:
         """Refresh dirty LoRA metadata when this editor is currently visible."""
 
-        return self._lora_metadata_refresh.refresh_if_visible()
+        return self._catalog_refresh_facade.refresh_lora_metadata_if_visible()
 
     def clear_lora_thumbnail_cache(self) -> None:
         """Discard decoded LoRA thumbnails after stored thumbnail assets change."""
 
-        self._lora_thumbnail_cache.clear()
-        self._surface.refresh_lora_thumbnail_paint(reason="lora_thumbnail_cache_clear")
-        self.update()
+        self._catalog_refresh_facade.clear_lora_thumbnail_cache()
 
     def refresh_prompt_segment_presets(self, *, reason: str) -> None:
         """Refresh saved prompt segments from prepared panel model context."""
 
-        self._segment_preset_controller.refresh_menu_model(reason=reason)
-
-    def _refresh_lora_render_metadata_after_catalog_update(self) -> bool:
-        """Refresh inline LoRA render metadata after this editor updates catalog rows."""
-
-        return self._lora_metadata_refresh.refresh_after_catalog_update()
-
-    def _schedule_lora_metadata_catchup_if_needed(self) -> None:
-        """Queue a lazy visible-editor metadata refresh when needed."""
-
-        self._lora_metadata_refresh.schedule_catchup_if_needed()
+        self._catalog_refresh_facade.refresh_prompt_segment_presets(reason=reason)
 
     def _set_context_menu_insert_state_for_tests(
         self,
