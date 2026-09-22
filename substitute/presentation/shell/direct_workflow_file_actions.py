@@ -85,8 +85,8 @@ class DirectWorkflowFileActions:
         materialize_loaded_section: Callable[[str, str], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         target_resolver: WorkflowDocumentTargetResolver | None = None,
-        model_resolution_controller: (
-            DirectWorkflowModelResolutionController | None
+        model_resolution_controller_provider: (
+            Callable[[], DirectWorkflowModelResolutionController | None] | None
         ) = None,
     ) -> None:
         """Store document loading and shell projection collaborators."""
@@ -98,7 +98,9 @@ class DirectWorkflowFileActions:
         self._materialize_loaded_section = materialize_loaded_section
         self._error_presenter = error_presenter
         self._target_resolver = target_resolver or WorkflowDocumentTargetResolver()
-        self._model_resolution_controller = model_resolution_controller
+        self._model_resolution_controller_provider = (
+            model_resolution_controller_provider
+        )
 
     def load_document(self, source_path: Path) -> str | None:
         """Load a direct Comfy workflow into a blank or newly created tab."""
@@ -106,7 +108,11 @@ class DirectWorkflowFileActions:
         path = source_path.resolve()
         target_workflow_id = self._view.workflow_session_service.active_workflow_id
         try:
-            controller = self._model_resolution_controller
+            controller = (
+                self._model_resolution_controller_provider()
+                if self._model_resolution_controller_provider is not None
+                else None
+            )
             if controller is not None:
                 loaded_workflow = self._load_service.read(path)
                 target_workflow_id = self._resolve_target_workflow_id()
