@@ -20,11 +20,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
-from substitute.infrastructure.comfy import sugarcubes_maintenance_runner
-
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RUNNER_MODULE = (
     PROJECT_ROOT
@@ -43,14 +38,3 @@ FORBIDDEN_IMPORT_PREFIXES = (
     "zipfile",
     "shutil",
 )
-
-
-@pytest.fixture(autouse=True)
-def _prepare_repositories_without_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep maintenance parser tests isolated from repository provisioning."""
-
-    monkeypatch.setattr(
-        sugarcubes_maintenance_runner,
-        "prepare_sugarcubes_repositories",
-        lambda *args, **kwargs: None,
-    )

@@ -31,7 +31,6 @@ from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
 from substitute.infrastructure.comfy.sugarcubes_maintenance_runner import (
     run_sugarcubes_baseline_maintenance,
 )
-from substitute.infrastructure.version_control import RepositoryService
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 from sugarsubstitute_shared.startup_remote_access import (
     is_startup_connectivity_failure,
@@ -46,7 +45,6 @@ def attempt_sugarcubes_startup_maintenance(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
-    repositories: RepositoryService | None = None,
     synchronize_repositories: bool = True,
 ) -> SugarCubesMaintenanceResult | None:
     """Prepare SugarCubes when possible without making startup depend on it."""
@@ -57,7 +55,6 @@ def attempt_sugarcubes_startup_maintenance(
             on_log=on_log,
             env=env,
             python_executable=python_executable,
-            repositories=repositories,
             synchronize_repositories=synchronize_repositories,
         )
     except Exception as error:  # noqa: BLE001 - startup must survive this optional phase.
