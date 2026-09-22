@@ -154,13 +154,13 @@ def test_python_cache_identity_covers_every_compatibility_input() -> None:
         "$env:ImageOS",
         "$env:ImageVersion",
         "$env:PYTHON_VERSION",
-        "uv0.12.16",
         "$bootstrapLockHash",
         "$lockHash",
     ):
         assert fragment in identity
     assert '"restore-key=$prefix-"' in identity
     assert '"primary-key=$prefix-$lockHash"' in identity
+    assert "uv0." not in identity
 
 
 def test_python_cache_writes_are_trusted_and_untrusted_restores_are_read_only() -> None:
@@ -202,6 +202,8 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     storage_script = str(storage["run"])
     assert "$env:RUNNER_TEMP" in storage_script
     assert "sugarsubstitute-uv-$cacheScope-restored-v3" in storage_script
+    assert "sugarsubstitute-uv-tool-$cacheScope" in storage_script
+    assert "sugarsubstitute-uv-tool-$cacheScope-v" not in storage_script
     assert '"tool-path=$toolPath"' in storage_script
     setup_uv = action_step(action, "Resolve exact uv")
     assert "uses" not in setup_uv
@@ -210,11 +212,16 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert setup_uv_environment["UV_BOOTSTRAP_LOCK"] == (
         "requirements-ci-bootstrap.lock"
     )
-    assert setup_uv_environment["UV_VERSION"] == "0.12.15"
     setup_uv_script = str(setup_uv["run"])
+    assert "Get-Content -LiteralPath $env:UV_BOOTSTRAP_LOCK -Raw" in setup_uv_script
+    assert "The uv bootstrap lock does not declare one exact uv version." in (
+        setup_uv_script
+    )
     assert "python -m pip install" in setup_uv_script
     assert "--require-hashes --only-binary=:all: --no-deps" in setup_uv_script
-    assert "$env:UV_VERSION" in setup_uv_script
+    assert '$versionMatch.Groups["version"].Value' in setup_uv_script
+    assert "$uvVersion" in setup_uv_script
+    assert "UV_VERSION" not in setup_uv_environment
     assert "$env:UV_TOOL_PATH" in setup_uv_script
     assert "$env:RUNNER_TEMP" in setup_uv_script
     trusted_paths = str(action_step(action, "Restore trusted package cache")["with"])
