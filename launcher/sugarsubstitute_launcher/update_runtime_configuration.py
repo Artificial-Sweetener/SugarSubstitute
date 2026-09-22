@@ -27,6 +27,7 @@ from pathlib import Path
 import secrets
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.launcher_update.persistence import replace_atomic
 
 
 _MAX_CONFIGURATION_BYTES = 64 * 1024
@@ -171,7 +172,7 @@ def _write_bytes_atomic(path: Path, content: bytes) -> None:
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary_path, path)
+        replace_atomic(temporary_path, path)
     finally:
         temporary_path.unlink(missing_ok=True)
 

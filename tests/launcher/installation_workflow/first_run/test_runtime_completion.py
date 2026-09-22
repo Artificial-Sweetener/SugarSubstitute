@@ -21,7 +21,6 @@ from dataclasses import replace
 import os
 
 import pytest
-
 from launcher.sugarsubstitute_launcher.localization import (
     build_launcher_localization_runtime,
 )
@@ -185,7 +184,10 @@ def test_failed_completion_publication_preserves_resumable_configuration(
         raise OSError("publication unavailable")
 
     with monkeypatch.context() as scoped:
-        scoped.setattr(os, "replace", fail_replace)
+        scoped.setattr(
+            "launcher.sugarsubstitute_launcher.config.replace_atomic",
+            fail_replace,
+        )
         with pytest.raises(OSError, match="publication unavailable"):
             replace(
                 LauncherConfig.load(incomplete_runtime.config_path),
