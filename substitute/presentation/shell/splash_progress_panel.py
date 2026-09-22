@@ -67,8 +67,6 @@ class SplashProgressPanel(QWidget):
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Ignored
         )
         self.progress = ActivityProgressBar(self)
-        self.progress.setRange(0, 1)
-        self.progress.setValue(0)
         layout = QVBoxLayout(self)
         self._layout = layout
         layout.setContentsMargins(0, 0, 0, 0)
@@ -90,8 +88,7 @@ class SplashProgressPanel(QWidget):
             return
         self._progress_status = status
         self.set_activity_status(self._activity_status)
-        self.progress.setRange(0, value.total)
-        self.progress.setValue(value.completed)
+        self.progress.set_progress(value.completed, value.total)
         self._complete = value.completed == value.total
         self._update_activity()
 
@@ -141,6 +138,14 @@ class SplashProgressPanel(QWidget):
     def record_activity(self) -> None:
         """Pulse on actual output without changing completion or the step label."""
         self.progress.record_activity()
+
+    def reset_progress(self) -> None:
+        """Begin a separate startup attempt from empty visible completion."""
+
+        self._complete = False
+        self._failed = False
+        self.progress.reset_progress()
+        self._update_activity()
 
     def hideEvent(self, event: QHideEvent) -> None:
         """Stop hidden animation work while retaining stage state."""

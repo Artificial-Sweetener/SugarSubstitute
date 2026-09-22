@@ -25,7 +25,15 @@ import pytest
 from tools.run_clean_install_harness import (
     CleanInstallHarnessError,
     _clean_install_root,
+    run_clean_install_harness,
 )
+
+
+def test_clean_install_harness_rejects_invalid_endpoint_port() -> None:
+    """Reject an unusable isolation port before inspecting release artifacts."""
+
+    with pytest.raises(ValueError, match="between 1 and 65535"):
+        run_clean_install_harness(endpoint_port=0)
 
 
 def test_clean_install_harness_refuses_non_default_target(tmp_path: Path) -> None:

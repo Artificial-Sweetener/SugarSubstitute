@@ -72,7 +72,7 @@ def test_console_titlebar_toggle_reflows_and_retains_output() -> None:
             <= splash.height() - 24
         )
         assert "Retained startup output" in splash.log_view.toPlainText()
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         button.click()
         QApplication.processEvents()
         assert not panel.details.isVisible()
@@ -146,7 +146,7 @@ def test_sweep_changes_only_completed_fill_and_stops_on_completion(
         assert before.copy(
             boundary, 0, before.width() - boundary, before.height()
         ) == after.copy(boundary, 0, after.width() - boundary, after.height())
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         animation.setCurrentTime(animation.duration())
         assert animation.state() == QAbstractAnimation.State.Stopped
         panel.record_activity()

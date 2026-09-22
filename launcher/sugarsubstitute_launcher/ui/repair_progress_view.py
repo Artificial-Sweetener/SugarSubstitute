@@ -68,9 +68,7 @@ class RepairProgressView(QWidget):
         self._step = cast(QLabel, CaptionLabel(self))
         self._bar = ActivityProgressBar(self)
         self._bar.setObjectName("RepairProgress")
-        self._bar.setRange(0, 100)
         self._bar.setFixedHeight(6)
-        self._bar.setValue(0)
         self._details_button = cast(
             QPushButton, PushButton(launcher_text("Details"), self)
         )
@@ -117,7 +115,7 @@ class RepairProgressView(QWidget):
             )
         self._stage.setText(title)
         self._step.setText(launcher_text("Step %1 of %2", completed + 1, total))
-        self._bar.setValue(round(100 * completed / total))
+        self._bar.set_progress(completed, total)
 
     def begin_attempt(self) -> None:
         """Reset terminal actions before the controller starts a fresh repair attempt."""
@@ -125,7 +123,7 @@ class RepairProgressView(QWidget):
         self._description.setText(launcher_text("Repair keeps your files and models."))
         self._stage.setText(launcher_text("Checking repair files"))
         self._step.clear()
-        self._bar.setValue(0)
+        self._bar.reset_progress()
         self._primary.hide()
         self._close.setText(launcher_text("Cancel repair"))
         self._close.setEnabled(True)
@@ -159,7 +157,7 @@ class RepairProgressView(QWidget):
         self._close.setEnabled(True)
         self._primary.show()
         if succeeded:
-            self._bar.setValue(100)
+            self._bar.set_progress(1, 1)
             self._title.setText(launcher_text("Repair complete"))
             self._description.setText(
                 launcher_text("SugarSubstitute is ready to open.")

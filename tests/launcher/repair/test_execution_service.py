@@ -265,7 +265,9 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     assert result.comfy_quarantine_root is not None
     assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"
     assert {path: path.read_bytes() for path in protected} == before
-    assert [event.stage for event in events] == [
+    milestones = [event for event in events if not event.activity]
+    assert any(event.activity for event in events)
+    assert [event.stage for event in milestones] == [
         RepairStage.VALIDATE_INPUT,
         RepairStage.RESTORE_APPLICATION,
         RepairStage.PREPARE_RUNTIME,
@@ -276,8 +278,8 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
         RepairStage.VALIDATE_COMFY,
         None,
     ]
-    assert [event.completed for event in events] == list(range(9))
-    assert {event.total for event in events} == {8}
+    assert [event.completed for event in milestones] == list(range(9))
+    assert {event.total for event in milestones} == {8}
 
 
 @pytest.mark.parametrize("reject", [False, True])
@@ -300,16 +302,18 @@ def test_progress_reaches_completion_only_after_successful_commit(
             service.execute_application(request)
     else:
         service.execute_application(request)
-    assert [event.stage for event in events[:5]] == [
+    milestones = [event for event in events if not event.activity]
+    assert any(event.activity for event in events)
+    assert [event.stage for event in milestones[:5]] == [
         RepairStage.VALIDATE_INPUT,
         RepairStage.RESTORE_APPLICATION,
         RepairStage.PREPARE_RUNTIME,
         RepairStage.SAVE_STATE,
         RepairStage.VALIDATE_APPLICATION,
     ]
-    assert [event.completed for event in events] == list(range(5 if reject else 6))
-    assert {event.total for event in events} == {5}
-    assert (events[-1].stage is None) is not reject
+    assert [event.completed for event in milestones] == list(range(5 if reject else 6))
+    assert {event.total for event in milestones} == {5}
+    assert (milestones[-1].stage is None) is not reject
 
 
 def test_progress_observer_failure_cannot_abort_repair(

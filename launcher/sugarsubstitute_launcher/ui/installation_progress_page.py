@@ -87,8 +87,6 @@ class InstallationProgressPage(QFrame):
         layout.addSpacing(12)
         self.progress_bar = ActivityProgressBar(self)
         self.progress_bar.setObjectName("LauncherInstallProgress")
-        self.progress_bar.setRange(0, len(InstallationStage))
-        self.progress_bar.setValue(0)
         self.progress_bar.setFixedHeight(6)
         layout.addWidget(self.progress_bar)
         self.details_button = cast(
@@ -109,21 +107,27 @@ class InstallationProgressPage(QFrame):
         layout.addStretch(1)
         self._working = False
         self._stopping = False
+        self._logged_stages: set[InstallationStage] = set()
 
     @Slot(object)
     def set_progress(self, value: object) -> None:
         """Project queued workflow events without interpreting console output."""
         if not isinstance(value, InstallationProgress):
             raise TypeError("Installation progress requires a workflow milestone.")
-        self.progress_bar.setValue(value.completed)
+        self.progress_bar.set_progress(value.completed, value.total)
         self._step.setText(
             launcher_text("Step %1 of %2", int(value.stage) + 1, value.total)
         )
         self.progress_bar.setAccessibleName(_stage_title(value.stage))
         self.progress_bar.setAccessibleDescription(self._step.text())
         self._working = value.completed < value.total
+        self._update_activity()
         if not value.finished and not self._stopping:
-            self._activity.start(_stage_title(value.stage))
+            stage_title = _stage_title(value.stage)
+            self._activity.start(stage_title)
+            if value.stage not in self._logged_stages:
+                self._logged_stages.add(value.stage)
+                self.append_log(stage_title)
         if not self._working:
             self._activity.stop()
             self.activity_label.setText(
@@ -134,6 +138,12 @@ class InstallationProgressPage(QFrame):
     def append_log(self, message: str) -> None:
         """Retain diagnostic records without replacing the user's stage headline."""
         self.progress_log.append_line(f"{message}\n")
+        if self._working and self.isVisible():
+            self.progress_bar.record_activity()
+
+    def record_activity(self) -> None:
+        """Pulse once for observed work that does not warrant another log line."""
+
         if self._working and self.isVisible():
             self.progress_bar.record_activity()
 

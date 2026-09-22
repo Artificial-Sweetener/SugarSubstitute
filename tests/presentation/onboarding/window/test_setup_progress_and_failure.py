@@ -163,11 +163,11 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     assert snapshot.total_tasks == 6
     assert snapshot.model_completed_bytes == 25
     assert snapshot.model_total_bytes == 100
-    assert page.overall_progress_bar.value() == 21
+    assert page.overall_progress_bar.visible_fraction == pytest.approx(1.25 / 6)
     assert "2 of 3" in page.model_progress_label.text()
     assert page.status_label.text() == "late model event"
     assert len(page.status_panel.findChildren(ProgressBar)) == 1
-    assert page.overall_progress_bar.activity_running is False
+    assert page.overall_progress_bar.activity_running is True
     page.append_log("Downloaded another model chunk")
     assert page.overall_progress_bar.activity_running is True
 
@@ -187,7 +187,7 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     )
     assert presenter.snapshot().model_complete
     assert "Downloading" not in page.model_progress_label.text()
-    assert page.overall_progress_bar.value() == 33
+    assert page.overall_progress_bar.visible_fraction == pytest.approx(2 / 6)
     page.close()
 
 

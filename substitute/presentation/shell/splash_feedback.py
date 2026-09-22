@@ -126,6 +126,13 @@ class SplashFeedback(QWidget):
         self._presenter.clear_detail()
         self._panel.set_progress(progress, status=status)
 
+    def record_activity(self) -> None:
+        """Pulse for observed work that does not warrant a console record."""
+
+        self.enrich()
+        assert self._panel is not None
+        self._panel.record_activity()
+
     def start_activity(self, activity: SplashActivity) -> None:
         """Start the operation presenter shared by status and diagnostics."""
         self.enrich()

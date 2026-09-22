@@ -52,16 +52,40 @@ def test_milestones_and_log_activity_have_separate_meanings(
     """Fill from producer units while activity leaves completion untouched."""
     panel.set_progress(SplashProgress(2, 5), status="Preparing workspace")
     assert panel.progress.isVisible()
-    assert panel.progress.value() == 2
-    assert panel.progress.maximum() == 5
+    assert panel.progress.visible_fraction == pytest.approx(2 / 5)
     assert panel.status.text() == "Preparing workspace"
     panel.record_activity()
-    assert panel.progress.value() == 2
+    assert panel.progress.visible_fraction == pytest.approx(2 / 5)
     panel.set_details_visible(not panel.details_visible)
     assert panel.details.isVisible()
     panel.set_details_visible(not panel.details_visible)
     assert not panel.details.isVisible()
-    assert panel.progress.value() == 2
+    assert panel.progress.visible_fraction == pytest.approx(2 / 5)
+
+
+def test_progress_never_moves_backward_when_the_producer_total_grows(
+    panel: SplashProgressPanel,
+) -> None:
+    """Keep visible completion monotonic across late startup task discovery."""
+
+    panel.set_progress(SplashProgress(2, 4), status="Preparing workspace")
+    visible_completion = panel.progress.visible_fraction
+
+    panel.set_progress(SplashProgress(2, 8), status="Preparing extensions")
+
+    assert panel.progress.visible_fraction >= visible_completion
+
+
+def test_new_progress_attempt_can_explicitly_reset_visible_completion(
+    panel: SplashProgressPanel,
+) -> None:
+    """Allow a retry owner to reset without weakening monotonic live updates."""
+
+    panel.set_progress(SplashProgress(3, 4), status="Preparing workspace")
+    panel.reset_progress()
+    panel.set_progress(SplashProgress(0, 6), status="Retrying startup")
+
+    assert panel.progress.value() == 0
 
 
 def test_completion_and_hide_stop_activity(panel: SplashProgressPanel) -> None:
@@ -75,9 +99,9 @@ def test_completion_and_hide_stop_activity(panel: SplashProgressPanel) -> None:
     assert panel.progress.activity_running
     panel.set_progress(SplashProgress(5, 5), status="Ready")
     assert not panel.progress.activity_running
-    assert panel.progress.value() == 5
+    assert panel.progress.visible_fraction == 1.0
     panel.record_activity()
-    assert panel.progress.value() == 5
+    assert panel.progress.visible_fraction == 1.0
 
 
 def test_collapsed_splash_exposes_activity_without_claiming_completion() -> None:
@@ -97,10 +121,10 @@ def test_collapsed_splash_exposes_activity_without_claiming_completion() -> None
         assert panel is not None
         assert not panel.details.isVisible()
         assert panel.status.text().startswith("Waiting for backend")
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         splash.append_log("Backend diagnostic output")
         assert panel.status.text().startswith("Waiting for backend")
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         splash.clear_activity()
         assert panel.status.text() == "Preparing workspace"
         splash.show_failure("Backend failed")
@@ -171,10 +195,10 @@ def test_client_progress_reaches_the_production_splash(transport: str) -> None:
             InProcessLaunchSplashClient(splash).set_progress(
                 SplashProgress(2, 5), status="Preparing workspace"
             )
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         assert panel.status.text() == "Preparing workspace"
         splash.append_log("Loaded backend modules")
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         assert panel.status.text() == "Preparing workspace"
         panel.set_details_visible(not panel.details_visible)
         assert "Loaded backend modules" in splash.log_view.toPlainText()
@@ -218,7 +242,7 @@ def test_fatal_message_exposes_diagnostics_and_stops_progress(transport: str) ->
         assert "Backend could not start" in splash.log_view.toPlainText()
         splash.set_progress(SplashProgress(3, 5), status="Preparing workspace")
         assert panel.status.text() == "Backend could not start"
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
     finally:
         destroy_qt_object(splash)
 
@@ -260,8 +284,7 @@ def test_pipe_records_cannot_fabricate_completion(
         )
         panel = splash.findChild(SplashProgressPanel)
         assert panel is not None
-        assert panel.progress.value() == 2
-        assert panel.progress.maximum() == 5
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         assert panel.status.text() == "Preparing workspace"
         assert "Diagnostic output" in splash.log_view.toPlainText()
     finally:

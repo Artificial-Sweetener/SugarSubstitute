@@ -48,7 +48,6 @@ class RepairPreparationProgressView(QWidget):
         self._label.setWordWrap(True)
         self._bar = ActivityProgressBar(self)
         self._bar.setObjectName("RepairPreparationProgress")
-        self._bar.setRange(0, 1000)
         self._bar.setFixedHeight(6)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -60,7 +59,7 @@ class RepairPreparationProgressView(QWidget):
     def set_working(self, working: bool) -> None:
         """Start or retire one visible preparation interval without resetting live progress."""
         if working and not self._working:
-            self._bar.setValue(0)
+            self._bar.reset_progress()
             self._label.clear()
             self._bar.set_activity_enabled(True)
         elif not working:
@@ -75,7 +74,7 @@ class RepairPreparationProgressView(QWidget):
         caption = preparation_stage_text(progress.stage)
         self._label.setText(caption)
         self._bar.setAccessibleName(caption)
-        self._bar.setValue(round(progress.completed_fraction * 1000))
+        self._bar.set_progress(progress.completed_fraction, 1.0)
         self._bar.set_activity_enabled(progress.completed_fraction < 1)
         self._bar.record_activity()
 
