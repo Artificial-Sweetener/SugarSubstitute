@@ -67,7 +67,6 @@ def compose_direct_workflow_file_actions(
         shell.cube_graph_gateway,
         node_definition_gateway=shell.node_definition_gateway,
     )
-    controller = _model_resolution_controller(shell, manifest=manifest)
     return DirectWorkflowComposition(
         load_service=load_service,
         file_actions=DirectWorkflowFileActions(
@@ -86,7 +85,9 @@ def compose_direct_workflow_file_actions(
                 )
             ),
             error_presenter=error_presenter,
-            model_resolution_controller=controller,
+            model_resolution_controller_provider=(
+                lambda: _model_resolution_controller(shell, manifest=manifest)
+            ),
         ),
     )
 
