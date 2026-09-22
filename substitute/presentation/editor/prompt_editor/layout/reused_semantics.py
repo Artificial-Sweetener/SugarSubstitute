@@ -54,6 +54,10 @@ class PromptReusedLineSemanticResolver:
         self._projection_document = projection_document
         self._runs: tuple[PromptProjectionRun, ...] | None = None
         self._run_starts: tuple[int, ...] | None = None
+        self._resolved_runs: dict[
+            tuple[str, int],
+            tuple[PromptProjectionRun, PromptReusedFragmentIdentity] | None,
+        ] = {}
 
     def identity_for(
         self,
@@ -73,6 +77,21 @@ class PromptReusedLineSemanticResolver:
                 run_id=fragment.run_id,
                 token_id=fragment.token_id,
             )
+        cache_key = (fragment.run_id, projection_delta)
+        if cache_key in self._resolved_runs:
+            resolved = self._resolved_runs[cache_key]
+            if resolved is None:
+                return None
+            cached_run, identity = resolved
+            return (
+                identity
+                if _fragment_matches_run(
+                    fragment,
+                    run=cached_run,
+                    projection_delta=projection_delta,
+                )
+                else None
+            )
         run = self._run_for_projection_position(
             fragment.projection_start + projection_delta
         )
@@ -81,16 +100,20 @@ class PromptReusedLineSemanticResolver:
             run=run,
             projection_delta=projection_delta,
         ):
+            self._resolved_runs[cache_key] = None
             return None
         if (
             run.token_id is not None
             and self._projection_document.token_by_id(run.token_id) is None
         ):
+            self._resolved_runs[cache_key] = None
             return None
-        return PromptReusedFragmentIdentity(
+        identity = PromptReusedFragmentIdentity(
             run_id=run.run_id,
             token_id=run.token_id,
         )
+        self._resolved_runs[cache_key] = (run, identity)
+        return identity
 
     def _run_for_projection_position(
         self,
@@ -136,7 +159,7 @@ def reusable_suffix_semantics_by_line(
     downstream_safe = True
     for line_index in range(len(lines) - 1, -1, -1):
         safe_after[line_index] = downstream_safe
-        downstream_safe = downstream_safe and _line_semantics_resolve(
+        downstream_safe = downstream_safe and line_semantics_resolve(
             lines[line_index],
             resolver,
             projection_delta=projection_delta,
@@ -144,7 +167,43 @@ def reusable_suffix_semantics_by_line(
     return tuple(safe_after)
 
 
-def _line_semantics_resolve(
+def earliest_reusable_suffix_line_index(
+    lines: Sequence[PromptProjectionLineSnapshot],
+    reusable_semantics: Sequence[bool],
+    *,
+    first_line_index: int,
+    edit_end: int,
+) -> int | None:
+    """Return the first downstream line whose remaining suffix can be rebound."""
+
+    for line_index in range(first_line_index, len(lines)):
+        if (
+            lines[line_index].source_start >= edit_end
+            and reusable_semantics[line_index]
+        ):
+            return line_index
+    return None
+
+
+def earliest_unresolvable_line_index(
+    lines: Sequence[PromptProjectionLineSnapshot],
+    resolver: PromptReusedLineSemanticResolver,
+    *,
+    stop_index: int,
+) -> int | None:
+    """Return the first prefix line that cannot bind to current semantics."""
+
+    for line_index in range(min(stop_index, len(lines))):
+        if not line_semantics_resolve(
+            lines[line_index],
+            resolver,
+            projection_delta=0,
+        ):
+            return line_index
+    return None
+
+
+def line_semantics_resolve(
     line: PromptProjectionLineSnapshot,
     resolver: PromptReusedLineSemanticResolver,
     *,
@@ -156,6 +215,21 @@ def _line_semantics_resolve(
         resolver.identity_for(fragment, projection_delta=projection_delta) is not None
         for fragment in line.fragments
     )
+
+
+def line_semantic_identity_is_current(
+    line: PromptProjectionLineSnapshot,
+    resolver: PromptReusedLineSemanticResolver,
+) -> bool:
+    """Return whether every fragment already exposes its current semantic IDs."""
+
+    for fragment in line.fragments:
+        identity = resolver.identity_for(fragment, projection_delta=0)
+        if identity is None or (
+            identity.run_id != fragment.run_id or identity.token_id != fragment.token_id
+        ):
+            return False
+    return True
 
 
 def _fragment_matches_run(
@@ -187,6 +261,10 @@ def _fragment_matches_run(
 
 
 __all__ = [
+    "earliest_reusable_suffix_line_index",
+    "earliest_unresolvable_line_index",
+    "line_semantic_identity_is_current",
+    "line_semantics_resolve",
     "PromptReusedFragmentIdentity",
     "PromptReusedLineSemanticResolver",
     "reusable_suffix_semantics_by_line",

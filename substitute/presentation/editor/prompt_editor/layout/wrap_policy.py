@@ -51,9 +51,14 @@ def visible_wrap_candidate_length(
     ``QTextLine.textLength()`` can retain trailing whitespace after its natural
     width fits the line. The caret still advances through that whitespace, so
     canonical layout moves it when its boundary exceeds the available width.
+    Measure the unwrapped boundary because Qt's wrapped-line cursor geometry
+    excludes some trailing whitespace that the editor must still reveal.
     """
 
-    bounded_length = min(max(1, candidate_length), len(text))
+    bounded_length = min(
+        max(1, candidate_length),
+        len(text),
+    )
     boundary_offsets = measurement_cache.unwrapped_text_offsets(text, font)
     if (
         boundary_offsets[bounded_length]

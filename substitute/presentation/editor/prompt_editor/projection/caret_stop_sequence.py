@@ -23,6 +23,9 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import overload
 
+from substitute.application.prompt_editor.editing.grapheme_boundary_policy import (
+    simple_code_point_boundaries,
+)
 from substitute.presentation.text_coordinates import TextCoordinateMap
 
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
@@ -671,6 +674,9 @@ class PromptProjectionCaretStopSequenceBuilder:
 def _caret_boundary_indexes(text: str) -> Sequence[int]:
     """Return a compact sequence of valid grapheme boundaries for one text run."""
 
+    direct_boundaries = simple_code_point_boundaries(text)
+    if direct_boundaries is not None:
+        return direct_boundaries
     boundaries = TextCoordinateMap(text).grapheme_boundaries()
     if len(boundaries) == len(text) + 1:
         return range(len(text) + 1)

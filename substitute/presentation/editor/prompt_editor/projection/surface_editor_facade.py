@@ -49,6 +49,7 @@ from .frame_state import PromptProjectionEditorState
 from .history_owner import PromptProjectionHistoryOwner
 from .reorder_projection_owner import PromptReorderProjectionOwner
 from .source_commit_application import PromptProjectionSourceCommitApplication
+from .source_range_commit_application import PromptCanonicalSemanticPreparer
 from .source_document import PromptProjectionSourceDocument
 from .surface_input_runtime import PromptProjectionSurfaceInputRuntime
 from .surface_interaction_runtime import PromptProjectionSurfaceInteractionRuntime
@@ -156,6 +157,14 @@ class PromptProjectionSurfaceEditorFacade:
         """Apply the sole committed editing result to projection state."""
 
         self._bindings.source_commit.apply_edit_commit(commit)
+
+    def bind_canonical_semantic_preparer(
+        self,
+        preparer: PromptCanonicalSemanticPreparer,
+    ) -> None:
+        """Bind the syntax owner used for canonical paste preparation."""
+
+        self._bindings.source_commit.bind_canonical_semantic_preparer(preparer)
 
     def attach_external_scroll_bar(self, scroll_bar: QScrollBar) -> None:
         """Attach the host-owned visible scrollbar."""

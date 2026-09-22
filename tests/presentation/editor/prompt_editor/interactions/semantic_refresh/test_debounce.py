@@ -157,6 +157,54 @@ def test_handle_text_changed_coalesces_semantic_refresh_to_latest_text() -> None
     assert controller.document_view.source_text == "gamma"
 
 
+def test_prepared_semantics_publish_without_a_second_document_build() -> None:
+    """Canonical paste semantics should flow through refresh by exact identity."""
+
+    real_document_service = PromptDocumentService()
+    build_calls: list[str] = []
+
+    class CountingDocumentService:
+        """Count document-view builds while delegating to the real service."""
+
+        def build_document_view(self, text: str) -> Any:
+            """Build one document view and record the requested text."""
+
+            build_calls.append(text)
+            return real_document_service.build_document_view(text)
+
+    document_service = CountingDocumentService()
+    syntax_profile = prompt_syntax_profile("emphasis", "wildcard")
+    controller_holder: list[Any] = []
+    semantic_refresh_controller = build_hosted_semantic_refresh_controller(
+        controller_provider=lambda: controller_holder[0],
+        document_service=document_service,
+        syntax_profile=syntax_profile,
+    )
+    editor = build_editor("cat", position=3)
+    controller = build_interaction_controller(
+        editor,
+        semantic_refresh_controller=semantic_refresh_controller,
+        document_service=document_service,
+        syntax_profile=syntax_profile,
+    )
+    controller_holder.append(controller)
+    build_calls.clear()
+    source_text = "(cat:1.05), dog"
+
+    prepared_state = controller._syntax_state.prepare_prompt_state(source_text)
+    assert prepared_state is not None
+    prepared_document, prepared_render_plan = prepared_state
+    editor.setPlainText(source_text)
+    controller.handle_text_changed()
+    controller.flush_pending_semantic_refresh(reason="test")
+
+    assert build_calls == [source_text]
+    assert controller._syntax_state.document_view is prepared_document
+    assert controller._syntax_state.render_plan is prepared_render_plan
+    assert controller._syntax_state.pending_document_view is None
+    assert controller._syntax_state.pending_render_plan is None
+
+
 def test_pending_semantic_refresh_drops_stale_text_snapshot() -> None:
     """A queued semantic refresh does not apply after the editor text changes."""
 

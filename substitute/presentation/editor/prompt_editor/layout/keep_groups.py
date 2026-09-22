@@ -395,8 +395,8 @@ def _piece_source_range(piece: PromptLayoutPiece) -> tuple[int, int] | None:
     ):
         return None
     if isinstance(piece, PromptTextLayoutPiece):
-        return (min(piece.source_positions), max(piece.source_positions))
-    return (min(piece.run.source_positions), max(piece.run.source_positions))
+        return (piece.source_positions[0], piece.source_positions[-1])
+    return (piece.run.source_positions[0], piece.run.source_positions[-1])
 
 
 def _piece_width_prefix_sums(piece_widths: tuple[float, ...]) -> tuple[float, ...]:
@@ -441,15 +441,18 @@ def _next_token_content_run(
     run_index: int,
     token_id: str | None,
 ) -> PromptProjectionRun | None:
-    """Return the next content run belonging to one token."""
+    """Return the adjacent following content run belonging to one token."""
 
-    for candidate in runs[run_index + 1 :]:
-        if (
-            candidate.token_id == token_id
-            and candidate.role is PromptProjectionRunRole.DEFAULT
-        ):
-            return candidate
-    return None
+    candidate_index = run_index + 1
+    if candidate_index >= len(runs):
+        return None
+    candidate = runs[candidate_index]
+    return (
+        candidate
+        if candidate.token_id == token_id
+        and candidate.role is PromptProjectionRunRole.DEFAULT
+        else None
+    )
 
 
 def _previous_token_content_run(
@@ -458,15 +461,18 @@ def _previous_token_content_run(
     run_index: int,
     token_id: str | None,
 ) -> PromptProjectionRun | None:
-    """Return the previous content run belonging to one token."""
+    """Return the adjacent preceding content run belonging to one token."""
 
-    for candidate in reversed(runs[:run_index]):
-        if (
-            candidate.token_id == token_id
-            and candidate.role is PromptProjectionRunRole.DEFAULT
-        ):
-            return candidate
-    return None
+    candidate_index = run_index - 1
+    if candidate_index < 0:
+        return None
+    candidate = runs[candidate_index]
+    return (
+        candidate
+        if candidate.token_id == token_id
+        and candidate.role is PromptProjectionRunRole.DEFAULT
+        else None
+    )
 
 
 def _first_word_end_source_position(run: PromptProjectionRun) -> int | None:

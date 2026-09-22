@@ -58,16 +58,14 @@ class TextCoordinateMap:
         ``prefer_after`` so callers never split a non-BMP character.
         """
 
-        target = max(0, utf16_offset)
-        consumed = 0
-        for index, character in enumerate(self.text):
-            next_consumed = consumed + _utf16_code_units(character)
-            if target < next_consumed:
-                return index + 1 if prefer_after else index
-            if target == next_consumed:
-                return index + 1
-            consumed = next_consumed
-        return len(self.text)
+        return min(
+            len(self.text),
+            _python_index_for_utf16_offset(
+                self.utf16_offsets_by_python_index(),
+                max(0, utf16_offset),
+                prefer_after=prefer_after,
+            ),
+        )
 
     @lru_cache(maxsize=4096)
     def utf16_offsets_by_python_index(self) -> tuple[int, ...]:

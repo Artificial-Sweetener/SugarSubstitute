@@ -530,7 +530,7 @@ kind = "structural"
 justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
 issue = "chore:SS-WAIVER-S156"
 review_by = 2026-12-15
-max_lines = 1129
+max_lines = 1138
 
 [[waivers]]
 id = "SS-WAIVER-S157"
@@ -1005,7 +1005,7 @@ kind = "structural"
 justification = "The module is one tolerant parser whose emphasis, wildcard, LoRA, quote, and syntax-span routines cooperate in a single source scan and return one PromptDocument. Their nesting, range, and depth invariants are shared across syntax families."
 issue = "chore:SS-WAIVER-S016"
 review_by = 2026-12-15
-max_lines = 674
+max_lines = 675
 
 [[waivers]]
 id = "SS-WAIVER-S017"
@@ -1225,7 +1225,7 @@ kind = "structural"
 justification = "PromptSourceEditSession owns one bounded source-edit transaction. Normalization, parenthesis intent, generated-emphasis remapping, range validation, revision publication, and returned boundary transitions must agree for every replacement."
 issue = "chore:SS-WAIVER-S039"
 review_by = 2026-12-15
-max_lines = 561
+max_lines = 560
 
 [[waivers]]
 id = "SS-WAIVER-S040"
@@ -1310,10 +1310,10 @@ owner = "lazy shifted prompt snapshots"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/layout/shifted_snapshot.py"
 kind = "structural"
-justification = "The module implements one lazy offset-view abstraction over line, fragment, caret-stop, and source-position snapshot values. Every proxy and sequence preserves the same deferred materialization and coordinate-shift semantics."
+justification = "The module implements one lazy offset-view abstraction over line, fragment, caret-stop, and source-position snapshot values. Every proxy preserves the same deferred coordinate-shift semantics; flattened fragment and caret lookup indexes now belong to snapshot_indexes."
 issue = "chore:SS-WAIVER-S048"
 review_by = 2026-12-15
-max_lines = 623
+max_lines = 526
 
 [[waivers]]
 id = "SS-WAIVER-S049"
@@ -1346,7 +1346,7 @@ kind = "structural"
 justification = "The module implements one allocation-efficient ordered caret-stop data structure and its builder. Explicit and text spans, lookup by source/projection state, iteration, navigation, and construction all preserve the same visual ordering and boundary-index invariants."
 issue = "chore:SS-WAIVER-S051"
 review_by = 2026-12-15
-max_lines = 569
+max_lines = 575
 
 [[waivers]]
 id = "SS-WAIVER-S052"
@@ -1903,7 +1903,7 @@ kind = "structural"
 justification = "PromptProjectionLineLayoutBuilder owns one atomic line-assembly state machine over line width, height, vertical position, pending fragments, caret boundaries, and reusable-suffix convergence. Text and inline placement, wrapping transitions, paragraph and structural-row transitions, line finalization, caret geometry, and snapshot emission must update that state together; extracting one transition family would divide the authoritative layout invariant rather than create an independently changing owner. Measurement, wrap policy, projection partitioning, keep-group planning, and source-boundary resolution are separate collaborators."
 issue = "chore:SS-WAIVER-S152"
 review_by = 2026-12-15
-max_lines = 747
+max_lines = 778
 
 [[waivers]]
 id = "SS-WAIVER-S153"
@@ -1911,10 +1911,10 @@ owner = "LoRA inline projection rendering"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/lora_renderer.py"
 kind = "structural"
-justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, paint, and interaction-geometry contract for a LoRA projection run. Title elision, stable weight placement, chevron and banner composition, anchor geometry, hit testing, and selection must derive from the same dimensions; extracting a transition or geometry family would duplicate those invariants and permit layout to diverge from painting. PromptLoraThumbnailCache and BannerTextPainter remain independent collaborators, while bounded title segmentation is private memoization keyed by the renderer's font, text, and width inputs."
+justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, paint, and interaction-geometry contract for a LoRA projection run. Title elision, stable weight placement, chevron and banner composition, anchor geometry, hit testing, and selection must derive from the same dimensions; extracting a transition or geometry family would duplicate those invariants and permit layout to diverge from painting. PromptLoraThumbnailCache, PromptLoraPaintCache, and BannerTextPainter remain independent collaborators, while bounded title segmentation is private memoization keyed by the renderer's font, text, and width inputs."
 issue = "chore:SS-WAIVER-S153"
 review_by = 2026-12-15
-max_lines = 587
+max_lines = 631
 
 [[waivers]]
 id = "SS-WAIVER-S154"

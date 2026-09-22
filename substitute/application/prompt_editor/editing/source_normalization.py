@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from substitute.application.ports import PromptTagLexiconSnapshot
@@ -48,7 +48,7 @@ class PromptSourceNormalization:
     """Describe normalized prompt source text and original boundary remapping."""
 
     text: str
-    boundary_positions: tuple[int, ...]
+    boundary_positions: Sequence[int]
     transitions: tuple[PromptParenthesisTransition, ...] = ()
 
 
@@ -109,6 +109,11 @@ class PromptSourceNormalizationService:
                 tag_snapshot=self._tag_snapshot,
             ),
         )
+        if (
+            partition_normalization.text == text
+            and separator_normalization.text == text
+        ):
+            return canonical_normalization
         return PromptSourceNormalization(
             text=canonical_normalization.text,
             boundary_positions=tuple(
@@ -126,7 +131,7 @@ class PromptSourceNormalizationService:
         if "(" not in text and ")" not in text:
             return PromptSourceNormalization(
                 text=text,
-                boundary_positions=tuple(range(len(text) + 1)),
+                boundary_positions=range(len(text) + 1),
             )
         return _parenthesis_normalization(
             canonicalize_prompt_parentheses(
@@ -409,6 +414,24 @@ def _normalize_source_range_with_boundaries(
     source_slice = text[start:end]
     suffix = text[end:]
     normalized_slice = normalizer(source_slice)
+    shifted_transitions = tuple(
+        PromptParenthesisTransition(
+            kind=transition.kind,
+            source_start=start + transition.source_start,
+            source_end=start + transition.source_end,
+            nesting_depth=transition.nesting_depth,
+        )
+        for transition in normalized_slice.transitions
+    )
+    if normalized_slice.text == source_slice and all(
+        position == index
+        for index, position in enumerate(normalized_slice.boundary_positions)
+    ):
+        return PromptSourceNormalization(
+            text=text,
+            boundary_positions=range(len(text) + 1),
+            transitions=shifted_transitions,
+        )
     normalized_text = f"{prefix}{normalized_slice.text}{suffix}"
     delta = len(normalized_slice.text) - len(source_slice)
 
@@ -426,15 +449,7 @@ def _normalize_source_range_with_boundaries(
     return PromptSourceNormalization(
         text=normalized_text,
         boundary_positions=tuple(boundary_positions),
-        transitions=tuple(
-            PromptParenthesisTransition(
-                kind=transition.kind,
-                source_start=start + transition.source_start,
-                source_end=start + transition.source_end,
-                nesting_depth=transition.nesting_depth,
-            )
-            for transition in normalized_slice.transitions
-        ),
+        transitions=shifted_transitions,
     )
 
 

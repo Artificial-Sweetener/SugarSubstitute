@@ -34,6 +34,7 @@ from substitute.domain.prompt.document.structural_scan import (
 )
 
 PromptTagMembership = Callable[[str], bool]
+type _ExplicitEmphasisRanges = dict[tuple[int, int], tuple[int, int, str]]
 
 
 class PromptParenthesisTransitionKind(str, Enum):
@@ -114,6 +115,19 @@ def canonicalize_prompt_parentheses(
         canonical_text, depth = _canonicalize_unknown_parentheses(
             segment_content,
             pairs,
+            explicit_emphasis_ranges={
+                (
+                    span.outer_range.start - content_start,
+                    span.outer_range.end - content_start,
+                ): (
+                    span.content_range.start - content_start,
+                    span.content_range.end - content_start,
+                    span.weight_range.slice(text),
+                )
+                for span in document.emphasis_spans
+                if content_start <= span.outer_range.start
+                and span.outer_range.end <= content_end
+            },
             generated_emphases=tuple(
                 PromptGeneratedEmphasis(
                     source_start=generated.source_start - content_start,
@@ -170,6 +184,7 @@ def _canonicalize_unknown_parentheses(
     text: str,
     pairs: tuple[PromptParenthesisPair, ...],
     *,
+    explicit_emphasis_ranges: _ExplicitEmphasisRanges,
     generated_emphases: tuple[PromptGeneratedEmphasis, ...] = (),
 ) -> tuple[str, int]:
     """Rewrite implicit groups while preserving already explicit emphasis."""
@@ -191,20 +206,19 @@ def _canonicalize_unknown_parentheses(
                 parts.append(text[cursor])
                 cursor += 1
                 continue
-            group_text = text[pair.opening_index : pair.closing_index + 1]
-            if is_explicit_weighted_emphasis_group(group_text):
-                emphasis_span = parse_prompt_document(group_text).emphasis_spans[0]
-                content_start = pair.opening_index + emphasis_span.content_range.start
-                content_end = pair.opening_index + emphasis_span.content_range.end
-                weight_text = emphasis_span.weight_range.slice(group_text)
+            explicit_emphasis = explicit_emphasis_ranges.get(
+                (pair.opening_index, pair.closing_index + 1)
+            )
+            if explicit_emphasis is not None:
+                content_start, content_end, weight_text = explicit_emphasis
                 parts.append(f"({render(content_start, content_end)}:{weight_text})")
                 cursor = pair.closing_index + 1
                 continue
             depth, inner_start, inner_end = _collapsible_implicit_nesting(
-                text,
                 pair,
                 by_open,
                 generated_depths,
+                explicit_emphasis_ranges,
             )
             max_depth = max(max_depth, depth)
             inner = render(inner_start, inner_end)
@@ -217,10 +231,10 @@ def _canonicalize_unknown_parentheses(
 
 
 def _collapsible_implicit_nesting(
-    text: str,
     pair: PromptParenthesisPair,
     by_open: dict[int, PromptParenthesisPair],
     generated_depths: dict[tuple[int, int], int],
+    explicit_emphasis_ranges: _ExplicitEmphasisRanges,
 ) -> tuple[int, int, int]:
     """Collapse directly nested implicit and previously generated emphasis shells."""
 
@@ -231,17 +245,19 @@ def _collapsible_implicit_nesting(
         nested = by_open.get(inner_start)
         if nested is None or nested.closing_index != inner_end - 1:
             break
-        nested_text = text[nested.opening_index : nested.closing_index + 1]
-        if is_explicit_weighted_emphasis_group(nested_text):
+        explicit_emphasis = explicit_emphasis_ranges.get(
+            (nested.opening_index, nested.closing_index + 1)
+        )
+        if explicit_emphasis is not None:
             generated_depth = generated_depths.get(
                 (nested.opening_index, nested.closing_index + 1)
             )
             if generated_depth is None:
                 break
-            emphasis_span = parse_prompt_document(nested_text).emphasis_spans[0]
+            content_start, content_end, _weight_text = explicit_emphasis
             depth += generated_depth
-            inner_start = nested.opening_index + emphasis_span.content_range.start
-            inner_end = nested.opening_index + emphasis_span.content_range.end
+            inner_start = content_start
+            inner_end = content_end
             continue
         depth += 1
         inner_start = nested.opening_index + 1

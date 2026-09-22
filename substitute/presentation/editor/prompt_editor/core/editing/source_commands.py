@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, Protocol, TypeVar
@@ -49,7 +50,7 @@ class PromptSourceNormalizationResult(Protocol):
         """Return normalized source text."""
 
     @property
-    def boundary_positions(self) -> tuple[int, ...]:
+    def boundary_positions(self) -> Sequence[int]:
         """Return normalized positions for each original source boundary."""
 
     @property
@@ -618,7 +619,7 @@ def _identity_source_normalization(text: str) -> PromptSourceNormalizationResult
 
     return _PromptIdentitySourceNormalization(
         text=text,
-        boundary_positions=tuple(range(len(text) + 1)),
+        boundary_positions=range(len(text) + 1),
     )
 
 
@@ -627,13 +628,11 @@ class _PromptIdentitySourceNormalization:
     """Represent exact source text as a normalization result."""
 
     text: str
-    boundary_positions: tuple[int, ...]
+    boundary_positions: Sequence[int]
     transitions: tuple[PromptParenthesisTransition, ...] = ()
 
 
-def _mapped_boundary_position(
-    boundary_positions: tuple[int, ...], position: int
-) -> int:
+def _mapped_boundary_position(boundary_positions: Sequence[int], position: int) -> int:
     """Return the normalized boundary position for an original source position."""
 
     if not 0 <= position < len(boundary_positions):

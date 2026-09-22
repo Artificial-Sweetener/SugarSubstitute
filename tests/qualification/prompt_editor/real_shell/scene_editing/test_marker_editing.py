@@ -310,4 +310,14 @@ def test_real_shell_scene_title_typing_keeps_every_character_visually_owned(
             snapshot.projection_document_source_text == snapshot.source_text
             or snapshot.transient_insertion_overlay_valid
         )
-        assert snapshot.caret_rect_intersects_viewport
+        assert snapshot.caret_rect_intersects_viewport, (
+            f"caret={snapshot.caret_rect}; viewport={snapshot.viewport_rect}; "
+            f"scroll={snapshot.scroll_values}; max={snapshot.vertical_scroll_maximum}; "
+            f"geometry={snapshot.geometries}; content={snapshot.layout_content_width}; "
+            f"text={snapshot.layout_text_width}; "
+            f"margin={snapshot.projection_metrics_document_margin}; "
+            f"lines={snapshot.layout_line_count}; "
+            f"transient={snapshot.transient_caret_geometry_present}/"
+            f"{snapshot.transient_caret_geometry_valid}; "
+            f"freshness={snapshot.projection_freshness}"
+        )

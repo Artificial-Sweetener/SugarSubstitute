@@ -283,6 +283,7 @@ def _range_commit(
     start: int,
     end: int,
     replacement_text: str,
+    origin: PromptSourceEditOrigin = PromptSourceEditOrigin.TYPED,
     exact_source: bool = True,
     record_undo: bool = True,
 ) -> PromptEditCommit[_ProjectionPayload]:
@@ -294,7 +295,7 @@ def _range_commit(
             end=end,
             replacement_text=replacement_text,
             normalizer=PromptSourceNormalizationService(),
-            origin=PromptSourceEditOrigin.TYPED,
+            origin=origin,
             exact_source=exact_source,
             record_undo=record_undo,
             undo_snapshot=_projection_undo_snapshot(session.source_text),

@@ -190,7 +190,11 @@ class PromptProjectionPlainEditRunSequence(Sequence[PromptProjectionRun]):
     def preserves_run_identity(self, run_id: str) -> bool:
         """Return whether a non-edited base run retains its semantic identity."""
 
-        return run_id != self._edited_run.run_id
+        if run_id == self._edited_run.run_id:
+            return False
+        self._ensure_identifier_index()
+        assert self._index_by_id is not None
+        return run_id in self._index_by_id
 
     def _ensure_identifier_index(self) -> None:
         """Build stable run identifiers once without shifting coordinates."""

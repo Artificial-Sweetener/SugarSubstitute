@@ -139,9 +139,10 @@ def parse_prompt_document(
             index += 1
             continue
 
-        if character == "[" and not bracket_stack:
+        if character == "[":
             region_separator = region_structure_builder.accept_separator_at(text, index)
             if region_separator is not None:
+                bracket_stack.clear()
                 index = region_separator.token_end
                 continue
 

@@ -334,6 +334,9 @@ def build_prompt_editor_core_runtime(
         projection.surface,
     )
     shell.paste_completion.bind_interaction(syntax.interaction_controller)
+    projection.surface.bind_canonical_semantic_preparer(
+        syntax.syntax_state.prepare_prompt_state
+    )
     observer.log_timing(
         "Initialized prompt editor syntax services",
         started_at=phase_started_at,
