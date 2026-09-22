@@ -18,9 +18,61 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left
+
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 
 _MAX_KEPT_SEGMENT_WORDS = 3
+
+
+class PromptTagKeepRangeIndex:
+    """Index immutable tag-group ranges for repeated layout-window queries."""
+
+    def __init__(self) -> None:
+        """Start without source-derived ranges."""
+
+        self._source_text: str | None = None
+        self._ranges: tuple[tuple[int, int], ...] = ()
+        self._range_starts: tuple[int, ...] = ()
+
+    def ranges_for_layout(
+        self,
+        prompt_document_view: PromptDocumentView,
+        *,
+        source_start: int = 0,
+        source_limit: int | None = None,
+    ) -> tuple[tuple[int, int], ...]:
+        """Return exact kept-tag ranges for one bounded layout window."""
+
+        source_text = prompt_document_view.source_text
+        if source_text != self._source_text:
+            self._source_text = source_text
+            self._ranges = _source_text_tag_keep_ranges(source_text)
+            self._range_starts = tuple(start for start, _end in self._ranges)
+        bounded_source_start = max(0, min(source_start, len(source_text)))
+        line_start = source_text.rfind("\n", 0, bounded_source_start) + 1
+        scan_end = (
+            len(source_text)
+            if source_limit is None
+            else min(len(source_text), max(0, source_limit))
+        )
+        first_range_index = bisect_left(self._range_starts, line_start)
+        ranges: list[tuple[int, int]] = []
+        for source_range in self._ranges[first_range_index:]:
+            range_start, range_end = source_range
+            if range_start > scan_end:
+                break
+            if range_end > scan_end:
+                continue
+            if source_text[range_end - 1 : range_end] == ",":
+                ranges.append(source_range)
+                continue
+            hard_line_end = source_text.find("\n", range_end)
+            if hard_line_end < 0:
+                hard_line_end = len(source_text)
+            if hard_line_end <= scan_end:
+                ranges.append(source_range)
+        return tuple(ranges)
 
 
 def tag_keep_source_ranges(
@@ -248,6 +300,7 @@ def _segment_word_count(display_text: str) -> int:
 
 
 __all__ = [
+    "PromptTagKeepRangeIndex",
     "tag_keep_source_range_at_position",
     "tag_keep_source_ranges",
     "tag_keep_source_ranges_for_layout",

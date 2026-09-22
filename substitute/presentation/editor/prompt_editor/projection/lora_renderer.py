@@ -51,6 +51,11 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 )
 
 from .inline_renderer_typography import centered_text_baseline, inline_weight_font
+from .lora_paint_cache import (
+    PromptLoraPaintCache,
+    lora_paint_cache_key,
+    painter_device_pixel_ratio,
+)
 from .metrics import projection_text_line_height
 
 _LORA_CHIP_RENDERER_KEY = "lora_chip"
@@ -91,6 +96,7 @@ class PromptLoraInlineObjectRenderer:
             tuple[str, str, str, int],
             tuple[str, ...],
         ] = {}
+        self._paint_cache = PromptLoraPaintCache()
 
     def measure_inline_object(
         self,
@@ -136,16 +142,65 @@ class PromptLoraInlineObjectRenderer:
     ) -> None:
         """Paint one LoRA chip inside the supplied rect."""
 
+        banner = (
+            None
+            if self._suppress_banners or not token.thumbnail_variants
+            else self._banner_for_token(painter, token, rect)
+        )
+        fill, border, accent = self._colors_for_token(token)
+        text_color = self._text_color(palette, banner is not None)
+        paint_key = lora_paint_cache_key(
+            painter,
+            rect,
+            run,
+            token,
+            base_font=base_font,
+            fill=fill,
+            border=border,
+            accent=accent,
+            text_color=text_color,
+            banner=banner,
+            selected=selected,
+        )
+
+        def render_cached_chip(cache_painter: QPainter, cache_rect: QRectF) -> None:
+            """Render one chip into the cache-owned local-coordinate raster."""
+
+            self._paint_uncached(
+                cache_painter,
+                cache_rect,
+                run,
+                token,
+                base_font=base_font,
+                palette=palette,
+                banner=banner,
+            )
+
+        self._paint_cache.paint(
+            painter,
+            rect,
+            key=paint_key,
+            render=render_cached_chip,
+        )
+
+    def _paint_uncached(
+        self,
+        painter: QPainter,
+        rect: QRectF,
+        run: PromptProjectionRun,
+        token: PromptProjectionToken,
+        *,
+        base_font: QFont,
+        palette: QPalette,
+        banner: QPixmap | None,
+    ) -> None:
+        """Render one local-coordinate LoRA chip for paint-cache reuse."""
+
         painter.save()
         try:
             painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
             fill, border, accent = self._colors_for_token(token)
             path = self._chevron_path(rect)
-            banner = (
-                None
-                if self._suppress_banners or not token.thumbnail_variants
-                else self._banner_for_token(painter, token, rect)
-            )
             if banner is None:
                 painter.setBrush(fill)
                 painter.setPen(border)
@@ -476,7 +531,7 @@ class PromptLoraInlineObjectRenderer:
         requested_size = QSize(
             max(1, round(rect.width())), max(1, round(rect.height()))
         )
-        device_pixel_ratio = _painter_device_pixel_ratio(painter)
+        device_pixel_ratio = painter_device_pixel_ratio(painter)
         banner = self._thumbnail_cache.banner_pixmap_for_variants(
             token.thumbnail_variants,
             requested_size,
@@ -672,12 +727,3 @@ def _character_elided_text(text: str, limit: int) -> str:
     if limit <= 3:
         return "." * limit
     return f"{text[: limit - 3]}..."
-
-
-def _painter_device_pixel_ratio(painter: QPainter) -> float:
-    """Return the active paint device pixel ratio for pixmap requests."""
-
-    device = painter.device()
-    if device is None:
-        return 1.0
-    return max(1.0, float(device.devicePixelRatioF()))

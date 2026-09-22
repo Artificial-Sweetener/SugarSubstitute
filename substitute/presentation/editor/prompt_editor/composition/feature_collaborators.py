@@ -56,6 +56,7 @@ from ..interactions import (
 )
 from ..overlays import PromptTokenWeightControls
 from ..syntax_renderers import PromptSyntaxRendererCoordinator
+from ..syntax_renderers import PromptSyntaxStateController
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,4 +90,5 @@ class PromptEditorSyntaxCollaborators:
     weight_interaction: PromptWeightInteraction
     wheel_controller: PromptWheelController
     syntax_renderer_coordinator: PromptSyntaxRendererCoordinator
+    syntax_state: PromptSyntaxStateController
     interaction_controller: PromptInteractionController

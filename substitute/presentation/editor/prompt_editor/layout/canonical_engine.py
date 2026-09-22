@@ -29,6 +29,7 @@ from .contracts import (
     PromptLayoutRequest,
 )
 from .edit_policy import (
+    earliest_line_index_for_touched_tag_keep_range,
     line_index_for_plain_edit,
     plain_edit_changes_local_tag_keep_ranges,
 )
@@ -39,9 +40,10 @@ from .canonical_edit_window import (
 )
 from .snapshot_edits import remap_source_position_for_layout
 from .models import PromptProjectionLineSnapshot
-from .reflow_scope import reflow_edit_including_fragment_identity_changes
 from .reused_semantics import (
     PromptReusedLineSemanticResolver,
+    earliest_reusable_suffix_line_index,
+    earliest_unresolvable_line_index,
     reusable_suffix_semantics_by_line,
 )
 from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
@@ -163,16 +165,9 @@ class PromptCanonicalLayoutEngine:
         previous_snapshot = previous.snapshot
         projection_document = request.projection_document
         configuration = request.configuration
-        reflow_edit = reflow_edit_including_fragment_identity_changes(
-            previous_document,
-            projection_document,
-            start=edit.start,
-            end=edit.end,
-            replacement_text=edit.replacement_text,
-        )
-        edit_start = reflow_edit.start
-        edit_end = reflow_edit.end
-        replacement_text = reflow_edit.replacement_text
+        edit_start = edit.start
+        edit_end = edit.end
+        replacement_text = edit.replacement_text
         source_delta = len(replacement_text) - (edit_end - edit_start)
         projection_delta = (
             projection_document.mapping.projection_length
@@ -193,10 +188,29 @@ class PromptCanonicalLayoutEngine:
             replacement_text=replacement_text,
         ):
             first_line -= 1
+        first_line = earliest_line_index_for_touched_tag_keep_range(
+            prompt_document_view,
+            previous_snapshot.lines,
+            current_line_index=first_line,
+            edit_start=edit_start,
+            edit_end=edit_end,
+            replacement_text=replacement_text,
+        )
         first_line = caret_hosted_reflow_start_line_index(
             previous_snapshot.lines,
             first_line,
         )
+        semantic_resolver = PromptReusedLineSemanticResolver(projection_document)
+        unresolved_prefix_line = earliest_unresolvable_line_index(
+            previous_snapshot.lines,
+            semantic_resolver,
+            stop_index=first_line,
+        )
+        if unresolved_prefix_line is not None:
+            first_line = caret_hosted_reflow_start_line_index(
+                previous_snapshot.lines,
+                unresolved_prefix_line,
+            )
         dirty_line = (
             previous_snapshot.lines[first_line] if previous_snapshot.lines else None
         )
@@ -216,7 +230,6 @@ class PromptCanonicalLayoutEngine:
             for line_index, line in enumerate(previous_snapshot.lines)
             if line.source_start >= edit_end
         }
-        semantic_resolver = PromptReusedLineSemanticResolver(projection_document)
         reusable_semantics = reusable_suffix_semantics_by_line(
             previous_snapshot.lines,
             semantic_resolver,
@@ -255,10 +268,18 @@ class PromptCanonicalLayoutEngine:
             source_delta == 0
             and previous_document.source_text == projection_document.source_text
         )
-        probe_line_span = (
-            max(2, len(previous_snapshot.lines))
+        first_semantically_reusable_line = earliest_reusable_suffix_line_index(
+            previous_snapshot.lines,
+            reusable_semantics,
+            first_line_index=first_line,
+            edit_end=edit_end,
+        )
+        probe_line_span = max(
+            2,
+            len(previous_snapshot.lines)
             if source_coordinates_are_unchanged
-            else 2
+            or first_semantically_reusable_line is None
+            else first_semantically_reusable_line - first_line,
         )
         while True:
             if previous_snapshot.lines:

@@ -27,6 +27,7 @@ from substitute.presentation.editor.prompt_editor.layout import (
     edit_policy as projection_layout_policy,
 )
 from substitute.presentation.editor.prompt_editor.layout.tag_keep_policy import (
+    PromptTagKeepRangeIndex,
     tag_keep_source_ranges_for_layout,
 )
 
@@ -102,6 +103,33 @@ def test_projection_layout_infers_edited_tag_keep_range_from_source_text() -> No
     assert requires_reflow is True
 
 
+def test_canonical_reflow_starts_at_touched_keep_group_owner() -> None:
+    """A clipped dirty window must not discard the start of its kept tag."""
+
+    source_text = "alpha, suffixY words"
+    tag_start = source_text.index("suffix")
+    edit_start = source_text.index("Y")
+    lines = (
+        SimpleNamespace(source_start=0, source_end=tag_start),
+        SimpleNamespace(source_start=tag_start, source_end=edit_start),
+        SimpleNamespace(source_start=edit_start, source_end=len(source_text)),
+    )
+    document_view = SimpleNamespace(source_text=source_text, segments=())
+
+    first_line = (
+        projection_layout_policy.earliest_line_index_for_touched_tag_keep_range(
+            cast(Any, document_view),
+            cast(Any, lines),
+            current_line_index=2,
+            edit_start=edit_start,
+            edit_end=edit_start,
+            replacement_text="Y",
+        )
+    )
+
+    assert first_line == 1
+
+
 def test_projection_layout_keeps_short_tag_from_source_text() -> None:
     """Short comma tags should be inferred directly from source text."""
 
@@ -135,6 +163,33 @@ def test_projection_layout_does_not_keep_partial_tag_at_probe_limit() -> None:
     )
 
     assert ranges == ((0, len("alpha beta,")),)
+
+
+def test_tag_keep_range_index_preserves_bounded_window_semantics() -> None:
+    """Indexed reflow queries must match direct source-window inference."""
+
+    first_text = "before\nalpha beta, gamma delta, omega\nafter tag"
+    document_view = SimpleNamespace(source_text=first_text, segments=())
+    index = PromptTagKeepRangeIndex()
+
+    for source_start in range(len(first_text) + 1):
+        for source_limit in range(source_start, len(first_text) + 1):
+            assert index.ranges_for_layout(
+                cast(Any, document_view),
+                source_start=source_start,
+                source_limit=source_limit,
+            ) == tag_keep_source_ranges_for_layout(
+                cast(Any, document_view),
+                source_start=source_start,
+                source_limit=source_limit,
+            )
+
+    second_text = "replacement tag, final tag"
+    next_document_view = SimpleNamespace(source_text=second_text, segments=())
+    assert index.ranges_for_layout(cast(Any, next_document_view)) == (
+        (0, len("replacement tag,")),
+        (len("replacement tag, "), len(second_text)),
+    )
 
 
 def test_projection_layout_detects_word_count_change_in_kept_tag() -> None:

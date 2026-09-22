@@ -30,8 +30,14 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+)
 from tests.support.prompt_editor.projection_surface_factory import (
     surface_source_commands,
+)
+from tests.support.prompt_editor.projection_layout_support import (
+    projection_document_for,
 )
 from tests.support.prompt_editor.projection_invariants import (
     validate_prompt_projection_document,
@@ -149,6 +155,26 @@ def test_incremental_unicode_edits_preserve_only_grapheme_caret_boundaries(
         4,
         5,
     )
+
+
+def test_raw_ascii_caret_map_preserves_crlf_as_one_grapheme() -> None:
+    """Expose ordinary ASCII boundaries without splitting a CRLF grapheme."""
+
+    _document_view, ascii_projection = projection_document_for(
+        "alpha",
+        display_mode=PromptProjectionDisplayMode.RAW,
+    )
+    _document_view, crlf_projection = projection_document_for(
+        "A\r\nB",
+        display_mode=PromptProjectionDisplayMode.RAW,
+    )
+
+    assert tuple(
+        stop.state.source_position for stop in ascii_projection.caret_map.stops
+    ) == tuple(range(6))
+    assert tuple(
+        stop.state.source_position for stop in crlf_projection.caret_map.stops
+    ) == (0, 1, 3, 4)
 
 
 def _editor_after_selected_middle_delete(widgets: list[QWidget]) -> PromptEditor:

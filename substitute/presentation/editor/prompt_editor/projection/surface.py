@@ -624,6 +624,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         self._editor_facade.apply_edit_commit(commit)
 
+    def bind_canonical_semantic_preparer(
+        self,
+        preparer: Callable[
+            [str],
+            tuple[PromptDocumentView, PromptSyntaxRenderPlan] | None,
+        ],
+    ) -> None:
+        """Bind canonical paste preparation after syntax composition completes."""
+
+        self._editor_facade.bind_canonical_semantic_preparer(preparer)
+
     def textCursor(self) -> PromptCursorAdapter:  # noqa: N802
         """Return a Qt-like cursor wrapper backed by the surface state."""
 

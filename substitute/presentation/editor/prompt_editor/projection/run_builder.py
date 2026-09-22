@@ -79,10 +79,8 @@ class PromptProjectionRunBuilder:
         projection_position = 0
         plain_start = 0
         source_index = 0
-        while source_index < len(source_text):
-            candidate = collapse_by_start.get(source_index)
-            if candidate is None:
-                source_index += 1
+        for candidate in collapse_by_start.values():
+            if candidate.start < source_index:
                 continue
             plain_run = self._plain_text_run(
                 source_text,

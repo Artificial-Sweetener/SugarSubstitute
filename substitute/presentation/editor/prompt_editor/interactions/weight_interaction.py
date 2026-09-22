@@ -589,7 +589,7 @@ class PromptWeightInteraction:
         if mutation is None:
             return
         self._semantic_refresh.cancel_pending(reason="state_applied")
-        self._syntax_state.clear_pending_document_view()
+        self._syntax_state.clear_pending_prompt_state()
         self._syntax_state.apply_mutation(
             mutation,
             current_text=self._editor.toPlainText(),

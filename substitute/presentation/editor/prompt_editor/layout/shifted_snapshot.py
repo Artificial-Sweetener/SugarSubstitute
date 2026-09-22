@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Sequence
 from typing import overload
 
 from PySide6.QtCore import QRectF
@@ -520,6 +520,38 @@ class ShiftedLineSnapshot(PromptProjectionLineSnapshot):
             return getattr(object.__getattribute__(self, "_line"), name)
         return object.__getattribute__(self, name)
 
+    def caret_projection_bounds(self) -> tuple[int, int] | None:
+        """Return shifted caret bounds without realizing every shifted stop."""
+
+        line = self._line
+        if not line.caret_stops:
+            return None
+        projection_delta = self._projection_delta
+        return (
+            line.caret_stops[0].projection_position + projection_delta,
+            line.caret_stops[-1].projection_position + projection_delta,
+        )
+
+    def caret_rect_for_projection_position(self, position: int) -> QRectF | None:
+        """Resolve one shifted caret rect without allocating stop wrappers."""
+
+        line = self._line
+        projection_delta = self._projection_delta
+        base_position = position - projection_delta
+        for caret_stop in reversed(line.caret_stops):
+            if caret_stop.projection_position != base_position:
+                continue
+            y_delta = self._y_delta
+            if y_delta == 0.0:
+                return caret_stop.rect
+            return QRectF(
+                caret_stop.rect.left(),
+                caret_stop.rect.top() + y_delta,
+                caret_stop.rect.width(),
+                caret_stop.rect.height(),
+            )
+        return None
+
 
 def concrete_line_snapshot(
     line: PromptProjectionLineSnapshot,
@@ -569,173 +601,7 @@ def concrete_fragment(
     )
 
 
-class LineTextFragmentSequence(Sequence[PromptProjectionTextFragment]):
-    """Expose text fragments from line snapshots without eager flattening."""
-
-    __slots__ = ("_cached", "_fragment_count", "_lines")
-    _cached: tuple[PromptProjectionTextFragment, ...] | None
-    _fragment_count: int
-    _lines: Sequence[PromptProjectionLineSnapshot]
-
-    def __init__(
-        self,
-        lines: Sequence[PromptProjectionLineSnapshot],
-        *,
-        fragment_count: int,
-    ) -> None:
-        """Store line snapshots and the known text-fragment count."""
-
-        self._lines = lines
-        self._fragment_count = fragment_count
-        self._cached = None
-
-    def __len__(self) -> int:
-        """Return the known text-fragment count."""
-
-        return self._fragment_count
-
-    @overload
-    def __getitem__(self, index: int) -> PromptProjectionTextFragment: ...
-
-    @overload
-    def __getitem__(self, index: slice) -> tuple[PromptProjectionTextFragment, ...]: ...
-
-    def __getitem__(
-        self,
-        index: int | slice,
-    ) -> PromptProjectionTextFragment | tuple[PromptProjectionTextFragment, ...]:
-        """Return one fragment or a concrete fragment slice."""
-
-        return self._materialized()[index]
-
-    def __iter__(self) -> Iterator[PromptProjectionTextFragment]:
-        """Yield text fragments from visual lines only when requested."""
-
-        for line in self._lines:
-            for fragment in line.fragments:
-                if isinstance(fragment, PromptProjectionTextFragment):
-                    yield fragment
-
-    def _materialized(self) -> tuple[PromptProjectionTextFragment, ...]:
-        """Return a cached concrete fragment tuple for random access."""
-
-        if self._cached is None:
-            self._cached = tuple(iter(self))
-        return self._cached
-
-
-class LineInlineObjectFragmentSequence(Sequence[PromptProjectionInlineObjectFragment]):
-    """Expose inline fragments from line snapshots without eager flattening."""
-
-    __slots__ = ("_cached", "_fragment_count", "_lines")
-    _cached: tuple[PromptProjectionInlineObjectFragment, ...] | None
-    _fragment_count: int
-    _lines: Sequence[PromptProjectionLineSnapshot]
-
-    def __init__(
-        self,
-        lines: Sequence[PromptProjectionLineSnapshot],
-        *,
-        fragment_count: int,
-    ) -> None:
-        """Store line snapshots and the known inline-fragment count."""
-
-        self._lines = lines
-        self._fragment_count = fragment_count
-        self._cached = None
-
-    def __len__(self) -> int:
-        """Return the known inline-fragment count."""
-
-        return self._fragment_count
-
-    @overload
-    def __getitem__(self, index: int) -> PromptProjectionInlineObjectFragment: ...
-
-    @overload
-    def __getitem__(
-        self,
-        index: slice,
-    ) -> tuple[PromptProjectionInlineObjectFragment, ...]: ...
-
-    def __getitem__(
-        self,
-        index: int | slice,
-    ) -> (
-        PromptProjectionInlineObjectFragment
-        | tuple[
-            PromptProjectionInlineObjectFragment,
-            ...,
-        ]
-    ):
-        """Return one fragment or a concrete fragment slice."""
-
-        return self._materialized()[index]
-
-    def __iter__(self) -> Iterator[PromptProjectionInlineObjectFragment]:
-        """Yield inline fragments from visual lines only when requested."""
-
-        for line in self._lines:
-            for fragment in line.fragments:
-                if isinstance(fragment, PromptProjectionInlineObjectFragment):
-                    yield fragment
-
-    def _materialized(self) -> tuple[PromptProjectionInlineObjectFragment, ...]:
-        """Return a cached concrete fragment tuple for random access."""
-
-        if self._cached is None:
-            self._cached = tuple(iter(self))
-        return self._cached
-
-
-class LineCaretRectMapping(Mapping[int, QRectF]):
-    """Expose caret rects from line snapshots without eager dictionary rebuilds."""
-
-    __slots__ = ("_cached", "_caret_count", "_lines")
-    _cached: dict[int, QRectF] | None
-    _caret_count: int
-    _lines: Sequence[PromptProjectionLineSnapshot]
-
-    def __init__(
-        self,
-        lines: Sequence[PromptProjectionLineSnapshot],
-        *,
-        caret_count: int,
-    ) -> None:
-        """Store line snapshots and the known caret-rect count."""
-
-        self._lines = lines
-        self._caret_count = caret_count
-        self._cached = None
-
-    def __len__(self) -> int:
-        """Return the known caret rect count."""
-
-        return self._caret_count
-
-    def __iter__(self) -> Iterator[int]:
-        """Yield projection positions represented by line caret stops."""
-
-        for line in self._lines:
-            for caret_stop in line.caret_stops:
-                yield caret_stop.projection_position
-
-    def __getitem__(self, key: int) -> QRectF:
-        """Return the caret rect for one projection position."""
-
-        if self._cached is not None:
-            return self._cached[key]
-        for line in self._lines:
-            for caret_stop in line.caret_stops:
-                if caret_stop.projection_position == key:
-                    return caret_stop.rect
-        raise KeyError(key)
-
-
 __all__ = [
-    "LineCaretRectMapping",
-    "LineInlineObjectFragmentSequence",
-    "LineTextFragmentSequence",
     "ShiftedInlineObjectFragment",
     "ShiftedLineSnapshot",
     "ShiftedTextFragment",

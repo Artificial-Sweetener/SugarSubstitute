@@ -29,11 +29,16 @@ from .models import (
     PromptProjectionTextFragment,
 )
 from .reused_lines import PromptProjectionReusedLineSequence
-from .reused_semantics import PromptReusedLineSemanticResolver
-from .shifted_snapshot import (
+from .reused_semantics import (
+    PromptReusedLineSemanticResolver,
+    line_semantic_identity_is_current,
+)
+from .snapshot_indexes import (
     LineCaretRectMapping,
     LineInlineObjectFragmentSequence,
     LineTextFragmentSequence,
+)
+from .shifted_snapshot import (
     ShiftedLineSnapshot,
 )
 
@@ -65,7 +70,19 @@ def snapshot_with_rebuilt_plain_edit_window(
     """Compose a stable prefix, rebuilt dirty window, and reusable suffix."""
 
     previous_prefix = previous_snapshot.lines[:first_rebuilt_line_index]
-    rebuilt_prefix = tuple(previous_prefix) + tuple(partial_snapshot.lines)
+    rebound_previous_prefix = tuple(
+        line
+        if line_semantic_identity_is_current(line, semantic_resolver)
+        else ShiftedLineSnapshot(
+            line,
+            source_delta=0,
+            projection_delta=0,
+            y_delta=0.0,
+            semantic_resolver=semantic_resolver,
+        )
+        for line in previous_prefix
+    )
+    rebuilt_prefix = rebound_previous_prefix + tuple(partial_snapshot.lines)
     previous_suffix = (
         ()
         if previous_match_index is None
@@ -228,7 +245,11 @@ def fragment_matches_shifted_plain_edit(
     source_delta: int,
     projection_delta: int,
 ) -> bool:
-    """Return whether one fragment is unchanged apart from logical offsets."""
+    """Return whether one fragment's visible layout is unchanged after an edit.
+
+    Run and token identities are intentionally excluded. The canonical engine's
+    semantic resolver validates and rebinds every fragment in the reused suffix.
+    """
 
     if isinstance(next_fragment, PromptProjectionTextFragment) != isinstance(
         previous_fragment,
@@ -236,9 +257,7 @@ def fragment_matches_shifted_plain_edit(
     ):
         return False
     if (
-        next_fragment.run_id != previous_fragment.run_id
-        or next_fragment.token_id != previous_fragment.token_id
-        or next_fragment.projection_start
+        next_fragment.projection_start
         != previous_fragment.projection_start + projection_delta
         or next_fragment.projection_end
         != previous_fragment.projection_end + projection_delta

@@ -103,6 +103,7 @@ class PromptLayoutPieceBuilder:
         """Partition visible runs around newlines and grouping boundaries."""
 
         pieces: list[PromptLayoutPiece] = []
+        ordered_source_split_positions = tuple(sorted(source_split_positions))
         for run in projection_document.runs:
             if (
                 source_start > 0
@@ -164,7 +165,7 @@ class PromptLayoutPieceBuilder:
                                 run,
                                 start=piece_start,
                                 end=display_end,
-                                source_split_positions=source_split_positions,
+                                source_split_positions=ordered_source_split_positions,
                             )
                         )
                     break
@@ -174,7 +175,7 @@ class PromptLayoutPieceBuilder:
                             run,
                             start=piece_start,
                             end=newline_index,
-                            source_split_positions=source_split_positions,
+                            source_split_positions=ordered_source_split_positions,
                         )
                     )
                 pieces.append(
@@ -194,7 +195,7 @@ class PromptLayoutPieceBuilder:
         *,
         start: int,
         end: int,
-        source_split_positions: frozenset[int],
+        source_split_positions: Sequence[int],
     ) -> tuple[PromptTextLayoutPiece, ...]:
         """Split one text slice at source positions needed by keep groups."""
 
@@ -207,11 +208,29 @@ class PromptLayoutPieceBuilder:
                     source_positions=run.source_positions[start : end + 1],
                 ),
             )
-        split_offsets = [
-            offset
-            for offset in range(start + 1, end)
-            if run.source_positions[offset] in source_split_positions
-        ]
+        candidate_start = bisect_left(
+            source_split_positions,
+            run.source_positions[start + 1],
+        )
+        candidate_end = bisect_right(
+            source_split_positions,
+            run.source_positions[end - 1],
+        )
+        split_offsets: list[int] = []
+        for source_position in source_split_positions[candidate_start:candidate_end]:
+            matching_start = bisect_left(
+                run.source_positions,
+                source_position,
+                start + 1,
+                end,
+            )
+            matching_end = bisect_right(
+                run.source_positions,
+                source_position,
+                matching_start,
+                end,
+            )
+            split_offsets.extend(range(matching_start, matching_end))
         piece_offsets = (start, *split_offsets, end)
         pieces: list[PromptTextLayoutPiece] = []
         for piece_start, piece_end in zip(piece_offsets, piece_offsets[1:]):

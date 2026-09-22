@@ -185,5 +185,6 @@ def test_stable_run_metadata_does_not_materialize_shifted_suffix() -> None:
 
     assert runs.preserves_run_identity("run:120")
     assert not runs.preserves_run_identity("run:4")
+    assert not runs.preserves_run_identity("run:missing")
     assert runs.run_ids() == frozenset(f"run:{index}" for index in range(128))
     assert base_runs.read_count <= 129

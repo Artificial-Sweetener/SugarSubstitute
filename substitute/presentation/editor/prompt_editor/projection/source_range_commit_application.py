@@ -24,6 +24,9 @@ from typing import Generic, TypeVar
 from substitute.presentation.editor.prompt_editor.core.editing.commit import (
     PromptEditCommit,
 )
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
 )
@@ -52,6 +55,10 @@ PromptSourceRangeEditorState = PromptEditorDocumentState[
     PromptSyntaxRenderPlan,
     PromptProjectionDocument,
 ]
+type PromptCanonicalSemanticPreparer = Callable[
+    [str],
+    tuple[PromptDocumentView, PromptSyntaxRenderPlan] | None,
+]
 
 
 class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
@@ -77,6 +84,17 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
         self._semantic_remapper = semantic_remapper
         self._session = session
         self._transaction = transaction
+        self._canonical_semantic_preparer: PromptCanonicalSemanticPreparer | None = None
+
+    def bind_canonical_semantic_preparer(
+        self,
+        preparer: PromptCanonicalSemanticPreparer,
+    ) -> None:
+        """Bind the syntax owner that prepares canonical paste semantics."""
+
+        if self._canonical_semantic_preparer is not None:
+            raise RuntimeError("Canonical semantic preparer is already bound.")
+        self._canonical_semantic_preparer = preparer
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_SOURCE_APPLY)
     def apply(
@@ -128,7 +146,13 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
             cursor_state=self._caret_publication.cursor_state,
         )
         deferral_reason = projection_decision.deferral_reason
-        optimistic_prompt_state = (
+        canonical_prompt_state = (
+            self._canonical_semantic_preparer(commit.next_snapshot.source_text)
+            if commit.origin is PromptSourceEditOrigin.PASTE
+            and self._canonical_semantic_preparer is not None
+            else None
+        )
+        optimistic_prompt_state = canonical_prompt_state or (
             self._semantic_remapper.optimistic_prompt_state_for_edit(
                 current_document_view=self._editor_state.edit_semantic.document,
                 current_render_plan=self._editor_state.edit_semantic.render_plan,
@@ -139,7 +163,8 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
                 replacement_text=replacement_text,
                 region_structure_requires_rebuild=region_structure_requires_rebuild,
             )
-            if not projection_decision.can_defer_projection
+            if canonical_prompt_state is None
+            and not projection_decision.can_defer_projection
             and self._semantic_remapper.should_use_optimistic_prompt_state_for_immediate_edit(
                 deferral_reason=deferral_reason,
             )
@@ -169,4 +194,7 @@ class PromptSourceRangeCommitApplication(Generic[TProjectionPayload]):
         )
 
 
-__all__ = ["PromptSourceRangeCommitApplication"]
+__all__ = [
+    "PromptCanonicalSemanticPreparer",
+    "PromptSourceRangeCommitApplication",
+]

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 from PySide6.QtCore import QPointF, QRectF, QSizeF
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPalette
@@ -76,6 +77,18 @@ def _emphasis_parenthesis_font(base_font: QFont) -> QFont:
 def _emphasis_decoration_metrics(base_font: QFont) -> _EmphasisDecorationMetrics:
     """Return one shared metrics bundle so both emphasis parens stay symmetrical."""
 
+    return _cached_emphasis_decoration_metrics(base_font.toString())
+
+
+@lru_cache(maxsize=16)
+def _cached_emphasis_decoration_metrics(
+    base_font_key: str,
+) -> _EmphasisDecorationMetrics:
+    """Memoize immutable decoration metrics by complete Qt font identity."""
+
+    base_font = QFont()
+    if not base_font.fromString(base_font_key):
+        raise ValueError("Invalid serialized emphasis base font.")
     parenthesis_font = _emphasis_parenthesis_font(base_font)
     weight_font = inline_weight_font(base_font)
     return _EmphasisDecorationMetrics(

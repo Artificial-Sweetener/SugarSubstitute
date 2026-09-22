@@ -66,9 +66,10 @@ from .source_boundaries import (
     PromptLineStartBoundary,
     resolve_line_source_span,
 )
-from .tag_keep_policy import tag_keep_source_ranges_for_layout
+from .tag_keep_policy import PromptTagKeepRangeIndex
 from .text_measurement import PromptTextMeasurementCache
 from .wrap_policy import adjust_break_for_word_integrity, visible_wrap_candidate_length
+from .wrapped_line_plan import plan_full_width_text_lines
 
 
 @dataclass(slots=True)
@@ -123,6 +124,7 @@ class PromptProjectionLineLayoutBuilder:
 
         self._piece_builder = PromptLayoutPieceBuilder(inline_object_renderers)
         self._keep_group_planner = PromptKeepGroupPlanner()
+        self._tag_keep_ranges = PromptTagKeepRangeIndex()
         self._measurement_cache = PromptTextMeasurementCache()
         self._region_row_layout = PromptRegionStructuralRowLayoutBuilder()
 
@@ -215,7 +217,7 @@ class PromptProjectionLineLayoutBuilder:
         content_width = metrics.content_width
         measurement_cache = self._measurement_cache
         tag_keep_ranges = (
-            tag_keep_source_ranges_for_layout(
+            self._tag_keep_ranges.ranges_for_layout(
                 prompt_document_view,
                 source_start=source_start,
                 source_limit=source_limit,
@@ -672,6 +674,8 @@ class PromptProjectionLineLayoutBuilder:
                 cluster_offset += len(text_piece.text)
 
             consumed_cluster_length = 0
+            planned_line_lengths: tuple[int, ...] = ()
+            planned_line_index = 0
             while consumed_cluster_length < len(cluster_text):
                 if reusable_previous_line_index is not None:
                     break
@@ -679,31 +683,51 @@ class PromptProjectionLineLayoutBuilder:
                     finish_line([])
                     continue
                 remaining_text = cluster_text[consumed_cluster_length:]
-                text_layout = QTextLayout(remaining_text, cluster_font)
-                text_layout.setTextOption(measurement_cache.wrap_option)
-                text_layout.beginLayout()
-                text_line = text_layout.createLine()
-                if not text_line.isValid():
-                    text_layout.endLayout()
-                    break
-                text_line.setLineWidth(max(1.0, content_width - line_width))
-                text_layout.endLayout()
-
-                candidate_length = max(
-                    1,
-                    TextCoordinateMap(remaining_text).utf16_to_python(
-                        text_line.textLength(),
-                        prefer_after=False,
-                    ),
-                )
                 available_width = max(1.0, content_width - line_width)
-                candidate_length = visible_wrap_candidate_length(
-                    remaining_text,
-                    candidate_length=candidate_length,
-                    available_width=available_width,
-                    font=cluster_font,
-                    measurement_cache=measurement_cache,
-                )
+                using_planned_line = False
+                if line_width == 0.0 and planned_line_index >= len(
+                    planned_line_lengths
+                ):
+                    planned_line_lengths = (
+                        plan_full_width_text_lines(
+                            remaining_text,
+                            font=cluster_font,
+                            content_width=content_width,
+                            wrap_option=measurement_cache.wrap_option,
+                            measurement_cache=measurement_cache,
+                        )
+                        or ()
+                    )
+                    planned_line_index = 0
+                if planned_line_index < len(planned_line_lengths):
+                    candidate_length = planned_line_lengths[planned_line_index]
+                    using_planned_line = True
+                else:
+                    text_layout = QTextLayout(remaining_text, cluster_font)
+                    text_layout.setTextOption(measurement_cache.wrap_option)
+                    text_layout.beginLayout()
+                    text_line = text_layout.createLine()
+                    if not text_line.isValid():
+                        text_layout.endLayout()
+                        break
+                    text_line.setLineWidth(available_width)
+                    text_layout.endLayout()
+
+                    remaining_coordinates = TextCoordinateMap(remaining_text)
+                    candidate_length = max(
+                        1,
+                        remaining_coordinates.utf16_to_python(
+                            text_line.textLength(),
+                            prefer_after=False,
+                        ),
+                    )
+                    candidate_length = visible_wrap_candidate_length(
+                        remaining_text,
+                        candidate_length=candidate_length,
+                        available_width=available_width,
+                        font=cluster_font,
+                        measurement_cache=measurement_cache,
+                    )
                 if candidate_length == 0:
                     if line_width > 0.0:
                         finish_line([])
@@ -719,10 +743,17 @@ class PromptProjectionLineLayoutBuilder:
                     measurement_cache=measurement_cache,
                 )
                 if break_decision.break_before_text:
+                    planned_line_lengths = ()
+                    planned_line_index = 0
                     finish_line([])
                     continue
 
                 consumed_length = max(1, break_decision.consumed_length)
+                if using_planned_line and consumed_length == candidate_length:
+                    planned_line_index += 1
+                else:
+                    planned_line_lengths = ()
+                    planned_line_index = 0
                 line_start = consumed_cluster_length
                 line_end = consumed_cluster_length + consumed_length
                 line_boundary_offsets = measurement_cache.unwrapped_text_offsets(

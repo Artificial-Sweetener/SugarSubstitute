@@ -222,5 +222,6 @@ class PromptEditorSyntaxFactory:
             weight_interaction=weight_interaction,
             wheel_controller=wheel_controller,
             syntax_renderer_coordinator=renderers,
+            syntax_state=syntax_state,
             interaction_controller=interaction_controller,
         )

@@ -260,6 +260,7 @@ class PromptInteractionController:
             )
 
         pending_document_view = self._syntax_state.pending_document_view
+        pending_render_plan = self._syntax_state.pending_render_plan
         if (
             pending_document_view is None
             and text == self._syntax_state.document_view.source_text
@@ -273,6 +274,7 @@ class PromptInteractionController:
             text,
             reason="text_changed",
             prepared_document_view=pending_document_view,
+            prepared_render_plan=pending_render_plan,
         )
         self._semantic_boundary_refresh_pending = bool(
             self._semantic_boundary_refresh_pending
@@ -290,7 +292,7 @@ class PromptInteractionController:
     def _cancel_pending_semantic_refresh(self) -> None:
         """Drop queued semantic refresh work after an explicit state application."""
 
-        self._syntax_state.clear_pending_document_view()
+        self._syntax_state.clear_pending_prompt_state()
         self._semantic_refresh.cancel_pending(reason="state_applied")
 
     def has_lora_spans(self) -> bool:
