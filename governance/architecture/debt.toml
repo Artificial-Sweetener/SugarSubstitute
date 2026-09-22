@@ -4,11 +4,11 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-fingerprint = "sha256:44a5c5d064be2e4468f97cca6df3d25f06222c68cc8adc28e71a95a4f6f1bd83"
+fingerprint = "sha256:b685a23c6c36f438f0b0d8ec473ac3d3879bc0254140800b186ae6d105464f9b"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
-  "lazy infrastructure adapter implementations",
+  "remaining lazy infrastructure adapter implementations",
   "application service graph composition",
   "shell construction and geometry",
   "runtime readiness probing",
@@ -264,17 +264,16 @@ next_extraction = "Extract syntax-family span projectors and cache identity trac
 id = "SS-ARCH-021"
 owner = "recipe model resolution"
 paths = ["substitute/application/recipes/model_load_resolution.py"]
-fingerprint = "sha256:8ecb79c536b6a8277e07be6359dd3eaee0aa4d326f10d70e3850854d43d2aab2"
+fingerprint = "sha256:4f37c90549d35d64d7928985a966861749e7b2c4c8e3f711b8206ba391dad87c"
 issue = "chore:SS-ARCH-021"
 review_by = 2026-12-15
 responsibilities = [
-  "workflow model-field discovery and replacement",
-  "inline prompt LoRA discovery and replacement",
-  "backend hash matching",
-  "Civitai candidate lookup and download policy",
-  "local file safety and hashing",
+  "workflow model-field resolution and replacement",
+  "inline prompt LoRA resolution and replacement",
+  "BackEnd hash lookup and fingerprint-job polling",
+  "CivitAI missing-model lookup orchestration and unresolved reporting",
 ]
-next_extraction = "Separate model-field and prompt-LoRA resolution from external download-candidate acquisition."
+next_extraction = "Extract prompt-LoRA traversal and replacement from model-field resolution and external lookup orchestration."
 
 [[debts]]
 id = "SS-ARCH-022"
@@ -1075,7 +1074,7 @@ next_extraction = "Extract override/dependent-control refresh and callback adapt
 id = "SS-ARCH-080"
 owner = "main window composition"
 paths = ["substitute/presentation/shell/main_window_composition.py"]
-fingerprint = "sha256:137f4f585d00d8e602765824967713f30a9d453282590d8a35b806966fed1ceb"
+fingerprint = "sha256:0fbe0e086a15f51b266a1df210b08ea41c7e02a3a8aca73a9656360289d0975b"
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
 responsibilities = [
@@ -1189,18 +1188,18 @@ next_extraction = "Extract catalog refresh and cube loading from picker draft an
 id = "SS-ARCH-088"
 owner = "workspace file workflows"
 paths = ["substitute/presentation/shell/workspace_file_actions.py"]
-fingerprint = "sha256:08dddc10bdebfa32840d2241a6bcec9234de3a130095cdc11638ed431262d0a2"
+fingerprint = "sha256:ea79068143e215fe6d17e5d7c52a08f9a899538ce1b60a06e1690b926ebe3a26"
 issue = "chore:SS-ARCH-088"
 review_by = 2026-12-15
 responsibilities = [
   "workflow save, load, and export dialogs",
   "recipe parsing and workspace materialization",
-  "recipe model resolution and download",
-  "download progress and model refresh",
+  "recipe model resolution and download coordination",
+  "model refresh after acquisition",
   "recipe output-sibling restoration",
   "user feedback and active-surface invalidation",
 ]
-next_extraction = "Extract recipe model acquisition and output restoration from file-dialog and workspace persistence presentation."
+next_extraction = "Extract recipe model acquisition orchestration and output restoration from file-dialog and workspace persistence presentation."
 
 [[debts]]
 id = "SS-ARCH-090"

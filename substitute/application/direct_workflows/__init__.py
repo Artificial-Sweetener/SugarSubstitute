@@ -32,6 +32,12 @@ from .scene_preparation_service import (
     DirectWorkflowScenePreparationService,
 )
 from .load_service import DirectWorkflowLoadService, DirectWorkflowRepository
+from .portable_model_resolution import (
+    PendingPortableWorkflowResolution,
+    PortableWorkflowModelResolutionRequired,
+    PortableWorkflowModelResolutionService,
+    ResolvedPortableWorkflow,
+)
 
 __all__ = [
     "DirectWorkflowExecutionProjection",
@@ -44,5 +50,9 @@ __all__ = [
     "DirectWorkflowScenePreparationService",
     "DirectWorkflowLoadService",
     "DirectWorkflowRepository",
+    "PendingPortableWorkflowResolution",
+    "PortableWorkflowModelResolutionRequired",
+    "PortableWorkflowModelResolutionService",
     "RecoveryOutputIdentity",
+    "ResolvedPortableWorkflow",
 ]

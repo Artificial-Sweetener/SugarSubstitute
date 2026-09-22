@@ -30,6 +30,9 @@ from pathlib import Path
 from typing import Protocol
 
 from substitute.application.direct_workflows import DirectWorkflowLoadService
+from substitute.application.recipes import RecipeModelDownloadResolutionError
+from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.common import JsonObject
 from substitute.application.errors import SubstituteOperationContext
 from substitute.application.workflows.editor_projection_service import (
     DIRECT_WORKFLOW_SECTION_KEY,
@@ -44,6 +47,9 @@ from .workflow_document_target import (
 from .workflow_surface_invalidation import (
     CUBE_STRUCTURE_SURFACES,
     WorkflowInvalidationReason,
+)
+from .direct_workflow_model_resolution import (
+    DirectWorkflowModelResolutionController,
 )
 
 _LOGGER = get_logger("presentation.shell.direct_workflow_file_actions")
@@ -79,6 +85,9 @@ class DirectWorkflowFileActions:
         materialize_loaded_section: Callable[[str, str], None] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         target_resolver: WorkflowDocumentTargetResolver | None = None,
+        model_resolution_controller: (
+            DirectWorkflowModelResolutionController | None
+        ) = None,
     ) -> None:
         """Store document loading and shell projection collaborators."""
 
@@ -89,6 +98,7 @@ class DirectWorkflowFileActions:
         self._materialize_loaded_section = materialize_loaded_section
         self._error_presenter = error_presenter
         self._target_resolver = target_resolver or WorkflowDocumentTargetResolver()
+        self._model_resolution_controller = model_resolution_controller
 
     def load_document(self, source_path: Path) -> str | None:
         """Load a direct Comfy workflow into a blank or newly created tab."""
@@ -96,41 +106,38 @@ class DirectWorkflowFileActions:
         path = source_path.resolve()
         target_workflow_id = self._view.workflow_session_service.active_workflow_id
         try:
-            document = self._load_service.load(path)
-            target_workflow_id = self._target_resolver.resolve(
-                self._view,
-                add_workflow_tab=self._add_workflow_tab,
-            )
-            session = self._view.workflow_session_service
-            workflows = getattr(session, "workflows", None)
-            if not isinstance(workflows, Mapping):
-                raise RuntimeError("Workflow session has no workflow mapping.")
-            workflow = workflows.get(target_workflow_id)
-            load_direct_workflow = getattr(workflow, "load_direct_workflow", None)
-            if not callable(load_direct_workflow):
-                raise RuntimeError("Target workflow cannot load direct documents.")
-            load_direct_workflow(document)
-            self._rename_target_tab(path.stem, target_workflow_id)
-            self._mark_surfaces_dirty(target_workflow_id)
-            unsaved_work_service = getattr(self._view, "unsaved_work_service", None)
-            mark_saved = getattr(unsaved_work_service, "mark_saved", None)
-            if callable(mark_saved):
-                mark_saved(target_workflow_id, path)
-            self._refresh_active_workflow()
-            if self._materialize_loaded_section is not None:
-                self._materialize_loaded_section(
-                    target_workflow_id,
-                    DIRECT_WORKFLOW_SECTION_KEY,
+            controller = self._model_resolution_controller
+            if controller is not None:
+                loaded_workflow = self._load_service.read(path)
+                target_workflow_id = self._resolve_target_workflow_id()
+                controller.resolve(
+                    workflow=loaded_workflow,
+                    target_workflow_id=target_workflow_id,
+                    completed=lambda workflow: self._materialize_resolved_workflow(
+                        path,
+                        workflow,
+                        target_workflow_id=target_workflow_id,
+                    ),
+                    cancelled=lambda: log_info(
+                        _LOGGER,
+                        "Direct Comfy workflow load cancelled during model review",
+                        workflow_id=target_workflow_id,
+                        source_path=path,
+                    ),
+                    failed=lambda error: self._handle_load_failure(
+                        error,
+                        path=path,
+                        workflow_id=target_workflow_id,
+                    ),
                 )
-            nodes = document.buffer.get("nodes")
-            log_info(
-                _LOGGER,
-                "Direct Comfy workflow materialized",
-                workflow_id=target_workflow_id,
-                source_path=path,
-                node_count=len(nodes) if isinstance(nodes, Mapping) else 0,
+                return target_workflow_id
+            document = self._load_service.load(path)
+            target_workflow_id = self._resolve_target_workflow_id()
+            return self._materialize_document(
+                path,
+                document,
+                target_workflow_id=target_workflow_id,
             )
-            return target_workflow_id
         except (OSError, RuntimeError, TypeError, ValueError) as error:
             log_exception(
                 _LOGGER,
@@ -141,6 +148,96 @@ class DirectWorkflowFileActions:
             )
             self._present_failure(error, path=path, workflow_id=target_workflow_id)
             return None
+
+    def _materialize_resolved_workflow(
+        self,
+        path: Path,
+        workflow: JsonObject,
+        *,
+        target_workflow_id: str,
+    ) -> None:
+        """Convert and mount a model-resolved canonical graph on the owner thread."""
+
+        try:
+            document = self._load_service.materialize(path, workflow)
+            self._materialize_document(
+                path,
+                document,
+                target_workflow_id=target_workflow_id,
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            self._handle_load_failure(
+                error,
+                path=path,
+                workflow_id=target_workflow_id,
+            )
+
+    def _materialize_document(
+        self,
+        path: Path,
+        document: DirectWorkflowState,
+        *,
+        target_workflow_id: str,
+    ) -> str:
+        """Mount one fully resolved direct workflow into its document target."""
+
+        session = self._view.workflow_session_service
+        workflows = getattr(session, "workflows", None)
+        if not isinstance(workflows, Mapping):
+            raise RuntimeError("Workflow session has no workflow mapping.")
+        workflow = workflows.get(target_workflow_id)
+        load_direct_workflow = getattr(workflow, "load_direct_workflow", None)
+        if not callable(load_direct_workflow):
+            raise RuntimeError("Target workflow cannot load direct documents.")
+        load_direct_workflow(document)
+        self._rename_target_tab(path.stem, target_workflow_id)
+        self._mark_surfaces_dirty(target_workflow_id)
+        unsaved_work_service = getattr(self._view, "unsaved_work_service", None)
+        mark_saved = getattr(unsaved_work_service, "mark_saved", None)
+        if callable(mark_saved):
+            mark_saved(target_workflow_id, path)
+        if target_workflow_id == session.active_workflow_id:
+            self._refresh_active_workflow()
+            if self._materialize_loaded_section is not None:
+                self._materialize_loaded_section(
+                    target_workflow_id,
+                    DIRECT_WORKFLOW_SECTION_KEY,
+                )
+        nodes = document.buffer.get("nodes")
+        log_info(
+            _LOGGER,
+            "Direct Comfy workflow materialized",
+            workflow_id=target_workflow_id,
+            source_path=path,
+            node_count=len(nodes) if isinstance(nodes, Mapping) else 0,
+        )
+        return target_workflow_id
+
+    def _resolve_target_workflow_id(self) -> str:
+        """Reserve the stable workflow target before asynchronous model work."""
+
+        return self._target_resolver.resolve(
+            self._view,
+            add_workflow_tab=self._add_workflow_tab,
+        )
+
+    def _handle_load_failure(
+        self,
+        error: BaseException,
+        *,
+        path: Path,
+        workflow_id: str,
+    ) -> None:
+        """Log and present a synchronous or deferred direct-workflow failure."""
+
+        log_exception(
+            _LOGGER,
+            "Failed to load direct Comfy workflow",
+            workflow_id=workflow_id,
+            source_path=path,
+            error=error,
+        )
+        self._present_failure(error, path=path, workflow_id=workflow_id)
 
     def can_load_document(self, source_path: Path) -> bool:
         """Return whether the source exposes an available direct Comfy workflow."""
@@ -195,10 +292,24 @@ class DirectWorkflowFileActions:
 
         if self._error_presenter is None:
             return
+        is_model_download_failure = isinstance(
+            error,
+            RecipeModelDownloadResolutionError,
+        )
         self._error_presenter.show_exception_report(
-            title=app_text("Workflow could not be loaded"),
-            message=app_text(
-                "Substitute could not read this ComfyUI workflow document."
+            title=(
+                app_text("Model download failed")
+                if is_model_download_failure
+                else app_text("Workflow could not be loaded")
+            ),
+            message=(
+                app_text(
+                    "Substitute could not download and verify every model this workflow needs."
+                )
+                if is_model_download_failure
+                else app_text(
+                    "Substitute could not read this ComfyUI workflow document."
+                )
             ),
             stage="load",
             error=error,

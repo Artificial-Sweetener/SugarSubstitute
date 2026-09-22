@@ -231,6 +231,7 @@ class WorkspaceGenerationView(Protocol):
     generation_job_queue_service: object
     generation_result_snapshot_service: object
     recipe_io_service: object
+    native_cube_workflow_builder: object
     prompt_wildcard_preprocessing_service: object | None
     generation_action_controller: GenerationActionRefreshProtocol
     generation_interrupt_failure_presenter: GenerationInterruptFailurePresenterProtocol

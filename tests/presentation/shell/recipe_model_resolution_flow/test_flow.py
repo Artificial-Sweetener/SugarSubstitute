@@ -32,7 +32,7 @@ from substitute.application.recipes import (
     RecipeModelDownloadResolutionService,
     RecipeModelResolutionRequired,
 )
-from substitute.presentation.dialogs import RecipeModelResolutionAction
+from substitute.presentation.dialogs import ModelAcquisitionAction
 from substitute.presentation.shell import recipe_model_resolution_flow
 
 
@@ -44,7 +44,7 @@ def test_missing_model_resolution_uses_typed_key_once_when_storage_unavailable(
     warnings: list[str] = []
     monkeypatch.setattr(
         recipe_model_resolution_flow,
-        "RecipeModelResolutionDialog",
+        "ModelAcquisitionDialog",
         _DownloadDialog,
     )
     monkeypatch.setattr(
@@ -75,7 +75,7 @@ def test_missing_model_resolution_uses_typed_key_once_when_storage_unavailable(
 class _DownloadDialog:
     """Dialog double that selects download with a typed API key."""
 
-    selected_action = RecipeModelResolutionAction.DOWNLOAD
+    selected_action = ModelAcquisitionAction.DOWNLOAD
 
     def __init__(self, *_args: object, **_kwargs: object) -> None:
         """Accept dialog construction."""
