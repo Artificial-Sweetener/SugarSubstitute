@@ -96,3 +96,23 @@ def test_syntax_interaction_composition_has_a_direct_owner() -> None:
 
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
     assert "PromptEditorSyntaxFactory(" in widget_source
+
+
+def test_shell_mechanics_have_one_runtime_composition_owner() -> None:
+    """Keep mutually dependent shell mechanics outside the public widget."""
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    shell_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "shell" / "runtime.py"
+    ).read_text(encoding="utf-8")
+
+    assert "build_prompt_editor_shell_runtime(" in widget_source
+    assert "PromptEditorShell(" in shell_runtime_source
+    assert "PromptShellQFluentChrome(" in shell_runtime_source
+    assert "PromptShellScrollDelegate(" in shell_runtime_source
+    assert "PromptShellSizingController(" in shell_runtime_source
+    assert "PromptClipboardPasteCompletionOwner(" in shell_runtime_source
+    assert "self._qfluent_chrome" not in widget_source
+    assert "self._scroll_delegate" not in widget_source
+    assert "self._sizing" not in widget_source
+    assert "self._clipboard_paste_completion" not in widget_source

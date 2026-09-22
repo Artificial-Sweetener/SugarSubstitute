@@ -182,9 +182,9 @@ def _editor_is_current(editor: object, expected_source: str) -> bool:
     if (
         surface._projection_freshness_controller.has_pending_update()
         or surface.has_stale_projection_geometry()
-        or prompt_editor._sizing.layout_work_pending
-        or prompt_editor._scroll_delegate.geometry_sync_pending
-        or prompt_editor._scroll_delegate.geometry_follow_up_pending
+        or prompt_editor._shell_runtime.sizing.layout_work_pending
+        or prompt_editor._shell_runtime.scrolling.geometry_sync_pending
+        or prompt_editor._shell_runtime.scrolling.geometry_follow_up_pending
     ):
         return False
     semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
@@ -201,8 +201,8 @@ def _editor_settlement_state(editor: object, expected_source: str) -> dict[str, 
 
     prompt_editor = cast(Any, editor)
     surface = prompt_editor._surface
-    sizing = prompt_editor._sizing
-    scroll_delegate = prompt_editor._scroll_delegate
+    sizing = prompt_editor._shell_runtime.sizing
+    scroll_delegate = prompt_editor._shell_runtime.scrolling
     semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
     return {
         "source_current": prompt_editor.toPlainText() == expected_source,

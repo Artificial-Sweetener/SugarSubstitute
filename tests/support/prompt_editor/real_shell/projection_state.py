@@ -225,7 +225,7 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         surface.horizontalScrollBar() if surface is not None else None
     )
     layout_content_size = _layout_content_size(layout_output)
-    shell_sizing = getattr(editor, "_sizing", None)
+    shell_sizing = getattr(getattr(editor, "_shell_runtime", None), "sizing", None)
     caret_token_id = getattr(caret_state, "token_id", None)
     anchor_token_id = getattr(anchor_state, "token_id", None)
     projection_region_separators = tuple(

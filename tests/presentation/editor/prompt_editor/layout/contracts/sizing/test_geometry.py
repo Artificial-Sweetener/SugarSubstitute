@@ -31,7 +31,7 @@ def test_shell_geometry_sync_ignores_deleted_qt_wrappers(
 
     box = support.show_prompt_editor(prompt_editors, text="prompt", width=320)
     editor = support.cast(support.Any, box)
-    scroll_delegate = support.cast(support.Any, editor._scroll_delegate)
+    scroll_delegate = support.cast(support.Any, editor._shell_runtime.scrolling)
     scroll_delegate.geometry_sync_pending = True
     scroll_delegate.geometry_follow_up_pending = True
     monkeypatch.setattr(
@@ -40,7 +40,7 @@ def test_shell_geometry_sync_ignores_deleted_qt_wrappers(
         lambda _obj: False,
     )
 
-    editor._scroll_delegate.sync_shell_geometry()
+    editor._shell_runtime.scrolling.sync_shell_geometry()
 
     assert scroll_delegate.geometry_sync_pending is False
     assert scroll_delegate.geometry_follow_up_pending is False
@@ -54,7 +54,7 @@ def test_manual_height_reapply_ignores_deleted_qt_wrappers(
 
     box = support.show_prompt_editor(prompt_editors, text="prompt", width=320)
     editor = support.cast(support.Any, box)
-    sizing = support.cast(support.Any, editor._sizing)
+    sizing = support.cast(support.Any, editor._shell_runtime.sizing)
     sizing._manual_height_layout_reapply_pending = True
     sizing._manual_scroll_height = box.height()
     assert sizing.layout_work_pending is True
@@ -64,7 +64,7 @@ def test_manual_height_reapply_ignores_deleted_qt_wrappers(
         lambda _obj: False,
     )
 
-    editor._sizing.reapply_manual_height_for_current_layout()
+    editor._shell_runtime.sizing.reapply_manual_height_for_current_layout()
 
     assert sizing._manual_height_layout_reapply_pending is False
     assert sizing._manual_scroll_height == box.height()
@@ -88,11 +88,11 @@ def test_unchanged_manual_height_bounds_do_not_requeue_shell_layout(
     support.wait_for_prompt_sizing_idle(box)
     editor = support.cast(support.Any, box)
 
-    editor._sizing.schedule_manual_height_layout_reapply()
+    editor._shell_runtime.sizing.schedule_manual_height_layout_reapply()
 
-    assert editor._sizing.layout_work_pending is False
-    assert editor._scroll_delegate.geometry_sync_pending is False
-    assert editor._scroll_delegate.geometry_follow_up_pending is False
+    assert editor._shell_runtime.sizing.layout_work_pending is False
+    assert editor._shell_runtime.scrolling.geometry_sync_pending is False
+    assert editor._shell_runtime.scrolling.geometry_follow_up_pending is False
 
 
 def test_prompt_editor_recomputes_height_when_width_increases_without_typing(
@@ -136,12 +136,12 @@ def test_prompt_editor_shell_geometry_waits_for_pending_projection_height(
     assert surface.has_pending_projection_update() is True
     applied_heights: list[float] = []
     monkeypatch.setattr(
-        support.cast(support.Any, box)._scroll_delegate,
+        support.cast(support.Any, box)._shell_runtime.scrolling,
         "_handle_content_height_changed",
         lambda content_height: applied_heights.append(float(content_height)),
     )
 
-    support.cast(support.Any, box)._scroll_delegate.sync_shell_geometry()
+    support.cast(support.Any, box)._shell_runtime.scrolling.sync_shell_geometry()
 
     assert applied_heights == []
     assert surface.has_pending_projection_update() is True
@@ -163,7 +163,7 @@ def test_prompt_editor_same_line_backspace_does_not_commit_height(
     box.setTextCursor(cursor)
     initial_height = box.height()
     applied_heights: list[int] = []
-    sizing = support.cast(support.Any, getattr(box, "_sizing"))
+    sizing = support.cast(support.Any, box._shell_runtime.sizing)
     apply_preferred_height = support.cast(
         support.Callable[[int], None],
         getattr(sizing, "apply_preferred_height"),
@@ -205,7 +205,7 @@ def test_prompt_editor_line_break_backspace_height_commit_is_single(
     box.setTextCursor(cursor)
     initial_height = box.height()
     applied_heights: list[int] = []
-    sizing = support.cast(support.Any, getattr(box, "_sizing"))
+    sizing = support.cast(support.Any, box._shell_runtime.sizing)
     apply_preferred_height = support.cast(
         support.Callable[[int], None],
         getattr(sizing, "apply_preferred_height"),
