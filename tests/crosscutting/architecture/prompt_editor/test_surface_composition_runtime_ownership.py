@@ -14,15 +14,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Enforce one owner for the late projection-surface collaborator graph."""
+"""Enforce one owner for the complete projection-surface collaborator graph."""
 
 from __future__ import annotations
 
 from .inventory import PROMPT_PRESENTATION_ROOT
 
 
-def test_surface_delegates_late_projection_graph_composition() -> None:
-    """Keep source, lifecycle, presentation, and effect wiring together."""
+def test_surface_delegates_complete_projection_graph_composition() -> None:
+    """Keep foundation through effect-port binding in one composition root."""
 
     projection_root = PROMPT_PRESENTATION_ROOT / "projection"
     surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
@@ -31,6 +31,11 @@ def test_surface_delegates_late_projection_graph_composition() -> None:
     )
 
     for ownership_marker in (
+        "build_prompt_projection_surface_foundation(",
+        "PromptProjectionSurfaceGraphEffects()",
+        "build_prompt_projection_surface_interaction_runtime(",
+        "build_prompt_projection_surface_diagnostics(",
+        "build_prompt_projection_surface_input_runtime(",
         "PromptProjectionGeometryReuseWarmer(",
         "PromptProjectionSourceLifecycleEffects()",
         "build_prompt_projection_source_state_owners(",
@@ -52,6 +57,21 @@ def test_composition_binds_effect_ports_after_complete_graph_construction() -> N
         PROMPT_PRESENTATION_ROOT / "projection" / "surface_composition_runtime.py"
     ).read_text(encoding="utf-8")
 
+    foundation_index = composition_source.index(
+        "foundation = build_prompt_projection_surface_foundation("
+    )
+    graph_port_index = composition_source.index(
+        "graph_effects = PromptProjectionSurfaceGraphEffects()"
+    )
+    interaction_index = composition_source.index(
+        "interaction = build_prompt_projection_surface_interaction_runtime("
+    )
+    diagnostic_index = composition_source.index(
+        "diagnostics = build_prompt_projection_surface_diagnostics("
+    )
+    input_index = composition_source.index(
+        "input_runtime = build_prompt_projection_surface_input_runtime("
+    )
     source_index = composition_source.index(
         "source = build_prompt_projection_source_state_owners("
     )
@@ -69,7 +89,12 @@ def test_composition_binds_effect_ports_after_complete_graph_construction() -> N
     )
 
     assert (
-        source_index
+        foundation_index
+        < graph_port_index
+        < interaction_index
+        < diagnostic_index
+        < input_index
+        < source_index
         < lifecycle_index
         < presentation_index
         < graph_binding_index

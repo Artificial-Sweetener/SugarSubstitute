@@ -29,6 +29,9 @@ def test_surface_delegates_interactive_owner_construction() -> None:
     runtime_source = (projection_root / "surface_interaction_runtime.py").read_text(
         encoding="utf-8"
     )
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     for construction_marker in (
         "PromptExactWeightEditor(",
@@ -40,4 +43,6 @@ def test_surface_delegates_interactive_owner_construction() -> None:
     ):
         assert construction_marker in runtime_source
         assert construction_marker not in surface_source
-    assert "build_prompt_projection_surface_interaction_runtime(" in surface_source
+    assert "build_prompt_projection_surface_interaction_runtime(" in composition_source
+    assert "build_prompt_projection_surface_interaction_runtime(" not in surface_source
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source

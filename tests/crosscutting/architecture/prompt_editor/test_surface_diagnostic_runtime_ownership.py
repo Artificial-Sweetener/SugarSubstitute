@@ -29,8 +29,13 @@ def test_surface_delegates_diagnostic_presentation_construction() -> None:
     runtime_source = (projection_root / "surface_diagnostic_runtime.py").read_text(
         encoding="utf-8"
     )
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "PromptDiagnosticLayerOwner(" in runtime_source
     assert "PromptDiagnosticLayerOwner(" not in surface_source
     assert "semantic_palette_from_theme()" in runtime_source
-    assert "build_prompt_projection_surface_diagnostics(" in surface_source
+    assert "build_prompt_projection_surface_diagnostics(" in composition_source
+    assert "build_prompt_projection_surface_diagnostics(" not in surface_source
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source

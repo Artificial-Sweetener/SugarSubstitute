@@ -29,6 +29,9 @@ def test_surface_delegates_complete_source_input_runtime_construction() -> None:
     runtime_source = (projection_root / "surface_input_runtime.py").read_text(
         encoding="utf-8"
     )
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     for construction_marker in (
         "PromptInputMethodController(",
@@ -41,7 +44,9 @@ def test_surface_delegates_complete_source_input_runtime_construction() -> None:
     ):
         assert construction_marker in runtime_source
         assert construction_marker not in surface_source
-    assert "build_prompt_projection_surface_input_runtime(" in surface_source
+    assert "build_prompt_projection_surface_input_runtime(" in composition_source
+    assert "build_prompt_projection_surface_input_runtime(" not in surface_source
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source
 
 
 def test_source_state_composes_after_initialized_input_runtime() -> None:
@@ -53,12 +58,8 @@ def test_source_state_composes_after_initialized_input_runtime() -> None:
         encoding="utf-8"
     )
 
-    input_runtime_index = surface_source.index(
+    input_runtime_index = composition_source.index(
         "input_runtime = build_prompt_projection_surface_input_runtime("
-    )
-    input_method_index = surface_source.index("self._input_runtime = input_runtime")
-    composition_index = surface_source.index(
-        "composition_runtime = build_prompt_projection_surface_composition_runtime("
     )
     source_state_index = composition_source.index(
         "source = build_prompt_projection_source_state_owners("
@@ -68,8 +69,8 @@ def test_source_state_composes_after_initialized_input_runtime() -> None:
     )
     source_state_block = composition_source[source_state_index:source_state_end]
 
-    assert input_runtime_index < input_method_index < composition_index
-    assert "input_runtime=input_runtime" in surface_source[composition_index:]
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source
+    assert input_runtime_index < source_state_index
     assert "input_method_source_changed=input_runtime.input_method.source_changed" in (
         source_state_block
     )
