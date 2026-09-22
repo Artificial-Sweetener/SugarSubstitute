@@ -1,3 +1,14 @@
+## [0.24.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.1...v0.24.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ci:** derive uv bootstrap version from the lock ([be7f7da](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/be7f7da2ac8a47ba2b4a99c636327c6b466a34fb))
+* **dependencies:** install Prompt Control required by SimpleSyrup ([ef4be82](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ef4be8235aab38c047c58aa2865abd7ea8eedd15))
+* **launcher:** prevent false startup timeouts and enrich crash reports ([ec26a80](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ec26a806aeb4b02082417237e47eb401aefee31c))
+* **release:** preserve readiness proof across legacy updates ([a2a2da1](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a2a2da1a2c6a3959fb664bd1f85836807f88149f))
+* **updates:** let stuck installations recover automatically ([139e502](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/139e5029aeadae63360f7a98a2a2d89aef0f3e8f))
+
 ## [0.24.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.0...v0.24.1) (2026-09-21)
 
 
