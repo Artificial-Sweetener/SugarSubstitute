@@ -47,6 +47,9 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashIncidentStore,
     CrashKind,
 )
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+)
 
 
 def test_complete_crash_report_embeds_sanitized_text_attachments(
@@ -90,6 +93,43 @@ def test_complete_crash_report_embeds_sanitized_text_attachments(
     assert "TAIL-EVIDENCE" in presentation.report_text
     assert len(presentation.report_text) < 300_000
     assert "binary dump content" not in presentation.report_text
+
+
+def test_complete_report_enriches_legacy_incident_with_current_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A new reporter must repair missing diagnostics from an older incident."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    incident = CrashIncident(
+        incident_id="legacy-report",
+        run_id="legacy-report",
+        occurred_at_utc="2026-09-19T02:00:00+00:00",
+        kind=CrashKind.ABNORMAL_EXIT,
+        boundary=CrashBoundary.SUPERVISOR,
+        attribution=CrashAttribution.UNCLEAN_TERMINATION,
+        summary="Legacy interruption",
+        process_id=42,
+    )
+    context = CrashDiagnosticContext.unavailable_legacy()
+    monkeypatch.setattr(
+        crash_report_application,
+        "collect_crash_diagnostic_context",
+        lambda _layout: context,
+    )
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    store.record(incident)
+
+    report = crash_report_application._build_complete_crash_report(
+        layout,
+        incident,
+    ).report_text
+
+    persisted = store.pending()[0]
+    assert persisted.diagnostic_context == context
+    assert "Runtime and system information" in report
+    assert "not recorded by this incident schema" in report
 
 
 def test_complete_report_skips_unreadable_log_but_keeps_remaining_evidence(

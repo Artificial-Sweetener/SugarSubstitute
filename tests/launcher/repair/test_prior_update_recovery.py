@@ -30,6 +30,9 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupCandidate
 from launcher.sugarsubstitute_launcher.startup_recovery import recover_startup_candidate
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    update_journal_path,
+)
 from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
 from .execution_support import (
     _RuntimeProvisioner,
@@ -71,7 +74,7 @@ def test_repair_retires_prior_payload_update_before_commit(
         check=False,
     )
     assert child.returncode == 73, child.stderr
-    journal = layout.launcher_dir / "pending-app-update.json"
+    journal = update_journal_path(layout)
     assert journal.exists()
     request = _prepared_request(layout)
     request.save(request.request_path)

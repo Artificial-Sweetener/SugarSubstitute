@@ -30,7 +30,10 @@ from substitute.infrastructure.comfy.local_process_gateway import (
     PsutilLocalComfyProcessGateway,
 )
 from substitute.infrastructure.comfy.managed_readiness import is_endpoint_listening
-from substitute.infrastructure.comfy.managed_process_query import get_listener_pid
+from substitute.infrastructure.comfy.managed_process_query import (
+    ListenerPidQueryStatus,
+    query_listener_pid,
+)
 
 
 _DEFAULT_HOST = "127.0.0.1"
@@ -63,10 +66,11 @@ def negotiate_default_comfy_listener(
 def _verified_listener_process() -> LocalComfyProcess | None:
     """Return the exact verified Comfy process listening on the default port."""
 
-    listener_pid = get_listener_pid(_DEFAULT_HOST, _DEFAULT_PORT)
-    if listener_pid is None:
+    listener_query = query_listener_pid(_DEFAULT_HOST, _DEFAULT_PORT)
+    if listener_query.status is not ListenerPidQueryStatus.RESOLVED:
         return None
-    return PsutilLocalComfyProcessGateway().inspect(listener_pid)
+    assert listener_query.pid is not None
+    return PsutilLocalComfyProcessGateway().inspect(listener_query.pid)
 
 
 def _confirm_close_comfy(process: LocalComfyProcess) -> bool:

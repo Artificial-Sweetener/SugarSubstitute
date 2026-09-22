@@ -25,6 +25,10 @@ import pytest
 from qfluentwidgets import Dialog  # type: ignore[import-untyped]
 
 from substitute.app.bootstrap import default_comfy_preflight
+from substitute.infrastructure.comfy.managed_process_query import (
+    ListenerPidQueryResult,
+    ListenerPidQueryStatus,
+)
 from substitute.domain.onboarding import LocalComfyProcess, LocalComfyTerminationResult
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -179,7 +183,9 @@ def test_verified_listener_inspects_only_the_exact_default_port_pid(
         inspect=inspect,
     )
     monkeypatch.setattr(
-        default_comfy_preflight, "get_listener_pid", lambda _h, _p: 8188
+        default_comfy_preflight,
+        "query_listener_pid",
+        lambda _h, _p: ListenerPidQueryResult(ListenerPidQueryStatus.RESOLVED, 8188),
     )
     monkeypatch.setattr(
         default_comfy_preflight,

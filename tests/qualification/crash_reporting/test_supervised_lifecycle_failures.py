@@ -200,7 +200,7 @@ def test_real_update_readiness_failure_retains_cause_and_clean_fallback(
         )
     ]
     assert reports == [incident.incident_id]
-    assert incident.kind is CrashKind.STARTUP
+    assert incident.kind is CrashKind.STARTUP_READINESS_TIMEOUT
     assert incident.attribution is CrashAttribution.CONFIRMED
     assert incident.metadata["termination_reason"] == "update_readiness_failure"
     assert "Kind: startup" in report

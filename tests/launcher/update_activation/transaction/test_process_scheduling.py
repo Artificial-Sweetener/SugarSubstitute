@@ -261,11 +261,29 @@ def test_update_process_does_not_inherit_retired_crash_contract(
         CrashRunContext,
         CRASH_RUN_TOKEN_ENV,
     )
+    from sugarsubstitute_shared.application_readiness import (
+        READINESS_DELEGATION_PATH_ENV,
+        READINESS_DELEGATION_SCHEMA_ENV,
+        READINESS_DELEGATION_TOKEN_ENV,
+        READINESS_PATH_ENV,
+        READINESS_SCHEMA_ENV,
+        READINESS_TOKEN_ENV,
+    )
 
     context = CrashRunContext.create(tmp_path / "diagnostics")
     for key, value in context.environment({}).items():
         monkeypatch.setenv(key, value)
     monkeypatch.delenv(CRASH_RUN_TOKEN_ENV)
+    readiness_values = {
+        READINESS_PATH_ENV: str(tmp_path / "candidate.json"),
+        READINESS_TOKEN_ENV: "readiness-token",
+        READINESS_SCHEMA_ENV: "5",
+        READINESS_DELEGATION_PATH_ENV: str(tmp_path / "outer.json"),
+        READINESS_DELEGATION_TOKEN_ENV: "outer-token",
+        READINESS_DELEGATION_SCHEMA_ENV: "3",
+    }
+    for key, value in readiness_values.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setenv("QUALIFICATION_TOKEN", "preserved")
     environments: list[dict[str, str]] = []
 
@@ -309,4 +327,5 @@ def test_update_process_does_not_inherit_retired_crash_contract(
         )
     assert len(environments) == 1
     assert CrashRunContext.from_environment(environments[0]) is None
+    assert not readiness_values.keys() & environments[0].keys()
     assert environments[0]["QUALIFICATION_TOKEN"] == "preserved"

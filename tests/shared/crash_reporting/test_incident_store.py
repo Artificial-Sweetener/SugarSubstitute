@@ -33,6 +33,9 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashIncidentStore,
     CrashKind,
 )
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+)
 
 
 def _incident(*, incident_id: str = "incident-1") -> CrashIncident:
@@ -60,6 +63,7 @@ def _incident(*, incident_id: str = "incident-1") -> CrashIncident:
         breadcrumbs=("startup.begin",),
         attachments=("python-fault.log", "minidump.dmp"),
         metadata={"operation": "startup"},
+        diagnostic_context=CrashDiagnosticContext.unavailable_legacy(),
     )
 
 
