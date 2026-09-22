@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import Enum
 
 
@@ -39,6 +40,7 @@ class SupervisedTermination:
 
     reason: SupervisedTerminationReason = SupervisedTerminationReason.UNKNOWN
     detail: str | None = None
+    metadata: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def is_user_cancellation(self) -> bool:

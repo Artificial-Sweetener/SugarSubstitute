@@ -37,7 +37,8 @@ from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
 )
 
 _JOURNAL_SCHEMA_VERSION = 6
-_JOURNAL_NAME = "pending-app-update.json"
+_JOURNAL_NAME = "pending-app-update-v2.json"
+_LEGACY_JOURNAL_NAME = "pending-app-update.json"
 PREPARING_PHASE = "preparing"
 COMMITTED_PHASE = "committed"
 ACTIVATED_PHASE = "activated"
@@ -95,11 +96,11 @@ class UpdateActivationJournal:
 def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None:
     """Load one valid pending-update journal or fail closed on corruption."""
 
-    path = update_journal_path(layout)
+    path = _existing_update_journal_path(layout)
+    if path is None:
+        return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
     except (OSError, json.JSONDecodeError) as error:
         raise UpdateRecoveryError(
             f"Pending update journal is unreadable: {path}"
@@ -248,9 +249,31 @@ def _load_successful_config(
 
 
 def update_journal_path(layout: InstallLayout) -> Path:
-    """Return the single durable pending-update journal path."""
+    """Return the current journal path hidden from legacy root launchers.
+
+    The installed root executable is intentionally immutable while launcher bundles
+    update independently. Launchers predating schema 6 inspect only the legacy
+    filename before dispatching the selected bundle, so current recovery state must
+    live in a separate namespace that only a compatible bundle will consume.
+    """
 
     return layout.launcher_dir / _JOURNAL_NAME
+
+
+def _existing_update_journal_path(layout: InstallLayout) -> Path | None:
+    """Select one current or legacy journal without accepting ambiguous ownership."""
+
+    paths = (
+        update_journal_path(layout),
+        layout.launcher_dir / _LEGACY_JOURNAL_NAME,
+    )
+    existing = tuple(path for path in paths if path.exists())
+    if len(existing) > 1:
+        raise UpdateRecoveryError(
+            "Multiple pending update journals require manual recovery: "
+            + ", ".join(str(path) for path in existing)
+        )
+    return existing[0] if existing else None
 
 
 def activation_directory(
@@ -319,12 +342,16 @@ def _valid_sha256(value: object) -> bool:
 
 
 def remove_update_journal(layout: InstallLayout) -> None:
-    """Remove the pending-update journal after a terminal transition."""
+    """Remove current and legacy journals after one terminal transition."""
 
-    try:
-        update_journal_path(layout).unlink()
-    except FileNotFoundError:
-        pass
+    for path in (
+        update_journal_path(layout),
+        layout.launcher_dir / _LEGACY_JOURNAL_NAME,
+    ):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def write_update_journal_data(path: Path, payload: dict[str, object]) -> None:

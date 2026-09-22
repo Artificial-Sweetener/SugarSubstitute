@@ -23,6 +23,10 @@ from sugarsubstitute_shared.crash_reporting.model import (
     CrashKind,
 )
 from sugarsubstitute_shared.crash_reporting.store import CrashIncidentStore
+from sugarsubstitute_shared.crash_reporting.diagnostic_context import (
+    CrashDiagnosticContext,
+    DiagnosticValue,
+)
 
 __all__ = [
     "CrashAttribution",
@@ -30,4 +34,6 @@ __all__ = [
     "CrashIncident",
     "CrashIncidentStore",
     "CrashKind",
+    "CrashDiagnosticContext",
+    "DiagnosticValue",
 ]
