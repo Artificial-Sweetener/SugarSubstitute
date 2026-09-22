@@ -34,7 +34,6 @@ from PySide6.QtCore import (
     Signal,
 )
 from PySide6.QtGui import (
-    QContextMenuEvent,
     QDragEnterEvent,
     QDragMoveEvent,
     QDropEvent,
@@ -159,6 +158,10 @@ from .interactions.clipboard_paste_completion import (
     PromptClipboardPasteCompletionOwner,
 )
 from .interactions.cursor_adapter import PromptCursorAdapter
+from .host_event_router import (
+    PromptEditorHostEventBindings,
+    PromptEditorHostEventRouter,
+)
 from .key_router import build_prompt_editor_key_router
 from .overlays import (
     PromptAutocompletePanel,
@@ -726,6 +729,26 @@ class PromptEditor(
             clipboard_actions=self._clipboard_history_controller,
             prompt_menu_requests=self._prompt_menu_presenter,
         )
+        self._host_event_router = PromptEditorHostEventRouter(
+            PromptEditorHostEventBindings(
+                surface=self._surface,
+                shell_viewport=self._shell_viewport(),
+                content_viewport=self.viewport(),
+                handle_focus_in=self._qfluent_chrome.handle_focus_in,
+                schedule_focus_out_cleanup=(
+                    self._qfluent_chrome.schedule_focus_out_cleanup
+                ),
+                handle_key_press=self._key_router.handle_key_press,
+                handle_key_release=self._key_router.handle_key_release,
+                handle_chrome_event=self._qfluent_chrome.handle_event_filter,
+                record_context_menu_press=(
+                    self._shell_context_menu.record_context_menu_press
+                ),
+                forward_context_menu=(
+                    self._shell_context_menu.forward_context_menu_event_to_host
+                ),
+            )
+        )
         self._inline_lora_menu_presenter: PromptInlineLoraContextMenuPresenter = (
             menu_factory.build_inline_lora_menu_presenter(
                 lora_metadata=self._lora_metadata_presentation,
@@ -1284,33 +1307,9 @@ class PromptEditor(
 
         if not hasattr(self, "_surface"):
             return bool(super().eventFilter(watched, event))
-        if watched is self._surface:
-            if event.type() == QEvent.Type.FocusIn:
-                self._qfluent_chrome.handle_focus_in()
-                return False
-            if event.type() == QEvent.Type.FocusOut:
-                self._qfluent_chrome.schedule_focus_out_cleanup(
-                    cast(QFocusEvent, event).reason()
-                )
-                return False
-            if event.type() == QEvent.Type.KeyPress:
-                self._handle_prompt_key_press(cast(QKeyEvent, event))
-                return True
-            if event.type() == QEvent.Type.KeyRelease:
-                self._handle_prompt_key_release(cast(QKeyEvent, event))
-                return True
-        shell_result = self._qfluent_chrome.handle_event_filter(watched, event)
-        if shell_result is not None:
-            return shell_result
-        if watched is self._shell_viewport() or watched is self.viewport():
-            if event.type() == QEvent.Type.MouseButtonPress:
-                mouse_event = cast(QMouseEvent, event)
-                if mouse_event.button() == Qt.MouseButton.RightButton:
-                    self._shell_context_menu.record_context_menu_press()
-            if event.type() == QEvent.Type.ContextMenu:
-                return self._shell_context_menu.forward_context_menu_event_to_host(
-                    cast(QContextMenuEvent, event)
-                )
+        routed = self._host_event_router.route(watched, event)
+        if routed is not None:
+            return routed
         return bool(super().eventFilter(watched, event))
 
     def hideEvent(self, event: QHideEvent) -> None:
