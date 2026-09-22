@@ -630,18 +630,18 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:6b362ba63eb0fa336aa7e7e85e94b9f3cc8b64a5faf4b4c19dcbad5e3e102a00"
+fingerprint = "sha256:772eca7b095fed24c43e1a0367307bfd41ed70f77e959e134ad9c3937bcc2a42"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [
   "QFluent text-edit host compatibility",
   "projection collaborator integration and lifecycle",
-  "keyboard, clipboard, context-menu, and focus routing",
+  "Qt host event adaptation plus clipboard, context-menu, and focus routing",
   "autocomplete and diagnostics feature coordination",
   "prompt state, metadata, and semantic-action publication",
   "chrome, scrolling, sizing, and editor-panel integration",
 ]
-next_extraction = "Extract feature coordination and remaining host event routing from the QFluent shell and projection composition boundary."
+next_extraction = "Extract feature coordination and remaining host event adaptation from the QFluent shell and projection composition boundary."
 
 [[debts]]
 id = "SS-ARCH-065"
