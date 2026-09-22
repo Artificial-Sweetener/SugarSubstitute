@@ -22,10 +22,14 @@ from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
-from qfluentwidgets.common.font import setFont  # type: ignore[import-untyped]
+from PySide6.QtWidgets import QHBoxLayout
+from qfluentwidgets import FluentIcon, ToolButton  # type: ignore[import-untyped]
 
-from sugarsubstitute_shared.presentation.localization import app_text
+from sugarsubstitute_shared.presentation.localization import (
+    set_localized_accessible_description,
+    set_localized_accessible_name,
+    set_localized_tooltip,
+)
 from substitute.application.workflows.synthetic_canvas_resolution_role_service import (
     SyntheticCanvasResolutionRole,
 )
@@ -35,14 +39,9 @@ from substitute.presentation.editor.panel.node_card.body_contribution import (
 )
 from substitute.presentation.editor.panel.widgets.field_row import (
     BuiltFieldRow,
-    apply_editor_control_height,
+    EDITOR_ROW_HEIGHT,
     make_grouped_field_divider,
 )
-from substitute.presentation.localization import LocalizedPushButton
-
-_COMPACT_ACTION_FONT_SIZE = 12
-_DIMENSION_COLUMN_STRETCH = 7
-_COMPACT_ACTION_STRETCH = 4
 
 
 class SyntheticCanvasResolutionRoleResolver(Protocol):
@@ -117,7 +116,7 @@ class SyntheticCanvasResolutionRowDecorator(QObject):
         self._role = role
         self._field_keys = field_keys
         self._change_requested = change_requested
-        self.change_button: LocalizedPushButton | None = None
+        self.change_button: ToolButton | None = None
 
     def decorate(self, built_row: BuiltFieldRow) -> None:
         """Lock the row's original fields and append the resize action."""
@@ -138,19 +137,14 @@ class SyntheticCanvasResolutionRowDecorator(QObject):
             raise TypeError(
                 "Synthetic resolution action requires a horizontal field row"
             )
-        change_button = LocalizedPushButton(
-            app_text("Resize canvas"),
-            built_row.row,
-        )
-        setFont(change_button, _COMPACT_ACTION_FONT_SIZE)
-        change_button.setMinimumWidth(0)
-        change_button.setSizePolicy(
-            QSizePolicy.Policy.Ignored,
-            QSizePolicy.Policy.Preferred,
-        )
-        apply_editor_control_height(change_button)
-        change_button.setAccessibleDescription(
-            app_text("Choose a new size for the Input canvas and its masks")
+        change_button = ToolButton(FluentIcon.FIT_PAGE, built_row.row)
+        change_button.setObjectName("SyntheticCanvasResizeButton")
+        change_button.setFixedSize(EDITOR_ROW_HEIGHT, EDITOR_ROW_HEIGHT)
+        set_localized_tooltip(change_button, "Resize canvas")
+        set_localized_accessible_name(change_button, "Resize canvas")
+        set_localized_accessible_description(
+            change_button,
+            "Choose a new size for the Input canvas and its masks",
         )
         change_button.clicked.connect(self._request_change)
         action_index = max(0, row_layout.count() - 1)
@@ -164,41 +158,33 @@ class SyntheticCanvasResolutionRowDecorator(QObject):
         row_layout.insertWidget(
             action_index + 1,
             change_button,
-            _COMPACT_ACTION_STRETCH,
+            0,
             Qt.AlignmentFlag.AlignVCenter,
         )
         trailing_item = row_layout.itemAt(row_layout.count() - 1)
         if trailing_item is not None and trailing_item.spacerItem() is not None:
             row_layout.removeItem(trailing_item)
+        dimension_columns = []
         for field_key in self._field_keys:
             column = targets_by_key[field_key].parentWidget()
             if column is None:
                 raise RuntimeError("Synthetic resolution field has no column owner")
-            _remove_empty_icon_slot(column)
             column_index = row_layout.indexOf(column)
             if column_index >= 0:
-                column.setSizePolicy(
-                    QSizePolicy.Policy.Ignored,
-                    QSizePolicy.Policy.Preferred,
-                )
-                row_layout.setStretch(column_index, _DIMENSION_COLUMN_STRETCH)
+                dimension_columns.append(column)
+                row_layout.setStretch(column_index, 1)
+        balanced_minimum_width = max(
+            (column.minimumSizeHint().width() for column in dimension_columns),
+            default=0,
+        )
+        for column in dimension_columns:
+            column.setMinimumWidth(balanced_minimum_width)
         self.change_button = change_button
 
     def _request_change(self) -> None:
         """Forward the immutable authority snapshot to shell orchestration."""
 
         self._change_requested(self._role)
-
-
-def _remove_empty_icon_slot(column: QWidget) -> None:
-    """Release unused icon space inside this compact authority row."""
-
-    layout = column.layout()
-    if not isinstance(layout, QHBoxLayout):
-        return
-    first_item = layout.itemAt(0)
-    if first_item is not None and first_item.spacerItem() is not None:
-        layout.removeItem(first_item)
 
 
 __all__ = [
