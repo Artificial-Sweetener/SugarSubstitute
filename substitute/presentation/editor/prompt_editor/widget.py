@@ -112,7 +112,9 @@ from .composition import (
     PromptEditorConstructionObserver,
     PromptEditorDanbooruFactory,
     PromptEditorExecutionFactory,
-    PromptEditorMenuFactory,
+    PromptEditorMenuActionBindings,
+    PromptEditorMenuFeatureOwners,
+    PromptEditorMenuHostBindings,
     PromptEditorProjectionFactory,
     PromptEditorServiceFactory,
     PromptEditorSyntaxFactory,
@@ -122,17 +124,14 @@ from .composition import (
     bind_prompt_editor_signals,
     build_context_insertion_service,
     build_external_url_action_runner,
+    build_prompt_editor_menu_runtime,
     build_prompt_document_service,
     build_resize_handle,
     bundle_collaborators,
     qt_object_is_alive,
     wire_prompt_editor_construction_lifecycle,
 )
-from .composition.context_menu_preparation_factory import (
-    build_context_menu_preparation,
-)
 from .features import (
-    PromptContextMenuSnapshotAssembler,
     PromptDanbooruPasteImportController,
     PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
@@ -144,11 +143,8 @@ from .features import (
     PromptSegmentPresetSource,
 )
 from .interactions import (
-    PromptContextMenuRequestPresenter,
     PromptDanbooruDialogRunner,
     PromptExternalUrlActionRunner,
-    PromptInlineLoraContextMenuPresenter,
-    PromptLoraPickerPopupPresenter,
     PromptReorderOverlayPort,
     PromptWheelScrollResult,
 )
@@ -186,7 +182,6 @@ from .shell import (
     PromptFillPlane,
     PromptResizeHandle,
     PromptShellChromeSurface,
-    PromptShellContextMenuController,
     PromptShellQFluentChrome,
     PromptShellScrollDelegate,
     PromptShellScrollSurface,
@@ -403,7 +398,6 @@ class PromptEditor(
             construction_inputs,
             composition_context,
         )
-        menu_factory = PromptEditorMenuFactory(composition_context)
         danbooru_factory = PromptEditorDanbooruFactory(composition_context)
         phase_started_at = construction_observer.started_at()
         projection_collaborators = PromptEditorProjectionFactory(
@@ -453,7 +447,7 @@ class PromptEditor(
             projection_collaborators,
             cursor_provider=self.textCursor,
             context_insert_state_provider=(
-                lambda: self._shell_context_menu.consume_context_insert_state()
+                lambda: self._menu_runtime.shell.consume_context_insert_state()
             ),
             focus_restorer=lambda: self.setFocus(),
             source_text_provider=self.toPlainText,
@@ -677,86 +671,56 @@ class PromptEditor(
             self._diagnostics_feature_controller,
             self._lora_trigger_word_controller,
         )
-        self._context_menu_snapshot_assembler = PromptContextMenuSnapshotAssembler(
-            diagnostics=self._diagnostics_feature_controller.presentation,
-            lora_metadata=self._lora_metadata_presentation,
-            lora_trigger_words=self._lora_trigger_word_controller,
-            scene_publication=self._scene_context_publication,
-            scene_positions=self._scene_position_preparation,
-            segment_presets=self._segment_preset_controller,
-            danbooru=self._danbooru_action_controller,
-            source_identity_provider=self._source_commands.source_identity,
-            feature_profile_id_provider=(
-                lambda: self._feature_profile_controller.identity.feature_profile_id
-            ),
-        )
-        self._context_menu_preparation = build_context_menu_preparation(
-            segment_presets=self._segment_preset_controller,
-            danbooru=self._danbooru_action_controller,
-            scene=self._scene_position_preparation,
-            lora_trigger_words=self._lora_trigger_word_controller,
-        )
-        self._lora_picker_popup_presenter: PromptLoraPickerPopupPresenter = (
-            menu_factory.build_lora_picker_popup_presenter(
+        self._menu_runtime = build_prompt_editor_menu_runtime(
+            composition_context,
+            PromptEditorMenuFeatureOwners(
+                diagnostics=self._diagnostics_feature_controller,
                 lora_metadata=self._lora_metadata_presentation,
-                lora_thumbnail_cache=self._lora_thumbnail_cache,
-                context_insertion=self._context_insertion,
-                last_context_menu_global_pos=(
-                    lambda: self._shell_context_menu.last_context_menu_global_pos()
-                ),
-                cursor_global_position=(
-                    lambda: self.mapToGlobal(self.cursorRect().bottomLeft())
-                ),
-                external_url_actions=self._external_url_action_runner,
-                metadata_action_handler=(
-                    construction_inputs.model_metadata_action_handler
-                ),
-            )
-        )
-        self._prompt_menu_presenter: PromptContextMenuRequestPresenter = (
-            menu_factory.build_prompt_menu_presenter(
-                snapshot_reader=self._context_menu_snapshot_assembler,
-                preparation=self._context_menu_preparation,
+                lora_trigger_words=self._lora_trigger_word_controller,
+                scene_publication=self._scene_context_publication,
+                scene_positions=self._scene_position_preparation,
                 segment_presets=self._segment_preset_controller,
-                context_insertion=self._context_insertion,
-                trigger_word_identity_validator=(
-                    self._lora_trigger_word_controller.action_identity_is_current
+                danbooru=self._danbooru_action_controller,
+                source_identity=self._source_commands.source_identity,
+                feature_profile_id=(
+                    lambda: self._feature_profile_controller.identity.feature_profile_id
                 ),
-                schedule_lora=self._lora_picker_popup_presenter.open_lora_picker,
+            ),
+            PromptEditorMenuActionBindings(
+                context_insertion=self._context_insertion,
+                lora_thumbnail_cache=self._lora_thumbnail_cache,
+                clipboard=self._clipboard_history_controller,
+                external_url_actions=self._external_url_action_runner,
                 open_danbooru_wiki_for_selection=(
                     self._danbooru_dialog_runner.open_wiki_for_selection
                 ),
                 queue_scene=self.sceneQueueRequested.emit,
                 is_read_only=self.isReadOnly,
                 rich_prompt_rendering_enabled=self.richPromptRenderingEnabled,
-                toggle_rich_prompt_rendering=(self.setRichPromptRenderingEnabled),
-            )
-        )
-        self._shell_context_menu = PromptShellContextMenuController(
-            host=self,
-            finish_pending_key_edit_block=(
-                lambda reason: self._edit_execution.finish_pending_key_edit_block(
-                    reason=reason
-                )
+                toggle_rich_prompt_rendering=self.setRichPromptRenderingEnabled,
+                metadata_action_handler=(
+                    construction_inputs.model_metadata_action_handler
+                ),
             ),
-            has_text_selection=lambda: self.textCursor().hasSelection(),
-            selected_prompt_range_and_text=(
-                self._prompt_menu_presenter.selected_prompt_range_and_text
+            PromptEditorMenuHostBindings(
+                finish_pending_key_edit_block=(
+                    lambda reason: self._edit_execution.finish_pending_key_edit_block(
+                        reason=reason
+                    )
+                ),
+                has_text_selection=lambda: self.textCursor().hasSelection(),
+                source_position_for_global_pos=self._source_position_for_global_pos,
+                current_source_position=lambda: int(self.textCursor().position()),
+                prompt_menu_requires_custom_actions=(
+                    self._prompt_menu_requires_custom_actions
+                ),
+                show_native_context_menu=(
+                    lambda event: QFluentTextEdit.contextMenuEvent(self, event)
+                ),
+                cursor_global_position=(
+                    lambda: self.mapToGlobal(self.cursorRect().bottomLeft())
+                ),
             ),
-            selected_prompt_text=self._prompt_menu_presenter.selected_prompt_text,
-            restore_prompt_selection_snapshot=(
-                self._prompt_menu_presenter.restore_prompt_selection_snapshot
-            ),
-            source_position_for_global_pos=self._source_position_for_global_pos,
-            current_source_position=lambda: int(self.textCursor().position()),
-            prompt_menu_requires_custom_actions=(
-                self._prompt_menu_requires_custom_actions
-            ),
-            show_native_context_menu=(
-                lambda event: QFluentTextEdit.contextMenuEvent(self, event)
-            ),
-            clipboard_actions=self._clipboard_history_controller,
-            prompt_menu_requests=self._prompt_menu_presenter,
         )
         self._host_event_router = PromptEditorHostEventRouter(
             PromptEditorHostEventBindings(
@@ -771,35 +735,10 @@ class PromptEditor(
                 handle_key_release=self._key_router.handle_key_release,
                 handle_chrome_event=self._qfluent_chrome.handle_event_filter,
                 record_context_menu_press=(
-                    self._shell_context_menu.record_context_menu_press
+                    self._menu_runtime.shell.record_context_menu_press
                 ),
                 forward_context_menu=(
-                    self._shell_context_menu.forward_context_menu_event_to_host
-                ),
-            )
-        )
-        self._inline_lora_menu_presenter: PromptInlineLoraContextMenuPresenter = (
-            menu_factory.build_inline_lora_menu_presenter(
-                lora_metadata=self._lora_metadata_presentation,
-                lora_trigger_words=self._lora_trigger_word_controller,
-                prepared_scene_context_at_position=(
-                    lambda source_position: (
-                        self._scene_position_preparation.prepare_position_context(
-                            source_position,
-                            reason="inline_lora_context_menu",
-                        )
-                    )
-                ),
-                context_insertion=self._context_insertion,
-                shell_menu=self._shell_context_menu,
-                finish_pending_key_edit_block=(
-                    lambda reason: self._edit_execution.finish_pending_key_edit_block(
-                        reason=reason
-                    )
-                ),
-                external_url_actions=self._external_url_action_runner,
-                metadata_action_handler=(
-                    construction_inputs.model_metadata_action_handler
+                    self._menu_runtime.shell.forward_context_menu_event_to_host
                 ),
             )
         )
@@ -834,7 +773,7 @@ class PromptEditor(
             service_collaborators,
             self._autocomplete,
             syntax_collaborators,
-            self._inline_lora_menu_presenter,
+            self._menu_runtime.inline_lora,
             resize_handle,
         )
         self._resize_handle = collaborators.resize_handle
@@ -1100,7 +1039,7 @@ class PromptEditor(
     ) -> tuple[MenuEntry, ...]:
         """Return prompt-domain actions for the aggregate node menu."""
 
-        return self._shell_context_menu.field_action_entries(context)
+        return self._menu_runtime.shell.field_action_entries(context)
 
     def field_actions_available(self) -> bool:
         """Return whether this prompt field contributes node-menu actions."""
@@ -1457,7 +1396,7 @@ class PromptEditor(
     ) -> None:
         """Set shell-owned context-menu insert state for compatibility tests."""
 
-        self._shell_context_menu.set_context_insert_state(
+        self._menu_runtime.shell.set_context_insert_state(
             insert_position=insert_position,
             should_replace_selection=should_replace_selection,
         )
@@ -1471,12 +1410,12 @@ class PromptEditor(
         """Set shell-owned context-menu selection state for compatibility tests."""
 
         selected_text = selection_snapshot[2] if selection_snapshot is not None else ""
-        self._prompt_menu_presenter.prepare_prompt_menu_selection(
+        self._menu_runtime.prompt_requests.prepare_prompt_menu_selection(
             selected_text=selected_text,
             selection_snapshot=selection_snapshot if had_selection else None,
             reason="test_context_menu_selection_state",
         )
-        self._shell_context_menu.set_selection_press_state(
+        self._menu_runtime.shell.set_selection_press_state(
             had_selection=had_selection,
             selection_snapshot=selection_snapshot,
         )

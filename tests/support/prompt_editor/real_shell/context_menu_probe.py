@@ -240,7 +240,7 @@ class PromptContextMenuProbe:
 
         RoundMenu.exec = capture_exec
         try:
-            presenter = getattr(editor, "_inline_lora_menu_presenter")
+            presenter = getattr(editor, "_menu_runtime").inline_lora
             presenter.show_lora_context_menu(
                 token,
                 editor.viewport().mapToGlobal(editor.viewport().rect().center()),

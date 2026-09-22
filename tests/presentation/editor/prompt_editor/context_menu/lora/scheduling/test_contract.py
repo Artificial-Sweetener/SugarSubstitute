@@ -126,7 +126,7 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(
         prepared_context_event_for_source_text(editor, "alpha")
     )
 
@@ -232,7 +232,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     context_event = context_event_for_source_text(editor, "cafe text")
     source_position = cast(
         Any, editor
-    )._shell_context_menu._source_position_for_global_pos(context_event.globalPos())
+    )._menu_runtime.shell._source_position_for_global_pos(context_event.globalPos())
     assert source_position is not None
     context_prompt_snapshot = cast(
         Any,
@@ -272,7 +272,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(context_event)
+    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(context_event)
 
     assert "Trigger words: Global LoRA" in trigger_full_labels
     assert "Trigger words: Portrait LoRA" not in trigger_full_labels

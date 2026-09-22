@@ -75,8 +75,17 @@ def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
     } <= menu_methods
 
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    menu_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
+    ).read_text(encoding="utf-8")
     assert "PromptEditorAutocompleteFactory(" in widget_source
-    assert "PromptEditorMenuFactory(" in widget_source
+    assert "build_prompt_editor_menu_runtime(" in widget_source
+    assert "PromptEditorMenuFactory(" in menu_runtime_source
+    assert "PromptContextMenuSnapshotAssembler(" in menu_runtime_source
+    assert "PromptShellContextMenuController(" in menu_runtime_source
+    assert "_shell_context_menu" not in widget_source
+    assert "_prompt_menu_presenter" not in widget_source
+    assert "_inline_lora_menu_presenter" not in widget_source
 
 
 def test_syntax_interaction_composition_has_a_direct_owner() -> None:

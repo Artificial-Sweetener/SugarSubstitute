@@ -355,7 +355,7 @@ def test_prompt_editor_context_menu_lookup_action_uses_selected_prompt_text(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "long hair")
     )
 
