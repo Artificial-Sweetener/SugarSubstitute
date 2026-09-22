@@ -109,21 +109,15 @@ from .composition import (
     PromptEditorConstructionObserver,
     PromptEditorCoreRuntimeBindings,
     PromptEditorFeatureRuntimeBindings,
-    PromptEditorMenuActionBindings,
-    PromptEditorMenuFeatureOwners,
-    PromptEditorMenuHostBindings,
+    PromptEditorHostRuntime,
+    PromptEditorHostRuntimeBindings,
     PromptEditorProjectionCollaborators,
     PromptEditorTaskExecutorFactory,
-    apply_prompt_editor_initial_layout,
     bind_prompt_editor_diagnostics_signals,
-    bind_prompt_editor_signals,
     build_prompt_editor_core_runtime,
     build_prompt_editor_feature_runtime,
-    build_prompt_editor_menu_runtime,
-    build_resize_handle,
-    bundle_collaborators,
+    build_prompt_editor_host_runtime,
     qt_object_is_alive,
-    wire_prompt_editor_construction_lifecycle,
 )
 from .features import (
     PromptDanbooruPasteImportController,
@@ -138,10 +132,6 @@ from .interactions import (
     PromptWheelScrollResult,
 )
 from .interactions.cursor_adapter import PromptCursorAdapter
-from .host_event_router import (
-    PromptEditorHostEventBindings,
-    PromptEditorHostEventRouter,
-)
 from .overlays import (
     PromptAutocompletePanel,
     PromptTokenWeightControls,
@@ -364,7 +354,6 @@ class PromptEditor(
             construction_observer,
             prompt_conditioning_context=prompt_conditioning_context,
         )
-        projection_collaborators = core_runtime.projection
         service_collaborators = core_runtime.services
         autocomplete_collaborators = core_runtime.autocomplete
         syntax_collaborators = core_runtime.syntax
@@ -430,43 +419,20 @@ class PromptEditor(
         self._catalog_refresh_facade = feature_runtime.catalog_refresh
         self._lora_trigger_word_controller = feature_runtime.lora_trigger_words
         self._document_facade = feature_runtime.document
-        self._menu_runtime = build_prompt_editor_menu_runtime(
+        build_prompt_editor_host_runtime(
+            construction_inputs,
             composition_context,
-            PromptEditorMenuFeatureOwners(
-                diagnostics=self._diagnostics_feature_controller,
-                lora_metadata=self._lora_metadata_presentation,
-                lora_trigger_words=self._lora_trigger_word_controller,
-                scene_publication=self._scene_context_publication,
-                scene_positions=self._scene_position_preparation,
-                segment_presets=self._segment_preset_controller,
-                danbooru=self._danbooru_action_controller,
-                source_identity=self._source_commands.source_identity,
-                feature_profile_id=(
-                    lambda: self._feature_profile_controller.identity.feature_profile_id
-                ),
-            ),
-            PromptEditorMenuActionBindings(
-                context_insertion=self._context_insertion,
-                lora_thumbnail_cache=self._lora_thumbnail_cache,
-                clipboard=self._clipboard_history_controller,
-                external_url_actions=self._external_url_action_runner,
-                open_danbooru_wiki_for_selection=(
-                    self._danbooru_dialog_runner.open_wiki_for_selection
-                ),
+            self._shell_runtime,
+            core_runtime,
+            feature_runtime,
+            PromptEditorHostRuntimeBindings(
+                signal_host=self,
+                layout_host=self,
+                mount_runtime=self._mount_host_runtime,
                 queue_scene=self.sceneQueueRequested.emit,
                 is_read_only=self.isReadOnly,
                 rich_prompt_rendering_enabled=self.richPromptRenderingEnabled,
                 toggle_rich_prompt_rendering=self.setRichPromptRenderingEnabled,
-                metadata_action_handler=(
-                    construction_inputs.model_metadata_action_handler
-                ),
-            ),
-            PromptEditorMenuHostBindings(
-                finish_pending_key_edit_block=(
-                    lambda reason: self._edit_execution.finish_pending_key_edit_block(
-                        reason=reason
-                    )
-                ),
                 has_text_selection=lambda: self.textCursor().hasSelection(),
                 source_position_for_global_pos=self._source_position_for_global_pos,
                 current_source_position=lambda: int(self.textCursor().position()),
@@ -480,69 +446,7 @@ class PromptEditor(
                     lambda: self.mapToGlobal(self.cursorRect().bottomLeft())
                 ),
             ),
-        )
-        self._host_event_router = PromptEditorHostEventRouter(
-            PromptEditorHostEventBindings(
-                surface=self._surface,
-                shell_viewport=self._shell_viewport(),
-                content_viewport=self.viewport(),
-                handle_focus_in=self._shell_runtime.chrome.handle_focus_in,
-                schedule_focus_out_cleanup=(
-                    self._shell_runtime.chrome.schedule_focus_out_cleanup
-                ),
-                handle_key_press=self._key_router.handle_key_press,
-                handle_key_release=self._key_router.handle_key_release,
-                handle_chrome_event=self._shell_runtime.chrome.handle_event_filter,
-                record_context_menu_press=(
-                    self._menu_runtime.shell.record_context_menu_press
-                ),
-                forward_context_menu=(
-                    self._menu_runtime.shell.forward_context_menu_event_to_host
-                ),
-            )
-        )
-        self._segment_preset_controller.refresh_menu_model(
-            reason="prompt_editor_constructed"
-        )
-        phase_started_at = construction_observer.started_at()
-        lifecycle_wiring_result = wire_prompt_editor_construction_lifecycle(
-            self._diagnostics_feature_controller
-        )
-        construction_observer.log_timing(
-            "Scheduled prompt editor spellcheck services",
-            started_at=phase_started_at,
-            diagnostics_controller_enabled=(
-                lifecycle_wiring_result.diagnostics_controller_enabled
-            ),
-            diagnostics_activation_pending=(
-                lifecycle_wiring_result.diagnostics_activation_pending
-            ),
-            level="debug",
-        )
-        phase_started_at = construction_observer.started_at()
-        resize_handle = build_resize_handle(composition_context)
-        collaborators = bundle_collaborators(
-            projection_collaborators,
-            service_collaborators,
-            self._autocomplete,
-            syntax_collaborators,
-            self._menu_runtime.inline_lora,
-            resize_handle,
-        )
-        self._resize_handle = collaborators.resize_handle
-        self._resize_handle.hide()
-        bind_prompt_editor_signals(
-            self,
-            collaborators,
-            lora_source_changes=self._lora_trigger_word_controller,
-        )
-
-        apply_prompt_editor_initial_layout(self)
-        construction_observer.log_timing(
-            "Initialized prompt editor layout",
-            started_at=phase_started_at,
-            maximum_visible_lines=maximum_visible_lines,
-            level="debug",
+            construction_observer,
         )
         construction_observer.log_timing(
             "Initialized prompt editor widget",
@@ -577,6 +481,13 @@ class PromptEditor(
         ] = projection.danbooru_paste_import_controller
         self._shell_padding_fill_plane = projection.shell_padding_fill_plane
         self._fill_plane = projection.fill_plane
+
+    def _mount_host_runtime(self, runtime: PromptEditorHostRuntime) -> None:
+        """Expose mounted host owners before signal and layout activation."""
+
+        self._menu_runtime = runtime.menu
+        self._host_event_router = runtime.events
+        self._resize_handle = runtime.resize_handle
 
     @property
     def _autocomplete_panel(self) -> PromptAutocompletePanel | None:

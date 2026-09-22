@@ -42,6 +42,11 @@ from .foundations import (
     build_external_url_action_runner,
     build_prompt_document_service,
 )
+from .host_runtime import (
+    PromptEditorHostRuntime,
+    PromptEditorHostRuntimeBindings,
+    build_prompt_editor_host_runtime,
+)
 from .context_insertion_factory import build_context_insertion_service
 from .danbooru_factory import PromptEditorDanbooruFactory
 from .projection_factory import (
@@ -86,6 +91,8 @@ __all__ = [
     "PromptEditorExecutionFactory",
     "PromptEditorFeatureRuntime",
     "PromptEditorFeatureRuntimeBindings",
+    "PromptEditorHostRuntime",
+    "PromptEditorHostRuntimeBindings",
     "PromptEditorMenuFactory",
     "PromptEditorMenuActionBindings",
     "PromptEditorMenuFeatureOwners",
@@ -111,6 +118,7 @@ __all__ = [
     "build_prompt_document_service",
     "build_prompt_editor_core_runtime",
     "build_prompt_editor_feature_runtime",
+    "build_prompt_editor_host_runtime",
     "build_prompt_editor_menu_runtime",
     "build_resize_handle",
     "bundle_collaborators",
