@@ -62,7 +62,7 @@ runs:
         $imageVersion = if ($env:ImageVersion) { $env:ImageVersion } else { "unreported-image" }
         $runnerImage = "$imageOs-$imageVersion" -replace '[^A-Za-z0-9._-]', '-'
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
-        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.15-$bootstrapLockHash"
+        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.16-$bootstrapLockHash"
         "primary-key=$prefix-$lockHash" >> $env:GITHUB_OUTPUT
         "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
         "lock-hash=$lockHash" >> $env:GITHUB_OUTPUT

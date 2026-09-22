@@ -154,7 +154,7 @@ def test_python_cache_identity_covers_every_compatibility_input() -> None:
         "$env:ImageOS",
         "$env:ImageVersion",
         "$env:PYTHON_VERSION",
-        "uv0.12.15",
+        "uv0.12.16",
         "$bootstrapLockHash",
         "$lockHash",
     ):
