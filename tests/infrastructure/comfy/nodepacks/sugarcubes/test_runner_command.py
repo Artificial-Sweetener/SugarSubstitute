@@ -71,11 +71,11 @@ def test_sugarcubes_maintenance_runner_imports_no_ui_or_raw_process_modules() ->
     assert forbidden_imports == set()
 
 
-def test_run_sugarcubes_baseline_maintenance_builds_preflight_command(
+def test_run_sugarcubes_baseline_maintenance_delegates_bootstrap_to_sugarcubes(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Baseline maintenance should invoke SugarCubes' offline readiness action."""
+    """Baseline maintenance should invoke SugarCubes' owned repository bootstrap."""
 
     python_path = _write_maintenance_fixture(tmp_path)
     commands: list[list[str]] = []
@@ -108,9 +108,10 @@ def test_run_sugarcubes_baseline_maintenance_builds_preflight_command(
             "-m",
             "sugarcubes.maintenance",
             "cube-deps",
-            "preflight",
+            "sync-and-check",
             "--workspace",
             str(tmp_path),
+            "--sync-enabled-repos",
         ]
     ]
     assert result.exit_code == 0
@@ -124,19 +125,20 @@ def test_cached_setup_reconciliation_does_not_sync_cube_repositories(
     """The recurring readiness check must remain offline when already ready."""
 
     _write_maintenance_fixture(tmp_path)
-    repository_preparations: list[Path] = []
-    monkeypatch.setattr(
-        sugarcubes_maintenance_runner,
-        "prepare_sugarcubes_repositories",
-        lambda root, **_kwargs: repository_preparations.append(root),
-    )
+    commands: list[list[str]] = []
+
+    def fake_stream(
+        command: list[str], **_kwargs: object
+    ) -> tuple[int, tuple[str, ...]]:
+        """Record the read-only command and report current readiness."""
+
+        commands.append(command)
+        return 0, ('{"schemaVersion": 1, "dependencyReadiness": {"ready": true}}',)
+
     monkeypatch.setattr(
         sugarcubes_maintenance_runner,
         "_stream_command_collecting_output",
-        lambda *_args, **_kwargs: (
-            0,
-            ('{"schemaVersion": 1, "dependencyReadiness": {"ready": true}}',),
-        ),
+        fake_stream,
     )
 
     result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(
@@ -145,7 +147,8 @@ def test_cached_setup_reconciliation_does_not_sync_cube_repositories(
     )
 
     assert result.exit_code == 0
-    assert repository_preparations == []
+    assert commands[0][4] == "preflight"
+    assert "--sync-enabled-repos" not in commands[0]
 
 
 def test_run_sugarcubes_baseline_maintenance_repairs_only_outdated_semver(
@@ -230,8 +233,18 @@ def test_run_sugarcubes_baseline_maintenance_repairs_only_outdated_semver(
         "--workspace",
         str(tmp_path),
     ]
+    bootstrap_command = [
+        str(python_path),
+        "-m",
+        "sugarcubes.maintenance",
+        "cube-deps",
+        "sync-and-check",
+        "--workspace",
+        str(tmp_path),
+        "--sync-enabled-repos",
+    ]
     assert commands == [
-        preflight_command,
+        bootstrap_command,
         [
             str(python_path),
             "-m",
@@ -319,8 +332,18 @@ def test_current_simplesyrup_still_installs_missing_implied_prompt_control(
         "--workspace",
         str(tmp_path),
     ]
+    bootstrap_command = [
+        str(python_path),
+        "-m",
+        "sugarcubes.maintenance",
+        "cube-deps",
+        "sync-and-check",
+        "--workspace",
+        str(tmp_path),
+        "--sync-enabled-repos",
+    ]
     assert commands == [
-        preflight_command,
+        bootstrap_command,
         [
             str(python_path),
             "-m",

@@ -294,6 +294,11 @@ def test_hidden_pending_projection_keeps_identity_when_workflow_is_renamed(
     harness.rename_workflow("alpha", "renamed-alpha")
     harness.show_canvas("Output")
     harness.assert_showing_workflow("renamed-alpha", color=(75, 155, 215))
+    harness.wait_until(
+        lambda: (
+            "workflow-alpha" not in harness.fingerprint().pending_projection_workflows
+        )
+    )
 
     state = harness.fingerprint()
     assert "workflow-alpha" in state.workflow_output_image_ids, state

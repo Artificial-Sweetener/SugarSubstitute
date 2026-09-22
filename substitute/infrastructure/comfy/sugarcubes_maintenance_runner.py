@@ -31,6 +31,7 @@ from substitute.application.comfy_nodepacks.sugarcubes_maintenance_report_parser
     sugarcubes_required_dependency_failure_message as _sugarcubes_required_dependency_failure_message,
 )
 from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
+    build_sugarcubes_dependency_bootstrap_command,
     build_sugarcubes_dependency_repair_command,
     build_sugarcubes_dependency_preflight_command,
     sugarcubes_maintenance_path,
@@ -44,10 +45,6 @@ from substitute.infrastructure.comfy.nodepack_reconciliation_logger import (
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     resolve_workspace_python,
 )
-from substitute.infrastructure.comfy.sugarcubes_repository_bootstrapper import (
-    prepare_sugarcubes_repositories,
-)
-from substitute.infrastructure.version_control import RepositoryService
 from substitute.infrastructure.process.hidden_process_runner import (
     stream_command_collecting_output as _stream_command_collecting_output,
 )
@@ -59,7 +56,6 @@ def run_sugarcubes_baseline_maintenance(
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
     python_executable: Path | None = None,
-    repositories: RepositoryService | None = None,
     synchronize_repositories: bool = True,
 ) -> SugarCubesMaintenanceResult:
     """Preflight SugarCubes dependencies and repair only reported deficiencies."""
@@ -69,17 +65,17 @@ def run_sugarcubes_baseline_maintenance(
     installed_sugarcubes_root = sugarcubes_root(workspace)
     if not sugarcubes_maintenance_path(workspace).exists():
         raise RuntimeError("SugarCubes offline maintenance entrypoint is missing.")
-    if synchronize_repositories:
-        prepare_sugarcubes_repositories(
-            installed_sugarcubes_root,
-            on_log=on_log,
-            repositories=repositories,
-        )
+    preflight_command = build_sugarcubes_dependency_preflight_command(
+        python_executable=python_executable,
+        workspace=workspace,
+    )
     command = list(
-        build_sugarcubes_dependency_preflight_command(
+        build_sugarcubes_dependency_bootstrap_command(
             python_executable=python_executable,
             workspace=workspace,
         )
+        if synchronize_repositories
+        else preflight_command
     )
     exit_code, output_lines = _stream_command_collecting_output(
         command,
@@ -128,7 +124,7 @@ def run_sugarcubes_baseline_maintenance(
                 _sugarcubes_required_dependency_failure_message(repair_result)
             )
         verification_result = _run_sugarcubes_command(
-            command,
+            list(preflight_command),
             sugarcubes_root=installed_sugarcubes_root,
             on_log=on_log,
             env=env,
