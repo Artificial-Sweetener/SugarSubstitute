@@ -30,6 +30,7 @@ from substitute.domain.onboarding import (
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
 )
+from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
 from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
@@ -38,6 +39,7 @@ class FileRuntimeConfigurationRepository(RuntimeConfigurationRepository):
     """Load and save runtime configuration under `user/settings/runtime.json`."""
 
     installation_configuration: InstallationConfiguration
+    default_runtime_root: Path | None = None
 
     def exists(self) -> bool:
         """Return whether persisted runtime configuration exists."""
@@ -47,7 +49,14 @@ class FileRuntimeConfigurationRepository(RuntimeConfigurationRepository):
     def build_default(self) -> RuntimeConfiguration:
         """Build the default runtime configuration for this installation."""
 
-        return RuntimeConfiguration.create_default(self.installation_configuration)
+        if self.default_runtime_root is None:
+            return RuntimeConfiguration.create_default(self.installation_configuration)
+        runtime_root = operational_path(self.default_runtime_root).resolve()
+        return RuntimeConfiguration(
+            runtime_root=runtime_root,
+            python_executable=runtime_layout_for_root(runtime_root).python_executable,
+            bootstrap_status=RuntimeBootstrapStatus.MISSING,
+        )
 
     def load(self) -> RuntimeConfiguration:
         """Load runtime configuration or synthesize defaults from installation paths."""

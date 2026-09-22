@@ -38,6 +38,8 @@ from launcher.sugarsubstitute_launcher.data_migrations import (
     default_data_migration_runner,
 )
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
+from launcher.sugarsubstitute_launcher.payload_staging import AppPayloadStager
+from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
 from launcher.sugarsubstitute_launcher.payload_models import AppPayloadInstallResult
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
 from launcher.sugarsubstitute_launcher.runtime_reconciliation import (
@@ -143,7 +145,7 @@ class LauncherUpdateOrchestrator:
     ) -> None:
         """Store update collaborators."""
 
-        self._payload_installer = payload_installer or AppPayloadInstaller()
+        self._payload_installer = payload_installer
         self._runtime_reconciler = runtime_reconciler or UvRuntimeReconciler()
         self._launcher_update = LauncherUpdatePreparation(
             stager=launcher_bundle_stager, launcher_version=launcher_version
@@ -283,13 +285,27 @@ class LauncherUpdateOrchestrator:
                 candidate_sha256=manifest.app.sha256,
             )
             try:
-                progress.start_activity(application_install_activity(manifest.version))
+                install_activity = application_install_activity(manifest.version)
+                progress.append_log(install_activity.initial_text)
+                progress.start_activity(install_activity)
                 try:
-                    install_result = self._payload_installer.install(
+                    payload_installer = self._payload_installer or AppPayloadInstaller(
+                        stager=AppPayloadStager(
+                            downloader=AssetDownloader(
+                                progress_observer=lambda _transfer: (
+                                    progress.record_activity()
+                                )
+                            ),
+                            activity_observer=progress.record_activity,
+                        )
+                    )
+                    install_result = payload_installer.install(
                         activation=activation,
                         manifest=manifest,
                     )
-                    progress.start_activity(application_dependencies_activity())
+                    dependencies_activity = application_dependencies_activity()
+                    progress.append_log(dependencies_activity.initial_text)
+                    progress.start_activity(dependencies_activity)
                     activation.prepare_runtime()
                     self._runtime_reconciler.reconcile(
                         layout=activation.preparation_layout,

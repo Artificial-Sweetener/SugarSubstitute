@@ -59,14 +59,15 @@ def test_activity_does_not_manufacture_completed_progress(
     view.set_stage("Preparing the runtime", completed=2, total=5)
     bar = view.findChild(QProgressBar, "RepairProgress")
     assert bar is not None
-    assert bar.value() == 40
+    assert isinstance(bar, ActivityProgressBar)
+    assert bar.visible_fraction == pytest.approx(2 / 5)
     view.pulse_activity()
-    assert bar.value() == 40
+    assert bar.visible_fraction == pytest.approx(2 / 5)
     assert isinstance(bar, ActivityProgressBar)
     assert bar.activity_running
-    assert bar.value() == 40
+    assert bar.visible_fraction == pytest.approx(2 / 5)
     view.set_stage("Checking the installation", completed=4, total=5)
-    assert bar.value() == 80
+    assert bar.visible_fraction == pytest.approx(4 / 5)
 
 
 def test_diagnostics_open_only_on_request(view: RepairProgressView) -> None:

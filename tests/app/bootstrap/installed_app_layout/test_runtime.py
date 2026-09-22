@@ -147,6 +147,33 @@ def test_onboarding_bundle_uses_launcher_runtime_for_installed_payload(
     )
 
 
+def test_generation_payload_defaults_to_its_paired_launcher_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Fresh generation-backed setup validates the runtime the launcher provisioned."""
+
+    generation_root = tmp_path / "launcher" / "releases" / "generations" / ("a" * 32)
+    app_dir = generation_root / "app"
+    _write_file(app_dir / "main.py", "print('generation')\n")
+    _write_file(app_dir / "requirements.txt", "PySide6\n")
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.app_layout._repo_root",
+        lambda: app_dir,
+    )
+
+    bundle = build_onboarding_service_bundle(tmp_path)
+
+    runtime = bundle.runtime_service.create_default()
+    installation = bundle.installation_service.create_default()
+    assert installation.runtime_dir == (tmp_path / "runtime").resolve()
+    assert runtime.runtime_root == (generation_root / "runtime").resolve()
+    assert (
+        runtime.python_executable
+        == (generation_root / "runtime" / ".venv" / "Scripts" / "python.exe").resolve()
+    )
+
+
 def test_onboarding_bundle_keeps_source_checkout_runtime_provisioner(
     tmp_path: Path,
 ) -> None:

@@ -48,6 +48,7 @@ class RepairProgress:
     stage: RepairStage | None
     completed: int
     total: int
+    activity: bool = False
 
 
 RepairProgressObserver = Callable[[RepairProgress], None]
@@ -99,11 +100,26 @@ class RepairProgressTracker:
         self._position += 1
         self._publish(None, len(self._stages))
 
-    def _publish(self, stage: RepairStage | None, completed: int) -> None:
+    def record_activity(self) -> None:
+        """Republish the active boundary when its owner completes an inner work unit."""
+
+        if self._position < 0 or self._position >= len(self._stages):
+            raise ValueError("Repair activity requires an active planned stage.")
+        self._publish(self._stages[self._position], self._position, activity=True)
+
+    def _publish(
+        self,
+        stage: RepairStage | None,
+        completed: int,
+        *,
+        activity: bool = False,
+    ) -> None:
         """Notify presentation without adding a second progress state owner."""
         if self._observer is not None:
             try:
-                self._observer(RepairProgress(stage, completed, len(self._stages)))
+                self._observer(
+                    RepairProgress(stage, completed, len(self._stages), activity)
+                )
             except Exception:
                 _LOGGER.exception(
                     "Repair progress observer failed; continuing the transaction.",

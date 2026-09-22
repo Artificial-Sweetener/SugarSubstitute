@@ -123,8 +123,6 @@ class ProvisioningPage(OnboardingPageFrame):
 
         self.overall_progress_bar = ActivityProgressBar(self.status_panel)
         self.overall_progress_bar.setObjectName("OnboardingOverallProgressBar")
-        self.overall_progress_bar.setRange(0, 100)
-        self.overall_progress_bar.setValue(0)
         self.overall_progress_bar.setAccessibleName(
             render_application_text(app_text("Overall setup progress"))
         )
@@ -182,7 +180,7 @@ class ProvisioningPage(OnboardingPageFrame):
 
         self._activity_presenter.stop()
         self.overall_progress_bar.set_activity_enabled(False)
-        self.overall_progress_bar.setValue(100)
+        self.overall_progress_bar.set_progress(1, 1)
         set_localized_text(self.overall_progress_label, "All setup tasks are complete.")
 
     def mark_failed(self) -> None:
@@ -200,7 +198,7 @@ class ProvisioningPage(OnboardingPageFrame):
         self._failure_user_message = None
         self._failure_steps = ()
         self.overall_progress_bar.setError(False)
-        self.overall_progress_bar.setValue(0)
+        self.overall_progress_bar.reset_progress()
         self.overall_progress_bar.set_activity_enabled(False)
         self._completed_tasks = 0
         self._total_tasks = 1
@@ -307,7 +305,7 @@ class ProvisioningPage(OnboardingPageFrame):
         if self._model_total_bytes > 0 and not self._model_complete:
             completed += self._model_completed_bytes / self._model_total_bytes
         completed = min(completed, float(self._total_tasks))
-        self.overall_progress_bar.setValue(round((completed / self._total_tasks) * 100))
+        self.overall_progress_bar.set_progress(completed, self._total_tasks)
 
     def set_log_expanded(self, expanded: bool) -> None:
         """Expand or collapse the inline transcript without leaving the setup page."""
@@ -332,14 +330,8 @@ class ProvisioningPage(OnboardingPageFrame):
     def set_output_stream(self, stream: TerminalOutputStream | None) -> None:
         """Bind the shared onboarding output stream to the details surface."""
 
-        if self._output_stream is not None:
-            self._output_stream.mutation_applied.disconnect(
-                self._record_output_activity
-            )
         self._output_stream = stream
         self.details_surface.set_stream(stream)
-        if stream is not None:
-            stream.mutation_applied.connect(self._record_output_activity)
 
     def append_log(self, line: str) -> None:
         """Append one non-empty log line to the details surface."""
@@ -347,11 +339,10 @@ class ProvisioningPage(OnboardingPageFrame):
         if not line:
             return
         self.details_surface.append_line(line)
-        if self._output_stream is None:
-            self.overall_progress_bar.record_activity()
+        self.overall_progress_bar.record_activity()
 
-    def _record_output_activity(self, _mutation: object) -> None:
-        """Pulse once when the hidden setup transcript receives a real record."""
+    def record_activity(self) -> None:
+        """Pulse once for accepted setup work without adding transcript noise."""
 
         self.overall_progress_bar.record_activity()
 

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
@@ -34,15 +35,22 @@ from sugarsubstitute_shared.launcher_update.archive import (
     SecureArchiveError,
     safe_extract_zip,
 )
+from sugarsubstitute_shared.asset_transfer import ObservedActivity
 
 
 class AppPayloadStager:
     """Prepare a complete verified payload without replacing installed content."""
 
-    def __init__(self, *, downloader: AssetDownloader | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        downloader: AssetDownloader | None = None,
+        activity_observer: Callable[[], None] | None = None,
+    ) -> None:
         """Store the release-asset downloader."""
 
         self._downloader = downloader or AssetDownloader()
+        self._activity_observer = activity_observer
 
     def stage(
         self,
@@ -65,28 +73,45 @@ class AppPayloadStager:
         ) as temporary:
             payload_path = Path(temporary) / "payload.zip"
             self._downloader.download(asset=manifest.app, destination_path=payload_path)
-            verify_sha256(path=payload_path, expected_sha256=manifest.app.sha256)
+            verify_sha256(
+                path=payload_path,
+                expected_sha256=manifest.app.sha256,
+                activity_observer=self._activity_observer,
+            )
             _remove_directory(destination)
             extract_app_payload_archive(
                 zip_path=payload_path,
                 destination_dir=destination,
+                activity_observer=self._activity_observer,
             )
             validate_app_payload(destination)
         return StagedAppPayload(version=manifest.version, staging_dir=destination)
 
 
-def verify_sha256(*, path: Path, expected_sha256: str) -> None:
+def verify_sha256(
+    *,
+    path: Path,
+    expected_sha256: str,
+    activity_observer: Callable[[], None] | None = None,
+) -> None:
     """Fail when downloaded bytes do not match their manifest digest."""
 
     digest = hashlib.sha256()
+    activity = ObservedActivity(activity_observer)
     with path.open("rb") as file:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
+            activity.record()
     if digest.hexdigest().lower() != expected_sha256.lower():
         raise PayloadInstallError(f"SHA256 mismatch for payload: {path}")
 
 
-def extract_app_payload_archive(*, zip_path: Path, destination_dir: Path) -> None:
+def extract_app_payload_archive(
+    *,
+    zip_path: Path,
+    destination_dir: Path,
+    activity_observer: Callable[[], None] | None = None,
+) -> None:
     """Extract a validated application payload while rejecting symlinks."""
 
     try:
@@ -94,6 +119,7 @@ def extract_app_payload_archive(*, zip_path: Path, destination_dir: Path) -> Non
             zip_path=zip_path,
             destination_dir=destination_dir,
             symlink_policy="reject",
+            activity_observer=activity_observer,
         )
     except SecureArchiveError as error:
         raise PayloadInstallError(str(error)) from error

@@ -348,6 +348,9 @@ class _Splash:
 
         self.lines.append(line)
 
+    def record_activity(self) -> None:
+        """Accept one observed work event."""
+
     def start_activity(self, _activity: SplashActivity) -> None:
         """Accept activity calls from recovery adapters."""
 

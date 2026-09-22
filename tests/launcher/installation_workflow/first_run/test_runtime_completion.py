@@ -337,12 +337,18 @@ def test_pending_runtime_has_one_setup_path(
         *,
         output_callback: Callable[[str], None],
         progress_observer: InstallationProgressObserver,
+        activity_callback: Callable[[], None],
         cancellation: Event,
         admit_installation: Callable[[InstallLayout], bool],
         process_starter: Callable[[Sequence[str]], None],
     ) -> InstallationWorkflow:
         """Replace external install adapters while preserving Qt orchestration."""
-        return factory(output_callback, progress_observer, cancellation)
+        return factory(
+            output_callback,
+            progress_observer,
+            activity_callback,
+            cancellation,
+        )
 
     monkeypatch.setattr(composition, "build_installation_workflow", build_workflow)
     plan = resolve_startup_plan(
