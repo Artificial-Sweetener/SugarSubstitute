@@ -131,7 +131,7 @@ from .lora_metadata_presentation import (
     PromptLoraMetadataSnapshot,
 )
 from .lora_metadata_refresh_lifecycle import (
-    PromptLoraMetadataRefreshHost,
+    PromptLoraMetadataRefreshBindings,
     PromptLoraMetadataRefreshLifecycle,
 )
 from .lora_trigger_word_controller import (
@@ -272,7 +272,7 @@ __all__ = [
     "PromptLoraActionSnapshot",
     "PromptLoraMetadataIdentityPort",
     "PromptLoraMetadataPresentation",
-    "PromptLoraMetadataRefreshHost",
+    "PromptLoraMetadataRefreshBindings",
     "PromptLoraMetadataRefreshLifecycle",
     "PromptLoraMetadataSnapshot",
     "PromptLoraTriggerWordController",
