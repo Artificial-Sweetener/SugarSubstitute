@@ -176,6 +176,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from .projection.undo_payload import PromptProjectionUndoPayload
 from .geometry.models import PromptProjectionSourceLineRect
 from .command_facade import PromptEditorCommandFacade
+from .document_facade import build_prompt_editor_document_facade
 from .emphasis_facade import PromptEditorEmphasisFacade
 from .reorder_facade import PromptEditorReorderFacade
 from .rendering_facade import build_prompt_editor_rendering_facade
@@ -660,6 +661,13 @@ class PromptEditor(
             ),
             effective_prompts=self._scene_position_preparation.effective_prompt_texts,
         )
+        self._document_facade = build_prompt_editor_document_facade(
+            self._document_semantics,
+            self._source_commands,
+            self._interaction_controller,
+            self._diagnostics_feature_controller,
+            self._lora_trigger_word_controller,
+        )
         self._context_menu_snapshot_assembler = PromptContextMenuSnapshotAssembler(
             diagnostics=self._diagnostics_feature_controller.presentation,
             lora_metadata=self._lora_metadata_presentation,
@@ -913,22 +921,22 @@ class PromptEditor(
     def setPlainText(self, text: str) -> None:  # noqa: N802
         """Replace the full prompt source text without touching the host document."""
 
-        self._source_commands.set_plain_text(text)
+        self._document_facade.set_plain_text(text)
 
     def setSourceText(self, text: str) -> None:  # noqa: N802
         """Replace the full prompt source text exactly."""
 
-        self._source_commands.set_source_text(text)
+        self._document_facade.set_source_text(text)
 
     def replaceBaselineText(self, text: str) -> None:  # noqa: N802
         """Replace restored prompt text and make it the editor undo baseline."""
 
-        self._source_commands.replace_baseline_text(text)
+        self._document_facade.replace_baseline_text(text)
 
     def replaceBaselineSourceText(self, text: str) -> None:  # noqa: N802
         """Replace restored exact source text and make it the undo baseline."""
 
-        self._source_commands.replace_baseline_text(text, exact_source=True)
+        self._document_facade.replace_baseline_text(text, exact_source=True)
 
     def replaceBaselineSourceDocument(  # noqa: N802
         self,
@@ -937,12 +945,7 @@ class PromptEditor(
     ) -> None:
         """Atomically replace document semantics, exact source, and undo baseline."""
 
-        semantics_changed = self._document_semantics.replace(document_semantics)
-        self._source_commands.replace_baseline_text(text, exact_source=True)
-        if semantics_changed:
-            self._interaction_controller.handle_document_semantics_changed()
-            self._diagnostics_feature_controller.handle_document_semantics_changed()
-            self._lora_trigger_word_controller.handle_source_changed()
+        self._document_facade.replace_baseline_document(text, document_semantics)
 
     def replaceConditioningContext(  # noqa: N802
         self,
@@ -950,9 +953,7 @@ class PromptEditor(
     ) -> bool:
         """Replace graph-derived conditioning semantics and invalidate old diagnostics."""
 
-        return self._diagnostics_feature_controller.replace_conditioning_context(
-            conditioning_context
-        )
+        return self._document_facade.replace_conditioning_context(conditioning_context)
 
     def preloadVisibleLoraBanners(  # noqa: N802
         self,
@@ -1143,7 +1144,7 @@ class PromptEditor(
     def replace_document_text(self, text: str) -> None:
         """Replace the document text through one grouped edit."""
 
-        self._source_commands.replace_document_text(text)
+        self._document_facade.replace_document_text(text)
 
     def replace_document_text_with_prompt_state(
         self,
@@ -1154,7 +1155,7 @@ class PromptEditor(
     ) -> None:
         """Replace document text using a known semantic prompt snapshot."""
 
-        self._source_commands.replace_document_text_with_prompt_state(
+        self._document_facade.replace_document_text_with_prompt_state(
             text,
             document_view=document_view,
             render_plan=render_plan,
