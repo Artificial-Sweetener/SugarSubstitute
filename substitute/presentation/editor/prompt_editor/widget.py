@@ -159,6 +159,7 @@ from .interactions.clipboard_paste_completion import (
     PromptClipboardPasteCompletionOwner,
 )
 from .interactions.cursor_adapter import PromptCursorAdapter
+from .key_router import build_prompt_editor_key_router
 from .overlays import (
     PromptAutocompletePanel,
     PromptTokenWeightControls,
@@ -601,6 +602,10 @@ class PromptEditor(
             syntax_collaborators.syntax_renderer_coordinator
         )
         self._interaction_controller = syntax_collaborators.interaction_controller
+        self._key_router = build_prompt_editor_key_router(
+            self._interaction_controller,
+            self._surface,
+        )
         self._clipboard_paste_completion.bind_interaction(self._interaction_controller)
         self._weight_interaction = syntax_collaborators.weight_interaction
         self._autocomplete_refresh_controller = (
@@ -1328,18 +1333,7 @@ class PromptEditor(
     def _handle_prompt_key_press(self, event: QKeyEvent) -> None:
         """Route one physical key press through prompt interaction ownership."""
 
-        autocomplete_consumed = self._interaction_controller.handle_key_press(event)
-        if autocomplete_consumed:
-            return
-        self._surface.keyPressEvent(event)
-        if event.isAccepted():
-            if _emphasis_shortcut_should_mute_autocomplete(event):
-                self._interaction_controller.handle_emphasis_shortcut_accepted()
-                return
-            if _accepted_key_should_skip_autocomplete_post_refresh(event):
-                self._interaction_controller.clear_autocomplete_for_non_text_key_from_keymap()
-                return
-            self._interaction_controller.handle_post_key_press(event)
+        self._key_router.handle_key_press(event)
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         """Commit segment reorder mode when Alt is released."""
@@ -1349,12 +1343,7 @@ class PromptEditor(
     def _handle_prompt_key_release(self, event: QKeyEvent) -> None:
         """Route one physical key release through prompt interaction ownership."""
 
-        if self._interaction_controller.handle_key_release(event):
-            return
-        self._surface.keyReleaseEvent(event)
-        if event.isAccepted():
-            return
-        event.ignore()
+        self._key_router.handle_key_release(event)
 
     def setFocus(  # noqa: N802
         self,
@@ -1682,28 +1671,6 @@ class PromptEditor(
 
         resize_handle = getattr(self, "_resize_handle", None)
         return resize_handle if isinstance(resize_handle, QWidget) else None
-
-
-def _emphasis_shortcut_should_mute_autocomplete(event: QKeyEvent) -> bool:
-    """Return whether one accepted key event belongs to keyboard emphasis changes."""
-
-    modifiers = event.modifiers()
-    if not bool(modifiers & Qt.KeyboardModifier.ControlModifier):
-        return False
-    disallowed_modifiers = (
-        Qt.KeyboardModifier.ShiftModifier
-        | Qt.KeyboardModifier.AltModifier
-        | Qt.KeyboardModifier.MetaModifier
-    )
-    if bool(modifiers & disallowed_modifiers):
-        return False
-    return event.key() in {Qt.Key.Key_Up, Qt.Key.Key_Down}
-
-
-def _accepted_key_should_skip_autocomplete_post_refresh(event: QKeyEvent) -> bool:
-    """Return whether an accepted non-text key must not reopen autocomplete."""
-
-    return event.key() in {Qt.Key.Key_Escape, Qt.Key.Key_Tab}
 
 
 __all__ = ["PromptEditor"]
