@@ -29,6 +29,9 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
     PromptTextMenu,
 )
+from substitute.presentation.editor.prompt_editor.host_adapter import (
+    PromptEditorHostAdapter,
+)
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetMenuItem,
     PromptSegmentPresetMenuModel,
@@ -54,12 +57,12 @@ def test_prompt_editor_segment_source_uses_custom_qfluent_menu(
 ) -> None:
     """Saved prompt segment support should route through the custom QFluent menu."""
 
-    editor = create_prompt_editor_with_segments(
+    create_prompt_editor_with_segments(
         prompt_widgets,
         _PromptSegmentPresetSource(),
     )
 
-    assert cast(Any, editor)._prompt_menu_requires_custom_actions()
+    assert PromptEditorHostAdapter.prompt_menu_requires_custom_actions()
 
 
 def test_prompt_editor_context_menu_adds_save_segment_for_selection(

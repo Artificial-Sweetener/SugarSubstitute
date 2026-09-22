@@ -203,3 +203,34 @@ def test_widget_publishes_one_staged_runtime_without_collaborator_aliases() -> N
         "self._catalog_refresh_facade =",
     ):
         assert replaced_alias not in widget_source
+
+
+def test_mounted_host_adapter_owns_shell_callbacks_and_panel_wheel_routing() -> None:
+    """Keep late-bound shell integration out of the public Qt facade."""
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    adapter_source = (PROMPT_PRESENTATION_ROOT / "host_adapter.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "host_adapter = PromptEditorHostAdapter(" in widget_source
+    assert "current = self._host.parentWidget()" in adapter_source
+    assert "handler(event)" in adapter_source
+    assert "current = self.parentWidget()" not in widget_source
+
+    for moved_callback in (
+        "content_viewport",
+        "chrome_surface",
+        "scroll_surface",
+        "update_backing_fill",
+        "handle_viewport_wheel_event",
+        "forward_wheel_event_to_editor_panel",
+        "handle_surface_text_changed",
+        "handle_surface_syntax_action",
+        "handle_surface_mouse_release",
+        "surface_content_height",
+        "surface_is_alive",
+        "resize_handle",
+    ):
+        assert f"def {moved_callback}(" in adapter_source
+        assert f"def {moved_callback}(" not in widget_source

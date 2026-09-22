@@ -24,6 +24,8 @@ from typing import Any
 
 from PySide6.QtWidgets import QWidget
 
+from ..shell.fill_plane import PromptFillPlaneHost
+
 type PromptEditorFillPlaneFactory = Callable[..., QWidget]
 """Create one shell-owned fill plane from its concrete host and surface."""
 
@@ -36,6 +38,7 @@ class PromptEditorCompositionContext:
     """Carry construction-only values supplied by the live public widget."""
 
     editor: QWidget
+    fill_plane_host: PromptFillPlaneHost
     shell_viewport: QWidget
     autocomplete_limit: int
     autocomplete_minimum_prefix_length: int

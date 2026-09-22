@@ -175,10 +175,8 @@ def test_prompt_editor_keeps_projection_surface_pinned_after_viewport_resize_eve
     projection_viewport = box.viewport()
     initial_viewport_width = projection_viewport.width()
     surface = box._runtime.projection.surface
-    shell_viewport = support.cast(
-        support.Callable[[], support.QWidget], getattr(box, "_shell_viewport")
-    )
-    shell_width = shell_viewport().width()
+    shell_viewport = box._runtime.shell.shell.shell_viewport
+    shell_width = shell_viewport.width()
 
     projection_viewport.resize(638, projection_viewport.height())
     support.process_events(app)

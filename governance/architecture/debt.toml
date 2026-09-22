@@ -627,20 +627,6 @@ responsibilities = [
 next_extraction = "Extract field sizing policy and visibility registration from row construction."
 
 [[debts]]
-id = "SS-ARCH-064"
-owner = "prompt editor shell"
-paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:7336e37cef7d1e763df34ae99c7a1761518348d1221b28e307129fdc4ca496d8"
-issue = "chore:SS-ARCH-064"
-review_by = 2026-12-15
-responsibilities = [
-  "QFluent text-edit host compatibility and Qt lifecycle overrides",
-  "public prompt-editor facade routing to the mounted owner graph",
-  "shell runtime adapter callbacks and editor-panel wheel routing",
-]
-next_extraction = "Extract shell adapter callbacks and editor-panel wheel routing into a focused host adapter, then assess whether the remaining public Qt facade and lifecycle overrides form one cohesive structural owner."
-
-[[debts]]
 id = "SS-ARCH-065"
 owner = "managed text asset modal"
 paths = ["substitute/presentation/managed_text_assets/managed_text_asset_modal.py"]

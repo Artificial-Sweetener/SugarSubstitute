@@ -248,13 +248,13 @@ class PromptEditorProjectionFactory:
             structured_text_mutations=structured_text_mutations,
         )
         shell_padding_fill_plane = context.fill_plane_factory(
-            context.editor,
+            context.fill_plane_host,
             surface,
             context.editor,
             shell_padding_only=True,
         )
         fill_plane = context.fill_plane_factory(
-            context.editor,
+            context.fill_plane_host,
             surface,
             context.shell_viewport,
             shell_padding_only=False,

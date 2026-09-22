@@ -42,7 +42,11 @@ from .menu_runtime import (
     PromptEditorMenuRuntime,
     build_prompt_editor_menu_runtime,
 )
-from .signal_bindings import PromptEditorSignalHost, bind_prompt_editor_signals
+from .signal_bindings import (
+    PromptEditorSignalCallbacks,
+    PromptEditorSignalHost,
+    bind_prompt_editor_signals,
+)
 from .wiring import (
     PromptEditorConstructionObserver,
     PromptEditorInitialLayoutHost,
@@ -56,6 +60,8 @@ class PromptEditorHostRuntimeBindings:
     """Declare public-host operations consumed during mounted integration."""
 
     signal_host: PromptEditorSignalHost
+    signal_callbacks: PromptEditorSignalCallbacks
+    shell_viewport: QWidget
     layout_host: PromptEditorInitialLayoutHost
     mount_runtime: Callable[[PromptEditorHostRuntime], None]
     queue_scene: Callable[[str], None]
@@ -185,6 +191,8 @@ def build_prompt_editor_host_runtime(
     bind_prompt_editor_signals(
         bindings.signal_host,
         collaborators,
+        callbacks=bindings.signal_callbacks,
+        shell_viewport=bindings.shell_viewport,
         shell=shell,
         lora_source_changes=features.lora_trigger_words,
     )

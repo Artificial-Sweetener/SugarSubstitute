@@ -533,17 +533,15 @@ review_by = 2026-12-15
 max_lines = 1115
 
 [[waivers]]
-id = "SS-WAIVER-R064"
-owner = "prompt editor shell"
+id = "SS-WAIVER-S157"
+owner = "prompt editor public Qt facade"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
-kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility and Qt lifecycle overrides, public prompt-editor facade routing to the mounted owner graph, and shell runtime adapter callbacks and editor-panel wheel routing. Extract shell adapter callbacks and editor-panel wheel routing into a focused host adapter, then assess whether the remaining public Qt facade and lifecycle overrides form one cohesive structural owner."
-issue = "chore:SS-ARCH-064"
+kind = "structural"
+justification = "PromptEditor owns one host-facing QObject contract: the concrete QFluent widget identity, public compatibility methods and signals, Qt virtual lifecycle, and ordered publication of the mounted runtime behind that identity. Text, cursor, undo, projection, feature, focus, drag, clipboard, and sizing entry points must remain methods or overrides on the same QObject so callers, Qt dispatch, signal connections, parentage, and object lifetime agree. Extracting the thin delegations into another collaborator would either remove them from the public widget, retain forwarding shims with duplicate API ownership, or fragment one facade into mixins with no independent state, lifecycle, or change cadence; extracting Qt overrides would still require proxy overrides and split super-call and widget-lifetime invariants. Command, reorder, emphasis, staged runtime publication, shell callbacks, panel wheel routing, feature behavior, and projection behavior remain separate focused owners; this module only mounts and exposes them through the canonical widget contract."
+issue = "chore:SS-WAIVER-S157"
 review_by = 2026-12-15
-max_lines = 938
-next_limit = 800
-debt = "SS-ARCH-064"
+max_lines = 784
 
 [[waivers]]
 id = "SS-WAIVER-R065"

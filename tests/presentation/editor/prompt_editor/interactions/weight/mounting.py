@@ -291,4 +291,4 @@ def point_outside_token(box: PromptEditor, token: PromptProjectionToken) -> QPoi
 def shell_viewport_for(box: PromptEditor) -> QWidget:
     """Return the outer prompt viewport that can receive first wheel events."""
 
-    return cast(QWidget, getattr(box, "_shell_viewport")())
+    return box._runtime.shell.shell.shell_viewport

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable
-from typing import Any, cast
+from typing import cast
 
 from PySide6.QtCore import (
     QEvent,
@@ -76,9 +76,6 @@ from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptSyntaxSpanView,
 )
-from substitute.application.prompt_editor.editing.syntax_actions import (
-    PromptSyntaxAction,
-)
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
@@ -98,7 +95,6 @@ from substitute.presentation.widgets.menu_model import MenuEntry
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
-from substitute.presentation.widgets.wheel_permission import wheel_event_is_allowed
 from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
@@ -116,13 +112,9 @@ from .composition import (
     build_prompt_editor_core_runtime,
     build_prompt_editor_feature_runtime,
     build_prompt_editor_host_runtime,
-    qt_object_is_alive,
 )
 from .features import PromptSegmentPresetSource
-from .interactions import (
-    PromptReorderOverlayPort,
-    PromptWheelScrollResult,
-)
+from .interactions import PromptReorderOverlayPort
 from .interactions.cursor_adapter import PromptCursorAdapter
 from .overlays import (
     PromptAutocompletePanel,
@@ -137,6 +129,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from .geometry.models import PromptProjectionSourceLineRect
 from .command_facade import PromptEditorCommandFacade
 from .emphasis_facade import PromptEditorEmphasisFacade
+from .host_adapter import PromptEditorHostAdapter
 from .reorder_facade import PromptEditorReorderFacade
 from .runtime_mount import PromptEditorRuntimeMount
 from .shell import (
@@ -144,8 +137,6 @@ from .shell import (
     PromptEditorShellRuntimeMount,
     PromptFillPlane,
     PromptResizeHandle,
-    PromptShellChromeSurface,
-    PromptShellScrollSurface,
     build_prompt_editor_shell_runtime,
 )
 
@@ -243,6 +234,19 @@ class PromptEditor(
         super().__init__(parent)
         self._runtime = PromptEditorRuntimeMount()
         shell_viewport = super().viewport()
+        host_adapter = PromptEditorHostAdapter(
+            host=self,
+            shell_viewport=shell_viewport,
+            host_scrollbar=cast(
+                QScrollBar,
+                QFluentTextEdit.verticalScrollBar(self),
+            ),
+            runtime=self._runtime,
+            apply_host_placeholder=(
+                lambda text: QFluentTextEdit.setPlaceholderText(self, text)
+            ),
+            publish_text_changed=self.textChanged.emit,
+        )
         shell_runtime = build_prompt_editor_shell_runtime(
             PromptEditorShellRuntimeMount(
                 widget=self,
@@ -255,46 +259,36 @@ class PromptEditor(
                 manual_scroll_height_changed=self.manualScrollHeightChanged,
             ),
             PromptEditorShellRuntimeBindings(
-                content_viewport=self._content_viewport_for_chrome,
-                apply_host_placeholder=self._apply_host_placeholder_for_chrome,
+                content_viewport=host_adapter.content_viewport,
+                apply_host_placeholder=host_adapter.apply_host_placeholder,
                 source_text=self.toPlainText,
-                chrome_surface=self._surface_for_chrome,
-                scroll_surface=self._surface_for_scroll_delegate,
-                shell_padding_fill_plane=(
-                    self._shell_padding_fill_plane_for_scroll_delegate
-                ),
-                fill_plane=self._fill_plane_for_scroll_delegate,
-                token_weight_controls=(self._token_weight_controls_for_scroll_delegate),
-                update_backing_fill=lambda rect: self._update_backing_fill_for_chrome(
-                    rect
-                ),
+                chrome_surface=host_adapter.chrome_surface,
+                scroll_surface=host_adapter.scroll_surface,
+                shell_padding_fill_plane=host_adapter.shell_padding_fill_plane,
+                fill_plane=host_adapter.fill_plane,
+                token_weight_controls=host_adapter.token_weight_controls,
+                update_backing_fill=host_adapter.update_backing_fill,
                 finish_pending_key_edit_block=(
-                    lambda reason: (
-                        self._runtime.projection.edit_execution.finish_pending_key_edit_block(
-                            reason=reason,
-                        )
-                    )
+                    host_adapter.finish_pending_key_edit_block
                 ),
                 schedule_lora_metadata_catchup=(
-                    lambda: (
-                        self._runtime.features.catalog_refresh.schedule_lora_metadata_catchup_if_needed()
-                    )
+                    host_adapter.schedule_lora_metadata_catchup
                 ),
-                handle_focus_out=self._handle_focus_out_for_chrome,
-                handle_hide=self._handle_hide_for_chrome,
-                handle_move=self._handle_move_for_chrome,
-                handle_viewport_wheel_event=(
-                    lambda event: self._handle_viewport_wheel_event(event)
+                handle_focus_out=host_adapter.handle_focus_out,
+                handle_hide=host_adapter.handle_hide,
+                handle_move=host_adapter.handle_move,
+                handle_viewport_wheel_event=host_adapter.handle_viewport_wheel_event,
+                host_scrollbar=host_adapter.host_scrollbar,
+                handle_viewport_scroll=host_adapter.handle_viewport_scroll,
+                handle_resize=host_adapter.handle_resize,
+                surface_content_height=host_adapter.surface_content_height,
+                projection_line_height=host_adapter.projection_line_height,
+                surface_is_alive=host_adapter.surface_is_alive,
+                update_fill_planes=host_adapter.update_fill_planes,
+                resize_handle=host_adapter.resize_handle,
+                ancestor_external_wheel_handler=(
+                    host_adapter.ancestor_external_wheel_handler
                 ),
-                host_scrollbar=self._host_scrollbar_for_scroll_delegate,
-                handle_viewport_scroll=self._handle_viewport_scroll_for_scroll_delegate,
-                handle_resize=self._handle_resize_for_scroll_delegate,
-                surface_content_height=self._surface_content_height_for_sizing,
-                projection_line_height=self._projection_line_height_for_sizing,
-                surface_is_alive=self._surface_is_alive_for_sizing,
-                update_fill_planes=self._update_sizing_fill_planes,
-                resize_handle=self._resize_handle_for_sizing,
-                ancestor_external_wheel_handler=self._ancestor_external_wheel_handler,
             ),
         )
         self._runtime.mount_shell(shell_runtime)
@@ -311,7 +305,8 @@ class PromptEditor(
         self.setAcceptDrops(True)
         composition_context = PromptEditorCompositionContext(
             editor=self,
-            shell_viewport=self._shell_viewport(),
+            fill_plane_host=host_adapter,
+            shell_viewport=shell_viewport,
             autocomplete_limit=self._AUTOCOMPLETE_LIMIT,
             autocomplete_minimum_prefix_length=self._AUTOCOMPLETE_MIN_PREFIX,
             fill_plane_factory=PromptFillPlane,
@@ -334,10 +329,12 @@ class PromptEditor(
                 interaction_editor=self,
                 weight_interaction_editor=self,
                 wheel_surface_scroll_allowed=(
-                    self.prompt_surface_wheel_event_is_allowed
+                    host_adapter.surface_wheel_event_is_allowed
                 ),
-                wheel_surface_scroll_handler=(self.prompt_surface_handle_wheel_scroll),
-                wheel_to_editor_panel=self.forward_wheel_event_to_editor_panel,
+                wheel_surface_scroll_handler=(host_adapter.handle_surface_wheel_scroll),
+                wheel_to_editor_panel=(
+                    host_adapter.forward_wheel_event_to_editor_panel
+                ),
                 publish_rich_rendering_changed=(
                     self.richPromptRenderingEnabledChanged.emit
                 ),
@@ -372,6 +369,8 @@ class PromptEditor(
             self._runtime.features,
             PromptEditorHostRuntimeBindings(
                 signal_host=self,
+                signal_callbacks=host_adapter,
+                shell_viewport=shell_viewport,
                 layout_host=self,
                 mount_runtime=self._runtime.mount_host,
                 queue_scene=self.sceneQueueRequested.emit,
@@ -382,7 +381,7 @@ class PromptEditor(
                 source_position_for_global_pos=self._source_position_for_global_pos,
                 current_source_position=lambda: int(self.textCursor().position()),
                 prompt_menu_requires_custom_actions=(
-                    self._prompt_menu_requires_custom_actions
+                    host_adapter.prompt_menu_requires_custom_actions
                 ),
                 show_native_context_menu=(
                     lambda event: QFluentTextEdit.contextMenuEvent(self, event)
@@ -922,80 +921,6 @@ class PromptEditor(
         super().mouseReleaseEvent(event)
         self._runtime.core.syntax.interaction_controller.handle_mouse_release()
 
-    def _handle_surface_text_changed(self) -> None:
-        """Propagate surface text changes through the public prompt-editor signal."""
-
-        self._runtime.shell.chrome.apply_placeholder_visibility()
-        self._runtime.shell.chrome.update_fill_planes()
-        self.textChanged.emit()
-
-    def _allow_surface_wheel_scroll(self, event: QWheelEvent) -> bool:
-        """Return whether the prompt surface may consume one wheel event."""
-
-        return self._runtime.core.syntax.wheel_controller.allow_surface_wheel_scroll(
-            event
-        )
-
-    def _handle_viewport_wheel_event(self, event: QWheelEvent) -> bool:
-        """Route prompt viewport wheel input through the policy-aware owner."""
-
-        return self._runtime.core.syntax.wheel_controller.handle_viewport_wheel_event(
-            event
-        )
-
-    def prompt_surface_handle_wheel_scroll(
-        self,
-        event: QWheelEvent,
-    ) -> PromptWheelScrollResult:
-        """Route a wheel event to the projection surface scroll owner."""
-
-        return self._runtime.projection.surface.handle_prompt_wheel_scroll(event)
-
-    def prompt_surface_wheel_event_is_allowed(self, event: QWheelEvent) -> bool:
-        """Return whether the surface may consume one prompt wheel event."""
-
-        return wheel_event_is_allowed(self, event)
-
-    def forward_wheel_event_to_editor_panel(self, event: QWheelEvent) -> None:
-        """Forward intentionally bubbled prompt wheel input to the editor panel."""
-
-        self._forward_wheel_event_to_editor_panel(event)
-
-    def _forward_wheel_event_to_editor_panel(self, event: QWheelEvent) -> None:
-        """Forward intentionally bubbled prompt wheel input to the editor panel."""
-
-        panel = self._ancestor_external_wheel_handler()
-        if panel is None:
-            event.ignore()
-            return
-        panel.handle_external_wheel(event)
-
-    def _ancestor_external_wheel_handler(self) -> Any | None:
-        """Return the nearest ancestor that owns editor-panel wheel scrolling."""
-
-        current = self.parentWidget()
-        while current is not None:
-            handler = getattr(current, "handle_external_wheel", None)
-            if callable(handler):
-                return current
-            current = current.parentWidget()
-        return None
-
-    def _handle_surface_syntax_action(self, action: PromptSyntaxAction) -> None:
-        """Route surface syntax actions to their dedicated weight feature owner."""
-
-        self._runtime.core.syntax.weight_interaction.apply_syntax_action(action)
-
-    def _handle_surface_mouse_release(self) -> None:
-        """Refresh autocomplete after surface-owned mouse interactions finish."""
-
-        self._runtime.core.syntax.interaction_controller.handle_mouse_release()
-
-    def _prompt_menu_requires_custom_actions(self) -> bool:
-        """Return whether prompt-specific menu rows require the custom menu."""
-
-        return True
-
     def _source_position_for_global_pos(self, global_pos: QPoint) -> int:
         """Return the prompt source position under one global menu point."""
 
@@ -1055,149 +980,6 @@ class PromptEditor(
             had_selection=had_selection,
             selection_snapshot=selection_snapshot,
         )
-
-    def _ancestor_editor_panel(self) -> QWidget | None:
-        """Return the owning editor panel widget when this editor is panel-hosted."""
-
-        parent = cast(QWidget | None, self.parentWidget())
-        while parent is not None:
-            if parent.__class__.__name__ == "EditorPanel":
-                return parent
-            parent = parent.parentWidget()
-        return None
-
-    def _shell_viewport(self) -> QWidget:
-        """Return the real QFluent host viewport beneath the projection surface."""
-
-        return cast(QWidget, super().viewport())
-
-    def _content_viewport_for_chrome(self) -> QWidget | None:
-        """Return the projection viewport after construction has created it."""
-
-        if self._mounted_projection_or_none() is None:
-            return None
-        return self.viewport()
-
-    def _apply_host_placeholder_for_chrome(self, text: str) -> None:
-        """Apply visible placeholder text to QFluent without recursive dispatch."""
-
-        QFluentTextEdit.setPlaceholderText(self, text)
-
-    def _surface_for_chrome(self) -> PromptShellChromeSurface | None:
-        """Return the projection surface for QFluent chrome synchronization."""
-
-        projection = self._mounted_projection_or_none()
-        surface = projection.surface if projection is not None else None
-        return cast(PromptShellChromeSurface | None, surface)
-
-    def _update_backing_fill_for_chrome(self, rect: QRect) -> None:
-        """Repaint shell-owned fill layers for a dirty projection viewport rect."""
-
-        projection = self._mounted_projection_or_none()
-        if projection is None:
-            return
-        self._runtime.shell.shell.update_backing_fill(
-            rect=rect,
-            surface=projection.surface,
-            fill_plane=projection.fill_plane,
-            shell_padding_fill_plane=projection.shell_padding_fill_plane,
-        )
-
-    def _handle_focus_out_for_chrome(self) -> None:
-        """Forward deferred focus-out cleanup to the interaction owner."""
-
-        self._runtime.core.syntax.interaction_controller.handle_focus_out()
-
-    def _handle_hide_for_chrome(self) -> None:
-        """Forward editor-hide cleanup to the interaction owner."""
-
-        self._runtime.core.syntax.interaction_controller.handle_hide()
-
-    def _handle_move_for_chrome(self) -> None:
-        """Forward editor-move handling to the interaction owner."""
-
-        self._runtime.core.syntax.interaction_controller.handle_move()
-
-    def _host_scrollbar_for_scroll_delegate(self) -> QScrollBar:
-        """Return QFluent's native host scrollbar for shell metric mirroring."""
-
-        return cast(QScrollBar, QFluentTextEdit.verticalScrollBar(self))
-
-    def _surface_for_scroll_delegate(self) -> PromptShellScrollSurface | None:
-        """Return the projection surface once construction has created it."""
-
-        projection = self._mounted_projection_or_none()
-        surface = projection.surface if projection is not None else None
-        return cast(PromptShellScrollSurface | None, surface)
-
-    def _shell_padding_fill_plane_for_scroll_delegate(self) -> QWidget | None:
-        """Return the shell padding fill plane once construction has created it."""
-
-        projection = self._mounted_projection_or_none()
-        fill_plane = (
-            projection.shell_padding_fill_plane if projection is not None else None
-        )
-        return fill_plane if isinstance(fill_plane, QWidget) else None
-
-    def _fill_plane_for_scroll_delegate(self) -> QWidget | None:
-        """Return the viewport fill plane once construction has created it."""
-
-        projection = self._mounted_projection_or_none()
-        fill_plane = projection.fill_plane if projection is not None else None
-        return fill_plane if isinstance(fill_plane, QWidget) else None
-
-    def _token_weight_controls_for_scroll_delegate(self) -> QWidget | None:
-        """Return overlay token controls once construction has created them."""
-
-        core = self._runtime.core_or_none
-        controls = core.syntax.token_weight_controls if core is not None else None
-        return controls if isinstance(controls, QWidget) else None
-
-    def _handle_viewport_scroll_for_scroll_delegate(self) -> None:
-        """Forward viewport scroll work to the interaction owner."""
-
-        self._runtime.core.syntax.interaction_controller.handle_viewport_scroll()
-
-    def _handle_resize_for_scroll_delegate(self) -> None:
-        """Forward resize work to the interaction owner."""
-
-        self._runtime.core.syntax.interaction_controller.handle_resize()
-
-    def _surface_content_height_for_sizing(self) -> float:
-        """Return the live projection content height for shell sizing."""
-
-        projection = self._mounted_projection_or_none()
-        return float(projection.surface.content_height()) if projection else 0.0
-
-    def _projection_line_height_for_sizing(self) -> float:
-        """Return projection-owned text row height for shell sizing."""
-
-        projection = self._mounted_projection_or_none()
-        if projection is None:
-            return 1.0
-        return float(projection.surface.text_line_height())
-
-    def _surface_is_alive_for_sizing(self) -> bool:
-        """Return whether the projection surface can still serve sizing data."""
-
-        projection = self._mounted_projection_or_none()
-        return projection is not None and qt_object_is_alive(projection.surface)
-
-    def _update_sizing_fill_planes(self) -> None:
-        """Repaint shell fill planes after sizing changes."""
-
-        projection = self._mounted_projection_or_none()
-        if projection is None:
-            return
-        projection.shell_padding_fill_plane.update()
-        projection.fill_plane.update()
-
-    def _resize_handle_for_sizing(self) -> QWidget | None:
-        """Return the shell resize handle after construction has created it."""
-
-        host = self._runtime.host_or_none
-        resize_handle = host.resize_handle if host is not None else None
-        return resize_handle if isinstance(resize_handle, QWidget) else None
 
 
 __all__ = ["PromptEditor"]

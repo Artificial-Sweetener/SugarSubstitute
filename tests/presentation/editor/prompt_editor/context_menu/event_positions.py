@@ -54,7 +54,7 @@ def send_context_menu_event(target: QWidget) -> QPoint:
 def shell_viewport(editor: PromptEditor) -> QWidget:
     """Return the host QFluent viewport watched by the prompt-editor filter."""
 
-    return cast(QWidget, getattr(editor, "_shell_viewport")())
+    return editor._runtime.shell.shell.shell_viewport
 
 
 def context_event_for_source_text(
