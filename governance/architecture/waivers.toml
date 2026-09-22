@@ -522,17 +522,15 @@ next_limit = 435
 debt = "SS-ARCH-053"
 
 [[waivers]]
-id = "SS-WAIVER-R061"
-owner = "prompt projection surface"
+id = "SS-WAIVER-S156"
+owner = "mounted prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
-kind = "remediation"
-justification = "The complete projection collaborator graph belongs to surface_composition_runtime, and Qt-compatible cursor behavior belongs to surface_cursor_facade. The assessed file still mixes typed host-port binding and collaborator adapter publication, source, projection-query, and external editor facade behavior, and Qt input, focus, viewport, and paint lifecycle routing. Extract source and projection-query facade behavior from collaborator publication and Qt event routing, updating internal consumers to depend on the focused facade owner."
-issue = "chore:SS-ARCH-061"
+kind = "structural"
+justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
+issue = "chore:SS-WAIVER-S156"
 review_by = 2026-12-15
-max_lines = 1127
-next_limit = 950
-debt = "SS-ARCH-061"
+max_lines = 1115
 
 [[waivers]]
 id = "SS-WAIVER-R064"
