@@ -45,14 +45,18 @@ from substitute.application.recipes.model_resolution_index import (
 from substitute.domain.model_metadata import (
     BackendHashLookupMatch,
     BackendHashLookupStatus,
-    CivitaiFile,
     CivitaiLookupStatus,
-    CivitaiModelVersion,
     CivitaiThumbnailPolicy,
     JobStatus,
 )
 from substitute.domain.recipes import ParsedSugarScript, SugarBufferMap
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
+
+from .model_download_candidate import (
+    RecipeModelDownloadCandidate,
+    candidate_from_civitai_version,
+    civitai_download_access,
+)
 
 
 class RecipeModelCivitaiState(str, Enum):
@@ -63,30 +67,6 @@ class RecipeModelCivitaiState(str, Enum):
     NOT_FOUND = "not-found"
     FOUND = "found"
     NO_SAFE_FILE = "no-safe-file"
-
-
-@dataclass(frozen=True, slots=True)
-class RecipeModelDownloadCandidate:
-    """Represent one exact-hash CivitAI model file safe enough to offer."""
-
-    kind: str
-    sha256: str
-    name: str
-    download_url: str
-    size_kb: float | None
-    model_id: int
-    model_version_id: int
-    model_name: str
-    version_name: str
-    base_model: str | None
-    creator: str | None
-    file_id: int | None
-    file_type: str | None
-    metadata_format: str | None
-    pickle_scan_result: str | None
-    virus_scan_result: str | None
-    model_page_url: str
-    thumbnail_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,17 +185,16 @@ class RecipeModelLoadResolver:
         unresolved: list[RecipeModelUnresolvedReference] = []
         for alias, node_name, input_key, kind, value in _model_fields(buffers):
             literal_model = self._index.find_literal(kind=kind, value=value)
-            if literal_model is not None:
-                literal_matches += 1
-                continue
             sha256 = parsed_script.model_hashes_by_field.get(
                 (alias, node_name, input_key)
             )
+            if sha256 is None or self._backend is None:
+                if literal_model is not None:
+                    literal_matches += 1
+                    continue
             if sha256 is None:
                 continue
-            hash_model = self._index.find_hash(kind=kind, sha256=sha256)
-            if hash_model is None:
-                hash_model = self._resolve_hash_from_backend(kind=kind, sha256=sha256)
+            hash_model = self._authoritative_hash_model(kind=kind, sha256=sha256)
             if hash_model is None:
                 unresolved.append(
                     self._unresolved_reference(
@@ -325,11 +304,15 @@ class RecipeModelLoadResolver:
                 civitai_status=result.status,
                 civitai_error=result.error,
             )
-        candidate = _download_candidate_from_version(
+        candidate = candidate_from_civitai_version(
             kind=kind,
             sha256=normalized_sha256,
             version=result.version,
             thumbnail_policy=self._thumbnail_policy(),
+            download_access=civitai_download_access(
+                civitai,
+                result.version.model_version_id,
+            ),
         )
         return RecipeModelUnresolvedReference(
             alias=alias,
@@ -429,21 +412,20 @@ class RecipeModelLoadResolver:
                     self._index,
                     lora_span.prompt_name,
                 )
-                if literal_model is not None:
-                    literal_matches += 1
-                    continue
                 hash_entry = hashes_by_name.get(
                     normalized_prompt_lora_name(lora_span.prompt_name)
                 )
+                if hash_entry is None or self._backend is None:
+                    if literal_model is not None:
+                        literal_matches += 1
+                        continue
                 if hash_entry is None:
                     continue
                 _, sha256 = hash_entry
-                hash_model = self._index.find_hash(kind="loras", sha256=sha256)
-                if hash_model is None:
-                    hash_model = self._resolve_hash_from_backend(
-                        kind="loras",
-                        sha256=sha256,
-                    )
+                hash_model = self._authoritative_hash_model(
+                    kind="loras",
+                    sha256=sha256,
+                )
                 if hash_model is None:
                     unresolved_key = (alias, node_name, input_key, sha256)
                     if unresolved_key not in unresolved_keys:
@@ -482,6 +464,18 @@ class RecipeModelLoadResolver:
             hash_matches=hash_matches,
             unresolved=tuple(unresolved),
         )
+
+    def _authoritative_hash_model(
+        self,
+        *,
+        kind: str,
+        sha256: str,
+    ) -> LocalRecipeModel | None:
+        """Use BackEnd hash evidence when available, otherwise use cached evidence."""
+
+        if self._backend is not None:
+            return self._resolve_hash_from_backend(kind=kind, sha256=sha256)
+        return self._index.find_hash(kind=kind, sha256=sha256)
 
 
 def _model_fields(
@@ -630,91 +624,6 @@ def _model_from_backend_match(
         relative_path=match.source.relative_path,
         sha256=sha256.upper(),
     )
-
-
-def _download_candidate_from_version(
-    *,
-    kind: str,
-    sha256: str,
-    version: CivitaiModelVersion,
-    thumbnail_policy: CivitaiThumbnailPolicy,
-) -> RecipeModelDownloadCandidate | None:
-    """Return the first safe exact-hash CivitAI file candidate."""
-
-    matching_files = [
-        file
-        for file in version.files
-        if _file_sha256(file) == sha256 and _is_safe_download_file(file)
-    ]
-    if not matching_files:
-        return None
-    file = sorted(matching_files, key=lambda item: (not item.primary, item.name))[0]
-    assert file.download_url is not None
-    return RecipeModelDownloadCandidate(
-        kind=kind,
-        sha256=sha256,
-        name=file.name,
-        download_url=file.download_url,
-        size_kb=file.size_kb,
-        model_id=version.model_id,
-        model_version_id=version.model_version_id,
-        model_name=version.model_name,
-        version_name=version.version_name,
-        base_model=version.base_model,
-        creator=version.creator_username,
-        file_id=file.file_id,
-        file_type=file.file_type,
-        metadata_format=_string_metadata(file, "format"),
-        pickle_scan_result=file.pickle_scan_result,
-        virus_scan_result=file.virus_scan_result,
-        model_page_url=version.model_page_url,
-        thumbnail_url=_thumbnail_url(version, thumbnail_policy=thumbnail_policy),
-    )
-
-
-def _file_sha256(file: CivitaiFile) -> str | None:
-    """Return one CivitAI file SHA256 normalized to uppercase."""
-
-    value = file.hashes.get("SHA256")
-    return value.upper() if isinstance(value, str) else None
-
-
-def _thumbnail_url(
-    version: CivitaiModelVersion,
-    *,
-    thumbnail_policy: CivitaiThumbnailPolicy,
-) -> str | None:
-    """Return an allowed thumbnail URL from already-fetched version metadata."""
-
-    selection = thumbnail_policy.select(version)
-    if selection.image is None:
-        return None
-    return selection.image.url
-
-
-def _is_safe_download_file(file: CivitaiFile) -> bool:
-    """Return whether a CivitAI file is safe enough to offer by default."""
-
-    if not file.download_url:
-        return False
-    if file.file_type is None or file.file_type.casefold() != "model":
-        return False
-    if not file.name.casefold().endswith(".safetensors"):
-        return False
-    format_value = file.metadata.get("format")
-    if not isinstance(format_value, str) or format_value.casefold() != "safetensor":
-        return False
-    for scan_result in (file.pickle_scan_result, file.virus_scan_result):
-        if scan_result is None or scan_result.casefold() != "success":
-            return False
-    return True
-
-
-def _string_metadata(file: CivitaiFile, key: str) -> str | None:
-    """Read one string metadata value from a CivitAI file."""
-
-    value = file.metadata.get(key)
-    return value if isinstance(value, str) else None
 
 
 __all__ = [

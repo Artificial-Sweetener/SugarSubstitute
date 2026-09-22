@@ -40,7 +40,6 @@ from substitute.application.execution import (
     TaskOutcome,
     TaskRequest,
     TaskScope,
-    TaskSubmitter,
 )
 from sugarsubstitute_shared.presentation.localization import (
     render_application_text,
@@ -75,6 +74,17 @@ from substitute.application.model_metadata import (
 from substitute.domain.comfy_workflow import CanonicalCubeGraphAnalysis
 from substitute.presentation.shell.recipe_model_resolution_flow import (
     DeferredRecipeModelDownload,
+)
+from substitute.presentation.shell.model_resolution_execution import (
+    ModelDownloadRoute,
+    ModelDownloadRouteFactory,
+    ModelResolutionRouteFactory,
+)
+from substitute.presentation.shell.model_download_progress import (
+    model_download_detail,
+    model_download_label,
+    model_download_message,
+    model_download_progress,
 )
 from substitute.presentation.errors import ErrorPresenter, ErrorReportPresenterProtocol
 from substitute.presentation.shell.cube_loader import (
@@ -472,13 +482,6 @@ class _RecipeModelResolutionCancelled(RuntimeError):
     """Raised when the user cancels missing recipe model resolution."""
 
 
-class _ExecutionCallbackDispatcher(Protocol):
-    """Describe completion/progress dispatchers used by execution routes."""
-
-    def publish(self, callback: Callable[[], None], *, reason: str) -> None:
-        """Publish one callback through the route's owner boundary."""
-
-
 @dataclass
 class _ActiveRecipeModelDownload:
     """Keep one async recipe model download alive until completion."""
@@ -486,47 +489,6 @@ class _ActiveRecipeModelDownload:
     cancellation: CancellationSource
     busy_token: object
     close_route: Callable[[], None]
-
-
-@dataclass(frozen=True)
-class RecipeModelResolutionRoute:
-    """Carry the execution route for pre-materialization recipe model resolution."""
-
-    submitter: TaskSubmitter
-    close: Callable[[], None]
-
-
-class RecipeModelResolutionRouteFactory(Protocol):
-    """Create a recipe model resolution route for one workflow request."""
-
-    def __call__(
-        self,
-        *,
-        request_id: int,
-        target_workflow_id: str,
-    ) -> RecipeModelResolutionRoute:
-        """Return the route used to resolve recipe model references."""
-
-
-@dataclass(frozen=True)
-class RecipeModelDownloadRoute:
-    """Carry the execution collaborators for one deferred model download."""
-
-    submitter: TaskSubmitter
-    progress_dispatcher: _ExecutionCallbackDispatcher
-    close: Callable[[], None]
-
-
-class RecipeModelDownloadRouteFactory(Protocol):
-    """Create a deferred recipe model download route for one workflow request."""
-
-    def __call__(
-        self,
-        *,
-        request_id: int,
-        target_workflow_id: str,
-    ) -> RecipeModelDownloadRoute:
-        """Return the route used to download and resolve missing recipe models."""
 
 
 @dataclass(frozen=True)
@@ -581,11 +543,9 @@ class WorkspaceFileActions:
             Callable[[RecipeModelResolutionRequired], object | None] | None
         ) = None,
         recipe_model_resolution_route_factory: (
-            RecipeModelResolutionRouteFactory | None
+            ModelResolutionRouteFactory | None
         ) = None,
-        recipe_model_download_route_factory: (
-            RecipeModelDownloadRouteFactory | None
-        ) = None,
+        recipe_model_download_route_factory: (ModelDownloadRouteFactory | None) = None,
     ) -> None:
         """Store shell view and collaborator callbacks."""
 
@@ -1425,7 +1385,7 @@ class WorkspaceFileActions:
         """Download missing recipe models while the materialized workflow is visible."""
 
         view = self._view
-        model_label = _deferred_recipe_model_download_label(request)
+        model_label = model_download_label(request.required)
         busy_token = view.editor_busy.begin(
             target_workflow_id,
             message=app_text("Downloading %1", model_label),
@@ -1552,7 +1512,7 @@ class WorkspaceFileActions:
         *,
         request_id: int,
         target_workflow_id: str,
-    ) -> RecipeModelDownloadRoute:
+    ) -> ModelDownloadRoute:
         """Build the execution route for one deferred recipe model download."""
 
         if self._recipe_model_download_route_factory is None:
@@ -1573,14 +1533,14 @@ class WorkspaceFileActions:
     ) -> None:
         """Update the workflow-scoped busy overlay with model-download progress."""
 
-        detail = _recipe_model_download_detail(job)
+        detail = model_download_detail(job)
         self._view.editor_busy.update_download(
             busy_token,
             EditorBusyDownloadState(
                 title=app_text("Downloading %1", model_label),
-                message=_recipe_model_download_message(job, model_label=model_label),
+                message=model_download_message(job),
                 detail=detail,
-                progress_per_mille=_recipe_model_download_progress(job),
+                progress_per_mille=model_download_progress(job),
                 cancel_enabled=job.status
                 not in {ModelDownloadStatus.COMPLETE, ModelDownloadStatus.FAILED},
             ),
@@ -2088,100 +2048,7 @@ def _ensure_mutable_node_inputs(
     return created_inputs
 
 
-def _recipe_model_download_message(
-    job: BackendModelDownloadJob,
-    *,
-    model_label: str,
-) -> ApplicationText:
-    """Return user-facing workflow overlay copy for one download job."""
-
-    if job.status is ModelDownloadStatus.QUEUED:
-        return app_text("Preparing the download.")
-    if job.status is ModelDownloadStatus.RUNNING:
-        return job.detail or app_text("Starting the model download.")
-    if job.status is ModelDownloadStatus.COMPLETE:
-        return app_text("The model has finished downloading.")
-    if job.status is ModelDownloadStatus.CANCELLED:
-        return app_text("Cancelling the model download.")
-    if job.status is ModelDownloadStatus.FAILED:
-        return app_text("The model download failed.")
-    return app_text("Downloading the model this recipe needs.")
-
-
-def _deferred_recipe_model_download_label(
-    request: DeferredRecipeModelDownload,
-) -> ApplicationText:
-    """Return the best CivitAI model label for a deferred recipe download."""
-
-    for reference in request.required.references:
-        candidate = reference.candidate
-        if candidate is None:
-            continue
-        model_name = candidate.model_name.strip()
-        version_name = candidate.version_name.strip()
-        if (
-            model_name
-            and version_name
-            and version_name.casefold()
-            not in {
-                model_name.casefold(),
-                "base",
-            }
-        ):
-            return f"{model_name} - {version_name}"
-        if model_name:
-            return model_name
-        if candidate.name.strip():
-            return candidate.name.strip()
-    return app_text("model")
-
-
-def _recipe_model_download_detail(job: BackendModelDownloadJob) -> ApplicationText:
-    """Return concise download byte progress text."""
-
-    if job.status is ModelDownloadStatus.QUEUED:
-        return app_text("Waiting for the download to start...")
-    if job.status is ModelDownloadStatus.COMPLETE:
-        return app_text("Updating the recipe...")
-    if job.status is ModelDownloadStatus.CANCELLED:
-        return app_text("Cancelling download...")
-    if job.status is ModelDownloadStatus.FAILED:
-        return job.error or app_text("Download failed.")
-    if job.bytes_downloaded is None or not job.bytes_total:
-        return job.detail or app_text("Downloading...")
-    return app_text(
-        "%1 of %2",
-        _format_download_bytes(job.bytes_downloaded),
-        _format_download_bytes(job.bytes_total),
-    )
-
-
-def _recipe_model_download_progress(job: BackendModelDownloadJob) -> int | None:
-    """Return determinate progress in per-mille units when available."""
-
-    if job.status is ModelDownloadStatus.COMPLETE:
-        return 1000
-    if job.bytes_downloaded is None or not job.bytes_total:
-        return None
-    return int(1000 * job.bytes_downloaded / max(1, job.bytes_total))
-
-
-def _format_download_bytes(value: int) -> str:
-    """Return a compact byte count for model download progress."""
-
-    amount = float(value)
-    for unit in ("B", "KB", "MB", "GB"):
-        if amount < 1024.0 or unit == "GB":
-            return f"{amount:.1f} {unit}" if unit != "B" else f"{int(amount)} B"
-        amount /= 1024.0
-    return f"{amount:.1f} GB"
-
-
 __all__ = [
-    "RecipeModelDownloadRoute",
-    "RecipeModelDownloadRouteFactory",
-    "RecipeModelResolutionRoute",
-    "RecipeModelResolutionRouteFactory",
     "WorkspaceFileActions",
     "WorkspaceFileActionView",
 ]

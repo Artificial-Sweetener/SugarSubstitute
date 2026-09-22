@@ -45,9 +45,11 @@ from substitute.application.recipes.model_download_resolution import (
     RecipeModelDownloadResolutionError,
     RecipeModelDownloadResolutionService,
 )
+from substitute.application.recipes.model_download_candidate import (
+    RecipeModelDownloadCandidate,
+)
 from substitute.application.recipes.model_load_resolution import (
     RecipeModelCivitaiState,
-    RecipeModelDownloadCandidate,
     RecipeModelLoadResolver,
     RecipeModelResolutionRequired,
     RecipeModelResolutionSummary,

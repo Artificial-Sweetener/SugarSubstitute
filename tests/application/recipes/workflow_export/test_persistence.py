@@ -25,6 +25,22 @@ from substitute.domain.workflow import WorkflowState
 from tests.application.recipes.workflow_export.support import build_service
 
 
+class _ManifestAnnotator:
+    """Mark detached graphs observed by the export path."""
+
+    def __init__(self) -> None:
+        self.graphs: list[dict[str, object]] = []
+
+    def annotate(self, graph: dict[str, object]) -> object:
+        """Add optional metadata without touching executable nodes."""
+
+        self.graphs.append(graph)
+        extra = graph.setdefault("extra", {})
+        assert isinstance(extra, dict)
+        extra["sugarsubstitute_model_manifest"] = {"schema_version": 1}
+        return ()
+
+
 def test_workflow_export_service_compiles_and_persists_json() -> None:
     """Compile a workflow payload before persisting it through the repository."""
     expected_payload: dict[str, object] = {
@@ -74,3 +90,31 @@ def test_graph_backed_export_persists_canonical_graph_without_sugarscript() -> N
     assert payload is not graph
     assert compiler.calls == []
     assert repository.saved == [(destination, payload)]
+
+
+def test_graph_backed_export_refreshes_portable_model_metadata() -> None:
+    """Canonical JSON export must invoke the shared manifest owner on its copy."""
+
+    annotator = _ManifestAnnotator()
+    service, _repository, _compiler = build_service(
+        {"legacy": {}},
+        model_manifest_annotator=annotator,
+    )
+    graph: dict[str, object] = {"version": 0.4, "nodes": [], "links": []}
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("native.json"),
+            source_workflow=graph,
+            buffer={"nodes": {}},
+        )
+    )
+
+    payload = service.compile_workflow_payload(
+        sugar_script_text=None,
+        output_dir=Path("projects"),
+        workflow=workflow,
+    )
+
+    assert annotator.graphs == [payload]
+    assert "extra" not in graph
+    assert payload["extra"] == {"sugarsubstitute_model_manifest": {"schema_version": 1}}

@@ -33,11 +33,13 @@ from substitute.application.recipes.lora_prompt_names import (
     prompt_lora_name_for_backend_value,
 )
 from substitute.application.recipes.model_load_resolution import (
-    RecipeModelDownloadCandidate,
     RecipeModelResolutionRequired,
     RecipeModelResolutionSummary,
     RecipeModelUnresolvedReference,
     ResolvedRecipeModelScript,
+)
+from substitute.application.recipes.model_download_candidate import (
+    RecipeModelDownloadCandidate,
 )
 from substitute.domain.model_metadata import (
     BackendModelDownloadJob,
@@ -179,6 +181,14 @@ class RecipeModelDownloadResolutionService:
                 if current.result is None:
                     raise RecipeModelDownloadResolutionError(
                         "Backend download completed without a model result."
+                    )
+                expected_sha256 = candidate.sha256.upper()
+                if (
+                    current.sha256.upper() != expected_sha256
+                    or current.result.sha256.upper() != expected_sha256
+                ):
+                    raise RecipeModelDownloadResolutionError(
+                        "Backend download completed with an unexpected model hash."
                     )
                 if self.model_downloaded is not None:
                     self.model_downloaded(current.result, candidate)

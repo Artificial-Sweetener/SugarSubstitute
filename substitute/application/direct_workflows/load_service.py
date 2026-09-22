@@ -72,11 +72,28 @@ class DirectWorkflowLoadService:
         """Load, validate, normalize, and detach one Comfy workflow document."""
 
         source_path = path.resolve()
+        loaded_workflow = self.read(source_path)
+        return self.materialize(source_path, loaded_workflow)
+
+    def read(self, path: Path) -> JsonObject:
+        """Decode and validate one canonical Comfy workflow without materializing it."""
+
+        source_path = path.resolve()
         loaded_workflow = self._repository.load(source_path)
         if not _looks_like_ui_workflow(loaded_workflow):
             raise ValueError(
                 "JSON is not a Comfy UI workflow: expected top-level nodes and links."
             )
+        return loaded_workflow
+
+    def materialize(
+        self,
+        source_path: Path,
+        loaded_workflow: JsonObject,
+    ) -> DirectWorkflowState:
+        """Normalize and convert one already-decoded canonical workflow."""
+
+        resolved_source_path = source_path.resolve()
         analysis = self._cube_workflow_analyzer.analyze(loaded_workflow)
         workflow = analysis.workflow
         buffer = self._converter.convert(
@@ -89,11 +106,11 @@ class DirectWorkflowLoadService:
         log_info(
             _LOGGER,
             "Loaded direct Comfy workflow document",
-            source_path=source_path,
+            source_path=resolved_source_path,
             node_count=node_count,
         )
         return DirectWorkflowState(
-            source_path=source_path,
+            source_path=resolved_source_path,
             source_workflow=workflow,
             buffer=buffer,
             cube_analysis=analysis,
