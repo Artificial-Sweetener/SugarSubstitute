@@ -43,6 +43,7 @@ from ..interactions.deletion_controller import (
     PromptDeletionProjectionEffects,
 )
 from ..interactions.external_text_input import PromptExternalTextInsertion
+from ..interactions.cursor_adapter import PromptCursorAdapterHost
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from .deferred_feedback_strategy import PromptDeferredFeedbackContext
 from .caret_movement_controller import PromptProjectionCaretMovementHost
@@ -98,6 +99,10 @@ from .surface_lifecycle_runtime import (
     PromptProjectionSurfaceLifecycleRuntime,
     build_prompt_projection_surface_lifecycle_runtime,
 )
+from .surface_cursor_facade import (
+    PromptProjectionSurfaceCursorBindings,
+    PromptProjectionSurfaceCursorFacade,
+)
 from .surface_presentation_runtime import (
     PromptProjectionSurfacePresentationBindings,
     PromptProjectionSurfacePresentationRuntime,
@@ -130,6 +135,7 @@ class PromptProjectionSurfaceCompositionBindings(Generic[THost]):
     deletion_projection_effects: PromptDeletionProjectionEffects
     key_host: PromptSurfaceKeyHost
     wheel_host: PromptSurfaceWheelHost
+    cursor_adapter_host: PromptCursorAdapterHost
     publication_sink: PromptEditPublicationSink
     build_context: PromptProjectionBuildContext
     deferred_feedback_context: PromptDeferredFeedbackContext
@@ -169,6 +175,7 @@ class PromptProjectionSurfaceCompositionBindings(Generic[THost]):
     request_update: Callable[[], None]
     input_method_hints: Callable[[], Qt.InputMethodHint]
     surface_state: Callable[[], dict[str, object]]
+    editing_enabled: Callable[[], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +190,7 @@ class PromptProjectionSurfaceCompositionRuntime:
     source: PromptProjectionSourceStateOwners
     lifecycle: PromptProjectionSurfaceLifecycleRuntime
     presentation: PromptProjectionSurfacePresentationRuntime
+    cursor: PromptProjectionSurfaceCursorFacade
 
 
 def build_prompt_projection_surface_composition_runtime(
@@ -426,6 +434,26 @@ def build_prompt_projection_surface_composition_runtime(
         lifecycle=lifecycle,
         presentation=presentation,
     )
+    cursor = PromptProjectionSurfaceCursorFacade(
+        PromptProjectionSurfaceCursorBindings(
+            host=bindings.cursor_adapter_host,
+            editing_session=bindings.editing_session,
+            input_runtime=input_runtime,
+            editor_state=foundation.editor_state,
+            layout=foundation.layout,
+            caret_geometry=interaction.caret_geometry,
+            caret_publication=interaction.caret_publication,
+            caret_state=foundation.caret_state,
+            caret_movement=lifecycle.caret_movement,
+            freshness=source.freshness_controller,
+            presentation=presentation,
+            flush_pending_projection=bindings.flush_pending_projection,
+            editing_enabled=bindings.editing_enabled,
+            visible_scroll_bar=bindings.visible_scroll_bar,
+            has_pending_projection_update=source.freshness_controller.has_pending_update,
+            scroll_offset=bindings.scroll_offset,
+        )
+    )
     return PromptProjectionSurfaceCompositionRuntime(
         foundation=foundation,
         interaction=interaction,
@@ -435,6 +463,7 @@ def build_prompt_projection_surface_composition_runtime(
         source=source,
         lifecycle=lifecycle,
         presentation=presentation,
+        cursor=cursor,
     )
 
 

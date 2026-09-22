@@ -630,15 +630,15 @@ next_extraction = "Extract field sizing policy and visibility registration from 
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:9c0a75390435da9f5db6e8801ec4f63fe84ef0f26cd99defea9e4d2093978195"
+fingerprint = "sha256:6ab063c04db6327094dbf01ea64c423895d34143c72944cba0cea5d82bfcf081"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
   "typed host-port binding and collaborator adapter publication",
-  "Qt-compatible source, cursor, projection-query, and external editor facade",
+  "source, projection-query, and external editor facade",
   "Qt input, focus, viewport, and paint lifecycle routing",
 ]
-next_extraction = "Extract the source, cursor, and projection-query facade from collaborator publication and Qt event routing, updating internal consumers to depend on the focused facade owner."
+next_extraction = "Extract source and projection-query facade behavior from collaborator publication and Qt event routing, updating internal consumers to depend on the focused facade owner."
 
 [[debts]]
 id = "SS-ARCH-064"

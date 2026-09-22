@@ -527,11 +527,11 @@ owner = "prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "remediation"
-justification = "The complete projection collaborator graph now belongs to surface_composition_runtime. The assessed file still mixes typed host-port binding and collaborator adapter publication, a Qt-compatible source, cursor, projection-query, and external editor facade, and Qt input, focus, viewport, and paint lifecycle routing. Extract the source, cursor, and projection-query facade from collaborator publication and Qt event routing, updating internal consumers to depend on the focused facade owner."
+justification = "The complete projection collaborator graph belongs to surface_composition_runtime, and Qt-compatible cursor behavior belongs to surface_cursor_facade. The assessed file still mixes typed host-port binding and collaborator adapter publication, source, projection-query, and external editor facade behavior, and Qt input, focus, viewport, and paint lifecycle routing. Extract source and projection-query facade behavior from collaborator publication and Qt event routing, updating internal consumers to depend on the focused facade owner."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 1259
-next_limit = 1100
+max_lines = 1127
+next_limit = 950
 debt = "SS-ARCH-061"
 
 [[waivers]]

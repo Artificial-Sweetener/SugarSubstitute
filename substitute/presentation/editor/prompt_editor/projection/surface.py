@@ -46,7 +46,6 @@ from PySide6.QtGui import (
     QPaintEvent,
     QResizeEvent,
     QShowEvent,
-    QTextCursor,
     QTextDocument,
     QWheelEvent,
 )
@@ -92,6 +91,7 @@ from ..core.editing.session import PromptEditingSession
 from ..core.editing.source_commands import PromptSourceEditOrigin
 from ..interactions.cursor_adapter import (
     PromptCursorAdapter,
+    PromptCursorAdapterHost,
 )
 from ..interactions.pointer_ports import PromptSurfacePointerInteractions
 from ..interactions.text_mutation_controller import (
@@ -102,7 +102,6 @@ from ..interactions import (
     PromptSurfaceMouseHost,
     PromptSurfaceWheelHost,
     PromptWheelScrollResult,
-    prompt_word_bounds,
 )
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..qt_lifecycle import qt_object_is_alive
@@ -228,6 +227,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 deletion_projection_effects=cast(PromptDeletionProjectionEffects, self),
                 key_host=cast(PromptSurfaceKeyHost, self),
                 wheel_host=cast(PromptSurfaceWheelHost, self),
+                cursor_adapter_host=cast(PromptCursorAdapterHost, self),
                 publication_sink=self,
                 build_context=self,
                 deferred_feedback_context=self,
@@ -281,6 +281,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 request_update=self.viewport().update,
                 input_method_hints=self.inputMethodHints,
                 surface_state=lambda: surface_probe_state(self),
+                editing_enabled=self.editing_enabled,
             )
         )
         foundation = composition_runtime.foundation
@@ -307,6 +308,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._diagnostic_layer_owner = composition_runtime.diagnostics
         self._input_runtime = composition_runtime.input_runtime
         self._history = self._input_runtime.history
+        self._cursor_facade = composition_runtime.cursor
         self._geometry_reuse_warmer = composition_runtime.geometry_reuse_warmer
         source_state_owners = composition_runtime.source
         self._source_document_adapter = source_state_owners.source_document
@@ -351,7 +353,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def cursor_position(self) -> int:
         """Return the editing-session-owned raw source cursor position."""
 
-        return self._editing_session.cursor_position
+        return self._cursor_facade.cursor_position
 
     @property
     def editor_state(self) -> PromptProjectionEditorState:
@@ -387,7 +389,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def anchor_position(self) -> int:
         """Return the editing-session-owned raw source selection anchor."""
 
-        return self._editing_session.anchor_position
+        return self._cursor_facade.anchor_position
 
     def document(self) -> QTextDocument:
         """Return the plain-text source document kept for compatibility helpers."""
@@ -637,69 +639,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def textCursor(self) -> PromptCursorAdapter:  # noqa: N802
         """Return a Qt-like cursor wrapper backed by the surface state."""
 
-        return PromptCursorAdapter(self, self._editing_session.cursor_state)
+        return self._cursor_facade.text_cursor()
 
     def setTextCursor(self, cursor: object) -> None:  # noqa: N802
         """Apply a Qt-compatible source cursor snapshot to the editor."""
 
-        self.cursor_adapter_commit_state(
-            self._cursor_state_from_compatible_cursor(cursor),
-            reason="set_text_cursor",
-        )
-
-    def _cursor_state_from_compatible_cursor(self, cursor: object) -> PromptCursorState:
-        """Return source cursor state from a QTextCursor-like public cursor object."""
-
-        if isinstance(cursor, PromptCursorAdapter):
-            return cursor.cursor_state()
-        cursor_state_method = getattr(cursor, "cursor_state", None)
-        if callable(cursor_state_method):
-            cursor_state = cursor_state_method()
-            if isinstance(cursor_state, PromptCursorState):
-                return cursor_state
-        position_method = getattr(cursor, "position", None)
-        selection_start_method = getattr(cursor, "selectionStart", None)
-        selection_end_method = getattr(cursor, "selectionEnd", None)
-        if not (
-            callable(position_method)
-            and callable(selection_start_method)
-            and callable(selection_end_method)
-        ):
-            raise TypeError("Cursor must expose position and selection bounds.")
-        cursor_position = int(position_method())
-        selection_start = int(selection_start_method())
-        selection_end = int(selection_end_method())
-        anchor_position = (
-            selection_end if cursor_position == selection_start else selection_start
-        )
-        return PromptCursorState(
-            cursor_position=cursor_position,
-            anchor_position=anchor_position,
-        )
+        self._cursor_facade.set_text_cursor(cursor)
 
     def cursorForPosition(self, position: QPoint) -> PromptCursorAdapter:  # noqa: N802
         """Return a cursor wrapper after hit-testing one viewport-local point."""
 
-        self._flush_pending_projection_update(reason="cursor_for_position")
-        caret_state = self._layout.frame.geometry.hit_testing.hit_test(
-            QPointF(position),
-            scroll_offset=self._scroll_offset(),
-        )
-        self._set_cursor_from_projection_hit(
-            caret_state,
-            keep_anchor=False,
-        )
-        return self.textCursor()
+        return self._cursor_facade.cursor_for_position(position)
 
     def cursor_adapter_source_text(self) -> str:
         """Return source text for the editing-session cursor adapter."""
 
-        return self.toPlainText()
+        return self._cursor_facade.source_text()
 
     def cursor_adapter_state(self) -> PromptCursorState:
         """Return the current source cursor state for a cursor adapter."""
 
-        return self._editing_session.cursor_state
+        return self._cursor_facade.state()
 
     def cursor_adapter_commit_state(
         self,
@@ -709,37 +669,32 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptCursorState:
         """Commit a cursor adapter state through projection-aware cursor placement."""
 
-        _ = reason
-        self.set_cursor_positions(
-            cursor_position=cursor_state.cursor_position,
-            anchor_position=cursor_state.anchor_position,
-        )
-        return self._editing_session.cursor_state
+        return self._cursor_facade.commit_state(cursor_state, reason=reason)
 
     def cursor_adapter_is_keep_anchor_mode(self, mode: object | None) -> bool:
         """Return whether an opaque cursor mode is QTextCursor KeepAnchor."""
 
-        return mode == QTextCursor.MoveMode.KeepAnchor
+        return self._cursor_facade.is_keep_anchor_mode(mode)
 
     def cursor_adapter_finish_pending_key_edit_block(self, *, reason: str) -> None:
         """Flush key-owned edit groups before cursor-adapter mutations."""
 
-        self._finish_pending_key_edit_block(reason=reason)
+        self._cursor_facade.finish_pending_key_edit_block(reason=reason)
 
     def cursor_adapter_begin_edit_block(self, *, finish_typing: bool = True) -> None:
         """Begin an edit block requested by the source cursor adapter."""
 
-        self._input_runtime.edit_execution.begin_edit_block(finish_typing=finish_typing)
+        self._cursor_facade.begin_edit_block(finish_typing=finish_typing)
 
     def cursor_adapter_end_edit_block(self) -> None:
         """End an edit block requested by the source cursor adapter."""
 
-        self._input_runtime.edit_execution.end_edit_block()
+        self._cursor_facade.end_edit_block()
 
     def cursor_adapter_delete_selection(self) -> None:
         """Delete the live selection requested by the source cursor adapter."""
 
-        self._delete_viewport_selection()
+        self._cursor_facade.delete_selection()
 
     def cursor_adapter_insert_text(
         self,
@@ -747,40 +702,17 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Insert text requested by the source cursor adapter."""
 
-        self._input_runtime.text_mutations.insert_text(
-            text,
-            origin=PromptSourceEditOrigin.PROGRAMMATIC,
-            command_name="cursor_insert_text",
-        )
+        self._cursor_facade.insert_text(text)
 
     def cursorRect(self) -> QRect:  # noqa: N802
         """Return the current viewport-local caret rect."""
 
-        self._visible_scroll_bar()
-        self.has_pending_projection_update()
-        transient_rect = self._caret_geometry.transient_document_rect()
-        if transient_rect is not None:
-            rect = transient_rect.translated(
-                0.0, -self._scroll_offset()
-            ).toAlignedRect()
-            return rect
-        self._flush_pending_projection_update(reason="cursor_rect")
-        rect = self._caret_geometry.current_viewport_rect().toAlignedRect()
-        return rect
+        return self._cursor_facade.cursor_rect()
 
     def input_method_caret_rect(self, source_position: int) -> QRectF:
         """Return a viewport-local caret rectangle for input-method geometry."""
 
-        self._flush_pending_projection_update(reason="input_method_caret_rect")
-        caret_state = (
-            self._editor_state.projection.document.caret_map.state_for_source_position(
-                min(max(0, source_position), len(self.toPlainText()))
-            )
-        )
-        return self._layout.frame.geometry.caret.cursor_rect(
-            caret_state,
-            scroll_offset=self._scroll_offset(),
-        )
+        return self._cursor_facade.input_method_caret_rect(source_position)
 
     def set_prompt_state(
         self,
@@ -1014,19 +946,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _delete_viewport_selection(self) -> None:
         """Delete the currently selected raw prompt source text."""
 
-        if not self._editing_enabled:
-            return
-        selection = self._editing_session.selection()
-        if selection.is_empty:
-            return
-        self._finish_pending_key_edit_block(reason="delete_selection")
-        self._input_runtime.source_commands.replace_source_range(
-            start=selection.start,
-            end=selection.end,
-            replacement_text="",
-            origin=PromptSourceEditOrigin.TYPED,
-            command_name="cursor_delete_selection",
-        )
+        self._cursor_facade.delete_selection()
 
     def projection_text_mutation_context(
         self,
@@ -1102,74 +1022,25 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptCursorState:
         """Replace the raw cursor positions by resolving them into caret states."""
 
-        self._flush_pending_projection_update(reason="set_cursor_positions")
-        if self._projection_freshness_controller.has_stale_projection_geometry():
-            self._presentation_runtime.rebuild.rebuild()
-        cursor_state = PromptCursorState(
+        return self._cursor_facade.set_positions(
             cursor_position=cursor_position,
             anchor_position=anchor_position,
-        ).clamped(len(self.toPlainText()))
-        self._caret_geometry.clear_transient()
-        next_cursor_state = (
-            self._editor_state.projection.document.caret_map.state_for_source_position(
-                cursor_state.cursor_position
-            )
         )
-        next_anchor_state = (
-            self._editor_state.projection.document.caret_map.state_for_source_position(
-                cursor_state.anchor_position
-            )
-        )
-        self._caret_publication.publish(
-            cursor_state=next_cursor_state,
-            anchor_state=next_anchor_state,
-        )
-        return self._editing_session.cursor_state
 
     def move_cursor_by_operation(
         self, operation: object, *, keep_anchor: bool
     ) -> PromptCursorState:
         """Move the caret according to one supported QTextCursor operation."""
 
-        self._flush_pending_projection_update(reason="move_cursor_by_operation")
-        if operation == QTextCursor.MoveOperation.End:
-            target = len(self.toPlainText())
-            return self.set_cursor_positions(
-                cursor_position=target,
-                anchor_position=self.anchor_position if keep_anchor else target,
-            )
-        if operation == QTextCursor.MoveOperation.Start:
-            return self.set_cursor_positions(
-                cursor_position=0,
-                anchor_position=self.anchor_position if keep_anchor else 0,
-            )
-        if operation == QTextCursor.MoveOperation.Left:
-            self._move_horizontally(-1, keep_anchor=keep_anchor)
-            return self._editing_session.cursor_state
-        if operation == QTextCursor.MoveOperation.Right:
-            self._move_horizontally(+1, keep_anchor=keep_anchor)
-            return self._editing_session.cursor_state
-        if operation == QTextCursor.MoveOperation.Up:
-            self._move_vertically(-1, keep_anchor=keep_anchor)
-            return self._editing_session.cursor_state
-        if operation == QTextCursor.MoveOperation.Down:
-            self._move_vertically(+1, keep_anchor=keep_anchor)
-            return self._editing_session.cursor_state
-        return self._editing_session.cursor_state
+        return self._cursor_facade.move_by_operation(
+            operation,
+            keep_anchor=keep_anchor,
+        )
 
     def select_by_mode(self, mode: object) -> PromptCursorState:
         """Select the supported logical range around the current cursor."""
 
-        self._flush_pending_projection_update(reason="select_by_mode")
-        if mode != QTextCursor.SelectionType.WordUnderCursor:
-            return self._editing_session.cursor_state
-        start, end = prompt_word_bounds(self.toPlainText(), self.cursor_position)
-        if start == end:
-            return self._editing_session.cursor_state
-        return self.set_cursor_positions(
-            cursor_position=end,
-            anchor_position=start,
-        )
+        return self._cursor_facade.select_by_mode(mode)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Delegate prompt key routing while preserving Qt fallback behavior."""
@@ -1492,8 +1363,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _move_horizontally(self, direction: int, *, keep_anchor: bool) -> None:
         """Move the caret across plain text or collapsed token boundaries."""
 
-        self._caret_movement_controller.move_horizontally(
-            self._layout.frame.geometry,
+        self._cursor_facade.move_horizontally(
             direction,
             keep_anchor=keep_anchor,
         )
@@ -1501,8 +1371,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def _move_vertically(self, direction: int, *, keep_anchor: bool) -> None:
         """Move the caret vertically by adjacent visual line and preferred column."""
 
-        self._caret_movement_controller.move_vertically(
-            self._layout.frame.geometry,
+        self._cursor_facade.move_vertically(
             direction,
             keep_anchor=keep_anchor,
         )
@@ -1516,12 +1385,9 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Persist one layout-resolved caret state as the live cursor position."""
 
-        next_anchor_state = (
-            self._caret_state_owner.anchor_state if keep_anchor else caret_state
-        )
-        self._caret_publication.publish(
-            cursor_state=caret_state,
-            anchor_state=next_anchor_state,
+        self._cursor_facade.set_from_projection_hit(
+            caret_state,
+            keep_anchor,
             caret_rect_override=caret_rect_override,
         )
 
