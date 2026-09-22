@@ -84,12 +84,17 @@ def test_autocomplete_and_menu_composition_have_direct_owners() -> None:
     menu_runtime_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
     ).read_text(encoding="utf-8")
+    host_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "host_runtime.py"
+    ).read_text(encoding="utf-8")
     core_runtime_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "core_runtime.py"
     ).read_text(encoding="utf-8")
     assert "PromptEditorAutocompleteFactory(" in core_runtime_source
     assert "PromptEditorAutocompleteFactory(" not in widget_source
-    assert "build_prompt_editor_menu_runtime(" in widget_source
+    assert "build_prompt_editor_host_runtime(" in widget_source
+    assert "build_prompt_editor_menu_runtime(" in host_runtime_source
+    assert "build_prompt_editor_menu_runtime(" not in widget_source
     assert "PromptEditorMenuFactory(" in menu_runtime_source
     assert "PromptContextMenuSnapshotAssembler(" in menu_runtime_source
     assert "PromptShellContextMenuController(" in menu_runtime_source
@@ -129,6 +134,27 @@ def test_feature_presentation_composition_has_one_runtime_owner() -> None:
     assert "build_prompt_editor_catalog_refresh_facade(" not in widget_source
     assert "PromptLoraTriggerWordController(" not in widget_source
     assert "build_prompt_editor_document_facade(" not in widget_source
+
+
+def test_mounted_host_integration_has_one_runtime_owner() -> None:
+    """Keep event, signal, lifecycle, resize, and layout mounting together."""
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    host_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "host_runtime.py"
+    ).read_text(encoding="utf-8")
+
+    assert "build_prompt_editor_host_runtime(" in widget_source
+    assert "PromptEditorHostEventRouter(" in host_runtime_source
+    assert "wire_prompt_editor_construction_lifecycle(" in host_runtime_source
+    assert "build_resize_handle(" in host_runtime_source
+    assert "bind_prompt_editor_signals(" in host_runtime_source
+    assert "apply_prompt_editor_initial_layout(" in host_runtime_source
+    assert "PromptEditorHostEventRouter(" not in widget_source
+    assert "wire_prompt_editor_construction_lifecycle(" not in widget_source
+    assert "build_resize_handle(" not in widget_source
+    assert "bind_prompt_editor_signals(" not in widget_source
+    assert "apply_prompt_editor_initial_layout(" not in widget_source
 
 
 def test_shell_mechanics_have_one_runtime_composition_owner() -> None:
