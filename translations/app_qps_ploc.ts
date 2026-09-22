@@ -1386,6 +1386,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦CömfyÜÏ càn cöntïnüë stàrtïng, büt sömë SügàrCübës wörkflöws mày nëëd àttëntïön bëförë thëy rün cörrëctly. ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI commit</source>
+      <translation>⟦CömfyÜÏ cömmït ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI connection</source>
       <translation>⟦CömfyÜÏ cönnëctïön ···⟧</translation>
     </message>
@@ -1556,6 +1560,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>ComfyUI unavailable</source>
       <translation>⟦CömfyÜÏ ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>ComfyUI version</source>
+      <translation>⟦CömfyÜÏ vërsïön ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI version: %1</source>
@@ -2478,6 +2486,10 @@ Install these nodes now?</source>
       <translation>⟦GNÜ Gënëràl Püblïc Lïcënsë v3 ···⟧</translation>
     </message>
     <message>
+      <source>GPU</source>
+      <translation>⟦GPÜ ···⟧</translation>
+    </message>
+    <message>
       <source>GUI restart is not available in this session.</source>
       <translation>⟦GÜÏ rëstàrt ïs nöt àvàïlàblë ïn thïs sëssïön. ···⟧</translation>
     </message>
@@ -2786,6 +2798,10 @@ Install these nodes now?</source>
       <translation>⟦Ïnstàllëd cüstöm nödës ···⟧</translation>
     </message>
     <message>
+      <source>Installed launcher version</source>
+      <translation>⟦Ïnstàllëd làünchër vërsïön ···⟧</translation>
+    </message>
+    <message>
       <source>Installed packages</source>
       <translation>⟦Ïnstàllëd pàckàgës ···⟧</translation>
     </message>
@@ -2908,6 +2924,10 @@ Install these nodes now?</source>
     <message>
       <source>Launch args: %1</source>
       <translation>⟦Làünch àrgs: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Launch arguments</source>
+      <translation>⟦Làünch àrgümënts ···⟧</translation>
     </message>
     <message>
       <source>Launch command</source>
@@ -3056,6 +3076,10 @@ Install these nodes now?</source>
     <message>
       <source>Log excerpt:</source>
       <translation>⟦Lög ëxcërpt: ···⟧</translation>
+    </message>
+    <message>
+      <source>Logical processor count</source>
+      <translation>⟦Lögïcàl pröcëssör cöünt ···⟧</translation>
     </message>
     <message>
       <source>Look up local model metadata</source>
@@ -3688,6 +3712,10 @@ I’ll bring my own</source>
       <translation>⟦Öpën thïs CömfyÜÏ ïnstàllàtïön yöürsëlf üsïng yöür üsüàl shörtcüt, scrïpt, ör làünchër. Sübstïtütë wïll dëtëct ït àütömàtïcàlly. ···⟧</translation>
     </message>
     <message>
+      <source>Operating system</source>
+      <translation>⟦Öpëràtïng systëm ···⟧</translation>
+    </message>
+    <message>
       <source>Operation</source>
       <translation>⟦Öpëràtïön ···⟧</translation>
     </message>
@@ -3814,6 +3842,10 @@ I’ll bring my own</source>
     <message>
       <source>Performance and updates</source>
       <translation>⟦Përförmàncë ànd üpdàtës ···⟧</translation>
+    </message>
+    <message>
+      <source>Physical memory</source>
+      <translation>⟦Physïcàl mëmöry ···⟧</translation>
     </message>
     <message>
       <source>Pick a setup</source>
@@ -4000,6 +4032,10 @@ I’ll bring my own</source>
       <translation>⟦Prëvïöüs màtch (Shïft+Ëntër) ···⟧</translation>
     </message>
     <message>
+      <source>Processor</source>
+      <translation>⟦Pröcëssör ···⟧</translation>
+    </message>
+    <message>
       <source>Project</source>
       <translation>⟦Pröjëct ···⟧</translation>
     </message>
@@ -4052,8 +4088,16 @@ I’ll bring my own</source>
       <translation>⟦PyTörch: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Python</source>
+      <translation>⟦Pythön ···⟧</translation>
+    </message>
+    <message>
       <source>Python %1 at %2</source>
       <translation>⟦Pythön %1 àt %2 ···⟧</translation>
+    </message>
+    <message>
+      <source>Python architecture</source>
+      <translation>⟦Pythön àrchïtëctürë ···⟧</translation>
     </message>
     <message>
       <source>Python could not parse the extension's source code.</source>
@@ -4130,6 +4174,10 @@ I’ll bring my own</source>
     <message>
       <source>Readiness errors</source>
       <translation>⟦Rëàdïnëss ërrörs ···⟧</translation>
+    </message>
+    <message>
+      <source>Readiness schema</source>
+      <translation>⟦Rëàdïnëss schëmà ···⟧</translation>
     </message>
     <message>
       <source>Readiness unavailable from the active target.</source>
@@ -4610,10 +4658,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Runtime and system information</source>
       <translation>⟦Rüntïmë ànd systëm ïnförmàtïön ···⟧</translation>
-    </message>
-    <message>
-      <source>Runtime context</source>
-      <translation>⟦Rüntïmë cöntëxt ···⟧</translation>
     </message>
     <message>
       <source>Runtime root: %1</source>
@@ -5596,8 +5640,16 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
 Ïn shört: yöü àrë wëlcömë tö lëàrn fröm SügàrSübstïtütë, àdàpt ït, büïld ön ït, ànd shàrë yöür chàngës. Thë füll GPLv3 lïcënsë tëxt ïs àvàïlàblë fröm thïs scrëën ànd ïs thë lëgàl àüthörïty för thösë rïghts ànd rëspönsïbïlïtïës. ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute payload version</source>
+      <translation>⟦SügàrSübstïtütë pàylöàd vërsïön ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute provides a focused PySide6 workspace for ComfyUI, with cube-based workflow composition, managed model metadata, prompt tooling, and integrated image canvas workflows.</source>
       <translation>⟦SügàrSübstïtütë prövïdës à föcüsëd PySïdë6 wörkspàcë för CömfyÜÏ, wïth cübë-bàsëd wörkflöw cömpösïtïön, mànàgëd mödël mëtàdàtà, prömpt töölïng, ànd ïntëgràtëd ïmàgë cànvàs wörkflöws. ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute recorded release version</source>
+      <translation>⟦SügàrSübstïtütë rëcördëd rëlëàsë vërsïön ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute requires ComfyUI %1 or newer. The selected checkout is ComfyUI %2.</source>
@@ -5634,6 +5686,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Summary unavailable</source>
       <translation>⟦Sümmàry ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>Supervising launcher version</source>
+      <translation>⟦Süpërvïsïng làünchër vërsïön ···⟧</translation>
     </message>
     <message>
       <source>Supported actions:
@@ -5688,6 +5744,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Synced %1.</source>
       <translation>⟦Syncëd %1. ···⟧</translation>
+    </message>
+    <message>
+      <source>System architecture</source>
+      <translation>⟦Systëm àrchïtëctürë ···⟧</translation>
     </message>
     <message>
       <source>TAESD</source>

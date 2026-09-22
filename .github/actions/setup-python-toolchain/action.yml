@@ -62,7 +62,7 @@ runs:
         $imageVersion = if ($env:ImageVersion) { $env:ImageVersion } else { "unreported-image" }
         $runnerImage = "$imageOs-$imageVersion" -replace '[^A-Za-z0-9._-]', '-'
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
-        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.15-$bootstrapLockHash"
+        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-$bootstrapLockHash"
         "primary-key=$prefix-$lockHash" >> $env:GITHUB_OUTPUT
         "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
         "lock-hash=$lockHash" >> $env:GITHUB_OUTPUT
@@ -80,7 +80,7 @@ runs:
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
         $cachePath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope"
         $markerPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope-restored-v3"
-        $toolPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-tool-$cacheScope-v0.12.15"
+        $toolPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-tool-$cacheScope"
         "cache-path=$cachePath" >> $env:GITHUB_OUTPUT
         "marker-path=$markerPath" >> $env:GITHUB_OUTPUT
         "tool-path=$toolPath" >> $env:GITHUB_OUTPUT
@@ -140,9 +140,17 @@ runs:
       env:
         UV_BOOTSTRAP_LOCK: requirements-ci-bootstrap.lock
         UV_TOOL_PATH: ${{ steps.cache-storage.outputs.tool-path }}
-        UV_VERSION: "0.12.15"
       run: |
         $ErrorActionPreference = "Stop"
+        $bootstrapLock = Get-Content -LiteralPath $env:UV_BOOTSTRAP_LOCK -Raw
+        $versionMatch = [regex]::Match(
+          $bootstrapLock,
+          '(?m)^uv==(?<version>[0-9A-Za-z][0-9A-Za-z._+-]*)[ \t]+\\\r?$'
+        )
+        if (-not $versionMatch.Success) {
+          throw "The uv bootstrap lock does not declare one exact uv version."
+        }
+        $uvVersion = $versionMatch.Groups["version"].Value
         $runnerRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
         $toolRoot = [IO.Path]::GetFullPath($env:UV_TOOL_PATH)
         $relativeToolPath = [IO.Path]::GetRelativePath($runnerRoot, $toolRoot)
@@ -170,7 +178,7 @@ runs:
         }
 
         $reportedVersion = Get-ExactUvVersion
-        if ($reportedVersion -notmatch "^uv $([regex]::Escape($env:UV_VERSION))(?: |$)") {
+        if ($reportedVersion -notmatch "^uv $([regex]::Escape($uvVersion))(?: |$)") {
           if (Test-Path -LiteralPath $toolRoot) {
             Remove-Item -LiteralPath $toolRoot -Recurse -Force
           }
@@ -180,7 +188,7 @@ runs:
           }
           $reportedVersion = Get-ExactUvVersion
         }
-        if ($reportedVersion -notmatch "^uv $([regex]::Escape($env:UV_VERSION))(?: |$)") {
+        if ($reportedVersion -notmatch "^uv $([regex]::Escape($uvVersion))(?: |$)") {
           throw "The resolved uv executable does not match the required version."
         }
         (Split-Path -Parent $uvExecutable) >> $env:GITHUB_PATH

@@ -178,6 +178,12 @@ class InstallerQualificationPlan:
             f"{self.event_log_path.name}.main-shell-shutdown.json"
         )
 
+    @property
+    def readiness_receipt_path(self) -> Path:
+        """Return the durable receipt destination shared across update handoffs."""
+
+        return self.install_root / "launcher" / "readiness" / "ci-installer-chain.json"
+
     def request_main_shell_shutdown(self) -> None:
         """Atomically request a normal close from this exact qualification run."""
 
