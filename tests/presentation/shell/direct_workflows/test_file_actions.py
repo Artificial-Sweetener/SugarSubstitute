@@ -25,6 +25,9 @@ from types import SimpleNamespace
 from typing import cast
 
 from substitute.application.direct_workflows import DirectWorkflowLoadService
+from substitute.application.workflows.portable_model_projection import (
+    PortableModelManifestService,
+)
 from substitute.application.recipes import RecipeModelDownloadResolutionError
 from substitute.application.workflows import WorkflowTabService
 from substitute.domain.common import JsonObject
@@ -34,6 +37,9 @@ from substitute.infrastructure.comfy.workflow_document_repository import (
 )
 from substitute.presentation.shell.direct_workflow_file_actions import (
     DirectWorkflowFileActions,
+)
+from substitute.presentation.shell.direct_workflow_composition import (
+    compose_direct_workflow_file_actions,
 )
 from substitute.presentation.shell.direct_workflow_model_resolution import (
     DirectWorkflowModelResolutionController,
@@ -117,6 +123,27 @@ def _actions(
         add_workflow_tab=add_workflow_tab,
         refresh_active_workflow=refresh_active_workflow,
     )
+
+
+def test_direct_workflow_composition_defers_workspace_owned_model_controller() -> None:
+    """Dependency capture must not read editor-busy state before workspace build."""
+
+    shell = SimpleNamespace(
+        cube_graph_gateway=PassthroughCubeWorkflowAnalyzer(),
+        node_definition_gateway=None,
+        create_recipe_model_load_resolver=lambda: None,
+    )
+
+    composition = compose_direct_workflow_file_actions(
+        shell,
+        manifest=cast(PortableModelManifestService, SimpleNamespace()),
+        add_workflow_tab=lambda: None,
+        workflow_workspace=SimpleNamespace(),
+        error_presenter=cast(ErrorReportPresenterProtocol, SimpleNamespace()),
+    )
+
+    assert isinstance(composition.file_actions, DirectWorkflowFileActions)
+    assert not hasattr(shell, "editor_busy")
 
 
 def test_direct_workflow_file_action_loads_blank_tab_and_refreshes(
@@ -240,9 +267,8 @@ def test_model_download_failure_uses_specific_recoverable_error_copy(
                 show_exception_report=lambda **kwargs: presented.append(kwargs)
             ),
         ),
-        model_resolution_controller=cast(
-            DirectWorkflowModelResolutionController,
-            controller,
+        model_resolution_controller_provider=lambda: cast(
+            DirectWorkflowModelResolutionController, controller
         ),
     )
 
@@ -294,9 +320,8 @@ def test_async_model_resolution_keeps_its_original_tab_target(tmp_path: Path) ->
         ),
         add_workflow_tab=lambda: None,
         refresh_active_workflow=lambda: refreshes.append("refresh"),
-        model_resolution_controller=cast(
-            DirectWorkflowModelResolutionController,
-            controller,
+        model_resolution_controller_provider=lambda: cast(
+            DirectWorkflowModelResolutionController, controller
         ),
     )
 
