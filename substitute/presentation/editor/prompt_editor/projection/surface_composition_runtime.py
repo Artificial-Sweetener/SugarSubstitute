@@ -103,6 +103,10 @@ from .surface_cursor_facade import (
     PromptProjectionSurfaceCursorBindings,
     PromptProjectionSurfaceCursorFacade,
 )
+from .surface_editor_facade import (
+    PromptProjectionSurfaceEditorBindings,
+    PromptProjectionSurfaceEditorFacade,
+)
 from .surface_presentation_runtime import (
     PromptProjectionSurfacePresentationBindings,
     PromptProjectionSurfacePresentationRuntime,
@@ -175,7 +179,6 @@ class PromptProjectionSurfaceCompositionBindings(Generic[THost]):
     request_update: Callable[[], None]
     input_method_hints: Callable[[], Qt.InputMethodHint]
     surface_state: Callable[[], dict[str, object]]
-    editing_enabled: Callable[[], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +194,7 @@ class PromptProjectionSurfaceCompositionRuntime:
     lifecycle: PromptProjectionSurfaceLifecycleRuntime
     presentation: PromptProjectionSurfacePresentationRuntime
     cursor: PromptProjectionSurfaceCursorFacade
+    editor: PromptProjectionSurfaceEditorFacade
 
 
 def build_prompt_projection_surface_composition_runtime(
@@ -434,6 +438,20 @@ def build_prompt_projection_surface_composition_runtime(
         lifecycle=lifecycle,
         presentation=presentation,
     )
+    editor = PromptProjectionSurfaceEditorFacade(
+        PromptProjectionSurfaceEditorBindings(
+            editing_session=bindings.editing_session,
+            source_document=source.source_document,
+            source_commit=source.source_commit_application,
+            input_runtime=input_runtime,
+            interaction=interaction,
+            lifecycle=lifecycle,
+            presentation=presentation,
+            editor_state=foundation.editor_state,
+            freshness=source.freshness_controller,
+            diagnostics=diagnostics,
+        )
+    )
     cursor = PromptProjectionSurfaceCursorFacade(
         PromptProjectionSurfaceCursorBindings(
             host=bindings.cursor_adapter_host,
@@ -448,7 +466,7 @@ def build_prompt_projection_surface_composition_runtime(
             freshness=source.freshness_controller,
             presentation=presentation,
             flush_pending_projection=bindings.flush_pending_projection,
-            editing_enabled=bindings.editing_enabled,
+            editing_enabled=lambda: editor.editing_enabled,
             visible_scroll_bar=bindings.visible_scroll_bar,
             has_pending_projection_update=source.freshness_controller.has_pending_update,
             scroll_offset=bindings.scroll_offset,
@@ -464,6 +482,7 @@ def build_prompt_projection_surface_composition_runtime(
         lifecycle=lifecycle,
         presentation=presentation,
         cursor=cursor,
+        editor=editor,
     )
 
 

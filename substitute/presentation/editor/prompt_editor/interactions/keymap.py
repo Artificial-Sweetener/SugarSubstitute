@@ -51,7 +51,9 @@ class PromptSurfaceKeyHost(Protocol):
     """Expose the bounded surface operations needed by key routing."""
 
     emphasisShortcutTriggered: _PromptSurfaceEmphasisShortcutSignal
-    _editing_enabled: bool
+
+    def editing_enabled(self) -> bool:
+        """Return whether source mutations are currently permitted."""
 
     @property
     def pointer_interactions(self) -> PromptSurfacePointerInteractions:
@@ -170,7 +172,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.matches(QKeySequence.StandardKey.Undo):
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             actions = self._clipboard_history_actions()
@@ -180,7 +182,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.matches(QKeySequence.StandardKey.Redo):
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             actions = self._clipboard_history_actions()
@@ -229,7 +231,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Backspace:
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="backspace")
@@ -241,7 +243,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Delete:
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="delete")
@@ -253,7 +255,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="newline")
@@ -275,7 +277,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             and _is_plain_text_insertion_event(event)
             and (not text.isspace() or text in {" ", "\t"})
         ):
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             if undo_coalescing.can_group_typed_text(text):

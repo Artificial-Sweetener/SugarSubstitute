@@ -204,8 +204,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         super().__init__(parent)
         self._editing_session = editing_session
-        self._exact_source_editing_enabled = False
-        self._editing_enabled = True
         self._presentation_runtime: PromptProjectionSurfacePresentationRuntime
         self._reorder: PromptReorderProjectionOwner
         self._caret_visual_controller: PromptSurfaceCaretVisualController
@@ -281,7 +279,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
                 request_update=self.viewport().update,
                 input_method_hints=self.inputMethodHints,
                 surface_state=lambda: surface_probe_state(self),
-                editing_enabled=self.editing_enabled,
             )
         )
         foundation = composition_runtime.foundation
@@ -307,12 +304,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._mouse_handler = interaction_runtime.mouse
         self._diagnostic_layer_owner = composition_runtime.diagnostics
         self._input_runtime = composition_runtime.input_runtime
-        self._history = self._input_runtime.history
+        self._editor_facade = composition_runtime.editor
         self._cursor_facade = composition_runtime.cursor
         self._geometry_reuse_warmer = composition_runtime.geometry_reuse_warmer
         source_state_owners = composition_runtime.source
-        self._source_document_adapter = source_state_owners.source_document
-        self._source_commit_application = source_state_owners.source_commit_application
         self._source_change_publication = source_state_owners.source_change_publication
         self._projection_freshness_controller = source_state_owners.freshness_controller
         self._transient_edit_presentation = (
@@ -359,31 +354,31 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def editor_state(self) -> PromptProjectionEditorState:
         """Return the shared revisioned state owner used by composition."""
 
-        return self._editor_state
+        return self._editor_facade.editor_state
 
     @property
     def reorder(self) -> PromptReorderProjectionOwner:
         """Return the focused reorder projection owner for composition wiring."""
 
-        return self._reorder
+        return self._editor_facade.reorder
 
     @property
     def emphasis(self) -> PromptProjectionEmphasisOwner:
         """Return the focused emphasis projection owner for interaction wiring."""
 
-        return self._emphasis
+        return self._editor_facade.emphasis
 
     @property
     def diagnostics(self) -> PromptDiagnosticLayerOwner:
         """Return the owner of diagnostic state and render-layer publication."""
 
-        return self._diagnostic_layer_owner
+        return self._editor_facade.diagnostics
 
     @property
     def autocomplete_preview(self) -> PromptAutocompletePreviewProjectionOwner:
         """Return the owner of autocomplete preview projection lifecycle."""
 
-        return self._autocomplete_preview_projection_owner
+        return self._editor_facade.autocomplete_preview
 
     @property
     def anchor_position(self) -> int:
@@ -394,7 +389,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def document(self) -> QTextDocument:
         """Return the plain-text source document kept for compatibility helpers."""
 
-        return self._source_document_adapter.document()
+        return self._editor_facade.document()
 
     @property
     def edit_execution(
@@ -402,7 +397,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptEditExecution[PromptProjectionUndoPayload]:
         """Return the construction-owned editing execution service."""
 
-        return self._input_runtime.edit_execution
+        return self._editor_facade.edit_execution
 
     @property
     def source_commands(
@@ -410,23 +405,23 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptSourceCommandService[PromptProjectionUndoPayload]:
         """Return the focused source command service."""
 
-        return self._input_runtime.source_commands
+        return self._editor_facade.source_commands
 
     @property
     def history(self) -> PromptProjectionHistoryOwner:
         """Return the owner of undo payloads and clipboard history actions."""
 
-        return self._history
+        return self._editor_facade.history
 
     def attach_external_scroll_bar(self, scroll_bar: QScrollBar) -> None:
         """Mirror layout range and scroll offset onto one host-owned scrollbar."""
 
-        self._input_runtime.wheel.attach_external_scroll_bar(scroll_bar)
+        self._editor_facade.attach_external_scroll_bar(scroll_bar)
 
     def attach_focus_host(self, focus_host: QWidget) -> None:
         """Store the widget whose focus should drive caret and accent visibility."""
 
-        self._focus_owner.attach(focus_host)
+        self._editor_facade.attach_focus_host(focus_host)
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_REFRESH_SCROLL)
     def refresh_scroll(self) -> None:
@@ -447,34 +442,33 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def set_editing_enabled(self, editing_enabled: bool) -> None:
         """Enable or disable source mutations while keeping navigation active."""
 
-        if self._editing_enabled != editing_enabled:
+        if self._editor_facade.set_editing_enabled(editing_enabled):
             self._finish_pending_key_edit_block(reason="editing_enabled_changed")
-        self._editing_enabled = editing_enabled
 
     def editing_enabled(self) -> bool:
         """Return whether clipboard/history owners may mutate source text."""
 
-        return self._editing_enabled
+        return self._editor_facade.editing_enabled
 
     def exact_source_editing_enabled(self) -> bool:
         """Return whether user edits bypass prompt source normalization."""
 
-        return self._exact_source_editing_enabled
+        return self._editor_facade.exact_source_editing_enabled
 
     def set_exact_source_editing_enabled(self, enabled: bool) -> None:
         """Enable or disable exact source preservation for user edits."""
 
-        self._exact_source_editing_enabled = enabled
+        self._editor_facade.set_exact_source_editing_enabled(enabled)
 
     def display_mode(self) -> PromptProjectionDisplayMode:
         """Return the current visible prompt display mode."""
 
-        return self._presentation_runtime.rebuild.display_mode
+        return self._editor_facade.display_mode
 
     def set_display_mode(self, display_mode: PromptProjectionDisplayMode) -> None:
         """Replace the visible prompt display mode without changing source text."""
 
-        self._presentation_runtime.rebuild.set_display_mode(display_mode)
+        self._editor_facade.set_display_mode(display_mode)
 
     def changeEvent(self, event: QEvent) -> None:
         """Invalidate reorder preview caches when visual metrics may have changed."""
@@ -492,22 +486,22 @@ class PromptProjectionSurface(QAbstractScrollArea):
     def projection_document(self) -> PromptProjectionDocument:
         """Return the committed token-aware projection document."""
 
-        return self._presentation_runtime.queries.projection_document
+        return self._editor_facade.projection_document
 
     def active_projection_document(self) -> PromptProjectionDocument:
         """Return the current geometry-bearing projection document."""
 
-        return self._presentation_runtime.queries.active_projection_document
+        return self._editor_facade.active_projection_document
 
     def content_height(self) -> float:
         """Return the current laid-out projection content height."""
 
-        return self._presentation_runtime.queries.content_height()
+        return self._editor_facade.content_height()
 
     def text_line_height(self) -> float:
         """Return the row height owned by the current prepared layout."""
 
-        return self._presentation_runtime.queries.text_line_height()
+        return self._editor_facade.text_line_height()
 
     def source_range_fragments(
         self,
@@ -517,49 +511,47 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> tuple[QRectF, ...]:
         """Return the wrapped viewport fragments covering one raw source range."""
 
-        return self._presentation_runtime.queries.source_range_fragments(
-            start=start, end=end
-        )
+        return self._editor_facade.source_range_fragments(start=start, end=end)
 
     def source_line_rects(self) -> tuple[PromptProjectionSourceLineRect, ...]:
         """Return visible source logical line rects aligned to prompt projection."""
 
-        return self._presentation_runtime.queries.source_line_rects()
+        return self._editor_facade.source_line_rects()
 
     def visible_prompt_fill_band_rects(self) -> tuple[PromptFillBandRect, ...]:
         """Return visible prompt fill band rows in projection viewport coordinates."""
 
-        return self._presentation_runtime.queries.visible_fill_band_rects()
+        return self._editor_facade.visible_fill_band_rects()
 
     def prompt_fill_band_color(self) -> QColor:
         """Return the alternating prompt fill color used beneath projection painting."""
 
-        return self._presentation_runtime.queries.fill_band_color()
+        return self._editor_facade.fill_band_color()
 
     def current_source_line_index(self) -> int:
         """Return the newline-delimited source line containing the cursor."""
 
-        return self._presentation_runtime.queries.current_source_line_index()
+        return self._editor_facade.current_source_line_index()
 
     def set_source_line_chrome_enabled(self, enabled: bool) -> None:
         """Enable source logical line backgrounds for wrapper-provided editor chrome."""
 
-        self._presentation_runtime.source_line.set_enabled(enabled)
+        self._editor_facade.set_source_line_chrome_enabled(enabled)
 
     def set_source_line_content_left_inset(self, inset: float) -> None:
         """Reserve viewport-local space for source line numbers."""
 
-        self._presentation_runtime.source_line.set_content_left_inset(inset)
+        self._editor_facade.set_source_line_content_left_inset(inset)
 
     def set_scene_error_keys(self, scene_error_keys: frozenset[str]) -> None:
         """Replace scene keys that should render as title-level diagnostics."""
 
-        self._presentation_runtime.scene_diagnostics.set_keys(scene_error_keys)
+        self._editor_facade.set_scene_error_keys(scene_error_keys)
 
     def scene_error_keys(self) -> frozenset[str]:
         """Return scene keys currently included in projection builds."""
 
-        return self._presentation_runtime.scene_diagnostics.keys
+        return self._editor_facade.scene_error_keys
 
     def set_search_matches(
         self,
@@ -569,29 +561,27 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Replace the transient search matches rendered by the projection surface."""
 
-        self._presentation_runtime.search.set_matches(
-            matches, active_index=active_index
-        )
+        self._editor_facade.set_search_matches(matches, active_index=active_index)
 
     def clear_search_matches(self) -> None:
         """Clear transient search highlights from the projection surface."""
 
-        self._presentation_runtime.search.clear_matches()
+        self._editor_facade.clear_search_matches()
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the caret or token focus."""
 
-        return self._presentation_runtime.queries.active_syntax_span()
+        return self._editor_facade.active_syntax_span()
 
     def hovered_token(self) -> PromptProjectionToken | None:
         """Return the token currently under the pointer when present."""
 
-        return self._presentation_runtime.queries.hovered_token()
+        return self._editor_facade.hovered_token()
 
     def focused_token(self) -> PromptProjectionToken | None:
         """Return the token currently owning caret focus when present."""
 
-        return self._presentation_runtime.queries.focused_token()
+        return self._editor_facade.focused_token()
 
     def token_at_viewport_position(
         self,
@@ -599,34 +589,32 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> PromptProjectionToken | None:
         """Return the projected token painted under one viewport-local point."""
 
-        return self._presentation_runtime.queries.token_at_viewport_position(position)
+        return self._editor_facade.token_at_viewport_position(position)
 
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local anchor rect used by any token controls."""
 
-        return self._presentation_runtime.queries.token_anchor_rect(token)
+        return self._editor_facade.token_anchor_rect(token)
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local projection-owned weight slot for one emphasis token."""
 
-        return self._presentation_runtime.queries.token_weight_text_rect(token)
+        return self._editor_facade.token_weight_text_rect(token)
 
     def toPlainText(self) -> str:
         """Return the current raw prompt source text."""
 
-        return self._editing_session.source_text
+        return self._editor_facade.source_text()
 
     def prompt_document_view(self) -> PromptDocumentView:
         """Return the current prepared prompt document view."""
 
-        return self._editor_state.edit_semantic.document
+        return self._editor_facade.prompt_document_view()
 
     def set_defer_source_rebuilds_until_prompt_state(self, enabled: bool) -> None:
         """Set whether source edits wait for controller-owned prompt snapshots."""
 
-        self._projection_freshness_controller.set_defer_source_rebuilds_until_prompt_state(
-            enabled
-        )
+        self._editor_facade.defer_source_rebuilds_until_prompt_state(enabled)
 
     def apply_edit_commit(
         self,
@@ -634,7 +622,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Apply the sole committed editing result to projection state."""
 
-        self._source_commit_application.apply_edit_commit(commit)
+        self._editor_facade.apply_edit_commit(commit)
 
     def textCursor(self) -> PromptCursorAdapter:  # noqa: N802
         """Return a Qt-like cursor wrapper backed by the surface state."""
@@ -958,7 +946,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             cursor_state=self._caret_state_owner.cursor_state,
             anchor_state=self._caret_state_owner.anchor_state,
             tokens=tuple(self._editor_state.projection.document.tokens),
-            editing_enabled=self._editing_enabled,
+            editing_enabled=self._editor_facade.editing_enabled,
         )
 
     def insert_external_text(self, text: str, *, command_name: str) -> None:
