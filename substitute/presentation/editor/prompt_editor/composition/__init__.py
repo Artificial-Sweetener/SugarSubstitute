@@ -65,6 +65,7 @@ from .menu_runtime import (
 from .service_factory import PromptEditorServiceFactory
 from .signal_bindings import (
     PromptEditorDiagnosticsControllerBinding,
+    PromptEditorSignalCallbacks,
     PromptEditorSignalHost,
     bind_prompt_editor_diagnostics_signals,
     bind_prompt_editor_signals,
@@ -109,6 +110,7 @@ __all__ = [
     "PromptEditorDiagnosticsControllerBinding",
     "PromptEditorInitialLayoutHost",
     "PromptEditorLifecycleWiringResult",
+    "PromptEditorSignalCallbacks",
     "PromptEditorSignalHost",
     "apply_prompt_editor_initial_layout",
     "bind_prompt_editor_diagnostics_signals",

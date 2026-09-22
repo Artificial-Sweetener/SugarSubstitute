@@ -21,6 +21,9 @@ from __future__ import annotations
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
+from substitute.presentation.editor.prompt_editor.shell.fill_plane import (
+    PromptFillPlaneHost,
+)
 
 from collections.abc import Callable
 from collections.abc import Iterator
@@ -258,6 +261,7 @@ def _composition_context(editor: QWidget) -> PromptEditorCompositionContext:
 
     return PromptEditorCompositionContext(
         editor=editor,
+        fill_plane_host=cast(PromptFillPlaneHost, editor),
         shell_viewport=editor,
         autocomplete_limit=10,
         autocomplete_minimum_prefix_length=2,

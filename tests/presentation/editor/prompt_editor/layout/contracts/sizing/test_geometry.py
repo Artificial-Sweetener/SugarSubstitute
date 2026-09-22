@@ -319,11 +319,9 @@ def test_prompt_editor_fill_plane_preserves_qfluent_shell_geometry(
         is True
     )
     assert layer.focusPolicy() == support.Qt.FocusPolicy.NoFocus
-    shell_viewport = support.cast(
-        support.Callable[[], support.QWidget], getattr(box, "_shell_viewport")
-    )
+    shell_viewport = box._runtime.shell.shell.shell_viewport
 
-    assert layer.geometry() == shell_viewport().rect()
+    assert layer.geometry() == shell_viewport.rect()
     assert clip_region.contains(left_padding_point) is True
     assert clip_region.contains(projection_rect.center()) is True
 
