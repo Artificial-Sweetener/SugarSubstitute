@@ -29,9 +29,9 @@ from substitute.presentation.dialogs.localized_fluent_dialogs import (
     LocalizedColorPickerButton,
     LocalizedMessageBoxBase,
 )
-from substitute.presentation.dialogs.recipe_model_resolution_dialog import (
-    RecipeModelResolutionAction,
-    RecipeModelResolutionDialog,
+from substitute.presentation.dialogs.model_acquisition_dialog import (
+    ModelAcquisitionAction,
+    ModelAcquisitionDialog,
 )
 from substitute.presentation.dialogs.restart_required_dialog import (
     RestartRequiredDialog,
@@ -47,8 +47,8 @@ __all__ = [
     "LocalizedColorDialog",
     "LocalizedColorPickerButton",
     "LocalizedMessageBoxBase",
-    "RecipeModelResolutionAction",
-    "RecipeModelResolutionDialog",
+    "ModelAcquisitionAction",
+    "ModelAcquisitionDialog",
     "RestartRequiredDialog",
     "resolve_full_window_modal_owner",
     "StartupDiagnosticsDialog",

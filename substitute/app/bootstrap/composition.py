@@ -51,6 +51,7 @@ from substitute.app.bootstrap.localization_composition import (
     build_application_localization_runtime,
     build_node_presentation_service,
 )
+from substitute.app.bootstrap.lazy_civitai_client import LazyCivitaiClient
 from substitute.app.bootstrap.main_window_runtime import load_main_window_runtime
 from substitute.application.comfy_environment import ComfyEnvironmentService
 from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
@@ -176,10 +177,7 @@ if TYPE_CHECKING:
     )
     from substitute.application.execution import TaskSubmitter
     from substitute.infrastructure.external.danbooru_client import DanbooruClient
-    from substitute.application.model_metadata import (
-        CivitaiMetadataGateway,
-        RichChoiceResolver,
-    )
+    from substitute.application.model_metadata import RichChoiceResolver
     from substitute.application.prompt_editor.lora.catalog_models import (
         PromptLoraCatalogLookup,
     )
@@ -204,7 +202,6 @@ if TYPE_CHECKING:
         DanbooruTagLookupResult,
         DanbooruWikiPageLookupResult,
     )
-    from substitute.domain.model_metadata import CivitaiLookupResult
     from substitute.app.bootstrap.custom_window import CustomWindow
     from substitute.infrastructure.comfy.cube_library_event_listener import (
         CubeLibraryEventListener,
@@ -664,32 +661,6 @@ class _LazyScheduledLoraProvider:
                 node_definition_gateway=self._node_definition_gateway,
             )
         return self._provider
-
-
-class _LazyCivitaiClient:
-    """Defer CivitAI HTTP client imports until metadata lookup is requested."""
-
-    def __init__(self, *, api_key_provider: Callable[[], str | None]) -> None:
-        """Store the API key provider for the concrete CivitAI client."""
-
-        self._api_key_provider = api_key_provider
-        self._client: CivitaiMetadataGateway | None = None
-
-    def lookup_model_version_by_hash(self, sha256: str) -> "CivitaiLookupResult":
-        """Look up CivitAI metadata through the concrete client on first use."""
-
-        return self._resolve().lookup_model_version_by_hash(sha256)
-
-    def _resolve(self) -> "CivitaiMetadataGateway":
-        """Build and cache the concrete CivitAI client."""
-
-        if self._client is None:
-            from substitute.infrastructure.external.civitai_client import (
-                CivitaiClient,
-            )
-
-            self._client = CivitaiClient(api_key_provider=self._api_key_provider)
-        return self._client
 
 
 class _LazyDanbooruClient:
@@ -1277,7 +1248,6 @@ def _build_main_window_dependencies(
         RecipeModelDownloadResolutionService,
         RecipeModelLoadResolver,
         RecipeModelResolutionIndex,
-        WorkflowExportService,
     )
 
     record_dependency_phase("imports.application.recipes")
@@ -1302,6 +1272,9 @@ def _build_main_window_dependencies(
     )
     from substitute.application.workflows.workflow_node_definition_service import (
         WorkflowNodeDefinitionService,
+    )
+    from substitute.app.bootstrap.portable_model_services import (
+        build_portable_model_services,
     )
 
     record_dependency_phase("imports.application.workflows")
@@ -1693,16 +1666,6 @@ def _build_main_window_dependencies(
         "comfy_node_definition_services.gateway",
         node_definition_step_started_at,
     )
-    node_definition_step_started_at = perf_counter()
-    workflow_export_service = WorkflowExportService(
-        workflow_repository=workflow_repository,
-        workflow_payload_compiler=workflow_payload_compiler,
-        node_definition_gateway=node_definition_gateway,
-    )
-    record_dependency_checkpoint(
-        "comfy_node_definition_services.workflow_export",
-        node_definition_step_started_at,
-    )
     record_dependency_phase("comfy_node_definition_services")
     bundled_prompt_autocomplete_gateway = FilePromptAutocompleteGateway()
     prompt_autocomplete_list_service = PromptAutocompleteListService(
@@ -1956,6 +1919,15 @@ def _build_main_window_dependencies(
         model_metadata_store,
         catalog=model_catalog_service,
     )
+    portable_model_services = build_portable_model_services(
+        model_hash_lookup=model_hash_lookup,
+        workflow_repository=workflow_repository,
+        workflow_payload_compiler=workflow_payload_compiler,
+        node_definition_gateway=node_definition_gateway,
+    )
+    portable_model_manifest_service = portable_model_services.manifest
+    native_cube_workflow_builder = portable_model_services.workflow_builder
+    workflow_export_service = portable_model_services.workflow_export
     record_dependency_checkpoint(
         "model_catalog_recipe_services.catalog_services",
         model_recipe_step_started_at,
@@ -2103,6 +2075,7 @@ def _build_main_window_dependencies(
             node_definition_hydrator=node_definition_gateway,
             node_definition_gateway=node_definition_gateway,
         ),
+        native_cube_workflow_builder=native_cube_workflow_builder,
         output_dir=context.projects_dir,
     )
     generation_dispatch_submitter = runtime_services.execution_runtime.submitter(
@@ -2297,7 +2270,7 @@ def _build_main_window_dependencies(
     model_metadata_context_action_handler = ModelMetadataContextActionScheduler(
         refresh_service=ManualModelMetadataRefreshService(
             backend=model_metadata_backend,
-            civitai=_LazyCivitaiClient(
+            civitai=LazyCivitaiClient(
                 api_key_provider=civitai_credential_service.load_api_key
             ),
             catalog=model_metadata_store,
@@ -2395,7 +2368,7 @@ def _build_main_window_dependencies(
             backend=model_metadata_backend,
             refresh_service=ModelMetadataRefreshService(
                 backend=model_metadata_backend,
-                civitai=_LazyCivitaiClient(
+                civitai=LazyCivitaiClient(
                     api_key_provider=civitai_credential_service.load_api_key
                 ),
                 catalog=model_metadata_store,
@@ -2503,7 +2476,7 @@ def _build_main_window_dependencies(
             ),
             backend=model_metadata_backend,
             fingerprint_jobs=model_metadata_backend,
-            civitai=_LazyCivitaiClient(
+            civitai=LazyCivitaiClient(
                 api_key_provider=civitai_credential_service.load_api_key
             ),
             civitai_missing_model_lookup_enabled=(
@@ -2527,6 +2500,8 @@ def _build_main_window_dependencies(
             model_downloaded=record_downloaded_model,
         ),
         workflow_export_service=workflow_export_service,
+        portable_model_manifest_service=portable_model_manifest_service,
+        native_cube_workflow_builder=native_cube_workflow_builder,
         progress_service=progress_service,
         generation_service=generation_service,
         generation_job_queue_service=generation_job_queue_service,

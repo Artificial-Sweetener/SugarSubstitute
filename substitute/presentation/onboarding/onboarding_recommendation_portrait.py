@@ -146,13 +146,20 @@ class RecommendationPortrait(QWidget):
         if image is None:
             self.set_thumbnail_unavailable()
             return False
+        self.set_image(image)
+        return True
+
+    def set_image(self, image: QImage) -> None:
+        """Display one already-decoded image from a trusted presentation adapter."""
+
+        if image.isNull():
+            raise ValueError("Recommendation portrait cannot use a null image.")
         self._image = image
         self.busy_ring.stop()
         self.busy_ring.hide()
         self.loading_label.hide()
         self.unavailable_label.hide()
         self.update()
-        return True
 
     def set_thumbnail_unavailable(self) -> None:
         """Replace the busy indicator with a settled preview fallback."""

@@ -22,6 +22,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
+from substitute.presentation.shell.model_resolution_execution import (
+    ModelResolutionRoute,
+)
+from substitute.presentation.shell.model_download_progress import (
+    model_download_message,
+)
 
 from tests.presentation.shell.file_actions.support import (
     _import_module,
@@ -235,7 +241,7 @@ def test_recipe_model_resolution_runtime_continues_materialization_after_complet
         build_cube_load_ui_callbacks=lambda **_kwargs: SimpleNamespace(),
         output_image_registrar=_noop_output_registrar(),
         recipe_model_resolution_route_factory=(
-            lambda request_id, target_workflow_id: mod.RecipeModelResolutionRoute(
+            lambda request_id, target_workflow_id: ModelResolutionRoute(
                 submitter=runtime.submitter(
                     "recipe_model_resolution",
                     owner_id=(
@@ -365,7 +371,7 @@ def test_recipe_model_download_message_uses_backend_destination_detail() -> None
     """Running download copy should show the exact backend-reported destination."""
 
     mod = _import_module()
-    message = mod._recipe_model_download_message(
+    message = model_download_message(
         mod.BackendModelDownloadJob(
             job_id="job-a",
             status=mod.ModelDownloadStatus.RUNNING,
@@ -376,7 +382,6 @@ def test_recipe_model_download_message_uses_backend_destination_detail() -> None
             error=None,
             detail=r"Saving to E:\ImageGen Models\diffusion_models\Anima.safetensors",
         ),
-        model_label="Anima",
     )
 
     assert message == r"Saving to E:\ImageGen Models\diffusion_models\Anima.safetensors"

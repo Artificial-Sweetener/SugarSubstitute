@@ -36,14 +36,14 @@ def test_lazy_http_clients_defer_requests_backed_imports() -> None:
         import sys
 
         from substitute.app.bootstrap.composition import (
-            _LazyCivitaiClient,
             _LazyComfyObjectInfoClient,
             _LazyDanbooruClient,
         )
+        from substitute.app.bootstrap.lazy_civitai_client import LazyCivitaiClient
         from substitute.domain.onboarding import ComfyEndpoint
 
         clients = [
-            _LazyCivitaiClient(api_key_provider=lambda: None),
+            LazyCivitaiClient(api_key_provider=lambda: None),
             _LazyDanbooruClient(),
             _LazyComfyObjectInfoClient(
                 endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
@@ -65,7 +65,7 @@ def test_lazy_http_clients_defer_requests_backed_imports() -> None:
     completed = run_isolated_import_probe(code)
 
     assert completed.stdout.strip() == (
-        '[["_LazyCivitaiClient", "_LazyDanbooruClient", '
+        '[["LazyCivitaiClient", "_LazyDanbooruClient", '
         '"_LazyComfyObjectInfoClient"], []]'
     )
 

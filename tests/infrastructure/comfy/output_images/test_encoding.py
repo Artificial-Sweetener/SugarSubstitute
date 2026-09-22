@@ -31,6 +31,9 @@ from substitute.application.ports import OutputSavePlan
 from substitute.infrastructure.comfy.output_image_persistence import (
     OutputImagePersistence,
 )
+from substitute.infrastructure.comfy.workflow_document_repository import (
+    ComfyWorkflowDocumentRepository,
+)
 from tests.infrastructure.comfy.output_images.support import (
     build_png_bytes,
     build_source_identity,
@@ -83,6 +86,12 @@ def test_native_cube_png_keeps_workflow_without_empty_sugarscript(
         "nodes": [{"id": 1, "type": "Cube"}],
         "links": [],
         "definitions": {"subgraphs": []},
+        "extra": {
+            "sugarsubstitute_model_manifest": {
+                "schema_version": 1,
+                "references": [],
+            }
+        },
     }
     persistence = OutputImagePersistence(
         output_save_plan=OutputSavePlan(
@@ -105,10 +114,8 @@ def test_native_cube_png_keeps_workflow_without_empty_sugarscript(
     assert result.file_path is not None
     with Image.open(result.file_path) as png:
         assert "sugar_script" not in png.info
-        assert (
-            png.info["workflow"]
-            == '{"version":0.4,"nodes":[{"id":1,"type":"Cube"}],"links":[],"definitions":{"subgraphs":[]}}'
-        )
+        assert "sugarsubstitute_model_manifest" in png.info["workflow"]
+    assert ComfyWorkflowDocumentRepository().load(result.file_path) == workflow
 
 
 def test_target_size_jpeg_encoder_produces_bounded_derivative(

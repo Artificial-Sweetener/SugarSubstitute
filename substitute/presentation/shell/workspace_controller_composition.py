@@ -74,10 +74,12 @@ from substitute.presentation.shell.workflow_surface_reconciler import (
     ActiveWorkflowSurfaceRefresher,
 )
 from substitute.presentation.shell.workspace_file_actions import (
-    RecipeModelDownloadRoute,
-    RecipeModelResolutionRoute,
     WorkspaceFileActionView,
     WorkspaceFileActions,
+)
+from substitute.presentation.shell.model_resolution_execution import (
+    ModelDownloadRoute,
+    ModelResolutionRoute,
 )
 from substitute.presentation.shell.workspace_generation_action_adapter import (
     WorkspaceGenerationActions,
@@ -260,14 +262,14 @@ def compose_workspace_controller_collaborators(
             ),
         ),
         recipe_model_resolution_route_factory=(
-            lambda request_id, target_workflow_id: _recipe_model_resolution_route(
+            lambda request_id, target_workflow_id: model_resolution_route(
                 host=host,
                 request_id=request_id,
                 target_workflow_id=target_workflow_id,
             )
         ),
         recipe_model_download_route_factory=(
-            lambda request_id, target_workflow_id: _recipe_model_download_route(
+            lambda request_id, target_workflow_id: model_download_route(
                 host=host,
                 request_id=request_id,
                 target_workflow_id=target_workflow_id,
@@ -389,45 +391,45 @@ def _add_workflow_tab(workflow_workspace: WorkflowWorkspaceCoordinator) -> None:
     workflow_workspace.add_workflow()
 
 
-def _recipe_model_resolution_route(
+def model_resolution_route(
     *,
     host: object,
     request_id: int,
     target_workflow_id: str,
-) -> RecipeModelResolutionRoute:
-    """Create the runtime route for one recipe model resolution task."""
+) -> ModelResolutionRoute:
+    """Create the shared runtime route for one model-resolution task."""
 
     execution_runtime = getattr(host, "execution_runtime", None)
     if execution_runtime is None:
-        raise RuntimeError("execution_runtime is required for recipe model resolution.")
+        raise RuntimeError("execution_runtime is required for model resolution.")
     submitter = execution_runtime.submitter(
         "recipe_model_resolution",
-        owner_id=f"recipe_model_resolution_{target_workflow_id}_{request_id}",
+        owner_id=f"model_resolution_{target_workflow_id}_{request_id}",
         dispatcher=QtOwnerThreadDispatcher(),
     )
-    return RecipeModelResolutionRoute(
+    return ModelResolutionRoute(
         submitter=submitter,
         close=submitter.close,
     )
 
 
-def _recipe_model_download_route(
+def model_download_route(
     *,
     host: object,
     request_id: int,
     target_workflow_id: str,
-) -> RecipeModelDownloadRoute:
-    """Create the runtime route for one deferred recipe model download."""
+) -> ModelDownloadRoute:
+    """Create the shared runtime route for one verified model download."""
 
     execution_runtime = getattr(host, "execution_runtime", None)
     if execution_runtime is None:
         raise RuntimeError("execution_runtime is required for model downloads.")
     submitter = execution_runtime.submitter(
         "model_download",
-        owner_id=f"recipe_model_download_{target_workflow_id}_{request_id}",
+        owner_id=f"model_download_{target_workflow_id}_{request_id}",
         dispatcher=QtOwnerThreadDispatcher(),
     )
-    return RecipeModelDownloadRoute(
+    return ModelDownloadRoute(
         submitter=submitter,
         progress_dispatcher=QtOwnerThreadDispatcher(),
         close=submitter.close,
@@ -438,5 +440,7 @@ __all__ = [
     "WorkspaceControllerCollaborators",
     "WorkspaceControllerViews",
     "compose_workspace_controller_collaborators",
+    "model_download_route",
+    "model_resolution_route",
     "workspace_controller_views",
 ]
