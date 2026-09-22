@@ -29,6 +29,9 @@ def test_surface_delegates_source_ready_lifecycle_construction() -> None:
     runtime_source = (projection_root / "surface_lifecycle_runtime.py").read_text(
         encoding="utf-8"
     )
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
+        encoding="utf-8"
+    )
 
     for construction_marker in (
         "PromptProjectionLayoutWidthResolver(",
@@ -40,26 +43,31 @@ def test_surface_delegates_source_ready_lifecycle_construction() -> None:
     ):
         assert construction_marker in runtime_source
         assert construction_marker not in surface_source
-    assert "build_prompt_projection_surface_lifecycle_runtime(" in surface_source
+    assert "build_prompt_projection_surface_lifecycle_runtime(" in composition_source
+    assert "build_prompt_projection_surface_lifecycle_runtime(" not in surface_source
+    assert "build_prompt_projection_surface_composition_runtime(" in surface_source
 
 
 def test_lifecycle_composes_after_source_freshness_is_available() -> None:
     """Prevent lifecycle owners from closing over a future freshness owner."""
 
-    surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
-        encoding="utf-8"
-    )
+    composition_source = (
+        PROMPT_PRESENTATION_ROOT / "projection" / "surface_composition_runtime.py"
+    ).read_text(encoding="utf-8")
 
-    source_state_index = surface_source.index(
-        "source_state_owners = build_prompt_projection_source_state_owners("
+    source_state_index = composition_source.index(
+        "source = build_prompt_projection_source_state_owners("
     )
-    freshness_index = surface_source.index(
-        "self._projection_freshness_controller = source_state_owners.freshness_controller"
+    lifecycle_index = composition_source.index(
+        "lifecycle = build_prompt_projection_surface_lifecycle_runtime("
     )
-    lifecycle_index = surface_source.index(
-        "lifecycle_runtime = build_prompt_projection_surface_lifecycle_runtime("
+    lifecycle_block_end = composition_source.index(
+        "presentation = build_prompt_projection_surface_presentation_runtime("
     )
-    assert source_state_index < freshness_index < lifecycle_index
+    lifecycle_block = composition_source[lifecycle_index:lifecycle_block_end]
+
+    assert source_state_index < lifecycle_index
+    assert "freshness=source.freshness_controller" in lifecycle_block
 
 
 def test_source_state_uses_an_explicit_late_bound_effect_port() -> None:
@@ -67,25 +75,31 @@ def test_source_state_uses_an_explicit_late_bound_effect_port() -> None:
 
     projection_root = PROMPT_PRESENTATION_ROOT / "projection"
     surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
+        encoding="utf-8"
+    )
     source_wiring_source = (projection_root / "source_state_wiring.py").read_text(
         encoding="utf-8"
     )
-    source_block_start = surface_source.index(
-        "source_state_owners = build_prompt_projection_source_state_owners("
+    source_block_start = composition_source.index(
+        "source = build_prompt_projection_source_state_owners("
     )
-    source_block_end = surface_source.index(
-        "self._source_document_adapter =", source_block_start
+    source_block_end = composition_source.index(
+        "lifecycle = build_prompt_projection_surface_lifecycle_runtime(",
+        source_block_start,
     )
-    source_block = surface_source[source_block_start:source_block_end]
+    source_block = composition_source[source_block_start:source_block_end]
 
     assert "lifecycle_effects=source_lifecycle_effects" in source_block
-    assert "self._presentation_runtime" not in source_block
-    assert "self._caret_visual_controller" not in source_block
-    assert "self._reorder" not in source_block
+    assert "presentation." not in source_block
+    assert "lifecycle." not in source_block
     assert "bindings.lifecycle_effects" in source_wiring_source
+    assert "bind_prompt_projection_source_lifecycle_effects(" not in surface_source
 
-    presentation_index = surface_source.index("self._presentation_runtime =")
-    effect_binding_index = surface_source.index(
+    presentation_index = composition_source.index(
+        "presentation = build_prompt_projection_surface_presentation_runtime("
+    )
+    effect_binding_index = composition_source.index(
         "bind_prompt_projection_source_lifecycle_effects("
     )
     assert presentation_index < effect_binding_index
@@ -94,29 +108,44 @@ def test_source_state_uses_an_explicit_late_bound_effect_port() -> None:
 def test_pre_source_owners_use_an_explicit_graph_effect_port() -> None:
     """Prevent early owner construction from closing over future surface fields."""
 
-    surface_source = (PROMPT_PRESENTATION_ROOT / "projection" / "surface.py").read_text(
+    projection_root = PROMPT_PRESENTATION_ROOT / "projection"
+    surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    composition_source = (projection_root / "surface_composition_runtime.py").read_text(
         encoding="utf-8"
     )
     interaction_runtime_source = (
-        PROMPT_PRESENTATION_ROOT / "projection" / "surface_interaction_runtime.py"
+        projection_root / "surface_interaction_runtime.py"
     ).read_text(encoding="utf-8")
-    graph_start = surface_source.index(
+    source_start = composition_source.index(
+        "source = build_prompt_projection_source_state_owners("
+    )
+    source_end = composition_source.index(
+        "lifecycle = build_prompt_projection_surface_lifecycle_runtime(", source_start
+    )
+    source_block = composition_source[source_start:source_end]
+
+    graph_port_index = surface_source.index(
         "graph_effects = PromptProjectionSurfaceGraphEffects()"
     )
-    graph_end = surface_source.index(
-        "source_lifecycle_effects = PromptProjectionSourceLifecycleEffects()"
+    interaction_index = surface_source.index(
+        "interaction_runtime = build_prompt_projection_surface_interaction_runtime("
     )
-    graph_block = surface_source[graph_start:graph_end]
-
-    assert "self._presentation_runtime." not in graph_block
-    assert "self._projection_freshness_controller." not in graph_block
-    assert "self._caret_visual_controller." not in graph_block
-    assert "graph_effects=graph_effects" in graph_block
+    composition_index = surface_source.index(
+        "composition_runtime = build_prompt_projection_surface_composition_runtime("
+    )
+    assert graph_port_index < interaction_index < composition_index
+    assert "presentation." not in source_block
+    assert "lifecycle." not in source_block
+    assert "graph_effects=graph_effects" in surface_source
+    assert "graph_effects=bindings.graph_effects" not in source_block
     assert "graph_effects.rebuild_projection" in interaction_runtime_source
     assert "graph_effects.ensure_caret_visible" in interaction_runtime_source
+    assert "bind_prompt_projection_surface_graph_effects(" not in surface_source
 
-    presentation_index = surface_source.index("self._presentation_runtime =")
-    effect_binding_index = surface_source.index(
+    presentation_index = composition_source.index(
+        "presentation = build_prompt_projection_surface_presentation_runtime("
+    )
+    effect_binding_index = composition_source.index(
         "bind_prompt_projection_surface_graph_effects("
     )
     assert presentation_index < effect_binding_index
