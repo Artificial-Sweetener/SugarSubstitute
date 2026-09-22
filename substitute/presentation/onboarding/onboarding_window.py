@@ -133,6 +133,9 @@ from substitute.presentation.onboarding.path_selector import (
 from substitute.presentation.onboarding.setup_progress_presenter import (
     SetupProgressPresenter,
 )
+from substitute.presentation.onboarding.setup_activity_output import (
+    SetupActivityOutput,
+)
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.errors.error_presenter import (
     ErrorPresenter,
@@ -213,6 +216,11 @@ class OnboardingWindow(SubstituteWindowFrame):
         configure_installer_title_bar(self.titleBar)
 
         self._build_ui()
+        self._setup_activity_output = SetupActivityOutput(
+            stream=self._provisioning_output_stream,
+            activity_observer=self.provisioning_page.record_activity,
+            diagnostic_sink=self._diagnostic_log_sink,
+        )
         report_presenter = error_presenter or ErrorPresenter(
             parent=self,
             open_console=lambda: self.provisioning_page.set_log_expanded(True),
@@ -945,6 +953,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         """Switch the provisioning page into its active state."""
 
         self._attention_outcomes.discard("failure")
+        self._setup_activity_output.begin_attempt()
         self._setup_progress_presenter.begin()
         set_localized_text(self.provisioning_page.status_label, "Starting setup.")
         self.provisioning_page.clear_details()
@@ -960,11 +969,9 @@ class OnboardingWindow(SubstituteWindowFrame):
         apply_application_text(self.provisioning_page.status_label, message)
 
     def _handle_progress_log(self, message: ApplicationText) -> None:
-        """Append one provisioning transcript line in the active locale."""
+        """Relay one raw setup record to activity, diagnostics, and the console."""
 
-        line = render_application_text(message)
-        self._provisioning_output_stream.append_line(line)
-        self._diagnostic_log_sink(line)
+        self._setup_activity_output.accept(message)
 
     def _handle_provisioning_finished(self) -> None:
         """Route successful setup to completion or expose retry after failure."""

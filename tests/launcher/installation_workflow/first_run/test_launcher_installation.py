@@ -125,6 +125,7 @@ def test_continue_install_command_carries_handoff_geometry(tmp_path: Path) -> No
         subprocess_path(layout.executable_path),
         "--continue-install",
         f"--install-root={subprocess_path(layout.root)}",
+        "--launch-intent=setup",
         "--handoff-geometry=10,20,1260,800",
     ]
 

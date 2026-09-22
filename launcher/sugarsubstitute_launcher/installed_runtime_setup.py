@@ -31,6 +31,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import build_app_launch_command
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.installation_mutation import installation_mutation
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,7 +67,12 @@ def pending_runtime_application(layout: InstallLayout) -> InstalledApplication:
     state = LauncherUpdateState.load(layout.state_path)
     return InstalledApplication(
         layout=layout,
-        app_command=tuple(build_app_launch_command(layout=layout)),
+        app_command=tuple(
+            build_app_launch_command(
+                layout=layout,
+                launch_intent=ApplicationLaunchIntent.SETUP,
+            )
+        ),
         app_version=state.installed_app_version or "",
         launcher_installed=True,
     )

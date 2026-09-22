@@ -34,6 +34,9 @@ class LauncherUpdateProgress(Protocol):
     def append_log(self, line: str) -> None:
         """Append one update progress line."""
 
+    def record_activity(self) -> None:
+        """Report observed update work that does not warrant another log line."""
+
     def start_activity(self, activity: SplashActivity) -> None:
         """Start or replace one independently animated update activity."""
 
@@ -56,6 +59,14 @@ class ResilientLauncherUpdateProgress:
         if target is None:
             return
         self._deliver("append_log", lambda: target.append_log(line))
+
+    def record_activity(self) -> None:
+        """Report observed work when the presentation target remains available."""
+
+        target = self._target
+        if target is None:
+            return
+        self._deliver("record_activity", target.record_activity)
 
     def start_activity(self, activity: SplashActivity) -> None:
         """Start one activity when the presentation target remains available."""

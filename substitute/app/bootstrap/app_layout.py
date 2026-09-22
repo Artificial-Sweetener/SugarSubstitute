@@ -36,7 +36,12 @@ class AppLayout:
     def installed(cls, install_root: Path) -> Self:
         """Build an installed source-payload layout."""
 
-        app_dir = install_root / "app"
+        return cls.installed_at(install_root / "app")
+
+    @classmethod
+    def installed_at(cls, app_dir: Path) -> Self:
+        """Build an installed source-payload layout at an exact app directory."""
+
         return cls(
             app_dir=app_dir,
             entrypoint_path=app_dir / "main.py",
@@ -56,17 +61,56 @@ class AppLayout:
         )
 
 
-def resolve_app_layout(install_root: Path) -> AppLayout:
-    """Resolve installed app payload paths, falling back to the source checkout."""
+def resolve_app_layout(
+    install_root: Path,
+    *,
+    entrypoint_path: Path | None = None,
+) -> AppLayout:
+    """Resolve legacy or generation-backed installed app payload paths."""
 
     resolved_root = install_root.resolve()
     installed_layout = AppLayout.installed(resolved_root)
-    if (
-        installed_layout.entrypoint_path.is_file()
-        and installed_layout.requirements_path.is_file()
-    ):
+    if _is_complete_layout(installed_layout):
         return installed_layout
+
+    resolved_entrypoint = (
+        entrypoint_path.resolve()
+        if entrypoint_path is not None
+        else (_repo_root() / "main.py").resolve()
+    )
+    generation_layout = AppLayout.installed_at(resolved_entrypoint.parent)
+    if _is_managed_generation_layout(resolved_root, generation_layout):
+        return generation_layout
     return AppLayout.source_checkout(_repo_root())
+
+
+def _is_complete_layout(layout: AppLayout) -> bool:
+    """Return whether an app layout contains its required launch inputs."""
+
+    return layout.entrypoint_path.is_file() and layout.requirements_path.is_file()
+
+
+def _is_managed_generation_layout(install_root: Path, layout: AppLayout) -> bool:
+    """Return whether a complete layout is an immutable launcher generation."""
+
+    try:
+        relative_app_dir = layout.app_dir.relative_to(install_root)
+    except ValueError:
+        return False
+    parts = relative_app_dir.parts
+    if len(parts) != 5 or parts[:3] != (
+        "launcher",
+        "releases",
+        "generations",
+    ):
+        return False
+    generation = parts[3]
+    return (
+        len(generation) == 32
+        and all(character in "0123456789abcdef" for character in generation)
+        and parts[4] == "app"
+        and _is_complete_layout(layout)
+    )
 
 
 def _repo_root() -> Path:

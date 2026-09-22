@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from qfluentwidgets import ProgressBar  # type: ignore[import-untyped]
 
 from substitute.application.errors import ErrorReport
 from substitute.application.onboarding import OnboardingProvisioningFailure
@@ -105,7 +106,7 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     presenter.begin()
 
     assert page.details_container.isHidden()
-    assert page.activity_progress_bar.isHidden()
+    assert page.overall_progress_bar.activity_running is False
     assert presenter.accept(
         SetupProgressEvent(
             2,
@@ -162,11 +163,13 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     assert snapshot.total_tasks == 6
     assert snapshot.model_completed_bytes == 25
     assert snapshot.model_total_bytes == 100
-    assert page.overall_progress_bar.value() == 17
-    assert page.model_progress_bar.value() == 25
+    assert page.overall_progress_bar.visible_fraction == pytest.approx(1.25 / 6)
     assert "2 of 3" in page.model_progress_label.text()
     assert page.status_label.text() == "late model event"
-    assert page.activity_progress_bar.isHidden() is False
+    assert len(page.status_panel.findChildren(ProgressBar)) == 1
+    assert page.overall_progress_bar.activity_running is True
+    page.append_log("Downloaded another model chunk")
+    assert page.overall_progress_bar.activity_running is True
 
     assert presenter.accept(
         SetupProgressEvent(
@@ -184,7 +187,7 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     )
     assert presenter.snapshot().model_complete
     assert "Downloading" not in page.model_progress_label.text()
-    assert page.model_progress_bar.value() == 100
+    assert page.overall_progress_bar.visible_fraction == pytest.approx(2 / 6)
     page.close()
 
 
