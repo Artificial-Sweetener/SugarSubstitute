@@ -26,7 +26,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from substitute.presentation.localization import LocalizedBodyLabel
-from substitute.presentation.shell.splash_progress_bar import SplashProgressBar
+from sugarsubstitute_shared.presentation.activity_progress_bar import (
+    ActivityProgressBar,
+)
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import set_localized_text
 from sugarsubstitute_shared.launch_splash.progress import SplashProgress
@@ -64,7 +66,7 @@ class SplashProgressPanel(QWidget):
         self.status.setSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Ignored
         )
-        self.progress = SplashProgressBar(self)
+        self.progress = ActivityProgressBar(self)
         self.progress.setRange(0, 1)
         self.progress.setValue(0)
         layout = QVBoxLayout(self)
@@ -146,18 +148,13 @@ class SplashProgressPanel(QWidget):
         super().hideEvent(event)
 
     def showEvent(self, event: QShowEvent) -> None:
-        """Resume visible activity without claiming additional completed work."""
+        """Rearm visible activity without manufacturing an activity event."""
         super().showEvent(event)
         self._update_activity()
 
     def _update_activity(self) -> None:
-        """Animate only the currently visible unfinished progress surface."""
-        active = (
-            self.isVisible()
-            and not self._complete
-            and not self._failed
-            and self.progress.value() > self.progress.minimum()
-        )
+        """Arm only the currently visible unfinished progress surface."""
+        active = self.isVisible() and not self._complete and not self._failed
         self.progress.set_activity_enabled(active)
 
     @property

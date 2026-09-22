@@ -70,6 +70,8 @@ def test_completion_and_hide_stop_activity(panel: SplashProgressPanel) -> None:
     panel.hide()
     assert not panel.progress.activity_running
     panel.show()
+    assert not panel.progress.activity_running
+    panel.record_activity()
     assert panel.progress.activity_running
     panel.set_progress(SplashProgress(5, 5), status="Ready")
     assert not panel.progress.activity_running

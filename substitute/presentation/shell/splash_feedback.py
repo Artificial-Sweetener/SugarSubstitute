@@ -98,7 +98,7 @@ class SplashFeedback(QWidget):
         self._presenter.textChanged.connect(self._panel.set_activity_status)
 
     def append_log(self, line: str) -> None:
-        """Retain output while operation feedback remains independent of log volume."""
+        """Retain output and pulse once to represent newly observed console activity."""
         if not line:
             return
         self._stream.append_line(line)

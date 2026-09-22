@@ -3242,10 +3242,6 @@ Install these nodes now?</source>
       <translation>⟦Mödël döwnlöàd fàïlëd ···⟧</translation>
     </message>
     <message>
-      <source>Model download progress</source>
-      <translation>⟦Mödël döwnlöàd prögrëss ···⟧</translation>
-    </message>
-    <message>
       <source>Model download returned invalid results.</source>
       <translation>⟦Mödël döwnlöàd rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
     </message>
@@ -4990,10 +4986,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Setup stopped before ComfyUI was ready. Review the setup log for details, then try again.</source>
       <translation>⟦Sëtüp stöppëd bëförë CömfyÜÏ wàs rëàdy. Rëvïëw thë sëtüp lög för dëtàïls, thën try àgàïn. ···⟧</translation>
-    </message>
-    <message>
-      <source>Setup task activity</source>
-      <translation>⟦Sëtüp tàsk àctïvïty ···⟧</translation>
     </message>
     <message>
       <source>Setup was interrupted</source>

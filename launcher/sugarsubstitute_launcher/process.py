@@ -24,6 +24,8 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process_execution import start_detached_handoff
 from sugarsubstitute_shared.application_launch_context import (
+    ApplicationLaunchIntent,
+    application_launch_intent_argument,
     application_launch_install_root,
 )
 from sugarsubstitute_shared.crash_reporting.protocol import (
@@ -43,6 +45,7 @@ def build_continue_install_command(
         subprocess_path(layout.executable_path),
         "--continue-install",
         f"--install-root={subprocess_path(layout.root)}",
+        application_launch_intent_argument(ApplicationLaunchIntent.SETUP),
     ]
     if handoff_geometry:
         command.append(f"--handoff-geometry={handoff_geometry}")
@@ -53,6 +56,7 @@ def build_app_launch_command(
     *,
     layout: InstallLayout,
     extra_args: Sequence[str] = (),
+    launch_intent: ApplicationLaunchIntent = ApplicationLaunchIntent.NORMAL,
 ) -> list[str]:
     """Build the command that starts the source payload with managed Python."""
 
@@ -60,6 +64,11 @@ def build_app_launch_command(
         subprocess_path(layout.runtime_python),
         subprocess_path(layout.app_entrypoint),
         f"--install-root={subprocess_path(layout.root)}",
+        *(
+            [application_launch_intent_argument(launch_intent)]
+            if launch_intent is not ApplicationLaunchIntent.NORMAL
+            else []
+        ),
         *extra_args,
     ]
 
@@ -74,7 +83,7 @@ def build_installed_launcher_handoff_command(
     forwarded_arguments = [
         argument
         for argument in app_command
-        if argument.startswith(("--handoff-geometry=", "--locale="))
+        if argument.startswith(("--handoff-geometry=", "--locale=", "--launch-intent="))
     ]
     return [
         subprocess_path(layout.executable_path),

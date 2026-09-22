@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Add a bounded activity sweep to Fluent determinate startup progress."""
+"""Add one bounded activity sweep to truthful Fluent progress."""
 
 from __future__ import annotations
 
@@ -22,31 +22,35 @@ from PySide6.QtCore import QAbstractAnimation, QRectF, Qt, QVariantAnimation
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import ProgressBar, isDarkTheme  # type: ignore[import-untyped]
-from substitute.presentation.motion import is_reduced_motion_enabled
+
+from sugarsubstitute_shared.presentation.fluent_motion import (
+    is_reduced_motion_enabled,
+)
 from sugarsubstitute_shared.presentation.terminal.output_style import (
     TERMINAL_CORNER_RADIUS,
 )
 
 
-class SplashProgressBar(ProgressBar):  # type: ignore[misc]
-    """Animate activity inside the completed fill without changing its value or track."""
+class ActivityProgressBar(ProgressBar):  # type: ignore[misc]
+    """Animate activity inside completed fill without changing truthful progress."""
 
     def __init__(self, parent: QWidget) -> None:
         """Keep the Fluent base renderer as the owner of fill and theme colors."""
         super().__init__(parent, useAni=False)
         self.setFixedHeight(4)
+        self._activity_enabled = False
         self._console_attached = False
         self._phase = 0.0
         self._sweep = QVariantAnimation(self)
-        self._sweep.setObjectName("SplashActivitySweep")
+        self._sweep.setObjectName("ProgressActivitySweep")
         self._sweep.setDuration(1800)
         self._sweep.setStartValue(0.0)
         self._sweep.setEndValue(1.0)
-        self._sweep.setLoopCount(-1)
+        self._sweep.setLoopCount(1)
         self._sweep.valueChanged.connect(self._set_phase)
 
     def set_console_attached(self, attached: bool) -> None:
-        """Join the console silhouette while keeping standalone Fluent geometry."""
+        """Join a console silhouette while keeping standalone Fluent geometry."""
         self._console_attached = attached
         self.setFixedHeight(TERMINAL_CORNER_RADIUS if attached else 4)
         self.update()
@@ -65,12 +69,9 @@ class SplashProgressBar(ProgressBar):  # type: ignore[misc]
         return clip
 
     def set_activity_enabled(self, enabled: bool) -> None:
-        """Stop animation for hidden, terminal or reduced-motion surfaces."""
-        enabled = enabled and not is_reduced_motion_enabled()
-        if enabled:
-            if self._sweep.state() != QAbstractAnimation.State.Running:
-                self._sweep.start()
-        else:
+        """Arm real activity pulses or stop a surface that cannot display them."""
+        self._activity_enabled = enabled and not is_reduced_motion_enabled()
+        if not self._activity_enabled:
             self._sweep.stop()
             self.update()
 
@@ -80,7 +81,12 @@ class SplashProgressBar(ProgressBar):  # type: ignore[misc]
         return self._sweep.state() == QAbstractAnimation.State.Running
 
     def record_activity(self) -> None:
-        """Repaint observed work without resetting or stalling the ongoing sweep."""
+        """Start one bounded sweep for observed work without changing progress."""
+        if (
+            self._activity_enabled
+            and self._sweep.state() != QAbstractAnimation.State.Running
+        ):
+            self._sweep.start()
         self.update()
 
     def _set_phase(self, phase: object) -> None:
@@ -90,7 +96,7 @@ class SplashProgressBar(ProgressBar):  # type: ignore[misc]
             self.update()
 
     def paintEvent(self, event: object) -> None:
-        """Clip the moving highlight to the Fluent bar's rounded completed region."""
+        """Clip the moving highlight to the Fluent bar's completed region."""
         if not self._console_attached:
             super().paintEvent(event)
         total = self.maximum() - self.minimum()
@@ -105,11 +111,12 @@ class SplashProgressBar(ProgressBar):  # type: ignore[misc]
             )
             painter.fillPath(self._fill_clip(self.width()), background)
             painter.fillPath(self._fill_clip(filled), self.barColor())
-        if filled <= 0 or self._sweep.state() != QAbstractAnimation.State.Running:
+        if self._sweep.state() != QAbstractAnimation.State.Running:
             return
-        clip = self._fill_clip(filled)
-        band = max(12.0, filled * 0.35)
-        center = -band + self._phase * (filled + 2 * band)
+        activity_width = filled if filled > 0 else float(self.width())
+        clip = self._fill_clip(activity_width)
+        band = max(12.0, activity_width * 0.35)
+        center = -band + self._phase * (activity_width + 2 * band)
         gradient = QLinearGradient(center - band, 0, center + band, 0)
         gradient.setColorAt(0, QColor(255, 255, 255, 0))
         gradient.setColorAt(0.5, QColor(255, 255, 255, 65))
@@ -117,3 +124,6 @@ class SplashProgressBar(ProgressBar):  # type: ignore[misc]
         painter.setClipPath(clip)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.fillRect(self.rect(), gradient)
+
+
+__all__ = ["ActivityProgressBar"]

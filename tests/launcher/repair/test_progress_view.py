@@ -24,7 +24,6 @@ from PySide6.QtCore import QCoreApplication, QEvent, Qt
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import (
     QApplication,
-    QGraphicsOpacityEffect,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -33,7 +32,9 @@ import pytest
 
 from launcher.sugarsubstitute_launcher.ui.repair_progress_view import RepairProgressView
 from launcher.sugarsubstitute_launcher.ui.repair_window import RepairWindow
-from tests.support.qt.semantic_wait import wait_for_qt_condition
+from sugarsubstitute_shared.presentation.activity_progress_bar import (
+    ActivityProgressBar,
+)
 
 
 @pytest.fixture
@@ -61,11 +62,9 @@ def test_activity_does_not_manufacture_completed_progress(
     assert bar.value() == 40
     view.pulse_activity()
     assert bar.value() == 40
-    effect = bar.graphicsEffect()
-    assert isinstance(effect, QGraphicsOpacityEffect)
-    wait_for_qt_condition(lambda: effect.opacity() < 0.95)
+    assert isinstance(bar, ActivityProgressBar)
+    assert bar.activity_running
     assert bar.value() == 40
-    wait_for_qt_condition(lambda: effect.opacity() == 1.0)
     view.set_stage("Checking the installation", completed=4, total=5)
     assert bar.value() == 80
 
