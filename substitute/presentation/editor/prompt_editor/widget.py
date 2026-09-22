@@ -103,29 +103,22 @@ from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
 from .async_work import QtPromptEditorMainThreadDispatcher
-from .commands.context_insertion import PromptContextInsertionService
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
-    PromptEditorAutocompleteFactory,
     PromptEditorCompositionContext,
     PromptEditorConstructionInputs,
     PromptEditorConstructionObserver,
-    PromptEditorDanbooruFactory,
-    PromptEditorExecutionFactory,
+    PromptEditorCoreRuntimeBindings,
     PromptEditorMenuActionBindings,
     PromptEditorMenuFeatureOwners,
     PromptEditorMenuHostBindings,
-    PromptEditorProjectionFactory,
-    PromptEditorServiceFactory,
-    PromptEditorSyntaxFactory,
+    PromptEditorProjectionCollaborators,
     PromptEditorTaskExecutorFactory,
     apply_prompt_editor_initial_layout,
     bind_prompt_editor_diagnostics_signals,
     bind_prompt_editor_signals,
-    build_context_insertion_service,
-    build_external_url_action_runner,
+    build_prompt_editor_core_runtime,
     build_prompt_editor_menu_runtime,
-    build_prompt_document_service,
     build_resize_handle,
     bundle_collaborators,
     qt_object_is_alive,
@@ -133,7 +126,6 @@ from .composition import (
 )
 from .features import (
     PromptDanbooruPasteImportController,
-    PromptDiagnosticsFeatureController,
     PromptFeatureProfileController,
     PromptLoraMetadataPresentation,
     PromptLoraTriggerWordController,
@@ -143,8 +135,6 @@ from .features import (
     PromptSegmentPresetSource,
 )
 from .interactions import (
-    PromptDanbooruDialogRunner,
-    PromptExternalUrlActionRunner,
     PromptReorderOverlayPort,
     PromptWheelScrollResult,
 )
@@ -153,7 +143,6 @@ from .host_event_router import (
     PromptEditorHostEventBindings,
     PromptEditorHostEventRouter,
 )
-from .key_router import build_prompt_editor_key_router
 from .overlays import (
     PromptAutocompletePanel,
     PromptTokenWeightControls,
@@ -164,16 +153,12 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
 )
-from .projection.undo_payload import PromptProjectionUndoPayload
 from .geometry.models import PromptProjectionSourceLineRect
 from .catalog_refresh_facade import build_prompt_editor_catalog_refresh_facade
 from .command_facade import PromptEditorCommandFacade
 from .document_facade import build_prompt_editor_document_facade
 from .emphasis_facade import PromptEditorEmphasisFacade
-from .external_input_facade import build_prompt_editor_external_input_facade
 from .reorder_facade import PromptEditorReorderFacade
-from .rendering_facade import build_prompt_editor_rendering_facade
-from .scene_facade import build_prompt_editor_scene_facade
 from .shell import (
     PromptEditorShellRuntimeBindings,
     PromptEditorShellRuntimeMount,
@@ -268,16 +253,10 @@ class PromptEditor(
             danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
         )
         parent = construction_inputs.parent
-        prompt_autocomplete_gateway = construction_inputs.prompt_autocomplete_gateway
-        prompt_wildcard_catalog_gateway = (
-            construction_inputs.prompt_wildcard_catalog_gateway
-        )
         maximum_visible_lines = construction_inputs.maximum_visible_lines
         prompt_lora_catalog_service = construction_inputs.prompt_lora_catalog_service
         thumbnail_asset_repository = construction_inputs.thumbnail_asset_repository
-        prompt_segment_preset_source = construction_inputs.prompt_segment_preset_source
         prompt_spellcheck_service = construction_inputs.prompt_spellcheck_service
-        open_url = construction_inputs.open_url
 
         construction_observer = PromptEditorConstructionObserver(_LOGGER)
         init_started_at = construction_observer.started_at()
@@ -355,88 +334,47 @@ class PromptEditor(
             fill_plane_factory=PromptFillPlane,
             resize_handle_factory=PromptResizeHandle,
         )
-        execution_factory = PromptEditorExecutionFactory(
+        core_runtime = build_prompt_editor_core_runtime(
             construction_inputs,
             composition_context,
-        )
-        danbooru_factory = PromptEditorDanbooruFactory(composition_context)
-        phase_started_at = construction_observer.started_at()
-        projection_collaborators = PromptEditorProjectionFactory(
-            construction_inputs,
-            composition_context,
-            execution_factory,
-        ).build(paste_completed=self._shell_runtime.paste_completion.complete)
-        self._lora_thumbnail_cache = projection_collaborators.lora_thumbnail_cache
-        self._lora_thumbnail_preloader = (
-            projection_collaborators.lora_thumbnail_preloader
-        )
-        self._surface = projection_collaborators.surface
-        self._external_input_facade = build_prompt_editor_external_input_facade(
-            self,
-            self._surface,
-            self._shell_runtime.paste_completion,
-        )
-        self.setFocusProxy(self._surface)
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._edit_execution = projection_collaborators.edit_execution
-        self._source_commands = projection_collaborators.source_commands
-        self._autocomplete_commands = projection_collaborators.autocomplete_commands
-        self._diagnostic_commands = projection_collaborators.diagnostic_commands
-        self._weight_commands = projection_collaborators.weight_commands
-        self._reorder_commands = projection_collaborators.reorder_commands
-        self._parenthesis_education_controller = (
-            projection_collaborators.parenthesis_education_controller
-        )
-        self._clipboard_history_controller = (
-            projection_collaborators.clipboard_history_controller
-        )
-        self._danbooru_paste_import_controller: PromptDanbooruPasteImportController[
-            Any
-        ] = projection_collaborators.danbooru_paste_import_controller
-        self._shell_padding_fill_plane = (
-            projection_collaborators.shell_padding_fill_plane
-        )
-        self._fill_plane = projection_collaborators.fill_plane
-        self._shell_padding_fill_plane.lower()
-        self._fill_plane.lower()
-        self._shell_runtime.chrome.configure_owned_fill_plane()
-        self._shell_runtime.chrome.bind_theme_refresh()
-        self._surface.raise_()
-        self._context_insertion: PromptContextInsertionService[
-            PromptProjectionUndoPayload
-        ] = build_context_insertion_service(
-            projection_collaborators,
-            cursor_provider=self.textCursor,
-            context_insert_state_provider=(
-                lambda: self._menu_runtime.shell.consume_context_insert_state()
+            self._shell_runtime,
+            PromptEditorCoreRuntimeBindings(
+                mount_projection=self._mount_core_projection,
+                context_insert_state=(
+                    lambda: self._menu_runtime.shell.consume_context_insert_state()
+                ),
+                restore_focus=self.setFocus,
+                complete_lora_autocomplete_replacement=(
+                    self.commit_lora_autocomplete_replacement
+                ),
+                execute_autocomplete_acceptance=self.execute_autocomplete_acceptance,
+                interaction_editor=self,
+                weight_interaction_editor=self,
+                wheel_surface_scroll_allowed=(
+                    self.prompt_surface_wheel_event_is_allowed
+                ),
+                wheel_surface_scroll_handler=(self.prompt_surface_handle_wheel_scroll),
+                wheel_to_editor_panel=self.forward_wheel_event_to_editor_panel,
+                publish_rich_rendering_changed=(
+                    self.richPromptRenderingEnabledChanged.emit
+                ),
+                bind_diagnostics_signals=(
+                    lambda controller: bind_prompt_editor_diagnostics_signals(
+                        self,
+                        controller,
+                    )
+                ),
             ),
-            focus_restorer=lambda: self.setFocus(),
-            source_text_provider=self.toPlainText,
+            construction_observer,
+            prompt_conditioning_context=prompt_conditioning_context,
         )
-
-        construction_observer.log_timing(
-            "Initialized prompt editor projection surface",
-            started_at=phase_started_at,
-            has_thumbnail_repository=thumbnail_asset_repository is not None,
-            level="debug",
-        )
-        phase_started_at = construction_observer.started_at()
-        self._external_url_action_runner: PromptExternalUrlActionRunner = (
-            build_external_url_action_runner(open_url)
-        )
-        service_collaborators = PromptEditorServiceFactory(
-            construction_inputs,
-            composition_context,
-            execution_factory,
-            danbooru_factory,
-        ).build(
-            projection_collaborators,
-            self._context_insertion,
-            cursor_provider=self.textCursor,
-            cursor_setter=self.setTextCursor,
-            external_url_actions=self._external_url_action_runner,
-            source_text_provider=self.toPlainText,
-        )
+        projection_collaborators = core_runtime.projection
+        service_collaborators = core_runtime.services
+        autocomplete_collaborators = core_runtime.autocomplete
+        syntax_collaborators = core_runtime.syntax
+        self._external_input_facade = core_runtime.external_input
+        self._context_insertion = core_runtime.context_insertion
+        self._external_url_action_runner = core_runtime.external_url_actions
         self._feature_profile_controller: PromptFeatureProfileController = (
             service_collaborators.feature_profile_controller
         )
@@ -458,110 +396,13 @@ class PromptEditor(
         self._danbooru_action_controller = (
             service_collaborators.danbooru_action_controller
         )
-        self._danbooru_dialog_runner: PromptDanbooruDialogRunner = (
-            danbooru_factory.build_dialog_runner(
-                action_controller=self._danbooru_action_controller,
-                lookup_dispatcher_factory=(
-                    construction_inputs.danbooru_lookup_dispatcher_factory
-                ),
-            )
-        )
-        self._diagnostics_feature_controller = PromptDiagnosticsFeatureController(
-            host=self,
-            surface=self._surface.diagnostics,
-            feature_profile=self._feature_profile_controller,
-            wildcard_feature=self._wildcard_diagnostics_presentation,
-            document_semantics=self._document_semantics,
-            conditioning_context=prompt_conditioning_context,
-            spellcheck_service=prompt_spellcheck_service,
-            parent=self,
-            request_channel=cast(
-                Any,
-                execution_factory.build_request_channel(
-                    owner_label="prompt-diagnostics",
-                ),
-            ),
-            bind_signals=lambda controller: bind_prompt_editor_diagnostics_signals(
-                self,
-                controller,
-            ),
-        )
-        spellcheck_feature_enabled = self._feature_profile_controller.spellcheck_enabled
-        self._danbooru_paste_import_controller.configure_danbooru_url_import(
-            self._danbooru_action_controller.url_import_service,
-            enabled=self._danbooru_action_controller.url_import_enabled,
-        )
-        construction_observer.log_timing(
-            "Initialized prompt editor service state",
-            started_at=phase_started_at,
-            has_lora_catalog=prompt_lora_catalog_service is not None,
-            has_spellcheck_service=prompt_spellcheck_service is not None,
-            has_segment_presets=prompt_segment_preset_source is not None,
-            level="debug",
-        )
-        phase_started_at = construction_observer.started_at()
-        document_service = build_prompt_document_service(construction_inputs)
-        feature_profile = self._feature_profile_controller
-        autocomplete_collaborators = PromptEditorAutocompleteFactory(
-            construction_inputs,
-            composition_context,
-        ).build(
-            projection_collaborators,
-            service_collaborators,
-            self._external_url_action_runner,
-            document_service,
-            autocomplete_cursor_position=lambda: self.textCursor().position(),
-            autocomplete_focus_host=self,
-            complete_lora_autocomplete_replacement=(
-                self.commit_lora_autocomplete_replacement
-            ),
-            cursor_rect=self.cursorRect,
-            execute_autocomplete_acceptance=self.execute_autocomplete_acceptance,
-            restore_autocomplete_focus=self.setFocus,
-            viewport=self.viewport,
-        )
+        self._danbooru_dialog_runner = core_runtime.danbooru_dialog
+        self._diagnostics_feature_controller = core_runtime.diagnostics
         self._autocomplete = autocomplete_collaborators.autocomplete
         self._autocomplete_query_result_lifecycle = (
             autocomplete_collaborators.query_result_lifecycle
         )
-        self._scene_facade = build_prompt_editor_scene_facade(
-            self,
-            self._scene_context_publication,
-            self._autocomplete_query_result_lifecycle,
-        )
-        construction_observer.log_timing(
-            "Initialized prompt editor autocomplete services",
-            started_at=phase_started_at,
-            has_lora_catalog=prompt_lora_catalog_service is not None,
-            lora_autocomplete_enabled=feature_profile.lora_autocomplete_enabled,
-            trigger_word_suggestions_enabled=feature_profile.lora_trigger_words_enabled,
-            level="debug",
-        )
-        phase_started_at = construction_observer.started_at()
-        syntax_collaborators = PromptEditorSyntaxFactory(
-            construction_inputs,
-            execution_factory,
-        ).build(
-            projection_collaborators,
-            service_collaborators,
-            self._autocomplete,
-            document_service,
-            self._autocomplete_query_result_lifecycle,
-            autocomplete_cursor_state=lambda: (
-                (cursor := self.textCursor()).position(),
-                cursor.hasSelection(),
-            ),
-            autocomplete_source_text=self.toPlainText,
-            syntax_active_span=self.active_syntax_span,
-            syntax_cursor_position=lambda: self.textCursor().position(),
-            syntax_editor_session_id=id(self),
-            syntax_source_text=self.toPlainText,
-            interaction_editor=self,
-            weight_interaction_editor=self,
-            wheel_surface_scroll_allowed=self.prompt_surface_wheel_event_is_allowed,
-            wheel_surface_scroll_handler=self.prompt_surface_handle_wheel_scroll,
-            wheel_to_editor_panel=self.forward_wheel_event_to_editor_panel,
-        )
+        self._scene_facade = core_runtime.scene
         self._document_service = syntax_collaborators.document_service
         self._mutation_service = syntax_collaborators.mutation_service
         self._syntax_profile = syntax_collaborators.syntax_profile
@@ -572,18 +413,8 @@ class PromptEditor(
             syntax_collaborators.syntax_renderer_coordinator
         )
         self._interaction_controller = syntax_collaborators.interaction_controller
-        self._rendering_facade = build_prompt_editor_rendering_facade(
-            self._surface,
-            self._interaction_controller,
-            self.richPromptRenderingEnabledChanged.emit,
-        )
-        self._key_router = build_prompt_editor_key_router(
-            self._interaction_controller,
-            self._surface,
-        )
-        self._shell_runtime.paste_completion.bind_interaction(
-            self._interaction_controller
-        )
+        self._rendering_facade = core_runtime.rendering
+        self._key_router = core_runtime.key_router
         self._weight_interaction = syntax_collaborators.weight_interaction
         self._autocomplete_refresh_controller = (
             syntax_collaborators.autocomplete_timing_controller
@@ -708,12 +539,6 @@ class PromptEditor(
         self._segment_preset_controller.refresh_menu_model(
             reason="prompt_editor_constructed"
         )
-        construction_observer.log_timing(
-            "Initialized prompt editor syntax services",
-            started_at=phase_started_at,
-            spellcheck_feature_enabled=spellcheck_feature_enabled,
-            level="debug",
-        )
         phase_started_at = construction_observer.started_at()
         lifecycle_wiring_result = wire_prompt_editor_construction_lifecycle(
             self._diagnostics_feature_controller
@@ -762,6 +587,31 @@ class PromptEditor(
             has_spellcheck_service=prompt_spellcheck_service is not None,
             level="debug",
         )
+
+    def _mount_core_projection(
+        self,
+        projection: PromptEditorProjectionCollaborators,
+    ) -> None:
+        """Expose the projection before eager feature collaborators query the facade."""
+
+        self._lora_thumbnail_cache = projection.lora_thumbnail_cache
+        self._lora_thumbnail_preloader = projection.lora_thumbnail_preloader
+        self._surface = projection.surface
+        self._edit_execution = projection.edit_execution
+        self._source_commands = projection.source_commands
+        self._autocomplete_commands = projection.autocomplete_commands
+        self._diagnostic_commands = projection.diagnostic_commands
+        self._weight_commands = projection.weight_commands
+        self._reorder_commands = projection.reorder_commands
+        self._parenthesis_education_controller = (
+            projection.parenthesis_education_controller
+        )
+        self._clipboard_history_controller = projection.clipboard_history_controller
+        self._danbooru_paste_import_controller: PromptDanbooruPasteImportController[
+            Any
+        ] = projection.danbooru_paste_import_controller
+        self._shell_padding_fill_plane = projection.shell_padding_fill_plane
+        self._fill_plane = projection.fill_plane
 
     @property
     def _autocomplete_panel(self) -> PromptAutocompletePanel | None:

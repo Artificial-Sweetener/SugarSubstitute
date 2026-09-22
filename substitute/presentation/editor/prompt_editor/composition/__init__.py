@@ -27,6 +27,11 @@ from .collaborator_bundle import (
 from .autocomplete_factory import PromptEditorAutocompleteFactory
 from .bundle_factory import build_resize_handle, bundle_collaborators
 from .context import PromptEditorCompositionContext
+from .core_runtime import (
+    PromptEditorCoreRuntime,
+    PromptEditorCoreRuntimeBindings,
+    build_prompt_editor_core_runtime,
+)
 from .execution_factory import PromptEditorExecutionFactory
 from .foundations import (
     build_external_url_action_runner,
@@ -34,7 +39,10 @@ from .foundations import (
 )
 from .context_insertion_factory import build_context_insertion_service
 from .danbooru_factory import PromptEditorDanbooruFactory
-from .projection_factory import PromptEditorProjectionFactory
+from .projection_factory import (
+    PromptEditorProjectionCollaborators,
+    PromptEditorProjectionFactory,
+)
 from .syntax_factory import PromptEditorSyntaxFactory
 from .menu_factory import PromptEditorMenuFactory
 from .menu_runtime import (
@@ -67,6 +75,8 @@ __all__ = [
     "PromptEditorCollaborators",
     "PromptEditorAutocompleteFactory",
     "PromptEditorCompositionContext",
+    "PromptEditorCoreRuntime",
+    "PromptEditorCoreRuntimeBindings",
     "PromptEditorDanbooruFactory",
     "PromptEditorExecutionFactory",
     "PromptEditorMenuFactory",
@@ -75,6 +85,7 @@ __all__ = [
     "PromptEditorMenuHostBindings",
     "PromptEditorMenuRuntime",
     "PromptEditorProjectionFactory",
+    "PromptEditorProjectionCollaborators",
     "PromptEditorServiceFactory",
     "PromptEditorSyntaxFactory",
     "PromptEditorConstructionInputs",
@@ -91,6 +102,7 @@ __all__ = [
     "build_context_insertion_service",
     "build_external_url_action_runner",
     "build_prompt_document_service",
+    "build_prompt_editor_core_runtime",
     "build_prompt_editor_menu_runtime",
     "build_resize_handle",
     "bundle_collaborators",
