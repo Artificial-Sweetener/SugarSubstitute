@@ -116,8 +116,9 @@ def _settle_editor(editor: Any, expected_source: str) -> tuple[float, bool]:
 def _editor_is_current(editor: Any, expected_source: str) -> bool:
     """Return whether every wildcard editor source owner is current."""
 
-    surface = editor._surface
-    interaction = editor._interaction_controller
+    runtime = editor._runtime
+    surface = runtime.projection.surface
+    interaction = runtime.core.syntax.interaction_controller
     semantic_refresh = interaction._semantic_refresh
     return bool(
         editor.toPlainText() == expected_source
@@ -135,13 +136,13 @@ def _capture_correctness(
 ) -> PromptAbuseCorrectnessSnapshot:
     """Capture wildcard semantics, diagnostics, and projection invariants."""
 
-    editor._diagnostics_feature_controller.refresh_now()
+    runtime = editor._runtime
+    surface = runtime.projection.surface
+    runtime.core.diagnostics.refresh_now()
     process_events(cycles=8)
     source_text = str(editor.toPlainText())
-    projection = editor._surface.projection_document()
-    diagnostics = (
-        editor._diagnostics_feature_controller.presentation.snapshot.diagnostics
-    )
+    projection = surface.projection_document()
+    diagnostics = runtime.core.diagnostics.presentation.snapshot.diagnostics
     violations: list[str] = []
     if any(token.kind.value == "scene" for token in projection.tokens):
         violations.append("wildcard_projected_scene_token")
@@ -159,7 +160,7 @@ def _capture_correctness(
         actual_text=source_text,
         projection_current=projection.source_text == scenario.expected_text,
         semantic_current=(
-            editor._interaction_controller._syntax_state.document_view.source_text
+            runtime.core.syntax.interaction_controller._syntax_state.document_view.source_text
             == scenario.expected_text
         ),
         invariant_violations=tuple(violations),

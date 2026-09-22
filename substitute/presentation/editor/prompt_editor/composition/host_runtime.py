@@ -185,9 +185,10 @@ def build_prompt_editor_host_runtime(
     bind_prompt_editor_signals(
         bindings.signal_host,
         collaborators,
+        shell=shell,
         lora_source_changes=features.lora_trigger_words,
     )
-    apply_prompt_editor_initial_layout(bindings.layout_host)
+    apply_prompt_editor_initial_layout(bindings.layout_host, shell)
     observer.log_timing(
         "Initialized prompt editor layout",
         started_at=phase_started_at,

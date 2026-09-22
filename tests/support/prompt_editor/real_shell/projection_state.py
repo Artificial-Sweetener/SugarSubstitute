@@ -63,7 +63,9 @@ from tests.support.prompt_editor.real_shell.projection_transients import (
 def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     """Return source, caret, and projection state from the real projection owner."""
 
-    surface = getattr(editor, "_surface", None)
+    runtime = getattr(editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
     editor_state = getattr(surface, "editor_state", None)
     revision_graph = getattr(editor_state, "revisions", None)
     semantic_snapshot = getattr(editor_state, "semantic", None)
@@ -225,7 +227,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         surface.horizontalScrollBar() if surface is not None else None
     )
     layout_content_size = _layout_content_size(layout_output)
-    shell_sizing = getattr(getattr(editor, "_shell_runtime", None), "sizing", None)
+    shell = getattr(runtime, "shell", None)
+    shell_sizing = getattr(shell, "sizing", None)
     caret_token_id = getattr(caret_state, "token_id", None)
     anchor_token_id = getattr(anchor_state, "token_id", None)
     projection_region_separators = tuple(

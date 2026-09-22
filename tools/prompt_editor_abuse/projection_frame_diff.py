@@ -41,7 +41,7 @@ def missing_projection_text_tiles(
 ) -> tuple[str, ...]:
     """Return visible layout tiles whose expected glyph pixels are absent."""
 
-    surface = editor._surface
+    surface = editor._runtime.projection.surface
     frame = surface._layout.frame
     reference = _render_projection_reference(editor)
     expected_rgba = _rgba_pixels(reference)
@@ -103,7 +103,7 @@ def _render_projection_reference(editor: Any) -> QImage:
         QImage.Format.Format_RGBA8888,
     )
     image.fill(0)
-    surface = editor._surface
+    surface = editor._runtime.projection.surface
     frame = surface._layout.frame
     viewport = editor.viewport()
     viewport_origin = viewport.mapTo(editor, QPoint())

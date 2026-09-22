@@ -65,9 +65,10 @@ def test_real_shell_uses_composed_prompt_editor_collaborators(
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
     editor = field.editor
 
-    assert isinstance(getattr(editor, "_surface", None), QWidget)
-    assert getattr(editor, "_autocomplete", None) is not None
-    assert getattr(editor, "_interaction_controller", None) is not None
+    runtime = editor._runtime
+    assert isinstance(runtime.projection.surface, QWidget)
+    assert runtime.core.autocomplete.autocomplete is not None
+    assert runtime.core.syntax.interaction_controller is not None
 
     real_shell_scenario.input.type_text(field, "re")
     real_shell_scenario.wait_until(

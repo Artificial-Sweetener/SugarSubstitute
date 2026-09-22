@@ -424,7 +424,7 @@ def _reorder_render_state_mismatches(overlay: Any) -> tuple[str, ...]:
         return ()
     child_hotspot_count = len(overlay.findChildren(QWidget, "segmentChip"))
     render_state = overlay._view.render_state
-    surface = cast(Any, overlay)._editor._surface
+    surface = cast(Any, overlay)._editor._runtime.projection.surface
     if render_state.preview_active:
         expected_indices = set(overlay._runtime.preview_visuals.visuals_by_index)
         chips = render_state.preview_chips

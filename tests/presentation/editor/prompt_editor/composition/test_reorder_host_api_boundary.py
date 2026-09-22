@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 from substitute.presentation.editor.prompt_editor.shell.widget import (
@@ -150,8 +151,13 @@ class _PromptEditorHostDouble:
         surface.reorder.presentation = _RecordingCollaborator(
             aliases={"publish": "set_reorder_surface_visual_publication"}
         )
-        self._surface = surface
-        self._reorder_commands = _RecordingCollaborator()
+        reorder_commands = _RecordingCollaborator()
+        self._runtime = SimpleNamespace(
+            projection=SimpleNamespace(
+                surface=surface,
+                reorder_commands=reorder_commands,
+            )
+        )
 
 
 def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() -> None:
@@ -260,9 +266,10 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
         == "result:reorder_placement_at_rect"
     )
 
-    assert host._reorder_commands.calls == []
-    assert host._surface.calls == []
-    assert host._surface.reorder.calls == [
+    projection = host._runtime.projection
+    assert projection.reorder_commands.calls == []
+    assert projection.surface.calls == []
+    assert projection.surface.reorder.calls == [
         ("set_reorder_preview_state", ("preview-state",), {}),
         ("clear_reorder_preview_state", (), {}),
         ("reorder_preview_fragments", (), {"start": 1, "end": 4}),
@@ -330,7 +337,7 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
             },
         ),
     ]
-    assert host._surface.reorder.presentation.calls == [
+    assert projection.surface.reorder.presentation.calls == [
         (
             "set_reorder_surface_visual_publication",
             ("visual-publication",),
@@ -353,8 +360,9 @@ def test_prompt_editor_forwards_reorder_commits_to_focused_command_owner() -> No
     )
 
     assert result == "result:execute"
-    assert host._surface.calls == []
-    assert host._reorder_commands.calls == [
+    projection = host._runtime.projection
+    assert projection.surface.calls == []
+    assert projection.reorder_commands.calls == [
         (
             "execute",
             ("request",),

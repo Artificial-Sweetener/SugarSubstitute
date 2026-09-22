@@ -67,7 +67,7 @@ def test_wildcard_management_opener_constructs_modal_with_caller_parent(
     assert modal.parent() is parent
     editor = cast(Any, modal._editor.editor())
     assert (
-        editor._autocomplete_refresh_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway.__class__
+        editor._runtime.core.syntax.autocomplete_timing_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway.__class__
         is (EmptyPromptAutocompleteGateway)
     )
     assert (
@@ -90,6 +90,8 @@ def test_wildcard_management_modal_uses_full_prompt_feature_profile(
     )
 
     modal = opener.create_modal(None)
-    profile = cast(Any, modal._editor.editor())._feature_profile_controller.profile
+    profile = cast(
+        Any, modal._editor.editor()
+    )._runtime.core.services.feature_profile_controller.profile
 
     assert all(profile.supports(feature) for feature in PromptEditorFeature)

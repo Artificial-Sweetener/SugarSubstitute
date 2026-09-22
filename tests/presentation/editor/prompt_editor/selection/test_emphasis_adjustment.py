@@ -146,7 +146,9 @@ def test_prompt_editor_keypress_mutes_autocomplete_after_accepted_ctrl_arrow(
 
     cast(
         Any, box
-    )._interaction_controller.handle_post_key_press = handle_post_key_press_double
+    )._runtime.core.syntax.interaction_controller.handle_post_key_press = (
+        handle_post_key_press_double
+    )
     event = QKeyEvent(
         QEvent.Type.KeyPress,
         Qt.Key.Key_Up,

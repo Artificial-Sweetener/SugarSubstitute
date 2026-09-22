@@ -51,6 +51,9 @@ class PromptFillPlaneHost(Protocol):
     def _shell_viewport(self) -> QWidget:
         """Return the QFluent shell viewport."""
 
+    def _resize_handle_for_sizing(self) -> QWidget | None:
+        """Return the mounted shell resize handle when available."""
+
 
 class PromptResizeHandleHost(Protocol):
     """Describe the public widget API needed by the resize handle."""
@@ -261,7 +264,7 @@ class PromptFillPlane(QWidget):
     def _visible_resize_handle_region(self) -> QRegion:
         """Return the visible prompt resize-handle geometry in layer coordinates."""
 
-        resize_handle = getattr(self._editor, "_resize_handle", None)
+        resize_handle = self._editor._resize_handle_for_sizing()
         if not isinstance(resize_handle, QWidget) or not resize_handle.isVisible():
             return QRegion()
         return QRegion(

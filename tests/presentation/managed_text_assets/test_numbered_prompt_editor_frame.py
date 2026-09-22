@@ -201,32 +201,46 @@ def test_numbered_prompt_editor_forwards_complete_runtime_service_bundle() -> No
         editor = cast(Any, frame.editor())
 
         assert (
-            editor._wildcard_diagnostics_presentation._wildcard_catalog_gateway
+            editor._runtime.core.services.wildcard_diagnostics_presentation._wildcard_catalog_gateway
             is wildcard
         )
         assert (
-            editor._danbooru_action_controller._url_import_service
+            editor._runtime.core.services.danbooru_action_controller._url_import_service
             is danbooru_url_import
         )
-        assert editor._danbooru_action_controller._wiki_service is danbooru_wiki
         assert (
-            editor._danbooru_action_controller._image_preview_service is danbooru_images
+            editor._runtime.core.services.danbooru_action_controller._wiki_service
+            is danbooru_wiki
         )
         assert (
-            editor._danbooru_action_controller._recent_posts_service is danbooru_posts
+            editor._runtime.core.services.danbooru_action_controller._image_preview_service
+            is danbooru_images
         )
         assert (
-            editor._lora_metadata_presentation.snapshot.catalog_revision
+            editor._runtime.core.services.danbooru_action_controller._recent_posts_service
+            is danbooru_posts
+        )
+        assert (
+            editor._runtime.features.lora_metadata.snapshot.catalog_revision
             == lora_catalog.cache_revision
         )
-        assert editor._syntax_service._prompt_lora_catalog_service is lora_catalog
         assert (
-            editor._diagnostics_feature_controller._providers._spellcheck_service
+            editor._runtime.core.syntax.syntax_service._prompt_lora_catalog_service
+            is lora_catalog
+        )
+        assert (
+            editor._runtime.core.diagnostics._providers._spellcheck_service
             is spellcheck
         )
-        assert editor._lora_thumbnail_cache.asset_repository is thumbnails
-        assert editor._segment_preset_controller._preset_source is segments
-        assert editor._external_url_action_runner._open_url is open_url
+        assert (
+            editor._runtime.projection.lora_thumbnail_cache.asset_repository
+            is thumbnails
+        )
+        assert (
+            editor._runtime.core.services.segment_preset_controller._preset_source
+            is segments
+        )
+        assert editor._runtime.core.external_url_actions._open_url is open_url
         assert opened_urls == []
     finally:
         destroy_qt_object(frame)

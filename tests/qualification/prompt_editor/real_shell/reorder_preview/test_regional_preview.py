@@ -85,7 +85,10 @@ def test_real_shell_alt_up_preview_preserves_regional_settled_layout(
 
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     real_shell_scenario.wait_until(
-        lambda: cast(Any, editor)._surface.reorder.preview.preview_frame is None
+        lambda: (
+            cast(Any, editor)._runtime.projection.surface.reorder.preview.preview_frame
+            is None
+        )
     )
     real_shell_scenario.wait_for_queued_delivery()
     settled = capture_reorder_layout(field, label="regional-alt-up-settled")

@@ -238,7 +238,7 @@ def exercise_reorder_geometry_caches(
 def surface_for(editor: PromptEditor) -> PromptProjectionSurface:
     """Return the prompt projection surface owned by one editor."""
 
-    return cast(PromptProjectionSurface, getattr(editor, "_surface"))
+    return editor._runtime.projection.surface
 
 
 def reorder_cache_counts(editor: PromptEditor) -> dict[str, int]:

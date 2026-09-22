@@ -42,4 +42,4 @@ def test_host_event_router_owns_event_precedence() -> None:
         assert ownership_marker in router_source
         assert ownership_marker not in widget_source
 
-    assert "self._host_event_router.route(watched, event)" in widget_source
+    assert "self._runtime.host.events.route(watched, event)" in widget_source

@@ -42,12 +42,14 @@ def test_prompt_editor_search_methods_publish_feature_snapshot_and_projection() 
         )
         app.processEvents()
 
-        snapshot = cast(Any, editor)._search_feature_controller.snapshot
+        snapshot = cast(
+            Any, editor
+        )._runtime.core.services.search_feature_controller.snapshot
         assert snapshot.highlights.match_ranges == ((0, 5), (11, 5))
         assert snapshot.highlights.active_index == 1
         assert snapshot.identity.query_identity == ("text", "alpha")
         assert snapshot.identity.source_revision is not None
-        session = editor._surface._session
+        session = editor._runtime.projection.surface._session
         assert session.search_match_ranges == ((0, 5), (11, 5))
         assert session.active_search_match_index == 1
     finally:
@@ -68,11 +70,13 @@ def test_prompt_editor_clear_search_matches_resets_feature_and_projection_state(
         editor.clear_search_matches()
         app.processEvents()
 
-        snapshot = cast(Any, editor)._search_feature_controller.snapshot
+        snapshot = cast(
+            Any, editor
+        )._runtime.core.services.search_feature_controller.snapshot
         assert snapshot.highlights.match_ranges == ()
         assert snapshot.highlights.active_index is None
         assert snapshot.identity.query_identity is None
-        session = editor._surface._session
+        session = editor._runtime.projection.surface._session
         assert session.search_match_ranges == ()
         assert session.active_search_match_index is None
     finally:

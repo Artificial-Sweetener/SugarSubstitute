@@ -109,7 +109,6 @@ from .composition import (
     PromptEditorConstructionObserver,
     PromptEditorCoreRuntimeBindings,
     PromptEditorFeatureRuntimeBindings,
-    PromptEditorHostRuntime,
     PromptEditorHostRuntimeBindings,
     PromptEditorProjectionCollaborators,
     PromptEditorTaskExecutorFactory,
@@ -119,14 +118,7 @@ from .composition import (
     build_prompt_editor_host_runtime,
     qt_object_is_alive,
 )
-from .features import (
-    PromptDanbooruPasteImportController,
-    PromptFeatureProfileController,
-    PromptSceneContextPublication,
-    PromptScenePositionContextPreparation,
-    PromptSearchFeatureController,
-    PromptSegmentPresetSource,
-)
+from .features import PromptSegmentPresetSource
 from .interactions import (
     PromptReorderOverlayPort,
     PromptWheelScrollResult,
@@ -146,6 +138,7 @@ from .geometry.models import PromptProjectionSourceLineRect
 from .command_facade import PromptEditorCommandFacade
 from .emphasis_facade import PromptEditorEmphasisFacade
 from .reorder_facade import PromptEditorReorderFacade
+from .runtime_mount import PromptEditorRuntimeMount
 from .shell import (
     PromptEditorShellRuntimeBindings,
     PromptEditorShellRuntimeMount,
@@ -248,8 +241,9 @@ class PromptEditor(
         init_started_at = construction_observer.started_at()
         phase_started_at = construction_observer.started_at()
         super().__init__(parent)
+        self._runtime = PromptEditorRuntimeMount()
         shell_viewport = super().viewport()
-        self._shell_runtime = build_prompt_editor_shell_runtime(
+        shell_runtime = build_prompt_editor_shell_runtime(
             PromptEditorShellRuntimeMount(
                 widget=self,
                 chrome_host=self,
@@ -275,13 +269,15 @@ class PromptEditor(
                     rect
                 ),
                 finish_pending_key_edit_block=(
-                    lambda reason: self._edit_execution.finish_pending_key_edit_block(
-                        reason=reason
+                    lambda reason: (
+                        self._runtime.projection.edit_execution.finish_pending_key_edit_block(
+                            reason=reason,
+                        )
                     )
                 ),
                 schedule_lora_metadata_catchup=(
                     lambda: (
-                        self._catalog_refresh_facade.schedule_lora_metadata_catchup_if_needed()
+                        self._runtime.features.catalog_refresh.schedule_lora_metadata_catchup_if_needed()
                     )
                 ),
                 handle_focus_out=self._handle_focus_out_for_chrome,
@@ -301,6 +297,7 @@ class PromptEditor(
                 ancestor_external_wheel_handler=self._ancestor_external_wheel_handler,
             ),
         )
+        self._runtime.mount_shell(shell_runtime)
         self.setAcceptRichText(False)
         self.setUndoRedoEnabled(False)
         self.setCursorWidth(0)
@@ -323,11 +320,11 @@ class PromptEditor(
         core_runtime = build_prompt_editor_core_runtime(
             construction_inputs,
             composition_context,
-            self._shell_runtime,
+            self._runtime.shell,
             PromptEditorCoreRuntimeBindings(
-                mount_projection=self._mount_core_projection,
+                mount_projection=self._runtime.mount_projection,
                 context_insert_state=(
-                    lambda: self._menu_runtime.shell.consume_context_insert_state()
+                    lambda: self._runtime.host.menu.shell.consume_context_insert_state()
                 ),
                 restore_focus=self.setFocus,
                 complete_lora_autocomplete_replacement=(
@@ -354,56 +351,7 @@ class PromptEditor(
             construction_observer,
             prompt_conditioning_context=prompt_conditioning_context,
         )
-        service_collaborators = core_runtime.services
-        autocomplete_collaborators = core_runtime.autocomplete
-        syntax_collaborators = core_runtime.syntax
-        self._external_input_facade = core_runtime.external_input
-        self._context_insertion = core_runtime.context_insertion
-        self._external_url_action_runner = core_runtime.external_url_actions
-        self._feature_profile_controller: PromptFeatureProfileController = (
-            service_collaborators.feature_profile_controller
-        )
-        self._scene_context_publication: PromptSceneContextPublication = (
-            service_collaborators.scene_context_publication
-        )
-        self._scene_position_preparation: PromptScenePositionContextPreparation = (
-            service_collaborators.scene_position_preparation
-        )
-        self._search_feature_controller: PromptSearchFeatureController = (
-            service_collaborators.search_feature_controller
-        )
-        self._wildcard_diagnostics_presentation = (
-            service_collaborators.wildcard_diagnostics_presentation
-        )
-        self._segment_preset_controller = (
-            service_collaborators.segment_preset_controller
-        )
-        self._danbooru_action_controller = (
-            service_collaborators.danbooru_action_controller
-        )
-        self._danbooru_dialog_runner = core_runtime.danbooru_dialog
-        self._diagnostics_feature_controller = core_runtime.diagnostics
-        self._autocomplete = autocomplete_collaborators.autocomplete
-        self._autocomplete_query_result_lifecycle = (
-            autocomplete_collaborators.query_result_lifecycle
-        )
-        self._scene_facade = core_runtime.scene
-        self._document_service = syntax_collaborators.document_service
-        self._mutation_service = syntax_collaborators.mutation_service
-        self._syntax_profile = syntax_collaborators.syntax_profile
-        self._syntax_service = syntax_collaborators.syntax_service
-        self._token_weight_controls = syntax_collaborators.token_weight_controls
-        self._wheel_controller = syntax_collaborators.wheel_controller
-        self._syntax_renderer_coordinator = (
-            syntax_collaborators.syntax_renderer_coordinator
-        )
-        self._interaction_controller = syntax_collaborators.interaction_controller
-        self._rendering_facade = core_runtime.rendering
-        self._key_router = core_runtime.key_router
-        self._weight_interaction = syntax_collaborators.weight_interaction
-        self._autocomplete_refresh_controller = (
-            syntax_collaborators.autocomplete_timing_controller
-        )
+        self._runtime.mount_core(core_runtime)
         feature_runtime = build_prompt_editor_feature_runtime(
             construction_inputs,
             composition_context,
@@ -415,20 +363,17 @@ class PromptEditor(
                 update_host=self.update,
             ),
         )
-        self._lora_metadata_presentation = feature_runtime.lora_metadata
-        self._catalog_refresh_facade = feature_runtime.catalog_refresh
-        self._lora_trigger_word_controller = feature_runtime.lora_trigger_words
-        self._document_facade = feature_runtime.document
+        self._runtime.mount_features(feature_runtime)
         build_prompt_editor_host_runtime(
             construction_inputs,
             composition_context,
-            self._shell_runtime,
-            core_runtime,
-            feature_runtime,
+            self._runtime.shell,
+            self._runtime.core,
+            self._runtime.features,
             PromptEditorHostRuntimeBindings(
                 signal_host=self,
                 layout_host=self,
-                mount_runtime=self._mount_host_runtime,
+                mount_runtime=self._runtime.mount_host,
                 queue_scene=self.sceneQueueRequested.emit,
                 is_read_only=self.isReadOnly,
                 rich_prompt_rendering_enabled=self.richPromptRenderingEnabled,
@@ -457,123 +402,102 @@ class PromptEditor(
             level="debug",
         )
 
-    def _mount_core_projection(
-        self,
-        projection: PromptEditorProjectionCollaborators,
-    ) -> None:
-        """Expose the projection before eager feature collaborators query the facade."""
-
-        self._lora_thumbnail_cache = projection.lora_thumbnail_cache
-        self._lora_thumbnail_preloader = projection.lora_thumbnail_preloader
-        self._surface = projection.surface
-        self._edit_execution = projection.edit_execution
-        self._source_commands = projection.source_commands
-        self._autocomplete_commands = projection.autocomplete_commands
-        self._diagnostic_commands = projection.diagnostic_commands
-        self._weight_commands = projection.weight_commands
-        self._reorder_commands = projection.reorder_commands
-        self._parenthesis_education_controller = (
-            projection.parenthesis_education_controller
-        )
-        self._clipboard_history_controller = projection.clipboard_history_controller
-        self._danbooru_paste_import_controller: PromptDanbooruPasteImportController[
-            Any
-        ] = projection.danbooru_paste_import_controller
-        self._shell_padding_fill_plane = projection.shell_padding_fill_plane
-        self._fill_plane = projection.fill_plane
-
-    def _mount_host_runtime(self, runtime: PromptEditorHostRuntime) -> None:
-        """Expose mounted host owners before signal and layout activation."""
-
-        self._menu_runtime = runtime.menu
-        self._host_event_router = runtime.events
-        self._resize_handle = runtime.resize_handle
-
     @property
     def _autocomplete_panel(self) -> PromptAutocompletePanel | None:
         """Expose the live autocomplete panel for prompt-editor tests and wiring."""
-        return self._autocomplete.panel
+        return self._runtime.core.autocomplete.autocomplete.panel
+
+    def _mounted_projection_or_none(self) -> PromptEditorProjectionCollaborators | None:
+        """Return projection ownership when the staged runtime has published it."""
+
+        runtime = getattr(self, "_runtime", None)
+        if not isinstance(runtime, PromptEditorRuntimeMount):
+            return None
+        return runtime.projection_or_none
 
     @property
     def _segment_overlay(self) -> PromptReorderOverlayPort | None:
         """Expose the live segment reorder overlay for prompt-editor tests."""
-        return self._interaction_controller.segment_overlay
+        return self._runtime.core.syntax.interaction_controller.segment_overlay
 
     @property
     def _token_weight_control_overlay(self) -> PromptTokenWeightControls:
         """Expose the live token weight controls for prompt-editor tests."""
-        return self._token_weight_controls
+        return self._runtime.core.syntax.token_weight_controls
 
     def viewport(self) -> QWidget:
         """Return the projection viewport used by prompt-editor overlays and tests."""
 
-        if hasattr(self, "_surface"):
-            return self._surface.viewport()
+        projection = self._mounted_projection_or_none()
+        if projection is not None:
+            return projection.surface.viewport()
         return cast(QWidget, super().viewport())
 
     def verticalScrollBar(self) -> QScrollBar:
         """Return the surface-owned scrollbar that owns prompt viewport state."""
 
-        if hasattr(self, "_surface"):
-            return self._surface.verticalScrollBar()
+        projection = self._mounted_projection_or_none()
+        if projection is not None:
+            return projection.surface.verticalScrollBar()
         return cast(QScrollBar, super().verticalScrollBar())
 
     def document(self) -> QTextDocument:
         """Return the source-backed compatibility document used by geometry helpers."""
 
-        if hasattr(self, "_surface"):
-            return self._surface.document()
+        projection = self._mounted_projection_or_none()
+        if projection is not None:
+            return projection.surface.document()
         return cast(QTextDocument, super().document())
 
     def lineHeight(self) -> int:  # noqa: N802
         """Return the live single-line text height used by the grow policy."""
-        return self._shell_runtime.sizing.line_height()
+        return self._runtime.shell.sizing.line_height()
 
     def minimumEditorHeight(self) -> int:  # noqa: N802
         """Return the shell height for one visible line inside the QFluent host."""
-        return self._shell_runtime.sizing.minimum_editor_height()
+        return self._runtime.shell.sizing.minimum_editor_height()
 
     def manualScrollHeight(self) -> int | None:  # noqa: N802
         """Return the user-requested durable manual prompt height."""
-        return self._shell_runtime.sizing.manual_scroll_height()
+        return self._runtime.shell.sizing.manual_scroll_height()
 
     def setManualScrollHeight(self, height: int | None) -> None:  # noqa: N802
         """Apply a user-requested durable manual prompt height."""
-        self._shell_runtime.sizing.set_manual_scroll_height(height)
+        self._runtime.shell.sizing.set_manual_scroll_height(height)
 
     def sizeHint(self) -> QSize:
         """Return a size hint whose height tracks the current fixed shell height."""
-        return self._shell_runtime.sizing.size_hint()
+        return self._runtime.shell.sizing.size_hint()
 
     def minimumSizeHint(self) -> QSize:
         """Return a minimum size hint whose height tracks the current shell height."""
 
-        return self._shell_runtime.sizing.minimum_size_hint()
+        return self._runtime.shell.sizing.minimum_size_hint()
 
     def toPlainText(self) -> str:
         """Return the raw prompt source text owned by the projection surface."""
 
-        return self._surface.toPlainText()
+        return self._runtime.projection.surface.toPlainText()
 
     def setPlainText(self, text: str) -> None:  # noqa: N802
         """Replace the full prompt source text without touching the host document."""
 
-        self._document_facade.set_plain_text(text)
+        self._runtime.features.document.set_plain_text(text)
 
     def setSourceText(self, text: str) -> None:  # noqa: N802
         """Replace the full prompt source text exactly."""
 
-        self._document_facade.set_source_text(text)
+        self._runtime.features.document.set_source_text(text)
 
     def replaceBaselineText(self, text: str) -> None:  # noqa: N802
         """Replace restored prompt text and make it the editor undo baseline."""
 
-        self._document_facade.replace_baseline_text(text)
+        self._runtime.features.document.replace_baseline_text(text)
 
     def replaceBaselineSourceText(self, text: str) -> None:  # noqa: N802
         """Replace restored exact source text and make it the undo baseline."""
 
-        self._document_facade.replace_baseline_text(text, exact_source=True)
+        self._runtime.features.document.replace_baseline_text(text, exact_source=True)
 
     def replaceBaselineSourceDocument(  # noqa: N802
         self,
@@ -582,7 +506,10 @@ class PromptEditor(
     ) -> None:
         """Atomically replace document semantics, exact source, and undo baseline."""
 
-        self._document_facade.replace_baseline_document(text, document_semantics)
+        self._runtime.features.document.replace_baseline_document(
+            text,
+            document_semantics,
+        )
 
     def replaceConditioningContext(  # noqa: N802
         self,
@@ -590,7 +517,9 @@ class PromptEditor(
     ) -> bool:
         """Replace graph-derived conditioning semantics and invalidate old diagnostics."""
 
-        return self._document_facade.replace_conditioning_context(conditioning_context)
+        return self._runtime.features.document.replace_conditioning_context(
+            conditioning_context
+        )
 
     def preloadVisibleLoraBanners(  # noqa: N802
         self,
@@ -599,85 +528,87 @@ class PromptEditor(
     ) -> bool:
         """Preload visible LoRA banner pixmaps without blocking the GUI thread."""
 
-        return self._surface.preload_visible_lora_banners(on_complete=on_complete)
+        return self._runtime.projection.surface.preload_visible_lora_banners(
+            on_complete=on_complete
+        )
 
     def canUndo(self) -> bool:  # noqa: N802
         """Return whether the prompt editor has a custom undo transaction."""
 
-        return self._surface.history.can_undo()
+        return self._runtime.projection.surface.history.can_undo()
 
     def canRedo(self) -> bool:  # noqa: N802
         """Return whether the prompt editor has a custom redo transaction."""
 
-        return self._surface.history.can_redo()
+        return self._runtime.projection.surface.history.can_redo()
 
     def source_line_rects(self) -> tuple[PromptProjectionSourceLineRect, ...]:
         """Return visible prompt projection rects for source logical lines."""
 
-        return self._surface.source_line_rects()
+        return self._runtime.projection.surface.source_line_rects()
 
     def current_source_line_index(self) -> int:
         """Return the source logical line containing the current cursor."""
 
-        return self._surface.current_source_line_index()
+        return self._runtime.projection.surface.current_source_line_index()
 
     def set_source_line_chrome_enabled(self, enabled: bool) -> None:
         """Toggle source logical line backgrounds inside the projection surface."""
 
-        self._surface.set_source_line_chrome_enabled(enabled)
+        self._runtime.projection.surface.set_source_line_chrome_enabled(enabled)
 
     def set_source_line_content_left_inset(self, inset: float) -> None:
         """Reserve left-side prompt viewport space for source line chrome."""
 
-        self._surface.set_source_line_content_left_inset(inset)
+        self._runtime.projection.surface.set_source_line_content_left_inset(inset)
 
     def set_scene_error_keys(self, scene_error_keys: frozenset[str]) -> None:
         """Render the supplied normalized scene keys as invalid scene titles."""
 
-        self._surface.set_scene_error_keys(scene_error_keys)
+        self._runtime.projection.surface.set_scene_error_keys(scene_error_keys)
 
     def set_scene_autocomplete_titles(self, titles: tuple[str, ...]) -> None:
         """Replace workflow scene titles offered by line-start autocomplete."""
 
-        self._scene_facade.set_autocomplete_titles(titles)
+        self._runtime.core.scene.set_autocomplete_titles(titles)
 
     def set_queueable_scene_keys(self, scene_keys: frozenset[str]) -> None:
         """Replace normalized scene keys that may be queued from this editor."""
 
-        self._scene_facade.set_queueable_keys(scene_keys)
+        self._runtime.core.scene.set_queueable_keys(scene_keys)
 
     def textCursor(self) -> PromptCursorAdapter:
         """Return the source-backed cursor wrapper used by controller seams."""
 
-        return self._surface.textCursor()
+        return self._runtime.projection.surface.textCursor()
 
     def setTextCursor(self, cursor: object) -> None:  # noqa: N802
         """Persist one source-backed cursor selection onto the projection surface."""
 
-        self._surface.setTextCursor(cursor)
+        self._runtime.projection.surface.setTextCursor(cursor)
 
     def cursorRect(self) -> QRect:  # noqa: N802
         """Return the viewport-local caret rect from the projection surface."""
 
-        return self._surface.cursorRect()
+        return self._runtime.projection.surface.cursorRect()
 
     def has_pending_projection_update(self) -> bool:
         """Return whether projected presentation is waiting to catch up."""
 
-        return self._surface.has_pending_projection_update()
+        return self._runtime.projection.surface.has_pending_projection_update()
 
     def flush_pending_projection_update(self, *, reason: str) -> None:
         """Synchronously apply pending projected presentation work."""
 
-        self._surface.flush_pending_projection_update(reason=reason)
+        self._runtime.projection.surface.flush_pending_projection_update(reason=reason)
 
     def commit_lora_autocomplete_replacement(self) -> None:
         """Publish and collapse projection state after a LoRA autocomplete accept."""
 
-        self._interaction_controller.flush_pending_semantic_refresh(
+        self._runtime.core.syntax.interaction_controller.flush_pending_semantic_refresh(
             reason="lora_autocomplete_accept"
         )
-        self._surface.force_collapse_expanded_token()
+        self._runtime.projection.surface.force_collapse_expanded_token()
 
     def set_autocomplete_preview_state(
         self,
@@ -685,7 +616,9 @@ class PromptEditor(
     ) -> None:
         """Replace the active projection-owned autocomplete preview state."""
 
-        self._surface.autocomplete_preview.set_preview_state(preview_state)
+        self._runtime.projection.surface.autocomplete_preview.set_preview_state(
+            preview_state
+        )
 
     def set_search_matches(
         self,
@@ -696,7 +629,7 @@ class PromptEditor(
     ) -> None:
         """Render one transient set of search matches on the projection surface."""
 
-        self._search_feature_controller.set_search_matches(
+        self._runtime.core.services.search_feature_controller.set_search_matches(
             matches,
             active_index=active_index,
             query_identity=query_identity,
@@ -705,22 +638,22 @@ class PromptEditor(
     def clear_search_matches(self) -> None:
         """Clear any transient search highlight state from the prompt projection."""
 
-        self._search_feature_controller.clear_search_matches()
+        self._runtime.core.services.search_feature_controller.clear_search_matches()
 
     def displayMode(self) -> PromptProjectionDisplayMode:  # noqa: N802
         """Return the current visible prompt display mode."""
 
-        return self._rendering_facade.display_mode
+        return self._runtime.core.rendering.display_mode
 
     def setDisplayMode(self, display_mode: PromptProjectionDisplayMode) -> None:  # noqa: N802
         """Replace the visible prompt display mode without changing source text."""
 
-        self._rendering_facade.set_display_mode(display_mode)
+        self._runtime.core.rendering.set_display_mode(display_mode)
 
     def richPromptRenderingEnabled(self) -> bool:  # noqa: N802
         """Return whether rich projected prompt rendering is enabled."""
 
-        return self._rendering_facade.rich_rendering_enabled
+        return self._runtime.core.rendering.rich_rendering_enabled
 
     def field_action_entries(
         self,
@@ -728,7 +661,7 @@ class PromptEditor(
     ) -> tuple[MenuEntry, ...]:
         """Return prompt-domain actions for the aggregate node menu."""
 
-        return self._menu_runtime.shell.field_action_entries(context)
+        return self._runtime.host.menu.shell.field_action_entries(context)
 
     def field_actions_available(self) -> bool:
         """Return whether this prompt field contributes node-menu actions."""
@@ -738,7 +671,7 @@ class PromptEditor(
     def setRichPromptRenderingEnabled(self, enabled: bool) -> None:  # noqa: N802
         """Toggle rich prompt rendering and exact source editing."""
 
-        self._rendering_facade.set_rich_rendering_enabled(enabled)
+        self._runtime.core.rendering.set_rich_rendering_enabled(enabled)
 
     def source_range_fragments(
         self,
@@ -748,7 +681,10 @@ class PromptEditor(
     ) -> tuple[QRectF, ...]:
         """Return the wrapped viewport fragments for one raw source range."""
 
-        return self._surface.source_range_fragments(start=start, end=end)
+        return self._runtime.projection.surface.source_range_fragments(
+            start=start,
+            end=end,
+        )
 
     def set_wheel_intent_token_handlers(
         self,
@@ -761,27 +697,29 @@ class PromptEditor(
     ) -> None:
         """Set callbacks that gate weighted-token wheel adjustment."""
 
-        self._wheel_controller.set_token_weight_handlers(
+        self._runtime.core.syntax.wheel_controller.set_token_weight_handlers(
             token_pointer_moved=token_pointer_moved,
             token_wheel_ready=token_wheel_ready,
             token_wheel_allowed=token_wheel_allowed,
             token_wheel_activated=token_wheel_activated,
-            token_range_changed=self._surface.emphasis.set_wheel_intent_accent_range,
+            token_range_changed=(
+                self._runtime.projection.surface.emphasis.set_wheel_intent_accent_range
+            ),
         )
 
     def active_syntax_span(self) -> PromptSyntaxSpanView | None:
         """Return the syntax span currently owned by the surface caret model."""
-        return self._surface.active_syntax_span()
+        return self._runtime.projection.surface.active_syntax_span()
 
     def cursorForPosition(self, position: QPoint) -> PromptCursorAdapter:  # noqa: N802
         """Return the cursor located at one viewport-local point."""
 
-        return self._surface.cursorForPosition(position)
+        return self._runtime.projection.surface.cursorForPosition(position)
 
     def replace_document_text(self, text: str) -> None:
         """Replace the document text through one grouped edit."""
 
-        self._document_facade.replace_document_text(text)
+        self._runtime.features.document.replace_document_text(text)
 
     def replace_document_text_with_prompt_state(
         self,
@@ -792,7 +730,7 @@ class PromptEditor(
     ) -> None:
         """Replace document text using a known semantic prompt snapshot."""
 
-        self._document_facade.replace_document_text_with_prompt_state(
+        self._runtime.features.document.replace_document_text_with_prompt_state(
             text,
             document_view=document_view,
             render_plan=render_plan,
@@ -801,109 +739,110 @@ class PromptEditor(
     def copy(self) -> None:
         """Copy the selected raw prompt source text."""
 
-        self._clipboard_history_controller.copy()
+        self._runtime.projection.clipboard_history_controller.copy()
 
     def selectAll(self) -> None:  # noqa: N802
         """Select the full raw prompt source text."""
 
-        self._clipboard_history_controller.select_all()
+        self._runtime.projection.clipboard_history_controller.select_all()
 
     def cut(self) -> None:
         """Cut the selected raw prompt source text."""
 
-        self._clipboard_history_controller.cut()
+        self._runtime.projection.clipboard_history_controller.cut()
 
     def paste(self) -> None:
         """Paste clipboard text into the prompt source."""
 
-        self._clipboard_history_controller.paste()
+        self._runtime.projection.clipboard_history_controller.paste()
 
     def canInsertFromMimeData(self, source: QMimeData) -> bool:  # noqa: N802
         """Return whether external MIME data may become prompt source text."""
 
-        return self._external_input_facade.can_insert(source)
+        return self._runtime.core.external_input.can_insert(source)
 
     def insertFromMimeData(self, source: QMimeData) -> None:  # noqa: N802
         """Insert prompt-safe MIME text through the source command boundary."""
 
-        self._external_input_facade.insert(source)
+        self._runtime.core.external_input.insert(source)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Accept only prompt-safe plain text drag payloads."""
 
-        self._external_input_facade.accept_or_ignore_drag(event)
+        self._runtime.core.external_input.accept_or_ignore_drag(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         """Keep rejecting non-text drag payloads while the pointer moves."""
 
-        self._external_input_facade.accept_or_ignore_drag(event)
+        self._runtime.core.external_input.accept_or_ignore_drag(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Insert prompt-safe dropped text and reject rich/file payloads."""
 
-        self._external_input_facade.drop(event)
+        self._runtime.core.external_input.drop(event)
 
     def undo(self) -> None:
         """Undo the previous prompt edit."""
 
-        self._clipboard_history_controller.undo()
+        self._runtime.projection.clipboard_history_controller.undo()
 
     def redo(self) -> None:
         """Redo the next prompt edit."""
 
-        self._clipboard_history_controller.redo()
+        self._runtime.projection.clipboard_history_controller.redo()
 
     def modify_emphasis(self, delta: float) -> None:
         """Adjust the emphasis weight around the current selection."""
 
-        if not self._feature_profile_controller.emphasis_enabled:
+        if not self._runtime.core.services.feature_profile_controller.emphasis_enabled:
             return
-        self._weight_interaction.modify_emphasis(delta)
+        self._runtime.core.syntax.weight_interaction.modify_emphasis(delta)
 
     def setPlaceholderText(self, text: str) -> None:  # noqa: N802
         """Store placeholder text while keeping the host document visually empty."""
 
-        self._shell_runtime.chrome.set_placeholder_text(text)
+        self._runtime.shell.chrome.set_placeholder_text(text)
 
     def setReadOnly(self, read_only: bool) -> None:  # noqa: N802
         """Apply read-only state to both the QFluent shell and projection surface."""
 
         super().setReadOnly(read_only)
-        if hasattr(self, "_surface"):
-            self._surface.set_editing_enabled(not read_only)
+        projection = self._mounted_projection_or_none()
+        if projection is not None:
+            projection.surface.set_editing_enabled(not read_only)
 
     def placeholderText(self) -> str:  # noqa: N802
         """Return the configured placeholder text for the prompt editor shell."""
 
-        return self._shell_runtime.chrome.placeholder_text()
+        return self._runtime.shell.chrome.placeholder_text()
 
     def focusInEvent(self, event: QFocusEvent) -> None:
         """Refresh dirty LoRA metadata when a visible editor gains focus."""
 
         super().focusInEvent(event)
-        self._shell_runtime.chrome.handle_focus_in()
+        self._runtime.shell.chrome.handle_focus_in()
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
         """Clear autocomplete after focus leaves the editor interaction flow."""
 
-        self._shell_runtime.chrome.finish_pending_focus_out_edit_block()
+        self._runtime.shell.chrome.finish_pending_focus_out_edit_block()
         super().focusOutEvent(event)
-        self._shell_runtime.chrome.schedule_focus_out_cleanup(event.reason())
+        self._runtime.shell.chrome.schedule_focus_out_cleanup(event.reason())
 
     def changeEvent(self, event: QEvent) -> None:
         """Keep the projection surface aligned to host font and palette changes."""
 
         super().changeEvent(event)
-        if not hasattr(self, "_surface"):
+        if self._mounted_projection_or_none() is None:
             return
-        self._shell_runtime.chrome.handle_change_event(event)
+        self._runtime.shell.chrome.handle_change_event(event)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Route viewport-owned geometry and context-menu events back to the host."""
 
-        if not hasattr(self, "_surface"):
+        if self._mounted_projection_or_none() is None:
             return bool(super().eventFilter(watched, event))
-        routed = self._host_event_router.route(watched, event)
+        routed = self._runtime.host.events.route(watched, event)
         if routed is not None:
             return routed
         return bool(super().eventFilter(watched, event))
@@ -911,14 +850,14 @@ class PromptEditor(
     def hideEvent(self, event: QHideEvent) -> None:
         """Close autocomplete when the prompt editor itself is hidden."""
 
-        self._shell_runtime.chrome.handle_hide()
+        self._runtime.shell.chrome.handle_hide()
         super().hideEvent(event)
 
     def showEvent(self, event: QShowEvent) -> None:
         """Refresh dirty LoRA metadata after a hidden editor becomes visible."""
 
         super().showEvent(event)
-        self._shell_runtime.chrome.handle_show()
+        self._runtime.shell.chrome.handle_show()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Route prompt-editor key handling through the interaction controller."""
@@ -928,7 +867,7 @@ class PromptEditor(
     def _handle_prompt_key_press(self, event: QKeyEvent) -> None:
         """Route one physical key press through prompt interaction ownership."""
 
-        self._key_router.handle_key_press(event)
+        self._runtime.core.key_router.handle_key_press(event)
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         """Commit segment reorder mode when Alt is released."""
@@ -938,7 +877,7 @@ class PromptEditor(
     def _handle_prompt_key_release(self, event: QKeyEvent) -> None:
         """Route one physical key release through prompt interaction ownership."""
 
-        self._key_router.handle_key_release(event)
+        self._runtime.core.key_router.handle_key_release(event)
 
     def setFocus(  # noqa: N802
         self,
@@ -946,57 +885,63 @@ class PromptEditor(
     ) -> None:
         """Focus the projection surface while preserving the public editor facade."""
 
-        if hasattr(self, "_surface"):
-            self._surface.setFocus(reason)
+        projection = self._mounted_projection_or_none()
+        if projection is not None:
+            projection.surface.setFocus(reason)
             return
         super().setFocus(reason)
 
     def hasFocus(self) -> bool:  # noqa: N802
         """Return whether the public editor facade or projection surface has focus."""
 
+        projection = self._mounted_projection_or_none()
         return super().hasFocus() or (
-            hasattr(self, "_surface") and self._surface.hasFocus()
+            projection is not None and projection.surface.hasFocus()
         )
 
     def focusNextPrevChild(self, next: bool) -> bool:  # noqa: A002
         """Keep Tab inside the prompt editor so autocomplete acceptance can own it."""
 
-        return self._shell_runtime.chrome.focus_next_prev_child(next)
+        return self._runtime.shell.chrome.focus_next_prev_child(next)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Refresh manual layout and schedule shell geometry after resizing."""
 
         super().resizeEvent(event)
-        self._shell_runtime.chrome.handle_resize()
+        self._runtime.shell.chrome.handle_resize()
 
     def moveEvent(self, event: QMoveEvent) -> None:
         """Reposition autocomplete surfaces when layouts move the prompt editor."""
 
         super().moveEvent(event)
-        self._shell_runtime.chrome.handle_move()
+        self._runtime.shell.chrome.handle_move()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Refresh autocomplete after caret movement caused by mouse interaction."""
 
         super().mouseReleaseEvent(event)
-        self._interaction_controller.handle_mouse_release()
+        self._runtime.core.syntax.interaction_controller.handle_mouse_release()
 
     def _handle_surface_text_changed(self) -> None:
         """Propagate surface text changes through the public prompt-editor signal."""
 
-        self._shell_runtime.chrome.apply_placeholder_visibility()
-        self._shell_runtime.chrome.update_fill_planes()
+        self._runtime.shell.chrome.apply_placeholder_visibility()
+        self._runtime.shell.chrome.update_fill_planes()
         self.textChanged.emit()
 
     def _allow_surface_wheel_scroll(self, event: QWheelEvent) -> bool:
         """Return whether the prompt surface may consume one wheel event."""
 
-        return self._wheel_controller.allow_surface_wheel_scroll(event)
+        return self._runtime.core.syntax.wheel_controller.allow_surface_wheel_scroll(
+            event
+        )
 
     def _handle_viewport_wheel_event(self, event: QWheelEvent) -> bool:
         """Route prompt viewport wheel input through the policy-aware owner."""
 
-        return self._wheel_controller.handle_viewport_wheel_event(event)
+        return self._runtime.core.syntax.wheel_controller.handle_viewport_wheel_event(
+            event
+        )
 
     def prompt_surface_handle_wheel_scroll(
         self,
@@ -1004,7 +949,7 @@ class PromptEditor(
     ) -> PromptWheelScrollResult:
         """Route a wheel event to the projection surface scroll owner."""
 
-        return self._surface.handle_prompt_wheel_scroll(event)
+        return self._runtime.projection.surface.handle_prompt_wheel_scroll(event)
 
     def prompt_surface_wheel_event_is_allowed(self, event: QWheelEvent) -> bool:
         """Return whether the surface may consume one prompt wheel event."""
@@ -1039,12 +984,12 @@ class PromptEditor(
     def _handle_surface_syntax_action(self, action: PromptSyntaxAction) -> None:
         """Route surface syntax actions to their dedicated weight feature owner."""
 
-        self._weight_interaction.apply_syntax_action(action)
+        self._runtime.core.syntax.weight_interaction.apply_syntax_action(action)
 
     def _handle_surface_mouse_release(self) -> None:
         """Refresh autocomplete after surface-owned mouse interactions finish."""
 
-        self._interaction_controller.handle_mouse_release()
+        self._runtime.core.syntax.interaction_controller.handle_mouse_release()
 
     def _prompt_menu_requires_custom_actions(self) -> bool:
         """Return whether prompt-specific menu rows require the custom menu."""
@@ -1060,22 +1005,24 @@ class PromptEditor(
     def mark_lora_metadata_dirty(self) -> None:
         """Mark this editor's catalog-backed LoRA metadata as stale."""
 
-        self._catalog_refresh_facade.mark_lora_metadata_dirty()
+        self._runtime.features.catalog_refresh.mark_lora_metadata_dirty()
 
     def refresh_lora_metadata_if_visible(self) -> bool:
         """Refresh dirty LoRA metadata when this editor is currently visible."""
 
-        return self._catalog_refresh_facade.refresh_lora_metadata_if_visible()
+        return self._runtime.features.catalog_refresh.refresh_lora_metadata_if_visible()
 
     def clear_lora_thumbnail_cache(self) -> None:
         """Discard decoded LoRA thumbnails after stored thumbnail assets change."""
 
-        self._catalog_refresh_facade.clear_lora_thumbnail_cache()
+        self._runtime.features.catalog_refresh.clear_lora_thumbnail_cache()
 
     def refresh_prompt_segment_presets(self, *, reason: str) -> None:
         """Refresh saved prompt segments from prepared panel model context."""
 
-        self._catalog_refresh_facade.refresh_prompt_segment_presets(reason=reason)
+        self._runtime.features.catalog_refresh.refresh_prompt_segment_presets(
+            reason=reason
+        )
 
     def _set_context_menu_insert_state_for_tests(
         self,
@@ -1085,7 +1032,7 @@ class PromptEditor(
     ) -> None:
         """Set shell-owned context-menu insert state for compatibility tests."""
 
-        self._menu_runtime.shell.set_context_insert_state(
+        self._runtime.host.menu.shell.set_context_insert_state(
             insert_position=insert_position,
             should_replace_selection=should_replace_selection,
         )
@@ -1099,12 +1046,12 @@ class PromptEditor(
         """Set shell-owned context-menu selection state for compatibility tests."""
 
         selected_text = selection_snapshot[2] if selection_snapshot is not None else ""
-        self._menu_runtime.prompt_requests.prepare_prompt_menu_selection(
+        self._runtime.host.menu.prompt_requests.prepare_prompt_menu_selection(
             selected_text=selected_text,
             selection_snapshot=selection_snapshot if had_selection else None,
             reason="test_context_menu_selection_state",
         )
-        self._menu_runtime.shell.set_selection_press_state(
+        self._runtime.host.menu.shell.set_selection_press_state(
             had_selection=had_selection,
             selection_snapshot=selection_snapshot,
         )
@@ -1127,7 +1074,7 @@ class PromptEditor(
     def _content_viewport_for_chrome(self) -> QWidget | None:
         """Return the projection viewport after construction has created it."""
 
-        if not hasattr(self, "_surface"):
+        if self._mounted_projection_or_none() is None:
             return None
         return self.viewport()
 
@@ -1139,39 +1086,37 @@ class PromptEditor(
     def _surface_for_chrome(self) -> PromptShellChromeSurface | None:
         """Return the projection surface for QFluent chrome synchronization."""
 
-        surface = getattr(self, "_surface", None)
+        projection = self._mounted_projection_or_none()
+        surface = projection.surface if projection is not None else None
         return cast(PromptShellChromeSurface | None, surface)
 
     def _update_backing_fill_for_chrome(self, rect: QRect) -> None:
         """Repaint shell-owned fill layers for a dirty projection viewport rect."""
 
-        if not (
-            hasattr(self, "_surface")
-            and hasattr(self, "_fill_plane")
-            and hasattr(self, "_shell_padding_fill_plane")
-        ):
+        projection = self._mounted_projection_or_none()
+        if projection is None:
             return
-        self._shell_runtime.shell.update_backing_fill(
+        self._runtime.shell.shell.update_backing_fill(
             rect=rect,
-            surface=self._surface,
-            fill_plane=self._fill_plane,
-            shell_padding_fill_plane=self._shell_padding_fill_plane,
+            surface=projection.surface,
+            fill_plane=projection.fill_plane,
+            shell_padding_fill_plane=projection.shell_padding_fill_plane,
         )
 
     def _handle_focus_out_for_chrome(self) -> None:
         """Forward deferred focus-out cleanup to the interaction owner."""
 
-        self._interaction_controller.handle_focus_out()
+        self._runtime.core.syntax.interaction_controller.handle_focus_out()
 
     def _handle_hide_for_chrome(self) -> None:
         """Forward editor-hide cleanup to the interaction owner."""
 
-        self._interaction_controller.handle_hide()
+        self._runtime.core.syntax.interaction_controller.handle_hide()
 
     def _handle_move_for_chrome(self) -> None:
         """Forward editor-move handling to the interaction owner."""
 
-        self._interaction_controller.handle_move()
+        self._runtime.core.syntax.interaction_controller.handle_move()
 
     def _host_scrollbar_for_scroll_delegate(self) -> QScrollBar:
         """Return QFluent's native host scrollbar for shell metric mirroring."""
@@ -1181,68 +1126,77 @@ class PromptEditor(
     def _surface_for_scroll_delegate(self) -> PromptShellScrollSurface | None:
         """Return the projection surface once construction has created it."""
 
-        surface = getattr(self, "_surface", None)
+        projection = self._mounted_projection_or_none()
+        surface = projection.surface if projection is not None else None
         return cast(PromptShellScrollSurface | None, surface)
 
     def _shell_padding_fill_plane_for_scroll_delegate(self) -> QWidget | None:
         """Return the shell padding fill plane once construction has created it."""
 
-        fill_plane = getattr(self, "_shell_padding_fill_plane", None)
+        projection = self._mounted_projection_or_none()
+        fill_plane = (
+            projection.shell_padding_fill_plane if projection is not None else None
+        )
         return fill_plane if isinstance(fill_plane, QWidget) else None
 
     def _fill_plane_for_scroll_delegate(self) -> QWidget | None:
         """Return the viewport fill plane once construction has created it."""
 
-        fill_plane = getattr(self, "_fill_plane", None)
+        projection = self._mounted_projection_or_none()
+        fill_plane = projection.fill_plane if projection is not None else None
         return fill_plane if isinstance(fill_plane, QWidget) else None
 
     def _token_weight_controls_for_scroll_delegate(self) -> QWidget | None:
         """Return overlay token controls once construction has created them."""
 
-        controls = getattr(self, "_token_weight_controls", None)
+        core = self._runtime.core_or_none
+        controls = core.syntax.token_weight_controls if core is not None else None
         return controls if isinstance(controls, QWidget) else None
 
     def _handle_viewport_scroll_for_scroll_delegate(self) -> None:
         """Forward viewport scroll work to the interaction owner."""
 
-        self._interaction_controller.handle_viewport_scroll()
+        self._runtime.core.syntax.interaction_controller.handle_viewport_scroll()
 
     def _handle_resize_for_scroll_delegate(self) -> None:
         """Forward resize work to the interaction owner."""
 
-        self._interaction_controller.handle_resize()
+        self._runtime.core.syntax.interaction_controller.handle_resize()
 
     def _surface_content_height_for_sizing(self) -> float:
         """Return the live projection content height for shell sizing."""
 
-        return (
-            float(self._surface.content_height()) if hasattr(self, "_surface") else 0.0
-        )
+        projection = self._mounted_projection_or_none()
+        return float(projection.surface.content_height()) if projection else 0.0
 
     def _projection_line_height_for_sizing(self) -> float:
         """Return projection-owned text row height for shell sizing."""
 
-        if not hasattr(self, "_surface"):
+        projection = self._mounted_projection_or_none()
+        if projection is None:
             return 1.0
-        return float(self._surface.text_line_height())
+        return float(projection.surface.text_line_height())
 
     def _surface_is_alive_for_sizing(self) -> bool:
         """Return whether the projection surface can still serve sizing data."""
 
-        return hasattr(self, "_surface") and qt_object_is_alive(self._surface)
+        projection = self._mounted_projection_or_none()
+        return projection is not None and qt_object_is_alive(projection.surface)
 
     def _update_sizing_fill_planes(self) -> None:
         """Repaint shell fill planes after sizing changes."""
 
-        if hasattr(self, "_shell_padding_fill_plane"):
-            self._shell_padding_fill_plane.update()
-        if hasattr(self, "_fill_plane"):
-            self._fill_plane.update()
+        projection = self._mounted_projection_or_none()
+        if projection is None:
+            return
+        projection.shell_padding_fill_plane.update()
+        projection.fill_plane.update()
 
     def _resize_handle_for_sizing(self) -> QWidget | None:
         """Return the shell resize handle after construction has created it."""
 
-        resize_handle = getattr(self, "_resize_handle", None)
+        host = self._runtime.host_or_none
+        resize_handle = host.resize_handle if host is not None else None
         return resize_handle if isinstance(resize_handle, QWidget) else None
 
 

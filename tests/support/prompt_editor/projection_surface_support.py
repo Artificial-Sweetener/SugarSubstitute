@@ -342,6 +342,8 @@ def configure_trailing_word_wrap_boundary(
 def flush_semantic_refresh(box: PromptEditor) -> None:
     """Apply queued semantic prompt state without waiting for Qt timers."""
 
-    cast(Any, box)._interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
+    cast(
+        Any, box
+    )._runtime.core.syntax.interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
         reason="test"
     )

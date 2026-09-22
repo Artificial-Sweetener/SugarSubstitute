@@ -70,6 +70,6 @@ def trigger_words_action_for_lora(
     )
     return PromptTriggerWordActionAdapter(
         action_parent=editor,
-        text_insertion_executor=cast(Any, editor)._context_insertion,
+        text_insertion_executor=cast(Any, editor)._runtime.core.context_insertion,
         identity_validator=lambda _identity: True,
     ).action_for_trigger_words(prepared_action)

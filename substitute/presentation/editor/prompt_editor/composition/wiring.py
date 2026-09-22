@@ -85,8 +85,6 @@ class PromptEditorConstructionLifecycleHost(Protocol):
 class PromptEditorInitialLayoutHost(Protocol):
     """Describe construction-time layout hooks owned by later shell phases."""
 
-    _shell_runtime: PromptEditorShellRuntime
-
     def minimumEditorHeight(self) -> int:  # noqa: N802
         """Return the preferred minimum editor height."""
 
@@ -190,13 +188,16 @@ def wire_prompt_editor_construction_lifecycle(
     )
 
 
-def apply_prompt_editor_initial_layout(editor: PromptEditorInitialLayoutHost) -> None:
+def apply_prompt_editor_initial_layout(
+    editor: PromptEditorInitialLayoutHost,
+    shell: PromptEditorShellRuntime,
+) -> None:
     """Apply construction-time style, geometry, placeholder, and height hooks."""
 
-    editor._shell_runtime.chrome.sync_surface_style()
-    editor._shell_runtime.scrolling.layout_surface()
-    editor._shell_runtime.chrome.apply_placeholder_visibility()
-    editor._shell_runtime.sizing.apply_preferred_height(editor.minimumEditorHeight())
+    shell.chrome.sync_surface_style()
+    shell.scrolling.layout_surface()
+    shell.chrome.apply_placeholder_visibility()
+    shell.sizing.apply_preferred_height(editor.minimumEditorHeight())
 
 
 def is_deleted_qt_object_error(error: RuntimeError) -> bool:

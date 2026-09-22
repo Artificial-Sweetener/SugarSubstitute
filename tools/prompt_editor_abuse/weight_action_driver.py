@@ -44,7 +44,7 @@ class PromptWeightActionDriver:
         """Wheel the first weighted token through viewport pointer hit testing."""
 
         prompt_editor = cast(PromptEditor, editor)
-        surface = cast(Any, prompt_editor)._surface
+        surface = cast(Any, prompt_editor)._runtime.projection.surface
         token = _first_weighted_token(prompt_editor)
         weight_rect = surface.token_weight_text_rect(token)
         if weight_rect is None:
@@ -99,7 +99,7 @@ class PromptWeightActionDriver:
 
         prompt_editor = cast(PromptEditor, editor)
         token = _first_weighted_token(prompt_editor)
-        surface = cast(Any, prompt_editor)._surface
+        surface = cast(Any, prompt_editor)._runtime.projection.surface
         _reveal_weight_controls(prompt_editor, token)
         weight_rect = surface.token_weight_text_rect(token)
         if weight_rect is None:
@@ -127,7 +127,7 @@ class PromptWeightActionDriver:
 def _first_weighted_token(prompt_editor: PromptEditor) -> PromptProjectionToken:
     """Return the first projected emphasis or LoRA token."""
 
-    surface = cast(Any, prompt_editor)._surface
+    surface = cast(Any, prompt_editor)._runtime.projection.surface
     token = next(
         (
             candidate
@@ -147,7 +147,7 @@ def _reveal_weight_controls(
 ) -> None:
     """Reveal token controls through real pointer routing and owner-state proof."""
 
-    surface = cast(Any, prompt_editor)._surface
+    surface = cast(Any, prompt_editor)._runtime.projection.surface
     anchor_rect = surface.token_anchor_rect(token)
     if anchor_rect is None:
         raise RuntimeError("Prompt abuse weighted token has no control anchor.")

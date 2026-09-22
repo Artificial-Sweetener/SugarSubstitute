@@ -44,7 +44,7 @@ class PromptAbuseFeatureActionDriver:
     def refresh_diagnostics(self, editor: object) -> None:
         """Refresh diagnostics through the production feature controller."""
 
-        cast(Any, editor)._diagnostics_feature_controller.refresh_now()
+        cast(Any, editor)._runtime.core.diagnostics.refresh_now()
 
     def open_lora_picker(self, editor: object) -> None:
         """Open the production LoRA picker and require a visible populated popup."""

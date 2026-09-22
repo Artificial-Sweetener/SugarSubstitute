@@ -66,7 +66,7 @@ def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
     assert view.render_state.live_chips == ()
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface.reorder.presentation.visual_state.state.chrome_snapshot
+    )._editor._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.chips
     assert view.render_state.raster_paint_count == 0
@@ -232,7 +232,7 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
     active_chips = state.preview_chips if state.preview_active else state.live_chips
     surface_chrome = cast(
         Any, box
-    )._surface.reorder.presentation.visual_state.state.chrome_snapshot
+    )._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     surface_indices = (
         set()
         if surface_chrome is None

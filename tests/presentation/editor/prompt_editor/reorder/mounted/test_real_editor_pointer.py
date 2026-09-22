@@ -99,7 +99,7 @@ def _editor_reorder_preview_text(box: PromptEditor) -> str:
 def _flush_reorder_preview(box: PromptEditor) -> None:
     """Synchronize the owner-published reorder preview for a direct assertion."""
 
-    interaction = cast(Any, getattr(box, "_interaction_controller"))
+    interaction = cast(Any, box._runtime.core.syntax.interaction_controller)
     publication = interaction._reorder._overlay_session._preview_publication
     publication.flush(reason="test_reorder_preview", forced=True)
     box.flush_pending_projection_update(reason="test_reorder_preview")

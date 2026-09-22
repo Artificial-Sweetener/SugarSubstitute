@@ -300,7 +300,7 @@ def test_prompt_editor_save_segment_uses_pre_context_click_selection_snapshot(
         editor.rect().center(),
         editor.mapToGlobal(editor.rect().center()),
     )
-    cast(Any, editor)._menu_runtime.shell.show_prompt_context_menu(event)
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(event)
 
     assert source.saved == [("Segment name", "art", source.scope)]
     assert editor.textCursor().selectedText() == "art"
@@ -326,6 +326,7 @@ def test_prompt_editor_saved_segment_action_inserts_text(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         prompt_segment_model=PromptSegmentPresetMenuModel(
             sections=(
                 PromptSegmentPresetMenuSection(

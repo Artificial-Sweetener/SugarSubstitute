@@ -130,14 +130,14 @@ def _trigger_save_prompt_segment(
 ) -> None:
     """Trigger the prompt-menu presenter's save-segment callback."""
 
-    cast(Any, editor)._menu_runtime.prompt_requests.prepare_prompt_menu_selection(
+    cast(Any, editor)._runtime.host.menu.prompt_requests.prepare_prompt_menu_selection(
         selected_text=selected_text,
         selection_snapshot=selection_snapshot,
         reason="test_trigger_save_prompt_segment",
     )
     request = cast(
         Any, editor
-    )._menu_runtime.prompt_requests.prepared_prompt_menu_request(
+    )._runtime.host.menu.prompt_requests.prepared_prompt_menu_request(
         PromptShellContextMenuOpening(
             source_position=source_position,
             selected_text=selected_text,

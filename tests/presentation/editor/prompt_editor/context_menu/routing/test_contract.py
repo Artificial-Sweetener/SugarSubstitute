@@ -272,7 +272,7 @@ def test_prompt_editor_wildcard_diagnostics_activate_from_wildcard_feature(
     process_events(app)
     prompt_widgets.extend([host, editor])
 
-    controller = cast(Any, editor)._diagnostics_feature_controller
+    controller = cast(Any, editor)._runtime.core.diagnostics
     assert controller.can_activate()
 
     controller.activate()
@@ -308,6 +308,7 @@ def test_phase24_1_context_menu_read_only_suppresses_mutation_rows(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         trigger_word_actions=(
             trigger_words_action_for_lora(
                 editor,

@@ -63,7 +63,7 @@ def context_event_for_source_text(
 ) -> QContextMenuEvent:
     """Build a context-menu event centered on visible source text."""
 
-    cast(Any, editor)._menu_runtime.shell.record_context_menu_press()
+    cast(Any, editor)._runtime.host.menu.shell.record_context_menu_press()
     source_start = editor.toPlainText().index(source_text)
     source_end = source_start + len(source_text)
     wait_for_prompt_editor_projection(editor)
@@ -88,9 +88,11 @@ def prepared_context_event_for_source_text(
     event = context_event_for_source_text(editor, source_text)
     source_position = cast(
         Any, editor
-    )._menu_runtime.shell._source_position_for_global_pos(event.globalPos())
+    )._runtime.host.menu.shell._source_position_for_global_pos(event.globalPos())
     assert source_position is not None
-    cast(Any, editor)._scene_position_preparation.prepare_position_context(
+    cast(
+        Any, editor
+    )._runtime.core.services.scene_position_preparation.prepare_position_context(
         source_position,
         reason="test_context_menu_scene_position",
     )

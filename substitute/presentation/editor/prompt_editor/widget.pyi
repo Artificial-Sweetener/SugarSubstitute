@@ -88,7 +88,6 @@ from substitute.presentation.widgets.menu_model import MenuEntry
 from .autocomplete_preview_state import PromptAutocompletePreviewState
 from .composition import (
     DanbooruWikiLookupDispatcherFactory,
-    PromptEditorMenuRuntime,
     PromptEditorTaskExecutorFactory,
 )
 from .commands.autocomplete_commands import PromptAutocompleteAcceptance
@@ -109,14 +108,8 @@ from .overlays import (
     PromptAutocompletePanel,
     PromptTokenWeightControls,
 )
-from .features import (
-    PromptDiagnosticsFeatureController,
-    PromptFeatureProfileController,
-    PromptLoraMetadataPresentation,
-)
 from .interactions import (
     PromptReorderOverlayPort,
-    PromptWeightInteraction,
     PromptWheelScrollResult,
 )
 from .core.projection.document import PromptProjectionDisplayMode
@@ -132,7 +125,7 @@ from .projection.session import (
     PromptTransientNeutralEmphasisOwner,
 )
 from .projection.reorder_preview import PromptReorderPreviewState
-from .shell import PromptEditorShellRuntime
+from .runtime_mount import PromptEditorRuntimeMount
 
 class PromptEditor(QWidget):
     textChanged: Any
@@ -145,14 +138,7 @@ class PromptEditor(QWidget):
     sceneQueueRequested: Any
     regionHovered: Any
     scrollDelegate: Any
-    _surface: Any
-    _feature_profile_controller: PromptFeatureProfileController
-    _diagnostics_feature_controller: PromptDiagnosticsFeatureController
-    _menu_runtime: PromptEditorMenuRuntime
-    _shell_runtime: PromptEditorShellRuntime
-    _syntax_profile: PromptSyntaxProfile
-    _weight_interaction: PromptWeightInteraction
-    _lora_metadata_presentation: PromptLoraMetadataPresentation
+    _runtime: PromptEditorRuntimeMount
 
     def __init__(
         self,

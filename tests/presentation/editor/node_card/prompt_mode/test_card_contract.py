@@ -285,7 +285,7 @@ def test_prompt_card_full_width_row_grows_with_prompt_editor_on_narrow_resize(
     assert prompt_editor is not None
     wait_for_qt_condition(lambda: prompt_editor.viewport().width() >= 500)
     assert (
-        prompt_editor._autocomplete_refresh_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway
+        prompt_editor._runtime.core.syntax.autocomplete_timing_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway
         is autocomplete_gateway
     )
 
