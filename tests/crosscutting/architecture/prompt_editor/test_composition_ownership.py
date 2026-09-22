@@ -112,6 +112,25 @@ def test_syntax_interaction_composition_has_a_direct_owner() -> None:
     assert "PromptEditorSyntaxFactory(" not in widget_source
 
 
+def test_feature_presentation_composition_has_one_runtime_owner() -> None:
+    """Keep catalog, trigger-word, and document composition out of the widget."""
+
+    widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    feature_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "feature_runtime.py"
+    ).read_text(encoding="utf-8")
+
+    assert "build_prompt_editor_feature_runtime(" in widget_source
+    assert "PromptLoraMetadataPresentation(" in feature_runtime_source
+    assert "build_prompt_editor_catalog_refresh_facade(" in feature_runtime_source
+    assert "PromptLoraTriggerWordController(" in feature_runtime_source
+    assert "build_prompt_editor_document_facade(" in feature_runtime_source
+    assert "PromptLoraMetadataPresentation(" not in widget_source
+    assert "build_prompt_editor_catalog_refresh_facade(" not in widget_source
+    assert "PromptLoraTriggerWordController(" not in widget_source
+    assert "build_prompt_editor_document_facade(" not in widget_source
+
+
 def test_shell_mechanics_have_one_runtime_composition_owner() -> None:
     """Keep mutually dependent shell mechanics outside the public widget."""
 

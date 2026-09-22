@@ -33,6 +33,11 @@ from .core_runtime import (
     build_prompt_editor_core_runtime,
 )
 from .execution_factory import PromptEditorExecutionFactory
+from .feature_runtime import (
+    PromptEditorFeatureRuntime,
+    PromptEditorFeatureRuntimeBindings,
+    build_prompt_editor_feature_runtime,
+)
 from .foundations import (
     build_external_url_action_runner,
     build_prompt_document_service,
@@ -79,6 +84,8 @@ __all__ = [
     "PromptEditorCoreRuntimeBindings",
     "PromptEditorDanbooruFactory",
     "PromptEditorExecutionFactory",
+    "PromptEditorFeatureRuntime",
+    "PromptEditorFeatureRuntimeBindings",
     "PromptEditorMenuFactory",
     "PromptEditorMenuActionBindings",
     "PromptEditorMenuFeatureOwners",
@@ -103,6 +110,7 @@ __all__ = [
     "build_external_url_action_runner",
     "build_prompt_document_service",
     "build_prompt_editor_core_runtime",
+    "build_prompt_editor_feature_runtime",
     "build_prompt_editor_menu_runtime",
     "build_resize_handle",
     "bundle_collaborators",
