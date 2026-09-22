@@ -18,7 +18,12 @@
 
 from __future__ import annotations
 
-from substitute.domain.model_metadata import CivitaiLookupStatus
+import pytest
+
+from substitute.domain.model_metadata import (
+    CivitaiDownloadAccess,
+    CivitaiLookupStatus,
+)
 from substitute.infrastructure.external import CivitaiClient
 
 from .support import _FakeResponse, _civitai_payload, _typed_headers
@@ -85,3 +90,51 @@ def test_civitai_client_returns_not_found_for_404() -> None:
     result = CivitaiClient(http_get=fake_get).lookup_model_version_by_hash("ABC")
 
     assert result.status is CivitaiLookupStatus.NOT_FOUND
+
+
+def test_civitai_client_checks_version_access_without_sending_api_key() -> None:
+    """Access checks must identify gated models without disclosing credentials."""
+
+    calls: list[tuple[str, dict[str, str]]] = []
+
+    def fake_get(url: str, **kwargs: object) -> _FakeResponse:
+        """Return one authentication-required access response."""
+
+        calls.append((url, dict(_typed_headers(kwargs["headers"]))))
+        return _FakeResponse(
+            {
+                "availability": "Private",
+                "requireAuth": True,
+                "checkPermission": True,
+            }
+        )
+
+    access = CivitaiClient(
+        http_get=fake_get,
+        api_key_provider=lambda: pytest.fail(
+            "Unauthenticated access lookup read the stored credential."
+        ),
+    ).model_version_download_access(200)
+
+    assert access is CivitaiDownloadAccess.API_KEY_REQUIRED
+    assert calls[0][0].endswith("/model-versions/mini/200")
+    assert "Authorization" not in calls[0][1]
+
+
+def test_civitai_client_identifies_public_version_access() -> None:
+    """A fully public version should not be presented as requiring credentials."""
+
+    def fake_get(_url: str, **_kwargs: object) -> _FakeResponse:
+        """Return one public access response."""
+
+        return _FakeResponse(
+            {
+                "availability": "Public",
+                "requireAuth": False,
+                "checkPermission": False,
+            }
+        )
+
+    access = CivitaiClient(http_get=fake_get).model_version_download_access(200)
+
+    assert access is CivitaiDownloadAccess.PUBLIC

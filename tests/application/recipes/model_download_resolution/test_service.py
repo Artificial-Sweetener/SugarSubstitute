@@ -21,9 +21,12 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import cast
 
+import pytest
+
 from substitute.application.recipes import (
     RecipeModelCivitaiState,
     RecipeModelDownloadCandidate,
+    RecipeModelDownloadResolutionError,
     RecipeModelDownloadResolutionService,
     RecipeModelResolutionRequired,
     RecipeModelResolutionSummary,
@@ -160,12 +163,31 @@ def test_recipe_model_download_resolution_prefers_one_shot_api_key() -> None:
     assert backend.started_api_key == "typed-secret"
 
 
+def test_recipe_model_download_resolution_rejects_unexpected_backend_hash() -> None:
+    """A completed job must prove that BackEnd downloaded the requested model."""
+
+    backend = _DownloadBackend(result_sha256="B" * 64)
+    service = RecipeModelDownloadResolutionService(
+        backend=backend,
+        api_key_provider=lambda: None,
+        downloads_enabled=lambda: True,
+        sleep=lambda _seconds: None,
+    )
+
+    with pytest.raises(
+        RecipeModelDownloadResolutionError,
+        match="unexpected model hash",
+    ):
+        service.download_and_resolve(_required())
+
+
 class _DownloadBackend:
     """Fake backend model download gateway."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, result_sha256: str = "A" * 64) -> None:
         """Initialize fake backend state."""
 
+        self.result_sha256 = result_sha256
         self.started_api_key: str | None = None
         self.started_download_path_pattern: str | None = None
         self.started_download_path_tokens: dict[str, str] | None = None
@@ -224,7 +246,7 @@ class _DownloadBackend:
                 root_id="checkpoints:0",
                 relative_path="Downloaded/model.safetensors",
             ),
-            sha256="A" * 64,
+            sha256=self.result_sha256,
             file=BackendModelFile(
                 extension=".safetensors",
                 size_bytes=10,

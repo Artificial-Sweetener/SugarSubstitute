@@ -26,7 +26,6 @@ from substitute.application.generation import (
     VisualAuthorizationService,
     WorkflowProgressService,
 )
-from substitute.application.direct_workflows import DirectWorkflowLoadService
 from substitute.application.execution import DirectExecutionDispatcher
 from substitute.application.workflows.closed_workflow_buffer import (
     ClosedWorkflowBuffer,
@@ -54,9 +53,6 @@ from substitute.presentation.editor.panel.lora_metadata_refresh_controller impor
 )
 from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
-from substitute.infrastructure.comfy.workflow_document_repository import (
-    ComfyWorkflowDocumentRepository,
-)
 from substitute.infrastructure.external.sugarcubes_workflow_analysis_client import (
     SugarCubesWorkflowAnalysisClient,
 )
@@ -73,6 +69,7 @@ from .cube_stack_presentation_controller import (
     CubeStackPresentationController,
 )
 from .direct_workflow_file_actions import DirectWorkflowFileActions
+from .direct_workflow_composition import compose_direct_workflow_file_actions
 from .editor_busy_coordinator import EditorBusyCoordinator
 from .editor_viewport_restore import EditorViewportRestoreController
 from .generation_interrupt_failure_presenter import (
@@ -285,6 +282,7 @@ def capture_dependencies(
         dependencies.recipe_model_download_resolution_service
     )
     shell.workflow_export_service = dependencies.workflow_export_service
+    shell.native_cube_workflow_builder = dependencies.native_cube_workflow_builder
     shell.progress_service = dependencies.progress_service
     shell.generation_service = dependencies.generation_service
     shell.invalidate_cube_catalog_cache = dependencies.invalidate_cube_catalog_cache
@@ -428,29 +426,15 @@ def capture_dependencies(
     workspace_cube_picker_actions = workspace_controller.cube_picker_actions
     workspace_cube_stack_actions = workspace_controller.cube_stack_actions
     workspace_canvas_actions = workspace_controller.canvas_actions
-    direct_workflow_repository = ComfyWorkflowDocumentRepository()
-    direct_workflow_load_service = DirectWorkflowLoadService(
-        direct_workflow_repository,
-        shell.cube_graph_gateway,
-        node_definition_gateway=shell.node_definition_gateway,
-    )
-    direct_workflow_file_actions = DirectWorkflowFileActions(
-        view=shell,
-        load_service=direct_workflow_load_service,
+    direct_workflows = compose_direct_workflow_file_actions(
+        shell,
+        manifest=dependencies.portable_model_manifest_service,
         add_workflow_tab=workflow_workspace.add_workflow,
-        refresh_active_workflow=lambda: workflow_workspace.project_workflow(
-            shell.workflow_session_service.active_workflow_id,
-            force_refresh=True,
-            source="direct_workflow_loaded",
-        ),
-        materialize_loaded_section=lambda workflow_id, section_key: (
-            shell.input_canvas_presenter.materialize_loaded_workflow_section(
-                workflow_id,
-                section_key,
-            )
-        ),
+        workflow_workspace=workflow_workspace,
         error_presenter=_ensure_error_presenter(shell),
     )
+    direct_workflow_load_service = direct_workflows.load_service
+    direct_workflow_file_actions = direct_workflows.file_actions
     workspace_drop_controller = WorkspaceDropController(
         classifier=WorkflowRecipeDropClassifier(
             shell.recipe_io_service,

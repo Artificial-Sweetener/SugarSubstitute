@@ -26,6 +26,9 @@ from substitute.domain.workflow import WorkflowState
 from substitute.application.workflows.composed_value_annotation_service import (
     ComposedValueAnnotationService,
 )
+from substitute.application.workflows.portable_model_manifest import (
+    WorkflowModelManifestAnnotator,
+)
 
 from .cube_convenience_materializer import CubeConvenienceMaterializer
 from .cube_activation_materializer import CubeActivationMaterializer
@@ -38,6 +41,7 @@ class GraphBackedCubeWorkflowBuilder:
         self,
         materializer: CubeConvenienceMaterializer | None = None,
         activation_materializer: CubeActivationMaterializer | None = None,
+        model_manifest_annotator: WorkflowModelManifestAnnotator | None = None,
     ) -> None:
         """Capture value and activation materializers for executable documents."""
 
@@ -46,6 +50,7 @@ class GraphBackedCubeWorkflowBuilder:
             activation_materializer or CubeActivationMaterializer()
         )
         self._composition_annotations = ComposedValueAnnotationService()
+        self._model_manifest_annotator = model_manifest_annotator
 
     def build(
         self,
@@ -110,6 +115,8 @@ class GraphBackedCubeWorkflowBuilder:
             graph,
             global_override_scopes=global_override_scopes,
         )
+        if self._model_manifest_annotator is not None:
+            self._model_manifest_annotator.annotate(graph)
         return graph
 
 

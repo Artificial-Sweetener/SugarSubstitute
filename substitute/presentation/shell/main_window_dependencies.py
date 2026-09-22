@@ -63,6 +63,9 @@ if TYPE_CHECKING:
         ProgressService,
         RecipeOutputSiblingDiscoveryService,
     )
+    from substitute.application.generation.native_cube_workflow_builder import (
+        NativeCubeWorkflowBuilder,
+    )
     from substitute.application.generation import GenerationJobQueueService
     from substitute.application.workflows.input_asset_endpoint_service import (
         InputAssetEndpointService,
@@ -72,6 +75,9 @@ if TYPE_CHECKING:
     )
     from substitute.application.workflows.workflow_graph_section_service import (
         WorkflowGraphSectionService,
+    )
+    from substitute.application.workflows.portable_model_projection import (
+        PortableModelManifestService,
     )
     from substitute.application.model_metadata import (
         ModelCatalogService,
@@ -253,6 +259,8 @@ class MainWindowDependencies:
     graph_section_service: WorkflowGraphSectionService
     recipe_io_service: RecipeIoService
     workflow_export_service: WorkflowExportService
+    portable_model_manifest_service: PortableModelManifestService
+    native_cube_workflow_builder: NativeCubeWorkflowBuilder
     progress_service: ProgressService
     generation_service: GenerationService
     generation_job_queue_service: GenerationJobQueueService

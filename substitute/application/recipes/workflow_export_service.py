@@ -39,6 +39,9 @@ from substitute.application.recipes.workflow_payload_nodes import (
 from substitute.application.workflows.composed_value_annotation_service import (
     ComposedValueAnnotationService,
 )
+from substitute.application.workflows.portable_model_manifest import (
+    WorkflowModelManifestAnnotator,
+)
 from substitute.domain.common import GlobalOverrideScope, JsonObject
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.shared.util.path_safety import (
@@ -55,12 +58,14 @@ class WorkflowExportService:
         workflow_repository: WorkflowRepository,
         workflow_payload_compiler: WorkflowPayloadCompiler,
         node_definition_gateway: NodeDefinitionGateway | None = None,
+        model_manifest_annotator: WorkflowModelManifestAnnotator | None = None,
     ) -> None:
         """Create service with an injected workflow repository port implementation."""
 
         self._workflow_repository = workflow_repository
         self._workflow_payload_compiler = workflow_payload_compiler
         self._node_definition_gateway = node_definition_gateway
+        self._model_manifest_annotator = model_manifest_annotator
 
     def compile_workflow_payload(
         self,
@@ -79,6 +84,8 @@ class WorkflowExportService:
                 graph,
                 global_override_scopes=global_override_scopes,
             )
+            if self._model_manifest_annotator is not None:
+                self._model_manifest_annotator.annotate(graph)
             return graph
         if sugar_script_text is None:
             raise ValueError("Legacy workflow export requires SugarScript source.")

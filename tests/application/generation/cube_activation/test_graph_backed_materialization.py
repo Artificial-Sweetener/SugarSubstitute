@@ -25,9 +25,55 @@ import pytest
 from substitute.application.generation.native_cube_workflow_builder import (
     NativeCubeWorkflowBuilder,
 )
+from substitute.application.generation.graph_backed_cube_workflow_builder import (
+    GraphBackedCubeWorkflowBuilder,
+)
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState
 from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
+
+
+class _ManifestAnnotator:
+    """Record generation graphs passed through portable metadata annotation."""
+
+    def __init__(self) -> None:
+        self.graphs: list[JsonObject] = []
+
+    def annotate(self, graph: JsonObject) -> object:
+        """Mark the detached generation graph as annotated."""
+
+        self.graphs.append(graph)
+        extra = graph.setdefault("extra", {})
+        assert isinstance(extra, dict)
+        extra["sugarsubstitute_model_manifest"] = {"schema_version": 1}
+        return ()
+
+
+def test_graph_backed_generation_refreshes_portable_model_metadata() -> None:
+    """The graph serialized into generated PNGs must receive fresh model hashes."""
+
+    cube = _cube(
+        alias="Cube",
+        cube_id="test/Cube.cube",
+        node_name="model",
+        class_type="CheckpointLoaderSimple",
+        node={"inputs": {"ckpt_name": "model.safetensors"}},
+    )
+    workflow = graph_backed_cube_workflow_from_states(cube)
+    annotator = _ManifestAnnotator()
+    builder = GraphBackedCubeWorkflowBuilder(
+        model_manifest_annotator=annotator,
+    )
+
+    graph = builder.build(
+        workflow,
+        enabled_node_keys_by_alias={"Cube": ("model",)},
+        disabled_node_keys_by_alias={},
+    )
+
+    assert annotator.graphs == [graph]
+    extra = cast(dict[str, object], graph["extra"])
+    assert extra["sugarsubstitute_model_manifest"] == {"schema_version": 1}
 
 
 @pytest.mark.parametrize(
