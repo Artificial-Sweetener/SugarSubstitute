@@ -718,6 +718,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Càncëllïng thë mödël döwnlöàd. ···⟧</translation>
     </message>
     <message>
+      <source>Capture Cube</source>
+      <translation>⟦Càptürë Cübë ···⟧</translation>
+    </message>
+    <message>
       <source>Change canvas resolution</source>
       <translation>⟦Chàngë cànvàs rësölütïön ···⟧</translation>
     </message>

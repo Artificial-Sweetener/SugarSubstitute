@@ -36,6 +36,13 @@ from substitute.domain.cube_library.models import (
     CubeVersionIdentity,
     LoadedCubeArtifact,
 )
+from substitute.domain.cube_library.workflow_library import (
+    WorkflowCubeAccess,
+    WorkflowCubeCaptureResult,
+    WorkflowCubeClassification,
+    WorkflowCubeClassificationReport,
+    WorkflowCubeLibraryClass,
+)
 
 __all__ = [
     "CubeCatalog",
@@ -56,4 +63,9 @@ __all__ = [
     "CubeUpdatePolicy",
     "CubeVersionIdentity",
     "LoadedCubeArtifact",
+    "WorkflowCubeAccess",
+    "WorkflowCubeCaptureResult",
+    "WorkflowCubeClassification",
+    "WorkflowCubeClassificationReport",
+    "WorkflowCubeLibraryClass",
 ]

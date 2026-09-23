@@ -14,27 +14,29 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define core Comfy custom nodepack identifiers managed by Substitute."""
+"""Compose SugarCubes graph analysis with workflow library classification."""
 
 from __future__ import annotations
 
-from enum import Enum
-
-SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.10.0"
-SUGARCUBES_REQUIRED_VERSION = "0.15.0"
-
-
-class CoreNodepackId(str, Enum):
-    """Identify core Comfy nodepacks that Substitute can install or refresh."""
-
-    SUBSTITUTE_BACKEND = "substitute-backend"
-    SUGARCUBES = "SugarCubes"
+from substitute.application.cubes import WorkflowCubeLibraryService
+from substitute.domain.onboarding import ComfyEndpoint
+from substitute.infrastructure.external.sugarcubes_workflow_analysis_client import (
+    SugarCubesWorkflowAnalysisClient,
+)
+from substitute.infrastructure.external.sugarcubes_workflow_library_client import (
+    SugarCubesWorkflowLibraryClient,
+)
 
 
-class NodepackManagementKind(str, Enum):
-    """Identify how Comfy owns an installed custom-node package."""
+def build_workflow_cube_library_service(
+    endpoint: ComfyEndpoint,
+) -> WorkflowCubeLibraryService:
+    """Build one graph gateway enriched with transient library state."""
 
-    MISSING = "missing"
-    REGISTRY = "registry"
-    GIT = "git"
-    PLAIN = "plain"
+    return WorkflowCubeLibraryService(
+        SugarCubesWorkflowAnalysisClient(endpoint),
+        SugarCubesWorkflowLibraryClient(endpoint),
+    )
+
+
+__all__ = ["build_workflow_cube_library_service"]
