@@ -136,7 +136,7 @@ class InputMaskPickerWorkflowPort(Protocol):
 class InputImageStatePort(Protocol):
     """Expose active Input image path lookup."""
 
-    def input_image_path(self, image_id: UUID) -> Path | None:
+    def path_for(self, image_id: UUID) -> Path | None:
         """Return the persisted path associated with one Input image."""
 
 

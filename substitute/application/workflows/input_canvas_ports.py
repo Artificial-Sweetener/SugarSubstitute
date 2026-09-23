@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -42,145 +41,6 @@ class MaskLayerRemovalAuthorization:
     workflow_id: str
     image_id: UUID
     mask_id: UUID
-
-
-class InputCanvasStateServicePort(Protocol):
-    """Describe Input canvas state capabilities used by graph reconciliation."""
-
-    def load_input_image(
-        self,
-        workflows: Mapping[str, WorkflowState],
-        active_workflow_id: str,
-        input_key: str,
-        image: object,
-        path: Path,
-    ) -> UUID:
-        """Load one input image and return its live canvas UUID."""
-
-    def input_image_path(self, image_id: UUID) -> Path | None:
-        """Return the persisted source path for one live Input image."""
-
-    def load_mask_from_file(
-        self,
-        workflow_id: str,
-        active_workflow: WorkflowState,
-        association_key: tuple[str, str],
-        image_id: UUID,
-        path: Path,
-    ) -> UUID | None:
-        """Load one mask from disk for an explicit target image."""
-
-    def create_mask_for_image(
-        self,
-        workflow_id: str,
-        active_workflow: WorkflowState,
-        association_key: tuple[str, str],
-        image_id: UUID,
-        size: object,
-    ) -> UUID | None:
-        """Create one blank mask for an explicit target image."""
-
-    def set_active_input_image(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        image_id: UUID,
-    ) -> bool:
-        """Persist and project one active Input image."""
-
-    def set_active_workflow_mask(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        mask_id: UUID,
-    ) -> bool:
-        """Persist and project one active Input mask layer."""
-
-    def set_mask_visual_opacity(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-        opacity: float,
-    ) -> bool:
-        """Apply one node-level visual opacity to all associated masks."""
-
-    def mask_ids_for_association(
-        self,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-    ) -> tuple[UUID, ...]:
-        """Return every materialized mask owned by one graph mask node."""
-
-    def synchronize_mask_visual_opacity_state(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-        opacity: float,
-    ) -> bool:
-        """Adopt one opacity already restored by document history."""
-
-    def apply_materialized_mask_visual_opacity(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-        mask_id: UUID,
-    ) -> bool:
-        """Apply an explicit node value to one newly materialized mask."""
-
-    def claim_loaded_input_image(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        input_key: str,
-        image_id: UUID,
-    ) -> bool:
-        """Claim an existing CuteCanvas-admitted image for a workflow input key."""
-
-    def drop_mask_association(
-        self,
-        active_workflow: WorkflowState,
-        association_key: tuple[str, str],
-    ) -> None:
-        """Drop one stale mask association from canvas state and pane state."""
-
-    def drop_input_surface(
-        self,
-        workflows: Mapping[str, WorkflowState],
-        workflow_id: str,
-        input_key: str,
-    ) -> bool:
-        """Drop one obsolete Input surface and its owned mask layers."""
-
-    def update_mask_from_file(
-        self,
-        workflow_id: str,
-        active_workflow: WorkflowState,
-        association_key: tuple[str, str],
-        image_id: UUID,
-        mask_id: UUID,
-        path: Path,
-        image_dimensions: tuple[int, int] | None,
-        mask_dimensions: tuple[int, int] | None,
-    ) -> bool:
-        """Update one associated mask layer after Input ownership validation."""
-
-    def authorize_workflow_mask_layer_removal(
-        self,
-        workflow_id: str,
-        active_workflow: WorkflowState,
-        image_id: UUID,
-        mask_id: UUID,
-    ) -> MaskLayerRemovalAuthorization | None:
-        """Authorize one owned layer removal before durable state changes."""
-
-    def commit_workflow_mask_layer_removal(
-        self,
-        authorization: MaskLayerRemovalAuthorization,
-    ) -> MaskLayerRemovalOutcome:
-        """Apply one previously authorized live-layer removal side effect."""
 
 
 class CanvasIoServicePort(Protocol):
@@ -334,6 +194,5 @@ class WorkflowAssetServicePort(Protocol):
 
 __all__ = [
     "CanvasIoServicePort",
-    "InputCanvasStateServicePort",
     "WorkflowAssetServicePort",
 ]

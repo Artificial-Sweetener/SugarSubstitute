@@ -32,6 +32,7 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
+    _fake_input_state_composition,
     _mask_buffer_path,
     _workflow_input_service,
     _input_canvas_plan_service,
@@ -64,7 +65,7 @@ def test_apply_user_selected_input_mask_rejects_wrong_size_before_mutation(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
         workflow_asset_service=WorkflowAssetService(),
     )
@@ -114,7 +115,7 @@ def test_apply_user_selected_input_mask_rejects_unverified_dimensions_before_mut
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
         workflow_asset_service=WorkflowAssetService(),
     )
@@ -169,7 +170,7 @@ def test_materialize_input_image_creates_multiple_bound_masks(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
 

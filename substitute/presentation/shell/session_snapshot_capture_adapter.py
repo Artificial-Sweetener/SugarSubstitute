@@ -199,7 +199,7 @@ class SessionSnapshotCaptureAdapter:
             workflow.canvas.image_ids(),
             start=1,
         ):
-            path = self._shell.input_canvas_state_service.input_image_path(image_id)
+            path = self._shell.input_image_assets.path_for(image_id)
             if path is None:
                 continue
             references.append(

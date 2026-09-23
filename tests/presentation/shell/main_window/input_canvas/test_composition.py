@@ -199,7 +199,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     )
     assert composition.workflow_input_canvas_service.kwargs == {
         "input_canvas_plan_service": shell.input_canvas_plan_service,
-        "input_canvas_state_service": shell.input_canvas_state_service,
+        "input_state": shell.input_canvas_state,
         "canvas_io_service": shell.canvas_io_service,
         "workflow_asset_service": shell.workflow_asset_service,
         "graph_section_service": shell.graph_section_service,

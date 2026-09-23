@@ -35,6 +35,7 @@ from tests.application.workflows.input_canvas.fakes import (
     _FakeCanvasIoService,
 )
 from tests.application.workflows.input_canvas.support import (
+    _fake_input_state_composition,
     _input_canvas_plan_service,
 )
 
@@ -125,7 +126,7 @@ def test_materialize_loaded_section_creates_synthetic_mask_only_canvas(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
+        input_state=_fake_input_state_composition(state_service),
         canvas_io_service=io_service,
     )
 
@@ -227,7 +228,7 @@ def test_prompt_by_region_materializes_initial_ordered_mask_at_latent_size(
     created_destinations: list[Path] = []
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
+        input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=expected_mask,
@@ -330,7 +331,7 @@ def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
     class DistinctMaskStateService(_FakeInputCanvasStateService):
         """Allocate a distinct fake mask identity for every authored path."""
 
-        def load_mask_from_file(
+        def load_from_file(
             self,
             workflow_id: str,
             active_workflow: WorkflowState,
@@ -359,7 +360,7 @@ def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
     right_path.write_bytes(b"right")
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
+        input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=mask_root / "unused.png",
@@ -465,7 +466,7 @@ def test_prompt_by_region_first_add_materializes_synthetic_surface(
     state_service = _FakeInputCanvasStateService(image_id=image_id, mask_id=mask_id)
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
+        input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=expected_mask,

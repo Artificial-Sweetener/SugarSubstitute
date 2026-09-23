@@ -209,19 +209,6 @@ next_limit = 649
 debt = "SS-ARCH-022"
 
 [[waivers]]
-id = "SS-WAIVER-R023"
-owner = "input canvas state"
-rule = "STRUCT003"
-path = "substitute/application/workflows/input_canvas_state_service.py"
-kind = "remediation"
-justification = "The assessed file mixes input route projection and scope binding, input image loading, claiming, and restoration, mask creation, loading, update, and removal, asset ownership cleanup, mask opacity synchronization. Extract image and mask asset lifecycle from route projection and visual-state synchronization."
-issue = "chore:SS-ARCH-023"
-review_by = 2026-12-15
-max_lines = 876
-next_limit = 717
-debt = "SS-ARCH-023"
-
-[[waivers]]
 id = "SS-WAIVER-R025"
 owner = "workflow assets"
 rule = "STRUCT003"
@@ -243,7 +230,7 @@ kind = "remediation"
 justification = "The assessed file mixes ordered mask-region mutation, image and mask asset association, loaded image identity reconciliation, image and mask materialization, canvas plan and section projection. Extract ordered-region and association mutation from materialization and loaded-canvas reconciliation."
 issue = "chore:SS-ARCH-026"
 review_by = 2026-12-15
-max_lines = 1001
+max_lines = 1000
 next_limit = 800
 debt = "SS-ARCH-026"
 
@@ -898,7 +885,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 672
+max_lines = 667
 
 [[waivers]]
 id = "SS-WAIVER-S011"
@@ -1709,7 +1696,7 @@ kind = "structural"
 justification = "This module owns one node-scoped visual-opacity transaction across editor control, workflow state, and mounted input document. Live preview, commit, associated mask layers, inheritance, persistence, restore, history, undo, and reconciliation all synchronize the same opacity value without changing mask coverage."
 issue = "chore:SS-WAIVER-S130"
 review_by = 2026-12-15
-max_lines = 586
+max_lines = 584
 
 [[waivers]]
 id = "SS-WAIVER-S131"

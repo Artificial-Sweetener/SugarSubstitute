@@ -20,10 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Protocol, TypeGuard
-from uuid import UUID
 
 from PySide6.QtCore import QTimer
 
+from substitute.application.workflows.input_route_projection_service import (
+    InputRouteProjectionService,
+)
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.regional.mask_editor_actions import (
     RegionalMaskActionOutcome,
@@ -53,26 +55,6 @@ class _WorkflowInputCanvasServicePort(Protocol):
         """Return the authoritative binding for one mask node."""
 
 
-class _InputCanvasStateServicePort(Protocol):
-    """Describe authoritative Input selection mutations."""
-
-    def set_active_input_image(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        image_id: UUID,
-    ) -> bool:
-        """Activate one workflow-owned image."""
-
-    def set_active_workflow_mask(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        mask_id: UUID,
-    ) -> bool:
-        """Activate one workflow-owned mask."""
-
-
 class InputNodeInteractionController:
     """Coordinate picker intent through graph identity and canvas route owners."""
 
@@ -82,7 +64,7 @@ class InputNodeInteractionController:
         active_workflow: Callable[[], WorkflowState | None],
         active_workflow_id: Callable[[], str],
         workflow_input_canvas_service: _WorkflowInputCanvasServicePort,
-        input_canvas_state_service: _InputCanvasStateServicePort,
+        input_routes: InputRouteProjectionService,
         materialize_image_selection: Callable[[str, str, str], bool],
         apply_mask_selection: Callable[[str, str, str], bool],
         handle_ordered_mask_action: Callable[
@@ -96,7 +78,7 @@ class InputNodeInteractionController:
         self._active_workflow = active_workflow
         self._active_workflow_id = active_workflow_id
         self._workflow_input_canvas_service = workflow_input_canvas_service
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_routes = input_routes
         self._materialize_image_selection = materialize_image_selection
         self._apply_mask_selection = apply_mask_selection
         self._handle_ordered_mask_action = handle_ordered_mask_action
@@ -140,7 +122,7 @@ class InputNodeInteractionController:
         if image_entry is None:
             return
         image_id = image_entry.image_id
-        if not self._input_canvas_state_service.set_active_input_image(
+        if not self._input_routes.set_active_image(
             workflow_id,
             workflow,
             image_id,
@@ -159,7 +141,7 @@ class InputNodeInteractionController:
                 else None
             )
             if mask_entry is not None:
-                self._input_canvas_state_service.set_active_workflow_mask(
+                self._input_routes.set_active_mask(
                     workflow_id,
                     workflow,
                     mask_entry.mask_id,
@@ -214,7 +196,7 @@ class InputNodeInteractionController:
             )
             return
         image_id = image_entry.image_id
-        if not self._input_canvas_state_service.set_active_input_image(
+        if not self._input_routes.set_active_image(
             workflow_id,
             workflow,
             image_id,
@@ -232,7 +214,7 @@ class InputNodeInteractionController:
                 workflow_id, cube_alias, node_name, "missing_canvas_mask"
             )
             return
-        if not self._input_canvas_state_service.set_active_workflow_mask(
+        if not self._input_routes.set_active_mask(
             workflow_id,
             workflow,
             mask_id,

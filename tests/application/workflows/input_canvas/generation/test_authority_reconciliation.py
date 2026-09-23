@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import copy
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from substitute.application.workflows.generation_input_image_selection_service import (
@@ -67,7 +67,7 @@ def test_reconciliation_drops_only_surfaces_rejected_by_graph_authority() -> Non
             (valid_image_id,),
             unresolved_input_keys=("Removed:Image",),
         ),
-        input_canvas_state_service=canvas_state,
+        input_cleanup=cast(Any, canvas_state),
     )
 
     report = service.reconcile({"wf-a": workflow}, "wf-a")
@@ -91,9 +91,12 @@ def test_reconciliation_of_missing_workflow_is_an_observable_noop() -> None:
 
     service = InputCanvasAuthorityReconciliationService(
         select_generation_images=unexpected_selection,
-        input_canvas_state_service=_FakeInputCanvasStateService(
-            image_id=uuid4(),
-            mask_id=uuid4(),
+        input_cleanup=cast(
+            Any,
+            _FakeInputCanvasStateService(
+                image_id=uuid4(),
+                mask_id=uuid4(),
+            ),
         ),
     )
 
@@ -128,9 +131,12 @@ def test_stale_surface_in_workflow_without_input_canvas_recovers_before_capture(
     )
     authority = InputCanvasAuthorityReconciliationService(
         select_generation_images=selector.select,
-        input_canvas_state_service=_FakeInputCanvasStateService(
-            image_id=stale_image_id,
-            mask_id=uuid4(),
+        input_cleanup=cast(
+            Any,
+            _FakeInputCanvasStateService(
+                image_id=stale_image_id,
+                mask_id=uuid4(),
+            ),
         ),
     )
 

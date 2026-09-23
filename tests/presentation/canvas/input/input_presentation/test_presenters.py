@@ -345,9 +345,9 @@ def _presenters(
         resolve_input_mask_path=lambda *_args, **_kwargs: asset_path,
     )
     input_canvas_state_service = input_canvas_state_service or SimpleNamespace(
-        set_active_input_image=lambda *_args: True,
-        set_active_workflow_mask=lambda *_args: True,
-        input_image_path=lambda _image_id: None,
+        set_active_image=lambda *_args: True,
+        set_active_mask=lambda *_args: True,
+        path_for=lambda _image_id: None,
     )
     session = SimpleNamespace(
         active_workflow_id="wf-a",
@@ -378,7 +378,7 @@ def _presenters(
         ),
         refresh_ordered_mask=regional_masks.refresh,
         activate_mask=lambda active_workflow, mask_id: (
-            input_canvas_state_service.set_active_workflow_mask(
+            input_canvas_state_service.set_active_mask(
                 "wf-a",
                 active_workflow,
                 mask_id,

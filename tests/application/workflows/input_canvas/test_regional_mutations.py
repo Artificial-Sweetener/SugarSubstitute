@@ -40,7 +40,7 @@ from substitute.application.workflows.ordered_mask_region_authoring_service impo
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState
 from substitute.domain.workflow import WorkflowState
-from typing import cast
+from typing import Any, cast
 from uuid import uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
@@ -50,6 +50,7 @@ from tests.application.workflows.input_canvas.fakes import (
     _FakeCanvasIoService,
 )
 from tests.application.workflows.input_canvas.support import (
+    _fake_input_state_composition,
     _input_canvas_plan_service,
 )
 
@@ -116,7 +117,7 @@ def test_prompt_by_region_can_append_and_activate_another_blank_region(
     expected_mask = tmp_path / "Region" / "masks" / "region.png"
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
+        input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=expected_mask,
@@ -226,7 +227,7 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
+        input_state=_fake_input_state_composition(state_service),
         canvas_io_service=io_service,
     )
     service.materialize_loaded_section(
@@ -294,7 +295,9 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
     failing_authoring = OrderedMaskRegionAuthoringService(
         binding_resolver=service.binding_for_mask,
         ensure_section_materialized=lambda *_args: None,
-        input_canvas_state_service=state_service,
+        input_routes=cast(Any, state_service),
+        input_images=cast(Any, state_service),
+        input_masks=cast(Any, state_service),
         canvas_io_service=io_service,
         materialization_service=cast(OrderedMaskMaterializationService, object()),
         graph_values=cast(OrderedMaskGraphValueService, _FailingGraphValues()),

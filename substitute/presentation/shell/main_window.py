@@ -191,7 +191,15 @@ class MainWindow(QMainWindow):
         self.comfy_output_panel = workspace_parts.comfy_output_panel
         self.editor_output_splitter = workspace_parts.editor_output_splitter
         self.canvas_host = workspace_parts.canvas_host
-        self.input_canvas_state_service = workspace_parts.input_canvas_state_service
+        self.input_canvas_state = workspace_parts.input_canvas_state
+        self.input_routes = workspace_parts.input_canvas_state.routes
+        self.input_image_assets = workspace_parts.input_canvas_state.images
+        self.input_mask_assets = workspace_parts.input_canvas_state.masks
+        self.input_mask_restoration = (
+            workspace_parts.input_canvas_state.mask_restoration
+        )
+        self.input_mask_visuals = workspace_parts.input_canvas_state.mask_visuals
+        self.input_asset_cleanup = workspace_parts.input_canvas_state.cleanup
         self.output_canvas_state_service = workspace_parts.output_canvas_state_service
         self.output_canvas_focus_service = workspace_parts.output_canvas_focus_service
         self.output_navigation_session_service = (

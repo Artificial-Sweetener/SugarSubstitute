@@ -199,8 +199,8 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
     shell = SimpleNamespace(
         workflow_tabbar=_TabBar(),
         path_bundle=SimpleNamespace(projects_dir=tmp_path / "projects"),
-        input_canvas_state_service=SimpleNamespace(
-            input_image_path=lambda candidate_id: (
+        input_image_assets=SimpleNamespace(
+            path_for=lambda candidate_id: (
                 tmp_path / "projects" / "Recipe" / "inputs/image.png"
                 if candidate_id == image_id
                 else None
@@ -257,8 +257,8 @@ def test_adapter_captures_synthetic_input_surface_from_canvas_catalog(
     workflow.canvas.bind_image("direct:@synthetic/mask-authority", image_id)
     shell = SimpleNamespace(
         workflow_tabbar=_TabBar(),
-        input_canvas_state_service=SimpleNamespace(
-            input_image_path=lambda candidate_id: (
+        input_image_assets=SimpleNamespace(
+            path_for=lambda candidate_id: (
                 surface_path if candidate_id == image_id else None
             )
         ),
