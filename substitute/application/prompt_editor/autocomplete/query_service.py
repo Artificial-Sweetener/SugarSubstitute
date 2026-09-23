@@ -43,8 +43,8 @@ from substitute.application.prompt_editor.document.semantics import (
 from substitute.application.prompt_editor.document.selection import (
     PromptDocumentSelectionService,
 )
-from substitute.application.prompt_editor.document.view_mapper import (
-    unescape_literal_parentheses_for_display,
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
 )
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.lora.autocomplete import (
@@ -524,7 +524,7 @@ class PromptAutocompleteQueryService:
 def _normalize_autocomplete_comparison_text(text: str) -> str:
     """Normalize prompt text for semantic autocomplete no-op comparisons."""
 
-    unescaped_text = unescape_literal_parentheses_for_display(text)
+    unescaped_text = map_prompt_source_for_display(text).display_text
     collapsed_text = " ".join(unescaped_text.replace("_", " ").split())
     return collapsed_text.casefold()
 

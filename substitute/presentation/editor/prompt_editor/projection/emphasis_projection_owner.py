@@ -231,7 +231,7 @@ class PromptProjectionEmphasisOwner(QObject):
             source_position=source_position,
             placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
             token_id=token.token_id,
-            token_slot=content_end - content_start if prefer_end else 0,
+            token_slot=len(token.display_text) if prefer_end else 0,
         )
         self._publish_caret(boundary_state, boundary_state)
         return True

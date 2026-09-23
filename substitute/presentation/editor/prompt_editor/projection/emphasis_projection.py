@@ -19,6 +19,9 @@
 from __future__ import annotations
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
+)
 from substitute.application.prompt_editor.projection.syntax_models import (
     PromptEmphasisRendererView,
     PromptSyntaxRenderPlan,
@@ -156,7 +159,10 @@ def _emphasis_candidate(
             kind=PromptProjectionTokenKind.EMPHASIS,
             source_start=source_start,
             source_end=source_end,
-            display_text=document_view.source_text[content_start:content_end],
+            display_text=map_prompt_source_for_display(
+                document_view.source_text[content_start:content_end],
+                source_start=content_start,
+            ).display_text,
             value_text=value_text,
             active=active_span_range == token_range,
             decoration_accented=token_range in decoration_accent_ranges,

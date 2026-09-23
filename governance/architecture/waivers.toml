@@ -1233,10 +1233,10 @@ owner = "projection caret map"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/core/projection/caret.py"
 kind = "structural"
-justification = "The module defines one immutable caret-state model and its indexed PromptProjectionCaretMap. Source/projection lookup, token boundary queries, next/previous navigation, index construction, and fallback resolution all preserve one total visual caret ordering."
+justification = "The module defines one immutable caret-state model and its indexed PromptProjectionCaretMap. Source/projection lookup, token boundary queries, next/previous navigation, index construction, and fallback resolution—including source offsets hidden by escaped visible glyphs—all preserve one total visual caret ordering. Splitting the hidden-boundary fallback from this map would duplicate the token stop-order invariant."
 issue = "chore:SS-WAIVER-S040"
 review_by = 2026-12-15
-max_lines = 785
+max_lines = 830
 
 [[waivers]]
 id = "SS-WAIVER-S041"
@@ -1288,10 +1288,10 @@ owner = "prompt selection geometry"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/geometry/selection.py"
 kind = "structural"
-justification = "PromptSelectionGeometry owns one read-only mapping from source ranges to painted selection fragments over an immutable layout snapshot. Empty lines, line breaks, inline objects, merging, and paint-change comparison share the same source-to-geometry invariant."
+justification = "PromptSelectionGeometry owns one read-only mapping from source ranges to painted selection fragments over an immutable layout snapshot. Empty lines, line breaks, hidden escape boundaries, inline objects, merging, and paint-change comparison share the same source-to-geometry invariant. Moving fragment boundary resolution would divide that geometric selection contract."
 issue = "chore:SS-WAIVER-S045"
 review_by = 2026-12-15
-max_lines = 567
+max_lines = 570
 
 [[waivers]]
 id = "SS-WAIVER-S046"

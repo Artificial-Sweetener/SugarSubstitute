@@ -826,12 +826,15 @@ class PromptProjectionCaretMap:
             placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
             and token_slot is not None
         ):
-            return self._first_matching_state(
+            candidate = self._first_matching_state(
                 token=token,
                 placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
-                token_slot=max(
-                    0, min(token_slot, token.content_end - token.content_start)
-                ),
+                token_slot=max(0, min(token_slot, len(token.display_text))),
+            )
+            if candidate.source_position == source_position:
+                return candidate
+            return self._nearest_token_content_state(
+                token, source_position=source_position, prefer_after=prefer_after
             )
 
         if source_position <= token.source_start:
@@ -864,14 +867,58 @@ class PromptProjectionCaretMap:
                     if prefer_after
                     else PromptProjectionCaretPlacement.TOKEN_CONTENT
                 ),
-                token_slot=(
-                    None if prefer_after else token.content_end - token.content_start
-                ),
+                token_slot=(None if prefer_after else len(token.display_text)),
             )
-        return self._first_matching_state(
-            token=token,
-            placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
-            token_slot=source_position - token.content_start,
+        return self._nearest_token_content_state(
+            token, source_position=source_position, prefer_after=prefer_after
+        )
+
+    def _nearest_token_content_state(
+        self,
+        token: PromptProjectionToken,
+        *,
+        source_position: int,
+        prefer_after: bool,
+    ) -> PromptProjectionCaretState:
+        """Resolve raw offsets using the token's actual visible caret stops."""
+
+        optimized_lookup = getattr(self.stops, "nearest_token_content_state", None)
+        if callable(optimized_lookup):
+            optimized_state = optimized_lookup(
+                token.token_id,
+                source_position=source_position,
+                slot_count=len(token.display_text),
+                prefer_after=prefer_after,
+            )
+            if isinstance(optimized_state, PromptProjectionCaretState):
+                return optimized_state
+        content_states = (
+            stop.state
+            for stop in self.stops
+            if stop.state.token_id == token.token_id
+            and stop.state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+        )
+        ordered = sorted(content_states, key=lambda state: state.source_position)
+        if not ordered:
+            raise AssertionError(
+                f"Missing content caret states for {token.token_id!r}."
+            )
+        if prefer_after:
+            return next(
+                (
+                    state
+                    for state in ordered
+                    if state.source_position >= source_position
+                ),
+                ordered[-1],
+            )
+        return next(
+            (
+                state
+                for state in reversed(ordered)
+                if state.source_position <= source_position
+            ),
+            ordered[0],
         )
 
     def _first_matching_state(

@@ -40,6 +40,7 @@ from .incremental_edit_contracts import (
 )
 from .plain_text_document_remapper import apply_plain_text_document_edit
 from .plain_text_edit_policy import (
+    edit_may_change_literal_escape_visibility,
     edit_intersects_syntax_span,
     edit_intersects_token,
     plain_text_edit_is_supported,
@@ -100,6 +101,8 @@ class PromptPlainTextDocumentEditor:
             return self._reject("region_structure_topology_changed")
         if not plain_text_edit_is_supported(edit):
             return self._reject("unsupported_plain_text_incremental_edit")
+        if edit_may_change_literal_escape_visibility(edit):
+            return self._reject("literal_escape_visibility_may_change")
 
         edited_run = source_backed_plain_text_run_for_edit(
             edit,

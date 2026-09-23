@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
@@ -38,16 +40,28 @@ from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptProjectionSession,
 )
 from tests.support.prompt_editor.autocomplete_support import prompt_syntax_profile
+from tests.presentation.editor.prompt_editor.projection.builder.support import (
+    _build_projection,
+)
 from tests.support.prompt_editor.projection_engine_support import (
     StaticPromptWildcardCatalogGateway,
 )
 
 
-def test_incremental_emphasis_content_insert_matches_canonical_projection() -> None:
+@pytest.mark.parametrize(
+    ("previous_text", "insertion_before"),
+    [
+        ("(cat:1.05), suffix", "at"),
+        (r"(casshern \(series\):1.25), suffix", "ries"),
+    ],
+)
+def test_incremental_emphasis_content_insert_matches_canonical_projection(
+    previous_text: str,
+    insertion_before: str,
+) -> None:
     """Update token content locally without changing its decorated contract."""
 
-    previous_text = "(cat:1.05), suffix"
-    edit_start = previous_text.index("at")
+    edit_start = previous_text.index(insertion_before)
     next_text = previous_text[:edit_start] + "X" + previous_text[edit_start:]
     document_service = PromptDocumentService()
     syntax_service = PromptSyntaxService(StaticPromptWildcardCatalogGateway({}))
@@ -140,3 +154,39 @@ def test_incremental_emphasis_content_insert_matches_canonical_projection() -> N
         )
         for stop in canonical.caret_map.stops
     )
+
+
+def test_incremental_emphasis_edit_near_escape_uses_canonical_projection() -> None:
+    """Rebuild when deleting a storage escape changes visible/source boundaries."""
+
+    previous_text = r"(cat \(animal\):1.20)"
+    edit_start = previous_text.index(r"\(")
+    next_text = previous_text[:edit_start] + previous_text[edit_start + 1 :]
+    document_service = PromptDocumentService()
+    next_view = document_service.build_document_view(next_text)
+    syntax_service = PromptSyntaxService(StaticPromptWildcardCatalogGateway({}))
+    next_plan = syntax_service.build_render_plan(
+        next_view, prompt_syntax_profile("emphasis")
+    )
+    editor = PromptPlainTextDocumentEditor()
+
+    result = editor.try_build_plain_text_edit(
+        PromptProjectionIncrementalEdit(
+            start=edit_start,
+            end=edit_start + 1,
+            replacement_text="",
+            previous_source_text=previous_text,
+            next_source_text=next_text,
+        ),
+        previous_document=_build_projection(previous_text),
+        document_view=next_view,
+        render_plan=next_plan,
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+        active_span_range=None,
+        decoration_accent_ranges=(),
+        scene_error_keys=frozenset(),
+    )
+
+    assert result is None
+    assert editor.last_rejection_reason == "literal_escape_visibility_may_change"

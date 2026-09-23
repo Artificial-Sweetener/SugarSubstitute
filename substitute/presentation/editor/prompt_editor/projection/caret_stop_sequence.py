@@ -264,6 +264,42 @@ class PromptProjectionCaretStopSequence(Sequence[PromptProjectionCaretStop]):
             ).state
         return None
 
+    def nearest_token_content_state(
+        self,
+        token_id: str,
+        *,
+        source_position: int,
+        slot_count: int,
+        prefer_after: bool,
+    ) -> PromptProjectionCaretState | None:
+        """Find a token's nearest visible boundary without expanding all stops."""
+
+        def content_state(slot: int) -> PromptProjectionCaretState | None:
+            """Look up one visible content slot in the compact span sequence."""
+
+            return self.matching_token_state(
+                token_id,
+                placement=PromptProjectionCaretPlacement.TOKEN_CONTENT,
+                token_slot=slot,
+            )
+
+        low, high = 0, slot_count
+        while low < high:
+            middle = (low + high) // 2
+            state = content_state(middle)
+            if state is None:
+                return None
+            if state.source_position < source_position:
+                low = middle + 1
+            else:
+                high = middle
+        slot = low if prefer_after else low - 1
+        if not prefer_after:
+            exact = content_state(low)
+            if exact is not None and exact.source_position == source_position:
+                slot = low
+        return content_state(max(0, min(slot, slot_count)))
+
     def next_state(
         self,
         state: PromptProjectionCaretState,

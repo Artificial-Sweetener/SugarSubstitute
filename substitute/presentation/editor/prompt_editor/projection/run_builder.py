@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
+)
 from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
     PromptProjectionRunKind,
@@ -128,7 +129,7 @@ class PromptProjectionRunBuilder:
 
         if end <= start:
             return None
-        display_text, source_positions = _plain_run_text_and_source_positions(
+        visible = map_prompt_source_for_display(
             source_text[start:end],
             source_start=start,
         )
@@ -137,10 +138,10 @@ class PromptProjectionRunBuilder:
             kind=PromptProjectionRunKind.TEXT,
             source_start=start,
             source_end=end,
-            display_text=display_text,
-            source_positions=source_positions,
+            display_text=visible.display_text,
+            source_positions=visible.source_positions,
             projection_start=projection_position,
-            projection_end=projection_position + len(display_text),
+            projection_end=projection_position + len(visible.display_text),
         )
 
     def _projected_token_runs(
@@ -153,7 +154,11 @@ class PromptProjectionRunBuilder:
         """Build visible runs for one semantic token."""
 
         if token.kind is PromptProjectionTokenKind.EMPHASIS:
-            return _emphasis_runs(token, projection_position=projection_position)
+            return _emphasis_runs(
+                token,
+                source_text=source_text,
+                projection_position=projection_position,
+            )
         if token.kind is PromptProjectionTokenKind.SCENE:
             return (
                 build_scene_title_projection_run(
@@ -192,12 +197,19 @@ class PromptProjectionRunBuilder:
 def _emphasis_runs(
     token: PromptProjectionToken,
     *,
+    source_text: str,
     projection_position: int,
 ) -> tuple[PromptProjectionRun, ...]:
     """Build decoration and text runs for one emphasis token."""
 
     assert token.content_start is not None
     assert token.content_end is not None
+    visible = map_prompt_source_for_display(
+        source_text[token.content_start : token.content_end],
+        source_start=token.content_start,
+    )
+    if token.display_text != visible.display_text:
+        raise ValueError("Emphasis token and visible source mapping disagree.")
     prefix_run = PromptProjectionRun(
         run_id=f"emphasis-prefix:{token.token_id}",
         kind=PromptProjectionRunKind.INLINE_OBJECT,
@@ -217,10 +229,10 @@ def _emphasis_runs(
         kind=PromptProjectionRunKind.TEXT,
         source_start=token.content_start,
         source_end=token.content_end,
-        display_text=token.display_text,
-        source_positions=range(token.content_start, token.content_end + 1),
+        display_text=visible.display_text,
+        source_positions=visible.source_positions,
         projection_start=prefix_run.projection_end,
-        projection_end=prefix_run.projection_end + len(token.display_text),
+        projection_end=prefix_run.projection_end + len(visible.display_text),
         token_id=token.token_id,
         active=token.active,
     )
@@ -239,35 +251,6 @@ def _emphasis_runs(
         active=token.active,
     )
     return (prefix_run, content_run, suffix_run)
-
-
-def _plain_run_text_and_source_positions(
-    source_text: str,
-    *,
-    source_start: int,
-) -> tuple[str, Sequence[int]]:
-    """Return visible plain text and its exact source-boundary mapping."""
-
-    if "\\(" not in source_text and "\\)" not in source_text:
-        return source_text, range(source_start, source_start + len(source_text) + 1)
-    display_characters: list[str] = []
-    source_positions: list[int] = [source_start]
-    relative_index = 0
-    while relative_index < len(source_text):
-        character = source_text[relative_index]
-        if (
-            character == "\\"
-            and relative_index + 1 < len(source_text)
-            and source_text[relative_index + 1] in "()"
-        ):
-            display_characters.append(source_text[relative_index + 1])
-            relative_index += 2
-            source_positions.append(source_start + relative_index)
-            continue
-        display_characters.append(character)
-        relative_index += 1
-        source_positions.append(source_start + relative_index)
-    return "".join(display_characters), tuple(source_positions)
 
 
 __all__ = ["PromptProjectionRunBuilder"]
