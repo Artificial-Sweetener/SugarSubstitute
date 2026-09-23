@@ -21,7 +21,6 @@ from dataclasses import replace
 import os
 
 import pytest
-
 from launcher.sugarsubstitute_launcher.localization import (
     build_launcher_localization_runtime,
 )
@@ -185,7 +184,10 @@ def test_failed_completion_publication_preserves_resumable_configuration(
         raise OSError("publication unavailable")
 
     with monkeypatch.context() as scoped:
-        scoped.setattr(os, "replace", fail_replace)
+        scoped.setattr(
+            "launcher.sugarsubstitute_launcher.config.replace_atomic",
+            fail_replace,
+        )
         with pytest.raises(OSError, match="publication unavailable"):
             replace(
                 LauncherConfig.load(incomplete_runtime.config_path),
@@ -335,12 +337,18 @@ def test_pending_runtime_has_one_setup_path(
         *,
         output_callback: Callable[[str], None],
         progress_observer: InstallationProgressObserver,
+        activity_callback: Callable[[], None],
         cancellation: Event,
         admit_installation: Callable[[InstallLayout], bool],
         process_starter: Callable[[Sequence[str]], None],
     ) -> InstallationWorkflow:
         """Replace external install adapters while preserving Qt orchestration."""
-        return factory(output_callback, progress_observer, cancellation)
+        return factory(
+            output_callback,
+            progress_observer,
+            activity_callback,
+            cancellation,
+        )
 
     monkeypatch.setattr(composition, "build_installation_workflow", build_workflow)
     plan = resolve_startup_plan(

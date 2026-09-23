@@ -29,7 +29,16 @@ from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 MAX_SPLASH_MESSAGE_BYTES: Final = 16 * 1024
 SPLASH_MESSAGE_APPLIED_ACK: Final = b"applied\n"
 SUPPORTED_SPLASH_MESSAGE_TYPES: Final = frozenset(
-    {"log", "status", "fatal", "activity", "clear_activity", "activate", "close"}
+    {
+        "log",
+        "status",
+        "fatal",
+        "activity",
+        "activity_observed",
+        "clear_activity",
+        "activate",
+        "close",
+    }
 )
 
 
@@ -144,6 +153,7 @@ def _validate_message(message: SplashSessionMessage) -> None:
         )
     if message.message_type in {
         "activity",
+        "activity_observed",
         "clear_activity",
         "activate",
         "close",

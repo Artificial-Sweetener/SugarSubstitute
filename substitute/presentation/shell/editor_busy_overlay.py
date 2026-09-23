@@ -25,7 +25,7 @@ from sugarsubstitute_shared.presentation.localization import (
 )
 from substitute.presentation.localization import (
     LocalizedLabel,
-    LocalizedNativePushButton,
+    LocalizedPushButton,
 )
 
 from typing import TYPE_CHECKING, Any
@@ -138,6 +138,19 @@ class EditorBusyOverlay(QWidget):
                 font-size: 18px;
                 font-weight: 600;
             }
+            QLabel#EditorBusyOverlayDownloadTitle {
+                color: rgba(255, 255, 255, 238);
+                font-size: 18px;
+                font-weight: 600;
+            }
+            QLabel#EditorBusyOverlayDownloadMessage {
+                color: rgba(255, 255, 255, 222);
+                font-size: 14px;
+            }
+            QLabel#EditorBusyOverlayDownloadDetail {
+                color: rgba(255, 255, 255, 190);
+                font-size: 13px;
+            }
             """
         )
 
@@ -165,16 +178,19 @@ class EditorBusyOverlay(QWidget):
         self._download_title = LocalizedLabel(
             app_text("Downloading model"), self._download_panel
         )
+        self._download_title.setObjectName("EditorBusyOverlayDownloadTitle")
         self._download_message = LocalizedLabel(
             app_text("Downloading the model this recipe needs."),
             self._download_panel,
         )
+        self._download_message.setObjectName("EditorBusyOverlayDownloadMessage")
         self._download_detail = LocalizedLabel(
             app_text("Starting download..."), self._download_panel
         )
+        self._download_detail.setObjectName("EditorBusyOverlayDownloadDetail")
         self._download_progress = QProgressBar(self._download_panel)
         self._download_progress.setRange(0, 0)
-        self._download_cancel = LocalizedNativePushButton(
+        self._download_cancel = LocalizedPushButton(
             app_text("Cancel"), self._download_panel
         )
         self._download_cancel.clicked.connect(self.cancel_requested.emit)

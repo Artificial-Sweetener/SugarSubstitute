@@ -21,7 +21,6 @@ from __future__ import annotations
 import gc
 from typing import Any, cast
 
-
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
 
@@ -50,8 +49,9 @@ from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     DimensionRowActions,
 )
 from substitute.presentation.editor.panel.widgets.field_row import (
-    GROUPED_FIELD_DIVIDER_WIDTH,
     EDITOR_ROW_HEIGHT,
+    EDITOR_ROW_ICON_SIZE,
+    GROUPED_FIELD_DIVIDER_WIDTH,
     FieldRowBuilder,
 )
 from substitute.presentation.widgets.spin_box import SpinBox
@@ -147,7 +147,9 @@ def test_contributor_locks_original_dimension_fields_and_opens_intent() -> None:
     assert decorator.change_button is not None
     assert decorator.change_button.parent() is row.row
     assert decorator.change_button.height() == EDITOR_ROW_HEIGHT
-    assert decorator.change_button.text() == render_application_text(
+    assert decorator.change_button.width() == EDITOR_ROW_HEIGHT
+    assert decorator.change_button.objectName() == "SyntheticCanvasResizeButton"
+    assert decorator.change_button.accessibleName() == render_application_text(
         app_text("Resize canvas")
     )
     row_layout = row.row.layout()
@@ -168,8 +170,8 @@ def test_contributor_locks_original_dimension_fields_and_opens_intent() -> None:
     assert requests == [role]
 
 
-def test_compact_resolution_action_preserves_both_dimension_values() -> None:
-    """The inline action should not clip dimensions at the supported narrow width."""
+def test_canvas_resolution_action_preserves_supported_width_range() -> None:
+    """Every layout-supported width should keep both dimensions readable."""
 
     _app()
     panel = _Panel()
@@ -207,25 +209,58 @@ def test_compact_resolution_action_preserves_both_dimension_values() -> None:
     panel_layout = QVBoxLayout(panel)
     panel_layout.setContentsMargins(0, 0, 0, 0)
     panel_layout.addWidget(content)
-    assert row.row.minimumSizeHint().width() <= 400
-    row.row.setFixedWidth(420)
     panel.resize(420, content.sizeHint().height())
     panel.show()
     activate_widget_layouts(panel, content, row.row)
 
     assert content_layout.count() == 1
-    assert row.row.width() == 420
-    assert (
-        width.lineEdit().contentsRect().width()
-        >= width.fontMetrics().horizontalAdvance(width.text())
-    )
-    assert (
-        height.lineEdit().contentsRect().width()
-        >= height.fontMetrics().horizontalAdvance(height.text())
-    )
     assert decorator.change_button is not None
-    assert decorator.change_button.font().pixelSize() < 14
-    assert decorator.change_button.width() > 0
+    assert decorator.change_button.width() == EDITOR_ROW_HEIGHT
+    assert decorator.change_button.height() == EDITOR_ROW_HEIGHT
+    assert decorator.change_button.accessibleName() == render_application_text(
+        app_text("Resize canvas")
+    )
+    width_column = width.parentWidget()
+    height_column = height.parentWidget()
+    assert width_column is not None
+    assert height_column is not None
+    for column in (width_column, height_column):
+        column_layout = column.layout()
+        assert isinstance(column_layout, QHBoxLayout)
+        icon_slot = column_layout.itemAt(0)
+        assert icon_slot is not None
+        icon_spacer = icon_slot.spacerItem()
+        assert icon_spacer is not None
+        assert icon_spacer.sizeHint().width() == EDITOR_ROW_ICON_SIZE
+
+    minimum_width = panel.minimumSizeHint().width()
+    assert minimum_width > 0
+    requested_widths = (
+        minimum_width - 1,
+        *range(minimum_width, 1_201),
+        1_600,
+        2_400,
+        3_840,
+    )
+    for requested_width in requested_widths:
+        panel.resize(requested_width, content.sizeHint().height())
+        activate_widget_layouts(panel, content, row.row)
+
+        assert panel.width() >= minimum_width
+        content_margins = content_layout.contentsMargins()
+        assert row.row.width() == (
+            content.width() - content_margins.left() - content_margins.right()
+        )
+        assert abs(width_column.width() - height_column.width()) <= 1
+        assert (
+            width.lineEdit().contentsRect().width()
+            >= width.fontMetrics().horizontalAdvance(width.text())
+        )
+        assert (
+            height.lineEdit().contentsRect().width()
+            >= height.fontMetrics().horizontalAdvance(height.text())
+        )
+        assert row.row.rect().contains(decorator.change_button.geometry())
 
 
 def test_contributor_leaves_non_authority_nodes_untouched() -> None:
@@ -300,6 +335,7 @@ def _dimension_spin(parent: QWidget, *, value: int, key: str) -> SpinBox:
     spin = SpinBox(parent)
     spin.setRange(1, 16_384)
     spin.setValue(value)
+    spin.setSymbolVisible(False)
     spin.setProperty("input_metadata", {"key": key})
     return spin
 

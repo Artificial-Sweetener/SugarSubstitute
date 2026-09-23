@@ -20,13 +20,11 @@ from __future__ import annotations
 
 from typing import cast
 
-from PySide6.QtCore import QAbstractAnimation, QPropertyAnimation, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QPlainTextEdit,
-    QProgressBar,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -35,13 +33,15 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
     CaptionLabel,
     PrimaryPushButton,
-    ProgressBar,
     PushButton,
     SubtitleLabel,
 )
 
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from sugarsubstitute_shared.presentation.installer_surface import expose_native_material
+from sugarsubstitute_shared.presentation.activity_progress_bar import (
+    ActivityProgressBar,
+)
 
 
 class RepairProgressView(QWidget):
@@ -66,19 +66,9 @@ class RepairProgressView(QWidget):
         self._stage.setObjectName("RepairStage")
         self._stage.setWordWrap(True)
         self._step = cast(QLabel, CaptionLabel(self))
-        self._bar = cast(QProgressBar, ProgressBar(self))
+        self._bar = ActivityProgressBar(self)
         self._bar.setObjectName("RepairProgress")
-        self._bar.setRange(0, 100)
         self._bar.setFixedHeight(6)
-        self._bar.setValue(0)
-        self._opacity = QGraphicsOpacityEffect(self._bar)
-        self._opacity.setOpacity(1.0)
-        self._bar.setGraphicsEffect(self._opacity)
-        self._pulse = QPropertyAnimation(self._opacity, b"opacity", self)
-        self._pulse.setDuration(450)
-        self._pulse.setStartValue(1.0)
-        self._pulse.setKeyValueAt(0.5, 0.55)
-        self._pulse.setEndValue(1.0)
         self._details_button = cast(
             QPushButton, PushButton(launcher_text("Details"), self)
         )
@@ -125,7 +115,7 @@ class RepairProgressView(QWidget):
             )
         self._stage.setText(title)
         self._step.setText(launcher_text("Step %1 of %2", completed + 1, total))
-        self._bar.setValue(round(100 * completed / total))
+        self._bar.set_progress(completed, total)
 
     def begin_attempt(self) -> None:
         """Reset terminal actions before the controller starts a fresh repair attempt."""
@@ -133,16 +123,16 @@ class RepairProgressView(QWidget):
         self._description.setText(launcher_text("Repair keeps your files and models."))
         self._stage.setText(launcher_text("Checking repair files"))
         self._step.clear()
-        self._bar.setValue(0)
+        self._bar.reset_progress()
         self._primary.hide()
         self._close.setText(launcher_text("Cancel repair"))
         self._close.setEnabled(True)
         self._details.clear()
 
     def pulse_activity(self) -> None:
-        """Pulse the Fluent bar when the producer reports real activity."""
-        if self._pulse.state() is not QAbstractAnimation.State.Running:
-            self._pulse.start()
+        """Repaint the shared progress activity when the producer reports work."""
+        self._bar.set_activity_enabled(True)
+        self._bar.record_activity()
 
     def set_details(self, details: str) -> None:
         """Update optional diagnostics without opening or moving the details pane."""
@@ -160,15 +150,14 @@ class RepairProgressView(QWidget):
 
     def show_result(self, *, succeeded: bool, details: str = "") -> None:
         """Present an explicit next action after execution reaches a terminal state."""
-        self._pulse.stop()
-        self._opacity.setOpacity(1.0)
+        self._bar.set_activity_enabled(False)
         self._stage.clear()
         self._step.clear()
         self._close.setText(launcher_text("Close"))
         self._close.setEnabled(True)
         self._primary.show()
         if succeeded:
-            self._bar.setValue(100)
+            self._bar.set_progress(1, 1)
             self._title.setText(launcher_text("Repair complete"))
             self._description.setText(
                 launcher_text("SugarSubstitute is ready to open.")

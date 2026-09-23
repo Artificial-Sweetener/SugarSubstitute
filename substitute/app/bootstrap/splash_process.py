@@ -216,6 +216,9 @@ def _handle_message(
     if message_type == "clear_activity":
         splash.clear_activity()
         return
+    if message_type == "activity_observed":
+        splash.record_activity()
+        return
     if message_type == "fatal":
         line = message.get("line", "")
         if line:

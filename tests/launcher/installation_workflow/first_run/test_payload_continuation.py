@@ -36,6 +36,7 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 from tests.launcher.installation_workflow.first_run.support import (
     write_manifest,
     write_valid_payload_zip,
@@ -62,7 +63,10 @@ def test_continue_install_installs_app_payload_from_local_channel(
     assert (layout.app_dir / "sitecustomize.py").is_file()
     assert (layout.app_dir / "substitute").is_dir()
     assert (layout.app_dir / "third_party").is_dir()
-    assert result.app_command == build_app_launch_command(layout=layout)
+    assert result.app_command == build_app_launch_command(
+        layout=layout,
+        launch_intent=ApplicationLaunchIntent.SETUP,
+    )
     assert layout.config_path.is_file()
     assert LauncherConfig.load(layout.config_path).release_source is None
     update_state = LauncherUpdateState.load(layout.state_path)

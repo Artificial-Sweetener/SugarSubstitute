@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2923
+max_lines = 2907
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -227,10 +227,10 @@ owner = "recipe model resolution"
 rule = "STRUCT003"
 path = "substitute/application/recipes/model_load_resolution.py"
 kind = "remediation"
-justification = "The assessed file mixes workflow model-field discovery and replacement, inline prompt LoRA discovery and replacement, backend hash matching, Civitai candidate lookup and download policy, local file safety and hashing. Separate model-field and prompt-LoRA resolution from external download-candidate acquisition."
+justification = "The assessed file mixes workflow model-field resolution and replacement, inline prompt LoRA resolution and replacement, BackEnd hash lookup and fingerprint-job polling, and CivitAI missing-model lookup orchestration and unresolved reporting. Extract prompt-LoRA traversal and replacement from model-field resolution and external lookup orchestration."
 issue = "chore:SS-ARCH-021"
 review_by = 2026-12-15
-max_lines = 625
+max_lines = 549
 next_limit = 500
 debt = "SS-ARCH-021"
 
@@ -722,10 +722,10 @@ owner = "onboarding window"
 rule = "STRUCT003"
 path = "substitute/presentation/onboarding/onboarding_window.py"
 kind = "remediation"
-justification = "Window placement and screen observation now belong to InstallerWindowGeometry, and page sizing belongs to SetupPageStage. The remaining assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, folder-selection, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation, folder-selection, and route-action coordination from shell composition and environment recovery interactions."
+justification = "Window placement and screen observation belong to InstallerWindowGeometry, page sizing belongs to SetupPageStage, and setup-output filtering, diagnostic retention, and activity notification belong to SetupActivityOutput. The remaining assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, folder-selection, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation, folder-selection, and route-action coordination from shell composition and environment recovery interactions."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1103
+max_lines = 1110
 next_limit = 900
 debt = "SS-ARCH-068"
 
@@ -881,7 +881,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Extract editor composition behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 898
+max_lines = 882
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -969,10 +969,10 @@ owner = "workspace file workflows"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workspace_file_actions.py"
 kind = "remediation"
-justification = "The assessed file mixes workflow save, load, and export dialogs, recipe parsing and workspace materialization, recipe model resolution and download, download progress and model refresh, recipe output-sibling restoration, user feedback and active-surface invalidation. Extract recipe model acquisition and output restoration from file-dialog and workspace persistence presentation."
+justification = "The assessed file mixes workflow save, load, and export dialogs, recipe parsing and workspace materialization, recipe model resolution and download coordination, model refresh after acquisition, recipe output-sibling restoration, user feedback and active-surface invalidation. Extract recipe model acquisition orchestration and output restoration from file-dialog and workspace persistence presentation."
 issue = "chore:SS-ARCH-088"
 review_by = 2026-12-15
-max_lines = 1906
+max_lines = 1803
 next_limit = 1518
 debt = "SS-ARCH-088"
 

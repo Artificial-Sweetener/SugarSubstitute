@@ -38,6 +38,10 @@ from sugarsubstitute_shared.launch_splash.session import (
     validate_splash_session_spec,
 )
 from sugarsubstitute_shared.localization import app_text, format_locale_argument
+from sugarsubstitute_shared.application_launch_context import (
+    ApplicationLaunchIntent,
+    application_launch_intent,
+)
 
 from substitute.application.execution import (
     CancellationSource,
@@ -76,7 +80,11 @@ def start_early_launch_splash(
 ) -> tuple[LaunchSplashClient | None, LaunchSplashCancelRelay | None]:
     """Start the early splash helper before the full app runtime is composed."""
 
-    if "--no-comfy" in argv or os.environ.get("SUGAR_SUBSTITUTE_STARTUP_HARNESS"):
+    if (
+        "--no-comfy" in argv
+        or application_launch_intent(argv) is ApplicationLaunchIntent.SETUP
+        or os.environ.get("SUGAR_SUBSTITUTE_STARTUP_HARNESS")
+    ):
         return None, None
 
     cancel_relay = LaunchSplashCancelRelay()

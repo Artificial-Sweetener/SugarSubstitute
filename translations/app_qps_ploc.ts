@@ -162,26 +162,6 @@ Prömpt prëvïëw:
       <translation>⟦%1 sàvëd sëtüp ïtëms nëëd rëpàïr bëförë Sübstïtütë càn öpën. ···⟧</translation>
     </message>
     <message>
-      <source>%1 uses %2, but CivitAI did not find a matching download.</source>
-      <translation>⟦%1 üsës %2, büt CïvïtÅÏ dïd nöt fïnd à màtchïng döwnlöàd. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2, but CivitAI did not offer a safe download.</source>
-      <translation>⟦%1 üsës %2, büt CïvïtÅÏ dïd nöt öffër à sàfë döwnlöàd. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2, which is missing.</source>
-      <translation>⟦%1 üsës %2, whïch ïs mïssïng. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2. Download information is unavailable.</source>
-      <translation>⟦%1 üsës %2. Döwnlöàd ïnförmàtïön ïs ünàvàïlàblë. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.</source>
-      <translation>⟦%1 üsës %2. Türn ön CïvïtÅÏ mödël lööküp ïn Sëttïngs tö sëàrch för ït. ···⟧</translation>
-    </message>
-    <message>
       <source>%1 wildcard</source>
       <translation>⟦%1 wïldcàrd ···⟧</translation>
     </message>
@@ -592,6 +572,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Automatic managed core update was attempted, but the runtime is still incompatible. Repair the managed Comfy installation or update Substitute.</source>
       <translation>⟦Åütömàtïc mànàgëd cörë üpdàtë wàs àttëmptëd, büt thë rüntïmë ïs stïll ïncömpàtïblë. Rëpàïr thë mànàgëd Cömfy ïnstàllàtïön ör üpdàtë Sübstïtütë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Automatic model downloads are disabled. Open CivitAI Settings to review model download preferences.</source>
+      <translation>⟦Åütömàtïc mödël döwnlöàds àrë dïsàblëd. Öpën CïvïtÅÏ Sëttïngs tö rëvïëw mödël döwnlöàd prëfërëncës. ···⟧</translation>
     </message>
     <message>
       <source>Automatically detect</source>
@@ -1714,6 +1698,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cöntröl whïch Dànböörü ràtïngs mày rëndër às ïmàgë prëvïëws. ···⟧</translation>
     </message>
     <message>
+      <source>ControlNet</source>
+      <translation>⟦CöntrölNët ···⟧</translation>
+    </message>
+    <message>
       <source>Controls</source>
       <translation>⟦Cöntröls ···⟧</translation>
     </message>
@@ -2088,10 +2076,6 @@ Install these nodes now?</source>
     <message>
       <source>Download CivitAI thumbnails</source>
       <translation>⟦Döwnlöàd CïvïtÅÏ thümbnàïls ···⟧</translation>
-    </message>
-    <message>
-      <source>Download and open recipe</source>
-      <translation>⟦Döwnlöàd ànd öpën rëcïpë ···⟧</translation>
     </message>
     <message>
       <source>Download and use</source>
@@ -2958,6 +2942,10 @@ Install these nodes now?</source>
       <translation>⟦Lïvë Cömfy nödë dëfïnïtïöns ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
+      <source>LoRA</source>
+      <translation>⟦LöRÅ ···⟧</translation>
+    </message>
+    <message>
       <source>LoRA autocomplete</source>
       <translation>⟦LöRÅ àütöcömplëtë ···⟧</translation>
     </message>
@@ -3254,10 +3242,6 @@ Install these nodes now?</source>
       <translation>⟦Mödël döwnlöàd fàïlëd ···⟧</translation>
     </message>
     <message>
-      <source>Model download progress</source>
-      <translation>⟦Mödël döwnlöàd prögrëss ···⟧</translation>
-    </message>
-    <message>
       <source>Model download returned invalid results.</source>
       <translation>⟦Mödël döwnlöàd rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
     </message>
@@ -3320,6 +3304,10 @@ Install these nodes now?</source>
     <message>
       <source>Models folder</source>
       <translation>⟦Mödëls földër ···⟧</translation>
+    </message>
+    <message>
+      <source>Models required by this workflow</source>
+      <translation>⟦Mödëls rëqüïrëd by thïs wörkflöw ···⟧</translation>
     </message>
     <message>
       <source>Modify selection</source>
@@ -3510,6 +3498,10 @@ Install these nodes now?</source>
       <translation>⟦Nö rëpösïtöry hàs bëën vàlïdàtëd. ···⟧</translation>
     </message>
     <message>
+      <source>No safe file</source>
+      <translation>⟦Nö sàfë fïlë ···⟧</translation>
+    </message>
+    <message>
       <source>No selection</source>
       <translation>⟦Nö sëlëctïön ···⟧</translation>
     </message>
@@ -3526,10 +3518,6 @@ Install these nodes now?</source>
 I’ll bring my own</source>
       <translation>⟦Nö thànks,
 Ï’ll brïng my öwn ···⟧</translation>
-    </message>
-    <message>
-      <source>No thumbnail</source>
-      <translation>⟦Nö thümbnàïl ···⟧</translation>
     </message>
     <message>
       <source>No, show recommendations</source>
@@ -4604,6 +4592,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëvïëw thë stàrtüp rëpört. ···⟧</translation>
     </message>
     <message>
+      <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
+      <translation>⟦Rëvïëw thësë ëxàct mödël màtchës bëförë döwnlöàdïng thëm tö thë cönnëctëd CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
       <source>Rich prompt rendering</source>
       <translation>⟦Rïch prömpt rëndërïng ···⟧</translation>
     </message>
@@ -4996,10 +4988,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëtüp stöppëd bëförë CömfyÜÏ wàs rëàdy. Rëvïëw thë sëtüp lög för dëtàïls, thën try àgàïn. ···⟧</translation>
     </message>
     <message>
-      <source>Setup task activity</source>
-      <translation>⟦Sëtüp tàsk àctïvïty ···⟧</translation>
-    </message>
-    <message>
       <source>Setup was interrupted</source>
       <translation>⟦Sëtüp wàs ïntërrüptëd ···⟧</translation>
     </message>
@@ -5130,6 +5118,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Some required connection details are missing or no longer valid.</source>
       <translation>⟦Sömë rëqüïrëd cönnëctïön dëtàïls àrë mïssïng ör nö löngër vàlïd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Some required models do not have a verified automatic download. Review each item for details.</source>
+      <translation>⟦Sömë rëqüïrëd mödëls dö nöt hàvë à vërïfïëd àütömàtïc döwnlöàd. Rëvïëw ëàch ïtëm för dëtàïls. ···⟧</translation>
     </message>
     <message>
       <source>Some saved runtime paths no longer line up with this installation.</source>
@@ -5330,6 +5322,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Substitute could not confirm that shutdown finished.</source>
       <translation>⟦Sübstïtütë cöüld nöt cönfïrm thàt shütdöwn fïnïshëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute could not download and verify every model this workflow needs.</source>
+      <translation>⟦Sübstïtütë cöüld nöt döwnlöàd ànd vërïfy ëvëry mödël thïs wörkflöw nëëds. ···⟧</translation>
     </message>
     <message>
       <source>Substitute could not finish closing completely.</source>
@@ -6082,10 +6078,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thïs càn tàkë à lïttlë whïlë thë fïrst tïmë. ···⟧</translation>
     </message>
     <message>
-      <source>This cube</source>
-      <translation>⟦Thïs cübë ···⟧</translation>
-    </message>
-    <message>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>⟦Thïs cübë cànnöt bë rëndërëd bëcàüsë lïvë Cömfy mëtàdàtà ïs ünàvàïlàblë. ···⟧</translation>
     </message>
@@ -6112,18 +6104,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>This model requires a CivitAI API key</source>
       <translation>⟦Thïs mödël rëqüïrës à CïvïtÅÏ ÅPÏ këy ···⟧</translation>
-    </message>
-    <message>
-      <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
-      <translation>⟦Thïs rëcïpë üsës à mödël thàt ïs nöt àvàïlàblë ïn yöür cürrënt CömfyÜÏ mödël földërs. Türn ön CïvïtÅÏ mödël lööküp ïn Sëttïngs tö sëàrch för ït. ···⟧</translation>
-    </message>
-    <message>
-      <source>This recipe uses a model that is not available in your current ComfyUI model folders. We could not find an automatic download that is safe to offer.</source>
-      <translation>⟦Thïs rëcïpë üsës à mödël thàt ïs nöt àvàïlàblë ïn yöür cürrënt CömfyÜÏ mödël földërs. Wë cöüld nöt fïnd àn àütömàtïc döwnlöàd thàt ïs sàfë tö öffër. ···⟧</translation>
-    </message>
-    <message>
-      <source>This recipe uses a model that is not in your current ComfyUI model folders. We found a matching file on CivitAI and can download it for you, then open the recipe.</source>
-      <translation>⟦Thïs rëcïpë üsës à mödël thàt ïs nöt ïn yöür cürrënt CömfyÜÏ mödël földërs. Wë föünd à màtchïng fïlë ön CïvïtÅÏ ànd càn döwnlöàd ït för yöü, thën öpën thë rëcïpë. ···⟧</translation>
     </message>
     <message>
       <source>This screen updates as soon as the matching ComfyUI process appears.</source>
@@ -6410,8 +6390,8 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üpdàtïng thë CömfyÜÏ ëxtënsïön càtàlög. ···⟧</translation>
     </message>
     <message>
-      <source>Updating the recipe...</source>
-      <translation>⟦Üpdàtïng thë rëcïpë... ···⟧</translation>
+      <source>Upscaler</source>
+      <translation>⟦Üpscàlër ···⟧</translation>
     </message>
     <message>
       <source>Use Browse beside Python executable and choose the Python ComfyUI actually uses.</source>
@@ -6528,6 +6508,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>⟦Üsïng CömfyÜÏ Pythön %1 (%2) àt %3. ···⟧</translation>
+    </message>
+    <message>
+      <source>VAE</source>
+      <translation>⟦VÅË ···⟧</translation>
     </message>
     <message>
       <source>Validated and synced %1.</source>
@@ -6784,10 +6768,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>[Validation] torch=%1 backend=%2 channel=%3 device=%4</source>
       <translation>⟦[Vàlïdàtïön] törch=%1 bàckënd=%2 chànnël=%3 dëvïcë=%4 ···⟧</translation>
-    </message>
-    <message>
-      <source>a model</source>
-      <translation>⟦à mödël ···⟧</translation>
     </message>
     <message>
       <source>by</source>

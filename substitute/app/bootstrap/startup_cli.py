@@ -26,6 +26,10 @@ import sys
 from substitute.app.bootstrap.app_layout import resolve_app_layout
 from substitute.app.bootstrap.startup_trace import trace_mark
 from sugarsubstitute_shared.localization import parse_locale_override
+from sugarsubstitute_shared.application_launch_context import (
+    ApplicationLaunchIntent,
+    application_launch_intent,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +42,7 @@ class StartupCliArguments:
     handoff_geometry: tuple[int, int, int, int] | None
     install_root: Path | None
     locale_override: str | None
+    launch_intent: ApplicationLaunchIntent
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +109,7 @@ def parse_startup_cli_arguments(argv: Sequence[str] | None) -> StartupCliArgumen
         handoff_geometry=extract_handoff_geometry(args),
         install_root=extract_install_root(args),
         locale_override=extract_locale_override(args),
+        launch_intent=application_launch_intent(args),
     )
 
 
@@ -117,6 +123,7 @@ def trace_startup_cli_arguments(arguments: StartupCliArguments) -> None:
         arg_count=len(arguments.args),
         handoff_geometry_present=arguments.handoff_geometry is not None,
         locale_override_present=arguments.locale_override is not None,
+        launch_intent=arguments.launch_intent.value,
     )
 
 

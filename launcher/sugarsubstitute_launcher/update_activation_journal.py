@@ -35,6 +35,10 @@ from launcher.sugarsubstitute_launcher.application_release_selection import (
 from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
     RuntimeConfigurationSnapshot,
 )
+from sugarsubstitute_shared.launcher_update.persistence import (
+    open_atomic_read,
+    replace_atomic,
+)
 
 _JOURNAL_SCHEMA_VERSION = 6
 _JOURNAL_NAME = "pending-app-update-v2.json"
@@ -100,7 +104,8 @@ def load_update_journal(layout: InstallLayout) -> UpdateActivationJournal | None
     if path is None:
         return None
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        with open_atomic_read(path) as source:
+            payload = json.load(source)
     except (OSError, json.JSONDecodeError) as error:
         raise UpdateRecoveryError(
             f"Pending update journal is unreadable: {path}"
@@ -366,7 +371,7 @@ def write_update_journal_data(path: Path, payload: dict[str, object]) -> None:
             json.dumps(payload, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        os.replace(temporary_path, path)
+        replace_atomic(temporary_path, path)
     finally:
         try:
             temporary_path.unlink()
