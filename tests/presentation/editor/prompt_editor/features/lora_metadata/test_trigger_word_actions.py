@@ -66,6 +66,11 @@ class _ManualDebouncer:
         assert reason
         self._callback = callback
 
+    def request_soon(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Retain one next-turn request for deterministic delivery."""
+
+        self.request(callback, reason=reason)
+
     def flush(self, *, reason: str) -> bool:
         """Deliver and clear the pending callback."""
 

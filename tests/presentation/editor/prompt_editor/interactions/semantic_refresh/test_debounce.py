@@ -20,9 +20,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import Qt
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from tests.support.prompt_editor.autocomplete_support import prompt_syntax_profile
+from tests.support.prompt_editor.controller_support import key_event
 from tests.presentation.editor.prompt_editor.interactions.semantic_refresh.support import (
     build_editor,
     build_hosted_semantic_refresh_controller,
@@ -109,6 +111,55 @@ def test_semantic_boundary_flushes_only_after_syntax_sensitive_typing() -> None:
     controller.flush_semantic_boundary_from_keymap(reason="duplicate_boundary")
 
     assert semantic_refresh.flush_reasons == ["syntax_boundary"]
+
+
+def test_closing_syntax_defers_semantics_until_navigation_needs_it() -> None:
+    """Keep a closing-key dispatch responsive and resolve semantics before movement."""
+
+    editor = build_editor("(cat:1.05", position=9)
+    editor.requires_semantic_refresh_before_boundary_result = True
+    semantic_refresh = semantic_refresh_controller_double()
+    controller = build_interaction_controller(
+        editor,
+        semantic_refresh_controller=semantic_refresh,
+    )
+
+    editor.setPlainText("(cat:1.05)")
+    controller.handle_text_changed()
+    controller.handle_post_key_press(key_event(Qt.Key.Key_ParenRight, text=")"))
+
+    assert semantic_refresh.queued_sources == [("(cat:1.05)", "text_changed")]
+    assert semantic_refresh.flush_reasons == []
+    assert semantic_refresh.schedule_soon_reasons == ["syntax_closing_key"]
+
+    controller.handle_key_press(key_event(Qt.Key.Key_Left))
+
+    assert semantic_refresh.flush_reasons == ["semantic_navigation_key"]
+
+
+def test_edit_boundaries_publish_pending_semantics_on_next_event_turn() -> None:
+    """Space and destructive edits should promptly settle syntax off the key stack."""
+
+    editor = build_editor("(cat:1.05)", position=10)
+    semantic_refresh = semantic_refresh_controller_double()
+    controller = build_interaction_controller(
+        editor,
+        semantic_refresh_controller=semantic_refresh,
+    )
+
+    for event in (
+        key_event(Qt.Key.Key_Space, text=" "),
+        key_event(Qt.Key.Key_Backspace),
+        key_event(Qt.Key.Key_Delete),
+    ):
+        controller.handle_post_key_press(event)
+
+    assert semantic_refresh.flush_reasons == []
+    assert semantic_refresh.schedule_soon_reasons == [
+        "syntax_closing_key",
+        "syntax_closing_key",
+        "syntax_closing_key",
+    ]
 
 
 def test_handle_text_changed_coalesces_semantic_refresh_to_latest_text() -> None:

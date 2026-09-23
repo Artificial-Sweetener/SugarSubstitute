@@ -218,7 +218,7 @@ def _emphasis_runs(
         source_start=token.content_start,
         source_end=token.content_end,
         display_text=token.display_text,
-        source_positions=tuple(range(token.content_start, token.content_end + 1)),
+        source_positions=range(token.content_start, token.content_end + 1),
         projection_start=prefix_run.projection_end,
         projection_end=prefix_run.projection_end + len(token.display_text),
         token_id=token.token_id,

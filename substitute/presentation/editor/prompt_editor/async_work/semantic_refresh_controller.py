@@ -212,6 +212,16 @@ class PromptSemanticRefreshController:
         )
         self._publish_prepared_request_if_fresh(request)
 
+    def schedule_pending_soon(self, *, reason: str) -> None:
+        """Move pending semantic work to the next event turn without blocking input."""
+
+        if self._pending_request is None:
+            return
+        self._debouncer.request_soon(
+            lambda: self.flush(reason=reason),
+            reason=reason,
+        )
+
     def cancel_pending(self, *, reason: str) -> None:
         """Drop queued or active semantic refresh work."""
 

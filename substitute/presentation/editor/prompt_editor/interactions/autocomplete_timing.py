@@ -283,10 +283,16 @@ class PromptAutocompleteTimingController:
                 query_reason="edit_retarget",
                 refresh_intent="typing",
             )
+            destructive_edit = event.key() in {
+                Qt.Key.Key_Backspace,
+                Qt.Key.Key_Delete,
+            }
             self.schedule_refresh(
-                delay_ms=self._EDIT_SETTLE_DELAY_MS,
+                delay_ms=self._EDIT_SETTLE_DELAY_MS if destructive_edit else 0,
                 query_hint="edit_key",
-                schedule_reason="edit_debounce",
+                schedule_reason=(
+                    "edit_debounce" if destructive_edit else "edit_turn_coalescing"
+                ),
                 refresh_intent="typing",
             )
             return
@@ -506,7 +512,7 @@ class PromptAutocompleteTimingController:
 
     @staticmethod
     def _should_debounce_refresh_for_edit_key(event: QKeyEvent) -> bool:
-        """Return whether an edit key should coalesce autocomplete after idle."""
+        """Return whether ordinary source editing should refresh after idle."""
 
         if bool(
             event.modifiers()
@@ -520,7 +526,7 @@ class PromptAutocompleteTimingController:
         return event.key() in {
             Qt.Key.Key_Backspace,
             Qt.Key.Key_Delete,
-        }
+        } or bool(event.text())
 
 
 __all__ = [

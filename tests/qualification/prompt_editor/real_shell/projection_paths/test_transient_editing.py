@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from PySide6.QtCore import Qt
 import pytest
 
@@ -194,6 +196,47 @@ def test_real_shell_space_after_deferred_typing_updates_projection_or_bridge(
         invariant="Space after deferred typing must either rebuild projection or keep a valid transient bridge.",
     )
     assert after.source_text == "alpha "
+
+
+def test_real_shell_closing_syntax_stays_responsive_until_navigation(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Publish completed syntax before moving through its decorated caret stops."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="(cat:1.05")
+    real_shell_scenario.input.move_cursor_to_end(field)
+    controller = cast(Any, field.editor)._runtime.core.syntax.interaction_controller
+
+    immediate = real_shell_scenario.input.press_key_and_capture_immediate_state(
+        field,
+        Qt.Key.Key_ParenRight,
+        label="after-responsive-syntax-close",
+    )
+
+    assert immediate.source_text == "(cat:1.05)"
+    assert immediate.cursor_position == len(immediate.source_text)
+    assert controller._semantic_refresh._pending_request is not None
+    assert not snapshot_invariant_violations(immediate)
+
+    real_shell_scenario.wait_for_queued_delivery()
+    published = real_shell_scenario.snapshots.capture(
+        field,
+        label="after-next-turn-syntax-publication",
+    )
+
+    assert controller._semantic_refresh._pending_request is None
+    assert published.projection_token_count == 1
+    assert not snapshot_invariant_violations(published)
+
+    real_shell_scenario.input.press_key(field, Qt.Key.Key_Left)
+    navigated = real_shell_scenario.snapshots.capture(
+        field,
+        label="after-syntax-close-navigation",
+    )
+
+    assert navigated.projection_token_count == 1
+    assert navigated.cursor_position < immediate.cursor_position
+    assert not snapshot_invariant_violations(navigated)
 
 
 def test_real_shell_delete_at_end_after_canvas_navigation_is_noop(

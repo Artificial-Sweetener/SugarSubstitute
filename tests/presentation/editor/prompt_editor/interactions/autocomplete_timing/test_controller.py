@@ -221,8 +221,8 @@ def _timing_controller(
     )
 
 
-def test_post_key_refresh_uses_prepared_snapshot_without_projection_flush() -> None:
-    """Post-key refresh uses source snapshots without flushing projection work."""
+def test_post_key_refresh_coalesces_on_next_turn_without_projection_flush() -> None:
+    """Ordinary typing moves query work off the active key dispatch."""
 
     editor = _TimingEditor("1girl, blue")
     lifecycle = _LifecycleRequester()
@@ -241,6 +241,24 @@ def test_post_key_refresh_uses_prepared_snapshot_without_projection_flush() -> N
     assert lifecycle.refresh_snapshots[-1].cursor_position == len("1girl, blue")
     assert lifecycle.refresh_snapshots[-1].refresh_intent == "typing"
     assert editor.flush_calls == []
+
+
+def test_post_key_refresh_discovers_new_session_on_next_event_turn() -> None:
+    """Initial autocomplete discovery should use the same next-turn timing."""
+
+    editor = _TimingEditor("1girl, blue")
+    lifecycle = _LifecycleRequester(active_session=False)
+    timers: list[_FakeRefreshTimer] = []
+    controller = _timing_controller(editor, lifecycle=lifecycle, timers=timers)
+
+    controller.handle_post_key_press(key_event(Qt.Key.Key_E, text="e"))
+
+    assert lifecycle.refresh_snapshots == []
+    assert timers[-1].started_intervals == [0]
+
+    timers[-1].fire()
+
+    assert lifecycle.refresh_snapshots[-1].query_reason == "edit_turn_coalescing"
 
 
 def test_navigation_key_clears_without_reopening_autocomplete() -> None:

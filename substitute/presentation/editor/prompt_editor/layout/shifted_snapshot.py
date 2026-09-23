@@ -380,6 +380,7 @@ def shift_downstream_fragment(
         if semantic_resolver is None
         else semantic_resolver.identity_for(
             fragment,
+            source_delta=source_delta,
             projection_delta=projection_delta,
         )
     )

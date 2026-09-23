@@ -87,16 +87,28 @@ def test_real_shell_region_separator_abuse_scenarios_remain_exact(
         ),
     )
     if scenario_name == "region-separator-adjacent-partition-population":
-        rebuild_actions = {
-            delta.action_index
+        counters_by_action = {
+            delta.action_index: dict(delta.counter_deltas)
             for delta in result.action_owner_deltas
-            if dict(delta.counter_deltas).get(
-                "instrumented_projection_rebuild_count",
-                0.0,
-            )
-            != 0.0
+            if delta.action_index < 6
         }
-        assert rebuild_actions == {0}
+        assert all(
+            counters.get("instrumented_projection_rebuild_count", 0.0) == 0.0
+            for counters in counters_by_action.values()
+        )
+        assert (
+            counters_by_action[0].get(
+                "instrumented_projection_document_build_count", 0.0
+            )
+            == 1.0
+        )
+        assert all(
+            counters_by_action[action_index].get(
+                "instrumented_projection_incremental_applied_count", 0.0
+            )
+            == 1.0
+            for action_index in range(1, 6)
+        )
     if scenario_name == "region-separator-canvas-lifecycle":
         canvas_delta = next(
             delta

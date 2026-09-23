@@ -59,7 +59,10 @@ def _facts(
                 PromptSourceEditKind.PLAIN_REPLACEMENT,
                 region_structure_requires_rebuild=True,
             ),
-            (PromptEditStrategy.FULL_REBUILD,),
+            (
+                PromptEditStrategy.BUILD_CANONICAL_REFLOW,
+                PromptEditStrategy.FULL_REBUILD,
+            ),
         ),
         (
             _facts(
@@ -162,8 +165,8 @@ def test_edit_classifier_reuses_module_lifetime_strategy_plans() -> None:
     assert classifier.classify(facts) is classifier.classify(facts)
 
 
-def test_edit_classifier_forces_rebuild_for_projection_topology() -> None:
-    """Canonical scene topology changes must bypass local strategies."""
+def test_edit_classifier_reflows_projection_topology_before_full_rebuild() -> None:
+    """Canonical scene topology changes should retain bounded recovery first."""
 
     plan = PromptEditClassifier().classify(
         _facts(
@@ -172,7 +175,10 @@ def test_edit_classifier_forces_rebuild_for_projection_topology() -> None:
         )
     )
 
-    assert plan.candidates == (PromptEditStrategy.FULL_REBUILD,)
+    assert plan.candidates == (
+        PromptEditStrategy.BUILD_CANONICAL_REFLOW,
+        PromptEditStrategy.FULL_REBUILD,
+    )
 
 
 @pytest.mark.parametrize(

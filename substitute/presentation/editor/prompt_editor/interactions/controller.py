@@ -120,6 +120,9 @@ class PromptSemanticRefreshPort(Protocol):
     def flush(self, *, reason: str) -> None:
         """Synchronously apply pending semantic refresh work when needed."""
 
+    def schedule_pending_soon(self, *, reason: str) -> None:
+        """Schedule pending semantic work for the next event-loop turn."""
+
     def cancel_pending(self, *, reason: str) -> None:
         """Cancel pending or active semantic refresh work."""
 
@@ -400,6 +403,11 @@ class PromptInteractionController:
         """Flush pending semantic refresh for a keymap-owned reason."""
 
         self.flush_pending_semantic_refresh(reason=reason)
+
+    def schedule_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+        """Schedule pending semantics after input without extending key latency."""
+
+        self._semantic_refresh.schedule_pending_soon(reason=reason)
 
     def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
         """Flush a boundary key only when prior edits can change syntax."""

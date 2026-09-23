@@ -45,9 +45,7 @@ class PromptTextMeasurementCache:
     )
     width_by_key: dict[tuple[str, str], float] = field(default_factory=dict)
     word_fit_by_key: dict[tuple[str, str, int], bool] = field(default_factory=dict)
-    font_by_run_key: dict[tuple[str, str, bool, str | None], QFont] = field(
-        default_factory=dict
-    )
+    font_by_style_key: dict[tuple[str, str | None], QFont] = field(default_factory=dict)
     key_by_font_id: dict[int, tuple[QFont, str]] = field(default_factory=dict)
 
     def font_key(self, font: QFont) -> str:
@@ -70,17 +68,12 @@ class PromptTextMeasurementCache:
     ) -> QFont:
         """Return the projected font for one run using retained measurements."""
 
-        key = (
-            run.run_id,
-            base_font_key,
-            run.active,
-            run.text_style_variant,
-        )
-        cached_font = self.font_by_run_key.get(key)
+        key = (base_font_key, run.text_style_variant)
+        cached_font = self.font_by_style_key.get(key)
         if cached_font is not None:
             return cached_font
         font = projection_text_run_font(run, base_font)
-        self.font_by_run_key[key] = font
+        self.font_by_style_key[key] = font
         return font
 
     def unwrapped_text_offsets(self, text: str, font: QFont) -> tuple[float, ...]:
@@ -136,7 +129,7 @@ class PromptTextMeasurementCache:
             len(self.offsets_by_key)
             + len(self.width_by_key)
             + len(self.word_fit_by_key)
-            + len(self.font_by_run_key)
+            + len(self.font_by_style_key)
             + len(self.key_by_font_id)
         )
 
@@ -146,7 +139,7 @@ class PromptTextMeasurementCache:
         self.offsets_by_key.clear()
         self.width_by_key.clear()
         self.word_fit_by_key.clear()
-        self.font_by_run_key.clear()
+        self.font_by_style_key.clear()
         self.key_by_font_id.clear()
 
 

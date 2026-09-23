@@ -1203,7 +1203,7 @@ kind = "structural"
 justification = "PromptSemanticRefreshController owns one stale-safe async refresh state machine. Queueing, flush, cancellation, task completion, freshness validation, source-identity rebase, publication, and failure logging all operate on the same active and pending request state."
 issue = "chore:SS-WAIVER-S037"
 review_by = 2026-12-15
-max_lines = 529
+max_lines = 537
 
 [[waivers]]
 id = "SS-WAIVER-S038"
@@ -1313,7 +1313,7 @@ kind = "structural"
 justification = "The module implements one lazy offset-view abstraction over line, fragment, caret-stop, and source-position snapshot values. Every proxy preserves the same deferred coordinate-shift semantics; flattened fragment and caret lookup indexes now belong to snapshot_indexes."
 issue = "chore:SS-WAIVER-S048"
 review_by = 2026-12-15
-max_lines = 526
+max_lines = 527
 
 [[waivers]]
 id = "SS-WAIVER-S049"
@@ -1324,7 +1324,7 @@ kind = "structural"
 justification = "The module owns one bounded remapping algorithm for applying source edits to an immutable layout snapshot. Dirty-line, downstream-line, fragment, caret-stop, and source-position functions share the same edit delta and reuse invariants."
 issue = "chore:SS-WAIVER-S049"
 review_by = 2026-12-15
-max_lines = 610
+max_lines = 587
 
 [[waivers]]
 id = "SS-WAIVER-S050"
@@ -1336,17 +1336,6 @@ justification = "PromptReorderLandingDiagnostics is one structured classifier an
 issue = "chore:SS-WAIVER-S050"
 review_by = 2026-12-15
 max_lines = 511
-
-[[waivers]]
-id = "SS-WAIVER-S051"
-owner = "projection caret-stop sequence"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/projection/caret_stop_sequence.py"
-kind = "structural"
-justification = "The module implements one allocation-efficient ordered caret-stop data structure and its builder. Explicit and text spans, lookup by source/projection state, iteration, navigation, and construction all preserve the same visual ordering and boundary-index invariants."
-issue = "chore:SS-WAIVER-S051"
-review_by = 2026-12-15
-max_lines = 575
 
 [[waivers]]
 id = "SS-WAIVER-S052"
@@ -1651,7 +1640,7 @@ kind = "structural"
 justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities."
 issue = "chore:SS-WAIVER-S077"
 review_by = 2026-12-15
-max_lines = 612
+max_lines = 638
 
 [[waivers]]
 id = "SS-WAIVER-S078"

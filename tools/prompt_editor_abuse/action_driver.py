@@ -226,7 +226,7 @@ def _dispatch_single_action(
     elif action.kind == "reorder_drag_move":
         host.reorder_drag_move(editor, action.value)
     elif action.kind == "reorder_drag_sweep":
-        host.reorder_drag_sweep(editor)
+        return host.reorder_drag_sweep(editor)
     elif action.kind == "reorder_drag_release":
         host.reorder_drag_release(editor)
     elif action.kind == "reorder_drag_autoscroll":
