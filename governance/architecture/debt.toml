@@ -830,17 +830,17 @@ next_extraction = "Separate the active feature refresh facade from dirty-surface
 id = "SS-ARCH-084"
 owner = "workflow workspace lifecycle"
 paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:0f056eee007e8e33e440dadb7d1eb1a9e0ab1b6c9b1ea4ef8604acf280149f53"
+fingerprint = "sha256:82c512dc82f2ad135f1d993ec1cc6a89d11698572456a2b945c087c24436ed10"
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
 responsibilities = [
   "workflow activation and surface projection",
-  "workflow add, close, reopen, duplicate, and rename",
-  "workflow UI materialization for new, duplicated, and reopened workflows",
+  "workflow closure and successor selection",
+  "workflow rename and legacy asset-owner pinning",
   "workflow-scoped widget disposal",
-  "tabbar and surface invalidation coordination",
+  "tabbar, activity, and surface invalidation coordination",
 ]
-next_extraction = "Extract workflow creation, duplication, and reopen materialization from activation, projection, and closure coordination."
+next_extraction = "Extract workflow closure, rename, and widget disposal from activation and surface projection."
 
 [[debts]]
 id = "SS-ARCH-087"
