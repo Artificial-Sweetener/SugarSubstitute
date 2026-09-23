@@ -35,7 +35,7 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _fake_input_state_composition,
-    _input_canvas_plan_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -98,7 +98,7 @@ def test_prompt_by_region_migrates_legacy_scalar_mask_into_ordered_collection(
         mask_id=uuid4(),
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
@@ -202,7 +202,7 @@ def test_synthetic_canvas_authority_change_invalidates_old_surface(
         created_destinations=[],
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=io_service,
     )

@@ -229,7 +229,7 @@ def test_presenter_skips_unresolved_loaded_image_identity(tmp_path: Path) -> Non
         panel=_Panel(),
         asset_path=tmp_path / "asset.png",
         workflow_input_canvas_service=SimpleNamespace(
-            resolve_loaded_input_canvas_image_identity=lambda *_args: SimpleNamespace(
+            resolve_loaded_image_identity=lambda *_args: SimpleNamespace(
                 accepted=False,
                 input_key=None,
                 rejection_reason="unmapped_image_id",
@@ -319,6 +319,7 @@ def _presenters(
     current_image_id_provider: Callable[[], UUID | None] | None = None,
     input_canvas_state_service: Any | None = None,
     workflow_input_canvas_service: Any | None = None,
+    input_bindings: Any | None = None,
     error_presenter: Any | None = None,
     mark_canvas_changed: Callable[[str], None] | None = None,
 ) -> _Presenters:
@@ -344,6 +345,7 @@ def _presenters(
         ),
         resolve_input_mask_path=lambda *_args, **_kwargs: asset_path,
     )
+    input_bindings = input_bindings or workflow_input_canvas_service
     input_canvas_state_service = input_canvas_state_service or SimpleNamespace(
         set_active_image=lambda *_args: True,
         set_active_mask=lambda *_args: True,
@@ -357,6 +359,7 @@ def _presenters(
         active_workflow=lambda: cast(Any, workflow),
         active_panel=lambda: panel,
         workflow_session=session,
+        input_bindings=cast(Any, input_bindings),
         workflow_inputs=cast(Any, workflow_input_canvas_service),
         workflow_name=lambda _workflow_id: "Recipe",
         projects_dir=lambda: asset_path.parent,
@@ -392,6 +395,7 @@ def _presenters(
             active_panel=lambda: panel,
             workflow_session=session,
             workflow_inputs=cast(Any, workflow_input_canvas_service),
+            input_bindings=cast(Any, input_bindings),
             input_state=cast(Any, input_canvas_state_service),
             workflow_name=lambda _workflow_id: "Recipe",
             projects_dir=lambda: asset_path.parent,

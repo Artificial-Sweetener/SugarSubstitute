@@ -51,7 +51,7 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _fake_input_state_composition,
-    _input_canvas_plan_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -116,7 +116,7 @@ def test_prompt_by_region_can_append_and_activate_another_blank_region(
     )
     expected_mask = tmp_path / "Region" / "masks" / "region.png"
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
@@ -226,7 +226,7 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
         created_destinations=[],
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=io_service,
     )
@@ -293,7 +293,7 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
     assert inputs["image"] == ["region.png"]
 
     failing_authoring = OrderedMaskRegionAuthoringService(
-        binding_resolver=service.binding_for_mask,
+        binding_resolver=_input_canvas_binding_service(definitions).binding_for_mask,
         ensure_section_materialized=lambda *_args: None,
         input_routes=cast(Any, state_service),
         input_images=cast(Any, state_service),

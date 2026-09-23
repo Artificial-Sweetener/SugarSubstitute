@@ -23,15 +23,14 @@ from time import perf_counter
 from typing import Mapping
 from uuid import UUID
 
-from substitute.application.workflows.input_canvas_plan_service import (
-    InputCanvasPlanService,
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
 )
 from substitute.application.workflows.input_canvas_state_composition import (
     InputCanvasStateComposition,
 )
 from substitute.application.workflows.input_canvas_models import (
     InputCanvasMaterializationResult,
-    LoadedInputCanvasImageIdentityResolution,
     UserSelectedInputMaskResult,
 )
 from substitute.application.workflows.input_canvas_ports import (
@@ -62,8 +61,6 @@ from substitute.application.workflows.workflow_graph_section_service import (
 )
 from substitute.domain.workflow import (
     InputAssetCardinality,
-    InputCanvasMaskBinding,
-    InputCanvasPlan,
     InputCanvasSurface,
     InputCanvasSurfaceKind,
     ProjectMaskAssetRef,
@@ -87,7 +84,7 @@ class WorkflowInputCanvasService:
     def __init__(
         self,
         *,
-        input_canvas_plan_service: InputCanvasPlanService,
+        input_bindings: InputCanvasBindingService,
         input_state: InputCanvasStateComposition,
         canvas_io_service: CanvasIoServicePort,
         workflow_asset_service: WorkflowAssetServicePort | None = None,
@@ -95,7 +92,7 @@ class WorkflowInputCanvasService:
     ) -> None:
         """Capture collaborators used for binding discovery, state, and IO."""
 
-        self._input_canvas_plan_service = input_canvas_plan_service
+        self._input_bindings = input_bindings
         self._input_images = input_state.images
         self._input_masks = input_state.masks
         self._canvas_io_service = canvas_io_service
@@ -132,7 +129,7 @@ class WorkflowInputCanvasService:
             canvas_io_service=canvas_io_service,
         )
         self._ordered_mask_region_authoring_service = OrderedMaskRegionAuthoringService(
-            binding_resolver=self.binding_for_mask,
+            binding_resolver=self._input_bindings.binding_for_mask,
             ensure_section_materialized=lambda workflow, workflow_id, section_key, workflow_name, projects_dir: (
                 self.materialize_loaded_section(
                     workflows={workflow_id: workflow},
@@ -213,30 +210,6 @@ class WorkflowInputCanvasService:
             region_index=region_index,
         )
 
-    def bindings_for_image(
-        self,
-        workflow: WorkflowState,
-        section_key: str,
-        image_node_name: str,
-    ) -> tuple[InputCanvasMaskBinding, ...]:
-        """Return editable mask bindings for one workflow image node."""
-
-        return self.input_canvas_plan(workflow, section_key).bindings_for_surface_key(
-            image_node_name
-        )
-
-    def binding_for_mask(
-        self,
-        workflow: WorkflowState,
-        section_key: str,
-        mask_node_name: str,
-    ) -> InputCanvasMaskBinding | None:
-        """Return editable mask binding for one workflow mask node when present."""
-
-        return self.input_canvas_plan(workflow, section_key).binding_for_mask(
-            mask_node_name
-        )
-
     def associate_project_input_mask(
         self,
         workflow: WorkflowState,
@@ -247,7 +220,9 @@ class WorkflowInputCanvasService:
     ) -> bool:
         """Persist a project mask through its discovered upload widget field."""
 
-        binding = self.binding_for_mask(workflow, section_key, node_name)
+        binding = self._input_bindings.binding_for_mask(
+            workflow, section_key, node_name
+        )
         if binding is None:
             return False
         return self._workflow_asset_service.associate_project_input_mask(
@@ -269,7 +244,9 @@ class WorkflowInputCanvasService:
     ) -> bool:
         """Associate one ordered region with a project mask and rewrite batch order."""
 
-        binding = self.binding_for_mask(workflow, section_key, node_name)
+        binding = self._input_bindings.binding_for_mask(
+            workflow, section_key, node_name
+        )
         if (
             binding is None
             or binding.mask_endpoint.cardinality is not InputAssetCardinality.ORDERED
@@ -298,7 +275,7 @@ class WorkflowInputCanvasService:
     ) -> WorkflowAssetRef | None:
         """Return an image asset through its discovered upload widget field."""
 
-        endpoint = self.input_canvas_plan(
+        endpoint = self._input_bindings.plan(
             workflow, section_key
         ).image_endpoint_for_node(node_name)
         if endpoint is None:
@@ -319,7 +296,9 @@ class WorkflowInputCanvasService:
     ) -> WorkflowAssetRef | None:
         """Return a mask asset through its discovered upload widget field."""
 
-        binding = self.binding_for_mask(workflow, section_key, node_name)
+        binding = self._input_bindings.binding_for_mask(
+            workflow, section_key, node_name
+        )
         if binding is None:
             return None
         return self._workflow_asset_service.input_mask_asset_ref(
@@ -340,7 +319,9 @@ class WorkflowInputCanvasService:
     ) -> Path | None:
         """Resolve a mask asset through its discovered upload widget field."""
 
-        binding = self.binding_for_mask(workflow, section_key, node_name)
+        binding = self._input_bindings.binding_for_mask(
+            workflow, section_key, node_name
+        )
         if binding is None:
             return None
         return self._workflow_asset_service.resolve_input_mask_path(
@@ -374,7 +355,9 @@ class WorkflowInputCanvasService:
                 mask_path=mask_path,
             )
 
-        binding = self.binding_for_mask(workflow, cube_alias, mask_node_name)
+        binding = self._input_bindings.binding_for_mask(
+            workflow, cube_alias, mask_node_name
+        )
         if binding is None:
             log_warning(
                 _LOGGER,
@@ -545,53 +528,6 @@ class WorkflowInputCanvasService:
             materialization_result=materialization_result,
         )
 
-    def unambiguous_bound_image_identity(
-        self,
-        workflow: WorkflowState,
-    ) -> tuple[str, str] | None:
-        """Return the only graph-bound input image identity in a workflow."""
-
-        identities: list[tuple[str, str]] = []
-        for section_key in self._graph_section_service.section_keys(workflow):
-            plan = self.input_canvas_plan(workflow, section_key)
-            identities.extend(endpoint.identity for endpoint in plan.image_endpoints)
-        unique_identities = tuple(dict.fromkeys(identities))
-        if len(unique_identities) != 1:
-            return None
-        return unique_identities[0]
-
-    def resolve_loaded_input_canvas_image_identity(
-        self,
-        workflow: WorkflowState,
-        image_id: UUID,
-    ) -> LoadedInputCanvasImageIdentityResolution:
-        """Resolve an admitted canvas image UUID to a workflow input node."""
-
-        mapped_input_key = self._input_key_for_image_id(workflow, image_id)
-        if mapped_input_key is not None:
-            parsed = self._parse_input_key(mapped_input_key)
-            if parsed is None:
-                return LoadedInputCanvasImageIdentityResolution.rejected(
-                    "malformed_input_key",
-                    input_key=mapped_input_key,
-                )
-            cube_alias, image_node_name = parsed
-            return LoadedInputCanvasImageIdentityResolution.mapped(
-                cube_alias=cube_alias,
-                image_node_name=image_node_name,
-            )
-
-        fallback_identity = self.unambiguous_bound_image_identity(workflow)
-        if fallback_identity is None:
-            return LoadedInputCanvasImageIdentityResolution.rejected(
-                "unmapped_image_id"
-            )
-        cube_alias, image_node_name = fallback_identity
-        return LoadedInputCanvasImageIdentityResolution.mapped(
-            cube_alias=cube_alias,
-            image_node_name=image_node_name,
-        )
-
     def materialize_input_image(
         self,
         *,
@@ -613,9 +549,9 @@ class WorkflowInputCanvasService:
                 surface_key=image_node_name,
                 image_id=None,
             )
-        endpoint = self.input_canvas_plan(workflow, cube_alias).image_endpoint_for_node(
-            image_node_name
-        )
+        endpoint = self._input_bindings.plan(
+            workflow, cube_alias
+        ).image_endpoint_for_node(image_node_name)
         if endpoint is None:
             log_warning(
                 _LOGGER,
@@ -741,9 +677,9 @@ class WorkflowInputCanvasService:
                 surface_key=image_node_name,
                 image_id=None,
             )
-        endpoint = self.input_canvas_plan(workflow, cube_alias).image_endpoint_for_node(
-            image_node_name
-        )
+        endpoint = self._input_bindings.plan(
+            workflow, cube_alias
+        ).image_endpoint_for_node(image_node_name)
         if endpoint is None:
             return InputCanvasMaterializationResult(
                 section_key=cube_alias,
@@ -845,7 +781,9 @@ class WorkflowInputCanvasService:
     ) -> InputCanvasMaterializationResult:
         """Delegate surface mask materialization to its cardinality-aware owner."""
 
-        bindings = self.bindings_for_image(workflow, cube_alias, image_node_name)
+        bindings = self._input_bindings.bindings_for_image(
+            workflow, cube_alias, image_node_name
+        )
         return self._mask_binding_materialization_service.materialize(
             workflow=workflow,
             workflow_id=workflow_id,
@@ -916,7 +854,7 @@ class WorkflowInputCanvasService:
             return ()
         results: list[InputCanvasMaterializationResult] = []
         phase_started_at = perf_counter()
-        plan = self.input_canvas_plan(workflow, section_key)
+        plan = self._input_bindings.plan(workflow, section_key)
         self._synthetic_surface_service.invalidate_stale(
             workflows=workflows,
             workflow_id=workflow_id,
@@ -996,33 +934,6 @@ class WorkflowInputCanvasService:
         )
         return materialized_results
 
-    def input_canvas_plan(
-        self,
-        workflow: WorkflowState,
-        section_key: str,
-    ) -> InputCanvasPlan:
-        """Return the unified Input canvas plan for one graph section."""
-
-        graph = self._graph_section_service.graph(workflow, section_key)
-        if graph is None:
-            return InputCanvasPlan(section_key=section_key)
-        return self._input_canvas_plan_service.build_plan(
-            section_key,
-            graph,
-        )
-
-    @staticmethod
-    def _input_key_for_image_id(
-        workflow: WorkflowState,
-        image_id: UUID,
-    ) -> str | None:
-        """Return the workflow input key currently mapped to image_id."""
-
-        for entry in workflow.canvas.image_entries.values():
-            if entry.image_id == image_id:
-                return entry.input_key
-        return None
-
     def _image_path_from_buffer(
         self,
         workflow: WorkflowState,
@@ -1068,15 +979,6 @@ class WorkflowInputCanvasService:
                 projects_dir=projects_dir,
             )
         )
-
-    @staticmethod
-    def _parse_input_key(input_key: str) -> tuple[str, str] | None:
-        """Parse the durable graph-section/node input image key."""
-
-        cube_alias, separator, image_node_name = input_key.partition(":")
-        if not cube_alias or separator != ":" or not image_node_name:
-            return None
-        return (cube_alias, image_node_name)
 
 
 def _looks_like_local_path(path: Path) -> bool:

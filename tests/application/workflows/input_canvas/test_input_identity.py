@@ -18,18 +18,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from substitute.domain.workflow import CubeState
 from uuid import uuid4
 
-from tests.application.workflows.input_canvas.fakes import (
-    _FakeImage,
-    _FakeInputCanvasStateService,
-    _FakeCanvasIoService,
-)
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
-    _workflow_input_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -38,34 +32,20 @@ def test_unambiguous_bound_image_identity_returns_only_bound_input() -> None:
 
     workflow = _build_workflow("")
 
-    identity = _workflow_input_service(
-        _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
-        _FakeCanvasIoService(
-            image=_FakeImage(),
-            expected_mask_path=Path("E:/masks/mask.png"),
-            created_destinations=[],
-        ),
-    ).unambiguous_bound_image_identity(workflow)
+    identity = _input_canvas_binding_service().unambiguous_image_identity(workflow)
 
     assert identity == ("CubeA", "input_image")
 
 
 def test_resolve_loaded_input_canvas_image_identity_uses_mapped_input_key() -> None:
-    """Direct QPane loads should prefer existing workflow input-key ownership."""
+    """Direct canvas imports should prefer existing workflow input-key ownership."""
 
     image_id = uuid4()
     workflow = _build_workflow("")
     workflow.canvas.bind_image("CubeA:input_image", image_id)
-    service = _workflow_input_service(
-        _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
-        _FakeCanvasIoService(
-            image=_FakeImage(),
-            expected_mask_path=Path("E:/masks/mask.png"),
-            created_destinations=[],
-        ),
-    )
+    service = _input_canvas_binding_service()
 
-    resolution = service.resolve_loaded_input_canvas_image_identity(
+    resolution = service.resolve_loaded_image_identity(
         workflow,
         image_id,
     )
@@ -77,20 +57,13 @@ def test_resolve_loaded_input_canvas_image_identity_uses_mapped_input_key() -> N
 
 
 def test_resolve_loaded_input_canvas_image_identity_uses_single_bound_input() -> None:
-    """Unmapped direct QPane loads should target one unambiguous graph-bound image."""
+    """Unmapped canvas imports should target one unambiguous graph-bound image."""
 
     workflow = _build_workflow("")
     image_id = uuid4()
-    service = _workflow_input_service(
-        _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
-        _FakeCanvasIoService(
-            image=_FakeImage(),
-            expected_mask_path=Path("E:/masks/mask.png"),
-            created_destinations=[],
-        ),
-    )
+    service = _input_canvas_binding_service()
 
-    resolution = service.resolve_loaded_input_canvas_image_identity(
+    resolution = service.resolve_loaded_image_identity(
         workflow,
         image_id,
     )
@@ -106,16 +79,9 @@ def test_resolve_loaded_input_canvas_image_identity_rejects_malformed_key() -> N
     image_id = uuid4()
     workflow = _build_workflow("")
     workflow.canvas.bind_image("malformed", image_id)
-    service = _workflow_input_service(
-        _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
-        _FakeCanvasIoService(
-            image=_FakeImage(),
-            expected_mask_path=Path("E:/masks/mask.png"),
-            created_destinations=[],
-        ),
-    )
+    service = _input_canvas_binding_service()
 
-    resolution = service.resolve_loaded_input_canvas_image_identity(
+    resolution = service.resolve_loaded_image_identity(
         workflow,
         image_id,
     )
@@ -128,7 +94,7 @@ def test_resolve_loaded_input_canvas_image_identity_rejects_malformed_key() -> N
 def test_resolve_loaded_input_canvas_image_identity_rejects_ambiguous_bound_inputs() -> (
     None
 ):
-    """Direct QPane loads should not guess between multiple graph-bound inputs."""
+    """Direct canvas imports should not guess between graph-bound inputs."""
 
     workflow = _build_workflow("")
     workflow.cubes["CubeB"] = CubeState(
@@ -148,16 +114,9 @@ def test_resolve_loaded_input_canvas_image_identity_rejects_ambiguous_bound_inpu
         },
     )
     workflow.stack_order.append("CubeB")
-    service = _workflow_input_service(
-        _FakeInputCanvasStateService(image_id=uuid4(), mask_id=uuid4()),
-        _FakeCanvasIoService(
-            image=_FakeImage(),
-            expected_mask_path=Path("E:/masks/mask.png"),
-            created_destinations=[],
-        ),
-    )
+    service = _input_canvas_binding_service()
 
-    resolution = service.resolve_loaded_input_canvas_image_identity(
+    resolution = service.resolve_loaded_image_identity(
         workflow,
         uuid4(),
     )
