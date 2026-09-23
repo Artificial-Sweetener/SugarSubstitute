@@ -161,6 +161,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.view.primary_requested.connect(self._handle_primary_clicked)
         self.view.back_requested.connect(self._handle_back_clicked)
         self.execution.progress.connect(self.view.status_panel.set_progress)
+        self.execution.activity.connect(self.view.status_panel.record_activity)
         self.execution.log.connect(self.view.status_panel.append_log)
         self._close_coordinator = InstallationCloseCoordinator(
             window=self,
@@ -283,6 +284,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             workflow = self._workflow_factory(
                 self.view.status_panel.append_log,
                 self.view.status_panel.set_progress,
+                self.view.status_panel.record_activity,
                 Event(),
             )
             application = workflow.install_application(
@@ -353,6 +355,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._workflow_factory(
                 self.view.status_panel.append_log,
                 self.view.status_panel.set_progress,
+                self.view.status_panel.record_activity,
                 Event(),
             ).start_setup(self._setup_command)
         except Exception as error:

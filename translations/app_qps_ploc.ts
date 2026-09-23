@@ -162,26 +162,6 @@ Prömpt prëvïëw:
       <translation>⟦%1 sàvëd sëtüp ïtëms nëëd rëpàïr bëförë Sübstïtütë càn öpën. ···⟧</translation>
     </message>
     <message>
-      <source>%1 uses %2, but CivitAI did not find a matching download.</source>
-      <translation>⟦%1 üsës %2, büt CïvïtÅÏ dïd nöt fïnd à màtchïng döwnlöàd. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2, but CivitAI did not offer a safe download.</source>
-      <translation>⟦%1 üsës %2, büt CïvïtÅÏ dïd nöt öffër à sàfë döwnlöàd. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2, which is missing.</source>
-      <translation>⟦%1 üsës %2, whïch ïs mïssïng. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2. Download information is unavailable.</source>
-      <translation>⟦%1 üsës %2. Döwnlöàd ïnförmàtïön ïs ünàvàïlàblë. ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.</source>
-      <translation>⟦%1 üsës %2. Türn ön CïvïtÅÏ mödël lööküp ïn Sëttïngs tö sëàrch för ït. ···⟧</translation>
-    </message>
-    <message>
       <source>%1 wildcard</source>
       <translation>⟦%1 wïldcàrd ···⟧</translation>
     </message>
@@ -592,6 +572,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Automatic managed core update was attempted, but the runtime is still incompatible. Repair the managed Comfy installation or update Substitute.</source>
       <translation>⟦Åütömàtïc mànàgëd cörë üpdàtë wàs àttëmptëd, büt thë rüntïmë ïs stïll ïncömpàtïblë. Rëpàïr thë mànàgëd Cömfy ïnstàllàtïön ör üpdàtë Sübstïtütë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Automatic model downloads are disabled. Open CivitAI Settings to review model download preferences.</source>
+      <translation>⟦Åütömàtïc mödël döwnlöàds àrë dïsàblëd. Öpën CïvïtÅÏ Sëttïngs tö rëvïëw mödël döwnlöàd prëfërëncës. ···⟧</translation>
     </message>
     <message>
       <source>Automatically detect</source>
@@ -1386,6 +1370,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦CömfyÜÏ càn cöntïnüë stàrtïng, büt sömë SügàrCübës wörkflöws mày nëëd àttëntïön bëförë thëy rün cörrëctly. ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI commit</source>
+      <translation>⟦CömfyÜÏ cömmït ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI connection</source>
       <translation>⟦CömfyÜÏ cönnëctïön ···⟧</translation>
     </message>
@@ -1558,6 +1546,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦CömfyÜÏ ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI version</source>
+      <translation>⟦CömfyÜÏ vërsïön ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI version: %1</source>
       <translation>⟦CömfyÜÏ vërsïön: %1 ···⟧</translation>
     </message>
@@ -1704,6 +1696,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Control which Danbooru ratings may render as image previews.</source>
       <translation>⟦Cöntröl whïch Dànböörü ràtïngs mày rëndër às ïmàgë prëvïëws. ···⟧</translation>
+    </message>
+    <message>
+      <source>ControlNet</source>
+      <translation>⟦CöntrölNët ···⟧</translation>
     </message>
     <message>
       <source>Controls</source>
@@ -2030,6 +2026,10 @@ Install these nodes now?</source>
       <translation>⟦Dëvïcës: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Diagnostic logs</source>
+      <translation>⟦Dïàgnöstïc lögs ···⟧</translation>
+    </message>
+    <message>
       <source>Diffusion model</source>
       <translation>⟦Dïffüsïön mödël ···⟧</translation>
     </message>
@@ -2076,10 +2076,6 @@ Install these nodes now?</source>
     <message>
       <source>Download CivitAI thumbnails</source>
       <translation>⟦Döwnlöàd CïvïtÅÏ thümbnàïls ···⟧</translation>
-    </message>
-    <message>
-      <source>Download and open recipe</source>
-      <translation>⟦Döwnlöàd ànd öpën rëcïpë ···⟧</translation>
     </message>
     <message>
       <source>Download and use</source>
@@ -2474,6 +2470,10 @@ Install these nodes now?</source>
       <translation>⟦GNÜ Gënëràl Püblïc Lïcënsë v3 ···⟧</translation>
     </message>
     <message>
+      <source>GPU</source>
+      <translation>⟦GPÜ ···⟧</translation>
+    </message>
+    <message>
       <source>GUI restart is not available in this session.</source>
       <translation>⟦GÜÏ rëstàrt ïs nöt àvàïlàblë ïn thïs sëssïön. ···⟧</translation>
     </message>
@@ -2782,6 +2782,10 @@ Install these nodes now?</source>
       <translation>⟦Ïnstàllëd cüstöm nödës ···⟧</translation>
     </message>
     <message>
+      <source>Installed launcher version</source>
+      <translation>⟦Ïnstàllëd làünchër vërsïön ···⟧</translation>
+    </message>
+    <message>
       <source>Installed packages</source>
       <translation>⟦Ïnstàllëd pàckàgës ···⟧</translation>
     </message>
@@ -2906,6 +2910,10 @@ Install these nodes now?</source>
       <translation>⟦Làünch àrgs: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Launch arguments</source>
+      <translation>⟦Làünch àrgümënts ···⟧</translation>
+    </message>
+    <message>
       <source>Launch command</source>
       <translation>⟦Làünch cömmànd ···⟧</translation>
     </message>
@@ -2932,6 +2940,10 @@ Install these nodes now?</source>
     <message>
       <source>Live Comfy node definitions unavailable</source>
       <translation>⟦Lïvë Cömfy nödë dëfïnïtïöns ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>LoRA</source>
+      <translation>⟦LöRÅ ···⟧</translation>
     </message>
     <message>
       <source>LoRA autocomplete</source>
@@ -3052,6 +3064,10 @@ Install these nodes now?</source>
     <message>
       <source>Log excerpt:</source>
       <translation>⟦Lög ëxcërpt: ···⟧</translation>
+    </message>
+    <message>
+      <source>Logical processor count</source>
+      <translation>⟦Lögïcàl pröcëssör cöünt ···⟧</translation>
     </message>
     <message>
       <source>Look up local model metadata</source>
@@ -3226,10 +3242,6 @@ Install these nodes now?</source>
       <translation>⟦Mödël döwnlöàd fàïlëd ···⟧</translation>
     </message>
     <message>
-      <source>Model download progress</source>
-      <translation>⟦Mödël döwnlöàd prögrëss ···⟧</translation>
-    </message>
-    <message>
       <source>Model download returned invalid results.</source>
       <translation>⟦Mödël döwnlöàd rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
     </message>
@@ -3292,6 +3304,10 @@ Install these nodes now?</source>
     <message>
       <source>Models folder</source>
       <translation>⟦Mödëls földër ···⟧</translation>
+    </message>
+    <message>
+      <source>Models required by this workflow</source>
+      <translation>⟦Mödëls rëqüïrëd by thïs wörkflöw ···⟧</translation>
     </message>
     <message>
       <source>Modify selection</source>
@@ -3482,6 +3498,10 @@ Install these nodes now?</source>
       <translation>⟦Nö rëpösïtöry hàs bëën vàlïdàtëd. ···⟧</translation>
     </message>
     <message>
+      <source>No safe file</source>
+      <translation>⟦Nö sàfë fïlë ···⟧</translation>
+    </message>
+    <message>
       <source>No selection</source>
       <translation>⟦Nö sëlëctïön ···⟧</translation>
     </message>
@@ -3498,10 +3518,6 @@ Install these nodes now?</source>
 I’ll bring my own</source>
       <translation>⟦Nö thànks,
 Ï’ll brïng my öwn ···⟧</translation>
-    </message>
-    <message>
-      <source>No thumbnail</source>
-      <translation>⟦Nö thümbnàïl ···⟧</translation>
     </message>
     <message>
       <source>No, show recommendations</source>
@@ -3684,6 +3700,10 @@ I’ll bring my own</source>
       <translation>⟦Öpën thïs CömfyÜÏ ïnstàllàtïön yöürsëlf üsïng yöür üsüàl shörtcüt, scrïpt, ör làünchër. Sübstïtütë wïll dëtëct ït àütömàtïcàlly. ···⟧</translation>
     </message>
     <message>
+      <source>Operating system</source>
+      <translation>⟦Öpëràtïng systëm ···⟧</translation>
+    </message>
+    <message>
       <source>Operation</source>
       <translation>⟦Öpëràtïön ···⟧</translation>
     </message>
@@ -3810,6 +3830,10 @@ I’ll bring my own</source>
     <message>
       <source>Performance and updates</source>
       <translation>⟦Përförmàncë ànd üpdàtës ···⟧</translation>
+    </message>
+    <message>
+      <source>Physical memory</source>
+      <translation>⟦Physïcàl mëmöry ···⟧</translation>
     </message>
     <message>
       <source>Pick a setup</source>
@@ -3996,6 +4020,10 @@ I’ll bring my own</source>
       <translation>⟦Prëvïöüs màtch (Shïft+Ëntër) ···⟧</translation>
     </message>
     <message>
+      <source>Processor</source>
+      <translation>⟦Pröcëssör ···⟧</translation>
+    </message>
+    <message>
       <source>Project</source>
       <translation>⟦Pröjëct ···⟧</translation>
     </message>
@@ -4048,8 +4076,16 @@ I’ll bring my own</source>
       <translation>⟦PyTörch: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Python</source>
+      <translation>⟦Pythön ···⟧</translation>
+    </message>
+    <message>
       <source>Python %1 at %2</source>
       <translation>⟦Pythön %1 àt %2 ···⟧</translation>
+    </message>
+    <message>
+      <source>Python architecture</source>
+      <translation>⟦Pythön àrchïtëctürë ···⟧</translation>
     </message>
     <message>
       <source>Python could not parse the extension's source code.</source>
@@ -4126,6 +4162,10 @@ I’ll bring my own</source>
     <message>
       <source>Readiness errors</source>
       <translation>⟦Rëàdïnëss ërrörs ···⟧</translation>
+    </message>
+    <message>
+      <source>Readiness schema</source>
+      <translation>⟦Rëàdïnëss schëmà ···⟧</translation>
     </message>
     <message>
       <source>Readiness unavailable from the active target.</source>
@@ -4552,6 +4592,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëvïëw thë stàrtüp rëpört. ···⟧</translation>
     </message>
     <message>
+      <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
+      <translation>⟦Rëvïëw thësë ëxàct mödël màtchës bëförë döwnlöàdïng thëm tö thë cönnëctëd CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
       <source>Rich prompt rendering</source>
       <translation>⟦Rïch prömpt rëndërïng ···⟧</translation>
     </message>
@@ -4606,10 +4650,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Runtime and system information</source>
       <translation>⟦Rüntïmë ànd systëm ïnförmàtïön ···⟧</translation>
-    </message>
-    <message>
-      <source>Runtime context</source>
-      <translation>⟦Rüntïmë cöntëxt ···⟧</translation>
     </message>
     <message>
       <source>Runtime root: %1</source>
@@ -4948,10 +4988,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëtüp stöppëd bëförë CömfyÜÏ wàs rëàdy. Rëvïëw thë sëtüp lög för dëtàïls, thën try àgàïn. ···⟧</translation>
     </message>
     <message>
-      <source>Setup task activity</source>
-      <translation>⟦Sëtüp tàsk àctïvïty ···⟧</translation>
-    </message>
-    <message>
       <source>Setup was interrupted</source>
       <translation>⟦Sëtüp wàs ïntërrüptëd ···⟧</translation>
     </message>
@@ -5082,6 +5118,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Some required connection details are missing or no longer valid.</source>
       <translation>⟦Sömë rëqüïrëd cönnëctïön dëtàïls àrë mïssïng ör nö löngër vàlïd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Some required models do not have a verified automatic download. Review each item for details.</source>
+      <translation>⟦Sömë rëqüïrëd mödëls dö nöt hàvë à vërïfïëd àütömàtïc döwnlöàd. Rëvïëw ëàch ïtëm för dëtàïls. ···⟧</translation>
     </message>
     <message>
       <source>Some saved runtime paths no longer line up with this installation.</source>
@@ -5282,6 +5322,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Substitute could not confirm that shutdown finished.</source>
       <translation>⟦Sübstïtütë cöüld nöt cönfïrm thàt shütdöwn fïnïshëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute could not download and verify every model this workflow needs.</source>
+      <translation>⟦Sübstïtütë cöüld nöt döwnlöàd ànd vërïfy ëvëry mödël thïs wörkflöw nëëds. ···⟧</translation>
     </message>
     <message>
       <source>Substitute could not finish closing completely.</source>
@@ -5564,12 +5608,20 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦SügàrSübstïtütë ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>⟦SügàrSübstïtütë cöüld nöt fïnïsh stàrtïng ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute crashed</source>
       <translation>⟦SügàrSübstïtütë cràshëd ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute did not close normally</source>
       <translation>⟦SügàrSübstïtütë dïd nöt clösë nörmàlly ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>⟦SügàrSübstïtütë ëncöüntërëd à cönfïrmëd stàrtüp fàïlürë. Cöpy thïs rëpört ànd shàrë ït wïth thë màïntàïnërs. ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute is free software, shared in the spirit of collaboration, curiosity, and user freedom.
@@ -5584,8 +5636,16 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
 Ïn shört: yöü àrë wëlcömë tö lëàrn fröm SügàrSübstïtütë, àdàpt ït, büïld ön ït, ànd shàrë yöür chàngës. Thë füll GPLv3 lïcënsë tëxt ïs àvàïlàblë fröm thïs scrëën ànd ïs thë lëgàl àüthörïty för thösë rïghts ànd rëspönsïbïlïtïës. ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute payload version</source>
+      <translation>⟦SügàrSübstïtütë pàylöàd vërsïön ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute provides a focused PySide6 workspace for ComfyUI, with cube-based workflow composition, managed model metadata, prompt tooling, and integrated image canvas workflows.</source>
       <translation>⟦SügàrSübstïtütë prövïdës à föcüsëd PySïdë6 wörkspàcë för CömfyÜÏ, wïth cübë-bàsëd wörkflöw cömpösïtïön, mànàgëd mödël mëtàdàtà, prömpt töölïng, ànd ïntëgràtëd ïmàgë cànvàs wörkflöws. ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute recorded release version</source>
+      <translation>⟦SügàrSübstïtütë rëcördëd rëlëàsë vërsïön ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute requires ComfyUI %1 or newer. The selected checkout is ComfyUI %2.</source>
@@ -5622,6 +5682,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Summary unavailable</source>
       <translation>⟦Sümmàry ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>Supervising launcher version</source>
+      <translation>⟦Süpërvïsïng làünchër vërsïön ···⟧</translation>
     </message>
     <message>
       <source>Supported actions:
@@ -5676,6 +5740,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Synced %1.</source>
       <translation>⟦Syncëd %1. ···⟧</translation>
+    </message>
+    <message>
+      <source>System architecture</source>
+      <translation>⟦Systëm àrchïtëctürë ···⟧</translation>
     </message>
     <message>
       <source>TAESD</source>
@@ -6010,10 +6078,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thïs càn tàkë à lïttlë whïlë thë fïrst tïmë. ···⟧</translation>
     </message>
     <message>
-      <source>This cube</source>
-      <translation>⟦Thïs cübë ···⟧</translation>
-    </message>
-    <message>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>⟦Thïs cübë cànnöt bë rëndërëd bëcàüsë lïvë Cömfy mëtàdàtà ïs ünàvàïlàblë. ···⟧</translation>
     </message>
@@ -6040,18 +6104,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>This model requires a CivitAI API key</source>
       <translation>⟦Thïs mödël rëqüïrës à CïvïtÅÏ ÅPÏ këy ···⟧</translation>
-    </message>
-    <message>
-      <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
-      <translation>⟦Thïs rëcïpë üsës à mödël thàt ïs nöt àvàïlàblë ïn yöür cürrënt CömfyÜÏ mödël földërs. Türn ön CïvïtÅÏ mödël lööküp ïn Sëttïngs tö sëàrch för ït. ···⟧</translation>
-    </message>
-    <message>
-      <source>This recipe uses a model that is not available in your current ComfyUI model folders. We could not find an automatic download that is safe to offer.</source>
-      <translation>⟦Thïs rëcïpë üsës à mödël thàt ïs nöt àvàïlàblë ïn yöür cürrënt CömfyÜÏ mödël földërs. Wë cöüld nöt fïnd àn àütömàtïc döwnlöàd thàt ïs sàfë tö öffër. ···⟧</translation>
-    </message>
-    <message>
-      <source>This recipe uses a model that is not in your current ComfyUI model folders. We found a matching file on CivitAI and can download it for you, then open the recipe.</source>
-      <translation>⟦Thïs rëcïpë üsës à mödël thàt ïs nöt ïn yöür cürrënt CömfyÜÏ mödël földërs. Wë föünd à màtchïng fïlë ön CïvïtÅÏ ànd càn döwnlöàd ït för yöü, thën öpën thë rëcïpë. ···⟧</translation>
     </message>
     <message>
       <source>This screen updates as soon as the matching ComfyUI process appears.</source>
@@ -6338,8 +6390,8 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üpdàtïng thë CömfyÜÏ ëxtënsïön càtàlög. ···⟧</translation>
     </message>
     <message>
-      <source>Updating the recipe...</source>
-      <translation>⟦Üpdàtïng thë rëcïpë... ···⟧</translation>
+      <source>Upscaler</source>
+      <translation>⟦Üpscàlër ···⟧</translation>
     </message>
     <message>
       <source>Use Browse beside Python executable and choose the Python ComfyUI actually uses.</source>
@@ -6456,6 +6508,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>⟦Üsïng CömfyÜÏ Pythön %1 (%2) àt %3. ···⟧</translation>
+    </message>
+    <message>
+      <source>VAE</source>
+      <translation>⟦VÅË ···⟧</translation>
     </message>
     <message>
       <source>Validated and synced %1.</source>
@@ -6712,10 +6768,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>[Validation] torch=%1 backend=%2 channel=%3 device=%4</source>
       <translation>⟦[Vàlïdàtïön] törch=%1 bàckënd=%2 chànnël=%3 dëvïcë=%4 ···⟧</translation>
-    </message>
-    <message>
-      <source>a model</source>
-      <translation>⟦à mödël ···⟧</translation>
     </message>
     <message>
       <source>by</source>

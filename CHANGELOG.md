@@ -1,3 +1,42 @@
+# [0.25.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.2...v0.25.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **editor:** keep canvas dimensions readable at every card width ([0ecc291](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0ecc291af921c66539fce72aedea3a112f03c902))
+* **progress:** keep setup and maintenance visibly active ([466da01](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/466da01789d3b91eb842e7a39f30dde5ad5e31c0))
+* **setup:** keep onboarding on one uninterrupted progress surface ([edbc35e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/edbc35eb2b837ed0c364238f000bd9699869ddb3))
+* **sugarcubes:** prepare cube repositories without system Git ([e98d54c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e98d54ce02d63258104111234488f9795319ffb1))
+* **updates:** commit Windows updates deterministically under active readers ([2726bc5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2726bc58796cf7695fd56fd16adc81fa31e02f07))
+* **updates:** keep SugarSubstitute running after launcher upgrades ([517e1e0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/517e1e02000f1e3e8702abfd9896389ad5f83fa0))
+* **workflows:** keep portable model recovery from blocking startup ([6de6a73](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6de6a731a4ce4cc5477fd3c2231d27ecc5cd6489))
+
+
+### Features
+
+* **workflows:** recover required models from portable workflow metadata ([195c8ef](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/195c8ef3c17434c389ccc263920c2d753d37d16f))
+
+## [0.24.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.1...v0.24.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ci:** derive uv bootstrap version from the lock ([be7f7da](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/be7f7da2ac8a47ba2b4a99c636327c6b466a34fb))
+* **dependencies:** install Prompt Control required by SimpleSyrup ([ef4be82](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ef4be8235aab38c047c58aa2865abd7ea8eedd15))
+* **launcher:** prevent false startup timeouts and enrich crash reports ([ec26a80](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ec26a806aeb4b02082417237e47eb401aefee31c))
+* **release:** preserve readiness proof across legacy updates ([a2a2da1](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a2a2da1a2c6a3959fb664bd1f85836807f88149f))
+* **updates:** let stuck installations recover automatically ([139e502](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/139e5029aeadae63360f7a98a2a2d89aef0f3e8f))
+
+## [0.24.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.0...v0.24.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **diagnostics:** provide actionable crash and startup reports ([88bdbd7](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/88bdbd7d787c362264a3300e908cd5a73ab5c149))
+* **installer:** preserve ready shell identity through launchers ([ebe4a2e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ebe4a2eddaecb44eacc618ea21f2e333acb35979))
+* **lifecycle:** preserve crash evidence and reliable relaunches ([910bb1b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/910bb1b4a1ca82627cf7ab70de63820b6a18f34c))
+* **updates:** keep existing installations launchable after update ([f02f5f8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f02f5f8af634d6ab7f1688a9227b633f9a0b7108))
+
 # [0.24.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.23.5...v0.24.0) (2026-09-21)
 
 

@@ -42,6 +42,7 @@ from launcher.sugarsubstitute_launcher.trusted_metadata import TrustedMetadataSt
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
 from sugarsubstitute_shared.installation_mutation import installation_mutation
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 
 
 ProcessStarter = Callable[[Sequence[str]], None]
@@ -156,7 +157,10 @@ class FirstRunInstaller:
                 activation.rollback()
             return ContinuedInstallResult(
                 layout=layout,
-                app_command=build_app_launch_command(layout=layout),
+                app_command=build_app_launch_command(
+                    layout=layout,
+                    launch_intent=ApplicationLaunchIntent.SETUP,
+                ),
                 app_version=payload_result.version,
             )
 

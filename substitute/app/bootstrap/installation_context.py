@@ -200,7 +200,14 @@ def _build_core_onboarding_services(
     )
     app_layout = resolve_app_layout(installation_root)
     runtime_service = RuntimeService(
-        FileRuntimeConfigurationRepository(installation_configuration),
+        FileRuntimeConfigurationRepository(
+            installation_configuration,
+            default_runtime_root=(
+                app_layout.app_dir.parent / "runtime"
+                if app_layout.installed_payload
+                else None
+            ),
+        ),
         provisioner=(
             LauncherManagedRuntimeProvisioner(
                 install_root=installation_configuration.installation_root,

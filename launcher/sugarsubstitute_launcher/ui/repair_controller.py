@@ -95,12 +95,16 @@ class RepairController(QObject):
         if not isinstance(value, RepairProgress):
             raise TypeError("Repair worker emitted an invalid progress event.")
         if value.stage is not None:
+            title = repair_stage_text(value.stage)
             self._window.progress_view.set_stage(
-                repair_stage_text(value.stage),
+                title,
                 completed=value.completed,
                 total=value.total,
             )
-        self._window.progress_view.pulse_activity()
+            if not self._details or self._details[-1] != title:
+                self._details.append(title)
+                self._window.progress_view.set_details("\n".join(self._details))
+            self._window.progress_view.pulse_activity()
 
     @Slot(str)
     def _output(self, line: str) -> None:

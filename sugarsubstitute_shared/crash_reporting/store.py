@@ -36,6 +36,8 @@ CORRUPT_DIRECTORY_NAME = "corrupt"
 ACKNOWLEDGED_RETENTION_COUNT = 20
 ACKNOWLEDGED_RETENTION_DAYS = 90
 _LOGGER = logging.getLogger(__name__)
+_MAX_TEXT_ATTACHMENT_BYTES = 262_144
+_TRUNCATION_MARKER = "\n\n[... diagnostic attachment truncated ...]\n\n"
 
 
 class CrashIncidentStore:
@@ -235,7 +237,7 @@ class CrashIncidentStore:
                 continue
             path = self.attachment_path(incident.incident_id, filename)
             try:
-                content = path.read_text(encoding="utf-8", errors="replace")
+                content = _read_bounded_text(path)
             except OSError:
                 _LOGGER.warning(
                     "Crash text attachment could not be read.",
@@ -245,6 +247,8 @@ class CrashIncidentStore:
                     },
                     exc_info=True,
                 )
+                continue
+            if not content.strip():
                 continue
             attachments.append((filename, content))
         return tuple(attachments)
@@ -281,6 +285,24 @@ def _write_json_atomically(path: Path, payload: object) -> None:
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     )
     _write_text_atomically(path, serialized)
+
+
+def _read_bounded_text(path: Path) -> str:
+    """Read a bounded diagnostic head and tail without loading an oversized file."""
+
+    with path.open("rb") as stream:
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+        if size <= _MAX_TEXT_ATTACHMENT_BYTES:
+            content = stream.read()
+        else:
+            half = _MAX_TEXT_ATTACHMENT_BYTES // 2
+            head = stream.read(half)
+            stream.seek(-half, os.SEEK_END)
+            tail = stream.read(half)
+            content = head + _TRUNCATION_MARKER.encode("utf-8") + tail
+    return content.decode("utf-8", errors="replace")
 
 
 def _write_text_atomically(path: Path, content: str) -> None:

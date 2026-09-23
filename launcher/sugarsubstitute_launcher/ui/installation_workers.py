@@ -46,7 +46,7 @@ from launcher.sugarsubstitute_launcher.ui.installer_errors import (
 
 
 InstallationWorkflowFactory = Callable[
-    [Callable[[str], None], InstallationProgressObserver, Event],
+    [Callable[[str], None], InstallationProgressObserver, Callable[[], None], Event],
     InstallationWorkflow,
 ]
 
@@ -56,6 +56,7 @@ class SetupWorker(QObject):
 
     log = Signal(str)
     progress = Signal(object)
+    activity = Signal()
     failed = Signal(str, str)
     succeeded = Signal()
     finished = Signal()
@@ -82,7 +83,10 @@ class SetupWorker(QObject):
 
         try:
             workflow = self._workflow_factory(
-                self.log.emit, self.progress.emit, self._cancellation
+                self.log.emit,
+                self.progress.emit,
+                self.activity.emit,
+                self._cancellation,
             )
             completed = workflow.provision_runtime(self._application)
         except RuntimeCommandCancelled:
@@ -118,6 +122,7 @@ class InitialInstallWorker(QObject):
 
     log = Signal(str)
     progress = Signal(object)
+    activity = Signal()
     failed = Signal(str)
     succeeded = Signal(object)
     presented_elsewhere = Signal()
@@ -147,7 +152,10 @@ class InitialInstallWorker(QObject):
 
         try:
             workflow = self._workflow_factory(
-                self.log.emit, self.progress.emit, Event()
+                self.log.emit,
+                self.progress.emit,
+                self.activity.emit,
+                Event(),
             )
             request = create_initial_installation_request(
                 layout=self._layout,

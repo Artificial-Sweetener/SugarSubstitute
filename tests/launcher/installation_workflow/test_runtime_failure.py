@@ -116,8 +116,9 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
     )
 
     assert handoff_commands == []
-    assert window.view.status_panel.progress_bar.value() == 2
-    assert window.view.status_panel.progress_bar.maximum() == 4
+    assert window.view.status_panel.progress_bar.visible_fraction == pytest.approx(
+        2 / 4
+    )
     assert window.view.primary_button.text() == "Install runtime"
     assert window.view.primary_button.isEnabled() is True
     assert (

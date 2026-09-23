@@ -105,7 +105,8 @@ def workflow_factory(
     process_starter: Callable[[Sequence[str]], None] = lambda _command: None,
     admit_installation: Callable[[InstallLayout], bool] | None = None,
 ) -> Callable[
-    [Callable[[str], None], InstallationProgressObserver, Event], InstallationWorkflow
+    [Callable[[str], None], InstallationProgressObserver, Callable[[], None], Event],
+    InstallationWorkflow,
 ]:
     """Build test workflows from explicit installer boundary doubles."""
 
@@ -118,6 +119,7 @@ def workflow_factory(
     def create_workflow(
         _output_callback: Callable[[str], None],
         progress_observer: InstallationProgressObserver,
+        _activity_callback: Callable[[], None],
         _cancellation: Event,
     ) -> InstallationWorkflow:
         """Return one workflow using the configured test boundaries."""

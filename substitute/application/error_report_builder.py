@@ -62,7 +62,8 @@ def render_error_report(
 
     sections: list[str] = []
     sections.append(_render_summary(report, text_renderer))
-    sections.append(_render_workflow_context(report, text_renderer))
+    if report.workflow_id is not None or report.prompt_id is not None:
+        sections.append(_render_workflow_context(report, text_renderer))
     if report.node is not None:
         sections.append(_render_node_context(report.node, text_renderer))
     if report.prompt_validation is not None:

@@ -72,7 +72,7 @@ def test_console_titlebar_toggle_reflows_and_retains_output() -> None:
             <= splash.height() - 24
         )
         assert "Retained startup output" in splash.log_view.toPlainText()
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
         button.click()
         QApplication.processEvents()
         assert not panel.details.isVisible()
@@ -130,9 +130,11 @@ def test_sweep_changes_only_completed_fill_and_stops_on_completion(
         panel.set_details_visible(console_visible)
         panel.show()
         panel.set_progress(SplashProgress(2, 5), status="Preparing workspace")
+        panel.record_activity()
         QApplication.processEvents()
-        animation = panel.progress.findChild(QVariantAnimation, "SplashActivitySweep")
+        animation = panel.progress.findChild(QVariantAnimation, "ProgressActivitySweep")
         assert animation is not None
+        assert animation.loopCount() == 1
         animation.setCurrentTime(0)
         before = panel.progress.grab().toImage()
         animation.setCurrentTime(900)
@@ -144,7 +146,11 @@ def test_sweep_changes_only_completed_fill_and_stops_on_completion(
         assert before.copy(
             boundary, 0, before.width() - boundary, before.height()
         ) == after.copy(boundary, 0, after.width() - boundary, after.height())
-        assert panel.progress.value() == 2
+        assert panel.progress.visible_fraction == pytest.approx(2 / 5)
+        animation.setCurrentTime(animation.duration())
+        assert animation.state() == QAbstractAnimation.State.Stopped
+        panel.record_activity()
+        assert animation.state() == QAbstractAnimation.State.Running
         panel.set_progress(SplashProgress(5, 5), status="Ready")
         assert animation.state() == QAbstractAnimation.State.Stopped
     finally:
@@ -241,6 +247,30 @@ def test_wait_explanation_breaks_at_its_boundary_only_when_needed() -> None:
         assert panel.status.text() == message
         panel.set_activity_status("Loading custom node: SugarCubes.")
         assert "\n" not in panel.status.text()
+    finally:
+        destroy_qt_object(panel)
+
+
+def test_output_activity_is_visible_before_any_completion() -> None:
+    """Show unseen console output on the empty track without advancing its value."""
+
+    from PySide6.QtCore import QVariantAnimation
+    from PySide6.QtWidgets import QWidget
+
+    panel = SplashProgressPanel(details=QWidget())
+    try:
+        panel.resize(400, 120)
+        panel.show()
+        panel.set_progress(SplashProgress(0, 5), status="Preparing workspace")
+        panel.record_activity()
+        animation = panel.progress.findChild(QVariantAnimation, "ProgressActivitySweep")
+        assert animation is not None
+        animation.setCurrentTime(0)
+        before = panel.progress.grab().toImage()
+        animation.setCurrentTime(900)
+        after = panel.progress.grab().toImage()
+        assert before != after
+        assert panel.progress.value() == 0
     finally:
         destroy_qt_object(panel)
 

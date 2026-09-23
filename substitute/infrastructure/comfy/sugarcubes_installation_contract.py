@@ -62,6 +62,25 @@ def build_sugarcubes_dependency_preflight_command(
     return command
 
 
+def build_sugarcubes_dependency_bootstrap_command(
+    *,
+    python_executable: Path,
+    workspace: Path,
+) -> tuple[str, ...]:
+    """Build SugarCubes' repository bootstrap and dependency readiness command."""
+
+    return (
+        str(python_executable),
+        "-m",
+        SUGARCUBES_MAINTENANCE_MODULE,
+        "cube-deps",
+        "sync-and-check",
+        "--workspace",
+        str(workspace),
+        "--sync-enabled-repos",
+    )
+
+
 def build_sugarcubes_dependency_repair_command(
     *,
     python_executable: Path,

@@ -315,6 +315,10 @@ class WorkspaceController:
         view = self._views.generation
         return GenerationPreparationService(
             recipe_io_service=cast(Any, view.recipe_io_service),
+            native_cube_workflow_builder=cast(
+                Any,
+                getattr(view, "native_cube_workflow_builder", None),
+            ),
             prompt_wildcard_preprocessing_service=cast(
                 Any,
                 getattr(view, "prompt_wildcard_preprocessing_service", None),

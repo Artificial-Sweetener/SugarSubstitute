@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NoReturn
 
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
+
 
 class LauncherArgumentError(ValueError):
     """Reject an inspected invocation without printing or exiting the launcher."""
@@ -54,6 +56,7 @@ class LauncherArguments:
     crash_report_continues_launch: bool
     launcher_ui_child: bool
     instance_recovery_request: Path | None
+    launch_intent: ApplicationLaunchIntent
 
 
 def parse_launcher_args(
@@ -90,6 +93,12 @@ def parse_launcher_args(
     parser.add_argument("--handoff-geometry", type=str, default=None)
     parser.add_argument("--manifest-url", type=str, default=None)
     parser.add_argument("--locale", type=str, default=None)
+    parser.add_argument(
+        "--launch-intent",
+        choices=tuple(intent.value for intent in ApplicationLaunchIntent),
+        default=ApplicationLaunchIntent.NORMAL.value,
+        help=argparse.SUPPRESS,
+    )
     namespace = parser.parse_args(argv)
     if namespace.headless_install and namespace.install_root is None:
         parser.error("--headless-install requires --install-root")
@@ -123,4 +132,5 @@ def parse_launcher_args(
         crash_report_continues_launch=namespace.crash_report_continues_launch,
         launcher_ui_child=namespace.launcher_ui_child,
         instance_recovery_request=namespace.instance_recovery_request,
+        launch_intent=ApplicationLaunchIntent(namespace.launch_intent),
     )

@@ -284,6 +284,11 @@ class LaunchSplashProcessClient:
             }
         )
 
+    def record_activity(self) -> None:
+        """Send one observed-work event without adding console output."""
+
+        self._send({"type": "activity_observed"})
+
     def clear_activity(self) -> None:
         """Stop the helper process activity."""
 

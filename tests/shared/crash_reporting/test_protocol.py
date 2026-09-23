@@ -24,9 +24,11 @@ from pathlib import Path
 import pytest
 
 from sugarsubstitute_shared.crash_reporting.protocol import (
+    CRASH_RUN_ROOT_ENV,
     CRASH_RUN_TOKEN_ENV,
     CleanExitOutcome,
     CrashRunContext,
+    LifecycleMessageState,
 )
 from sugarsubstitute_shared.crash_reporting.redaction import CrashReportRedactor
 
@@ -37,6 +39,24 @@ def test_run_context_round_trips_through_child_environment(tmp_path: Path) -> No
     context = CrashRunContext.create(tmp_path / "diagnostics")
 
     inherited = CrashRunContext.from_environment(context.environment({"KEEP": "yes"}))
+
+    assert inherited == context
+    assert context.run_root == tmp_path / "diagnostics" / "runs"
+    assert context.incident_root == tmp_path / "diagnostics" / "crashes"
+    assert context.exit_intent_path.parent == context.run_root / context.run_id
+    assert context.exit_receipt_path.parent == context.run_root / context.run_id
+
+
+def test_predecessor_run_context_derives_the_missing_run_workspace(
+    tmp_path: Path,
+) -> None:
+    """A complete pre-run-workspace contract must survive an in-place update."""
+
+    context = CrashRunContext.create(tmp_path / "diagnostics")
+    predecessor_environment = context.environment()
+    predecessor_environment.pop(CRASH_RUN_ROOT_ENV)
+
+    inherited = CrashRunContext.from_environment(predecessor_environment)
 
     assert inherited == context
 
@@ -54,10 +74,18 @@ def test_clean_exit_requires_matching_signed_intent_and_receipt(tmp_path: Path) 
     context = CrashRunContext.create(tmp_path / "diagnostics")
 
     assert context.validates_clean_exit(process_id=42) is False
+    absent = context.inspect_exit_evidence(process_id=42)
+    assert absent.intent_state is LifecycleMessageState.MISSING
+    assert absent.receipt_state is LifecycleMessageState.MISSING
     context.write_exit_intent(CleanExitOutcome.CLOSED, process_id=42)
     assert context.validates_clean_exit(process_id=42) is False
+    intent_only = context.inspect_exit_evidence(process_id=42)
+    assert intent_only.intent_state is LifecycleMessageState.VALID
+    assert intent_only.receipt_state is LifecycleMessageState.MISSING
     context.write_exit_receipt(CleanExitOutcome.CLOSED, process_id=42)
     assert context.validates_clean_exit(process_id=42) is True
+    complete = context.inspect_exit_evidence(process_id=42)
+    assert complete.validates_clean_exit is True
 
 
 def test_tampered_exit_receipt_is_rejected(tmp_path: Path) -> None:
@@ -71,6 +99,10 @@ def test_tampered_exit_receipt_is_rejected(tmp_path: Path) -> None:
     context.exit_receipt_path.write_text(json.dumps(payload), encoding="utf-8")
 
     assert context.validates_clean_exit(process_id=42) is False
+    assert (
+        context.inspect_exit_evidence(process_id=42).receipt_state
+        is LifecycleMessageState.INVALID
+    )
 
 
 def test_crash_redactor_removes_paths_and_secret_values(tmp_path: Path) -> None:

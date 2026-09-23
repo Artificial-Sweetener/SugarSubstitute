@@ -300,7 +300,8 @@ def verify_main_shell_evidence(
             )
         assert_startup_trace_sequence(evidence.trace_path)
         assert_no_launch_splash_replacement(
-            InstallLayout.from_root(install_root).logs_dir / "app-startup.log"
+            install_root=install_root,
+            process_id=receipt.pid,
         )
         if evidence.plan.target_mode == "managed_local":
             assert_real_managed_comfy(

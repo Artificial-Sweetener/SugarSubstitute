@@ -189,6 +189,19 @@ class LauncherBundleSelection:
             self._root / "launcher" / "installation.json"
         )
 
+    def require_matching_staged_copy(
+        self, selected: SelectedLauncherBundle, staged: Path
+    ) -> None:
+        """Require a baseline replacement to match the sealed selected payload."""
+
+        if (
+            selected.generation is None
+            or self._read_generation(selected.generation) != selected
+        ):
+            raise ValueError("Selected launcher generation is no longer verified.")
+        if _fingerprints(staged.resolve()) != _fingerprints(selected.root):
+            raise ValueError("Staged baseline does not match the selected launcher.")
+
     def reject(self, candidate: SelectedLauncherBundle) -> None:
         """Retire one failed generation without overwriting concurrent selection.
 

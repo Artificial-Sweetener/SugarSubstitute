@@ -34,6 +34,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.supervised_termination import (
+    SupervisedTermination,
+    SupervisedTerminationReason,
+)
 from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 
 
@@ -48,6 +52,7 @@ class ApplicationLifecycleSupervisor:
             ApplicationReadinessSurface.ONBOARDING,
         ),
         readiness_timeout_seconds: float | None = None,
+        readiness_supervisor: ApplicationReadinessSupervisor | None = None,
         crash_supervisor: ApplicationCrashSupervisor | None = None,
         cancellation_requested: Callable[[], bool] | None = None,
         process_starter: Callable[
@@ -55,9 +60,11 @@ class ApplicationLifecycleSupervisor:
         ]
         | None = None,
     ) -> None:
-        """Create readiness and crash owners for one visible launch policy."""
+        """Create or adopt readiness and crash owners for one visible launch policy."""
 
-        if readiness_timeout_seconds is None:
+        if readiness_supervisor is not None:
+            self._readiness = readiness_supervisor
+        elif readiness_timeout_seconds is None:
             self._readiness = ApplicationReadinessSupervisor(
                 accepted_surfaces=accepted_surfaces,
                 cancellation_requested=cancellation_requested,
@@ -82,7 +89,11 @@ class ApplicationLifecycleSupervisor:
     ) -> int:
         """Start, prove, and classify one application process."""
 
-        prepared = self._crash.prepare(layout=layout, environment=environment)
+        prepared = self._crash.prepare(
+            layout=layout,
+            environment=environment,
+            command=command,
+        )
         try:
             process = self._readiness.launch_until_ready(
                 layout=layout,
@@ -95,7 +106,9 @@ class ApplicationLifecycleSupervisor:
                     layout=layout,
                     process=cancelled.terminated_process,
                     prepared=prepared,
-                    expected_cancellation=True,
+                    termination=SupervisedTermination(
+                        SupervisedTerminationReason.USER_CANCELLATION
+                    ),
                 )
             raise
         except ApplicationReadinessError as error:
@@ -105,6 +118,11 @@ class ApplicationLifecycleSupervisor:
                     process=error.terminated_process,
                     prepared=prepared,
                     present_report=False,
+                    termination=SupervisedTermination(
+                        SupervisedTerminationReason.READINESS_FAILURE,
+                        str(error),
+                        error.diagnostics,
+                    ),
                 )
                 if outcome.incident_id is None:
                     logging.getLogger(__name__).info(

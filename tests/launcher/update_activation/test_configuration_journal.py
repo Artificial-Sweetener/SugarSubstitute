@@ -58,6 +58,62 @@ def test_legacy_commit_preserves_existing_configuration(tmp_path: Path) -> None:
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
 
 
+def test_current_journal_uses_a_namespace_legacy_root_launchers_ignore(
+    tmp_path: Path,
+) -> None:
+    """Keep schema-six recovery from blocking dispatch by an immutable 0.23 root."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    payload = UpdateActivationJournal(
+        had_app=True,
+        had_runtime=True,
+        phase=COMMITTED_PHASE,
+        successful_state=LauncherUpdateState(installed_app_version="0.4.0"),
+    ).to_json()
+
+    write_update_journal_data(update_journal_path(layout), payload)
+
+    assert update_journal_path(layout).name == "pending-app-update-v2.json"
+    assert update_journal_path(layout).exists()
+    assert not (layout.launcher_dir / "pending-app-update.json").exists()
+
+
+def test_current_launcher_recovers_a_legacy_journal_namespace(tmp_path: Path) -> None:
+    """Retain recovery for durable state written before the namespace transition."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    payload = UpdateActivationJournal(
+        had_app=True,
+        had_runtime=True,
+        phase=COMMITTED_PHASE,
+        successful_state=LauncherUpdateState(installed_app_version="0.4.0"),
+    ).to_json()
+    legacy_path = layout.launcher_dir / "pending-app-update.json"
+    write_update_journal_data(legacy_path, payload)
+
+    journal = load_update_journal(layout)
+
+    assert journal is not None
+    assert journal.successful_state.installed_app_version == "0.4.0"
+
+
+def test_concurrent_journal_namespaces_fail_closed(tmp_path: Path) -> None:
+    """Reject ambiguous recovery ownership instead of choosing one transaction."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    payload = UpdateActivationJournal(
+        had_app=True,
+        had_runtime=True,
+        phase=COMMITTED_PHASE,
+        successful_state=LauncherUpdateState(installed_app_version="0.4.0"),
+    ).to_json()
+    write_update_journal_data(update_journal_path(layout), payload)
+    write_update_journal_data(layout.launcher_dir / "pending-app-update.json", payload)
+
+    with pytest.raises(UpdateRecoveryError, match="Multiple pending update journals"):
+        load_update_journal(layout)
+
+
 @pytest.mark.parametrize("field", ["install_root", "app_dir", "runtime_python"])
 def test_recovery_rejects_configuration_outside_its_installation(
     tmp_path: Path, field: str
