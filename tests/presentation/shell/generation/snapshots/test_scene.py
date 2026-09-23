@@ -141,7 +141,6 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
         _log_interrupt_failure=lambda _result: None,
         canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
-        workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),
         path_bundle=SimpleNamespace(projects_dir=".", cubes_dir="."),

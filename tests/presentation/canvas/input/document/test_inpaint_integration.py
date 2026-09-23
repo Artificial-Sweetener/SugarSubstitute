@@ -32,7 +32,6 @@ from substitute.application.workflows import (
     CanvasIoService,
     InputCanvasPlanService,
     WorkflowAssetService,
-    WorkflowInputCanvasService,
 )
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
@@ -46,6 +45,33 @@ from substitute.application.workflows.input_canvas_binding_service import (
 )
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
+)
+from substitute.application.workflows.input_asset_association_service import (
+    InputAssetAssociationService,
+)
+from substitute.application.workflows.input_image_materialization_service import (
+    InputImageMaterializationService,
+)
+from substitute.application.workflows.input_mask_binding_materialization_service import (
+    InputMaskBindingMaterializationService,
+)
+from substitute.application.workflows.input_mask_materialization_service import (
+    InputMaskMaterializationService,
+)
+from substitute.application.workflows.input_mask_selection_service import (
+    InputMaskSelectionService,
+)
+from substitute.application.workflows.input_section_materialization_service import (
+    InputSectionMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_graph_value_service import (
+    OrderedMaskGraphValueService,
+)
+from substitute.application.workflows.ordered_mask_materialization_service import (
+    OrderedMaskMaterializationService,
+)
+from substitute.application.workflows.synthetic_input_canvas_surface_service import (
+    SyntheticInputCanvasSurfaceService,
 )
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
@@ -244,13 +270,58 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         plans=_plan_service(),
         graph_sections=graph_section_service,
     )
+    canvas_io = CanvasIoService(image_repository=QtImageStore())
     asset_service = WorkflowAssetService(graph_section_service)
-    workflow_service = WorkflowInputCanvasService(
-        input_bindings=input_bindings,
-        input_state=input_state,
-        canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
+    scalar_masks = InputMaskMaterializationService(
+        input_masks=input_state.masks,
+        canvas_io_service=canvas_io,
         workflow_asset_service=asset_service,
         graph_section_service=graph_section_service,
+    )
+    ordered_masks = OrderedMaskMaterializationService(
+        input_masks=input_state.masks,
+        mask_visuals=input_state.mask_visuals,
+        canvas_io_service=canvas_io,
+        graph_section_service=graph_section_service,
+    )
+    mask_materialization = InputMaskBindingMaterializationService(
+        scalar_service=scalar_masks,
+        ordered_service=ordered_masks,
+    )
+    synthetic_surfaces = SyntheticInputCanvasSurfaceService(
+        input_images=input_state.images,
+        input_cleanup=input_state.cleanup,
+        canvas_io_service=canvas_io,
+    )
+    image_materialization = InputImageMaterializationService(
+        bindings=input_bindings,
+        images=input_state.images,
+        canvas_io=canvas_io,
+        mask_materialization=mask_materialization,
+        workflow_assets=asset_service,
+        graph_sections=graph_section_service,
+    )
+    section_materialization = InputSectionMaterializationService(
+        bindings=input_bindings,
+        images=image_materialization,
+        mask_materialization=mask_materialization,
+        synthetic_surfaces=synthetic_surfaces,
+        graph_sections=graph_section_service,
+    )
+    mask_selection = InputMaskSelectionService(
+        bindings=input_bindings,
+        images=input_state.images,
+        masks=input_state.masks,
+        canvas_io=canvas_io,
+        workflow_assets=asset_service,
+        graph_sections=graph_section_service,
+        synthetic_surfaces=synthetic_surfaces,
+        mask_materialization=mask_materialization,
+    )
+    asset_associations = InputAssetAssociationService(
+        bindings=input_bindings,
+        assets=asset_service,
+        ordered_graph_values=OrderedMaskGraphValueService(graph_section_service),
     )
     panel = _EditorPanel()
     canvas_host = _CanvasHost(document.canvas)
@@ -266,7 +337,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         active_panel=lambda: panel,
         workflow_session=session,
         input_bindings=input_bindings,
-        workflow_inputs=workflow_service,
+        workflow_inputs=asset_associations,
         workflow_name=lambda _workflow_id: workflow_name,
         projects_dir=lambda: tmp_path,
     )
@@ -301,7 +372,8 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         active_workflow=lambda: workflow,
         active_panel=lambda: panel,
         workflow_session=session,
-        workflow_inputs=workflow_service,
+        workflow_inputs=image_materialization,
+        section_materialization=section_materialization,
         input_bindings=input_bindings,
         input_state=input_state.images,
         workflow_name=lambda _workflow_id: workflow_name,
@@ -311,7 +383,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
     mask_presenter = InputMaskSelectionPresenter(
         active_workflow=lambda: workflow,
         workflow_session=session,
-        workflow_inputs=workflow_service,
+        workflow_inputs=mask_selection,
         workflow_name=lambda _workflow_id: workflow_name,
         projects_dir=lambda: tmp_path,
         materialization=materialization,

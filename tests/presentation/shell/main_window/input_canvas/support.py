@@ -130,8 +130,17 @@ class _FakeInputNodeInteractionController:
         self.kwargs = kwargs
 
 
-class _FakeWorkflowInputCanvasService:
-    """Capture workflow input-canvas service dependencies."""
+class _FakeInputImageMaterializationService:
+    """Capture input-image materialization dependencies."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store constructor keyword arguments for assertions."""
+
+        self.kwargs = kwargs
+
+
+class _FakeInputSectionMaterializationService:
+    """Capture graph-section materialization dependencies."""
 
     def __init__(self, **kwargs: object) -> None:
         """Store constructor keyword arguments for assertions."""
@@ -373,7 +382,8 @@ class _InputCompositionShell:
         self.active_editor_panel = object()
         self._error_presenter = object()
         self.request_session_autosave = object()
-        self.workflow_input_canvas_service: object | None = None
+        self.input_image_materialization_service: object | None = None
+        self.input_section_materialization_service: object | None = None
         self.input_canvas_authority_reconciliation_service: object | None = None
         self.input_image_materialization_presenter: object | None = None
         self.input_mask_picker_presenter: object | None = None

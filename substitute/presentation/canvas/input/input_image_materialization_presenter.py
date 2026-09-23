@@ -34,6 +34,7 @@ from substitute.presentation.canvas.input.input_presentation_ports import (
     InputCanvasBindingPort,
     InputImageStatePort,
     InputImageWorkflowPort,
+    InputSectionMaterializationPort,
     WorkflowSessionPort,
 )
 from substitute.shared.logging.logger import (
@@ -57,6 +58,7 @@ class InputImageMaterializationPresenter:
         active_panel: Callable[[], EditorMaskPickerPort | None],
         workflow_session: WorkflowSessionPort,
         workflow_inputs: InputImageWorkflowPort,
+        section_materialization: InputSectionMaterializationPort,
         input_bindings: InputCanvasBindingPort,
         input_state: InputImageStatePort,
         workflow_name: Callable[[str], str],
@@ -72,6 +74,7 @@ class InputImageMaterializationPresenter:
         self._active_panel = active_panel
         self._workflow_session = workflow_session
         self._workflow_inputs = workflow_inputs
+        self._section_materialization = section_materialization
         self._input_bindings = input_bindings
         self._input_state = input_state
         self._workflow_name = workflow_name
@@ -171,7 +174,7 @@ class InputImageMaterializationPresenter:
         if workflow_id != self._workflow_session.active_workflow_id:
             return
         projects_dir = self._projects_dir()
-        results = self._workflow_inputs.materialize_loaded_section(
+        results = self._section_materialization.materialize_loaded_section(
             workflows=self._workflow_session.workflows,
             workflow_id=workflow_id,
             section_key=section_key,

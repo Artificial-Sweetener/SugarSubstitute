@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
@@ -32,13 +31,12 @@ from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingPlanService,
 )
 from substitute.application.ports.cube_repository import (
-    CubeCatalogRecord,
     CubeDefinitionRecord,
 )
 from substitute.application.workflows import (
     CanvasIoService,
     InputCanvasPlanService,
-    WorkflowInputCanvasService,
+    WorkflowAssetService,
 )
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
@@ -56,6 +54,24 @@ from substitute.application.workflows.input_asset_endpoint_service import (
 from substitute.application.workflows.input_asset_field_service import (
     InputAssetFieldService,
 )
+from substitute.application.workflows.input_image_materialization_service import (
+    InputImageMaterializationService,
+)
+from substitute.application.workflows.input_mask_binding_materialization_service import (
+    InputMaskBindingMaterializationService,
+)
+from substitute.application.workflows.input_mask_materialization_service import (
+    InputMaskMaterializationService,
+)
+from substitute.application.workflows.input_section_materialization_service import (
+    InputSectionMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_materialization_service import (
+    OrderedMaskMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_region_authoring_service import (
+    OrderedMaskRegionAuthoringService,
+)
 from substitute.application.workflows.regional_prompt_validation_service import (
     RegionalPromptValidationService,
 )
@@ -65,6 +81,9 @@ from substitute.application.workflows.ordered_mask_graph_value_service import (
 from substitute.application.workflows.restored_ordered_mask_collection_service import (
     RestoredOrderedMaskCollectionService,
 )
+from substitute.application.workflows.synthetic_input_canvas_surface_service import (
+    SyntheticInputCanvasSurfaceService,
+)
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
 )
@@ -73,7 +92,6 @@ from substitute.application.workflows.workflow_node_definition_service import (
 )
 from substitute.domain.common import JsonObject
 from substitute.domain.cube_library import CubeSourceMetadata
-from substitute.domain.generation import ComfyStagedAsset
 from substitute.domain.workflow import ProjectMaskAssetRef, WorkflowState
 from substitute.domain.workspace_snapshot import (
     workflow_state_from_json,
@@ -81,100 +99,14 @@ from substitute.domain.workspace_snapshot import (
 )
 from substitute.infrastructure.persistence import QtImageStore
 from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
+from tests.presentation.canvas.input.prompt_by_region.integration_fakes import (
+    CUBE_ALIAS as _ALIAS,
+    CUBE_ID as _CUBE_ID,
+    CubeRepository as _CubeRepository,
+    DefinitionGateway as _DefinitionGateway,
+    Stager as _Stager,
+)
 from tests.support.qt.lifecycle import destroy_qt_object
-
-_CUBE_ID = "Artificial-Sweetener/Base-Cubes/Anima/Prompt by Region.cube"
-_ALIAS = "Anima/Prompt by Region"
-
-
-class _CubeRepository:
-    """Return one canonical Prompt by Region cube document."""
-
-    def __init__(self, record: CubeDefinitionRecord) -> None:
-        """Store the only available cube definition."""
-
-        self._record = record
-
-    def load_cube(self, cube_id: str) -> CubeDefinitionRecord:
-        """Return the requested current cube definition."""
-
-        assert cube_id == _CUBE_ID
-        return self._record
-
-    def load_cube_version(self, cube_id: str, version: str) -> CubeDefinitionRecord:
-        """Return the requested persisted cube version."""
-
-        assert (cube_id, version) == (_CUBE_ID, "3.2.0")
-        return self._record
-
-    def list_cube_versions(self, cube_id: str) -> tuple[str, ...]:
-        """Return the single fixture version."""
-
-        assert cube_id == _CUBE_ID
-        return ("3.2.0",)
-
-    def prewarm_cube_version(self, cube_id: str, version: str) -> bool:
-        """Accept best-effort warming for the available fixture version."""
-
-        return (cube_id, version) == (_CUBE_ID, "3.2.0")
-
-    def list_available_cubes(self) -> list[CubeCatalogRecord]:
-        """Return the single fixture catalog entry."""
-
-        return [
-            CubeCatalogRecord(
-                cube_id=_CUBE_ID,
-                version="3.2.0",
-                display_name="Prompt by Region",
-            )
-        ]
-
-
-class _DefinitionGateway:
-    """Expose exact cube-owned node definitions to graph services."""
-
-    def __init__(self, definitions: Mapping[str, JsonObject]) -> None:
-        """Store node definitions by class type."""
-
-        self._definitions = definitions
-
-    def get_node_definition(self, node_class: str) -> JsonObject:
-        """Return a definition or an empty mapping for unknown classes."""
-
-        return self._definitions.get(node_class, {})
-
-    def get_required_node_definition(self, node_class: str) -> JsonObject:
-        """Return a required definition through the same fixture boundary."""
-
-        return self.get_node_definition(node_class)
-
-
-class _Stager:
-    """Record exact ordered files crossing the Comfy upload boundary."""
-
-    def __init__(self) -> None:
-        """Initialize empty staging history."""
-
-        self.paths: list[Path] = []
-
-    def stage_file_for_load_image(
-        self,
-        *,
-        source_path: Path,
-        target_subfolder: str,
-        content_hash: str,
-        node_class: str,
-    ) -> ComfyStagedAsset:
-        """Return one deterministic execution value for an existing mask file."""
-
-        assert content_hash
-        assert node_class == "SimpleSyrup.LoadMaskBatch"
-        self.paths.append(source_path)
-        return ComfyStagedAsset(
-            source_path=source_path,
-            execution_value=f"{target_subfolder}/{source_path.name}",
-            operation="uploaded",
-        )
 
 
 def test_prompt_by_region_load_author_restore_and_stage(
@@ -227,17 +159,68 @@ def test_prompt_by_region_load_author_restore_and_stage(
         node_definition_service=definition_service,
         endpoint_service=endpoint_service,
     )
-    workflow_service = WorkflowInputCanvasService(
-        input_bindings=InputCanvasBindingService(
-            plans=plan_service,
-            graph_sections=graph_sections,
-        ),
-        input_state=input_state,
-        canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
+    bindings = InputCanvasBindingService(
+        plans=plan_service,
+        graph_sections=graph_sections,
+    )
+    canvas_io = CanvasIoService(image_repository=QtImageStore())
+    workflow_assets = WorkflowAssetService(graph_sections)
+    scalar_masks = InputMaskMaterializationService(
+        input_masks=input_state.masks,
+        canvas_io_service=canvas_io,
+        workflow_asset_service=workflow_assets,
         graph_section_service=graph_sections,
     )
+    ordered_masks = OrderedMaskMaterializationService(
+        input_masks=input_state.masks,
+        mask_visuals=input_state.mask_visuals,
+        canvas_io_service=canvas_io,
+        graph_section_service=graph_sections,
+    )
+    mask_materialization = InputMaskBindingMaterializationService(
+        scalar_service=scalar_masks,
+        ordered_service=ordered_masks,
+    )
+    synthetic_surfaces = SyntheticInputCanvasSurfaceService(
+        input_images=input_state.images,
+        input_cleanup=input_state.cleanup,
+        canvas_io_service=canvas_io,
+    )
+    image_materialization = InputImageMaterializationService(
+        bindings=bindings,
+        images=input_state.images,
+        canvas_io=canvas_io,
+        mask_materialization=mask_materialization,
+        workflow_assets=workflow_assets,
+        graph_sections=graph_sections,
+    )
+    section_materialization = InputSectionMaterializationService(
+        bindings=bindings,
+        images=image_materialization,
+        mask_materialization=mask_materialization,
+        synthetic_surfaces=synthetic_surfaces,
+        graph_sections=graph_sections,
+    )
+    region_authoring = OrderedMaskRegionAuthoringService(
+        binding_resolver=bindings.binding_for_mask,
+        ensure_section_materialized=lambda authored_workflow, workflow_id, section_key, workflow_name, projects_dir: (
+            section_materialization.materialize_loaded_section(
+                workflows={workflow_id: authored_workflow},
+                workflow_id=workflow_id,
+                section_key=section_key,
+                workflow_name=workflow_name,
+                projects_dir=projects_dir,
+            )
+        ),
+        input_routes=input_state.routes,
+        input_images=input_state.images,
+        input_masks=input_state.masks,
+        canvas_io_service=canvas_io,
+        materialization_service=ordered_masks,
+        graph_values=OrderedMaskGraphValueService(graph_sections),
+    )
 
-    results = workflow_service.materialize_loaded_section(
+    results = section_materialization.materialize_loaded_section(
         workflows={"workflow": workflow},
         workflow_id="workflow",
         section_key=_ALIAS,
@@ -256,7 +239,7 @@ def test_prompt_by_region_load_author_restore_and_stage(
     assert QtImageStore().image_dimensions(image_path) == (960, 1344)
     assert canvas.document.image_has_masks(image_id)
 
-    second_mask_id = workflow_service.add_ordered_mask_region(
+    second_mask_id = region_authoring.add_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key=_ALIAS,
@@ -365,7 +348,7 @@ def test_prompt_by_region_load_author_restore_and_stage(
         "channel": "alpha",
     }
 
-    assert workflow_service.remove_ordered_mask_region(
+    assert region_authoring.remove_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key=_ALIAS,

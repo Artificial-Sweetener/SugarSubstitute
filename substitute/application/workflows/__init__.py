@@ -191,9 +191,6 @@ if TYPE_CHECKING:
         MaskMaterializationResult,
         UserSelectedInputMaskResult,
     )
-    from substitute.application.workflows.workflow_input_canvas_service import (
-        WorkflowInputCanvasService,
-    )
     from substitute.application.workflows.workflow_link_reconciliation_service import (
         WorkflowLinkReconciliationService,
     )
@@ -485,9 +482,6 @@ _EXPORT_MODULES = {
     "UserSelectedInputMaskResult": (
         "substitute.application.workflows.input_canvas_models"
     ),
-    "WorkflowInputCanvasService": (
-        "substitute.application.workflows.workflow_input_canvas_service"
-    ),
     "WorkflowLinkReconciliationService": (
         "substitute.application.workflows.workflow_link_reconciliation_service"
     ),
@@ -653,7 +647,6 @@ __all__ = [
     "WorkflowSessionState",
     "WorkflowState",
     "UserSelectedInputMaskResult",
-    "WorkflowInputCanvasService",
     "WorkflowLinkReconciliationService",
     "WorkflowTabCreation",
     "WorkflowTabService",

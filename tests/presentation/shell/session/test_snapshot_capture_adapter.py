@@ -206,7 +206,7 @@ def test_adapter_resolves_input_image_and_mask_references(tmp_path: Path) -> Non
                 else None
             )
         ),
-        workflow_input_canvas_service=SimpleNamespace(
+        input_asset_associations=SimpleNamespace(
             input_image_asset_ref=input_image_asset_ref,
             input_mask_asset_ref=input_mask_asset_ref,
         ),

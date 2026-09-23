@@ -19,9 +19,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from substitute.application.workflows import (
-    WorkflowInputCanvasService,
-)
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState
 from substitute.domain.workflow import WorkflowState
@@ -34,8 +31,7 @@ from tests.application.workflows.input_canvas.fakes import (
     _FakeCanvasIoService,
 )
 from tests.application.workflows.input_canvas.support import (
-    _fake_input_state_composition,
-    _input_canvas_binding_service,
+    _section_materialization_service,
 )
 
 
@@ -97,14 +93,14 @@ def test_prompt_by_region_migrates_legacy_scalar_mask_into_ordered_collection(
         image_id=image_id,
         mask_id=uuid4(),
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(definitions),
-        input_state=_fake_input_state_composition(state_service),
-        canvas_io_service=_FakeCanvasIoService(
+    service = _section_materialization_service(
+        state_service,
+        _FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=tmp_path / "Recipe" / "masks" / "legacy.png",
             created_destinations=[],
         ),
+        definitions=definitions,
     )
 
     service.materialize_loaded_section(
@@ -201,10 +197,10 @@ def test_synthetic_canvas_authority_change_invalidates_old_surface(
         expected_mask_path=tmp_path / "Recipe" / "masks" / "new.png",
         created_destinations=[],
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(definitions),
-        input_state=_fake_input_state_composition(state_service),
-        canvas_io_service=io_service,
+    service = _section_materialization_service(
+        state_service,
+        io_service,
+        definitions=definitions,
     )
 
     service.materialize_loaded_section(

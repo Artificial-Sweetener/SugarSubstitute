@@ -19,10 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from substitute.application.workflows import (
-    WorkflowAssetService,
-    WorkflowInputCanvasService,
-)
+from substitute.application.workflows import WorkflowAssetService
 from uuid import uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
@@ -32,10 +29,8 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
-    _fake_input_state_composition,
     _mask_buffer_path,
-    _workflow_input_service,
-    _input_canvas_binding_service,
+    _image_materialization_service,
 )
 
 
@@ -62,10 +57,8 @@ def test_materialize_input_image_switching_back_reuses_compatible_bound_mask(
         dimensions_by_path={cat_mask: (640, 480)},
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(
@@ -110,10 +103,8 @@ def test_materialize_input_image_replaces_mismatched_expected_mask_with_blank(
         dimensions_by_path={expected_mask: (1, 1)},
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(
@@ -161,10 +152,8 @@ def test_materialize_input_image_reuses_compatible_variant_after_mismatch(
         },
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(
@@ -209,7 +198,7 @@ def test_materialize_input_image_replaces_wrong_size_previous_variant(
         created_destinations=created_destinations,
     )
 
-    result = _workflow_input_service(
+    result = _image_materialization_service(
         input_canvas_state_service,
         canvas_io_service,
     ).materialize_input_image(
@@ -262,10 +251,9 @@ def test_materialize_input_image_preserves_explicit_manual_mask_asset(
         },
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service,
+        canvas_io_service,
         workflow_asset_service=asset_service,
     )
 
@@ -292,7 +280,7 @@ def test_materialize_input_image_preserves_explicit_manual_mask_asset(
 def test_materialize_input_image_replaces_wrong_size_explicit_manual_mask(
     tmp_path: Path,
 ) -> None:
-    """Wrong-size user-selected mask assets should not hydrate into QPane."""
+    """Wrong-size user-selected mask assets should not hydrate into the document."""
 
     image_id = uuid4()
     mask_id = uuid4()
@@ -318,10 +306,9 @@ def test_materialize_input_image_replaces_wrong_size_explicit_manual_mask(
         dimensions_by_path={selected_mask: (320, 240)},
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service,
+        canvas_io_service,
         workflow_asset_service=asset_service,
     )
 

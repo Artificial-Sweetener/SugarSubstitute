@@ -44,7 +44,8 @@ from tests.presentation.shell.main_window.input_canvas.support import (
     _FakeInputNodeInteractionController,
     _FakeSyntheticCanvasGeometryAdapter,
     _FakeSyntheticCanvasResolutionController,
-    _FakeWorkflowInputCanvasService,
+    _FakeInputImageMaterializationService,
+    _FakeInputSectionMaterializationService,
     _InputCompositionShell,
     _ParentedValue,
     _SceneMappingChanges,
@@ -59,8 +60,13 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
 
     monkeypatch.setattr(
         input_workflow_composition,
-        "WorkflowInputCanvasService",
-        _FakeWorkflowInputCanvasService,
+        "InputImageMaterializationService",
+        _FakeInputImageMaterializationService,
+    )
+    monkeypatch.setattr(
+        input_workflow_composition,
+        "InputSectionMaterializationService",
+        _FakeInputSectionMaterializationService,
     )
     monkeypatch.setattr(
         input_canvas_composition,
@@ -131,8 +137,12 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     composition = input_canvas_composition.compose_input_canvas_controllers(shell)
 
     assert isinstance(
-        composition.workflow_input_canvas_service,
-        _FakeWorkflowInputCanvasService,
+        composition.input_image_materialization_service,
+        _FakeInputImageMaterializationService,
+    )
+    assert isinstance(
+        composition.input_section_materialization_service,
+        _FakeInputSectionMaterializationService,
     )
     assert isinstance(
         composition.input_canvas_tool_controller,
@@ -174,7 +184,12 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         _FakeSyntheticCanvasResolutionController,
     )
     assert (
-        composition.workflow_input_canvas_service is shell.workflow_input_canvas_service
+        composition.input_image_materialization_service
+        is shell.input_image_materialization_service
+    )
+    assert (
+        composition.input_section_materialization_service
+        is shell.input_section_materialization_service
     )
     assert (
         composition.input_canvas_authority_reconciliation_service
@@ -198,12 +213,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         composition.input_generation_snapshot_service
         is shell.input_generation_snapshot_service
     )
-    assert composition.workflow_input_canvas_service.kwargs == {
-        "input_bindings": composition.input_canvas_bindings,
-        "input_state": shell.input_canvas_state,
-        "canvas_io_service": shell.canvas_io_service,
-        "workflow_asset_service": shell.workflow_asset_service,
-        "graph_section_service": shell.graph_section_service,
+    assert composition.input_image_materialization_service.kwargs == {
+        "bindings": composition.input_canvas_bindings,
+        "images": shell.input_image_assets,
+        "canvas_io": shell.canvas_io_service,
+        "mask_materialization": composition.input_section_materialization_service.kwargs[
+            "mask_materialization"
+        ],
+        "workflow_assets": shell.workflow_asset_service,
+        "graph_sections": shell.graph_section_service,
     }
     assert composition.input_canvas_tool_controller.kwargs == {
         "transform_activator": tool_context.activate_transform,

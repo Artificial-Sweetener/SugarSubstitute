@@ -60,7 +60,7 @@ def test_generation_snapshot_is_execution_only_and_revision_addressed(
     )
     service = InputGenerationMaskMaterializer(
         canvas_io_service=_Io(tmp_path, save_mask_image),
-        workflow_input_canvas_service=_Associations(),
+        input_assets=_Associations(),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: tmp_path,
     )
@@ -96,13 +96,13 @@ def test_generation_snapshot_fails_closed_on_write_or_stale_identity(
     )
     failed_capture = InputGenerationMaskMaterializer(
         canvas_io_service=_Io(tmp_path, lambda **_kwargs: True),
-        workflow_input_canvas_service=_Associations(),
+        input_assets=_Associations(),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: tmp_path,
     )
     failed_write = InputGenerationMaskMaterializer(
         canvas_io_service=_Io(tmp_path, lambda **_kwargs: False),
-        workflow_input_canvas_service=_Associations(),
+        input_assets=_Associations(),
         workflow_name_provider=lambda _workflow_id: "Recipe",
         projects_dir_provider=lambda: tmp_path,
     )
@@ -173,7 +173,7 @@ def test_generation_snapshot_persists_every_ordered_region_in_batch_order(
             tmp_path,
             save_snapshot,
         ),
-        workflow_input_canvas_service=_Associations(),
+        input_assets=_Associations(),
         workflow_name_provider=lambda _workflow_id: "Regional",
         projects_dir_provider=lambda: tmp_path,
     )

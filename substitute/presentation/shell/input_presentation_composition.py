@@ -22,11 +22,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from substitute.application.workflows.workflow_input_canvas_service import (
-    WorkflowInputCanvasService,
+from substitute.application.workflows.input_image_materialization_service import (
+    InputImageMaterializationService,
 )
 from substitute.application.workflows.input_canvas_binding_service import (
     InputCanvasBindingService,
+)
+from substitute.application.workflows.input_asset_association_service import (
+    InputAssetAssociationService,
+)
+from substitute.application.workflows.input_mask_selection_service import (
+    InputMaskSelectionService,
+)
+from substitute.application.workflows.input_section_materialization_service import (
+    InputSectionMaterializationService,
 )
 from substitute.presentation.canvas.input.input_image_materialization_presenter import (
     InputImageMaterializationPresenter,
@@ -66,7 +75,10 @@ def compose_input_presenters(
     shell: Any,
     input_canvas: Any,
     input_bindings: InputCanvasBindingService,
-    workflow_inputs: WorkflowInputCanvasService,
+    input_assets: InputAssetAssociationService,
+    mask_selection: InputMaskSelectionService,
+    image_materialization: InputImageMaterializationService,
+    section_materialization: InputSectionMaterializationService,
     shell_adapter: InputCanvasShellAdapter,
     regional_masks: RegionalMaskCollectionPresenter,
     preview_coordinator: InputNodePreviewCoordinator,
@@ -78,7 +90,7 @@ def compose_input_presenters(
         active_panel=lambda: shell.active_editor_panel,
         workflow_session=shell.workflow_session_service,
         input_bindings=input_bindings,
-        workflow_inputs=workflow_inputs,
+        workflow_inputs=input_assets,
         workflow_name=shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),
         preview_coordinator=preview_coordinator,
@@ -106,7 +118,8 @@ def compose_input_presenters(
         active_workflow=shell.get_active_workflow,
         active_panel=lambda: shell.active_editor_panel,
         workflow_session=shell.workflow_session_service,
-        workflow_inputs=workflow_inputs,
+        workflow_inputs=image_materialization,
+        section_materialization=section_materialization,
         input_bindings=input_bindings,
         input_state=shell.input_image_assets,
         workflow_name=shell_adapter.resolve_workflow_name,
@@ -118,7 +131,7 @@ def compose_input_presenters(
     masks = InputMaskSelectionPresenter(
         active_workflow=shell.get_active_workflow,
         workflow_session=shell.workflow_session_service,
-        workflow_inputs=workflow_inputs,
+        workflow_inputs=mask_selection,
         workflow_name=shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),
         materialization=materialization,
