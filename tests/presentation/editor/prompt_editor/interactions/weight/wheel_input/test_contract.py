@@ -140,6 +140,24 @@ def test_wheel_over_emphasis_token_adjusts_by_pointer(
     assert box.toPlainText() == "prefix (cat:1.10)"
 
 
+def test_same_viewport_wheel_point_crosses_neutral_emphasis(
+    widgets: list[QWidget],
+) -> None:
+    """Keep the same pointer target usable from positive through neutral to sub-one."""
+
+    box = show_prompt_editor(widgets, text="(1girl:1.05), portrait", width=280)
+    token = emphasis_token_for(box)
+    point = anchor_rect_for(box, token).center().toPoint()
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    controls = token_weight_controls_for(box)
+    assert controls.visible_token is not None
+    assert controls.visible_token.value_text == "1.00"
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == "(1girl:0.95), portrait"
+
+
 def test_host_viewport_wheel_over_emphasis_token_adjusts_on_first_tick(
     widgets: list[QWidget],
 ) -> None:
