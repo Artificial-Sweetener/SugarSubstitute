@@ -60,7 +60,11 @@ INSTALL_EXPERIENCE_SCENARIOS: tuple[InstallExperienceScenario, ...] = (
         "managed-existing-mixed",
         "managed",
         existing_models=True,
-        detected_families=(ModelFamilyId.SDXL, ModelFamilyId.ANIMA),
+        detected_families=(
+            ModelFamilyId.SDXL,
+            ModelFamilyId.ANIMA,
+            ModelFamilyId.UPSCALERS,
+        ),
     ),
     InstallExperienceScenario(
         "managed-existing-unsupported",

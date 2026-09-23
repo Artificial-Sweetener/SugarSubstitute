@@ -803,6 +803,7 @@ def compose_runtime_controllers(
         updates=dependencies.model_update_service,
         model_root=dependencies.model_update_model_root,
         acquisition=dependencies.model_update_acquisition_service,
+        fetch_thumbnail=dependencies.model_update_thumbnail_fetcher,
     )
     shell.shell_resource_lifecycle.register(
         "model_update_notifications",

@@ -148,10 +148,11 @@ class SyntheticModelOnboardingCoordinator(QObject):
         urls: tuple[str, ...],
         *,
         excluded_version_ids: frozenset[int] = frozenset(),
+        excluded_sha256: frozenset[str] = frozenset(),
     ) -> int:
         """Publish deterministic validated link previews for qualification."""
 
-        _ = excluded_version_ids
+        _ = (excluded_version_ids, excluded_sha256)
         self._generation += 1
         generation = self._generation
         card = _linked_card(family_id)
@@ -176,7 +177,8 @@ class SyntheticModelOnboardingCoordinator(QObject):
 def _family_cards(family_id: ModelFamilyId) -> tuple[RecommendationCardAsset, ...]:
     """Return eight deterministic portrait cards in provider order."""
 
-    family_offset = 100 if family_id is ModelFamilyId.SDXL else 200
+    family_offset = _family_offset(family_id)
+    is_upscaler = family_id is ModelFamilyId.UPSCALERS
     return tuple(
         RecommendationCardAsset(
             recommendation=ModelRecommendation(
@@ -186,19 +188,31 @@ def _family_cards(family_id: ModelFamilyId) -> tuple[RecommendationCardAsset, ..
                 model_name=f"{family_id.value.upper()} Popular {rank}",
                 version_name=f"v{rank}",
                 creator=f"creator-{rank}",
-                file_name=f"{family_id.value}-{rank}.safetensors",
+                file_name=f"{family_id.value}-{rank}{'.pth' if is_upscaler else '.safetensors'}",
                 size_bytes=(2 * 1024**3) + rank,
                 sha256=f"{family_offset + rank:064x}",
                 download_url=(
-                    f"https://civitai.com/api/download/models/{family_offset * 10 + rank}"
+                    f"https://github.com/openmodeldb/synthetic-{rank}.pth"
+                    if is_upscaler
+                    else f"https://civitai.com/api/download/models/{family_offset * 10 + rank}"
                 ),
                 model_page_url=(
-                    f"https://civitai.com/models/{family_offset + rank}"
-                    f"?modelVersionId={family_offset * 10 + rank}"
+                    f"https://openmodeldb.info/models/synthetic-{rank}"
+                    if is_upscaler
+                    else (
+                        f"https://civitai.com/models/{family_offset + rank}"
+                        f"?modelVersionId={family_offset * 10 + rank}"
+                    )
                 ),
                 thumbnail_image_id=family_offset * 100 + rank,
-                thumbnail_url=f"https://image.civitai.com/synthetic/{family_offset + rank}.png",
+                thumbnail_url=(
+                    f"https://openmodeldb.info/images/synthetic-{rank}.png"
+                    if is_upscaler
+                    else f"https://image.civitai.com/synthetic/{family_offset + rank}.png"
+                ),
                 popularity_rank=rank,
+                provider_id="openmodeldb" if is_upscaler else "civitai",
+                provider_name="OpenModelDB" if is_upscaler else "CivitAI",
             ),
         )
         for rank in range(1, 9)
@@ -208,7 +222,7 @@ def _family_cards(family_id: ModelFamilyId) -> tuple[RecommendationCardAsset, ..
 def _linked_card(family_id: ModelFamilyId) -> RecommendationCardAsset:
     """Return one distinct resolved link with a completed preview thumbnail."""
 
-    family_offset = 100 if family_id is ModelFamilyId.SDXL else 200
+    family_offset = _family_offset(family_id)
     model_id = family_offset + 99
     version_id = family_offset * 10 + 99
     return RecommendationCardAsset(
@@ -232,6 +246,16 @@ def _linked_card(family_id: ModelFamilyId) -> RecommendationCardAsset:
         ),
         thumbnail=_thumbnail_asset(family_id, 1),
     )
+
+
+def _family_offset(family_id: ModelFamilyId) -> int:
+    """Return a collision-free synthetic identity range for one family."""
+
+    return {
+        ModelFamilyId.SDXL: 100,
+        ModelFamilyId.ANIMA: 200,
+        ModelFamilyId.UPSCALERS: 300,
+    }[family_id]
 
 
 def _thumbnail_asset(family_id: ModelFamilyId, rank: int) -> ThumbnailAsset:

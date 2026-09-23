@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
@@ -75,6 +77,74 @@ def test_civitai_import_is_a_contained_installer_overlay_not_a_window() -> None:
     assert browse_urls == [
         "https://civitai.com/search/models?baseModel=Anima&modelType=Checkpoint"
     ]
+    host.close()
+
+
+def test_upscaler_import_accepts_both_provider_links_in_one_overlay() -> None:
+    """Show both browse routes and provider identities in one installer flow."""
+
+    application = ensure_qt_application()
+    host = QWidget()
+    host.resize(1180, 860)
+    page = ModelRecommendationPage(host)
+    page.set_recommendations(
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, ()),
+        selected_version_ids=frozenset(),
+        use_own_model=False,
+    )
+    host.show()
+    opened: list[str] = []
+    page.link_requested.connect(opened.append)
+    page.import_card.activated.emit()
+    application.processEvents()
+
+    overlay = page._import_overlay
+    assert overlay is not None
+    assert overlay.title_label.text() == "Add upscalers by link"
+    assert overlay.civitai_browse_button.isVisible()
+    overlay.browse_button.click()
+    overlay.civitai_browse_button.click()
+    assert opened == [
+        "https://openmodeldb.info/",
+        "https://civitai.com/models?types=Upscaler",
+    ]
+    openmodeldb = RecommendationCardAsset(
+        replace(
+            _recommendation(
+                family=ModelFamilyId.UPSCALERS, model_id=901, version_id=9010
+            ),
+            provider_id="openmodeldb",
+            provider_name="OpenModelDB",
+            thumbnail_url=None,
+        ),
+        thumbnail_failed=True,
+    )
+    civitai = RecommendationCardAsset(
+        replace(
+            _recommendation(
+                family=ModelFamilyId.UPSCALERS, model_id=902, version_id=9020
+            ),
+            thumbnail_url=None,
+        ),
+        thumbnail_failed=True,
+    )
+    overlay.set_results(
+        (
+            RecommendationLinkResult(
+                "https://openmodeldb.info/models/example",
+                RecommendationLinkStatus.READY,
+                openmodeldb,
+            ),
+            RecommendationLinkResult(
+                "https://civitai.com/models/902",
+                RecommendationLinkStatus.READY,
+                civitai,
+            ),
+        )
+    )
+    assert len(overlay.ready_cards()) == 2
+    assert len(overlay.findChildren(QWidget, "OnboardingModelLinkProviderIcon")) == 2
+    assert overlay.add_button.text() == "Add 2 models"
     host.close()
 
 

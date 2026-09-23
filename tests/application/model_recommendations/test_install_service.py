@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from pathlib import Path
 
 from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
@@ -188,6 +189,47 @@ def test_model_install_service_rejects_insufficient_space_before_reservation(
     else:
         raise AssertionError("Insufficient disk space was accepted.")
     assert not file.destination_dir.exists()
+
+
+def test_civitai_upscaler_uses_weights_acquisition_without_relaxing_checkpoints(
+    tmp_path: Path,
+) -> None:
+    """Acquire a reviewed CivitAI .pt upscaler through its bounded file policy."""
+
+    payload = b"scan-clean model weights"
+    file = replace(
+        _install_file(
+            tmp_path,
+            url="https://civitai.com/api/download/models/125843",
+            payload=payload,
+            model_id=116225,
+        ),
+        family_id=ModelFamilyId.UPSCALERS,
+        artifact_kind=ModelArtifactKind.UPSCALE_MODELS,
+        file_name="4xUltrasharp_v10.pt",
+        destination_dir=tmp_path / "upscale_models",
+    )
+
+    def open_stream(_url: str, _headers: object, _timeout: float) -> _Stream:
+        """Return only the exact reviewed file bytes."""
+
+        return _Stream(payload)
+
+    service = ModelInstallService(
+        primary_acquisition=ModelAcquisitionService(
+            allowed_roots=(tmp_path,), stream_opener=open_stream
+        ),
+        civitai_upscaler_acquisition=ModelAcquisitionService(
+            allowed_roots=(tmp_path,),
+            stream_opener=open_stream,
+            allowed_extensions=(".safetensors", ".pth", ".pt"),
+        ),
+    )
+
+    result = service.acquire(ModelInstallPlan(tmp_path, (file,), 1_000))
+
+    assert len(result) == 1
+    assert (tmp_path / "upscale_models" / "4xUltrasharp_v10.pt").read_bytes() == payload
 
 
 def _install_file(

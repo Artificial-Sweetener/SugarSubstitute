@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from dataclasses import replace
 from pathlib import Path
 
 from sugarsubstitute_shared.model_discovery.models import (
@@ -27,6 +28,7 @@ from sugarsubstitute_shared.model_discovery.models import (
 )
 from sugarsubstitute_shared.model_updates import (
     ModelUpdatePreferences,
+    ModelUpdateProposal,
     ModelUpdateService,
     ModelUsageRecord,
 )
@@ -65,6 +67,11 @@ class _Updates:
 
         self.calls += 1
         return self.candidate
+
+    def compatible_family(self, **_kwargs: object) -> tuple[DiscoveredModel, ...]:
+        """Return the candidate as a deterministic visible version family."""
+
+        return () if self.candidate is None else (self.candidate,)
 
 
 def _candidate() -> DiscoveredModel:
@@ -204,3 +211,164 @@ def test_record_usage_counts_generate_dispatch_and_preserves_known_identity() ->
     assert updated.model_id == 1
     assert updated.version_id == 2
     assert updated.last_used_at == second
+
+
+def test_update_checks_are_limited_to_image_and_lora_families() -> None:
+    """VAE usage must not produce the picker update affordance."""
+
+    now = datetime(2026, 8, 31, tzinfo=UTC)
+    usage = _Usage(
+        tuple(
+            ModelUsageRecord(
+                sha256=f"{index:x}" * 64,
+                path=Path(f"model-{index}.safetensors"),
+                artifact_kind=kind,
+                model_id=index,
+                version_id=1,
+                base_model="SDXL",
+                usage_count=1,
+                last_used_at=now,
+            )
+            for index, kind in enumerate(
+                (
+                    ModelArtifactKind.CHECKPOINTS,
+                    ModelArtifactKind.DIFFUSION_MODELS,
+                    ModelArtifactKind.LORAS,
+                    ModelArtifactKind.VAE,
+                ),
+                start=1,
+            )
+        )
+    )
+    updates = _Updates(_candidate())
+
+    ModelUpdateService(usage=usage, updates=updates, clock=lambda: now).check_updates(
+        ModelUpdatePreferences(enabled=True)
+    )
+
+    assert updates.calls == 3
+
+
+def test_version_family_requires_authoritative_matching_usage() -> None:
+    """A stale or forged proposal cannot browse unrelated provider versions."""
+
+    now = datetime(2026, 8, 31, tzinfo=UTC)
+    current = ModelUsageRecord(
+        sha256="a" * 64,
+        path=Path("current.safetensors"),
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        model_id=1,
+        version_id=2,
+        base_model="SDXL",
+        usage_count=1,
+        last_used_at=now,
+    )
+    candidate = _candidate()
+    service = ModelUpdateService(
+        usage=_Usage((current,)), updates=_Updates(candidate), clock=lambda: now
+    )
+
+    assert service.version_family(ModelUpdateProposal(current, candidate)) == (
+        candidate,
+    )
+    other = ModelUsageRecord(
+        sha256="b" * 64,
+        path=current.path,
+        artifact_kind=current.artifact_kind,
+        model_id=current.model_id,
+        version_id=current.version_id,
+        base_model=current.base_model,
+        usage_count=1,
+        last_used_at=now,
+    )
+    assert service.version_family(ModelUpdateProposal(other, candidate)) == ()
+
+
+def test_already_downloaded_candidate_does_not_raise_an_update_alert() -> None:
+    """A different local file with the candidate hash already satisfies the update."""
+
+    now = datetime(2026, 8, 31, tzinfo=UTC)
+    current = ModelUsageRecord(
+        sha256="a" * 64,
+        path=Path("models/current.safetensors"),
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        model_id=1,
+        version_id=2,
+        base_model="SDXL",
+        usage_count=1,
+        last_used_at=now,
+    )
+    service = ModelUpdateService(
+        usage=_Usage((current,)),
+        updates=_Updates(_candidate()),
+        installed_hashes=lambda kind: (
+            frozenset({"B" * 64})
+            if kind is ModelArtifactKind.CHECKPOINTS
+            else frozenset()
+        ),
+        clock=lambda: now,
+    )
+
+    assert service.check_updates(ModelUpdatePreferences(enabled=True)) == ()
+
+
+def test_dismissal_survives_usage_and_only_silences_that_candidate() -> None:
+    """A later release should alert again even after a Generate usage increment."""
+
+    now = datetime(2026, 8, 31, tzinfo=UTC)
+    usage = _Usage()
+    updates = _Updates(_candidate())
+    service = ModelUpdateService(usage=usage, updates=updates, clock=lambda: now)
+    service.record_usage(
+        sha256="a" * 64,
+        path=Path("models/current.safetensors"),
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        model_id=1,
+        version_id=2,
+        base_model="SDXL",
+    )
+    assert service.dismiss_update(sha256="a" * 64, version_id=3)
+    service.record_usage(
+        sha256="a" * 64,
+        path=Path("models/current.safetensors"),
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        model_id=None,
+        version_id=None,
+        base_model=None,
+    )
+
+    assert usage.load()[0].dismissed_version_id == 3
+    assert service.check_updates(ModelUpdatePreferences(enabled=True)) == ()
+    updates.candidate = replace(_candidate(), version_id=4)
+    assert len(service.check_updates(ModelUpdatePreferences(enabled=True))) == 1
+
+
+def test_page_opt_out_covers_existing_and_future_local_versions() -> None:
+    """Disabling a provider page must remain effective after another model is used."""
+
+    now = datetime(2026, 8, 31, tzinfo=UTC)
+    usage = _Usage()
+    updates = _Updates(_candidate())
+    service = ModelUpdateService(usage=usage, updates=updates, clock=lambda: now)
+    for digest in ("a" * 64, "c" * 64):
+        service.record_usage(
+            sha256=digest,
+            path=Path(f"models/{digest[0]}.safetensors"),
+            artifact_kind=ModelArtifactKind.CHECKPOINTS,
+            model_id=1,
+            version_id=2,
+            base_model="SDXL",
+        )
+    assert service.disable_model_updates(1)
+    service.record_usage(
+        sha256="d" * 64,
+        path=Path("models/d.safetensors"),
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        model_id=1,
+        version_id=2,
+        base_model="SDXL",
+    )
+
+    assert all(record.updates_disabled_for_model for record in usage.load())
+    assert service.check_updates(ModelUpdatePreferences(enabled=True)) == ()
+    assert updates.calls == 0

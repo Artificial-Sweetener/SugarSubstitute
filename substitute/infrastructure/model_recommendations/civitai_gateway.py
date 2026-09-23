@@ -30,6 +30,7 @@ from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 from substitute.domain.model_metadata import CivitaiThumbnailPolicy
 from substitute.domain.model_recommendations import (
+    CivitaiFamilyMapping,
     ModelFamilyDefinition,
     ModelFamilyId,
     ModelRecommendation,
@@ -43,6 +44,9 @@ from substitute.infrastructure.model_recommendations.civitai_payload_parser impo
     model_page_identity,
     parse_model,
     safe_thumbnail,
+)
+from substitute.infrastructure.model_recommendations.civitai_upscaler_parser import (
+    parse_civitai_upscaler,
 )
 from substitute.infrastructure.execution.parallel_map import BoundedParallelMapper
 
@@ -99,10 +103,11 @@ class CivitaiFamilyRecommendationGateway:
         if limit < 1 or limit > 20:
             raise ValueError("Onboarding recommendation limit must be 1 through 20.")
         family = self._catalog.get(query.family_id)
-        self._validate_provider_mapping(family)
+        mapping = self._provider_mapping(family)
+        self._validate_provider_mapping(mapping)
         seen_hashes = {value.casefold() for value in excluded_sha256}
         cards: list[ModelRecommendation] = []
-        next_url: str | None = self._models_url(family)
+        next_url: str | None = self._models_url(mapping)
         pages = 0
         provider_position = 0
         while (
@@ -128,9 +133,7 @@ class CivitaiFamilyRecommendationGateway:
                     popularity_rank=rank,
                     fallback_thumbnail=self._fallback_thumbnail,
                     thumbnail_policy=self._thumbnail_policy(),
-                    accepted_base_models=frozenset(
-                        {family.civitai.recommendation_base_model}
-                    ),
+                    accepted_base_models=frozenset({mapping.recommendation_base_model}),
                 )
                 if (
                     card is None
@@ -191,6 +194,7 @@ class CivitaiFamilyRecommendationGateway:
 
         model_id, version_id = model_page_identity(url)
         family = self._catalog.get(family_id)
+        mapping = self._provider_mapping(family)
         payload = self._request(
             f"{_API_ROOT}/models/{model_id}",
             purpose="linked model lookup",
@@ -201,8 +205,22 @@ class CivitaiFamilyRecommendationGateway:
             popularity_rank=0,
             fallback_thumbnail=self._fallback_thumbnail,
             thumbnail_policy=self._thumbnail_policy(),
-            accepted_base_models=self._recognized_linked_base_models(family),
+            accepted_base_models=self._recognized_linked_base_models(mapping),
             target_version_id=version_id,
+        )
+
+    def resolve_upscaler_page(self, url: str) -> ModelRecommendation | None:
+        """Resolve one explicit CivitAI upscaler page to a verified model file."""
+
+        model_id, version_id = model_page_identity(url)
+        payload = self._request(
+            f"{_API_ROOT}/models/{model_id}", purpose="linked upscaler lookup"
+        )
+        recommendation = parse_civitai_upscaler(payload, target_version_id=version_id)
+        return (
+            recommendation
+            if recommendation is not None and recommendation.model_id == model_id
+            else None
         )
 
     def _access_for_version(self, version_id: int) -> ModelRecommendationAccess:
@@ -239,21 +257,31 @@ class CivitaiFamilyRecommendationGateway:
             else ModelRecommendationAccess.API_KEY_REQUIRED
         )
 
-    def _validate_provider_mapping(self, family: ModelFamilyDefinition) -> None:
+    @staticmethod
+    def _provider_mapping(family: ModelFamilyDefinition) -> CivitaiFamilyMapping:
+        """Return this family's CivitAI mapping or reject provider mismatch."""
+
+        if family.civitai is None:
+            raise CivitaiRecommendationError(
+                "The selected model family is not available from CivitAI."
+            )
+        return family.civitai
+
+    def _validate_provider_mapping(self, mapping: CivitaiFamilyMapping) -> None:
         """Fail closed when the live provider no longer recognizes a family mapping."""
 
-        if family.civitai.recommendation_base_model not in self._provider_base_models():
+        if mapping.recommendation_base_model not in self._provider_base_models():
             raise CivitaiRecommendationError(
                 "CivitAI no longer recognizes the configured model family."
             )
 
     def _recognized_linked_base_models(
         self,
-        family: ModelFamilyDefinition,
+        mapping: CivitaiFamilyMapping,
     ) -> frozenset[str]:
         """Return configured linked-model labels still advertised by CivitAI."""
 
-        recognized = family.civitai.linked_base_models & self._provider_base_models()
+        recognized = mapping.linked_base_models & self._provider_base_models()
         if not recognized:
             raise CivitaiRecommendationError(
                 "CivitAI no longer recognizes the configured model family."
@@ -268,10 +296,10 @@ class CivitaiFamilyRecommendationGateway:
             self._validated_base_models = _base_model_values(payload)
         return self._validated_base_models
 
-    def _models_url(self, family: ModelFamilyDefinition) -> str:
+    def _models_url(self, mapping: CivitaiFamilyMapping) -> str:
         """Build the configured monthly-popularity query for one family."""
 
-        return f"{_API_ROOT}/models?{urlencode({'limit': str(self._page_size), 'types': family.civitai.model_type, 'baseModels': family.civitai.recommendation_base_model, 'sort': 'Most Downloaded', 'period': 'Month', 'nsfw': 'false', 'earlyAccess': 'false', 'primaryFileOnly': 'true'})}"
+        return f"{_API_ROOT}/models?{urlencode({'limit': str(self._page_size), 'types': mapping.model_type, 'baseModels': mapping.recommendation_base_model, 'sort': 'Most Downloaded', 'period': 'Month', 'nsfw': 'false', 'earlyAccess': 'false', 'primaryFileOnly': 'true'})}"
 
     def _fallback_thumbnail(self, version_id: int) -> tuple[int, str] | None:
         """Return a safe large portrait from the version's public image gallery."""

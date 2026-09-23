@@ -180,7 +180,7 @@ class ModelOnboardingPresenter:
             index = self._session.state.recommendation_page_index
             if index > 0:
                 self._session.set_page_index(index - 1)
-                self._render_current_recommendations()
+                self._navigate(OnboardingPageId.MODEL_RECOMMENDATIONS)
                 return True
         return False
 
@@ -211,7 +211,9 @@ class ModelOnboardingPresenter:
             )
             return True
         self._waiting_for_scan = True
-        self._folder_page.set_scan_status(app_text("Scanning for SDXL and Anima…"))
+        self._folder_page.set_scan_status(
+            app_text("Scanning for generation models and upscalers…")
+        )
         apply_application_text(self._primary_button, app_text("Scanning…"))
         self._primary_button.setEnabled(False)
         coordinator.start_scan(root)
@@ -309,7 +311,7 @@ class ModelOnboardingPresenter:
         if any(not isinstance(page, FamilyRecommendationPage) for page in pages):
             self._waiting_for_recommendations = False
             self._show_recommendation_failure(
-                app_text("CivitAI returned no usable recommendations.")
+                app_text("The model providers returned no usable recommendations.")
             )
             return
         self._waiting_for_recommendations = False
@@ -319,12 +321,12 @@ class ModelOnboardingPresenter:
         )
         if not typed_pages:
             self._show_recommendation_failure(
-                app_text("CivitAI returned no usable recommendations.")
+                app_text("The model providers returned no usable recommendations.")
             )
             return
         if not self._session.accept_recommendations(typed_pages):
             self._show_recommendation_failure(
-                app_text("CivitAI returned no usable recommendations.")
+                app_text("The model providers returned no usable recommendations.")
             )
             return
         self._navigate(OnboardingPageId.MODEL_RECOMMENDATIONS)
@@ -343,7 +345,7 @@ class ModelOnboardingPresenter:
             self._waiting_for_recommendations = False
             self._show_recommendation_failure(
                 app_text(
-                    "CivitAI recommendations could not be loaded. Try again or go back."
+                    "Model recommendations could not be loaded. Try again or go back."
                 )
             )
         elif operation == "link_import" and self._pending_import_urls:
@@ -415,7 +417,7 @@ class ModelOnboardingPresenter:
         family_id: object,
         urls: tuple[str, ...],
     ) -> None:
-        """Validate explicit CivitAI links through the generation-safe coordinator."""
+        """Validate provider links through the generation-safe coordinator."""
 
         if not isinstance(family_id, ModelFamilyId):
             return
@@ -434,6 +436,11 @@ class ModelOnboardingPresenter:
             urls,
             excluded_version_ids=frozenset(
                 card.recommendation.version_id
+                for page in self._session.state.recommendation_pages
+                for card in page.cards
+            ),
+            excluded_sha256=frozenset(
+                card.recommendation.sha256
                 for page in self._session.state.recommendation_pages
                 for card in page.cards
             ),
@@ -466,7 +473,7 @@ class ModelOnboardingPresenter:
         next_index = state.recommendation_page_index + 1
         if next_index < len(state.recommendation_pages):
             self._session.set_page_index(next_index)
-            self._render_current_recommendations()
+            self._navigate(OnboardingPageId.MODEL_RECOMMENDATIONS)
             return
         self._finish_recommendations()
 

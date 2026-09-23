@@ -68,6 +68,7 @@ def _project_lora_catalog_item(model: ModelCatalogItem) -> PromptLoraCatalogItem
         collision_key=model.collision_key,
         collision_count=model.collision_count,
         has_collision=model.has_collision,
+        sha256=model.sha256,
         search_text=_search_text(model),
     )
 

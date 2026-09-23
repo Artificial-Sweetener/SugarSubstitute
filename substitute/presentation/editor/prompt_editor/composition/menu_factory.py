@@ -27,6 +27,7 @@ from PySide6.QtWidgets import QWidget
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -138,6 +139,7 @@ class PromptEditorMenuFactory:
         cursor_global_position: Callable[[], QPoint],
         external_url_actions: PromptExternalUrlActionRunner,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
     ) -> PromptLoraPickerPopupPresenter:
         """Build the LoRA picker popup presenter."""
 
@@ -158,6 +160,7 @@ class PromptEditorMenuFactory:
                     global_position=global_position,
                     open_url=external_url_actions.open_civitai_model_page,
                     metadata_action_handler=metadata_action_handler,
+                    model_updates=model_updates,
                 ),
             )
 

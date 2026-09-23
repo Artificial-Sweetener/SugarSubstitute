@@ -42,11 +42,13 @@ from substitute.application.recipes.recipe_serialization_context import (
     RecipeSerializationPlan,
 )
 from substitute.application.recipes.model_download_resolution import (
+    RecipeModelDirectAcquirer,
     RecipeModelDownloadResolutionError,
     RecipeModelDownloadResolutionService,
 )
 from substitute.application.recipes.model_download_candidate import (
     RecipeModelDownloadCandidate,
+    RecipeModelRecoveryGateway,
 )
 from substitute.application.recipes.model_load_resolution import (
     RecipeModelCivitaiState,
@@ -82,9 +84,11 @@ __all__ = [
     "RecipeModelHashLookup",
     "PromptLoraHashLookup",
     "RecipeModelDownloadResolutionError",
+    "RecipeModelDirectAcquirer",
     "RecipeModelDownloadResolutionService",
     "RecipeModelCivitaiState",
     "RecipeModelDownloadCandidate",
+    "RecipeModelRecoveryGateway",
     "RecipeModelLoadResolver",
     "RecipeModelResolutionRequired",
     "RecipeModelResolutionSummary",

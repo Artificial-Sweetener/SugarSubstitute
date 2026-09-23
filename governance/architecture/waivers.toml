@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2907
+max_lines = 2925
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes catalog cache lifecycle and durable snapshots, backend refresh orchestration, metadata-record matching, picker item, thumbnail, and search-text projection. Extract pure picker-record projection from catalog loading, caching, and refresh orchestration."
 issue = "chore:SS-ARCH-014"
 review_by = 2026-12-15
-max_lines = 643
+max_lines = 602
 next_limit = 516
 debt = "SS-ARCH-014"
 
@@ -191,7 +191,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow model-field resolution and replacement, inline prompt LoRA resolution and replacement, BackEnd hash lookup and fingerprint-job polling, and CivitAI missing-model lookup orchestration and unresolved reporting. Extract prompt-LoRA traversal and replacement from model-field resolution and external lookup orchestration."
 issue = "chore:SS-ARCH-021"
 review_by = 2026-12-15
-max_lines = 549
+max_lines = 523
 next_limit = 500
 debt = "SS-ARCH-021"
 
@@ -413,7 +413,7 @@ kind = "remediation"
 justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, field-action contribution collection and title-menu routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1405
+max_lines = 1406
 next_limit = 1137
 debt = "SS-ARCH-045"
 
@@ -426,7 +426,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow override synchronization and application, override menu construction, toolbar snapshot and control reconciliation, override widget factory and sizing, seed-mode and model-picker behavior, autosave and restart-spacing integration. Extract override control creation and toolbar layout from workflow synchronization and override commands."
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
-max_lines = 1116
+max_lines = 1120
 next_limit = 912
 debt = "SS-ARCH-046"
 
@@ -491,7 +491,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1966
+max_lines = 1969
 next_limit = 1571
 debt = "SS-ARCH-051"
 
@@ -541,7 +541,7 @@ kind = "structural"
 justification = "PromptEditor owns one host-facing QObject contract: the concrete QFluent widget identity, public compatibility methods and signals, Qt virtual lifecycle, and ordered publication of the mounted runtime behind that identity. Text, cursor, undo, projection, feature, focus, drag, clipboard, and sizing entry points must remain methods or overrides on the same QObject so callers, Qt dispatch, signal connections, parentage, and object lifetime agree. Extracting the thin delegations into another collaborator would either remove them from the public widget, retain forwarding shims with duplicate API ownership, or fragment one facade into mixins with no independent state, lifecycle, or change cadence; extracting Qt overrides would still require proxy overrides and split super-call and widget-lifetime invariants. Command, reorder, emphasis, staged runtime publication, shell callbacks, panel wheel routing, feature behavior, and projection behavior remain separate focused owners; this module only mounts and exposes them through the canonical widget contract."
 issue = "chore:SS-WAIVER-S157"
 review_by = 2026-12-15
-max_lines = 747
+max_lines = 750
 
 [[waivers]]
 id = "SS-WAIVER-R065"
@@ -721,7 +721,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Extract editor composition behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 881
+max_lines = 882
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -825,7 +825,7 @@ kind = "remediation"
 justification = "The assessed file mixes editable combo-surface painting and caret state, popup lifecycle and keyboard navigation, model catalog resolution and unavailable-state handling, metadata context-menu integration, thumbnail preload routing and cache refresh, model-load progress presentation. Extract thumbnail/metadata coordination and catalog resolution from the mounted field and popup interaction."
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
-max_lines = 1394
+max_lines = 1418
 next_limit = 1130
 debt = "SS-ARCH-090"
 
@@ -1522,7 +1522,7 @@ kind = "structural"
 justification = "MediaWallView is one reusable virtualized media-wall control. Justified row layout, selection/navigation, activation, painting, scrolling, thumbnail preload, tooltip, pointer input, and title marquee all operate on the same item placement and current-index state."
 issue = "chore:SS-WAIVER-S070"
 review_by = 2026-12-15
-max_lines = 609
+max_lines = 640
 
 [[waivers]]
 id = "SS-WAIVER-S071"
@@ -1533,7 +1533,7 @@ kind = "structural"
 justification = "The module owns one declarative context-menu projection for a model metadata target. Action models, builder, presenter, output-canvas hierarchy expansion, thumbnail choices, and callbacks all produce and execute the same menu contract."
 issue = "chore:SS-WAIVER-S071"
 review_by = 2026-12-15
-max_lines = 566
+max_lines = 614
 
 [[waivers]]
 id = "SS-WAIVER-S073"

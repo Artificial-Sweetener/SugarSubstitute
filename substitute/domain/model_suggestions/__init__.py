@@ -17,6 +17,7 @@
 """Expose provider-neutral model suggestion contracts."""
 
 from substitute.domain.model_suggestions.models import (
+    ModelAcquisitionOffer,
     ModelSuggestion,
     ModelSuggestionAccess,
     ModelSuggestionAccessPolicy,
@@ -26,6 +27,7 @@ from substitute.domain.model_suggestions.models import (
 )
 
 __all__ = [
+    "ModelAcquisitionOffer",
     "ModelSuggestion",
     "ModelSuggestionAccess",
     "ModelSuggestionAccessPolicy",

@@ -45,9 +45,12 @@ class SupportedModelFamilyCatalog:
         if len(orders) != len(set(orders)):
             raise ValueError("Model family catalog orders must be unique.")
         if any(
-            not family.civitai.linked_base_models
-            or family.civitai.recommendation_base_model
-            not in family.civitai.linked_base_models
+            family.civitai is not None
+            and (
+                not family.civitai.linked_base_models
+                or family.civitai.recommendation_base_model
+                not in family.civitai.linked_base_models
+            )
             for family in ordered
         ):
             raise ValueError(
@@ -89,10 +92,10 @@ class SupportedModelFamilyCatalog:
         if not normalized:
             return None
         for family in self._families:
-            if normalized in {
-                family.family_id.value.casefold(),
-                family.civitai.recommendation_base_model.casefold(),
-            }:
+            identities = {family.family_id.value.casefold()}
+            if family.civitai is not None:
+                identities.add(family.civitai.recommendation_base_model.casefold())
+            if normalized in identities:
                 return family
         return None
 
@@ -172,6 +175,17 @@ SUPPORTED_MODEL_FAMILIES = SupportedModelFamilyCatalog(
                 ),
             ),
             primary_artifact_kind=ModelArtifactKind.DIFFUSION_MODELS,
+        ),
+        ModelFamilyDefinition(
+            family_id=ModelFamilyId.UPSCALERS,
+            catalog_order=90,
+            civitai=None,
+            detection=FamilyDetectionPolicy(
+                artifact_kind=ModelArtifactKind.UPSCALE_MODELS,
+                metadata_values=frozenset(),
+                tensor_key_prefixes=(),
+            ),
+            primary_artifact_kind=ModelArtifactKind.UPSCALE_MODELS,
         ),
     )
 )

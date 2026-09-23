@@ -53,7 +53,7 @@ from substitute.presentation.onboarding.onboarding_model_card_layout import (
 class ModelDownloadReviewPage(OnboardingPageFrame):
     """Review exact selected primary models as an editable cart."""
 
-    remove_requested = Signal(int)
+    remove_requested = Signal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build an approachable checkout with model cards and totals."""

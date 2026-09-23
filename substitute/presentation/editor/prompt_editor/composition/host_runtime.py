@@ -127,6 +127,7 @@ def build_prompt_editor_host_runtime(
             rich_prompt_rendering_enabled=bindings.rich_prompt_rendering_enabled,
             toggle_rich_prompt_rendering=bindings.toggle_rich_prompt_rendering,
             metadata_action_handler=inputs.model_metadata_action_handler,
+            model_updates=inputs.model_updates,
         ),
         PromptEditorMenuHostBindings(
             finish_pending_key_edit_block=(

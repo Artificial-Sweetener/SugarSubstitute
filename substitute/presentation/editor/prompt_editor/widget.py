@@ -95,6 +95,7 @@ from substitute.presentation.widgets.menu_model import MenuEntry
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.shared.logging.logger import get_logger
 
 from .autocomplete_preview_state import PromptAutocompletePreviewState
@@ -185,6 +186,7 @@ class PromptEditor(
         prompt_spellcheck_service: PromptSpellcheckService | None = None,
         open_url: Callable[[str], bool] | None = None,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
         prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
         danbooru_lookup_dispatcher_factory: (
             DanbooruWikiLookupDispatcherFactory | None
@@ -215,6 +217,7 @@ class PromptEditor(
             prompt_spellcheck_service=prompt_spellcheck_service,
             open_url=open_url,
             model_metadata_action_handler=model_metadata_action_handler,
+            model_updates=model_updates,
             prompt_task_executor_factory=prompt_task_executor_factory,
             danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
         )
