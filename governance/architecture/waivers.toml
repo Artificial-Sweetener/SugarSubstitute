@@ -713,19 +713,6 @@ next_limit = 1284
 debt = "SS-ARCH-084"
 
 [[waivers]]
-id = "SS-WAIVER-R085"
-owner = "workspace output ingestion"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/workspace_canvas_actions.py"
-kind = "remediation"
-justification = "The assessed file mixes generated and loaded output registration, prepared output authorization and metadata commit, preview-lane closure and projection scheduling, asynchronous preparation submission and failure presentation, workflow activity and surface invalidation. Extract asynchronous preparation submission and failure presentation from output registration and projection retirement."
-issue = "chore:SS-ARCH-085"
-review_by = 2026-12-15
-max_lines = 703
-next_limit = 560
-debt = "SS-ARCH-085"
-
-[[waivers]]
 id = "SS-WAIVER-R087"
 owner = "workspace cube picker actions"
 rule = "STRUCT003"

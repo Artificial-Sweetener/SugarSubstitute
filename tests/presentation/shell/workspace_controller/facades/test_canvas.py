@@ -46,7 +46,7 @@ def test_update_canvas_callback_submits_to_output_pipeline(
     image_path.write_text("x")
     workflow_payload = {"N1": {"_meta": {"title": "CubeA.KSampler"}}}
 
-    controller.canvas_actions.update_canvas_callback(
+    controller.output_preparation_actions.update_canvas_callback(
         workflow_id="wf-1",
         workflow=workflow_payload,
         file_path=str(image_path),

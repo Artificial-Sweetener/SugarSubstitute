@@ -61,13 +61,17 @@ class WorkflowSessionProtocol(CommitWorkflowSessionProtocol, Protocol):
 
 
 class OutputCommitHandlerProtocol(Protocol):
-    """Describe GUI-thread output commit hooks."""
+    """Describe the GUI-thread prepared Output commit hook."""
 
     def commit_prepared_output_image(
         self,
         prepared: PreparedOutputImage,
     ) -> OutputImageRegistrationResult:
         """Commit one prepared output to application state."""
+
+
+class OutputPreparationFailureHandlerProtocol(Protocol):
+    """Describe GUI-thread Output preparation failure presentation."""
 
     def handle_output_image_preparation_failed(
         self,
@@ -98,6 +102,7 @@ class OutputImagePipeline(QObject):
         workflow_session_service: WorkflowSessionProtocol,
         canvas_io_service: CanvasIoMetadataProtocol,
         output_commit_handler: OutputCommitHandlerProtocol,
+        output_preparation_failure_handler: OutputPreparationFailureHandlerProtocol,
         output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol,
         canvas_host: object,
         parent: QObject | None = None,
@@ -138,7 +143,9 @@ class OutputImagePipeline(QObject):
         )
         self._commit_queue = commit_queue or PreparedOutputCommitQueue(
             commit_prepared=output_commit_handler.commit_prepared_output_image,
-            handle_failure=output_commit_handler.handle_output_image_preparation_failed,
+            handle_failure=(
+                output_preparation_failure_handler.handle_output_image_preparation_failed
+            ),
             projection_scheduler=self._projection_scheduler,
             parent=self,
         )

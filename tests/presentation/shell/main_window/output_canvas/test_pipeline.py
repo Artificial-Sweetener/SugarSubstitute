@@ -104,6 +104,11 @@ class _Shell:
         self.workflow_session_service = object()
         self.canvas_io_service = object()
         self.workspace_canvas_actions = object()
+        self.workspace_controller = type(
+            "WorkspaceControllerStub",
+            (),
+            {"output_preparation_actions": object()},
+        )()
         self.output_canvas_projection_coordinator = object()
         self.canvas_host = _CanvasHost()
         self.generation_job_queue_service = object()
@@ -183,6 +188,9 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
         "workflow_session_service": shell.workflow_session_service,
         "canvas_io_service": shell.canvas_io_service,
         "output_commit_handler": shell.workspace_canvas_actions,
+        "output_preparation_failure_handler": (
+            shell.workspace_controller.output_preparation_actions
+        ),
         "output_canvas_projection_coordinator": (
             shell.output_canvas_projection_coordinator
         ),
