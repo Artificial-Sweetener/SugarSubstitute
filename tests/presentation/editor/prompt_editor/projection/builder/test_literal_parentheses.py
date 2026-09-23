@@ -82,6 +82,38 @@ def test_projected_emphasis_hides_nested_literal_escapes_with_source_mapping() -
     assert closing_escape + 1 not in content_run.source_positions
 
 
+def test_nested_emphasis_resolves_hidden_escape_to_inner_visible_caret() -> None:
+    """Keep a source position inside an escape on the innermost caret stream."""
+
+    source = r"((casshern \(series\):1.25) perspective:1.10)"
+    projection = _build_projection(source)
+    opening_escape = source.index(r"\(")
+
+    before = projection.caret_map.state_for_source_position(opening_escape + 1)
+    after = projection.caret_map.state_for_source_position(
+        opening_escape + 1, prefer_after=True
+    )
+
+    assert before.source_position == opening_escape
+    assert after.source_position == opening_escape + 2
+
+
+def test_nested_outer_plain_content_resolves_hidden_escape() -> None:
+    """Keep visible caret steps in plain content between nested decorations."""
+
+    source = r"((cat:1.05) perspective \(wide\):1.10)"
+    projection = _build_projection(source)
+    opening_escape = source.index(r"\(")
+
+    before = projection.caret_map.state_for_source_position(opening_escape + 1)
+    after = projection.caret_map.state_for_source_position(
+        opening_escape + 1, prefer_after=True
+    )
+
+    assert before.source_position == opening_escape
+    assert after.source_position == opening_escape + 2
+
+
 def test_projection_builder_raw_mode_preserves_literal_parenthesis_escapes_verbatim() -> (
     None
 ):

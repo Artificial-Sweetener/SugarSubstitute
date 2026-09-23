@@ -33,7 +33,6 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 )
 from substitute.presentation.editor.prompt_editor.projection.collapse_models import (
     PromptProjectionCollapseCandidate,
-    contains_nested_supported_range,
 )
 from substitute.presentation.editor.prompt_editor.projection.exact_weight_projection import (
     exact_weight_edit_for_token,
@@ -52,7 +51,6 @@ def build_emphasis_collapse_candidates(
     session: PromptProjectionSession,
     active_span_range: tuple[int, int] | None,
     decoration_accent_ranges: frozenset[tuple[int, int]],
-    all_supported_ranges: tuple[tuple[int, int], ...],
 ) -> tuple[PromptProjectionCollapseCandidate, ...]:
     """Return collapsed emphasis tokens allowed by current session state."""
 
@@ -71,7 +69,6 @@ def build_emphasis_collapse_candidates(
             synthetic=False,
             active_span_range=active_span_range,
             decoration_accent_ranges=decoration_accent_ranges,
-            all_supported_ranges=all_supported_ranges,
         )
         if candidate is not None:
             candidates.append(candidate)
@@ -81,6 +78,12 @@ def build_emphasis_collapse_candidates(
     if any(
         span.content_start == transient.content_start
         and span.content_end == transient.content_end
+        for span in emphasis_view.emphasis_spans
+    ):
+        return tuple(candidates)
+    if any(
+        span.outer_start <= transient.content_start < span.content_start
+        and transient.content_end <= span.outer_end
         for span in emphasis_view.emphasis_spans
     ):
         return tuple(candidates)
@@ -96,7 +99,6 @@ def build_emphasis_collapse_candidates(
         synthetic=True,
         active_span_range=active_span_range,
         decoration_accent_ranges=decoration_accent_ranges,
-        all_supported_ranges=all_supported_ranges,
     )
     if transient_candidate is not None:
         candidates.append(transient_candidate)
@@ -131,14 +133,11 @@ def _emphasis_candidate(
     synthetic: bool,
     active_span_range: tuple[int, int] | None,
     decoration_accent_ranges: frozenset[tuple[int, int]],
-    all_supported_ranges: tuple[tuple[int, int], ...],
 ) -> PromptProjectionCollapseCandidate | None:
     """Build one emphasis candidate when expansion and nesting permit it."""
 
     token_range = (source_start, source_end)
     if session.expanded_source_range == token_range:
-        return None
-    if contains_nested_supported_range(token_range, all_supported_ranges):
         return None
     token_id = (
         f"transient-emphasis:{source_start}"
