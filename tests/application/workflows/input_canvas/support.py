@@ -29,6 +29,12 @@ from substitute.application.workflows.input_asset_endpoint_service import (
 from substitute.application.workflows.input_canvas_plan_service import (
     InputCanvasPlanService,
 )
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
+)
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
 )
@@ -121,7 +127,7 @@ def _workflow_input_service(
     """Build the workflow input-canvas service with standard collaborators."""
 
     return WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -154,4 +160,15 @@ def _input_canvas_plan_service(
     return InputCanvasPlanService(
         node_definition_service=definition_service,
         endpoint_service=InputAssetEndpointService(definition_service),
+    )
+
+
+def _input_canvas_binding_service(
+    definitions: Mapping[str, JsonObject] | None = None,
+) -> InputCanvasBindingService:
+    """Build graph-backed Input canvas binding queries for service tests."""
+
+    return InputCanvasBindingService(
+        plans=_input_canvas_plan_service(definitions),
+        graph_sections=WorkflowGraphSectionService(),
     )

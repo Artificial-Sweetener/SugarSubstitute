@@ -33,6 +33,7 @@ from substitute.presentation.canvas.input.input_mask_selection_presenter import 
     InputMaskSelectionPresenter,
 )
 from substitute.presentation.shell import input_canvas_composition
+from substitute.presentation.shell import input_workflow_composition
 from tests.presentation.shell.main_window.input_canvas.support import (
     _FakeInputCanvasCapabilityService,
     _FakeInputCanvasInteractionProfileService,
@@ -57,7 +58,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     """Ensure Input canvas presenter composition stays outside MainWindow.__init__."""
 
     monkeypatch.setattr(
-        input_canvas_composition,
+        input_workflow_composition,
         "WorkflowInputCanvasService",
         _FakeWorkflowInputCanvasService,
     )
@@ -198,7 +199,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         is shell.input_generation_snapshot_service
     )
     assert composition.workflow_input_canvas_service.kwargs == {
-        "input_canvas_plan_service": shell.input_canvas_plan_service,
+        "input_bindings": composition.input_canvas_bindings,
         "input_state": shell.input_canvas_state,
         "canvas_io_service": shell.canvas_io_service,
         "workflow_asset_service": shell.workflow_asset_service,

@@ -37,23 +37,11 @@ from substitute.application.workflows.input_canvas_authority_reconciliation_serv
 from substitute.application.workflows.input_canvas_interaction_profile_service import (
     InputCanvasInteractionProfileService,
 )
-from substitute.application.workflows.ordered_mask_graph_value_service import (
-    OrderedMaskGraphValueService,
-)
-from substitute.application.workflows.restored_ordered_mask_collection_service import (
-    RestoredOrderedMaskCollectionService,
-)
 from substitute.application.workflows.synthetic_canvas_resolution_role_service import (
     SyntheticCanvasResolutionRoleService,
 )
 from substitute.application.workflows.synthetic_canvas_resolution_transaction_service import (
     SyntheticCanvasResolutionTransactionService,
-)
-from substitute.application.workflows.workflow_input_canvas_service import (
-    WorkflowInputCanvasService,
-)
-from substitute.application.workflows.workflow_input_canvas_duplication_service import (
-    WorkflowInputCanvasDuplicationService,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     create_input_canvas_tool_system,
@@ -132,6 +120,9 @@ from substitute.presentation.shell.input_presentation_composition import (
     InputPresentationComposition,
     compose_input_presenters,
 )
+from substitute.presentation.shell.input_workflow_composition import (
+    compose_input_workflow_services,
+)
 from substitute.presentation.shell.regional_mask_action_controller import (
     RegionalMaskActionController,
 )
@@ -145,7 +136,8 @@ class MainWindowInputCanvasComposition:
     """Hold Input-canvas collaborators composed after canvas widgets exist."""
 
     workflow_input_canvas_service: Any
-    workflow_input_canvas_duplication_service: WorkflowInputCanvasDuplicationService
+    input_canvas_bindings: Any
+    workflow_input_canvas_duplication_service: Any
     input_canvas_authority_reconciliation_service: Any
     input_canvas_tool_controller: Any
     input_canvas_tool_profile_controller: Any
@@ -176,24 +168,14 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         raise RuntimeError("Canvas tabs must include an Input canvas.")
     canvas_route_controller = canvas_route_controller_for(shell)
 
-    workflow_input_canvas_service = WorkflowInputCanvasService(
-        input_canvas_plan_service=shell.input_canvas_plan_service,
-        input_state=shell.input_canvas_state,
-        canvas_io_service=shell.canvas_io_service,
-        workflow_asset_service=shell.workflow_asset_service,
-        graph_section_service=shell.graph_section_service,
-    )
-    workflow_input_canvas_duplication_service = WorkflowInputCanvasDuplicationService(
-        workflow_inputs=workflow_input_canvas_service,
-        graph_sections=shell.graph_section_service,
+    workflow_composition = compose_input_workflow_services(
+        shell=shell,
         input_document=input_canvas.document,
-        canvas_io=shell.canvas_io_service,
     )
-    restored_ordered_mask_collections = RestoredOrderedMaskCollectionService(
-        endpoint_service=shell.input_asset_endpoint_service,
-        graph_sections=shell.graph_section_service,
-        graph_values=OrderedMaskGraphValueService(shell.graph_section_service),
-    )
+    input_canvas_bindings = workflow_composition.bindings
+    workflow_input_canvas_service = workflow_composition.workflows
+    workflow_input_canvas_duplication_service = workflow_composition.duplication
+    restored_ordered_mask_collections = workflow_composition.restored_masks
     input_tool_runtime = create_input_canvas_tool_system()
     input_tool_layout = create_input_canvas_tool_layout()
     install_input_tool_options(
@@ -259,6 +241,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_presentation = compose_input_presenters(
         shell=shell,
         input_canvas=input_canvas,
+        input_bindings=input_canvas_bindings,
         workflow_inputs=workflow_input_canvas_service,
         shell_adapter=input_canvas_shell_adapter,
         regional_masks=regional_mask_presenter,
@@ -295,7 +278,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_node_interaction_controller = InputNodeInteractionController(
         active_workflow=shell.get_active_workflow,
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
-        workflow_input_canvas_service=workflow_input_canvas_service,
+        input_bindings=input_canvas_bindings,
         input_routes=shell.input_routes,
         materialize_image_selection=(input_presentation.images.materialize_selection),
         apply_mask_selection=input_presentation.masks.apply_selection,
@@ -311,7 +294,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_mask_visual_opacity_controller = InputMaskVisualOpacityController(
         active_workflow=shell.get_active_workflow,
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
-        binding_service=workflow_input_canvas_service,
+        binding_service=input_canvas_bindings,
         state_service=shell.input_mask_visuals,
         document=input_canvas.document,
         project_opacity=lambda workflow_id, association_key, opacity: (
@@ -417,6 +400,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
+        input_canvas_bindings=input_canvas_bindings,
         workflow_input_canvas_duplication_service=(
             workflow_input_canvas_duplication_service
         ),
@@ -446,6 +430,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         synthetic_canvas_resolution_controller=synthetic_resolution_controller,
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
+    shell.input_canvas_bindings = composition.input_canvas_bindings
     shell.workflow_input_canvas_duplication_service = (
         composition.workflow_input_canvas_duplication_service
     )

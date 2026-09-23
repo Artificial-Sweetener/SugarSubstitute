@@ -47,6 +47,9 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.application.workflows.input_canvas_state_composition import (
     compose_input_canvas_state,
 )
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
+)
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
 )
@@ -225,7 +228,10 @@ def test_prompt_by_region_load_author_restore_and_stage(
         endpoint_service=endpoint_service,
     )
     workflow_service = WorkflowInputCanvasService(
-        input_canvas_plan_service=plan_service,
+        input_bindings=InputCanvasBindingService(
+            plans=plan_service,
+            graph_sections=graph_sections,
+        ),
         input_state=input_state,
         canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
         graph_section_service=graph_sections,

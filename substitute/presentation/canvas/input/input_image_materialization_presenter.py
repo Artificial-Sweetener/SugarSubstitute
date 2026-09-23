@@ -31,6 +31,7 @@ from substitute.presentation.canvas.input.input_node_preview_coordinator import 
 )
 from substitute.presentation.canvas.input.input_presentation_ports import (
     EditorMaskPickerPort,
+    InputCanvasBindingPort,
     InputImageStatePort,
     InputImageWorkflowPort,
     WorkflowSessionPort,
@@ -56,6 +57,7 @@ class InputImageMaterializationPresenter:
         active_panel: Callable[[], EditorMaskPickerPort | None],
         workflow_session: WorkflowSessionPort,
         workflow_inputs: InputImageWorkflowPort,
+        input_bindings: InputCanvasBindingPort,
         input_state: InputImageStatePort,
         workflow_name: Callable[[str], str],
         projects_dir: Callable[[], Path],
@@ -70,6 +72,7 @@ class InputImageMaterializationPresenter:
         self._active_panel = active_panel
         self._workflow_session = workflow_session
         self._workflow_inputs = workflow_inputs
+        self._input_bindings = input_bindings
         self._input_state = input_state
         self._workflow_name = workflow_name
         self._projects_dir = projects_dir
@@ -110,7 +113,7 @@ class InputImageMaterializationPresenter:
         resolved_image_id = _resolve_uuid(image_id)
         if workflow is None or resolved_image_id is None or not image_path:
             return
-        identity = self._workflow_inputs.resolve_loaded_input_canvas_image_identity(
+        identity = self._input_bindings.resolve_loaded_image_identity(
             workflow,
             resolved_image_id,
         )

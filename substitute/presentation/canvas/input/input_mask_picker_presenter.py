@@ -30,6 +30,7 @@ from substitute.presentation.canvas.input.input_node_preview_coordinator import 
 )
 from substitute.presentation.canvas.input.input_presentation_ports import (
     EditorMaskPickerPort,
+    InputCanvasBindingPort,
     InputMaskPickerWorkflowPort,
     WorkflowSessionPort,
 )
@@ -47,6 +48,7 @@ class InputMaskPickerPresenter:
         active_workflow: Callable[[], WorkflowState | None],
         active_panel: Callable[[], EditorMaskPickerPort | None],
         workflow_session: WorkflowSessionPort,
+        input_bindings: InputCanvasBindingPort,
         workflow_inputs: InputMaskPickerWorkflowPort,
         workflow_name: Callable[[str], str],
         projects_dir: Callable[[], Path],
@@ -57,6 +59,7 @@ class InputMaskPickerPresenter:
         self._active_workflow = active_workflow
         self._active_panel = active_panel
         self._workflow_session = workflow_session
+        self._input_bindings = input_bindings
         self._workflow_inputs = workflow_inputs
         self._workflow_name = workflow_name
         self._projects_dir = projects_dir
@@ -74,7 +77,7 @@ class InputMaskPickerPresenter:
         projects_dir = self._projects_dir()
         for cube_alias, node_name in scalar_mask_picker_identities(
             workflow,
-            self._workflow_inputs.input_canvas_plan,
+            self._input_bindings.plan,
         ):
             self.refresh(
                 cube_alias,

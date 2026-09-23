@@ -35,7 +35,7 @@ from tests.application.workflows.input_canvas.support import (
     _fake_input_state_composition,
     _mask_buffer_path,
     _workflow_input_service,
-    _input_canvas_plan_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -63,7 +63,7 @@ def test_materialize_input_image_switching_back_reuses_compatible_bound_mask(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -111,7 +111,7 @@ def test_materialize_input_image_replaces_mismatched_expected_mask_with_blank(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -162,7 +162,7 @@ def test_materialize_input_image_reuses_compatible_variant_after_mismatch(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -263,7 +263,7 @@ def test_materialize_input_image_preserves_explicit_manual_mask_asset(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
         workflow_asset_service=asset_service,
@@ -319,7 +319,7 @@ def test_materialize_input_image_replaces_wrong_size_explicit_manual_mask(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
         workflow_asset_service=asset_service,

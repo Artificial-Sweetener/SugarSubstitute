@@ -41,6 +41,9 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.application.workflows.input_canvas_state_composition import (
     compose_input_canvas_state,
 )
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
+)
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
 )
@@ -237,9 +240,13 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         image_registry=CanvasImageRegistry(),
     )
     graph_section_service = WorkflowGraphSectionService()
+    input_bindings = InputCanvasBindingService(
+        plans=_plan_service(),
+        graph_sections=graph_section_service,
+    )
     asset_service = WorkflowAssetService(graph_section_service)
     workflow_service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_plan_service(),
+        input_bindings=input_bindings,
         input_state=input_state,
         canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
         workflow_asset_service=asset_service,
@@ -258,6 +265,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         active_workflow=lambda: workflow,
         active_panel=lambda: panel,
         workflow_session=session,
+        input_bindings=input_bindings,
         workflow_inputs=workflow_service,
         workflow_name=lambda _workflow_id: workflow_name,
         projects_dir=lambda: tmp_path,
@@ -294,6 +302,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         active_panel=lambda: panel,
         workflow_session=session,
         workflow_inputs=workflow_service,
+        input_bindings=input_bindings,
         input_state=input_state.images,
         workflow_name=lambda _workflow_id: workflow_name,
         projects_dir=lambda: tmp_path,
@@ -311,7 +320,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
     interaction_controller = InputNodeInteractionController(
         active_workflow=lambda: workflow,
         active_workflow_id=lambda: workflow_id,
-        workflow_input_canvas_service=workflow_service,
+        input_bindings=input_bindings,
         input_routes=input_state.routes,
         materialize_image_selection=image_presenter.materialize_selection,
         apply_mask_selection=mask_presenter.apply_selection,

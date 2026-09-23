@@ -35,7 +35,7 @@ from tests.application.workflows.input_canvas.support import (
     _mask_buffer_path,
     _image_buffer_path,
     _workflow_input_service,
-    _input_canvas_plan_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -98,7 +98,7 @@ def test_materialize_input_image_hydrates_existing_expected_mask_file(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -145,7 +145,7 @@ def test_materialize_input_image_creates_input_bound_blank_mask_and_updates_buff
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -191,7 +191,7 @@ def test_materialize_input_image_ignores_stale_previous_mask_path(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )

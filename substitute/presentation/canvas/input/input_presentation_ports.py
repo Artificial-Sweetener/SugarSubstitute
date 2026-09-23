@@ -48,13 +48,6 @@ class EditorMaskPickerPort(Protocol):
 class InputImageWorkflowPort(Protocol):
     """Expose image materialization and reconciliation use cases."""
 
-    def resolve_loaded_input_canvas_image_identity(
-        self,
-        workflow: WorkflowState,
-        image_id: UUID,
-    ) -> object:
-        """Resolve a canvas image id to a workflow graph input identity."""
-
     def materialize_input_image(
         self,
         *,
@@ -111,15 +104,26 @@ class InputMaskSelectionWorkflowPort(Protocol):
         """Validate and apply one user-selected Input mask."""
 
 
-class InputMaskPickerWorkflowPort(Protocol):
-    """Expose authoritative scalar mask-picker projection data."""
+class InputCanvasBindingPort(Protocol):
+    """Expose graph-owned Input canvas binding and image identity queries."""
 
-    def input_canvas_plan(
+    def plan(
         self,
         workflow: WorkflowState,
         section_key: str,
     ) -> InputCanvasPlan:
         """Return semantic image and mask bindings for one graph section."""
+
+    def resolve_loaded_image_identity(
+        self,
+        workflow: WorkflowState,
+        image_id: UUID,
+    ) -> object:
+        """Resolve a canvas image id to a workflow graph input identity."""
+
+
+class InputMaskPickerWorkflowPort(Protocol):
+    """Expose authoritative scalar mask path resolution."""
 
     def resolve_input_mask_path(
         self,
@@ -154,6 +158,7 @@ class InputMaskActivationPort(Protocol):
 
 __all__ = [
     "EditorMaskPickerPort",
+    "InputCanvasBindingPort",
     "InputImageStatePort",
     "InputImageWorkflowPort",
     "InputMaskActivationPort",

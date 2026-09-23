@@ -33,7 +33,7 @@ from tests.application.workflows.input_canvas.support import (
     _build_workflow,
     _fake_input_state_composition,
     _workflow_input_service,
-    _input_canvas_plan_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -56,7 +56,7 @@ def test_reconcile_loaded_input_canvas_image_preserves_existing_image_uuid(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -107,7 +107,7 @@ def test_reconcile_loaded_input_canvas_image_reuses_existing_canvas_mask(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
@@ -176,7 +176,7 @@ def test_reconcile_loaded_input_canvas_image_drops_stale_mask_association(
         created_destinations=created_destinations,
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
+        input_bindings=_input_canvas_binding_service(),
         input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )

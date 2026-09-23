@@ -36,7 +36,7 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _fake_input_state_composition,
-    _input_canvas_plan_service,
+    _input_canvas_binding_service,
 )
 
 
@@ -125,7 +125,7 @@ def test_materialize_loaded_section_creates_synthetic_mask_only_canvas(
         created_destinations=[],
     )
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=io_service,
     )
@@ -227,7 +227,7 @@ def test_prompt_by_region_materializes_initial_ordered_mask_at_latent_size(
     )
     created_destinations: list[Path] = []
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
@@ -359,7 +359,7 @@ def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
     left_path.write_bytes(b"left")
     right_path.write_bytes(b"right")
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
@@ -465,7 +465,7 @@ def test_prompt_by_region_first_add_materializes_synthetic_surface(
     expected_mask = tmp_path / "Recipe" / "masks" / "region.png"
     state_service = _FakeInputCanvasStateService(image_id=image_id, mask_id=mask_id)
     service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
+        input_bindings=_input_canvas_binding_service(definitions),
         input_state=_fake_input_state_composition(state_service),
         canvas_io_service=_FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),

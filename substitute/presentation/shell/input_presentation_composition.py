@@ -25,6 +25,9 @@ from typing import Any
 from substitute.application.workflows.workflow_input_canvas_service import (
     WorkflowInputCanvasService,
 )
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
+)
 from substitute.presentation.canvas.input.input_image_materialization_presenter import (
     InputImageMaterializationPresenter,
 )
@@ -62,6 +65,7 @@ def compose_input_presenters(
     *,
     shell: Any,
     input_canvas: Any,
+    input_bindings: InputCanvasBindingService,
     workflow_inputs: WorkflowInputCanvasService,
     shell_adapter: InputCanvasShellAdapter,
     regional_masks: RegionalMaskCollectionPresenter,
@@ -73,6 +77,7 @@ def compose_input_presenters(
         active_workflow=shell.get_active_workflow,
         active_panel=lambda: shell.active_editor_panel,
         workflow_session=shell.workflow_session_service,
+        input_bindings=input_bindings,
         workflow_inputs=workflow_inputs,
         workflow_name=shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),
@@ -102,6 +107,7 @@ def compose_input_presenters(
         active_panel=lambda: shell.active_editor_panel,
         workflow_session=shell.workflow_session_service,
         workflow_inputs=workflow_inputs,
+        input_bindings=input_bindings,
         input_state=shell.input_image_assets,
         workflow_name=shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),

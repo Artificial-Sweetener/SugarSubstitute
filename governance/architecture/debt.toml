@@ -261,17 +261,17 @@ next_extraction = "Extract persisted asset-reference decoding and path resolutio
 id = "SS-ARCH-026"
 owner = "workflow input canvas"
 paths = ["substitute/application/workflows/workflow_input_canvas_service.py"]
-fingerprint = "sha256:416fc4ed4aeaa31a554aa021863c30dd78451c93f33a42d1838db5ecc12b915c"
+fingerprint = "sha256:a5c64768819cb3ef037acbeb33148710c2cc6cc1af89547bd95f7e1ac28c1440"
 issue = "chore:SS-ARCH-026"
 review_by = 2026-12-15
 responsibilities = [
   "ordered mask-region mutation",
   "image and mask asset association",
-  "loaded image identity reconciliation",
+  "user-selected mask validation and application",
   "image and mask materialization",
-  "canvas plan and section projection",
+  "loaded canvas section projection",
 ]
-next_extraction = "Extract ordered-region and association mutation from materialization and loaded-canvas reconciliation."
+next_extraction = "Extract user-selected mask application and asset association from image and section materialization."
 
 [[debts]]
 id = "SS-ARCH-028"

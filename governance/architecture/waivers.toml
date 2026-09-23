@@ -227,10 +227,10 @@ owner = "workflow input canvas"
 rule = "STRUCT003"
 path = "substitute/application/workflows/workflow_input_canvas_service.py"
 kind = "remediation"
-justification = "The assessed file mixes ordered mask-region mutation, image and mask asset association, loaded image identity reconciliation, image and mask materialization, canvas plan and section projection. Extract ordered-region and association mutation from materialization and loaded-canvas reconciliation."
+justification = "The assessed file mixes ordered mask-region mutation, image and mask asset association, user-selected mask validation and application, image and mask materialization, loaded canvas section projection. Extract user-selected mask application and asset association from image and section materialization."
 issue = "chore:SS-ARCH-026"
 review_by = 2026-12-15
-max_lines = 1000
+max_lines = 917
 next_limit = 800
 debt = "SS-ARCH-026"
 
@@ -1807,17 +1807,6 @@ justification = "This module owns one capability-driven Manager provisioning tra
 issue = "chore:SS-WAIVER-S149"
 review_by = 2026-12-15
 max_lines = 512
-[[waivers]]
-id = "SS-WAIVER-S151"
-owner = "input canvas composition"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/input_canvas_composition.py"
-kind = "structural"
-justification = "MainWindowInputCanvasComposition and compose_input_canvas_controllers own the remaining atomic Input-canvas dependency graph after delegating the cohesive image, mask, and picker presentation subgraph to input_presentation_composition. The root still constructs, wires, returns, and publishes application services, document controllers, and lifecycle observers in dependency order; further extraction would split their shared mount and teardown authority."
-issue = "chore:SS-WAIVER-S151"
-review_by = 2026-12-15
-max_lines = 504
-
 [[waivers]]
 id = "SS-WAIVER-S152"
 owner = "canonical prompt line assembly"

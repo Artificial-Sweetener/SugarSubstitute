@@ -35,7 +35,7 @@ from substitute.shared.logging.logger import get_logger, log_warning
 _LOGGER = get_logger("presentation.canvas.input.input_node_interaction_controller")
 
 
-class _WorkflowInputCanvasServicePort(Protocol):
+class _InputCanvasBindingPort(Protocol):
     """Describe graph binding queries required by picker interaction."""
 
     def bindings_for_image(
@@ -63,7 +63,7 @@ class InputNodeInteractionController:
         *,
         active_workflow: Callable[[], WorkflowState | None],
         active_workflow_id: Callable[[], str],
-        workflow_input_canvas_service: _WorkflowInputCanvasServicePort,
+        input_bindings: _InputCanvasBindingPort,
         input_routes: InputRouteProjectionService,
         materialize_image_selection: Callable[[str, str, str], bool],
         apply_mask_selection: Callable[[str, str, str], bool],
@@ -77,7 +77,7 @@ class InputNodeInteractionController:
 
         self._active_workflow = active_workflow
         self._active_workflow_id = active_workflow_id
-        self._workflow_input_canvas_service = workflow_input_canvas_service
+        self._input_bindings = input_bindings
         self._input_routes = input_routes
         self._materialize_image_selection = materialize_image_selection
         self._apply_mask_selection = apply_mask_selection
@@ -128,7 +128,7 @@ class InputNodeInteractionController:
             image_id,
         ):
             return
-        bindings = self._workflow_input_canvas_service.bindings_for_image(
+        bindings = self._input_bindings.bindings_for_image(
             workflow,
             cube_alias,
             node_name,
@@ -171,7 +171,7 @@ class InputNodeInteractionController:
         if workflow is None:
             return
         workflow_id = self._active_workflow_id()
-        binding = self._workflow_input_canvas_service.binding_for_mask(
+        binding = self._input_bindings.binding_for_mask(
             workflow,
             cube_alias,
             node_name,
