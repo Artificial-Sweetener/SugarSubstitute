@@ -591,6 +591,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return self._editor_facade.token_at_viewport_position(position)
 
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+    ) -> PromptProjectionToken | None:
+        """Return emphasis owning visible text without a token-specific run."""
+
+        return self._editor_facade.enclosing_emphasis_at_viewport_position(position)
+
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local anchor rect used by any token controls."""
 

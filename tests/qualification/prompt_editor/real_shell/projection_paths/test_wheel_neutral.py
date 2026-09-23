@@ -30,6 +30,7 @@ from tests.presentation.editor.prompt_editor.interactions.weight.mounting import
     anchor_rect_for,
     emphasis_token_for,
     reveal_emphasis_controls,
+    send_viewport_mouse_move,
     token_rect_for,
     wheel_widget_at_point,
 )
@@ -110,7 +111,9 @@ def test_neutral_wheel_decoration_disappears_after_pointer_leaves(
     assert editor.toPlainText() == "1girl, portrait"
     assert emphasis_token_for(editor).value_text == "1.00"
 
-    QTest.mouseMove(viewport, QPoint(viewport.width() - 5, viewport.height() - 5))
+    send_viewport_mouse_move(
+        viewport, QPoint(viewport.width() - 5, viewport.height() - 5)
+    )
     real_shell_scenario.wait_until(
         lambda: (
             not any(

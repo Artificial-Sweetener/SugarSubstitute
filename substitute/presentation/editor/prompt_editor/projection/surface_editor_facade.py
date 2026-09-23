@@ -323,6 +323,18 @@ class PromptProjectionSurfaceEditorFacade:
 
         return self._bindings.presentation.queries.token_at_viewport_position(position)
 
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+    ) -> PromptProjectionToken | None:
+        """Return emphasis owning visible text lacking an explicit token run."""
+
+        return (
+            self._bindings.presentation.queries.enclosing_emphasis_at_viewport_position(
+                position
+            )
+        )
+
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local anchor rect for token controls."""
 

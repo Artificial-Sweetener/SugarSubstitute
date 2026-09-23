@@ -32,6 +32,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.runs import (
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
+    PromptProjectionTokenKind,
 )
 from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisSuffixRenderer,
@@ -231,6 +232,42 @@ class PromptTokenGeometry:
             ):
                 return token
         return None
+
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+        *,
+        scroll_offset: float,
+    ) -> PromptProjectionToken | None:
+        """Find the innermost emphasis owning visible text without a token run."""
+
+        document_position = QPointF(position.x(), position.y() + scroll_offset)
+        fragment = self._snapshot.text_fragment_at(document_position)
+        if (
+            fragment is None
+            or fragment.token_id is not None
+            or not fragment.source_positions
+        ):
+            return None
+        source_start = min(fragment.source_positions)
+        source_end = max(fragment.source_positions)
+        nearest_token: PromptProjectionToken | None = None
+        nearest_span: int | None = None
+        for token in self._projection_document.tokens:
+            content_range = token.content_range
+            if (
+                token.kind is not PromptProjectionTokenKind.EMPHASIS
+                or content_range is None
+            ):
+                continue
+            content_start, content_end = content_range
+            if content_start > source_start or source_end > content_end:
+                continue
+            span = content_end - content_start
+            if nearest_span is None or span < nearest_span:
+                nearest_token = token
+                nearest_span = span
+        return nearest_token
 
     def fragments_for_token(
         self,

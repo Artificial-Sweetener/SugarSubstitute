@@ -194,8 +194,8 @@ def reveal_emphasis_controls(
     reset_point = QPoint(
         max(1, box.viewport().width() - 3), max(1, box.viewport().height() - 3)
     )
-    _send_viewport_mouse_move(box.viewport(), reset_point)
-    _send_viewport_mouse_move(
+    send_viewport_mouse_move(box.viewport(), reset_point)
+    send_viewport_mouse_move(
         box.viewport(), anchor_rect_for(box, token).center().toPoint()
     )
     controls.refresh_geometry()
@@ -224,7 +224,7 @@ def reveal_emphasis_controls(
     return controls
 
 
-def _send_viewport_mouse_move(viewport: QWidget, point: QPoint) -> None:
+def send_viewport_mouse_move(viewport: QWidget, point: QPoint) -> None:
     """Deliver a viewport move independent of other Qt workers' desktop cursor."""
 
     QApplication.sendEvent(

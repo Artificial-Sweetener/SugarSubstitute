@@ -76,6 +76,12 @@ class PromptTokenWeightGeometrySurface(Protocol):
     ) -> PromptProjectionToken | None:
         """Return the projected token painted at one viewport-local point."""
 
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+    ) -> PromptProjectionToken | None:
+        """Return emphasis containing visible text without a token-specific run."""
+
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local control anchor for one token."""
 
@@ -248,6 +254,8 @@ class PromptTokenWeightGeometry:
         """Return the weighted token painted under one viewport-local point."""
 
         token = self._surface.token_at_viewport_position(position)
+        if token is None:
+            token = self._surface.enclosing_emphasis_at_viewport_position(position)
         if token is None or not token_supports_numeric_controls(token):
             return None
         return token

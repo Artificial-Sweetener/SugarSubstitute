@@ -97,6 +97,15 @@ class _FakeSurface(QWidget):
                 return token
         return None
 
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+    ) -> PromptProjectionToken | None:
+        """Return no enclosing token for this explicit-anchor geometry fake."""
+
+        _ = position
+        return None
+
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the configured anchor for one token."""
 
