@@ -23,6 +23,7 @@ import re
 from pathlib import Path
 from typing import Protocol
 
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import ApplicationReadinessReceipt
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
@@ -51,9 +52,10 @@ def assert_candidate_root_readiness(
     install_root: Path,
     candidate_launch: _LaunchBaseline,
     readiness_path: Path,
+    event_log_path: Path,
     token: str,
 ) -> None:
-    """Bind the current painted process to the root's own acknowledgement."""
+    """Bind the painted process to an attested installed-root acknowledgement."""
 
     try:
         receipt = ApplicationReadinessReceipt.from_json(
@@ -71,13 +73,22 @@ def assert_candidate_root_readiness(
         install_root=install_root,
         candidate_launch=candidate_launch,
         surface_pid=receipt.pid,
+        event_log_path=event_log_path,
+        token=token,
+        attester_pids=receipt.attester_pids,
     )
 
 
 def assert_root_main_shell_acknowledgement(
-    *, install_root: Path, candidate_launch: _LaunchBaseline, surface_pid: int
+    *,
+    install_root: Path,
+    candidate_launch: _LaunchBaseline,
+    surface_pid: int,
+    event_log_path: Path,
+    token: str,
+    attester_pids: tuple[int, ...],
 ) -> None:
-    """Reject a shell witnessed only by the selected launcher, not its root."""
+    """Accept a delegated root or a directly launched, attested installed root."""
 
     log_path = install_root / "launcher" / "logs" / "launcher.log"
     baseline = next(
@@ -109,7 +120,7 @@ def assert_root_main_shell_acknowledgement(
         for record in records
         if record.group("outer") == "True"
     }
-    root_accepted = any(
+    delegated_root_accepted = any(
         record.group("outer") == "False"
         and (
             not selected_supervisors
@@ -117,10 +128,72 @@ def assert_root_main_shell_acknowledgement(
         )
         for record in records
     )
-    if not root_accepted:
+    if delegated_root_accepted:
+        return
+
+    direct_root_supervisors = _direct_root_supervisors(
+        install_root=install_root,
+        event_log_path=event_log_path,
+        token=token,
+        attester_pids=attester_pids,
+    )
+    direct_root_accepted = any(
+        record.group("outer") == "True"
+        and int(record.group("supervisor")) in direct_root_supervisors
+        for record in records
+    )
+    if not direct_root_accepted:
         raise InstallerLifecycleError(
             "Installed launcher root did not accept the candidate main shell."
         )
+
+
+def _direct_root_supervisors(
+    *,
+    install_root: Path,
+    event_log_path: Path,
+    token: str,
+    attester_pids: tuple[int, ...],
+) -> set[int]:
+    """Identify direct-root launches by their fresh token, path, and receipt."""
+
+    try:
+        events = event_log_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as error:
+        raise InstallerLifecycleError(
+            "Candidate launcher startup event log is unreadable."
+        ) from error
+    root_executable = InstallLayout.from_root(install_root).executable_path.resolve()
+    supervisors: set[int] = set()
+    for line in events:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        if (
+            event.get("event") != "launcher.startup.resolved"
+            or event.get("token") != token
+        ):
+            continue
+        pid = event.get("pid")
+        fields = event.get("fields")
+        if (
+            not isinstance(pid, int)
+            or isinstance(pid, bool)
+            or pid not in attester_pids
+        ):
+            continue
+        if not isinstance(fields, dict):
+            continue
+        invocation_path = fields.get("invocation_path")
+        if not isinstance(invocation_path, str):
+            continue
+        invocation = Path(invocation_path)
+        if invocation.is_absolute() and invocation.resolve() == root_executable:
+            supervisors.add(pid)
+    return supervisors
 
 
 __all__ = [
