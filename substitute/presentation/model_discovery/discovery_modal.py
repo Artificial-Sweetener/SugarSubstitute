@@ -284,6 +284,7 @@ class ModelDiscoveryModal(QDialog):
             item = self.card_grid.takeAt(0)
             widget = item.widget() if item is not None else None
             if widget is not None:
+                widget.hide()
                 widget.deleteLater()
         self._cards.clear()
         self._selected_identity = None

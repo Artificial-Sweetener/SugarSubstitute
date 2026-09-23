@@ -64,6 +64,9 @@ from substitute.presentation.model_discovery import (
     ModelDiscoveryModal,
     ModelSuggestionCredentialCoordinator,
 )
+from substitute.presentation.model_discovery.credential_prompt import (
+    CredentialPromptChoice,
+)
 from substitute.presentation.model_discovery.discovery_card import ModelSuggestionCard
 from substitute.presentation.shell.empty_model_picker_discovery_controller import (
     EmptyModelPickerDiscoveryController,
@@ -207,11 +210,12 @@ class _CredentialHandler:
         """Initialize with no configured credential and no prompts."""
 
         self.prompt_count = 0
+        self._has_credential = False
 
     def has_credential(self) -> bool:
-        """Return false so protected acquisition must request authorization."""
+        """Reflect a key saved by the explicit synthetic credential choice."""
 
-        return False
+        return self._has_credential
 
     def request_credential(self, parent: QWidget) -> bool:
         """Record a user-driven prompt and approve the synthetic qualification."""
@@ -219,7 +223,21 @@ class _CredentialHandler:
         if not isinstance(parent, ModelDiscoveryModal):
             raise AssertionError("Credential prompt lost the discovery parent.")
         self.prompt_count += 1
+        self._has_credential = True
         return True
+
+    def request_choice(
+        self, parent: QWidget, *, protected_model_count: int
+    ) -> CredentialPromptChoice:
+        """Approve the selected protected model through the key-layer contract."""
+
+        if not isinstance(parent, ModelDiscoveryModal):
+            raise AssertionError("Credential choice lost the discovery parent.")
+        if protected_model_count != 1:
+            raise AssertionError("Credential choice lost the selected model count.")
+        self.prompt_count += 1
+        self._has_credential = True
+        return CredentialPromptChoice.SAVED
 
 
 def main(argv: Sequence[str] | None = None) -> int:
