@@ -347,6 +347,9 @@ class PromptKeymapHost(Protocol):
     def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
         """Flush pending semantic refresh for key-owned syntax reasons."""
 
+    def schedule_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+        """Schedule pending semantics after a syntax-closing key."""
+
     def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
         """Flush only syntax-relevant pending edits before a boundary key."""
 
@@ -411,8 +414,8 @@ class PromptKeymapController:
             return
 
         if self._host.interaction_mode is PromptEditorInteractionMode.TEXT_EDITING:
-            if self._should_flush_semantic_refresh_for_key(event):
-                self._host.flush_semantic_refresh_from_keymap(
+            if self._should_schedule_semantic_refresh_for_key(event):
+                self._host.schedule_semantic_refresh_from_keymap(
                     reason="syntax_closing_key"
                 )
             self._host.handle_autocomplete_post_key_press_from_keymap(event)
@@ -458,8 +461,8 @@ class PromptKeymapController:
         return False
 
     @staticmethod
-    def _should_flush_semantic_refresh_for_key(event: QKeyEvent) -> bool:
-        """Return whether a key should immediately publish completed syntax."""
+    def _should_schedule_semantic_refresh_for_key(event: QKeyEvent) -> bool:
+        """Return whether completed syntax should publish on the next event turn."""
 
         if bool(
             event.modifiers()
@@ -471,13 +474,16 @@ class PromptKeymapController:
         ):
             return False
         if event.key() in {
+            Qt.Key.Key_Backspace,
+            Qt.Key.Key_Delete,
+            Qt.Key.Key_Space,
             Qt.Key.Key_ParenRight,
             Qt.Key.Key_BracketRight,
             Qt.Key.Key_BraceRight,
             Qt.Key.Key_Greater,
         }:
             return True
-        return event.text() in {")", "]", "}", ">"}
+        return event.text() in {" ", ")", "]", "}", ">"}
 
     @staticmethod
     def _should_flush_semantic_refresh_before_navigation(event: QKeyEvent) -> bool:
@@ -501,8 +507,6 @@ class PromptKeymapController:
         """Return whether one edit boundary may need pending syntax resolved."""
 
         return event.key() in {
-            Qt.Key.Key_Backspace,
-            Qt.Key.Key_Delete,
             Qt.Key.Key_Space,
             Qt.Key.Key_Return,
             Qt.Key.Key_Enter,

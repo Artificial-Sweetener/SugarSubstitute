@@ -358,24 +358,17 @@ def remap_downstream_lines_after_plain_edit(
     source_delta: int,
     projection_delta: int,
 ) -> tuple[PromptProjectionLineSnapshot, ...]:
-    """Shift downstream lines and refresh only existing semantic bindings."""
+    """Shift downstream lines and bind their fragments to current semantics."""
 
-    semantic_resolver: PromptReusedLineSemanticResolver | None = None
+    semantic_resolver = PromptReusedLineSemanticResolver(projection_document)
     shifted_lines: list[PromptProjectionLineSnapshot] = []
     for line in lines:
-        line_resolver = None
-        if shifted_line_has_semantic_resolver(line):
-            if semantic_resolver is None:
-                semantic_resolver = PromptReusedLineSemanticResolver(
-                    projection_document
-                )
-            line_resolver = semantic_resolver
         shifted_lines.append(
             remap_downstream_line_after_plain_edit(
                 line,
                 source_delta=source_delta,
                 projection_delta=projection_delta,
-                semantic_resolver=line_resolver,
+                semantic_resolver=semantic_resolver,
             )
         )
     return tuple(shifted_lines)
@@ -407,25 +400,18 @@ def remap_downstream_lines_after_hard_line_edit(
     projection_delta: int,
     y_delta: float,
 ) -> tuple[PromptProjectionLineSnapshot, ...]:
-    """Shift hard-line suffixes while retaining current semantic ownership."""
+    """Shift hard-line suffixes and bind fragments to current semantics."""
 
-    semantic_resolver: PromptReusedLineSemanticResolver | None = None
+    semantic_resolver = PromptReusedLineSemanticResolver(projection_document)
     shifted_lines: list[PromptProjectionLineSnapshot] = []
     for line in lines:
-        line_resolver = None
-        if shifted_line_has_semantic_resolver(line):
-            if semantic_resolver is None:
-                semantic_resolver = PromptReusedLineSemanticResolver(
-                    projection_document
-                )
-            line_resolver = semantic_resolver
         shifted_lines.append(
             remap_downstream_line_after_hard_line_edit(
                 line,
                 source_delta=source_delta,
                 projection_delta=projection_delta,
                 y_delta=y_delta,
-                semantic_resolver=line_resolver,
+                semantic_resolver=semantic_resolver,
             )
         )
     return tuple(shifted_lines)
@@ -447,17 +433,6 @@ def remap_downstream_line_after_hard_line_edit(
         projection_delta=projection_delta,
         y_delta=y_delta,
         semantic_resolver=semantic_resolver,
-    )
-
-
-def shifted_line_has_semantic_resolver(
-    line: PromptProjectionLineSnapshot,
-) -> bool:
-    """Return whether one lazy line must rebind fragments to current semantics."""
-
-    return bool(
-        isinstance(line, ShiftedLineSnapshot)
-        and object.__getattribute__(line, "_semantic_resolver") is not None
     )
 
 
@@ -680,7 +655,6 @@ __all__ = [
     "remap_downstream_line_after_plain_edit",
     "remap_downstream_lines_after_hard_line_edit",
     "remap_downstream_line_after_hard_line_edit",
-    "shifted_line_has_semantic_resolver",
     "remap_fragment_after_plain_edit",
     "remap_fragment_after_hard_line_edit",
     "caret_stops_for_line_fragments",

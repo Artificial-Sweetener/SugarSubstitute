@@ -200,7 +200,10 @@ class PromptCanonicalLayoutEngine:
             previous_snapshot.lines,
             first_line,
         )
-        semantic_resolver = PromptReusedLineSemanticResolver(projection_document)
+        semantic_resolver = PromptReusedLineSemanticResolver.after_source_edit(
+            projection_document,
+            previous_document=previous_document,
+        )
         unresolved_prefix_line = earliest_unresolvable_line_index(
             previous_snapshot.lines,
             semantic_resolver,
@@ -230,10 +233,20 @@ class PromptCanonicalLayoutEngine:
             for line_index, line in enumerate(previous_snapshot.lines)
             if line.source_start >= edit_end
         }
+        first_candidate_line = next(
+            (
+                line_index
+                for line_index in range(first_line, len(previous_snapshot.lines))
+                if previous_snapshot.lines[line_index].source_start >= edit_end
+            ),
+            len(previous_snapshot.lines),
+        )
         reusable_semantics = reusable_suffix_semantics_by_line(
             previous_snapshot.lines,
             semantic_resolver,
+            source_delta=source_delta,
             projection_delta=projection_delta,
+            first_candidate_line_index=first_candidate_line,
         )
 
         def reusable_previous_line_index(

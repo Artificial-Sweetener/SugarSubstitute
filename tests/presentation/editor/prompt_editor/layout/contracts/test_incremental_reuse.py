@@ -54,7 +54,9 @@ from substitute.presentation.editor.prompt_editor.layout.canonical_builder impor
     PromptProjectionLineLayoutBuilder,
 )
 from substitute.presentation.editor.prompt_editor.layout.reused_semantics import (
+    PromptReusedLineSemanticResolver,
     earliest_reusable_suffix_line_index,
+    reusable_suffix_semantics_by_line,
 )
 from substitute.presentation.editor.prompt_editor.layout.checkpoints import (
     capture_layout_checkpoint,
@@ -143,6 +145,30 @@ def test_projection_layout_reflows_before_changed_tag_keep_group() -> None:
 
     assert result.first_reflowed_line_index == 0
     assert _line_texts(incremental_layout)[0] == "alpha, beta "
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
+
+
+def test_projection_layout_reflow_converges_after_scene_topology_formation() -> None:
+    """Canonical scene formation should preserve full-layout geometry exactly."""
+
+    previous_text = "prefix words\n**Landscape\nfield details"
+    marker_start = previous_text.index("**Landscape")
+    next_text = f"{previous_text[:marker_start]}**S\n{previous_text[marker_start:]}"
+    incremental_layout, _ = _layout_for(previous_text, text_width=180.0)
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=180.0)
+
+    result = incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=marker_start,
+        edit_end=marker_start,
+        replacement_text="**S\n",
+    )
+
+    assert result.reflowed_line_count < len(full_layout.frame.output.snapshot.lines)
     assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
         full_layout
     )
@@ -275,6 +301,26 @@ def test_reflow_probe_starts_at_first_semantically_reusable_suffix() -> None:
     )
 
     assert line_index == 3
+
+
+def test_suffix_semantic_validation_skips_ineligible_prefix_lines() -> None:
+    """Bounded convergence should not validate lines before its first candidate."""
+
+    layout, projection = _layout_for(
+        "alpha\nbeta\ngamma\ndelta",
+        text_width=1000.0,
+    )
+    lines = layout.frame.output.snapshot.lines
+
+    reusable = reusable_suffix_semantics_by_line(
+        lines,
+        PromptReusedLineSemanticResolver(projection),
+        source_delta=0,
+        projection_delta=0,
+        first_candidate_line_index=2,
+    )
+
+    assert reusable == (False, False, True, True)
 
 
 def test_reflow_probe_reports_no_semantically_reusable_suffix() -> None:

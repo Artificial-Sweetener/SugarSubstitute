@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-from bisect import bisect_left
-
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 
 _MAX_KEPT_SEGMENT_WORDS = 3
@@ -32,8 +30,10 @@ class PromptTagKeepRangeIndex:
         """Start without source-derived ranges."""
 
         self._source_text: str | None = None
-        self._ranges: tuple[tuple[int, int], ...] = ()
-        self._range_starts: tuple[int, ...] = ()
+        self._ranges_by_window: dict[
+            tuple[int, int],
+            tuple[tuple[int, int], ...],
+        ] = {}
 
     def ranges_for_layout(
         self,
@@ -47,8 +47,7 @@ class PromptTagKeepRangeIndex:
         source_text = prompt_document_view.source_text
         if source_text != self._source_text:
             self._source_text = source_text
-            self._ranges = _source_text_tag_keep_ranges(source_text)
-            self._range_starts = tuple(start for start, _end in self._ranges)
+            self._ranges_by_window.clear()
         bounded_source_start = max(0, min(source_start, len(source_text)))
         line_start = source_text.rfind("\n", 0, bounded_source_start) + 1
         scan_end = (
@@ -56,23 +55,16 @@ class PromptTagKeepRangeIndex:
             if source_limit is None
             else min(len(source_text), max(0, source_limit))
         )
-        first_range_index = bisect_left(self._range_starts, line_start)
-        ranges: list[tuple[int, int]] = []
-        for source_range in self._ranges[first_range_index:]:
-            range_start, range_end = source_range
-            if range_start > scan_end:
-                break
-            if range_end > scan_end:
-                continue
-            if source_text[range_end - 1 : range_end] == ",":
-                ranges.append(source_range)
-                continue
-            hard_line_end = source_text.find("\n", range_end)
-            if hard_line_end < 0:
-                hard_line_end = len(source_text)
-            if hard_line_end <= scan_end:
-                ranges.append(source_range)
-        return tuple(ranges)
+        window = (line_start, scan_end)
+        ranges = self._ranges_by_window.get(window)
+        if ranges is None:
+            ranges = _source_text_tag_keep_ranges(
+                source_text,
+                source_start=line_start,
+                source_limit=scan_end,
+            )
+            self._ranges_by_window[window] = ranges
+        return ranges
 
 
 def tag_keep_source_ranges(

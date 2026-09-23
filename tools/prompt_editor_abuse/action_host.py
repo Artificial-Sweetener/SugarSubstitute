@@ -133,8 +133,11 @@ class PromptAbuseActionHost:
         del editor, value
         raise RuntimeError("Pointer reorder requires the reorder action host.")
 
-    def reorder_drag_sweep(self, editor: object) -> None:
-        """Sweep every prepared destination when the concrete host supports it."""
+    def reorder_drag_sweep(
+        self,
+        editor: object,
+    ) -> tuple[tuple[str, float], ...]:
+        """Sweep destinations and return one timing per visible pointer step."""
 
         del editor
         raise RuntimeError("Pointer reorder requires the reorder action host.")

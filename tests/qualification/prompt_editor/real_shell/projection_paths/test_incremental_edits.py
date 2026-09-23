@@ -153,7 +153,7 @@ def test_real_shell_ordinary_typing_never_prepares_region_chrome(
     assert not snapshot_invariant_violations(after)
 
 
-def test_real_shell_scene_marker_formation_rebuilds_and_projects_immediately(
+def test_real_shell_scene_marker_formation_reflows_and_projects_immediately(
     real_shell_scenario: PromptEditorRealShellScenario,
 ) -> None:
     """A genuine scene-topology transition should take the canonical path."""
@@ -162,8 +162,9 @@ def test_real_shell_scene_marker_formation_rebuilds_and_projects_immediately(
 
     probe = real_shell_scenario.projection_probes.typed_paths(field, "**S")
 
-    assert probe.canonical_rebuild_count >= 1
-    assert "full_rebuild" in probe.apply_paths
+    assert probe.canonical_rebuild_count == 0
+    assert "reflow" in probe.apply_paths
+    assert "full_rebuild" not in probe.apply_paths
     assert probe.scene_titles == ("S",)
     assert probe.projection_text == "S"
 
@@ -220,8 +221,9 @@ def test_real_shell_scene_deletion_uses_local_path_until_topology_changes(
         label="backspace",
     )
 
-    assert topology_probe.canonical_rebuild_count >= 1
-    assert "full_rebuild" in topology_probe.apply_paths
+    assert topology_probe.canonical_rebuild_count == 0
+    assert "reflow" in topology_probe.apply_paths
+    assert "full_rebuild" not in topology_probe.apply_paths
     assert topology_probe.scene_titles == ()
     assert topology_probe.projection_text == "**\nbody"
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any, cast
 
 from PySide6.QtCore import QEventLoop, QPoint, QPointF, QRect, Qt, QTimer
@@ -129,8 +130,11 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         )
         QTest.mouseMove(source_chip.overlay, position, delay=0)
 
-    def reorder_drag_sweep(self, editor: object) -> None:
-        """Drive the real mouse path through every currently published placement."""
+    def reorder_drag_sweep(
+        self,
+        editor: object,
+    ) -> tuple[tuple[str, float], ...]:
+        """Drive and time each real mouse step through published placements."""
 
         del editor
         source_chip = self._require_active_drag()
@@ -138,14 +142,29 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         placement_snapshot = overlay._runtime.geometry.state.placement_snapshot
         if placement_snapshot is None or not placement_snapshot.placements:
             raise RuntimeError("Reorder drag sweep has no prepared placements.")
-        for placement in placement_snapshot.placements:
+        measured_steps: list[tuple[str, float]] = []
+        for placement_index, placement in enumerate(placement_snapshot.placements):
+            started_at = perf_counter()
             QTest.mouseMove(
                 source_chip.overlay,
                 _pointer_point_for_placement(overlay, placement.hit_rect.center()),
                 delay=0,
             )
+            measured_steps.append(
+                (
+                    f"reorder:sweep-forward:{placement_index}",
+                    (perf_counter() - started_at) * 1_000.0,
+                )
+            )
+        started_at = perf_counter()
         QApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents)
-        for placement in reversed(placement_snapshot.placements):
+        measured_steps.append(
+            ("reorder:sweep-forward-publish", (perf_counter() - started_at) * 1_000.0)
+        )
+        for placement_index, placement in reversed(
+            tuple(enumerate(placement_snapshot.placements))
+        ):
+            started_at = perf_counter()
             QTest.mouseMove(
                 source_chip.overlay,
                 _pointer_point_for_placement(overlay, placement.hit_rect.center()),
@@ -164,6 +183,13 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
             )
             if mismatches:
                 raise RuntimeError(";".join(mismatches))
+            measured_steps.append(
+                (
+                    f"reorder:sweep-reverse:{placement_index}",
+                    (perf_counter() - started_at) * 1_000.0,
+                )
+            )
+        return tuple(measured_steps)
 
     def reorder_drag_release(self, editor: object) -> None:
         """Release through the grabbed hotspot after the target move was delivered."""

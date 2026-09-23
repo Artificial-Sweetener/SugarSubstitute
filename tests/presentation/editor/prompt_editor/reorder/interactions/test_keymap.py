@@ -341,8 +341,8 @@ def test_keymap_flushes_semantics_before_navigation_reaches_surface() -> None:
     assert calls == ["flush:semantic_navigation_key", "weights", "autocomplete"]
 
 
-def test_keymap_routes_space_through_conditional_semantic_boundary() -> None:
-    """Space asks the interaction owner whether pending syntax needs publication."""
+def test_keymap_keeps_backspace_on_the_responsive_edit_path() -> None:
+    """Backspace lets its replacement source supersede pending semantics."""
 
     keymap_mod = importlib.import_module(
         "substitute.presentation.editor.prompt_editor.interactions.keymap"
@@ -360,14 +360,14 @@ def test_keymap_routes_space_through_conditional_semantic_boundary() -> None:
             raise AssertionError("unexpected reorder entry")
 
         def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
-            """Reject unconditional semantic work for Space."""
+            """Reject unconditional semantic work for Backspace."""
 
             raise AssertionError(reason)
 
         def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
-            """Record the conditional semantic boundary."""
+            """Reject conditional semantic work for Backspace."""
 
-            calls.append(f"boundary:{reason}")
+            raise AssertionError(reason)
 
         def handle_autocomplete_key_press_from_keymap(self, event: object) -> bool:
             """Record autocomplete routing after boundary preparation."""
@@ -381,6 +381,57 @@ def test_keymap_routes_space_through_conditional_semantic_boundary() -> None:
 
         def handle_exact_weight_key_press(self, event: object) -> bool:
             """Record weight routing after boundary preparation."""
+
+            _ = event
+            calls.append("weights")
+            return False
+
+    keymap = keymap_mod.PromptKeymapController(_Host(), weights=_Weights())
+
+    assert keymap.handle_key_press(_key_event(Qt.Key.Key_Backspace)) is False
+    assert calls == ["weights", "autocomplete"]
+
+
+def test_keymap_prepares_semantic_caret_geometry_before_space() -> None:
+    """Space should resolve syntax whose projection changes its insertion boundary."""
+
+    keymap_mod = importlib.import_module(
+        "substitute.presentation.editor.prompt_editor.interactions.keymap"
+    )
+    calls: list[str] = []
+
+    class _Host:
+        """Record ordinary text-mode routing without accepting semantic flushes."""
+
+        interaction_mode = PromptEditorInteractionMode.TEXT_EDITING
+
+        def enter_segment_reorder_mode_from_keymap(self) -> None:
+            """Reject unexpected reorder entry."""
+
+            raise AssertionError("unexpected reorder entry")
+
+        def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+            """Reject unconditional semantic work for Space."""
+
+            raise AssertionError(reason)
+
+        def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
+            """Record conditional semantic preparation for Space."""
+
+            calls.append(f"boundary:{reason}")
+
+        def handle_autocomplete_key_press_from_keymap(self, event: object) -> bool:
+            """Record autocomplete routing for ordinary text input."""
+
+            _ = event
+            calls.append("autocomplete")
+            return False
+
+    class _Weights:
+        """Decline exact-weight routing for ordinary text input."""
+
+        def handle_exact_weight_key_press(self, event: object) -> bool:
+            """Record weight routing without consuming Space."""
 
             _ = event
             calls.append("weights")

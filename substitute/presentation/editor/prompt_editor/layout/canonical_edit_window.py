@@ -31,7 +31,6 @@ from .models import (
 from .reused_lines import PromptProjectionReusedLineSequence
 from .reused_semantics import (
     PromptReusedLineSemanticResolver,
-    line_semantic_identity_is_current,
 )
 from .snapshot_indexes import (
     LineCaretRectMapping,
@@ -71,14 +70,16 @@ def snapshot_with_rebuilt_plain_edit_window(
 
     previous_prefix = previous_snapshot.lines[:first_rebuilt_line_index]
     rebound_previous_prefix = tuple(
-        line
-        if line_semantic_identity_is_current(line, semantic_resolver)
-        else ShiftedLineSnapshot(
-            line,
-            source_delta=0,
-            projection_delta=0,
-            y_delta=0.0,
-            semantic_resolver=semantic_resolver,
+        (
+            line
+            if semantic_resolver.line_identities_are_current(line)
+            else ShiftedLineSnapshot(
+                line,
+                source_delta=0,
+                projection_delta=0,
+                y_delta=0.0,
+                semantic_resolver=semantic_resolver,
+            )
         )
         for line in previous_prefix
     )

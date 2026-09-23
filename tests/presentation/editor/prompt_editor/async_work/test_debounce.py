@@ -75,6 +75,23 @@ def test_qt_debouncer_flush_runs_pending_callback_immediately() -> None:
     destroy_qt_object(debouncer)
 
 
+def test_qt_debouncer_can_advance_one_request_without_changing_its_interval() -> None:
+    """A next-turn request should not make later debounced work immediate."""
+
+    debouncer = QtPromptEditorDebouncer(interval_ms=1000)
+    calls: list[str] = []
+
+    debouncer.request_soon(lambda: calls.append("soon"), reason="syntax_closed")
+    wait_for_qt_condition(lambda: calls == ["soon"])
+
+    debouncer.request(lambda: calls.append("later"), reason="ordinary_edit")
+
+    assert calls == ["soon"]
+    assert debouncer.is_pending is True
+    assert debouncer.cancel(reason="test_complete") is True
+    destroy_qt_object(debouncer)
+
+
 def test_qt_debouncer_cancel_drops_pending_callback() -> None:
     """cancel should suppress pending work."""
 

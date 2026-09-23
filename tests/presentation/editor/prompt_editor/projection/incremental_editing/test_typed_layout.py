@@ -242,7 +242,12 @@ def test_projection_surface_word_edge_typing_keeps_word_wrap_integrity(
     )
     rebuild_count = 0
 
-    QTest.keyClicks(box, "ush")
+    for character in "ush":
+        QTest.keyClicks(box, character)
+        assert (
+            surface.projection_document().source_text == box.toPlainText()
+            or valid_transient_insertion_overlay(surface) is not None
+        )
     wait_for_qt_condition(
         lambda: (
             surface.has_pending_projection_update()
