@@ -705,11 +705,11 @@ owner = "workflow workspace lifecycle"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workflow_workspace_coordinator.py"
 kind = "remediation"
-justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
+justification = "The assessed file mixes workflow activation and surface projection, workflow add, close, reopen, duplicate, and rename, workflow UI materialization for new, duplicated, and reopened workflows, workflow-scoped widget disposal, tabbar and surface invalidation coordination. Extract workflow creation, duplication, and reopen materialization from activation, projection, and closure coordination."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1606
-next_limit = 1284
+max_lines = 1127
+next_limit = 900
 debt = "SS-ARCH-084"
 
 [[waivers]]

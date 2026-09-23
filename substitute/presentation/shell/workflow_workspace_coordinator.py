@@ -23,22 +23,14 @@ from substitute.presentation.workflows.workflow_tabs_view import (
     workflow_tab_source_text,
 )
 
-import json
-import os
 from collections.abc import Callable, Mapping, MutableMapping
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from pathlib import Path
 from time import perf_counter
 from typing import Protocol, TypeVar
 from typing import cast
-from uuid import uuid4
 
 from substitute.application.workflows import (
     ClosedWorkflowBuffer,
-    ClosedWorkflowPushResult,
     ClosedWorkflowRecord,
-    ClosedWorkflowSnapshotError,
     ClosedWorkflowSnapshotService,
     DEFAULT_WORKFLOW_TAB_LABEL,
     WorkflowSessionService,
@@ -49,11 +41,6 @@ from substitute.application.workflows.project_asset_owner_service import (
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot import (
-    EditorViewportSnapshot,
-    InputImageReference,
-    InputMaskReference,
-    OutputImageReference,
-    WorkflowSnapshot,
     WorkspaceSnapshot,
 )
 from substitute.domain.workspace_snapshot.models import (
@@ -63,6 +50,10 @@ from substitute.presentation.resources import cube_icon_resolver
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
     CubeStackProtocol,
+)
+from substitute.presentation.shell.closed_workflow_history import (
+    ClosedWorkflowHistory,
+    ClosedWorkflowHistoryView,
 )
 from substitute.presentation.shell.workflow_surface_refresh_scheduler import (
     WorkflowSurfaceRefreshScheduler,
@@ -102,6 +93,10 @@ from substitute.presentation.shell.workflow_surface_registry import (
     WorkflowSurfaceRegistry,
 )
 from substitute.presentation.shell.workflow_surface_results import SurfaceRefreshResult
+from substitute.presentation.shell.workflow_tab_switch_diagnostics import (
+    WorkflowTabSwitchDiagnostic,
+    WorkflowTabSwitchDiagnostics,
+)
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
     get_logger,
@@ -114,38 +109,7 @@ from substitute.shared.logging.logger import (
 _LOGGER = get_logger("presentation.shell.workflow_workspace_coordinator")
 _SLOW_DUPLICATE_PHASE_MS = 100.0
 _SLOW_DUPLICATE_TOTAL_MS = 250.0
-_WORKFLOW_TAB_PERF_ENV = "SUGARSUBSTITUTE_WORKFLOW_TAB_PERF"
-_WORKFLOW_TAB_PERF_PATH_ENV = "SUGARSUBSTITUTE_WORKFLOW_TAB_PERF_PATH"
-_DEFAULT_WORKFLOW_TAB_PERF_PATH = (
-    Path("artifacts") / "workflow_tab_profile" / "live_tab_switches.jsonl"
-)
 WidgetT = TypeVar("WidgetT", bound="LifecycleWidgetProtocol")
-
-
-@dataclass(frozen=True, slots=True)
-class WorkflowTabSwitchDiagnostic:
-    """Record non-fragile timing and work counters for one workflow projection."""
-
-    workflow_id: str
-    source: str
-    tab_intent_received_at: float
-    active_workflow_update_elapsed_ms: float
-    route_projection_elapsed_ms: float
-    canvas_projection_elapsed_ms: float
-    ensure_workflow_ui_elapsed_ms: float
-    show_route_elapsed_ms: float
-    tab_select_elapsed_ms: float
-    cube_stack_swap_elapsed_ms: float
-    editor_panel_swap_elapsed_ms: float
-    override_projection_elapsed_ms: float
-    input_canvas_availability_elapsed_ms: float
-    overlay_refresh_elapsed_ms: float
-    activity_badge_elapsed_ms: float
-    overrides_projected: bool
-    widgets_created: bool
-    editor_rebuilt: bool
-    deferred_requests: int
-    info_logs: int = 0
 
 
 def _log_duplicate_phase_timing(
@@ -166,27 +130,6 @@ def _log_duplicate_phase_timing(
     else:
         log_info(_LOGGER, message, **log_context)
     return elapsed_ms
-
-
-def _workflow_tab_perf_enabled() -> bool:
-    """Return whether live workflow-tab performance rows should be persisted."""
-
-    return os.environ.get(_WORKFLOW_TAB_PERF_ENV, "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
-def _workflow_tab_perf_path() -> Path:
-    """Return the JSONL output path for live workflow-tab performance rows."""
-
-    configured_path = os.environ.get(_WORKFLOW_TAB_PERF_PATH_ENV, "").strip()
-    path = Path(configured_path) if configured_path else _DEFAULT_WORKFLOW_TAB_PERF_PATH
-    if path.is_absolute():
-        return path
-    return Path.cwd() / path
 
 
 class WorkflowTabItemProtocol(Protocol):
@@ -302,29 +245,10 @@ class WorkflowCanvasProjectionCoordinatorProtocol(Protocol):
 
 
 class OutputCanvasProjectionCoordinatorProtocol(Protocol):
-    """Describe Output canvas projection and pruning behavior."""
+    """Describe Output projection state cleanup after workflow closure."""
 
     def discard_workflow_projection_state(self, workflow_id: str) -> None:
         """Release retained navigation/groups while preserving reopenable images."""
-
-    def prune_closed_workflow_images(
-        self,
-        closed_workflow_id: str,
-        closed_workflow: object,
-        remaining_workflows: object,
-    ) -> None:
-        """Prune images that only belonged to a closed workflow."""
-
-
-class InputAssetCleanupProtocol(Protocol):
-    """Describe Input catalog pruning behavior."""
-
-    def prune_closed_workflow(
-        self,
-        closed_workflow: object,
-        remaining_workflows: object,
-    ) -> None:
-        """Prune Input images that only belonged to a closed workflow."""
 
 
 class WorkflowSurfaceRefreshSchedulerProtocol(Protocol):
@@ -375,43 +299,6 @@ class WorkflowSurfaceInvalidationProtocol(Protocol):
         """Forget pending maintenance state for a closed workflow."""
 
 
-class WorkflowSnapshotCaptureProtocol(Protocol):
-    """Describe snapshot reads needed while closing a workflow."""
-
-    def workflow_tab_label(self, workflow_id: str) -> str:
-        """Return the tab label for one workflow id."""
-
-    def active_cube_alias(self, workflow_id: str) -> str | None:
-        """Return the active cube alias for one workflow."""
-
-    def editor_viewport_snapshot(
-        self,
-        workflow_id: str,
-    ) -> EditorViewportSnapshot | None:
-        """Return restorable editor viewport state for one workflow."""
-
-    def input_image_references(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-    ) -> tuple[InputImageReference, ...]:
-        """Return restorable input image references for one workflow."""
-
-    def input_mask_references(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-    ) -> tuple[InputMaskReference, ...]:
-        """Return restorable input mask references for one workflow."""
-
-    def output_image_references(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-    ) -> tuple[OutputImageReference, ...]:
-        """Return restorable output image references for one workflow."""
-
-
 class GenerationProgressProjectionProtocol(Protocol):
     """Describe generation progress projection owned by action controller."""
 
@@ -450,8 +337,6 @@ class WorkflowWorkspaceView(Protocol):
     generation_action_controller: GenerationProgressProjectionProtocol
     canvas_route_controller: CanvasRouteControllerProtocol
     output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol
-    input_asset_cleanup: InputAssetCleanupProtocol
-    session_snapshot_capture_adapter: WorkflowSnapshotCaptureProtocol
     workspace_restore_controller: WorkspaceRestoreControllerProtocol
     cube_stacks: dict[str, WorkflowCubeStackProtocol]
     editor_panels: dict[str, LifecycleWidgetProtocol]
@@ -488,18 +373,22 @@ class WorkflowWorkspaceCoordinator:
         """Store the shell view dependency."""
 
         self._view = view
-        self._closed_workflow_buffer = getattr(
+        closed_workflow_buffer = getattr(
             view,
             "closed_workflow_buffer",
             ClosedWorkflowBuffer(),
         )
-        self._closed_workflow_snapshot_service = getattr(
+        closed_workflow_snapshot_service = getattr(
             view,
             "closed_workflow_snapshot_service",
             ClosedWorkflowSnapshotService(),
         )
-        self._last_tab_switch_diagnostic: WorkflowTabSwitchDiagnostic | None = None
-        self._tab_switch_diagnostics: list[WorkflowTabSwitchDiagnostic] = []
+        self._closed_workflow_history = ClosedWorkflowHistory(
+            cast(ClosedWorkflowHistoryView, view),
+            buffer=closed_workflow_buffer,
+            snapshot_service=closed_workflow_snapshot_service,
+        )
+        self._tab_switch_diagnostics = WorkflowTabSwitchDiagnostics()
         self._surface_invalidation_service = (
             surface_invalidation_service
             if surface_invalidation_service is not None
@@ -678,42 +567,11 @@ class WorkflowWorkspaceCoordinator:
                     active_route_after=getattr(view, "_active_workspace_route", ""),
                     active_workflow_id=view.workflow_session_service.active_workflow_id,
                 )
-                self._record_tab_switch_diagnostic(
-                    workflow_id=workflow_id,
+                self._tab_switch_diagnostics.record(
                     source=source,
                     tab_intent_received_at=tab_intent_received_at,
                     active_workflow_update_elapsed_ms=active_workflow_update_elapsed_ms,
-                    route_projection_elapsed_ms=(
-                        route_projection.route_projection_elapsed_ms
-                    ),
-                    canvas_projection_elapsed_ms=(
-                        route_projection.canvas_projection_elapsed_ms
-                    ),
-                    ensure_workflow_ui_elapsed_ms=(
-                        route_projection.ensure_workflow_ui_elapsed_ms
-                    ),
-                    show_route_elapsed_ms=route_projection.show_route_elapsed_ms,
-                    tab_select_elapsed_ms=route_projection.tab_select_elapsed_ms,
-                    cube_stack_swap_elapsed_ms=(
-                        route_projection.cube_stack_swap_elapsed_ms
-                    ),
-                    editor_panel_swap_elapsed_ms=(
-                        route_projection.editor_panel_swap_elapsed_ms
-                    ),
-                    override_projection_elapsed_ms=(
-                        route_projection.override_projection_elapsed_ms
-                    ),
-                    input_canvas_availability_elapsed_ms=(
-                        route_projection.input_canvas_availability_elapsed_ms
-                    ),
-                    overlay_refresh_elapsed_ms=(
-                        route_projection.overlay_refresh_elapsed_ms
-                    ),
-                    activity_badge_elapsed_ms=(
-                        route_projection.activity_badge_elapsed_ms
-                    ),
-                    overrides_projected=route_projection.overrides_projected,
-                    widgets_created=route_projection.created_widgets,
+                    route_projection=route_projection,
                     editor_rebuilt=False,
                     deferred_requests=0,
                 )
@@ -741,36 +599,11 @@ class WorkflowWorkspaceCoordinator:
                 active_route_after=getattr(view, "_active_workspace_route", ""),
                 active_workflow_id=view.workflow_session_service.active_workflow_id,
             )
-            self._record_tab_switch_diagnostic(
-                workflow_id=workflow_id,
+            self._tab_switch_diagnostics.record(
                 source=source,
                 tab_intent_received_at=tab_intent_received_at,
                 active_workflow_update_elapsed_ms=active_workflow_update_elapsed_ms,
-                route_projection_elapsed_ms=route_projection.route_projection_elapsed_ms,
-                canvas_projection_elapsed_ms=(
-                    route_projection.canvas_projection_elapsed_ms
-                ),
-                ensure_workflow_ui_elapsed_ms=(
-                    route_projection.ensure_workflow_ui_elapsed_ms
-                ),
-                show_route_elapsed_ms=route_projection.show_route_elapsed_ms,
-                tab_select_elapsed_ms=route_projection.tab_select_elapsed_ms,
-                cube_stack_swap_elapsed_ms=(
-                    route_projection.cube_stack_swap_elapsed_ms
-                ),
-                editor_panel_swap_elapsed_ms=(
-                    route_projection.editor_panel_swap_elapsed_ms
-                ),
-                override_projection_elapsed_ms=(
-                    route_projection.override_projection_elapsed_ms
-                ),
-                input_canvas_availability_elapsed_ms=(
-                    route_projection.input_canvas_availability_elapsed_ms
-                ),
-                overlay_refresh_elapsed_ms=route_projection.overlay_refresh_elapsed_ms,
-                activity_badge_elapsed_ms=route_projection.activity_badge_elapsed_ms,
-                overrides_projected=route_projection.overrides_projected,
-                widgets_created=route_projection.created_widgets,
+                route_projection=route_projection,
                 editor_rebuilt=False,
                 deferred_requests=1,
             )
@@ -780,30 +613,11 @@ class WorkflowWorkspaceCoordinator:
             force_refresh,
             on_surface_complete,
         )
-        self._record_tab_switch_diagnostic(
-            workflow_id=workflow_id,
+        self._tab_switch_diagnostics.record(
             source=source,
             tab_intent_received_at=tab_intent_received_at,
             active_workflow_update_elapsed_ms=active_workflow_update_elapsed_ms,
-            route_projection_elapsed_ms=route_projection.route_projection_elapsed_ms,
-            canvas_projection_elapsed_ms=route_projection.canvas_projection_elapsed_ms,
-            ensure_workflow_ui_elapsed_ms=(
-                route_projection.ensure_workflow_ui_elapsed_ms
-            ),
-            show_route_elapsed_ms=route_projection.show_route_elapsed_ms,
-            tab_select_elapsed_ms=route_projection.tab_select_elapsed_ms,
-            cube_stack_swap_elapsed_ms=route_projection.cube_stack_swap_elapsed_ms,
-            editor_panel_swap_elapsed_ms=route_projection.editor_panel_swap_elapsed_ms,
-            override_projection_elapsed_ms=(
-                route_projection.override_projection_elapsed_ms
-            ),
-            input_canvas_availability_elapsed_ms=(
-                route_projection.input_canvas_availability_elapsed_ms
-            ),
-            overlay_refresh_elapsed_ms=route_projection.overlay_refresh_elapsed_ms,
-            activity_badge_elapsed_ms=route_projection.activity_badge_elapsed_ms,
-            overrides_projected=route_projection.overrides_projected,
-            widgets_created=route_projection.created_widgets,
+            route_projection=route_projection,
             editor_rebuilt=force_refresh or on_surface_complete is not None,
             deferred_requests=0,
         )
@@ -812,113 +626,12 @@ class WorkflowWorkspaceCoordinator:
     def last_tab_switch_diagnostic(self) -> WorkflowTabSwitchDiagnostic | None:
         """Return the latest workflow projection diagnostic row."""
 
-        return self._last_tab_switch_diagnostic
+        return self._tab_switch_diagnostics.last
 
     def tab_switch_diagnostics(self) -> tuple[WorkflowTabSwitchDiagnostic, ...]:
         """Return recorded workflow projection diagnostics."""
 
-        return tuple(self._tab_switch_diagnostics)
-
-    def _record_tab_switch_diagnostic(
-        self,
-        *,
-        workflow_id: str,
-        source: str,
-        tab_intent_received_at: float | None,
-        active_workflow_update_elapsed_ms: float,
-        route_projection_elapsed_ms: float,
-        canvas_projection_elapsed_ms: float,
-        ensure_workflow_ui_elapsed_ms: float,
-        show_route_elapsed_ms: float,
-        tab_select_elapsed_ms: float,
-        cube_stack_swap_elapsed_ms: float,
-        editor_panel_swap_elapsed_ms: float,
-        override_projection_elapsed_ms: float,
-        input_canvas_availability_elapsed_ms: float,
-        overlay_refresh_elapsed_ms: float,
-        activity_badge_elapsed_ms: float,
-        overrides_projected: bool,
-        widgets_created: bool,
-        editor_rebuilt: bool,
-        deferred_requests: int,
-    ) -> None:
-        """Record diagnostic fields for profiling without log scraping."""
-
-        diagnostic = WorkflowTabSwitchDiagnostic(
-            workflow_id=workflow_id,
-            source=source,
-            tab_intent_received_at=tab_intent_received_at or perf_counter(),
-            active_workflow_update_elapsed_ms=active_workflow_update_elapsed_ms,
-            route_projection_elapsed_ms=route_projection_elapsed_ms,
-            canvas_projection_elapsed_ms=canvas_projection_elapsed_ms,
-            ensure_workflow_ui_elapsed_ms=ensure_workflow_ui_elapsed_ms,
-            show_route_elapsed_ms=show_route_elapsed_ms,
-            tab_select_elapsed_ms=tab_select_elapsed_ms,
-            cube_stack_swap_elapsed_ms=cube_stack_swap_elapsed_ms,
-            editor_panel_swap_elapsed_ms=editor_panel_swap_elapsed_ms,
-            override_projection_elapsed_ms=override_projection_elapsed_ms,
-            input_canvas_availability_elapsed_ms=input_canvas_availability_elapsed_ms,
-            overlay_refresh_elapsed_ms=overlay_refresh_elapsed_ms,
-            activity_badge_elapsed_ms=activity_badge_elapsed_ms,
-            overrides_projected=overrides_projected,
-            widgets_created=widgets_created,
-            editor_rebuilt=editor_rebuilt,
-            deferred_requests=deferred_requests,
-        )
-        self._last_tab_switch_diagnostic = diagnostic
-        self._tab_switch_diagnostics.append(diagnostic)
-        log_debug(
-            _LOGGER,
-            "workflow tab switch diagnostic captured",
-            workflow_id=workflow_id,
-            source=source,
-            active_workflow_update_elapsed_ms=(
-                f"{active_workflow_update_elapsed_ms:.3f}"
-            ),
-            route_projection_elapsed_ms=f"{route_projection_elapsed_ms:.3f}",
-            canvas_projection_elapsed_ms=f"{canvas_projection_elapsed_ms:.3f}",
-            ensure_workflow_ui_elapsed_ms=f"{ensure_workflow_ui_elapsed_ms:.3f}",
-            show_route_elapsed_ms=f"{show_route_elapsed_ms:.3f}",
-            tab_select_elapsed_ms=f"{tab_select_elapsed_ms:.3f}",
-            cube_stack_swap_elapsed_ms=f"{cube_stack_swap_elapsed_ms:.3f}",
-            editor_panel_swap_elapsed_ms=f"{editor_panel_swap_elapsed_ms:.3f}",
-            override_projection_elapsed_ms=f"{override_projection_elapsed_ms:.3f}",
-            input_canvas_availability_elapsed_ms=(
-                f"{input_canvas_availability_elapsed_ms:.3f}"
-            ),
-            overlay_refresh_elapsed_ms=f"{overlay_refresh_elapsed_ms:.3f}",
-            activity_badge_elapsed_ms=f"{activity_badge_elapsed_ms:.3f}",
-            overrides_projected=overrides_projected,
-            widgets_created=widgets_created,
-            editor_rebuilt=editor_rebuilt,
-            deferred_requests=deferred_requests,
-        )
-        self._write_tab_switch_perf_diagnostic(diagnostic)
-
-    def _write_tab_switch_perf_diagnostic(
-        self,
-        diagnostic: WorkflowTabSwitchDiagnostic,
-    ) -> None:
-        """Append one live tab-switch performance row when env-gated diagnostics are on."""
-
-        if not _workflow_tab_perf_enabled():
-            return
-        path = _workflow_tab_perf_path()
-        payload = {
-            "captured_at": datetime.now(UTC).isoformat(),
-            **asdict(diagnostic),
-        }
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(payload, sort_keys=True) + "\n")
-        except OSError as error:
-            log_warning(
-                _LOGGER,
-                "Failed to write workflow tab performance diagnostic",
-                path=str(path),
-                error=repr(error),
-            )
+        return self._tab_switch_diagnostics.history()
 
     def _cached_workflow_surface_is_clean(self, workflow_id: str) -> bool:
         """Return whether the target editor panel proves its cached projection is clean."""
@@ -1066,9 +779,9 @@ class WorkflowWorkspaceCoordinator:
     def reopen_latest_closed_workflow(self) -> bool:
         """Reopen the most recently closed workflow when available."""
 
-        record = self._closed_workflow_buffer.pop_latest()
+        record = self._closed_workflow_history.pop_latest()
         if record is None:
-            self._sync_reopen_closed_workflow_action()
+            self._closed_workflow_history.sync_reopen_availability()
             log_info(
                 _LOGGER,
                 "Reopen closed workflow skipped because buffer was empty",
@@ -1080,9 +793,9 @@ class WorkflowWorkspaceCoordinator:
     def reopen_closed_workflow(self, close_id: str) -> bool:
         """Reopen a specific closed workflow record when available."""
 
-        record = self._closed_workflow_buffer.pop(close_id)
+        record = self._closed_workflow_history.pop(close_id)
         if record is None:
-            self._sync_reopen_closed_workflow_action()
+            self._closed_workflow_history.sync_reopen_availability()
             log_info(
                 _LOGGER,
                 "Reopen closed workflow skipped because record was missing",
@@ -1096,22 +809,9 @@ class WorkflowWorkspaceCoordinator:
         """Decode, register, materialize, and project one closed workflow record."""
 
         view = self._view
-        try:
-            snapshot = self._closed_workflow_snapshot_service.decode(
-                record.snapshot_payload
-            )
-        except ClosedWorkflowSnapshotError as error:
-            log_warning(
-                _LOGGER,
-                "Failed to decode closed workflow for reopen",
-                operation="reopen_closed_workflow",
-                close_id=record.close_id,
-                workflow_id=record.workflow_id,
-                tab_label=record.tab_label,
-                payload_size_bytes=record.payload_size_bytes,
-                error=repr(error),
-            )
-            self._sync_reopen_closed_workflow_action()
+        snapshot = self._closed_workflow_history.decode_for_reopen(record)
+        if snapshot is None:
+            self._closed_workflow_history.sync_reopen_availability()
             return False
         hydrated_workspace = (
             view.workspace_restore_controller.hydrate_restored_workspace_snapshot(
@@ -1140,7 +840,7 @@ class WorkflowWorkspaceCoordinator:
                 workflow_id=snapshot.workflow_id,
                 new_workflow_id=workflow_id,
             )
-            snapshot = self._closed_workflow_snapshot_service.rekey_snapshot(
+            snapshot = self._closed_workflow_history.rekey_snapshot(
                 snapshot,
                 new_workflow_id=workflow_id,
             )
@@ -1195,7 +895,7 @@ class WorkflowWorkspaceCoordinator:
             tab_label=snapshot.tab_label,
             tab_index=record.tab_index,
         )
-        self._sync_reopen_closed_workflow_action()
+        self._closed_workflow_history.sync_reopen_availability()
         return True
 
     def _insert_reopened_workflow_tab(
@@ -1221,22 +921,6 @@ class WorkflowWorkspaceCoordinator:
         if preferred_workflow_id and preferred_workflow_id not in existing_ids:
             return preferred_workflow_id
         return self._view.workflow_tab_service.generate_workflow_id(existing_ids)
-
-    def _sync_reopen_closed_workflow_action(self) -> None:
-        """Refresh presentation command enablement for closed workflow reopen."""
-
-        frame_integration_controller = getattr(
-            self._view,
-            "shell_frame_integration_controller",
-            None,
-        )
-        set_enabled = getattr(
-            frame_integration_controller,
-            "set_reopen_closed_workflow_enabled",
-            None,
-        )
-        if callable(set_enabled):
-            set_enabled(bool(self._closed_workflow_buffer.summaries()))
 
     def duplicate_workflow(
         self,
@@ -1436,7 +1120,7 @@ class WorkflowWorkspaceCoordinator:
         if callable(confirm_close) and not confirm_close(workflow_id):
             return
         ordered_ids = self._workflow_ids_in_order()
-        close_push_result = self._buffer_closed_workflow(
+        close_push_result = self._closed_workflow_history.buffer_workflow(
             workflow_id,
             ordered_ids,
         )
@@ -1467,9 +1151,11 @@ class WorkflowWorkspaceCoordinator:
             remove_output_workflow(workflow_id)
         if transition.removed_workflow is not None:
             if close_push_result is not None and close_push_result.accepted:
-                self._cleanup_closed_workflow_records(close_push_result.evicted_records)
+                self._closed_workflow_history.cleanup_evicted(
+                    close_push_result.evicted_records
+                )
             else:
-                self._prune_closed_workflow_images(
+                self._closed_workflow_history.prune_workflow_images(
                     workflow_id,
                     transition.removed_workflow,
                 )
@@ -1526,222 +1212,6 @@ class WorkflowWorkspaceCoordinator:
             old_label=old_label,
             new_label=decision.tab_label,
         )
-
-    def _buffer_closed_workflow(
-        self,
-        workflow_id: str,
-        ordered_ids: list[str],
-    ) -> ClosedWorkflowPushResult | None:
-        """Serialize and retain one closing workflow before destructive cleanup."""
-
-        workflow = self._workflow_for_close(workflow_id)
-        if workflow is None:
-            log_warning(
-                _LOGGER,
-                "Skipped closed workflow buffering because workflow was missing",
-                operation="close_workflow_buffer",
-                workflow_id=workflow_id,
-            )
-            return None
-        tab_label = self._workflow_tab_label(workflow_id)
-        tab_index = self._workflow_tab_index(workflow_id, ordered_ids)
-        try:
-            snapshot = WorkflowSnapshot(
-                workflow_id=workflow_id,
-                tab_label=tab_label,
-                workflow=workflow,
-                active_cube_alias=self._active_cube_alias(workflow_id),
-                input_images=self._input_image_references(workflow_id, workflow),
-                input_masks=self._input_mask_references(workflow_id, workflow),
-                output_images=self._output_image_references(workflow_id, workflow),
-                editor_viewport=self._editor_viewport_snapshot(workflow_id),
-            )
-            payload = self._closed_workflow_snapshot_service.encode(snapshot)
-        except (ClosedWorkflowSnapshotError, TypeError, ValueError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to capture closed workflow snapshot",
-                operation="close_workflow_buffer",
-                workflow_id=workflow_id,
-                tab_label=tab_label,
-                tab_index=tab_index,
-                error=repr(error),
-            )
-            return None
-        record = ClosedWorkflowRecord(
-            close_id=uuid4().hex,
-            workflow_id=workflow_id,
-            tab_label=tab_label,
-            tab_index=tab_index,
-            snapshot_payload=payload,
-            payload_size_bytes=len(payload),
-            closed_at=datetime.now(UTC),
-        )
-        result = self._closed_workflow_buffer.push(record)
-        log_info(
-            _LOGGER,
-            "Closed workflow buffer push completed",
-            operation="close_workflow_buffer",
-            close_id=record.close_id,
-            workflow_id=workflow_id,
-            tab_label=tab_label,
-            tab_index=tab_index,
-            payload_size_bytes=record.payload_size_bytes,
-            accepted=result.accepted,
-            evicted_count=len(result.evicted_records),
-            buffer_total_bytes=self._closed_workflow_buffer.total_bytes,
-            buffer_budget_bytes=self._closed_workflow_buffer.budget_bytes,
-        )
-        self._sync_reopen_closed_workflow_action()
-        return result
-
-    def _cleanup_closed_workflow_records(
-        self,
-        records: tuple[ClosedWorkflowRecord, ...],
-    ) -> None:
-        """Finalize cleanup for closed workflows that are no longer reopenable."""
-
-        for record in records:
-            try:
-                snapshot = self._closed_workflow_snapshot_service.decode(
-                    record.snapshot_payload
-                )
-            except ClosedWorkflowSnapshotError as error:
-                log_warning(
-                    _LOGGER,
-                    "Failed to decode evicted closed workflow for cleanup",
-                    operation="closed_workflow_eviction_cleanup",
-                    close_id=record.close_id,
-                    workflow_id=record.workflow_id,
-                    tab_label=record.tab_label,
-                    payload_size_bytes=record.payload_size_bytes,
-                    error=repr(error),
-                )
-                continue
-            self._prune_closed_workflow_images(
-                snapshot.workflow_id,
-                snapshot.workflow,
-            )
-
-    def _prune_closed_workflow_images(
-        self,
-        workflow_id: str,
-        workflow: object,
-    ) -> None:
-        """Prune canvas image records for a workflow no longer reopenable."""
-
-        view = self._view
-        view.input_asset_cleanup.prune_closed_workflow(
-            workflow,
-            view.workflow_session_service.workflows,
-        )
-        view.output_canvas_projection_coordinator.prune_closed_workflow_images(
-            workflow_id,
-            workflow,
-            view.workflow_session_service.workflows,
-        )
-
-    def _workflow_for_close(self, workflow_id: str) -> WorkflowState | None:
-        """Return live workflow state for close-time snapshot capture."""
-
-        session = self._view.workflow_session_service
-        get_workflow = getattr(session, "get_workflow", None)
-        if callable(get_workflow):
-            workflow = get_workflow(workflow_id)
-            return workflow if isinstance(workflow, WorkflowState) else None
-        workflows = getattr(session, "workflows", {})
-        if isinstance(workflows, Mapping):
-            workflow = workflows.get(workflow_id)
-            return workflow if isinstance(workflow, WorkflowState) else None
-        return None
-
-    def _workflow_tab_label(self, workflow_id: str) -> str:
-        """Return current tab label with a stable fallback."""
-
-        snapshot_capture = self._snapshot_capture_adapter()
-        if snapshot_capture is not None:
-            return snapshot_capture.workflow_tab_label(workflow_id)
-        item = self._view.workflow_tabbar.itemMap.get(workflow_id)
-        if item is None:
-            return workflow_id
-        return workflow_tab_source_text(item)
-
-    def _workflow_tab_index(self, workflow_id: str, ordered_ids: list[str]) -> int:
-        """Return current workflow tab index with ordered-id fallback."""
-
-        tabbar = self._view.workflow_tabbar
-        workflow_tab_index = getattr(tabbar, "workflow_tab_index", None)
-        if callable(workflow_tab_index):
-            index = int(workflow_tab_index(workflow_id))
-            if index >= 0:
-                return index
-        try:
-            return ordered_ids.index(workflow_id)
-        except ValueError:
-            return max(0, len(ordered_ids))
-
-    def _active_cube_alias(self, workflow_id: str) -> str | None:
-        """Return active cube alias for one workflow from snapshot capture."""
-
-        snapshot_capture = self._snapshot_capture_adapter()
-        if snapshot_capture is not None:
-            return snapshot_capture.active_cube_alias(workflow_id)
-        return None
-
-    def _editor_viewport_snapshot(
-        self,
-        workflow_id: str,
-    ) -> EditorViewportSnapshot | None:
-        """Return editor viewport snapshot from snapshot capture."""
-
-        snapshot_capture = self._snapshot_capture_adapter()
-        if snapshot_capture is not None:
-            return snapshot_capture.editor_viewport_snapshot(workflow_id)
-        return None
-
-    def _input_image_references(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-    ) -> tuple[InputImageReference, ...]:
-        """Return input image references from snapshot capture."""
-
-        snapshot_capture = self._snapshot_capture_adapter()
-        if snapshot_capture is not None:
-            return snapshot_capture.input_image_references(workflow_id, workflow)
-        return ()
-
-    def _input_mask_references(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-    ) -> tuple[InputMaskReference, ...]:
-        """Return input mask references from snapshot capture."""
-
-        snapshot_capture = self._snapshot_capture_adapter()
-        if snapshot_capture is not None:
-            return snapshot_capture.input_mask_references(workflow_id, workflow)
-        return ()
-
-    def _output_image_references(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-    ) -> tuple[OutputImageReference, ...]:
-        """Return output image references from snapshot capture."""
-
-        snapshot_capture = self._snapshot_capture_adapter()
-        if snapshot_capture is not None:
-            return snapshot_capture.output_image_references(workflow_id, workflow)
-        return ()
-
-    def _snapshot_capture_adapter(self) -> WorkflowSnapshotCaptureProtocol | None:
-        """Return the composed snapshot capture adapter when the view provides it."""
-
-        snapshot_capture = getattr(self._view, "session_snapshot_capture_adapter", None)
-        if snapshot_capture is None:
-            return None
-        return cast(WorkflowSnapshotCaptureProtocol, snapshot_capture)
 
     def _remove_workflow_activity(self, workflow_id: str) -> None:
         """Remove unread activity for a closed workflow when supported."""
