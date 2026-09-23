@@ -19,12 +19,18 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 from qfluentwidgets import SingleDirectionScrollArea  # type: ignore[import-untyped]
 
 from sugarsubstitute_shared.presentation.widgets.scrolling import (
     configure_qfluent_scroll_surface,
 )
+
+_SCROLL_BAR_THICKNESS = 12
+_SCROLL_BAR_VERTICAL_INSET = 1
+_SCROLL_BAR_VISUAL_RIGHT_INSET = 0
+_QFLUENT_HANDLE_TRAILING_INSET = 3
 
 
 class AnchoredRowPickerScrollSurface(SingleDirectionScrollArea):  # type: ignore[misc]
@@ -78,6 +84,13 @@ class AnchoredRowPickerScrollSurface(SingleDirectionScrollArea):  # type: ignore
         scroll_bar.setRange(0, max(0, self._natural_height - viewport_height))
         scroll_bar.setPageStep(viewport_height)
         scroll_bar.setSingleStep(self._row_height + self._row_spacing)
+        self._position_scroll_bar_at_picker_edge()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        """Keep the visual scroll handle against the picker edge after resizing."""
+
+        super().resizeEvent(event)
+        self._position_scroll_bar_at_picker_edge()
 
     def add_row(self, row: QWidget) -> None:
         """Append one row widget to the scroll document."""
@@ -107,6 +120,18 @@ class AnchoredRowPickerScrollSurface(SingleDirectionScrollArea):  # type: ignore
         """Return whether the row document exceeds the viewport."""
 
         return self._requires_scroll
+
+    def _position_scroll_bar_at_picker_edge(self) -> None:
+        """Overlay QFluent's handle flush with the picker edge without a gutter."""
+
+        scroll_bar = self.vScrollBar
+        scroll_bar.move(
+            self.width()
+            - _SCROLL_BAR_THICKNESS
+            + _QFLUENT_HANDLE_TRAILING_INSET
+            - _SCROLL_BAR_VISUAL_RIGHT_INSET,
+            _SCROLL_BAR_VERTICAL_INSET,
+        )
 
     def _resolve_visible_row_count(self, maximum_height: int | None) -> int:
         """Return the complete row count that fits the requested height."""
