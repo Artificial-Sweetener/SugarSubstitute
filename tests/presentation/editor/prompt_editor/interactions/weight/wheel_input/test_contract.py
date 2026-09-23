@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QPointF
 from PySide6.QtGui import QTextCursor
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
 from tests.support.prompt_editor.projection_engine_support import (
@@ -156,6 +157,64 @@ def test_same_viewport_wheel_point_crosses_neutral_emphasis(
 
     assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
     assert box.toPlainText() == "(1girl:0.95), portrait"
+
+
+def test_wheel_over_emphasis_text_crosses_neutral_without_moving_pointer(
+    widgets: list[QWidget],
+) -> None:
+    """A wheel target on token text retains neutral ownership for the next tick."""
+
+    box = show_prompt_editor(widgets, text="(cat:1.05), portrait", width=420)
+    token = emphasis_token_for(box)
+    controls = reveal_emphasis_controls(box, token)
+    point = token_rect_for(box, token).center().toPoint()
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == "cat, portrait"
+    assert emphasis_token_for(box).value_text == "1.00"
+    assert controls.visible_token is None
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == "(cat:0.95), portrait"
+
+
+def test_wheel_over_emphasis_text_crosses_neutral_upward(
+    widgets: list[QWidget],
+) -> None:
+    """The same viewport target can pass from sub-one through neutral to above one."""
+
+    box = show_prompt_editor(widgets, text="(cat:0.95), portrait", width=420)
+    token = emphasis_token_for(box)
+    reveal_emphasis_controls(box, token)
+    point = token_rect_for(box, token).center().toPoint()
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "cat, portrait"
+    assert emphasis_token_for(box).value_text == "1.00"
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "(cat:1.05), portrait"
+
+
+def test_neutral_wheel_session_over_text_settles_when_pointer_leaves(
+    widgets: list[QWidget],
+) -> None:
+    """A hidden control overlay does not retain neutral emphasis after pointer exit."""
+
+    box = show_prompt_editor(widgets, text="(cat:1.05), portrait", width=420)
+    token = emphasis_token_for(box)
+    reveal_emphasis_controls(box, token)
+    point = token_rect_for(box, token).center().toPoint()
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert emphasis_token_for(box).value_text == "1.00"
+    QTest.mouseMove(box.viewport(), QPoint(box.viewport().width() - 5, point.y()))
+
+    assert box.toPlainText() == "cat, portrait"
+    assert not surface_for(box).projection_document().tokens
 
 
 def test_host_viewport_wheel_over_emphasis_token_adjusts_on_first_tick(
