@@ -263,7 +263,13 @@ class _ProjectedRunStream:
             )
             assert range_end is not None
             if candidate.start < source_position or candidate.end > range_end:
-                raise ValueError("Projection candidates have crossing source ranges.")
+                raise ValueError(
+                    "Projection candidates have crossing source ranges: "
+                    f"candidate={candidate.token.token_id} "
+                    f"range=({candidate.start}, {candidate.end}) "
+                    f"source_position={source_position} range_end={range_end} "
+                    f"open_shells={[token.token_id for token in open_shells]}"
+                )
             self._append_plain(source_position, candidate.start)
             token = candidate.token
             if token.kind is PromptProjectionTokenKind.EMPHASIS and self._has_child(
