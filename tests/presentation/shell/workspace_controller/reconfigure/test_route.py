@@ -54,7 +54,6 @@ def test_workspace_controller_routes_reconfigure_request_to_view() -> None:
         prepare_node_behavior_runtime=lambda *_args: None,
         canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
-        workflow_input_canvas_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),
         path_bundle=SimpleNamespace(projects_dir=".", cubes_dir="."),
         active_editor_panel=None,

@@ -134,7 +134,7 @@ def test_generation_materializes_one_coherent_bundle_without_mutating_authoring(
         ),
         mask_materializer=InputGenerationMaskMaterializer(
             canvas_io_service=io,
-            workflow_input_canvas_service=associations,
+            input_assets=associations,
             workflow_name_provider=lambda _workflow_id: "Recipe",
             projects_dir_provider=lambda: tmp_path,
         ),
@@ -198,7 +198,7 @@ def test_generation_blocks_before_any_mask_write_when_image_product_fails(
         ),
         mask_materializer=InputGenerationMaskMaterializer(
             canvas_io_service=io,
-            workflow_input_canvas_service=associations,
+            input_assets=associations,
             workflow_name_provider=lambda _workflow_id: "Recipe",
             projects_dir_provider=lambda: tmp_path,
         ),
@@ -258,7 +258,7 @@ def test_generation_materializes_synthetic_canvas_masks_without_backing_image(
         ),
         mask_materializer=InputGenerationMaskMaterializer(
             canvas_io_service=io,
-            workflow_input_canvas_service=associations,
+            input_assets=associations,
             workflow_name_provider=lambda _workflow_id: "Regional",
             projects_dir_provider=lambda: tmp_path,
         ),
@@ -308,7 +308,7 @@ def test_generation_fails_before_capture_when_canvas_surface_is_stale(
         ),
         mask_materializer=InputGenerationMaskMaterializer(
             canvas_io_service=io,
-            workflow_input_canvas_service=associations,
+            input_assets=associations,
             workflow_name_provider=lambda _workflow_id: "Recipe",
             projects_dir_provider=lambda: tmp_path,
         ),

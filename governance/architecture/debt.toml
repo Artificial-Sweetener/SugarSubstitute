@@ -258,20 +258,20 @@ responsibilities = [
 next_extraction = "Extract persisted asset-reference decoding and path resolution from workflow graph association mutation."
 
 [[debts]]
-id = "SS-ARCH-026"
-owner = "workflow input canvas"
-paths = ["substitute/application/workflows/workflow_input_canvas_service.py"]
-fingerprint = "sha256:a5c64768819cb3ef037acbeb33148710c2cc6cc1af89547bd95f7e1ac28c1440"
-issue = "chore:SS-ARCH-026"
+id = "SS-ARCH-027"
+owner = "prompt editor performance operations"
+paths = ["substitute/devtools/prompt_editor_performance/qt_operations.py"]
+fingerprint = "sha256:cedf59a8375b568c662e4032f417f4d756bfc619768bb42c926371414beae42f"
+issue = "chore:SS-ARCH-027"
 review_by = 2026-12-15
 responsibilities = [
-  "ordered mask-region mutation",
-  "image and mask asset association",
-  "user-selected mask validation and application",
-  "image and mask materialization",
-  "loaded canvas section projection",
+  "scenario operation dispatch",
+  "basic keyboard and selection timings",
+  "paint and diagnostic cache timings",
+  "reorder interaction timings",
+  "focus, hover, resize, scroll, and menu timings",
 ]
-next_extraction = "Extract user-selected mask application and asset association from image and section materialization."
+next_extraction = "Split operation families into focused timing modules behind the scenario-operation registry."
 
 [[debts]]
 id = "SS-ARCH-028"

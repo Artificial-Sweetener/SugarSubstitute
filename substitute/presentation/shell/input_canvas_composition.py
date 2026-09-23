@@ -116,6 +116,9 @@ from substitute.presentation.shell.canvas_route_controller import (
 from substitute.presentation.shell.input_canvas_shell_adapter import (
     InputCanvasShellAdapter,
 )
+from substitute.presentation.shell.input_canvas_composition_publication import (
+    publish_input_canvas_composition,
+)
 from substitute.presentation.shell.input_presentation_composition import (
     InputPresentationComposition,
     compose_input_presenters,
@@ -135,8 +138,12 @@ from substitute.presentation.shell.synthetic_canvas_resolution_controller import
 class MainWindowInputCanvasComposition:
     """Hold Input-canvas collaborators composed after canvas widgets exist."""
 
-    workflow_input_canvas_service: Any
+    input_image_materialization_service: Any
+    input_section_materialization_service: Any
     input_canvas_bindings: Any
+    input_asset_associations: Any
+    input_mask_selection_service: Any
+    ordered_mask_region_authoring_service: Any
     workflow_input_canvas_duplication_service: Any
     input_canvas_authority_reconciliation_service: Any
     input_canvas_tool_controller: Any
@@ -173,7 +180,11 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_document=input_canvas.document,
     )
     input_canvas_bindings = workflow_composition.bindings
-    workflow_input_canvas_service = workflow_composition.workflows
+    input_asset_associations = workflow_composition.assets
+    input_mask_selection_service = workflow_composition.mask_selection
+    ordered_mask_region_authoring_service = workflow_composition.regions
+    input_image_materialization_service = workflow_composition.images
+    input_section_materialization_service = workflow_composition.sections
     workflow_input_canvas_duplication_service = workflow_composition.duplication
     restored_ordered_mask_collections = workflow_composition.restored_masks
     input_tool_runtime = create_input_canvas_tool_system()
@@ -242,7 +253,10 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         shell=shell,
         input_canvas=input_canvas,
         input_bindings=input_canvas_bindings,
-        workflow_inputs=workflow_input_canvas_service,
+        image_materialization=input_image_materialization_service,
+        section_materialization=input_section_materialization_service,
+        input_assets=input_asset_associations,
+        mask_selection=input_mask_selection_service,
         shell_adapter=input_canvas_shell_adapter,
         regional_masks=regional_mask_presenter,
         preview_coordinator=input_node_preview_coordinator,
@@ -260,7 +274,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
         workflow_name=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),
-        workflow_service=workflow_input_canvas_service,
+        region_authoring=ordered_mask_region_authoring_service,
         input_routes=shell.input_routes,
         presenter=regional_mask_presenter,
         accept_canvas_selection=lambda: (
@@ -357,7 +371,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     input_generation_mask_materializer = InputGenerationMaskMaterializer(
         canvas_io_service=shell.canvas_io_service,
-        workflow_input_canvas_service=workflow_input_canvas_service,
+        input_assets=input_asset_associations,
         workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
     )
@@ -399,8 +413,12 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         parent=shell,
     )
     composition = MainWindowInputCanvasComposition(
-        workflow_input_canvas_service=workflow_input_canvas_service,
+        input_image_materialization_service=input_image_materialization_service,
+        input_section_materialization_service=input_section_materialization_service,
         input_canvas_bindings=input_canvas_bindings,
+        input_asset_associations=input_asset_associations,
+        input_mask_selection_service=input_mask_selection_service,
+        ordered_mask_region_authoring_service=ordered_mask_region_authoring_service,
         workflow_input_canvas_duplication_service=(
             workflow_input_canvas_duplication_service
         ),
@@ -429,59 +447,10 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         synthetic_canvas_geometry_adapter=synthetic_canvas_geometry,
         synthetic_canvas_resolution_controller=synthetic_resolution_controller,
     )
-    shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
-    shell.input_canvas_bindings = composition.input_canvas_bindings
-    shell.workflow_input_canvas_duplication_service = (
-        composition.workflow_input_canvas_duplication_service
-    )
-    shell.input_canvas_authority_reconciliation_service = (
-        composition.input_canvas_authority_reconciliation_service
-    )
-    shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
-    shell.input_canvas_tool_profile_controller = (
-        composition.input_canvas_tool_profile_controller
-    )
-    shell.input_shared_edge_resize_policy = composition.input_shared_edge_resize_policy
-    shell.input_scene_mapping_changes = composition.input_scene_mapping_changes
-    shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
-    shell.input_image_materialization_presenter = composition.input_presentation.images
-    shell.input_mask_picker_presenter = composition.input_presentation.pickers
-    shell.input_mask_selection_presenter = composition.input_presentation.masks
-    shell.input_node_preview_coordinator = input_node_preview_coordinator
-    shell.input_node_interaction_controller = (
-        composition.input_node_interaction_controller
-    )
-    shell.input_mask_visual_opacity_controller = (
-        composition.input_mask_visual_opacity_controller
-    )
-    shell.input_document_change_observer = composition.input_document_change_observer
-    shell.input_editable_document_change_tracker = (
-        composition.input_editable_document_change_tracker
-    )
-    shell.input_generation_snapshot_service = (
-        composition.input_generation_snapshot_service
-    )
-    shell.input_editable_document_lifecycle = (
-        composition.input_editable_document_lifecycle
-    )
-    shell.input_canvas_capability_service = composition.input_canvas_capability_service
-    shell.regional_interaction_coordinator = (
-        composition.regional_interaction_coordinator
-    )
-    shell.restored_ordered_mask_collections = (
-        composition.restored_ordered_mask_collections
-    )
-    shell.synthetic_canvas_resolution_role_service = (
-        composition.synthetic_canvas_resolution_role_service
-    )
-    shell.synthetic_canvas_resolution_transaction_service = (
-        composition.synthetic_canvas_resolution_transaction_service
-    )
-    shell.synthetic_canvas_geometry_adapter = (
-        composition.synthetic_canvas_geometry_adapter
-    )
-    shell.synthetic_canvas_resolution_controller = (
-        composition.synthetic_canvas_resolution_controller
+    publish_input_canvas_composition(
+        shell,
+        composition,
+        input_node_preview_coordinator,
     )
     return composition
 

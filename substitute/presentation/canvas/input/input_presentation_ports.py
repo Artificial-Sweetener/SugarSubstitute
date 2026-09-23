@@ -75,6 +75,10 @@ class InputImageWorkflowPort(Protocol):
     ) -> object:
         """Associate one loaded image with workflow Input state."""
 
+
+class InputSectionMaterializationPort(Protocol):
+    """Expose restoration of all Input surfaces in one graph section."""
+
     def materialize_loaded_section(
         self,
         *,
@@ -84,7 +88,7 @@ class InputImageWorkflowPort(Protocol):
         workflow_name: str,
         projects_dir: Path,
     ) -> tuple[object, ...]:
-        """Materialize editable Input images for one graph section."""
+        """Materialize editable Input surfaces for one graph section."""
 
 
 class InputMaskSelectionWorkflowPort(Protocol):
@@ -161,6 +165,7 @@ __all__ = [
     "InputCanvasBindingPort",
     "InputImageStatePort",
     "InputImageWorkflowPort",
+    "InputSectionMaterializationPort",
     "InputMaskActivationPort",
     "InputMaskPickerWorkflowPort",
     "InputMaskSelectionWorkflowPort",

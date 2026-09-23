@@ -35,8 +35,8 @@ from substitute.domain.workflow import ProjectMaskAssetRef, WorkflowState
 from substitute.application.workflows.input_route_projection_service import (
     InputRouteProjectionService,
 )
-from substitute.application.workflows.workflow_input_canvas_service import (
-    WorkflowInputCanvasService,
+from substitute.application.workflows.ordered_mask_region_authoring_service import (
+    OrderedMaskRegionAuthoringService,
 )
 from substitute.presentation.canvas.input.input_materialization_presenter import (
     InputMaterializationPresenter,
@@ -470,7 +470,7 @@ def test_node_and_canvas_selection_share_authoritative_region_state(
         active_workflow_id=lambda: "workflow",
         workflow_name=lambda _workflow_id: "Recipe",
         projects_dir=lambda: tmp_path,
-        workflow_service=cast(WorkflowInputCanvasService, SimpleNamespace()),
+        region_authoring=cast(OrderedMaskRegionAuthoringService, SimpleNamespace()),
         input_routes=cast(
             InputRouteProjectionService,
             SimpleNamespace(set_active_mask=activate_mask),
@@ -516,7 +516,7 @@ def test_canvas_mask_selection_is_ignored_during_restore(tmp_path: Path) -> None
         active_workflow_id=lambda: "workflow",
         workflow_name=lambda _workflow_id: "Recipe",
         projects_dir=lambda: tmp_path,
-        workflow_service=cast(WorkflowInputCanvasService, SimpleNamespace()),
+        region_authoring=cast(OrderedMaskRegionAuthoringService, SimpleNamespace()),
         input_routes=cast(
             InputRouteProjectionService,
             SimpleNamespace(set_active_mask=activate_mask),
@@ -555,7 +555,7 @@ def test_canvas_mask_selection_ignores_unadopted_materialization_layer(
         active_workflow_id=lambda: "workflow",
         workflow_name=lambda _workflow_id: "Recipe",
         projects_dir=lambda: tmp_path,
-        workflow_service=cast(WorkflowInputCanvasService, SimpleNamespace()),
+        region_authoring=cast(OrderedMaskRegionAuthoringService, SimpleNamespace()),
         input_routes=cast(
             InputRouteProjectionService,
             SimpleNamespace(set_active_mask=accept_mask),

@@ -19,10 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from substitute.application.workflows import (
-    WorkflowAssetService,
-    WorkflowInputCanvasService,
-)
+from substitute.application.workflows import WorkflowAssetService
 from uuid import uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
@@ -32,10 +29,9 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
-    _fake_input_state_composition,
+    _input_canvas_services,
     _mask_buffer_path,
-    _workflow_input_service,
-    _input_canvas_binding_service,
+    _image_materialization_service,
 )
 
 
@@ -63,12 +59,11 @@ def test_apply_user_selected_input_mask_rejects_wrong_size_before_mutation(
         },
         created_destinations=[],
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _input_canvas_services(
+        input_canvas_state_service,
+        canvas_io_service,
         workflow_asset_service=WorkflowAssetService(),
-    )
+    ).mask_selection
 
     result = service.apply_user_selected_input_mask(
         workflows={"wf-a": workflow},
@@ -113,12 +108,11 @@ def test_apply_user_selected_input_mask_rejects_unverified_dimensions_before_mut
         },
         created_destinations=[],
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _input_canvas_services(
+        input_canvas_state_service,
+        canvas_io_service,
         workflow_asset_service=WorkflowAssetService(),
-    )
+    ).mask_selection
 
     result = service.apply_user_selected_input_mask(
         workflows={"wf-a": workflow},
@@ -168,10 +162,8 @@ def test_materialize_input_image_creates_multiple_bound_masks(
         expected_mask_path=expected_mask,
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(
@@ -225,7 +217,7 @@ def test_materialize_input_image_drops_ambiguous_mask_binding(
         created_destinations=created_destinations,
     )
 
-    result = _workflow_input_service(
+    result = _image_materialization_service(
         input_canvas_state_service,
         canvas_io_service,
     ).materialize_input_image(

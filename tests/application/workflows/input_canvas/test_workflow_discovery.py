@@ -36,7 +36,8 @@ from tests.application.workflows.input_canvas.fakes import (
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
     _image_buffer_path,
-    _workflow_input_service,
+    _image_materialization_service,
+    _section_materialization_service,
 )
 
 
@@ -70,7 +71,7 @@ def test_materialize_loaded_cube_scans_graph_bound_local_images_only(
         created_destinations=created_destinations,
     )
 
-    results = _workflow_input_service(
+    results = _section_materialization_service(
         input_canvas_state_service,
         canvas_io_service,
     ).materialize_loaded_section(
@@ -110,7 +111,7 @@ def test_materialize_loaded_cube_ignores_non_local_image_values(
         created_destinations=[],
     )
 
-    results = _workflow_input_service(
+    results = _section_materialization_service(
         input_canvas_state_service,
         canvas_io_service,
     ).materialize_loaded_section(
@@ -187,7 +188,7 @@ def test_direct_workflow_materializes_image_and_bound_mask_through_shared_servic
     mask_id = uuid4()
     expected_mask = tmp_path / "Direct" / "masks" / "source__mask.png"
     input_state = _FakeInputCanvasStateService(image_id=image_id, mask_id=mask_id)
-    service = _workflow_input_service(
+    service = _image_materialization_service(
         input_state,
         _FakeCanvasIoService(
             image=_FakeImage(),
@@ -233,7 +234,7 @@ def test_materialize_input_image_rejects_stale_workflow_without_graph_update(
         created_destinations=[],
     )
 
-    result = _workflow_input_service(
+    result = _image_materialization_service(
         input_canvas_state_service,
         canvas_io_service,
     ).materialize_input_image(

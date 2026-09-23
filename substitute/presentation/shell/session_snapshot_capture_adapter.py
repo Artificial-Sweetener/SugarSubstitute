@@ -220,7 +220,7 @@ class SessionSnapshotCaptureAdapter:
 
         workflow_name = self.workflow_tab_label(workflow_id)
         service = InputMaskSnapshotReferenceService(
-            scalar_asset_reader=self._shell.workflow_input_canvas_service,
+            scalar_asset_reader=self._shell.input_asset_associations,
             path_for_asset_ref=lambda asset_ref, name: self.capture_path_for_asset_ref(
                 asset_ref,
                 workflow_name=name,

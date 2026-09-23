@@ -85,7 +85,7 @@ def test_presenter_refreshes_materialized_picker_from_asset_state(
         workflow=workflow,
         panel=panel,
         asset_path=asset_path,
-        workflow_input_canvas_service=SimpleNamespace(
+        input_workflow_services=SimpleNamespace(
             materialize_input_image=lambda **_kwargs: SimpleNamespace(
                 image_id=image_id,
                 mask_results=(
@@ -127,7 +127,7 @@ def test_presenter_refreshes_user_selected_mask_from_asset_state(
         workflow=workflow,
         panel=panel,
         asset_path=asset_path,
-        workflow_input_canvas_service=SimpleNamespace(
+        input_workflow_services=SimpleNamespace(
             apply_user_selected_input_mask=lambda **_kwargs: SimpleNamespace(
                 applied=True,
                 rejection_reason="",
@@ -186,7 +186,7 @@ def test_presenter_reports_rejected_mask_dimensions_without_projection(
         workflow=workflow,
         panel=panel,
         asset_path=tmp_path / "asset.png",
-        workflow_input_canvas_service=SimpleNamespace(
+        input_workflow_services=SimpleNamespace(
             apply_user_selected_input_mask=lambda **_kwargs: SimpleNamespace(
                 applied=False,
                 rejection_reason=rejection_reason,
@@ -228,7 +228,7 @@ def test_presenter_skips_unresolved_loaded_image_identity(tmp_path: Path) -> Non
         workflow=workflow,
         panel=_Panel(),
         asset_path=tmp_path / "asset.png",
-        workflow_input_canvas_service=SimpleNamespace(
+        input_workflow_services=SimpleNamespace(
             resolve_loaded_image_identity=lambda *_args: SimpleNamespace(
                 accepted=False,
                 input_key=None,
@@ -265,7 +265,7 @@ def test_image_presenter_materializes_active_loaded_section(tmp_path: Path) -> N
         workflow=workflow,
         panel=_Panel(),
         asset_path=tmp_path / "asset.png",
-        workflow_input_canvas_service=SimpleNamespace(
+        input_workflow_services=SimpleNamespace(
             materialize_loaded_section=materialize_loaded_section,
         ),
         mark_canvas_changed=changed.append,
@@ -318,7 +318,7 @@ def _presenters(
     asset_path: Path | None = None,
     current_image_id_provider: Callable[[], UUID | None] | None = None,
     input_canvas_state_service: Any | None = None,
-    workflow_input_canvas_service: Any | None = None,
+    input_workflow_services: Any | None = None,
     input_bindings: Any | None = None,
     error_presenter: Any | None = None,
     mark_canvas_changed: Callable[[str], None] | None = None,
@@ -334,7 +334,7 @@ def _presenters(
         set_canvas_operation=lambda _operation_id: True,
     )
     asset_path = asset_path or Path(__file__).resolve()
-    workflow_input_canvas_service = workflow_input_canvas_service or SimpleNamespace(
+    input_workflow_services = input_workflow_services or SimpleNamespace(
         binding_for_mask=lambda *_args: SimpleNamespace(
             section_key="CubeA",
             surface_key="ImageNode",
@@ -345,7 +345,7 @@ def _presenters(
         ),
         resolve_input_mask_path=lambda *_args, **_kwargs: asset_path,
     )
-    input_bindings = input_bindings or workflow_input_canvas_service
+    input_bindings = input_bindings or input_workflow_services
     input_canvas_state_service = input_canvas_state_service or SimpleNamespace(
         set_active_image=lambda *_args: True,
         set_active_mask=lambda *_args: True,
@@ -360,7 +360,7 @@ def _presenters(
         active_panel=lambda: panel,
         workflow_session=session,
         input_bindings=cast(Any, input_bindings),
-        workflow_inputs=cast(Any, workflow_input_canvas_service),
+        workflow_inputs=cast(Any, input_workflow_services),
         workflow_name=lambda _workflow_id: "Recipe",
         projects_dir=lambda: asset_path.parent,
     )
@@ -394,7 +394,8 @@ def _presenters(
             active_workflow=lambda: cast(Any, workflow),
             active_panel=lambda: panel,
             workflow_session=session,
-            workflow_inputs=cast(Any, workflow_input_canvas_service),
+            workflow_inputs=cast(Any, input_workflow_services),
+            section_materialization=cast(Any, input_workflow_services),
             input_bindings=cast(Any, input_bindings),
             input_state=cast(Any, input_canvas_state_service),
             workflow_name=lambda _workflow_id: "Recipe",
@@ -405,7 +406,7 @@ def _presenters(
         masks=InputMaskSelectionPresenter(
             active_workflow=lambda: cast(Any, workflow),
             workflow_session=session,
-            workflow_inputs=cast(Any, workflow_input_canvas_service),
+            workflow_inputs=cast(Any, input_workflow_services),
             workflow_name=lambda _workflow_id: "Recipe",
             projects_dir=lambda: asset_path.parent,
             materialization=materialization,

@@ -19,10 +19,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, cast
-from substitute.application.workflows.input_canvas_state_composition import (
-    InputCanvasStateComposition,
-)
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
 )
@@ -35,11 +33,36 @@ from substitute.application.workflows.input_canvas_binding_service import (
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
 )
+from substitute.application.workflows.workflow_asset_service import WorkflowAssetService
+from substitute.application.workflows.input_mask_materialization_service import (
+    InputMaskMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_materialization_service import (
+    OrderedMaskMaterializationService,
+)
+from substitute.application.workflows.input_mask_binding_materialization_service import (
+    InputMaskBindingMaterializationService,
+)
+from substitute.application.workflows.synthetic_input_canvas_surface_service import (
+    SyntheticInputCanvasSurfaceService,
+)
+from substitute.application.workflows.input_mask_selection_service import (
+    InputMaskSelectionService,
+)
+from substitute.application.workflows.input_image_materialization_service import (
+    InputImageMaterializationService,
+)
+from substitute.application.workflows.input_section_materialization_service import (
+    InputSectionMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_graph_value_service import (
+    OrderedMaskGraphValueService,
+)
+from substitute.application.workflows.ordered_mask_region_authoring_service import (
+    OrderedMaskRegionAuthoringService,
+)
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
-)
-from substitute.application.workflows import (
-    WorkflowInputCanvasService,
 )
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, WorkflowState
@@ -120,32 +143,139 @@ def _mask_asset_payload(workflow: WorkflowState) -> JsonObject:
     return cast(JsonObject, input_masks["CubeA:input_mask"])
 
 
-def _workflow_input_service(
+def _image_materialization_service(
     input_canvas_state_service: _FakeInputCanvasStateService,
     canvas_io_service: _FakeCanvasIoService,
-) -> WorkflowInputCanvasService:
-    """Build the workflow input-canvas service with standard collaborators."""
+    *,
+    definitions: Mapping[str, JsonObject] | None = None,
+    workflow_asset_service: Any | None = None,
+    graph_section_service: WorkflowGraphSectionService | None = None,
+) -> InputImageMaterializationService:
+    """Build the input-image materialization service with standard collaborators."""
 
-    return WorkflowInputCanvasService(
-        input_bindings=_input_canvas_binding_service(),
-        input_state=_fake_input_state_composition(input_canvas_state_service),
-        canvas_io_service=canvas_io_service,
-    )
+    return _input_canvas_services(
+        input_canvas_state_service,
+        canvas_io_service,
+        definitions=definitions,
+        workflow_asset_service=workflow_asset_service,
+        graph_section_service=graph_section_service,
+    ).images
 
 
-def _fake_input_state_composition(
+def _section_materialization_service(
+    input_canvas_state_service: _FakeInputCanvasStateService,
+    canvas_io_service: _FakeCanvasIoService,
+    *,
+    definitions: Mapping[str, JsonObject] | None = None,
+    workflow_asset_service: Any | None = None,
+    graph_section_service: WorkflowGraphSectionService | None = None,
+) -> InputSectionMaterializationService:
+    """Build the graph-section materializer with standard collaborators."""
+
+    return _input_canvas_services(
+        input_canvas_state_service,
+        canvas_io_service,
+        definitions=definitions,
+        workflow_asset_service=workflow_asset_service,
+        graph_section_service=graph_section_service,
+    ).sections
+
+
+@dataclass(frozen=True)
+class _InputCanvasServices:
+    """Hold focused Input application owners used by workflow tests."""
+
+    images: InputImageMaterializationService
+    sections: InputSectionMaterializationService
+    mask_selection: InputMaskSelectionService
+    regions: OrderedMaskRegionAuthoringService
+
+
+def _input_canvas_services(
     state: _FakeInputCanvasStateService,
-) -> InputCanvasStateComposition:
-    """Expose one recording fake through every focused state capability."""
+    canvas_io: _FakeCanvasIoService,
+    *,
+    definitions: Mapping[str, JsonObject] | None = None,
+    workflow_asset_service: Any | None = None,
+    graph_section_service: WorkflowGraphSectionService | None = None,
+) -> _InputCanvasServices:
+    """Compose focused Input workflow owners around deterministic fakes."""
 
+    graph_sections = graph_section_service or WorkflowGraphSectionService()
+    bindings = InputCanvasBindingService(
+        plans=_input_canvas_plan_service(definitions),
+        graph_sections=graph_sections,
+    )
+    assets = workflow_asset_service or WorkflowAssetService(graph_sections)
     owner = cast(Any, state)
-    return InputCanvasStateComposition(
-        routes=owner,
-        images=owner,
-        masks=owner,
-        mask_restoration=owner,
+    scalar_masks = InputMaskMaterializationService(
+        input_masks=owner,
+        canvas_io_service=canvas_io,
+        workflow_asset_service=assets,
+        graph_section_service=graph_sections,
+    )
+    ordered_masks = OrderedMaskMaterializationService(
+        input_masks=owner,
         mask_visuals=owner,
-        cleanup=owner,
+        canvas_io_service=canvas_io,
+        graph_section_service=graph_sections,
+    )
+    mask_materialization = InputMaskBindingMaterializationService(
+        scalar_service=scalar_masks,
+        ordered_service=ordered_masks,
+    )
+    synthetic_surfaces = SyntheticInputCanvasSurfaceService(
+        input_images=owner,
+        input_cleanup=owner,
+        canvas_io_service=canvas_io,
+    )
+    images = InputImageMaterializationService(
+        bindings=bindings,
+        images=owner,
+        canvas_io=canvas_io,
+        mask_materialization=mask_materialization,
+        workflow_assets=assets,
+        graph_sections=graph_sections,
+    )
+    sections = InputSectionMaterializationService(
+        bindings=bindings,
+        images=images,
+        mask_materialization=mask_materialization,
+        synthetic_surfaces=synthetic_surfaces,
+        graph_sections=graph_sections,
+    )
+    regions = OrderedMaskRegionAuthoringService(
+        binding_resolver=bindings.binding_for_mask,
+        ensure_section_materialized=lambda workflow, workflow_id, section_key, workflow_name, projects_dir: (
+            sections.materialize_loaded_section(
+                workflows={workflow_id: workflow},
+                workflow_id=workflow_id,
+                section_key=section_key,
+                workflow_name=workflow_name,
+                projects_dir=projects_dir,
+            )
+        ),
+        input_routes=owner,
+        input_images=owner,
+        input_masks=owner,
+        canvas_io_service=canvas_io,
+        materialization_service=ordered_masks,
+        graph_values=OrderedMaskGraphValueService(graph_sections),
+    )
+    return _InputCanvasServices(
+        images=images,
+        sections=sections,
+        mask_selection=InputMaskSelectionService(
+            bindings=bindings,
+            images=owner,
+            masks=owner,
+            canvas_io=canvas_io,
+            workflow_assets=assets,
+            graph_sections=graph_sections,
+            synthetic_surfaces=synthetic_surfaces,
+            mask_materialization=mask_materialization,
+        ),
+        regions=regions,
     )
 
 

@@ -222,17 +222,17 @@ next_limit = 500
 debt = "SS-ARCH-025"
 
 [[waivers]]
-id = "SS-WAIVER-R026"
-owner = "workflow input canvas"
+id = "SS-WAIVER-R027"
+owner = "prompt editor performance operations"
 rule = "STRUCT003"
-path = "substitute/application/workflows/workflow_input_canvas_service.py"
+path = "substitute/devtools/prompt_editor_performance/qt_operations.py"
 kind = "remediation"
-justification = "The assessed file mixes ordered mask-region mutation, image and mask asset association, user-selected mask validation and application, image and mask materialization, loaded canvas section projection. Extract user-selected mask application and asset association from image and section materialization."
-issue = "chore:SS-ARCH-026"
+justification = "The assessed file mixes scenario operation dispatch, basic keyboard and selection timings, paint and diagnostic cache timings, reorder interaction timings, focus, hover, resize, scroll, and menu timings. Split operation families into focused timing modules behind the scenario-operation registry."
+issue = "chore:SS-ARCH-027"
 review_by = 2026-12-15
-max_lines = 917
-next_limit = 800
-debt = "SS-ARCH-026"
+max_lines = 633
+next_limit = 506
+debt = "SS-ARCH-027"
 
 [[waivers]]
 id = "SS-WAIVER-R028"
@@ -885,7 +885,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 667
+max_lines = 660
 
 [[waivers]]
 id = "SS-WAIVER-S011"
