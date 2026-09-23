@@ -39,6 +39,7 @@ from .token_weight_gestures import (
     PromptTokenWeightControl,
     PromptTokenWeightGestureController,
 )
+from .token_weight_hold_repeat import PromptTokenWeightHoldRepeater
 from .token_weight_wheel_intent import PromptTokenWeightWheelIntentRouter
 
 
@@ -157,6 +158,18 @@ class PromptTokenWeightInputRouter:
         self._exact_edit = exact_edit
         self._actions = actions
         self._wheel_intent = wheel_intent
+        self._hold_repeat = PromptTokenWeightHoldRepeater(
+            overlay,
+            visible_token=lambda: host.visible_token,
+            control_at_local_position=host.control_at_local_position,
+            gestures=gestures,
+            actions=actions,
+        )
+
+    def cancel_hold(self) -> None:
+        """End any active arrow hold when the editor clears transient input."""
+
+        self._hold_repeat.cancel()
 
     def begin_exact_edit_at_position(self, position: QPointF) -> bool:
         """Start exact editing when a surface point hits a supported number."""
@@ -201,6 +214,12 @@ class PromptTokenWeightInputRouter:
     def filter_event(self, watched: QObject, event: QEvent) -> bool | None:
         """Route installed surface events or return ``None`` for base handling."""
 
+        if watched is self._overlay.window() and event.type() in (
+            QEvent.Type.WindowDeactivate,
+            QEvent.Type.Hide,
+        ):
+            self._hold_repeat.cancel()
+            self._gestures.pressed_control = None
         if watched is self._viewport:
             handled = self._filter_viewport_event(event)
             if handled is not None:
@@ -227,6 +246,13 @@ class PromptTokenWeightInputRouter:
     def move(self, event: QMouseEvent) -> None:
         """Refresh pointer and hover ownership over the overlay."""
 
+        if (
+            self._gestures.pressed_control is not None
+            and self._host.control_at_local_position(event.position())
+            != self._gestures.pressed_control
+        ):
+            self._hold_repeat.cancel()
+            self._gestures.pressed_control = None
         self._host.set_pointer_from_overlay(event.position())
         self._host.update_hovered_control(event.position())
         self._host.refresh_geometry()
@@ -236,6 +262,8 @@ class PromptTokenWeightInputRouter:
 
         if self._gestures.action_in_progress:
             return
+        self._hold_repeat.cancel()
+        self._gestures.pressed_control = None
         self._gestures.hovered_control = None
         self._overlay.unsetCursor()
         self._gestures.pointer_host_position = None
@@ -296,6 +324,7 @@ class PromptTokenWeightInputRouter:
             return
         released_control = self._host.control_at_local_position(event.position())
         pressed_control = self._gestures.pressed_control
+        repeated = self._hold_repeat.finish()
         self._gestures.pressed_control = None
         self._gestures.hovered_control = released_control
         self._overlay.setCursor(
@@ -304,7 +333,11 @@ class PromptTokenWeightInputRouter:
             else Qt.CursorShape.ArrowCursor
         )
         self._overlay.update()
-        if pressed_control is not None and released_control == pressed_control:
+        if (
+            not repeated
+            and pressed_control is not None
+            and released_control == pressed_control
+        ):
             source_token = self._host.visible_token
             if source_token is not None:
                 self._actions.emit_control_step(
@@ -531,6 +564,7 @@ class PromptTokenWeightInputRouter:
         token = self._host.visible_token
         if token is not None:
             self._wheel_intent.activate(token, event.globalPosition())
+            self._hold_repeat.start(control, token, event.globalPosition())
         self._overlay.setCursor(Qt.CursorShape.PointingHandCursor)
         self._overlay.update()
         event.accept()

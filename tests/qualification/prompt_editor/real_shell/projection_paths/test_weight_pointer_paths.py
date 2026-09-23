@@ -198,3 +198,58 @@ def test_nested_outer_down_arrow_crosses_neutral_without_moving(
     )
     assert below_one.source_text == "((atmospheric:2.80) perspective:0.95)"
     assert not snapshot_invariant_violations(below_one)
+
+
+def test_held_nested_outer_arrow_repeats_through_neutral_in_real_shell(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Held arrows retain nested outer ownership until release without an extra step."""
+
+    source = "((atmospheric:2.80) perspective:1.05)"
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text=source)
+    real_shell_scenario.input.focus_editor(field)
+    real_shell_scenario.input.set_source_cursor_position(
+        field, source.index("perspective") + 1
+    )
+    editor = field.editor
+    controls = reveal_emphasis_controls(editor, emphasis_token_for(editor))
+    assert controls.decrease_rect is not None
+    control_parent = controls.parentWidget()
+    assert control_parent is not None
+    global_point = control_parent.mapToGlobal(controls.decrease_rect.center().toPoint())
+
+    QTest.mousePress(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(global_point),
+    )
+    real_shell_scenario.wait_until(
+        lambda: editor.toPlainText() == "(atmospheric:2.80) perspective",
+        description="held nested outer reaches neutral",
+    )
+    neutral = real_shell_scenario.snapshots.capture(field, label="held-nested-neutral")
+    assert not snapshot_invariant_violations(neutral)
+    assert controls.decrease_rect is not None
+    assert (
+        control_parent.mapToGlobal(controls.decrease_rect.center().toPoint())
+        == global_point
+    )
+
+    real_shell_scenario.wait_until(
+        lambda: (
+            (token := controls.visible_token) is not None
+            and float(token.value_text or "inf") <= 0.95
+        ),
+        description="held nested outer crosses below neutral",
+    )
+    before_release = editor.toPlainText()
+    QTest.mouseRelease(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(global_point),
+    )
+    below_one = real_shell_scenario.snapshots.capture(
+        field, label="held-nested-below-one"
+    )
+    assert below_one.source_text == before_release
+    assert not snapshot_invariant_violations(below_one)

@@ -245,6 +245,8 @@ class PromptTokenWeightControls(QWidget):
         viewport.setMouseTracking(True)
         viewport.installEventFilter(self)
         self._surface_widget.installEventFilter(self)
+        if host is not self._surface_widget:
+            host.installEventFilter(self)
         focus_owner = self._surface.parentWidget()
         if focus_owner is not None and focus_owner is not self._surface_widget:
             focus_owner.installEventFilter(self)
@@ -455,6 +457,7 @@ class PromptTokenWeightControls(QWidget):
         if not self._runtime_widgets_are_valid():
             return
         self._cancel_exact_weight_edit()
+        self._input_router.cancel_hold()
         self._gestures.clear_transient_state()
         self._wheel_intent.clear()
         self.unsetCursor()
