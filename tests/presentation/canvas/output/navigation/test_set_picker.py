@@ -25,7 +25,9 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.canvas.shared import output_set_picker as picker_mod
 from substitute.presentation.canvas.shared.output_set_picker import OutputSetPicker
-from substitute.presentation.widgets.anchored_row_picker import AnchoredRowPickerItem
+from substitute.presentation.widgets.anchored_row_picker_row import (
+    AnchoredRowPickerItem,
+)
 
 
 def _app() -> QApplication:
