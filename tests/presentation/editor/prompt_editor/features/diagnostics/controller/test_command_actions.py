@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from . import support
+from .spellcheck_support import _FakeSpellcheckService
 
 
 def test_controller_replace_spelling_diagnostic_routes_command() -> None:
@@ -30,9 +31,15 @@ def test_controller_replace_spelling_diagnostic_routes_command() -> None:
         editor,
         support._FakeSurface(),
         support._FakeService(diagnostic),
+        spellcheck_service=_FakeSpellcheckService(),
     )
+    controller.refresh_now()
+    action = controller.presentation.prepared_menu_actions_for_source_position(
+        5
+    ).actions[0]
+    assert action.callback is not None
 
-    controller.presentation.replace_spelling_diagnostic(diagnostic, "type")
+    action.callback()
 
     assert editor.toPlainText() == "one type"
     assert editor.focused is True

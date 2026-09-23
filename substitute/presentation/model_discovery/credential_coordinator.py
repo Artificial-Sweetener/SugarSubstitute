@@ -27,6 +27,7 @@ from substitute.application.civitai import CivitaiCredentialService
 from substitute.domain.model_suggestions import ModelSuggestion, ModelSuggestionAccess
 from substitute.presentation.model_discovery.credential_prompt import (
     CivitaiApiKeyPromptDialog,
+    CredentialPromptChoice,
 )
 
 
@@ -42,6 +43,11 @@ class ModelSuggestionCredentialHandler(Protocol):
 
     def request_credential(self, parent: QWidget) -> bool:
         """Request and securely store a credential after explicit selection."""
+
+    def request_choice(
+        self, parent: QWidget, *, protected_model_count: int
+    ) -> CredentialPromptChoice:
+        """Offer a key or a public-only route for selected models."""
 
 
 class CivitaiModelSuggestionCredentialHandler:
@@ -62,12 +68,23 @@ class CivitaiModelSuggestionCredentialHandler:
     def request_credential(self, parent: QWidget) -> bool:
         """Prompt for and securely store a CivitAI key."""
 
+        return (
+            self.request_choice(parent, protected_model_count=0)
+            is CredentialPromptChoice.SAVED
+        )
+
+    def request_choice(
+        self, parent: QWidget, *, protected_model_count: int
+    ) -> CredentialPromptChoice:
+        """Summarize protected selections and return the acquisition route."""
+
         dialog = CivitaiApiKeyPromptDialog(
             credential_service=self._credential_service,
             parent=parent,
+            protected_model_count=protected_model_count,
         )
         try:
-            return dialog.request_key()
+            return dialog.request_choice()
         finally:
             dialog.deleteLater()
 
@@ -85,18 +102,52 @@ class ModelSuggestionCredentialCoordinator:
         if len(self._handlers) != len(handlers):
             raise ValueError("Model credential provider identities must be unique.")
 
-    def authorize(self, suggestion: ModelSuggestion, parent: QWidget) -> bool:
+    def authorize(
+        self,
+        suggestion: ModelSuggestion,
+        parent: QWidget,
+        *,
+        provider_id: str | None = None,
+    ) -> bool:
         """Authorize public choices or run the selected provider's credential flow."""
 
-        if suggestion.access is ModelSuggestionAccess.PUBLIC:
+        offer = (
+            suggestion.primary_offer
+            if provider_id is None
+            else suggestion.offer_for_provider(provider_id)
+        )
+        if offer is None:
+            raise RuntimeError(f"No acquisition offer exists for: {provider_id}")
+        if offer.access is ModelSuggestionAccess.PUBLIC:
             return True
-        provider_id = suggestion.reference.provider_id
+        selected_provider_id = offer.reference.provider_id
+        handler = self._handlers.get(selected_provider_id)
+        if handler is None:
+            raise RuntimeError(
+                "No credential flow is available for model provider: "
+                f"{selected_provider_id}"
+            )
+        return handler.has_credential() or handler.request_credential(parent)
+
+    def has_credential(self, provider_id: str) -> bool:
+        """Return whether a provider's protected offers are already usable."""
+
+        handler = self._handlers.get(provider_id)
+        return handler.has_credential() if handler is not None else False
+
+    def request_choice(
+        self, provider_id: str, parent: QWidget, *, protected_model_count: int
+    ) -> CredentialPromptChoice:
+        """Show the provider's key layer for protected selections."""
+
         handler = self._handlers.get(provider_id)
         if handler is None:
             raise RuntimeError(
                 f"No credential flow is available for model provider: {provider_id}"
             )
-        return handler.has_credential() or handler.request_credential(parent)
+        return handler.request_choice(
+            parent, protected_model_count=protected_model_count
+        )
 
 
 __all__ = [

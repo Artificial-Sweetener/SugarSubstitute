@@ -23,7 +23,7 @@ from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, replace
 import time
-from typing import cast
+from typing import Protocol, cast
 
 from substitute.application.civitai import normalize_base_model_bucket
 from substitute.application.model_metadata.ports import BackendModelDownloadGateway
@@ -55,6 +55,19 @@ class RecipeModelDownloadResolutionError(ValueError):
     """Raised when missing recipe models cannot be downloaded and verified."""
 
 
+class RecipeModelDirectAcquirer(Protocol):
+    """Acquire non-CivitAI recovery candidates into their model folder."""
+
+    def acquire(
+        self,
+        candidate: RecipeModelDownloadCandidate,
+        *,
+        progress_callback: Callable[[BackendModelDownloadJob], None] | None,
+        should_cancel: Callable[[], bool] | None,
+    ) -> str:
+        """Download and return the Comfy-visible model value."""
+
+
 @dataclass(frozen=True, slots=True)
 class RecipeModelDownloadResolutionService:
     """Coordinate backend-verified downloads for unresolved recipe model references."""
@@ -72,6 +85,7 @@ class RecipeModelDownloadResolutionService:
     sleep: Callable[[float], None] = time.sleep
     poll_interval_seconds: float = 0.5
     poll_timeout_seconds: float = 600.0
+    direct_acquirer: RecipeModelDirectAcquirer | None = None
 
     def download_and_resolve(
         self,
@@ -83,8 +97,6 @@ class RecipeModelDownloadResolutionService:
     ) -> ResolvedRecipeModelScript:
         """Download every unresolved model and return a rewritten parsed script."""
 
-        if not self.downloads_enabled():
-            raise RecipeModelDownloadResolutionError("CivitAI downloads are disabled.")
         buffers = cast(
             OrderedDict[str, object], deepcopy(required.partial_script.buffers)
         )
@@ -145,8 +157,20 @@ class RecipeModelDownloadResolutionService:
         candidate = reference.candidate
         if candidate is None:
             raise RecipeModelDownloadResolutionError(
-                f"No verified CivitAI file is available for {reference.sha256[:12]}."
+                f"No verified provider file is available for {reference.sha256[:12]}."
             )
+        if candidate.provider_id != "civitai":
+            if self.direct_acquirer is None:
+                raise RecipeModelDownloadResolutionError(
+                    f"{candidate.provider_name} acquisition is unavailable."
+                )
+            return self.direct_acquirer.acquire(
+                candidate,
+                progress_callback=progress_callback,
+                should_cancel=should_cancel,
+            )
+        if not self.downloads_enabled():
+            raise RecipeModelDownloadResolutionError("CivitAI downloads are disabled.")
         job = self.backend.start_civitai_model_download(
             kind=candidate.kind,
             sha256=candidate.sha256,
@@ -354,5 +378,6 @@ def _candidate_key(reference: RecipeModelUnresolvedReference) -> _DownloadCandid
 
 __all__ = [
     "RecipeModelDownloadResolutionError",
+    "RecipeModelDirectAcquirer",
     "RecipeModelDownloadResolutionService",
 ]

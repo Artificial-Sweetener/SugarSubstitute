@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from substitute.application.prompt_editor.projection import (
-    syntax_service as syntax_module,
+    syntax_cache as syntax_cache_module,
 )
 from substitute.application.prompt_editor.document.service import (
     clear_prompt_document_caches,
@@ -31,18 +31,22 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfileService,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    clear_prompt_syntax_render_plan_cache,
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptEmphasisRendererView,
     PromptLoraRendererView,
-    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_cache import (
+    clear_prompt_syntax_render_plan_cache,
 )
 from substitute.application.prompt_editor.scenes.projection import (
     clear_prompt_scene_projection_cache,
     effective_prompt_text_at_source_position,
     parse_prompt_scene_projection_document,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
-    _lora_render_plan_summary,
+from substitute.application.prompt_editor.projection.lora_projection import (
+    summarize_lora_render_plan,
 )
 from substitute.application.ports import (
     PromptWildcardResolution,
@@ -272,7 +276,7 @@ def test_prompt_syntax_cache_separates_colliding_unversioned_catalog_identities(
             return 1
         return real_id(value)
 
-    monkeypatch.setattr(syntax_module, "id", colliding_id, raising=False)
+    monkeypatch.setattr(syntax_cache_module, "id", colliding_id, raising=False)
 
     empty_plan = PromptSyntaxService(
         wildcard_gateway,
@@ -317,7 +321,7 @@ def test_prompt_syntax_service_lora_render_plan_summary_counts_resolution_states
     render_plan = syntax_service.build_render_plan(document_view, profile)
     lora_view = render_plan.renderer_view_for_kind("lora")
     assert isinstance(lora_view, PromptLoraRendererView)
-    summary = _lora_render_plan_summary(
+    summary = summarize_lora_render_plan(
         document_view=document_view,
         syntax_profile=profile,
         active_lora_syntax_spans=tuple(
@@ -351,7 +355,7 @@ def test_prompt_syntax_service_lora_summary_counts_bootstrap_unresolved() -> Non
     render_plan = syntax_service.build_render_plan(document_view, profile)
     lora_view = render_plan.renderer_view_for_kind("lora")
     assert isinstance(lora_view, PromptLoraRendererView)
-    summary = _lora_render_plan_summary(
+    summary = summarize_lora_render_plan(
         document_view=document_view,
         syntax_profile=profile,
         active_lora_syntax_spans=tuple(

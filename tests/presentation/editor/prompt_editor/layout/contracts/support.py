@@ -50,7 +50,7 @@ from substitute.presentation.editor.prompt_editor.layout.models import (
 from substitute.presentation.editor.prompt_editor.layout.contracts import (
     PromptLayoutOutput,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
 )

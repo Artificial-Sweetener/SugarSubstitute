@@ -175,6 +175,29 @@ class PromptProjectionLayoutSnapshot:
                 return fragment
         return None
 
+    def text_fragment_at(self, point: QPointF) -> PromptProjectionTextFragment | None:
+        """Return the topmost laid-out text fragment at one document-local point."""
+
+        lower = 0
+        upper = len(self.lines)
+        while lower < upper:
+            middle = (lower + upper) // 2
+            if self.lines[middle].top <= point.y():
+                lower = middle + 1
+            else:
+                upper = middle
+        if lower == 0:
+            return None
+        line = self.lines[lower - 1]
+        if point.y() >= line.top + line.height:
+            return None
+        for fragment in reversed(line.fragments):
+            if isinstance(
+                fragment, PromptProjectionTextFragment
+            ) and fragment.rect.contains(point):
+                return fragment
+        return None
+
     def prewarm_inline_object_fragment_index(self) -> None:
         """Build the lazy inline-fragment index before interaction needs it."""
 

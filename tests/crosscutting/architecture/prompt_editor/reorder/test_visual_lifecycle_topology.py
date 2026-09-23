@@ -84,6 +84,7 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
     view = f"{prefix}overlays.reorder_view"
     overlay = f"{prefix}overlays.reorder_overlay"
     factory = f"{prefix}composition.reorder_overlay_factory"
+    runtime_factory = f"{prefix}composition.reorder_overlay_runtime_factory"
     gesture_controller = f"{prefix}overlays.reorder_gesture_controller"
     widget_mapping = f"{prefix}geometry.widget_mapping"
     interaction_geometry = f"{prefix}projection.reorder_interaction_geometry"
@@ -99,6 +100,7 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
         f"{prefix}interactions.reorder_interaction",
         f"{prefix}widget",
         factory,
+        runtime_factory,
     }
     assert graph[pointer_drag_completion_owner] == {
         animation_presentation,
@@ -129,11 +131,11 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
     assert graph[pointer_drag_completion_owner].isdisjoint(
         {pointer_drag_start_owner} | forbidden_outer
     )
+    assert commit_snapshot in graph[overlay]
     assert {
-        commit_snapshot,
         pointer_drag_completion_owner,
         pointer_drag_start_owner,
-    } <= graph[overlay]
+    } <= graph[runtime_factory]
     assert {
         widget_mapping,
         f"{prefix}projection.reorder_state",
@@ -149,7 +151,7 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
         }
         | forbidden_outer
     )
-    assert viewport_geometry in graph[overlay]
+    assert viewport_geometry in graph[runtime_factory]
     assert graph[viewport_frame_refresh] == {
         animation_presentation,
         drag_proxy_visual_owner,
@@ -193,7 +195,7 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
         }
         | forbidden_outer
     )
-    assert refresh_identity in graph[overlay]
+    assert refresh_identity in graph[runtime_factory]
     assert graph[visual_mode] == {
         "substitute.application.prompt_editor.reorder.views",
         gesture_controller,
@@ -296,7 +298,7 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
     assert {
         preview_frame_transition,
         viewport_frame_refresh,
-    } <= graph[overlay]
+    } <= graph[runtime_factory]
     assert not (
         PROMPT_PRESENTATION_ROOT / "overlays" / "reorder_frame_transition_owner.py"
     ).exists()
@@ -358,7 +360,7 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
         }
         | forbidden_outer
     )
-    assert held_drag_context in graph[overlay]
+    assert held_drag_context in graph[runtime_factory]
     assert {
         animation_presentation,
         drag_proxy_visual_owner,
@@ -367,4 +369,4 @@ def test_reorder_visual_lifecycle_topology_flows_outward() -> None:
         raster_publication,
     } <= graph[performance_counters]
     assert graph[performance_counters].isdisjoint(forbidden_outer)
-    assert performance_counters in graph[overlay]
+    assert performance_counters in graph[runtime_factory]

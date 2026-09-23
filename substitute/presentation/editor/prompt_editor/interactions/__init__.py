@@ -82,6 +82,7 @@ from .external_url_action_runner import (
     PromptExternalUrlOpener,
     PromptExternalUrlOpenRequest,
 )
+from .external_text_input import PromptExternalTextInputOwner
 from .inline_lora_menu_presenter import (
     PromptInlineLoraContextMenuPresenter,
     PromptInlineLoraMetadataActions,
@@ -183,6 +184,7 @@ __all__ = [
     "PromptExternalUrlActionRunner",
     "PromptExternalUrlOpener",
     "PromptExternalUrlOpenRequest",
+    "PromptExternalTextInputOwner",
     "PromptInlineLoraContextMenuPresenter",
     "PromptInlineLoraMetadataActions",
     "PromptInlineLoraTriggerWordActions",

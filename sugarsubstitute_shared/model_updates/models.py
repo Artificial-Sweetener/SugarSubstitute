@@ -47,6 +47,8 @@ class ModelUsageRecord:
     base_model: str | None
     usage_count: int
     last_used_at: datetime
+    dismissed_version_id: int | None = None
+    updates_disabled_for_model: bool = False
 
 
 @dataclass(frozen=True, slots=True)

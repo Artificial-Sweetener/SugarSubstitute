@@ -31,6 +31,7 @@ from substitute.application.cache_lifecycle.cache_ids import (
     CACHE_ID_MODEL_CATALOG_SNAPSHOTS,
     CACHE_ID_MODEL_METADATA,
     CACHE_ID_MODEL_THUMBNAILS,
+    CACHE_ID_OPENMODELDB_CATALOG,
 )
 from substitute.domain.model_metadata import (
     CivitaiImage,
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
     from substitute.infrastructure.persistence.sqlite_model_thumbnail_asset_store import (
         SqliteModelThumbnailAssetStore,
     )
+    from substitute.infrastructure.model_suggestions import OpenModelDbCatalogClient
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,6 +295,18 @@ def build_recommendation_thumbnail_cache(
     )
 
 
+def build_openmodeldb_catalog(
+    prepared: PreparedCacheCatalog,
+) -> OpenModelDbCatalogClient:
+    """Build the OpenModelDB client from its governed catalog namespace."""
+
+    from substitute.infrastructure.model_suggestions import OpenModelDbCatalogClient
+
+    return OpenModelDbCatalogClient(
+        prepared.namespace(CACHE_ID_OPENMODELDB_CATALOG).path
+    )
+
+
 __all__ = [
     "CubeCacheRepositories",
     "LazyModelCatalogSnapshotStore",
@@ -302,5 +316,6 @@ __all__ = [
     "build_cube_cache_repositories",
     "build_danbooru_cache_repository",
     "build_model_cache_repositories",
+    "build_openmodeldb_catalog",
     "build_recommendation_thumbnail_cache",
 ]

@@ -23,6 +23,7 @@ import pytest
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
     PromptProjectionTokenKind,
+    PromptProjectionTokenNavigationMode,
 )
 from substitute.presentation.editor.prompt_editor.projection.source_edit_projection_policy import (
     PromptSourceEditProjectionDecision,
@@ -128,6 +129,107 @@ def test_source_edit_projection_decision_allows_safe_wrap_recovery(
 
 
 @pytest.mark.parametrize(
+    ("decision", "expected"),
+    (
+        (
+            PromptSourceEditProjectionDecision(
+                can_defer_projection=False,
+                deferral_reason="plain_single_character",
+                insertion_inside_projected_token=True,
+            ),
+            True,
+        ),
+        (
+            PromptSourceEditProjectionDecision(
+                can_defer_projection=False,
+                deferral_reason="deletion_requires_immediate_projection",
+                deletion_intersects_projected_token=True,
+            ),
+            True,
+        ),
+        (
+            PromptSourceEditProjectionDecision(
+                can_defer_projection=False,
+                deferral_reason="whitespace_requires_immediate_projection",
+            ),
+            False,
+        ),
+        (
+            PromptSourceEditProjectionDecision(
+                can_defer_projection=False,
+                deferral_reason="source_projection_topology_changed",
+                projection_topology_requires_rebuild=True,
+            ),
+            False,
+        ),
+    ),
+)
+def test_source_edit_projection_decision_classifies_semantic_urgency(
+    decision: PromptSourceEditProjectionDecision,
+    expected: bool,
+) -> None:
+    """Token and whitespace boundaries require current semantic ownership."""
+
+    assert decision.requires_immediate_semantic_refresh is expected
+
+
+def test_syntax_sensitive_edit_requires_refresh_at_next_boundary() -> None:
+    """Potential syntax formation may debounce until its next edit boundary."""
+
+    decision = PromptSourceEditProjectionDecision(
+        can_defer_projection=False,
+        deferral_reason="source_projection_topology_changed",
+        projection_topology_requires_rebuild=True,
+        typed_character_requires_projection=True,
+    )
+
+    assert not decision.requires_immediate_semantic_refresh
+    assert decision.requires_semantic_refresh_before_boundary
+
+
+def test_plain_token_content_edit_debounces_until_scheduled_refresh() -> None:
+    """Keep ordinary token-content typing fast until its scheduled refresh."""
+
+    decision = PromptSourceEditProjectionDecision(
+        can_defer_projection=True,
+        deferral_reason="plain_single_character",
+        insertion_inside_projected_token=True,
+        insertion_inside_text_content=True,
+    )
+
+    assert not decision.requires_immediate_semantic_refresh
+    assert not decision.requires_semantic_refresh_before_boundary
+
+
+def test_token_content_whitespace_debounces_until_scheduled_refresh() -> None:
+    """Treat content whitespace as visible text until scheduled semantics."""
+
+    decision = PromptSourceEditProjectionDecision(
+        can_defer_projection=False,
+        deferral_reason="whitespace_requires_immediate_projection",
+        insertion_inside_projected_token=True,
+        insertion_inside_text_content=True,
+    )
+
+    assert not decision.requires_immediate_semantic_refresh
+    assert not decision.requires_semantic_refresh_before_boundary
+
+
+def test_syntax_character_inside_token_content_refreshes_immediately() -> None:
+    """Resolve syntax-changing token content without exposing stale semantics."""
+
+    decision = PromptSourceEditProjectionDecision(
+        can_defer_projection=False,
+        deferral_reason="syntax_sensitive_character",
+        typed_character_requires_projection=True,
+        insertion_inside_projected_token=True,
+        insertion_inside_text_content=True,
+    )
+
+    assert decision.requires_immediate_semantic_refresh
+
+
+@pytest.mark.parametrize(
     ("character", "comma_requires_projection", "expected"),
     (
         ("x", False, False),
@@ -198,6 +300,7 @@ def test_source_edit_projection_policy_queries_token_boundaries() -> None:
 
     assert policy.source_range_intersects_tokens(start=3, end=5, tokens=(token,))
     assert not policy.source_range_intersects_tokens(start=0, end=4, tokens=(token,))
+    assert not policy.source_range_intersects_tokens(start=8, end=8, tokens=(token,))
     assert policy.source_insertion_is_inside_token(
         source_position=8,
         tokens=(token,),
@@ -205,4 +308,23 @@ def test_source_edit_projection_policy_queries_token_boundaries() -> None:
     assert not policy.source_insertion_is_inside_token(
         source_position=4,
         tokens=(token,),
+    )
+
+    text_token = PromptProjectionToken(
+        token_id="text-token",
+        kind=PromptProjectionTokenKind.EMPHASIS,
+        source_start=4,
+        source_end=16,
+        display_text="content",
+        content_start=5,
+        content_end=12,
+        navigation_mode=PromptProjectionTokenNavigationMode.TEXT_CONTENT,
+    )
+    assert policy.source_insertion_is_inside_text_content(
+        source_position=8,
+        tokens=(text_token,),
+    )
+    assert not policy.source_insertion_is_inside_text_content(
+        source_position=4,
+        tokens=(text_token,),
     )

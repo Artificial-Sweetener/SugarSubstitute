@@ -27,6 +27,7 @@ from substitute.application.model_suggestions import (
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.domain.model_suggestions import (
+    ModelAcquisitionOffer,
     ModelSuggestion,
     ModelSuggestionAccess,
     ModelSuggestionAccessPolicy,
@@ -85,7 +86,12 @@ class _Provider:
     def browse_url(self, context: ModelSuggestionContext) -> str:
         """Return a provider-owned browse route."""
 
-        return f"https://{self.provider_id}.example/{context.family_id.value}"
+        route = (
+            context.family_id.value
+            if context.family_id is not None
+            else context.artifact_kind.value
+        )
+        return f"https://{self.provider_id}.example/{route}"
 
     def fetch_thumbnail(self, suggestion: ModelSuggestion) -> ThumbnailAsset:
         """Reject unused thumbnail work."""
@@ -95,6 +101,7 @@ class _Provider:
     def acquire(
         self,
         suggestion: ModelSuggestion,
+        offer: ModelAcquisitionOffer,
         *,
         destination: Path,
         cancellation: object | None,
@@ -103,9 +110,9 @@ class _Provider:
 
         _ = cancellation
         return AcquisitionResult(
-            destination / suggestion.file_name,
+            destination / offer.file_name,
             suggestion.sha256,
-            suggestion.size_bytes,
+            offer.size_bytes,
             False,
         )
 
@@ -120,24 +127,28 @@ def _suggestion(
     """Build one provider-neutral suggestion."""
 
     return ModelSuggestion(
-        reference=ModelSuggestionReference(
-            provider_id,
-            provider_id.title(),
-            f"model-{rank}",
-            f"version-{rank}",
-        ),
         context=context,
         model_name=f"Model {rank}",
         version_name=f"v{rank}",
         creator=None,
-        file_name=f"model-{rank}.safetensors",
-        size_bytes=rank,
         sha256=sha256,
-        download_url=f"https://{provider_id}.example/download/{rank}",
-        model_page_url=f"https://{provider_id}.example/models/{rank}",
-        thumbnail_url=None,
-        provider_rank=rank,
-        access=ModelSuggestionAccess.PUBLIC,
+        offers=(
+            ModelAcquisitionOffer(
+                reference=ModelSuggestionReference(
+                    provider_id,
+                    provider_id.title(),
+                    f"model-{rank}",
+                    f"version-{rank}",
+                ),
+                file_name=f"model-{rank}.safetensors",
+                size_bytes=rank,
+                download_url=f"https://{provider_id}.example/download/{rank}",
+                model_page_url=f"https://{provider_id}.example/models/{rank}",
+                thumbnail_url=None,
+                provider_rank=rank,
+                access=ModelSuggestionAccess.PUBLIC,
+            ),
+        ),
     )
 
 
@@ -166,7 +177,11 @@ def test_engine_routes_by_capability_and_deduplicates_provider_hashes() -> None:
         limit=8,
     )
 
-    assert suggestions == (first, second)
+    assert suggestions[0].offers == (
+        first.primary_offer,
+        duplicate.primary_offer,
+    )
+    assert suggestions[1] == second
     assert ignored.requests == []
     assert engine.browse_urls(context) == (
         ("first", "https://first.example/anima"),
@@ -192,11 +207,16 @@ def test_empty_picker_service_uses_authenticated_access_and_exact_provider(
     )
 
     plan = service.plan_empty_picker(context)
+    public_plan = service.plan_public_picker(context)
     selected, result = service.acquire(plan, suggestion.identity)
 
-    assert provider.requests == [(context, ModelSuggestionAccessPolicy.CURRENT_USER)]
+    assert provider.requests == [
+        (context, ModelSuggestionAccessPolicy.CURRENT_USER),
+        (context, ModelSuggestionAccessPolicy.PUBLIC_ONLY),
+    ]
+    assert public_plan.suggestions == (suggestion,)
     assert selected is suggestion
-    assert result.path == root / "checkpoints" / suggestion.file_name
+    assert result.path == root / "checkpoints" / suggestion.primary_offer.file_name
 
 
 def test_engine_rejects_duplicate_provider_identities() -> None:

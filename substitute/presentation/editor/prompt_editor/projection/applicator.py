@@ -24,7 +24,7 @@ from PySide6.QtGui import QFont, QPalette
 
 from substitute.application.appearance import SemanticPalette
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 
@@ -211,8 +211,9 @@ class PromptProjectionApplicator:
         semantic_palette: SemanticPalette,
         previous_cursor_state: PromptProjectionCaretState,
         previous_anchor_state: PromptProjectionCaretState,
+        mount_committed_layout: bool = True,
     ) -> PromptProjectionRebuildResult:
-        """Build a projection document, publish it to layout, and resolve carets."""
+        """Build committed projection state and optionally mount its layout."""
 
         projection_document = self.build_projection(
             document_view,
@@ -227,10 +228,11 @@ class PromptProjectionApplicator:
         layout.set_base_font(font)
         layout.frame.set_palette(palette)
         layout.frame.set_semantic_palette(semantic_palette)
-        layout.set_projection(
-            projection_document,
-            prompt_document_view=document_view,
-        )
+        if mount_committed_layout:
+            layout.set_projection(
+                projection_document,
+                prompt_document_view=document_view,
+            )
         return PromptProjectionRebuildResult(
             projection_document=projection_document,
             active_span_range=active_span_range,

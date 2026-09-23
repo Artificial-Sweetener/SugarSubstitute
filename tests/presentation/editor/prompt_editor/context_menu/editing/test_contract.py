@@ -41,6 +41,7 @@ from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     process_events,
 )
 from tests.support.prompt_editor.projection_engine_support import surface_for
+from tests.support.prompt_editor.runtime_owners import set_context_menu_insert_state
 from substitute.presentation.widgets.menu_model import MenuItem
 
 pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
@@ -101,7 +102,9 @@ def test_prompt_field_actions_exclude_generic_editing_commands(
             "prompt.select_all",
         }
     )
-    insert_state = cast(Any, editor)._shell_context_menu.consume_context_insert_state()
+    insert_state = cast(
+        Any, editor
+    )._runtime.host.menu.shell.consume_context_insert_state()
     assert insert_state.insert_position == 5
     assert insert_state.should_replace_selection is False
 
@@ -111,7 +114,7 @@ def test_prompt_field_actions_exclude_generic_editing_commands(
     editor.field_action_entries(FieldActionContext(QPoint(20, 30)))
     selection_state = cast(
         Any, editor
-    )._shell_context_menu.consume_context_insert_state()
+    )._runtime.host.menu.shell.consume_context_insert_state()
     assert selection_state.insert_position is None
     assert selection_state.should_replace_selection is True
 
@@ -133,7 +136,11 @@ def test_prompt_editor_context_menu_select_all_selects_full_source(
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
     menu_type = PromptTextMenu
-    menu = menu_type(editor, schedule_lora=lambda: None)
+    menu = menu_type(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
+    )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     select_all_action = next(
         action for action in menu.menuActions() if action.text() == "Select all"
@@ -180,7 +187,11 @@ def test_prompt_editor_context_menu_clipboard_rows_use_shared_controller(
     monkeypatch.setattr(PromptEditor, "paste", fail_parent_clipboard_method)
     monkeypatch.setattr(PromptEditor, "selectAll", fail_parent_clipboard_method)
 
-    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
+    )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     actions = {action.text(): action for action in menu.menuActions()}
 
@@ -284,7 +295,9 @@ def test_prompt_editor_context_menu_clipboard_click_and_shortcut_share_controlle
     editor.setFocus()
     QApplication.clipboard().setText("omega")
     calls: list[str] = []
-    controller_type = type(cast(Any, editor)._clipboard_history_controller)
+    controller_type = type(
+        cast(Any, editor)._runtime.projection.clipboard_history_controller
+    )
 
     def record_controller_call(self: object) -> None:
         """Record one clipboard controller action invocation."""
@@ -294,7 +307,11 @@ def test_prompt_editor_context_menu_clipboard_click_and_shortcut_share_controlle
 
     monkeypatch.setattr(controller_type, method_name, record_controller_call)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
+    )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     action = next(action for action in menu.menuActions() if action.text() == row_text)
     item = next(
@@ -400,9 +417,9 @@ def test_prompt_editor_host_facade_context_insert_preserves_focus_target(
     editor.setPlainText("alpha")
     editor.setFocus()
     process_events(app)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=5)
+    set_context_menu_insert_state(editor, insert_position=5)
 
-    cast(Any, editor)._context_insertion.insert_context_menu_text(
+    cast(Any, editor)._runtime.core.context_insertion.insert_context_menu_text(
         ", beta",
         command_name="lora_insert_trigger_words",
     )
@@ -422,7 +439,12 @@ def test_prompt_editor_context_menu_undo_redo_follow_custom_stack(
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
     menu_type = PromptTextMenu
 
-    clean_menu = menu_type(editor, schedule_lora=lambda: None)
+    clipboard_actions = editor._runtime.projection.clipboard_history_controller
+    clean_menu = menu_type(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=clipboard_actions,
+    )
     clean_menu.exec(editor.mapToGlobal(editor.rect().center()))
     clean_actions = [action.text() for action in clean_menu.menuActions()]
 
@@ -432,7 +454,11 @@ def test_prompt_editor_context_menu_undo_redo_follow_custom_stack(
 
     QTest.keyClicks(editor, "x")
     surface_for(editor).edit_execution.finish_pending_key_edit_block(reason="test_menu")
-    undo_menu = menu_type(editor, schedule_lora=lambda: None)
+    undo_menu = menu_type(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=clipboard_actions,
+    )
     undo_menu.exec(editor.mapToGlobal(editor.rect().center()))
     undo_actions = [action.text() for action in undo_menu.menuActions()]
 
@@ -440,7 +466,11 @@ def test_prompt_editor_context_menu_undo_redo_follow_custom_stack(
     assert "Redo" not in undo_actions
 
     editor.undo()
-    redo_menu = menu_type(editor, schedule_lora=lambda: None)
+    redo_menu = menu_type(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=clipboard_actions,
+    )
     redo_menu.exec(editor.mapToGlobal(editor.rect().center()))
     redo_actions = [action.text() for action in redo_menu.menuActions()]
 
@@ -467,6 +497,7 @@ def test_prompt_editor_context_menu_copy_restores_exclusive_selection_end(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
     )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     copy_action = next(

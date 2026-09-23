@@ -24,7 +24,7 @@ from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
@@ -499,14 +499,28 @@ def test_edit_pipeline_restores_checkpoint_before_local_work() -> None:
     assert outcome.apply_path is PromptProjectionApplyPath.CHECKPOINT_RESTORE
 
 
-def test_edit_pipeline_forces_topology_directly_to_full_rebuild() -> None:
-    """Topology changes should execute no speculative local strategy."""
+def test_edit_pipeline_reflows_canonical_topology_before_full_rebuild() -> None:
+    """Topology changes should bound canonical layout work before fallback."""
 
-    executor = _StrategyExecutor("none")
+    executor = _StrategyExecutor("canonical")
 
     outcome = _pipeline(executor).apply(_request(topology_rebuild=True))
 
-    assert executor.calls == ["rebuild"]
+    assert executor.calls == ["canonical"]
+    assert outcome.apply_path is PromptProjectionApplyPath.REFLOW
+    assert outcome.fast_projection_applied
+
+
+def test_edit_pipeline_falls_back_when_canonical_topology_reflow_is_unavailable() -> (
+    None
+):
+    """Topology changes should retain a terminal whole-frame fallback."""
+
+    executor = _StrategyExecutor("none")
+
+    outcome = _pipeline(executor).apply(_request(region_rebuild=True))
+
+    assert executor.calls == ["canonical", "rebuild"]
     assert outcome.apply_path is PromptProjectionApplyPath.FULL_REBUILD
 
 
@@ -599,6 +613,20 @@ def test_edit_pipeline_extends_existing_deferred_chain_before_local_work() -> No
 
     assert executor.calls == ["direct", "direct", "defer_wrap"]
     assert outcome.wrap_reflow_deferred
+
+
+def test_edit_pipeline_recovers_deferred_chain_when_overlay_cannot_extend() -> None:
+    """A wrap boundary should fall through to bounded canonical recovery."""
+
+    executor = _StrategyExecutor("canonical")
+
+    outcome = _pipeline(executor).apply(
+        _request(deferred_extendable=True, direct_deferred=False)
+    )
+
+    assert executor.calls == ["transient", "canonical"]
+    assert outcome.apply_path is PromptProjectionApplyPath.REFLOW
+    assert outcome.fast_projection_applied
 
 
 def test_edit_pipeline_rebuilds_when_wrap_deferral_lacks_visible_feedback() -> None:

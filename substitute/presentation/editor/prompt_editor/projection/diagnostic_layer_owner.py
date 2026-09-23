@@ -65,6 +65,8 @@ class PromptDiagnosticLayerOwner:
         *,
         parent: QObject,
         diagnostics: Callable[[], Sequence[PromptDiagnostic]],
+        replace_diagnostics: Callable[[Sequence[PromptDiagnostic]], None],
+        clear_diagnostics: Callable[[], None],
         selection: Callable[[], PromptProjectionSelection],
         geometry: Callable[[], PromptProjectionGeometry],
         layout_identity: Callable[[], PromptLayoutIdentity | None],
@@ -78,6 +80,8 @@ class PromptDiagnosticLayerOwner:
         """Bind narrow state queries used only at explicit refresh boundaries."""
 
         self._diagnostics = diagnostics
+        self._replace_diagnostics = replace_diagnostics
+        self._clear_diagnostics = clear_diagnostics
         self._selection = selection
         self._geometry = geometry
         self._layout_identity = layout_identity
@@ -103,6 +107,27 @@ class PromptDiagnosticLayerOwner:
         """Return the currently published immutable diagnostic layer."""
 
         return self._layer
+
+    def set_diagnostics(
+        self,
+        diagnostics: tuple[PromptDiagnostic, ...],
+    ) -> None:
+        """Replace diagnostics and publish the corresponding render layer."""
+
+        if diagnostics == tuple(self._diagnostics()):
+            return
+        self.clear_fragment_cache(reason="diagnostics_changed")
+        self._replace_diagnostics(diagnostics)
+        self.refresh(reason="diagnostics_changed")
+
+    def clear_diagnostics(self) -> None:
+        """Clear diagnostics and their retained render-layer state."""
+
+        if not self._diagnostics():
+            return
+        self.clear_fragment_cache(reason="diagnostics_cleared")
+        self._clear_diagnostics()
+        self.refresh(reason="diagnostics_cleared")
 
     def refresh(self, *, reason: str) -> None:
         """Prepare and publish the current diagnostic layer outside paint."""
@@ -206,6 +231,7 @@ class PromptDiagnosticLayerOwner:
             layout_identity=layout_identity,
         )
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_CLEAR)
     def clear_fragment_cache(self, *, reason: str) -> None:
         """Discard cached fragments and any layer built from their geometry."""
 
@@ -215,10 +241,10 @@ class PromptDiagnosticLayerOwner:
         self._key = None
         self._publish(EMPTY_DIAGNOSTIC_RENDER_LAYER)
 
+    @prompt_editor_work_event(PromptEditorWorkEvent.DIAGNOSTIC_CACHE_PRESERVE)
     def preserve_fragment_cache_for_incremental_edit(
         self,
         *,
-        diagnostics: Sequence[PromptDiagnostic],
         start: int,
         end: int,
         replacement_text: str,
@@ -231,7 +257,7 @@ class PromptDiagnosticLayerOwner:
         self.stop_warm()
         self._key = None
         self._preparer.preserve_for_incremental_edit(
-            diagnostics=diagnostics,
+            diagnostics=self._diagnostics(),
             start=start,
             end=end,
             replacement_text=replacement_text,

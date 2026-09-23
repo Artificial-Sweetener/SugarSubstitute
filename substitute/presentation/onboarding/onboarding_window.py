@@ -64,7 +64,7 @@ from substitute.presentation.onboarding.comfy_environment_coordinator import (
     ComfyEnvironmentCoordinator,
 )
 from substitute.presentation.onboarding.external_link_opener import (
-    open_civitai_model_page,
+    open_onboarding_model_page,
 )
 from substitute.presentation.onboarding.comfy_environment_pages import (
     AttachedPythonChoicePage,
@@ -250,7 +250,7 @@ class OnboardingWindow(SubstituteWindowFrame):
             review_page=self.model_download_review_page,
             primary_button=self.primary_button,
             navigate=self._show_page,
-            open_model_page=open_civitai_model_page,
+            open_model_page=open_onboarding_model_page,
             recipe_planner=recipe_planner,
         )
         self.titleBar.raise_()

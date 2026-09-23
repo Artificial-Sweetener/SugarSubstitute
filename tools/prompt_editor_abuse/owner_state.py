@@ -62,16 +62,30 @@ def capture_prompt_cursor_positions(editor: object) -> tuple[int, int]:
     """Return the authoritative source cursor and anchor positions."""
 
     prompt_editor = cast(Any, editor)
-    surface = prompt_editor._surface
+    surface = prompt_editor._runtime.projection.surface
     return int(surface.cursor_position), int(surface.anchor_position)
 
 
-def capture_prompt_editor_owner_state(editor: object) -> PromptAbuseOwnerState:
-    """Return immediate owner agreement without processing queued events."""
+def capture_prompt_editor_owner_state(
+    editor: object,
+    *,
+    validate_layout_fragments: bool = True,
+) -> PromptAbuseOwnerState:
+    """Return immediate owner agreement without processing queued events.
+
+    Args:
+        editor: Mounted production prompt editor.
+        validate_layout_fragments: Whether to walk every layout fragment and
+            prove its semantic owner. Timed dispatch probes disable this
+            document-wide diagnostic; the separate visual correctness replay
+            enables it at every painted checkpoint.
+    """
 
     prompt_editor = cast(Any, editor)
     source_text = str(prompt_editor.toPlainText())
-    surface = getattr(prompt_editor, "_surface", None)
+    runtime = getattr(prompt_editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
     editor_state = getattr(surface, "editor_state", None)
     projection_snapshot = getattr(editor_state, "projection", None)
     projection_document = getattr(projection_snapshot, "document", None)
@@ -91,8 +105,10 @@ def capture_prompt_editor_owner_state(editor: object) -> PromptAbuseOwnerState:
     semantic_current = (
         None if semantic_source is None else semantic_source == source_text
     )
-    fragment_ownership_valid, fragment_ownership_mismatch = _layout_fragment_ownership(
-        surface
+    fragment_ownership_valid, fragment_ownership_mismatch = (
+        _layout_fragment_ownership(surface)
+        if validate_layout_fragments
+        else (None, None)
     )
     if projection_current is None or surface is None:
         return PromptAbuseOwnerState(
@@ -222,8 +238,9 @@ def _layout_fragment_ownership(surface: Any) -> tuple[bool | None, str | None]:
         return None, None
     layout = getattr(surface, "_layout", None)
     frames = [None if layout is None else getattr(layout, "frame", None)]
-    preview_projection = getattr(surface, "_reorder_preview_projection", None)
-    preview_frame = getattr(preview_projection, "preview_frame", None)
+    reorder = getattr(surface, "reorder", None)
+    preview = None if reorder is None else getattr(reorder, "preview", None)
+    preview_frame = getattr(preview, "preview_frame", None)
     if preview_frame is not None:
         frames.append(preview_frame)
     for layout_name, frame in zip(("base", "preview"), frames, strict=False):
@@ -298,9 +315,10 @@ def _region_projection_ownership(
             f"{layout_name}:region_token_ranges:"
             f"actual={actual_token_ranges!r}:expected={expected_token_ranges!r}"
         )
+    caret_state_owner = surface._caret_state_owner
     for caret_name, state in (
-        ("cursor", getattr(surface, "_cursor_state", None)),
-        ("anchor", getattr(surface, "_anchor_state", None)),
+        ("cursor", caret_state_owner.cursor_state),
+        ("anchor", caret_state_owner.anchor_state),
     ):
         source_position = getattr(state, "source_position", None)
         if isinstance(source_position, int) and any(
@@ -352,7 +370,9 @@ def _region_projection_ownership(
         if structural_line.caret_stops:
             return f"{location}:structural_caret_stops_present"
 
-    chrome = getattr(surface, "_region_chrome", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    chrome_presentation = getattr(presentation_runtime, "region_chrome", None)
+    chrome = getattr(chrome_presentation, "chrome", None)
     snapshot = None if chrome is None else chrome.snapshot_for(output)
     if not separators:
         if snapshot is not None:
@@ -409,7 +429,9 @@ def _raw_region_projection_mismatch(
         return f"{layout_name}:raw_structural_runs_present:{len(structural_runs)}"
     if document.projection_text != document.source_text:
         return f"{layout_name}:raw_projection_not_literal"
-    chrome = getattr(surface, "_region_chrome", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    chrome_presentation = getattr(presentation_runtime, "region_chrome", None)
+    chrome = getattr(chrome_presentation, "chrome", None)
     snapshot = None if chrome is None else chrome.snapshot_for(output)
     if snapshot is None:
         return None
@@ -438,7 +460,7 @@ def _fresh_projection_maps_current_caret(
 ) -> bool:
     """Return whether fresh layout geometry owns a visible live-source caret."""
 
-    cursor_state = surface._cursor_state
+    cursor_state = surface._caret_state_owner.cursor_state
     cursor_position = int(surface.cursor_position)
     if int(cursor_state.source_position) != cursor_position:
         return False
@@ -469,7 +491,7 @@ def _active_projection_ownership_is_valid(
     """Return whether active projection divergence has a live transient owner."""
 
     active_projection = surface.active_projection_document()
-    if bool(surface._active_projection_requires_layout()):
+    if bool(surface._presentation_runtime.active_projection.requires_layout()):
         return str(active_projection.source_text) == str(
             projection_document.source_text
         )
@@ -485,10 +507,10 @@ def _layout_projection_ownership_is_valid(
     """Return whether layout divergence has an active transient or reorder owner."""
 
     layout_projection = surface._layout.frame.output.projection_document
-    reorder_preview_active = bool(surface._reorder_preview_projection.is_active())
+    reorder_preview_active = bool(surface.reorder.is_active())
     if reorder_preview_active:
         return True
-    if bool(surface._active_projection_requires_layout()):
+    if bool(surface._presentation_runtime.active_projection.requires_layout()):
         return layout_projection is surface.active_projection_document()
     return str(layout_projection.projection_text) == str(
         projection_document.projection_text

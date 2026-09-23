@@ -39,7 +39,7 @@ class PromptEditorPublicWidgetBoundary:
 
 @dataclass(frozen=True, slots=True)
 class PromptEditorHostFacadeInventory:
-    """Classify every current ``PromptEditor`` method for Phase 20 extraction."""
+    """Classify every current ``PromptEditor`` method by authoritative owner."""
 
     public_compatibility: tuple[str, ...]
     lifecycle_signal_owner: tuple[str, ...]
@@ -47,7 +47,6 @@ class PromptEditorHostFacadeInventory:
     feature_action_presentation: tuple[str, ...]
     external_action_execution: tuple[str, ...]
     command_source_adapter: tuple[str, ...]
-    obsolete_internal_bridge: tuple[str, ...]
 
 
 PROMPT_EDITOR_PUBLIC_WIDGET_SIGNALS = (
@@ -150,9 +149,6 @@ PROMPT_EDITOR_PUBLIC_WIDGET_BOUNDARY = PromptEditorPublicWidgetBoundary(
 PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
     public_compatibility=(
         "__init__",
-        "_autocomplete_panel",
-        "_segment_overlay",
-        "_token_weight_control_overlay",
         "viewport",
         "verticalScrollBar",
         "document",
@@ -237,11 +233,6 @@ PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
         "placeholderText",
         "setFocus",
         "hasFocus",
-        "prompt_surface_handle_wheel_scroll",
-        "prompt_surface_wheel_event_is_allowed",
-        "forward_wheel_event_to_editor_panel",
-        "has_lora_spans_for_metadata",
-        "refresh_lora_render_metadata_now",
         "mark_lora_metadata_dirty",
         "refresh_lora_metadata_if_visible",
         "clear_lora_thumbnail_cache",
@@ -261,42 +252,9 @@ PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
         "resizeEvent",
         "moveEvent",
         "mouseReleaseEvent",
-        "_handle_surface_text_changed",
-        "_handle_surface_syntax_action",
-        "_handle_surface_mouse_release",
     ),
-    shell_presentation=(
-        "_allow_surface_wheel_scroll",
-        "_handle_viewport_wheel_event",
-        "_forward_wheel_event_to_editor_panel",
-        "_ancestor_external_wheel_handler",
-        "_prompt_menu_requires_custom_actions",
-        "_source_position_for_global_pos",
-        "_ancestor_editor_panel",
-        "_shell_viewport",
-        "_content_viewport_for_chrome",
-        "_apply_host_placeholder_for_chrome",
-        "_surface_for_chrome",
-        "_update_backing_fill_for_chrome",
-        "_handle_focus_out_for_chrome",
-        "_handle_hide_for_chrome",
-        "_handle_move_for_chrome",
-        "_host_scrollbar_for_scroll_delegate",
-        "_surface_for_scroll_delegate",
-        "_shell_padding_fill_plane_for_scroll_delegate",
-        "_fill_plane_for_scroll_delegate",
-        "_token_weight_controls_for_scroll_delegate",
-        "_handle_viewport_scroll_for_scroll_delegate",
-        "_handle_resize_for_scroll_delegate",
-        "_surface_content_height_for_sizing",
-        "_surface_is_alive_for_sizing",
-        "_update_sizing_fill_planes",
-        "_resize_handle_for_sizing",
-    ),
-    feature_action_presentation=(
-        "_refresh_lora_render_metadata_after_catalog_update",
-        "_schedule_lora_metadata_catchup_if_needed",
-    ),
+    shell_presentation=("_source_position_for_global_pos",),
+    feature_action_presentation=(),
     external_action_execution=(),
     command_source_adapter=(
         "prompt_command_source_identity",
@@ -305,11 +263,6 @@ PROMPT_EDITOR_HOST_FACADE_INVENTORY = PromptEditorHostFacadeInventory(
         "execute_weight_action",
         "execute_reorder_action",
         "execute_source_replacement",
-    ),
-    obsolete_internal_bridge=(
-        "_refresh_scene_context_identity",
-        "_set_context_menu_insert_state_for_tests",
-        "_set_context_menu_selection_state_for_tests",
     ),
 )
 

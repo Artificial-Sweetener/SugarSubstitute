@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -224,9 +225,41 @@ def test_application_handler_failure_does_not_kill_the_control_channel(
 ) -> None:
     """Bound failed presentation by the deadline while later launches still work."""
 
-    monkeypatch.setattr(
-        application_instance_broker, "_SUPERVISOR_RECEIPT_DEADLINE_SECONDS", 0.1
-    )
+    deadlines: list[_ManualDeadline] = []
+
+    class _ManualDeadline:
+        """Release a waiting launcher only when the test advances its deadline."""
+
+        def __init__(
+            self,
+            interval: float,
+            function: Callable[[str], None],
+            args: tuple[str],
+        ) -> None:
+            """Retain the production timer callback and request identity."""
+
+            assert interval > 0
+            self._function = function
+            self._args = args
+            self.cancelled = False
+
+        def start(self) -> None:
+            """Record that the router armed this request's deadline."""
+
+            deadlines.append(self)
+
+        def cancel(self) -> None:
+            """Record that a successful receipt disarmed the deadline."""
+
+            self.cancelled = True
+
+        def fire(self) -> None:
+            """Expire only the selected request through the real router callback."""
+
+            assert not self.cancelled
+            self._function(*self._args)
+
+    monkeypatch.setattr(threading, "Timer", _ManualDeadline)
     broker = _elect_primary(tmp_path)
     client = ApplicationSupervisorClient.connect_from_environment(
         broker.child_environment({})
@@ -244,6 +277,8 @@ def test_application_handler_failure_does_not_kill_the_control_channel(
     first_result, first_thread = _start_forward(tmp_path, "handler-fails.sugar")
     try:
         assert failed_handler_called.wait(2.0)
+        assert len(deadlines) == 1
+        deadlines[0].fire()
         first_thread.join(timeout=2.0)
         assert not first_thread.is_alive()
         assert len(first_result) == 1
@@ -259,13 +294,16 @@ def test_application_handler_failure_does_not_kill_the_control_channel(
                 outcome="presented",
                 surface="main-window",
             )
-            presented.set()
+            if request.invocation.arguments[-1] == "later.sugar":
+                presented.set()
 
         client.bind_invocation_handler(present)
         second_result, second_thread = _start_forward(tmp_path, "later.sugar")
         assert presented.wait(2.0)
         second_thread.join(timeout=2.0)
         assert second_result == []
+        assert len(deadlines) == 2
+        assert deadlines[1].cancelled
     finally:
         client.close()
         broker.close()

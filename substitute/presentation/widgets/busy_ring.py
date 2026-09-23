@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QBasicTimer, QRectF, QTimerEvent, Qt
+from PySide6.QtCore import QRectF, QTimer, Qt
 from PySide6.QtGui import QPaintEvent, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import themeColor  # type: ignore[import-untyped]
@@ -29,13 +29,15 @@ _ARC_SPAN_DEGREES = 105
 
 
 class BusyRing(QWidget):
-    """Paint one bounded busy indicator using a single value-type timer."""
+    """Paint one bounded busy indicator using a child-owned Qt timer."""
 
     def __init__(self, parent: QWidget | None = None, *, start: bool = True) -> None:
         """Initialize a transparent ring without allocating Qt animations."""
 
         super().__init__(parent)
-        self._timer = QBasicTimer()
+        self._timer = QTimer(self)
+        self._timer.setInterval(_FRAME_INTERVAL_MS)
+        self._timer.timeout.connect(self._advance)
         self._angle_degrees = 0
         self._stroke_width = 6
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -47,7 +49,7 @@ class BusyRing(QWidget):
         """Start repainting only while the indicator is active."""
 
         if not self._timer.isActive():
-            self._timer.start(_FRAME_INTERVAL_MS, self)
+            self._timer.start()
         self.show()
 
     def stop(self) -> None:
@@ -65,12 +67,9 @@ class BusyRing(QWidget):
         self._stroke_width = width
         self.update()
 
-    def timerEvent(self, event: QTimerEvent) -> None:  # noqa: N802
-        """Advance the visible phase for this ring's own basic timer."""
+    def _advance(self) -> None:
+        """Advance the ring only while its child-owned timer is alive."""
 
-        if event.timerId() != self._timer.timerId():
-            super().timerEvent(event)
-            return
         self._angle_degrees = (self._angle_degrees + _FRAME_STEP_DEGREES) % 360
         self.update()
 

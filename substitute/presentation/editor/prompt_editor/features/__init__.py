@@ -21,11 +21,7 @@ from ..commands.feature_commands import (
     PromptFeatureSnapshotIdentity,
 )
 
-from .catalog_snapshots import (
-    PHASE23_CATALOG_FOREGROUND_INVENTORY,
-    CatalogForegroundConsumer,
-    CatalogForegroundPathInventoryItem,
-    CatalogLookupClassification,
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
@@ -131,7 +127,7 @@ from .lora_metadata_presentation import (
     PromptLoraMetadataSnapshot,
 )
 from .lora_metadata_refresh_lifecycle import (
-    PromptLoraMetadataRefreshHost,
+    PromptLoraMetadataRefreshBindings,
     PromptLoraMetadataRefreshLifecycle,
 )
 from .lora_trigger_word_controller import (
@@ -215,13 +211,9 @@ __all__ = [
     "PromptContextMenuSnapshotIdentity",
     "PromptContextMenuSnapshotReadiness",
     "PromptContextMenuSnapshotRequest",
-    "CatalogForegroundConsumer",
-    "CatalogForegroundPathInventoryItem",
-    "CatalogLookupClassification",
     "CatalogSnapshotIdentity",
     "CatalogSnapshotReadiness",
     "CatalogSnapshotStatus",
-    "PHASE23_CATALOG_FOREGROUND_INVENTORY",
     "PromptAutocompleteLoraCatalogSnapshotProvider",
     "PromptAutocompleteQueryController",
     "PromptAutocompleteQuerySourceSnapshot",
@@ -272,7 +264,7 @@ __all__ = [
     "PromptLoraActionSnapshot",
     "PromptLoraMetadataIdentityPort",
     "PromptLoraMetadataPresentation",
-    "PromptLoraMetadataRefreshHost",
+    "PromptLoraMetadataRefreshBindings",
     "PromptLoraMetadataRefreshLifecycle",
     "PromptLoraMetadataSnapshot",
     "PromptLoraTriggerWordController",

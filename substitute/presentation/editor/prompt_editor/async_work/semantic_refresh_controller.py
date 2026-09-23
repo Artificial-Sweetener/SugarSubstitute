@@ -29,9 +29,11 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
@@ -117,6 +119,8 @@ class PromptSemanticRefreshHost(Protocol):
 
 class PromptSemanticRefreshController:
     """Own semantic refresh debounce, execution, cancellation, and freshness."""
+
+    DEFAULT_SETTLE_DELAY_MS = 90
 
     def __init__(
         self,
@@ -207,6 +211,16 @@ class PromptSemanticRefreshController:
             active_task_count=self._active_task_count(),
         )
         self._publish_prepared_request_if_fresh(request)
+
+    def schedule_pending_soon(self, *, reason: str) -> None:
+        """Move pending semantic work to the next event turn without blocking input."""
+
+        if self._pending_request is None:
+            return
+        self._debouncer.request_soon(
+            lambda: self.flush(reason=reason),
+            reason=reason,
+        )
 
     def cancel_pending(self, *, reason: str) -> None:
         """Drop queued or active semantic refresh work."""
@@ -493,7 +507,9 @@ def build_prompt_semantic_refresh_controller(
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
         request_channel=request_channel,
-        debouncer=QtPromptEditorDebouncer(interval_ms=0),
+        debouncer=QtPromptEditorDebouncer(
+            interval_ms=PromptSemanticRefreshController.DEFAULT_SETTLE_DELAY_MS
+        ),
         stale_result_guard=PromptStaleResultGuard(),
         shutdown_callback=lambda: executor.shutdown(
             wait=False,

@@ -31,9 +31,9 @@ from substitute.application.prompt_editor.document.views import (
     PromptSyntaxSpanView,
 )
 from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutation,
     PromptMutationService,
 )
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
 )
@@ -41,8 +41,10 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.intents import (
     PromptReorderCancelIntent,
@@ -95,6 +97,12 @@ class PromptInteractionEditor(Protocol):
     def has_pending_projection_update(self) -> bool:
         """Return whether projected presentation is waiting to catch up."""
 
+    def requires_immediate_semantic_refresh(self) -> bool:
+        """Return whether the latest edit requires current token semantics."""
+
+    def requires_semantic_refresh_before_boundary(self) -> bool:
+        """Return whether the latest edit can change syntax at a boundary key."""
+
 
 class PromptSemanticRefreshPort(Protocol):
     """Describe semantic refresh scheduling used by interaction coordination."""
@@ -111,6 +119,9 @@ class PromptSemanticRefreshPort(Protocol):
 
     def flush(self, *, reason: str) -> None:
         """Synchronously apply pending semantic refresh work when needed."""
+
+    def schedule_pending_soon(self, *, reason: str) -> None:
+        """Schedule pending semantic work for the next event-loop turn."""
 
     def cancel_pending(self, *, reason: str) -> None:
         """Cancel pending or active semantic refresh work."""
@@ -151,6 +162,7 @@ class PromptInteractionController:
             feature_profile or PromptFeatureProfileController.from_legacy_syntax(None)
         )
         self._semantic_refresh = semantic_refresh_controller
+        self._semantic_boundary_refresh_pending = False
         self._autocomplete_timing_controller = autocomplete_timing_controller
         self._weight_interaction = weight_interaction
         self._keymap = PromptKeymapController(self, weights=weight_interaction)
@@ -251,6 +263,7 @@ class PromptInteractionController:
             )
 
         pending_document_view = self._syntax_state.pending_document_view
+        pending_render_plan = self._syntax_state.pending_render_plan
         if (
             pending_document_view is None
             and text == self._syntax_state.document_view.source_text
@@ -264,17 +277,25 @@ class PromptInteractionController:
             text,
             reason="text_changed",
             prepared_document_view=pending_document_view,
+            prepared_render_plan=pending_render_plan,
         )
+        self._semantic_boundary_refresh_pending = bool(
+            self._semantic_boundary_refresh_pending
+            or self._editor.requires_semantic_refresh_before_boundary()
+        )
+        if self._editor.requires_immediate_semantic_refresh():
+            self.flush_pending_semantic_refresh(reason="syntax_sensitive_edit")
 
     def flush_pending_semantic_refresh(self, *, reason: str) -> None:
         """Synchronously apply any queued semantic prompt refresh."""
 
         self._semantic_refresh.flush(reason=reason)
+        self._semantic_boundary_refresh_pending = False
 
     def _cancel_pending_semantic_refresh(self) -> None:
         """Drop queued semantic refresh work after an explicit state application."""
 
-        self._syntax_state.clear_pending_document_view()
+        self._syntax_state.clear_pending_prompt_state()
         self._semantic_refresh.cancel_pending(reason="state_applied")
 
     def has_lora_spans(self) -> bool:
@@ -328,6 +349,7 @@ class PromptInteractionController:
     def enter_segment_reorder_mode_from_keymap(self) -> None:
         """Enter segment reorder mode for the keymap Alt path."""
 
+        self.flush_pending_semantic_refresh(reason="segment_reorder_entry")
         self._reorder.enter()
 
     def cancel_segment_reorder_mode_from_keymap(
@@ -355,7 +377,7 @@ class PromptInteractionController:
         self._reorder.move_keyboard(intent)
 
     def handle_autocomplete_key_press_from_keymap(self, event: QKeyEvent) -> bool:
-        """Delegate pre-edit autocomplete key handling to its Phase 11 owner."""
+        """Delegate pre-edit autocomplete handling to its interaction owner."""
 
         return self._autocomplete.handle_key_press(event)
 
@@ -363,7 +385,7 @@ class PromptInteractionController:
         self,
         event: QKeyEvent,
     ) -> None:
-        """Delegate post-edit autocomplete refresh to its Phase 11 owner."""
+        """Delegate post-edit autocomplete refresh to its timing owner."""
 
         self._autocomplete_timing_controller.handle_post_key_press(event)
 
@@ -381,6 +403,17 @@ class PromptInteractionController:
         """Flush pending semantic refresh for a keymap-owned reason."""
 
         self.flush_pending_semantic_refresh(reason=reason)
+
+    def schedule_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+        """Schedule pending semantics after input without extending key latency."""
+
+        self._semantic_refresh.schedule_pending_soon(reason=reason)
+
+    def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
+        """Flush a boundary key only when prior edits can change syntax."""
+
+        if self._semantic_boundary_refresh_pending:
+            self.flush_pending_semantic_refresh(reason=reason)
 
     def handle_mouse_press(self, event: QMouseEvent) -> bool:
         """Consume syntax-owned inline clicks before normal text editing."""

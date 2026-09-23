@@ -37,19 +37,23 @@ from substitute.domain.model_recommendations import (
 
 
 def test_supported_families_have_exact_product_order_and_provider_mappings() -> None:
-    """Keep SDXL first and Anima second with exact CivitAI base-model values."""
+    """Keep generation families first and curated upscalers last."""
 
     families = SUPPORTED_MODEL_FAMILIES.families()
 
     assert [family.family_id for family in families] == [
         ModelFamilyId.SDXL,
         ModelFamilyId.ANIMA,
+        ModelFamilyId.UPSCALERS,
     ]
-    assert [family.civitai.recommendation_base_model for family in families] == [
+    civitai_families = tuple(
+        family.civitai for family in families if family.civitai is not None
+    )
+    assert [mapping.recommendation_base_model for mapping in civitai_families] == [
         "Illustrious",
         "Anima",
     ]
-    assert families[0].civitai.linked_base_models == frozenset(
+    assert civitai_families[0].linked_base_models == frozenset(
         {
             "Illustrious",
             "NoobAI",
@@ -64,12 +68,18 @@ def test_supported_families_have_exact_product_order_and_provider_mappings() -> 
             "SDXL Turbo",
         }
     )
-    assert families[1].civitai.linked_base_models == frozenset({"Anima"})
-    assert all(family.civitai.model_type == "Checkpoint" for family in families)
+    assert civitai_families[1].linked_base_models == frozenset({"Anima"})
+    assert [mapping.model_type for mapping in civitai_families] == [
+        "Checkpoint",
+        "Checkpoint",
+    ]
+    assert families[2].civitai is None
     assert families[0].primary_artifact_kind is ModelArtifactKind.CHECKPOINTS
     assert families[1].primary_artifact_kind is ModelArtifactKind.DIFFUSION_MODELS
+    assert families[2].primary_artifact_kind is ModelArtifactKind.UPSCALE_MODELS
     assert SUPPORTED_MODEL_FAMILIES.missing_from(frozenset({ModelFamilyId.SDXL})) == (
         ModelFamilyId.ANIMA,
+        ModelFamilyId.UPSCALERS,
     )
     assert (
         render_application_text(model_family_presentation(families[0].family_id).name)
@@ -78,6 +88,10 @@ def test_supported_families_have_exact_product_order_and_provider_mappings() -> 
     assert (
         render_application_text(model_family_presentation(families[1].family_id).name)
         == "Anima"
+    )
+    assert (
+        render_application_text(model_family_presentation(families[2].family_id).name)
+        == "Upscalers"
     )
 
 

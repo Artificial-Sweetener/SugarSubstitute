@@ -30,7 +30,10 @@ from substitute.domain.model_recommendations.catalog import (
     SUPPORTED_MODEL_FAMILIES,
     SupportedModelFamilyCatalog,
 )
-from substitute.domain.model_recommendations.models import ModelFamilyDefinition
+from substitute.domain.model_recommendations.models import (
+    ModelFamilyDefinition,
+    ModelFamilyId,
+)
 from substitute.domain.model_recommendations.models import TensorShapeSignature
 from substitute.domain.model_recommendations.scan_models import (
     DetectedModelFamily,
@@ -40,6 +43,18 @@ from substitute.domain.model_recommendations.scan_models import (
 )
 
 _MAX_HEADER_BYTES = 16 * 1024 * 1024
+_UPSCALER_FOLDER_NAMES = frozenset(
+    {
+        "upscale_models",
+        "esrgan",
+        "realesrgan",
+        "bsrgan",
+        "swinir",
+        "scunet",
+        "dat",
+        "spandrel",
+    }
+)
 
 
 class ModelScanCancellation(Protocol):
@@ -113,6 +128,15 @@ class ExistingModelFamilyScanner:
                 0,
                 0,
                 str(error),
+            )
+        installed_upscaler = _first_installed_upscaler(scan_roots)
+        if installed_upscaler is not None:
+            detected.append(
+                DetectedModelFamily(
+                    ModelFamilyId.UPSCALERS,
+                    installed_upscaler,
+                    ModelFamilyEvidenceKind.INSTALLED_ARTIFACT,
+                )
             )
         try:
             for path in (
@@ -268,6 +292,30 @@ def _iter_safetensors(root: Path) -> Iterator[Path]:
                     follow_symlinks=False
                 ) and entry.name.casefold().endswith(".safetensors"):
                     yield Path(entry.path)
+
+
+def _first_installed_upscaler(scan_roots: tuple[Path, ...]) -> Path | None:
+    """Return the first non-linked upscaler artifact in standard model roots."""
+
+    for scan_root in scan_roots:
+        candidate_root = (
+            scan_root
+            if scan_root.name.casefold() in _UPSCALER_FOLDER_NAMES
+            else scan_root / "upscale_models"
+        )
+        if not candidate_root.is_dir() or candidate_root.is_symlink():
+            continue
+        with os.scandir(candidate_root) as entries:
+            for entry in entries:
+                if _is_linked_entry(entry) or not entry.is_file(follow_symlinks=False):
+                    continue
+                if Path(entry.name).suffix.casefold() in {
+                    ".pth",
+                    ".pt",
+                    ".safetensors",
+                }:
+                    return Path(entry.path)
+    return None
 
 
 def _is_linked_entry(entry: os.DirEntry[str]) -> bool:

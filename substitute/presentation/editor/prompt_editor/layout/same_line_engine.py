@@ -45,7 +45,7 @@ from .models import (
     PromptProjectionLayoutSnapshot,
     PromptProjectionTextFragment,
 )
-from .shifted_snapshot import (
+from .snapshot_indexes import (
     LineCaretRectMapping,
     LineInlineObjectFragmentSequence,
     LineTextFragmentSequence,

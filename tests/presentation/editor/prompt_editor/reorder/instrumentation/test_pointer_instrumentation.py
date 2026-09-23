@@ -72,15 +72,14 @@ def test_reorder_unchanged_target_pointer_move_preserves_hot_path_counters(
     QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(target_global), 10)
     _flush_preview_sync(box)
 
-    cast(Any, overlay)._instrumentation_max_drag_move_ms = 0.0
     before = _performance_counters(overlay)
     before_pointer_state = overlay.pointer_reorder_state()
     before_animation_state = overlay.animation_generation_state()
-    telemetry_type = type(cast(Any, overlay)._telemetry)
+    telemetry_type = type(cast(Any, overlay)._runtime.telemetry)
 
     with monkeypatch.context() as telemetry_patch:
         assert not hasattr(
-            cast(Any, overlay)._geometry,
+            cast(Any, overlay)._runtime.geometry,
             "resolve_drop_target_for_drag_rect",
         )
 
@@ -222,7 +221,6 @@ def test_reorder_target_change_pointer_move_records_rebuild_path_counters(
     )
     QTest.mouseMove(second_chip.overlay, second_chip.mapFromGlobal(target_global), 10)
     _process_events(app)
-    cast(Any, overlay)._instrumentation_max_drag_move_ms = 0.0
     before = _performance_counters(overlay)
 
     QTest.mouseMove(

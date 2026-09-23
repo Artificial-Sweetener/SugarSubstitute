@@ -75,7 +75,7 @@ def test_segment_overlay_factory_returns_ready_preview_ports_before_activation()
         document_service=document_service,
         syntax_service=PromptSyntaxService(_EmptyPromptWildcardCatalogGateway()),
         syntax_profile=PromptSyntaxProfileService().default_profile(),
-        geometry_owner=surface_for(editor).reorder_geometry_owner,
+        geometry_owner=surface_for(editor).reorder.geometry_owner,
         interaction_metrics=PromptReorderInteractionMetricsOwner(),
     ).create_segment_overlay(editor, layout_policy=document_service)
 
@@ -105,7 +105,9 @@ def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
     )
 
     initial_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
-    initial_visual_indices = set(cast(Any, overlay)._live_visual_owner.visuals_by_index)
+    initial_visual_indices = set(
+        cast(Any, overlay)._runtime.live_visuals.visuals_by_index
+    )
 
     assert initial_indices == initial_visual_indices
     assert overlay.findChildren(QWidget, "segmentChip") == []
@@ -117,7 +119,7 @@ def test_segment_reorder_overlay_materializes_only_viewport_pointer_regions(
 
     scrolled_indices = {_chip_segment_index(chip) for chip in _pointer_regions(overlay)}
     scrolled_visual_indices = set(
-        cast(Any, overlay)._live_visual_owner.visuals_by_index
+        cast(Any, overlay)._runtime.live_visuals.visuals_by_index
     )
     assert scrolled_indices == scrolled_visual_indices
     assert overlay.findChildren(QWidget, "segmentChip") == []
@@ -169,7 +171,7 @@ def test_segment_reorder_overlay_hosts_passive_reorder_view(
     assert view.render_state.live_chips == ()
     surface_chrome = cast(
         Any, editor
-    )._surface._reorder_surface_visual_state.state.chrome_snapshot
+    )._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert len(surface_chrome.chips) == 3
     assert view.render_state.preview_active is False

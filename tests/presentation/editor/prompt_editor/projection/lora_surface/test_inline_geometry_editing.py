@@ -26,9 +26,11 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
-    PromptSyntaxService,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionTokenKind,
@@ -168,7 +170,7 @@ def test_projection_surface_lora_boundary_insert_keeps_inserted_text_plain(
     assert shifted_lora_token.source_start == lora_token.source_start
     assert shifted_lora_token.source_end == lora_token.source_end
     assert surface.cursor_position == insertion_position + 1
-    assert surface._cursor_state.token_id is None  # noqa: SLF001
+    assert surface._caret_state_owner.cursor_state.token_id is None  # noqa: SLF001
     assert [
         (run.kind.name, run.display_text, run.token_id)
         for run in surface.projection_document().runs
@@ -200,7 +202,7 @@ def test_projection_surface_lora_suffix_prefix_defers_without_rebuild(
         cursor_position=lora_token.source_end,
         anchor_position=lora_token.source_end,
     )
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -210,7 +212,7 @@ def test_projection_surface_lora_suffix_prefix_defers_without_rebuild(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
 
     surface.textCursor().insertText("<")
 

@@ -49,12 +49,44 @@ class PromptSourceEditProjectionDecision:
     syntax_sensitive_prefix_deferrable: bool = False
     insertion_inside_projected_token: bool = False
     deletion_intersects_projected_token: bool = False
+    insertion_inside_text_content: bool = False
 
     @property
     def wrap_reflow_deferrable(self) -> bool:
         """Return whether this decision permits deferred wrap recovery."""
 
         return self.deferral_reason in _WRAP_REFLOW_DEFERRABLE_REASONS
+
+    @property
+    def requires_immediate_semantic_refresh(self) -> bool:
+        """Return whether delayed semantics would expose stale token behavior."""
+
+        return bool(
+            (
+                self.insertion_inside_projected_token
+                and (
+                    not self.insertion_inside_text_content
+                    or self.typed_character_requires_projection
+                )
+            )
+            or self.deletion_intersects_projected_token
+            or self.deferral_reason == "region_structure_topology_changed"
+        )
+
+    @property
+    def requires_semantic_refresh_before_boundary(self) -> bool:
+        """Return whether a later boundary key must resolve this edit first."""
+
+        return bool(
+            self.requires_immediate_semantic_refresh
+            or (
+                self.insertion_inside_projected_token
+                and not self.insertion_inside_text_content
+            )
+            or self.projection_topology_requires_rebuild
+            or self.typed_character_requires_projection
+            or self.syntax_sensitive_prefix_deferrable
+        )
 
 
 class PromptSourceEditProjectionPolicy:
@@ -73,67 +105,74 @@ class PromptSourceEditProjectionPolicy:
         syntax_sensitive_prefix_deferrable: bool = False,
         insertion_inside_projected_token: bool = False,
         deletion_intersects_projected_token: bool = False,
+        insertion_inside_text_content: bool = False,
     ) -> PromptSourceEditProjectionDecision:
         """Return the projection deferral decision for one committed source edit."""
 
         if not can_defer_projection:
             return PromptSourceEditProjectionDecision(
-                False,
-                deferral_reason,
-                projection_topology_requires_rebuild,
-                typed_character_requires_projection,
-                syntax_sensitive_prefix_deferrable,
-                insertion_inside_projected_token,
-                deletion_intersects_projected_token,
+                can_defer_projection=False,
+                deferral_reason=deferral_reason,
+                projection_topology_requires_rebuild=projection_topology_requires_rebuild,
+                typed_character_requires_projection=typed_character_requires_projection,
+                syntax_sensitive_prefix_deferrable=syntax_sensitive_prefix_deferrable,
+                insertion_inside_projected_token=insertion_inside_projected_token,
+                deletion_intersects_projected_token=deletion_intersects_projected_token,
+                insertion_inside_text_content=insertion_inside_text_content,
             )
         if autocomplete_preview_active:
             return PromptSourceEditProjectionDecision(
-                False,
-                "autocomplete_preview_active",
-                projection_topology_requires_rebuild,
-                typed_character_requires_projection,
-                syntax_sensitive_prefix_deferrable,
-                insertion_inside_projected_token,
-                deletion_intersects_projected_token,
+                can_defer_projection=False,
+                deferral_reason="autocomplete_preview_active",
+                projection_topology_requires_rebuild=projection_topology_requires_rebuild,
+                typed_character_requires_projection=typed_character_requires_projection,
+                syntax_sensitive_prefix_deferrable=syntax_sensitive_prefix_deferrable,
+                insertion_inside_projected_token=insertion_inside_projected_token,
+                deletion_intersects_projected_token=deletion_intersects_projected_token,
+                insertion_inside_text_content=insertion_inside_text_content,
             )
         if replacement_text == "":
             return PromptSourceEditProjectionDecision(
-                False,
-                "deletion_requires_immediate_projection",
-                projection_topology_requires_rebuild,
-                typed_character_requires_projection,
-                syntax_sensitive_prefix_deferrable,
-                insertion_inside_projected_token,
-                deletion_intersects_projected_token,
+                can_defer_projection=False,
+                deferral_reason="deletion_requires_immediate_projection",
+                projection_topology_requires_rebuild=projection_topology_requires_rebuild,
+                typed_character_requires_projection=typed_character_requires_projection,
+                syntax_sensitive_prefix_deferrable=syntax_sensitive_prefix_deferrable,
+                insertion_inside_projected_token=insertion_inside_projected_token,
+                deletion_intersects_projected_token=deletion_intersects_projected_token,
+                insertion_inside_text_content=insertion_inside_text_content,
             )
         if any(character.isspace() for character in replacement_text):
             return PromptSourceEditProjectionDecision(
-                False,
-                "whitespace_requires_immediate_projection",
-                projection_topology_requires_rebuild,
-                typed_character_requires_projection,
-                syntax_sensitive_prefix_deferrable,
-                insertion_inside_projected_token,
-                deletion_intersects_projected_token,
+                can_defer_projection=False,
+                deferral_reason="whitespace_requires_immediate_projection",
+                projection_topology_requires_rebuild=projection_topology_requires_rebuild,
+                typed_character_requires_projection=typed_character_requires_projection,
+                syntax_sensitive_prefix_deferrable=syntax_sensitive_prefix_deferrable,
+                insertion_inside_projected_token=insertion_inside_projected_token,
+                deletion_intersects_projected_token=deletion_intersects_projected_token,
+                insertion_inside_text_content=insertion_inside_text_content,
             )
         if replacement_text and not insertion_overlay_can_defer:
             return PromptSourceEditProjectionDecision(
-                False,
-                f"{deferral_reason}_requires_layout",
-                projection_topology_requires_rebuild,
-                typed_character_requires_projection,
-                syntax_sensitive_prefix_deferrable,
-                insertion_inside_projected_token,
-                deletion_intersects_projected_token,
+                can_defer_projection=False,
+                deferral_reason=f"{deferral_reason}_requires_layout",
+                projection_topology_requires_rebuild=projection_topology_requires_rebuild,
+                typed_character_requires_projection=typed_character_requires_projection,
+                syntax_sensitive_prefix_deferrable=syntax_sensitive_prefix_deferrable,
+                insertion_inside_projected_token=insertion_inside_projected_token,
+                deletion_intersects_projected_token=deletion_intersects_projected_token,
+                insertion_inside_text_content=insertion_inside_text_content,
             )
         return PromptSourceEditProjectionDecision(
-            True,
-            deferral_reason,
-            projection_topology_requires_rebuild,
-            typed_character_requires_projection,
-            syntax_sensitive_prefix_deferrable,
-            insertion_inside_projected_token,
-            deletion_intersects_projected_token,
+            can_defer_projection=True,
+            deferral_reason=deferral_reason,
+            projection_topology_requires_rebuild=projection_topology_requires_rebuild,
+            typed_character_requires_projection=typed_character_requires_projection,
+            syntax_sensitive_prefix_deferrable=syntax_sensitive_prefix_deferrable,
+            insertion_inside_projected_token=insertion_inside_projected_token,
+            deletion_intersects_projected_token=deletion_intersects_projected_token,
+            insertion_inside_text_content=insertion_inside_text_content,
         )
 
     @staticmethod
@@ -163,7 +202,7 @@ class PromptSourceEditProjectionPolicy:
     ) -> bool:
         """Return whether one source range touches projected token syntax."""
 
-        return any(
+        return end > start and any(
             start < token.source_end and token.source_start < end for token in tokens
         )
 
@@ -177,6 +216,22 @@ class PromptSourceEditProjectionPolicy:
 
         return any(
             token.source_start < source_position < token.source_end for token in tokens
+        )
+
+    def source_insertion_is_inside_text_content(
+        self,
+        *,
+        source_position: int,
+        tokens: Sequence[PromptProjectionToken],
+    ) -> bool:
+        """Return whether insertion sits inside one token's editable text span."""
+
+        return any(
+            token.supports_text_content_navigation
+            and token.content_start is not None
+            and token.content_end is not None
+            and token.content_start <= source_position <= token.content_end
+            for token in tokens
         )
 
 

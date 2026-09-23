@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from typing import cast
 
 import pytest
@@ -105,7 +109,7 @@ def test_prompt_editor_lora_autocomplete_opens_wall_without_search_box(
     QTest.keyClicks(editor, "<lora:Civ")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     wall = panel.lora_wall()
     assert panel.is_panel_visible() is True
     assert wall is not None
@@ -142,7 +146,7 @@ def test_prompt_editor_lora_autocomplete_one_row_up_down_stays_open(
 
     QTest.keyClicks(editor, "<lora:LoRA")
     process_events(app)
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     cursor_before_navigation = editor.textCursor().position()
 
     assert panel.is_panel_visible() is True
@@ -257,7 +261,7 @@ def test_prompt_editor_lora_autocomplete_click_accepts_selected_lora(
 
     QTest.keyClicks(editor, "<lora:Civ")
     process_events(app)
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     wall = panel.lora_wall()
     assert wall is not None
     wall = cast(PromptLoraWallView, wall)

@@ -34,6 +34,7 @@ from .real_shell_mount import (
     create_prompt_abuse_real_shell_harness,
     prepare_prompt_abuse_real_shell_mount,
 )
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 
 
 def capture_prompt_text_visual_violations(
@@ -132,7 +133,7 @@ def _capture_checkpoint_violations(
         if image is None:
             violations.append(f"backing_store_capture_unavailable:{checkpoint}:{phase}")
             continue
-        if prompt_editor._segment_overlay is not None:
+        if segment_overlay(prompt_editor) is not None:
             continue
         missing_tiles = missing_projection_text_tiles(prompt_editor, image)
         if not missing_tiles:

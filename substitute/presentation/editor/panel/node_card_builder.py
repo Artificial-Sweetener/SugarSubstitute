@@ -1076,6 +1076,7 @@ class NodeCardBuilder:
                 empty_model_picker_action=(
                     self._services.model.empty_model_picker_action
                 ),
+                model_updates=self._services.model.model_updates,
                 node_definition_gateway=self._services.node_definition_gateway,
                 prompt_task_executor_factory=prompt_runtime.prompt_task_executor_factory,
                 danbooru_lookup_dispatcher_factory=(

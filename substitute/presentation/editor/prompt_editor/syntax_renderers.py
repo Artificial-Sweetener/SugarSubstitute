@@ -28,7 +28,7 @@ from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptSyntaxSpanView,
 )
-from substitute.application.prompt_editor.editing.mutation_service import PromptMutation
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptSyntaxAction,
 )
@@ -36,8 +36,10 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
@@ -169,7 +171,9 @@ class PromptSyntaxStateController:
         self._state = state
         self._source_text = source_text
         self._source_changed_callback = source_changed_callback
-        self._pending_document_view: PromptDocumentView | None = None
+        self._pending_prompt_state: (
+            tuple[PromptDocumentView, PromptSyntaxRenderPlan] | None
+        ) = None
         initial_document_view = self._document_service.build_document_view(
             self._source_text()
         )
@@ -205,12 +209,44 @@ class PromptSyntaxStateController:
     def pending_document_view(self) -> PromptDocumentView | None:
         """Return a prepared document view waiting for semantic publication."""
 
-        return self._pending_document_view
+        pending = self._pending_prompt_state
+        return None if pending is None else pending[0]
 
-    def clear_pending_document_view(self) -> None:
-        """Forget any prepared semantic snapshot after explicit state adoption."""
+    @property
+    def pending_render_plan(self) -> PromptSyntaxRenderPlan | None:
+        """Return the render plan paired with the pending document view."""
 
-        self._pending_document_view = None
+        pending = self._pending_prompt_state
+        return None if pending is None else pending[1]
+
+    def prepare_prompt_state(
+        self,
+        source_text: str,
+    ) -> tuple[PromptDocumentView, PromptSyntaxRenderPlan] | None:
+        """Build and retain canonical semantics for one imminent source publication."""
+
+        document_view = self._document_service.build_document_view(source_text)
+        try:
+            render_plan = self._syntax_service.build_render_plan(
+                document_view,
+                self._syntax_profile,
+            )
+        except Exception as error:
+            log_warning_exception(
+                _LOGGER,
+                "Prompt syntax render-plan preparation failed",
+                error=error,
+                source_length=len(source_text),
+            )
+            return None
+        prompt_state = (document_view, render_plan)
+        self._pending_prompt_state = prompt_state
+        return prompt_state
+
+    def clear_pending_prompt_state(self) -> None:
+        """Forget any prepared semantic state after explicit state adoption."""
+
+        self._pending_prompt_state = None
 
     def refresh_geometry(self) -> None:
         """Request geometry recomputation from syntax renderers."""
@@ -296,6 +332,7 @@ class PromptSyntaxStateController:
     ) -> None:
         """Adopt a semantic refresh request already proved fresh by async owner."""
 
+        self._pending_prompt_state = None
         pending_document_view = request.prepared_document_view
         pending_render_plan = request.prepared_render_plan
         if (
@@ -303,7 +340,6 @@ class PromptSyntaxStateController:
             and pending_document_view.source_text == request.source_text
             and pending_render_plan is not None
         ):
-            self._pending_document_view = None
             self.replace_prompt_state_with_render_plan(
                 pending_document_view,
                 pending_render_plan,
@@ -312,7 +348,6 @@ class PromptSyntaxStateController:
             pending_document_view is not None
             and pending_document_view.source_text == request.source_text
         ):
-            self._pending_document_view = None
             self.replace_prompt_state(pending_document_view)
         else:
             document_view = self._document_service.build_document_view(
@@ -339,7 +374,7 @@ class PromptSyntaxStateController:
             )
             return False
 
-        self._pending_document_view = None
+        self._pending_prompt_state = None
         if render_plan is None:
             applied = self.replace_prompt_state(mutation.document_view)
         else:

@@ -45,6 +45,9 @@ from substitute.application.prompt_editor.document.views import (
     PromptSyntaxSpanView,
     PromptWildcardView,
 )
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
+)
 
 
 def prompt_document_view_from_domain(document: PromptDocument) -> PromptDocumentView:
@@ -86,7 +89,7 @@ def prompt_segment_view_from_domain(
     return PromptSegmentView(
         index=segment.index,
         text=segment.text,
-        display_text=unescape_literal_parentheses_for_display(segment.display_text),
+        display_text=map_prompt_source_for_display(segment.display_text).display_text,
         display_source_start=display_source_start,
         display_source_end=display_source_end,
         selection_start=segment.visible_range.start,
@@ -111,7 +114,7 @@ def prompt_reorder_chip_view_from_domain(
         partition_index=chip.partition_index,
         text=chip.text,
         serialized_text=serialize_reorder_chip(chip),
-        display_text=unescape_literal_parentheses_for_display(chip.display_text),
+        display_text=map_prompt_source_for_display(chip.display_text).display_text,
         display_source_start=display_source_start,
         display_source_end=display_source_end,
         selection_start=chip.visible_range.start,
@@ -119,12 +122,6 @@ def prompt_reorder_chip_view_from_domain(
         separator_text_after=normalize_reorder_separator_text(separator_text_after),
         has_separator_after=chip.separator_range is not None,
     )
-
-
-def unescape_literal_parentheses_for_display(text: str) -> str:
-    """Hide storage-only literal parenthesis escapes for user-facing display text."""
-
-    return text.replace(r"\(", "(").replace(r"\)", ")")
 
 
 def _display_source_bounds(segment: PromptSegment) -> tuple[int, int]:
@@ -281,5 +278,4 @@ __all__ = [
     "prompt_document_view_from_domain",
     "prompt_reorder_chip_view_from_domain",
     "prompt_segment_view_from_domain",
-    "unescape_literal_parentheses_for_display",
 ]

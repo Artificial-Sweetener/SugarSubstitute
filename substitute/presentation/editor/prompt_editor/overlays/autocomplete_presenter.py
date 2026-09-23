@@ -34,15 +34,15 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
 )
 
-from .autocomplete_panel import (
+from .autocomplete_contracts import (
     PromptAutocompleteActivationIntent,
     PromptAutocompleteLoraWall,
     PromptAutocompleteLoraWallRenderState,
-    PromptAutocompletePanel,
     PromptAutocompletePanelRenderState,
     PromptAutocompleteRowRenderState,
-    format_prompt_autocomplete_popularity,
 )
+from .autocomplete_panel import PromptAutocompletePanel
+from .autocomplete_row import format_prompt_autocomplete_popularity
 
 
 class PromptAutocompletePresenter(Protocol):
@@ -87,6 +87,9 @@ class PromptAutocompletePresenter(Protocol):
 
     def panel_visible(self) -> bool:
         """Return whether autocomplete presentation is currently visible."""
+
+    def refresh_geometry(self) -> None:
+        """Reposition visible presentation without rebuilding its content."""
 
     def hide(self) -> None:
         """Hide autocomplete presentation without mutating source."""
@@ -221,6 +224,14 @@ class PromptAutocompletePanelPresenter:
 
         panel = self._panel
         return bool(panel is not None and panel.is_panel_visible())
+
+    def refresh_geometry(self) -> None:
+        """Reposition a visible panel without re-rendering prepared content."""
+
+        panel = self._panel
+        if panel is None or not panel.is_panel_visible():
+            return
+        panel.show_overlay(self._anchor_rect())
 
     def hide(self) -> None:
         """Hide autocomplete presentation without mutating source."""

@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Generic, Protocol, TypeVar
+from collections.abc import Callable
+from typing import Protocol
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import (
@@ -28,6 +29,7 @@ from PySide6.QtGui import (
     QPalette,
     QTextCharFormat,
 )
+from PySide6.QtWidgets import QApplication
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
 
@@ -40,8 +42,6 @@ from .input_method_render_state import (
     PromptInputMethodRenderLayer,
     PromptPreeditFormat,
 )
-
-TPayload = TypeVar("TPayload")
 
 
 class PromptInputMethodHost(Protocol):
@@ -71,7 +71,7 @@ class PromptInputMethodHost(Protocol):
         """Return a viewport-local caret rectangle for a source position."""
 
 
-class PromptInputMethodController(Generic[TPayload]):
+class PromptInputMethodController:
     """Translate Qt input-method events into one source mutation per commit."""
 
     def __init__(
@@ -79,11 +79,21 @@ class PromptInputMethodController(Generic[TPayload]):
         host: PromptInputMethodHost,
         *,
         text_mutations: PromptTextMutationActions,
+        finish_pending_key_edit_block: Callable[[str], None],
+        publish_render_frame: Callable[[], None],
+        request_update: Callable[[], None],
+        input_method_hints: Callable[[], Qt.InputMethodHint],
+        viewport_rect: Callable[[], QRectF],
     ) -> None:
         """Store the host while keeping preedit state transient and bounded."""
 
         self._host = host
         self._text_mutations = text_mutations
+        self._finish_pending_key_edit_block = finish_pending_key_edit_block
+        self._publish_render_frame = publish_render_frame
+        self._request_update = request_update
+        self._input_method_hints = input_method_hints
+        self._viewport_rect = viewport_rect
         self._ime_session = PromptImeSession()
         self._cursor_color: QColor | None = None
         self._formats: tuple[PromptPreeditFormat, ...] = ()
@@ -108,8 +118,25 @@ class PromptInputMethodController(Generic[TPayload]):
 
         return self._render_layer
 
-    def handle_event(self, event: QInputMethodEvent) -> None:
-        """Apply one Qt composition event without storing preedit in source text."""
+    def dispatch_event(self, event: QInputMethodEvent) -> None:
+        """Apply, publish, and acknowledge one complete Qt composition event."""
+
+        self._finish_pending_key_edit_block("input_method_event")
+        self._apply_event(event)
+        self._publish_render_frame()
+        event.accept()
+        self._request_update()
+        QApplication.inputMethod().update(Qt.InputMethodQuery.ImQueryAll)
+
+    def focus_out(self) -> None:
+        """Commit platform composition and close transient IME state on blur."""
+
+        QApplication.inputMethod().commit()
+        self.cancel()
+        self._finish_pending_key_edit_block("focus_out")
+
+    def _apply_event(self, event: QInputMethodEvent) -> None:
+        """Apply one composition event without storing preedit in source text."""
 
         source_text = self._host.toPlainText()
         preedit = self._ime_session.preedit
@@ -174,11 +201,6 @@ class PromptInputMethodController(Generic[TPayload]):
     def query(
         self,
         query: Qt.InputMethodQuery,
-        *,
-        font: QFont,
-        palette: QPalette,
-        input_method_hints: Qt.InputMethodHint,
-        viewport_rect: QRectF,
     ) -> object | None:
         """Return the Qt input-method value for one supported query."""
 
@@ -186,12 +208,14 @@ class PromptInputMethodController(Generic[TPayload]):
         coordinates = TextCoordinateMap(source_text)
         cursor_position = self._host.cursor_position
         anchor_position = self._host.anchor_position
+        font = self._host.font()
+        palette = self._host.palette()
         if query is Qt.InputMethodQuery.ImEnabled:
             return self._host.editing_enabled()
         if query is Qt.InputMethodQuery.ImReadOnly:
             return not self._host.editing_enabled()
         if query is Qt.InputMethodQuery.ImHints:
-            return input_method_hints
+            return self._input_method_hints()
         if query is Qt.InputMethodQuery.ImFont:
             return font
         if query is Qt.InputMethodQuery.ImCursorRectangle:
@@ -199,7 +223,7 @@ class PromptInputMethodController(Generic[TPayload]):
         if query is Qt.InputMethodQuery.ImAnchorRectangle:
             return self._host.input_method_caret_rect(anchor_position)
         if query is Qt.InputMethodQuery.ImInputItemClipRectangle:
-            return viewport_rect
+            return self._viewport_rect()
         if query is Qt.InputMethodQuery.ImSurroundingText:
             return source_text
         if query in {

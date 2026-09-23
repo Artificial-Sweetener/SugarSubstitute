@@ -164,11 +164,11 @@ def test_projection_surface_middle_insert_before_blank_line_reflows_immediately(
     )
     surface = surface_for(box)
     surface.set_cursor_positions(cursor_position=5, anchor_position=5)
-    before_rect = surface._current_caret_document_rect()  # noqa: SLF001
+    before_rect = surface._caret_geometry.current_document_rect()  # noqa: SLF001
 
     surface.textCursor().insertText("x")
 
-    after_rect = surface._current_caret_document_rect()  # noqa: SLF001
+    after_rect = surface._caret_geometry.current_document_rect()  # noqa: SLF001
     assert surface.toPlainText() == "alphax\n\nomega"
     assert surface.has_stale_projection_geometry() is False
     assert valid_transient_insertion_overlay(surface) is None

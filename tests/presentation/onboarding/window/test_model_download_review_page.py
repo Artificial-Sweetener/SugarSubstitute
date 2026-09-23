@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from substitute.presentation.onboarding.onboarding_download_text import (
     download_action_text,
 )
@@ -88,6 +89,45 @@ def test_download_review_is_an_editable_thumbnail_cart() -> None:
     assert cards[0].remove_button.accessibleName() == "Remove One obsession"
     assert bool(cards[0].remove_button.property("onboardingCardRemove"))
     assert cards[0].remove_button.cursor().shape() == Qt.CursorShape.PointingHandCursor
+    page.close()
+
+
+def test_download_review_removal_preserves_large_provider_identity() -> None:
+    """Remove one OpenModelDB cart item using its full provider-neutral ID."""
+
+    ensure_qt_application()
+    version_id = 273172137497545
+    model_root = Path("E:/models")
+    page = ModelDownloadReviewPage()
+    plan = ModelInstallPlan(
+        model_root=model_root,
+        files=(
+            _install_file(
+                family=ModelFamilyId.UPSCALERS,
+                model_id=version_id,
+                version_id=version_id,
+                display_name="Real upscaler",
+                file_name="upscaler.pth",
+                size_bytes=1_000_000,
+                destination_dir=model_root / "upscale_models",
+            ),
+        ),
+        available_bytes=1_000_000_000,
+    )
+    card = _card(ModelFamilyId.UPSCALERS, 1)
+    card = replace(
+        card,
+        recommendation=replace(
+            card.recommendation, model_id=version_id, version_id=version_id
+        ),
+    )
+    observed: list[int] = []
+    page.remove_requested.connect(observed.append)
+
+    page.set_plan(plan, (card,))
+    page.findChildren(DownloadCartCard)[0].remove_button.click()
+
+    assert observed == [version_id]
     page.close()
 
 

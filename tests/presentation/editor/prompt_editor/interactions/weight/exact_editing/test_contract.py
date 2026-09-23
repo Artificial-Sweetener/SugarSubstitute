@@ -70,6 +70,30 @@ def test_double_clicking_the_painted_weight_number_starts_exact_edit_mode(
     assert surface_for(box).projection_document().tokens != ()
 
 
+def test_starting_exact_edit_clears_step_controls_and_pointer_preview(
+    widgets: list[QWidget],
+) -> None:
+    """Exact editing should atomically replace every pointer-owned weight affordance."""
+
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:1.05)",
+        width=180,
+    )
+    controls = reveal_emphasis_controls(box, emphasis_token_for(box))
+    assert controls.increase_rect is not None
+    click_control_rect(controls, controls.increase_rect)
+    assert controls._gestures.weight_preview_text == "1.10"  # noqa: SLF001
+
+    start_exact_weight_edit(box, emphasis_token_for(box))
+
+    assert exact_weight_edit_token(box) is not None
+    assert controls.increase_rect is None
+    assert controls.decrease_rect is None
+    assert controls._gestures.weight_preview_text is None  # noqa: SLF001
+    assert controls._gestures.weight_preview_rect is None  # noqa: SLF001
+
+
 def test_double_clicking_lora_weight_starts_exact_edit_mode(
     widgets: list[QWidget],
 ) -> None:

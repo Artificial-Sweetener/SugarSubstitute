@@ -23,9 +23,9 @@ from pathlib import Path
 from types import MappingProxyType
 
 from substitute.application.model_metadata import ModelCatalogService
-from substitute.application.prompt_editor.lora.catalog import (
-    PromptLoraCatalogService,
-    _find_lora_in_snapshot,
+from substitute.application.prompt_editor.lora.catalog import PromptLoraCatalogService
+from substitute.application.prompt_editor.lora.catalog_lookup import (
+    find_lora_in_snapshot,
 )
 from substitute.application.prompt_editor.lora.diagnostics import (
     lora_prompt_context,
@@ -84,12 +84,12 @@ def test_lora_lookup_diagnostic_reports_match_sources(tmp_path: Path) -> None:
         prompt_name_items=MappingProxyType({}),
     )
 
-    prompt_match = _find_lora_in_snapshot(snapshot, r"folder\Character")
-    backend_match = _find_lora_in_snapshot(
+    prompt_match = find_lora_in_snapshot(snapshot, r"folder\Character")
+    backend_match = find_lora_in_snapshot(
         backend_only_snapshot,
         r"folder/Character.safetensors",
     )
-    bare_match = _find_lora_in_snapshot(snapshot, "Solo")
+    bare_match = find_lora_in_snapshot(snapshot, "Solo")
 
     assert prompt_match.match_source == "prompt_name"
     assert prompt_match.result is not None
@@ -122,7 +122,7 @@ def test_lora_lookup_diagnostic_reports_ranked_duplicate_selection(
         model_generation=model_snapshot.generation,
     )
 
-    diagnostic = _find_lora_in_snapshot(snapshot, "Ranni")
+    diagnostic = find_lora_in_snapshot(snapshot, "Ranni")
 
     assert diagnostic.match_source == "autocomplete_ranked_exact"
     assert diagnostic.bare_collision_match_count == 2
