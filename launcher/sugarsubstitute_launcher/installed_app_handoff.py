@@ -32,6 +32,9 @@ from launcher.sugarsubstitute_launcher.candidate_update_launch import (
 from launcher.sugarsubstitute_launcher.installed_application_supervisor import (
     InstalledApplicationSupervisor,
 )
+from launcher.sugarsubstitute_launcher.launcher_baseline_refresh import (
+    LauncherBaselineRefresh,
+)
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import build_app_launch_command
@@ -71,6 +74,10 @@ def complete_installed_app_handoff(
 ) -> None:
     """Run update policy and start the app with the requested presentation policy."""
 
+    if LauncherBaselineRefresh().start_if_required(layout=layout):
+        if splash_session is not None:
+            splash_session.close()
+        return
     config = LauncherConfig.load(layout.config_path)
     update_result = LauncherUpdateOrchestrator().run(
         layout=layout,
