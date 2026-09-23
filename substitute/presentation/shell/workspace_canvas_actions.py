@@ -14,50 +14,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Handle input/output canvas and mask flows for the workspace shell."""
+"""Register prepared and restored images with the Output canvas state."""
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.presentation.localization import (
-    app_text,
-    render_application_text,
-)
-
 import uuid
 from pathlib import Path
-from typing import Mapping, Protocol, cast
+from typing import Protocol, cast
 
-from PySide6.QtWidgets import QMessageBox
-
-from substitute.application.errors import (
-    ErrorReport,
-    ErrorReportKind,
-    SubstituteOperationContext,
-)
-from substitute.application.ports.file_manager_gateway import FileRevealResult
-from substitute.application.ports import OutputImageUpdate
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
-from substitute.application.workflows.output_preview_results import (
-    OutputPreviewAcceptance,
-)
 from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
-    OutputPreviewCloseIdentity,
     OutputProjectionSchedulingIntent,
 )
 from substitute.application.workflows.output_canvas_focus_service import (
     OutputFocusMutationResult,
     OutputFocusSnapshot,
 )
-from substitute.application.workflows.output_scene_navigation_selection import (
-    OutputSceneNavigationSelection,
-)
 from substitute.domain.workflow import OutputFocusMode
-from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell.output_image_commit_pipeline import (
-    FailedOutputImagePreparation,
     OutputImageCommitRequest,
     PreparedOutputImage,
     generation_visual_identity_for_commit,
@@ -106,48 +83,21 @@ def _empty_output_focus_change() -> OutputFocusMutationResult:
 
 
 class OutputCanvasProtocol(Protocol):
-    """Describe output-canvas behavior used by canvas actions."""
-
-    def apply_preview_acceptance(
-        self,
-        acceptance: OutputPreviewAcceptance,
-    ) -> None:
-        """Display a session-authorized preview acceptance on the output canvas."""
-
-    def clear_previews(
-        self,
-        source_key: str | None = None,
-    ) -> None:
-        """Remove transient preview images from the output canvas."""
-
-    def close_final_output_preview_lane(
-        self,
-        identity: OutputPreviewCloseIdentity,
-    ) -> None:
-        """Close the transient preview lane replaced by a final output."""
+    """Describe output-canvas behavior used by Output registration."""
 
     def release_automatic_preview_follow(self) -> None:
         """Let a newly arrived final output become the Automatic frontier."""
 
 
 class CanvasHostProtocol(Protocol):
-    """Describe canvas-host behavior used by canvas actions."""
+    """Expose the mounted Output canvas by route key."""
 
     def canvas_for(self, route_key: str) -> object | None:
         """Return the configured canvas for a route key."""
 
-    def activate_canvas(self, label: str, *, keyboard_focus: bool) -> bool:
-        """Activate one attached canvas with explicit keyboard-focus policy."""
-
 
 class OutputImagePipelineProtocol(Protocol):
-    """Describe output-image pipeline submission used by canvas actions."""
-
-    def submit_output_update(self, output_update: OutputImageUpdate) -> None:
-        """Submit a saved output image update to the async pipeline."""
-
-    def submit_legacy_output_update(self, output_update: OutputImageUpdate) -> None:
-        """Submit a non-live saved output update to the async pipeline."""
+    """Schedule projection after Output registration."""
 
     def schedule_output_projection(
         self,
@@ -156,45 +106,8 @@ class OutputImagePipelineProtocol(Protocol):
         """Schedule projection requested by a state-only Output registration."""
 
 
-class GenerationTimingLookupProtocol(Protocol):
-    """Describe read-only generation timing lookup for late output commits."""
-
-    def cube_execution_duration_ms(
-        self,
-        *,
-        workflow_id: str,
-        source_key: str = "",
-        cube_alias: str = "",
-    ) -> float | None:
-        """Return the latest known cube duration for one output source."""
-
-
 class CanvasIoServiceProtocol(Protocol):
-    """Describe canvas IO behavior used by canvas actions."""
-
-    def load_output_image(self, source_path: Path) -> object:
-        """Load output image from disk."""
-
-    def open_image_in_external_editor(
-        self,
-        *,
-        image: object,
-        image_meta: object,
-    ) -> bool:
-        """Open one image in an external editor."""
-
-    def open_images_in_external_editor(
-        self,
-        *,
-        images: list[tuple[object, object]],
-    ) -> bool:
-        """Open multiple images in an external editor."""
-
-    def resolve_node_meta_title(self, node_data: Mapping[str, object]) -> str:
-        """Resolve display title for one workflow node."""
-
-    def resolve_workflow_label(self, metadata: Mapping[str, object]) -> str:
-        """Resolve workflow display label from metadata."""
+    """Build metadata for a prepared Output image."""
 
     def build_output_image_metadata(
         self,
@@ -223,48 +136,12 @@ class CanvasIoServiceProtocol(Protocol):
         """Build output image metadata payload."""
 
 
-class AssetRevealServiceProtocol(Protocol):
-    """Describe application-owned local asset reveal behavior."""
-
-    def reveal_asset(self, asset_path: str) -> FileRevealResult:
-        """Reveal one metadata-backed local asset path."""
-
-
 class OutputCanvasStateServiceProtocol(Protocol):
-    """Describe durable Output workflow state behavior used by canvas actions."""
-
-    def set_active_output_uuid(
-        self,
-        workflow: "WorkflowStateProtocol",
-        uuid_str: str,
-    ) -> None:
-        """Persist selected output image id for one workflow."""
-
-    def set_active_output_grid(
-        self,
-        workflow: "WorkflowStateProtocol",
-        source_key: str | None,
-        scene_key: str | None = None,
-    ) -> None:
-        """Persist selected output grid for one workflow."""
-
-    def set_active_output_scene(
-        self,
-        workflow: "WorkflowStateProtocol",
-        selection: OutputSceneNavigationSelection,
-    ) -> None:
-        """Persist one complete output scene route for one workflow."""
-
-    def set_output_compare_state(
-        self,
-        workflow: "WorkflowStateProtocol",
-        state: object,
-    ) -> None:
-        """Persist output compare state for one workflow."""
+    """Register one image with durable Output workflow state."""
 
     def register_output_image(
         self,
-        workflows: dict[str, "WorkflowStateProtocol"],
+        workflows: dict[str, object],
         workflow_id: str,
         active_workflow_id: str,
         image: object,
@@ -273,56 +150,12 @@ class OutputCanvasStateServiceProtocol(Protocol):
         """Register one output image without visible projection."""
 
 
-class OutputCanvasFocusServiceProtocol(Protocol):
-    """Persist user-authored Output route intent."""
-
-    def set_active_output_uuid(
-        self,
-        workflow: "WorkflowStateProtocol",
-        uuid_str: str,
-    ) -> object:
-        """Persist one concrete Output selection."""
-
-    def set_active_output_grid(
-        self,
-        workflow: "WorkflowStateProtocol",
-        source_key: str | None,
-        scene_key: str | None = None,
-    ) -> object:
-        """Persist one Output grid selection."""
-
-    def set_active_output_scene(
-        self,
-        workflow: "WorkflowStateProtocol",
-        selection: OutputSceneNavigationSelection,
-    ) -> object:
-        """Persist one scene-level Output selection."""
-
-    def set_output_compare_state(
-        self,
-        workflow: "WorkflowStateProtocol",
-        state: object,
-    ) -> None:
-        """Persist Output comparison state."""
-
-
-class OutputNavigationSessionServiceProtocol(Protocol):
-    """Own automatic and manual navigation mode for live generation sessions."""
-
-    def mark_user_navigation(
-        self,
-        workflow_id: str,
-        workflow: "WorkflowStateProtocol",
-    ) -> object:
-        """Make user-selected navigation sticky for the current session."""
-
-
 class OutputGeneratedResultServiceProtocol(Protocol):
     """Commit one validated presentable generated Output result."""
 
     def commit_generated_output(
         self,
-        workflows: dict[str, "WorkflowStateProtocol"],
+        workflows: dict[str, object],
         active_workflow_id: str,
         *,
         event: object,
@@ -346,106 +179,38 @@ class OutputProjectionCoordinatorProtocol(Protocol):
         """Retire completed preview content after its final is presented."""
 
 
-class CubeStateProtocol(Protocol):
-    """Describe cube state data consumed by canvas actions."""
-
-    buffer: dict[str, object]
-
-
-class WorkflowCanvasStateProtocol(Protocol):
-    """Describe workflow-local canvas state consumed by canvas actions."""
-
-    image_entries: dict[str, object]
-    mask_entries: dict[tuple[str, str], object]
-    active_input_mask_uuid: uuid.UUID | None
-
-
-class WorkflowStateProtocol(Protocol):
-    """Describe workflow state data consumed by canvas actions."""
-
-    cubes: dict[str, CubeStateProtocol]
-    canvas: WorkflowCanvasStateProtocol
-    metadata: dict[str, object]
-
-
-class WorkspacePathBundleProtocol(Protocol):
-    """Describe shell path roots used by canvas actions."""
-
-    projects_dir: Path
-
-
-class MessageBoxProtocol(Protocol):
-    """Describe message-box behavior used by canvas actions."""
-
-    def critical(self, parent: object, title: str, text: str) -> None:
-        """Show a critical dialog."""
-
-
-class OutputImageSignalProtocol(Protocol):
-    """Describe Qt-like signal behavior used by canvas actions."""
-
-    def emit(self, workflow_id: str, image: object, image_meta: object) -> None:
-        """Emit one output-image payload."""
-
-
 class WorkflowSessionServiceProtocol(Protocol):
-    """Describe workflow session behavior used by canvas actions."""
+    """Expose registered workflows and active Output identity."""
 
-    workflows: dict[str, WorkflowStateProtocol]
+    workflows: dict[str, object]
     active_workflow_id: str
-
-    def get_workflow(self, workflow_id: str) -> WorkflowStateProtocol | None:
-        """Return workflow for one id."""
-
-
-class WorkflowTabBarProtocol(Protocol):
-    """Describe workflow-tab behavior used by canvas actions."""
-
-    def currentIndex(self) -> int:
-        """Return current workflow tab index."""
-
-    def tabText(self, index: int) -> str:
-        """Return workflow tab text."""
 
 
 class WorkspaceCanvasActionView(Protocol):
     """Describe the shell surface consumed by canvas actions."""
 
     workflow_session_service: WorkflowSessionServiceProtocol
-    workflow_tabbar: WorkflowTabBarProtocol
+    workflow_tabbar: object
     canvas_host: CanvasHostProtocol
     canvas_io_service: CanvasIoServiceProtocol
     output_canvas_state_service: OutputCanvasStateServiceProtocol
-    output_canvas_focus_service: OutputCanvasFocusServiceProtocol
-    output_navigation_session_service: OutputNavigationSessionServiceProtocol
     output_generated_result_service: OutputGeneratedResultServiceProtocol
     output_canvas_projection_coordinator: OutputProjectionCoordinatorProtocol
     output_image_pipeline: OutputImagePipelineProtocol
-    add_output_image_signal: OutputImageSignalProtocol
-    path_bundle: WorkspacePathBundleProtocol
     visual_authorization_service: object
     output_preview_registry: OutputPreviewRegistry
 
-    def get_active_workflow(self) -> WorkflowStateProtocol | None:
-        """Return the active workflow state."""
-
-    def _resolve_workflow_name(self, workflow_id: str) -> str:
-        """Resolve the display name for one workflow id."""
-
 
 class WorkspaceCanvasActions:
-    """Own input-image, mask, preview, and output canvas orchestration."""
+    """Own Output image registration and post-registration lifecycle effects."""
 
     def __init__(
         self,
         view: WorkspaceCanvasActionView,
-        *,
-        error_presenter: ErrorReportPresenterProtocol | None = None,
     ) -> None:
-        """Store shell dependencies for Output ingestion actions."""
+        """Store the state and projection dependencies for Output registration."""
 
         self._view = view
-        self._error_presenter = error_presenter
 
     def handle_add_output_image(
         self,
@@ -673,71 +438,6 @@ class WorkspaceCanvasActions:
             ),
         )
 
-    def handle_output_image_preparation_failed(
-        self,
-        failure: FailedOutputImagePreparation,
-        *,
-        message_box: MessageBoxProtocol | None = None,
-    ) -> None:
-        """Present one failed asynchronous output image preparation."""
-
-        request = failure.request
-        self._show_generated_image_load_error(
-            workflow_id=request.workflow_id,
-            node_id=request.node_id,
-            file_path=str(request.file_path),
-            source_key=request.source_key,
-            source_label=request.source_label,
-            scene_run_id=request.scene_run_id,
-            scene_key=request.scene_key,
-            scene_title=request.scene_title,
-            scene_order=request.scene_order,
-            scene_count=request.scene_count,
-            fallback_message_box=(
-                message_box
-                if message_box is not None
-                else cast(MessageBoxProtocol, QMessageBox)
-            ),
-        )
-
-    def prepare_output_image_commit(self, output_update: OutputImageUpdate) -> None:
-        """Submit a final output image for asynchronous preparation."""
-
-        submit = getattr(
-            getattr(self._view, "output_image_pipeline", None),
-            "submit_output_update",
-            None,
-        )
-        if callable(submit):
-            submit(output_update)
-            return
-        log_warning(
-            _LOGGER,
-            "Output image pipeline unavailable for generated output",
-            workflow_id=output_update.workflow_id,
-            node_id=output_update.node_id,
-            path=output_update.file_path,
-        )
-
-    def prepare_legacy_output_image_commit(
-        self,
-        output_update: OutputImageUpdate,
-    ) -> None:
-        """Submit a non-live output image through explicit fallback semantics."""
-
-        pipeline = getattr(self._view, "output_image_pipeline", None)
-        submit_legacy = getattr(pipeline, "submit_legacy_output_update", None)
-        if callable(submit_legacy):
-            submit_legacy(output_update)
-            return
-        log_warning(
-            _LOGGER,
-            "Output image pipeline unavailable for legacy generated output",
-            workflow_id=output_update.workflow_id,
-            node_id=output_update.node_id,
-            path=output_update.file_path,
-        )
-
     def _record_workflow_output_activity(self, workflow_id: str) -> None:
         """Mark inactive workflow tabs when saved outputs arrive."""
 
@@ -757,93 +457,6 @@ class WorkspaceCanvasActions:
         set_unread = getattr(view.workflow_tabbar, "set_workflow_unread_result", None)
         if callable(set_unread):
             set_unread(workflow_id, True)
-
-    def update_canvas_callback(
-        self,
-        workflow_id: str,
-        workflow: dict[str, object],
-        file_path: str,
-        node_id: str,
-        *,
-        source_key: str = "",
-        source_label: str = "",
-        scene_run_id: str | None = None,
-        scene_key: str | None = None,
-        scene_title: str | None = None,
-        scene_order: int | None = None,
-        scene_count: int | None = None,
-        message_box: MessageBoxProtocol | None = None,
-    ) -> None:
-        """Delegate generated image commits to the asynchronous output pipeline."""
-
-        _ = message_box
-        self.prepare_legacy_output_image_commit(
-            OutputImageUpdate(
-                workflow_id=workflow_id,
-                workflow_payload=workflow,
-                file_path=Path(file_path),
-                node_id=node_id,
-                source_key=source_key,
-                source_label=source_label,
-                scene_run_id=scene_run_id,
-                scene_key=scene_key,
-                scene_title=scene_title,
-                scene_order=scene_order,
-                scene_count=scene_count,
-            )
-        )
-
-    def _show_generated_image_load_error(
-        self,
-        *,
-        workflow_id: str,
-        node_id: str,
-        file_path: str,
-        source_key: str,
-        source_label: str,
-        scene_run_id: str | None,
-        scene_key: str | None,
-        scene_title: str | None,
-        scene_order: int | None,
-        scene_count: int | None,
-        fallback_message_box: MessageBoxProtocol,
-    ) -> None:
-        """Show an output-image load failure through the structured modal surface."""
-
-        message = app_text("Could not load image: %1", file_path)
-        if self._error_presenter is None:
-            fallback_message_box.critical(
-                self._view,
-                render_application_text(app_text("Load Error")),
-                render_application_text(message),
-            )
-            return
-
-        self._error_presenter.show_error_report(
-            ErrorReport(
-                kind=ErrorReportKind.SUBSTITUTE_INTERNAL,
-                title=app_text("Generated image load failed"),
-                message=message,
-                stage="canvas",
-                workflow_id=workflow_id,
-                technical_detail=message,
-                operation_context=SubstituteOperationContext(
-                    operation="load_generated_output_image",
-                    workflow_id=workflow_id,
-                    path=file_path,
-                    node_id=node_id,
-                    values={
-                        "source_key": source_key,
-                        "source_label": source_label,
-                        "scene_run_id": scene_run_id,
-                        "scene_key": scene_key,
-                        "scene_title": scene_title,
-                        "scene_order": scene_order,
-                        "scene_count": scene_count,
-                    },
-                ),
-            )
-        )
 
 
 __all__ = ["WorkspaceCanvasActions", "WorkspaceCanvasActionView"]

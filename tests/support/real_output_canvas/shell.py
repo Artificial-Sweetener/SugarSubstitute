@@ -90,6 +90,9 @@ from substitute.presentation.shell.workspace_output_external_actions import (
 from substitute.presentation.shell.workspace_output_navigation_actions import (
     WorkspaceOutputNavigationActions,
 )
+from substitute.presentation.shell.workspace_output_preparation_actions import (
+    WorkspaceOutputPreparationActions,
+)
 from substitute.presentation.shell.workflow_workspace_coordinator import (
     WorkflowWorkspaceCoordinator,
     WorkflowWorkspaceView,
@@ -176,7 +179,8 @@ class _HarnessShell(QMainWindow):
         self.generationActionCluster = None
         self.error_reports: list[object] = []
 
-        self.workspace_canvas_actions = WorkspaceCanvasActions(
+        self.workspace_canvas_actions = WorkspaceCanvasActions(cast(Any, self))
+        self.workspace_output_preparation_actions = WorkspaceOutputPreparationActions(
             cast(Any, self),
             error_presenter=_ErrorPresenter(self.error_reports),
         )
@@ -251,6 +255,7 @@ class _HarnessShell(QMainWindow):
         self.workspace_controller = SimpleNamespace(
             output_navigation_actions=self.workspace_output_navigation_actions,
             output_external_actions=self.workspace_output_external_actions,
+            output_preparation_actions=self.workspace_output_preparation_actions,
         )
         self.output_canvas = self.canvas_host.canvas_for("Output")
         self.workflow_workspace = WorkflowWorkspaceCoordinator(

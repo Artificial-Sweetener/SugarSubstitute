@@ -214,6 +214,12 @@ class WorkspaceController:
         return self._collaborators.output_external_actions
 
     @property
+    def output_preparation_actions(self) -> Any:
+        """Return asynchronous Output preparation actions for shell wiring."""
+
+        return self._collaborators.output_preparation_actions
+
+    @property
     def workflow_duplicate_service(self) -> WorkflowDuplicateService:
         """Return workflow duplication service composed for shell signal wiring."""
 

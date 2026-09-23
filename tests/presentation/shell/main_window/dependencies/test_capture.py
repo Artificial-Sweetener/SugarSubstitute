@@ -133,6 +133,7 @@ class _FakeWorkspaceController:
         self.canvas_actions = object()
         self.output_navigation_actions = object()
         self.output_external_actions = object()
+        self.output_preparation_actions = object()
 
 
 class _FakeGenerationFeedbackCoalescer:
