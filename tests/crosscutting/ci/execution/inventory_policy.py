@@ -45,6 +45,9 @@ EXECUTION_ADAPTER_FILES = frozenset(
         "substitute/application/execution/policies.py",
         "substitute/application/execution/task_scope.py",
         "substitute/presentation/editor/prompt_editor/async_work/task_executor.py",
+        "substitute/presentation/model_discovery/discovery_task_runner.py",
+        "substitute/presentation/model_updates/version_thumbnail_loader.py",
+        "substitute/presentation/qt/execution/thread_pool_dispatcher.py",
     }
 )
 EXECUTION_LANE_FACTORY_FILES = frozenset(
@@ -145,6 +148,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     ),
     "substitute/presentation/cube_picker/cube_stack_cart_modal.py": frozenset(
         {"QEventLoop"}
+    ),
+    "substitute/presentation/model_discovery/credential_prompt.py": frozenset(
+        {"QEventLoop", "QEventLoop.exec"}
     ),
     "substitute/shared/cutecanvas_sam_warmup_state.py": frozenset({"threading.Lock"}),
     "substitute/shared/startup_trace.py": frozenset({"threading.RLock"}),

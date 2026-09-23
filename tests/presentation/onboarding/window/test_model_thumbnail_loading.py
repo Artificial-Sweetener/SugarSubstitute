@@ -92,10 +92,11 @@ class _ModelService:
         *,
         cancellation: CancellationToken,
         excluded_version_ids: frozenset[int] = frozenset(),
+        excluded_sha256: frozenset[str] = frozenset(),
     ) -> tuple[RecommendationLinkResult, ...]:
         """Return a settled result for every explicit model link."""
 
-        _ = (family_id, excluded_version_ids, cancellation)
+        _ = (family_id, excluded_version_ids, excluded_sha256, cancellation)
         return tuple(
             RecommendationLinkResult(url, RecommendationLinkStatus.INVALID)
             for url in urls
@@ -194,6 +195,45 @@ def test_thumbnail_completions_identify_exact_versions_on_a_shared_model_page() 
     thumbnail_submitter.handles[1].complete_success(_thumbnail())
 
     assert thumbnail_events == [2851583, 3248362]
+    coordinator.shutdown()
+
+
+def test_thumbnail_completion_preserves_large_openmodeldb_version_id() -> None:
+    """Qt must not truncate a provider-neutral identity to a signed 32-bit int."""
+
+    ensure_qt_application()
+    version_id = 273172137497545
+    page = FamilyRecommendationPage(
+        ModelFamilyId.UPSCALERS,
+        (
+            RecommendationCardAsset(
+                _recommendation_with_identity(
+                    family=ModelFamilyId.UPSCALERS,
+                    model_id=version_id,
+                    version_id=version_id,
+                )
+            ),
+        ),
+    )
+    request_submitter = QueuedTaskSubmitter()
+    thumbnail_submitter = QueuedTaskSubmitter()
+    coordinator = ModelOnboardingCoordinator(
+        service=_ModelService(page),
+        request_submitter=request_submitter,
+        close_request_submitter=lambda: None,
+        thumbnail_submitter=thumbnail_submitter,
+        close_thumbnail_submitter=lambda: None,
+    )
+    observed: list[int] = []
+    coordinator.thumbnail_finished.connect(
+        lambda _generation, identity, _asset: observed.append(identity)
+    )
+
+    coordinator.start_recommendations((ModelFamilyId.UPSCALERS,))
+    request_submitter.handles[0].complete_success((page,))
+    thumbnail_submitter.handles[0].complete_success(_thumbnail())
+
+    assert observed == [version_id]
     coordinator.shutdown()
 
 

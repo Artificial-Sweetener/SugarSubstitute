@@ -25,6 +25,7 @@ CACHE_ID_DANBOORU_IMAGES = "danbooru-images"
 CACHE_ID_MODEL_METADATA = "model-metadata"
 CACHE_ID_MODEL_THUMBNAILS = "model-thumbnails"
 CACHE_ID_MODEL_CATALOG_SNAPSHOTS = "model-catalog-snapshots"
+CACHE_ID_OPENMODELDB_CATALOG = "openmodeldb-catalog"
 CACHE_ID_MANAGED_SETUP_EVIDENCE = "managed-setup-evidence"
 
 __all__ = [
@@ -37,5 +38,6 @@ __all__ = [
     "CACHE_ID_MANAGED_SETUP_EVIDENCE",
     "CACHE_ID_MODEL_METADATA",
     "CACHE_ID_MODEL_THUMBNAILS",
+    "CACHE_ID_OPENMODELDB_CATALOG",
     "CACHE_ID_RESTORE_PROJECTION",
 ]

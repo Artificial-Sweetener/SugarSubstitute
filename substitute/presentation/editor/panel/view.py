@@ -91,6 +91,7 @@ from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
 from substitute.presentation.model_discovery import EmptyModelPickerAction
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.application.user_presets import UserPresetService
 from substitute.application.overrides import SamplerSchedulerLinkStateService
 from substitute.presentation.errors import ErrorReportPresenterProtocol
@@ -624,6 +625,7 @@ class EditorPanel(QWidget):
             UltralyticsThumbnailAssociationService | None
         ) = None,
         empty_model_picker_action: EmptyModelPickerAction | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
         user_preset_service: UserPresetService | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         workflow_issue_state: WorkflowIssueState | None = None,
@@ -684,6 +686,7 @@ class EditorPanel(QWidget):
                 thumbnail_asset_repository=thumbnail_asset_repository,
                 model_metadata_action_handler=model_metadata_action_handler,
                 empty_model_picker_action=empty_model_picker_action,
+                model_updates=model_updates,
             ),
             presets=EditorPanelPresetServiceBundle(
                 user_preset_service=user_preset_service,

@@ -120,6 +120,7 @@ class _FakeModelPickerField:
         current_value: str = "",
         search_placeholder: str = "Search models",
         metadata_action_handler: object | None = None,
+        model_updates: object | None = None,
         empty_model_action: object | None = None,
         thumbnail_preload_route_factory: object | None = None,
     ) -> None:
@@ -132,6 +133,7 @@ class _FakeModelPickerField:
         self.current_value = current_value
         self.search_placeholder = search_placeholder
         self.metadata_action_handler = metadata_action_handler
+        self.model_updates = model_updates
         self.empty_model_action = empty_model_action
         self.thumbnail_preload_route_factory = thumbnail_preload_route_factory
 

@@ -27,6 +27,10 @@ from substitute.infrastructure.model_recommendations.thumbnail_fetcher import (
     CivitaiThumbnailFetcher,
     ThumbnailResponse,
 )
+from substitute.infrastructure.model_recommendations.provider_gateway import (
+    ProviderRecommendationGateway,
+    ProviderRecommendationThumbnailFetcher,
+)
 
 __all__ = [
     "CivitaiFamilyRecommendationGateway",
@@ -34,4 +38,6 @@ __all__ = [
     "CachedRecommendationThumbnailFetcher",
     "CivitaiThumbnailFetcher",
     "ThumbnailResponse",
+    "ProviderRecommendationGateway",
+    "ProviderRecommendationThumbnailFetcher",
 ]

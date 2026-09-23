@@ -37,7 +37,7 @@ from substitute.shared.logging.logger import get_logger, log_debug
 _LOGGER = get_logger("application.model_metadata.rich_choice_resolver")
 _MIN_ENRICHED_OPTIONS = 2
 _MIN_ENRICHED_RATIO = 0.50
-_SUPPORTED_MODEL_EXTENSIONS = frozenset({".safetensors", ".ckpt", ".pt"})
+_SUPPORTED_MODEL_EXTENSIONS = frozenset({".safetensors", ".ckpt", ".pt", ".pth"})
 
 
 @dataclass(frozen=True, slots=True)

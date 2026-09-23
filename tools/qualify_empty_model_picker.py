@@ -43,6 +43,7 @@ from substitute.application.node_behavior import FieldBehavior
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.domain.model_suggestions import (
+    ModelAcquisitionOffer,
     ModelSuggestion,
     ModelSuggestionAccess,
     ModelSuggestionAccessPolicy,
@@ -63,7 +64,7 @@ from substitute.presentation.model_discovery import (
     ModelDiscoveryModal,
     ModelSuggestionCredentialCoordinator,
 )
-from substitute.presentation.model_discovery.discovery_modal import ModelSuggestionCard
+from substitute.presentation.model_discovery.discovery_card import ModelSuggestionCard
 from substitute.presentation.shell.empty_model_picker_discovery_controller import (
     EmptyModelPickerDiscoveryController,
 )
@@ -137,24 +138,28 @@ class _SyntheticProvider(ModelSuggestionProvider):
             return ()
         return (
             ModelSuggestion(
-                reference=ModelSuggestionReference(
-                    self.provider_id,
-                    "Synthetic Registry",
-                    "model-1",
-                    "version-1",
-                ),
                 context=context,
                 model_name="Synthetic Anima",
                 version_name="v1",
                 creator="Qualification",
-                file_name=self._file_name,
-                size_bytes=len(_PAYLOAD),
                 sha256=digest,
-                download_url="https://invalid.example/model",
-                model_page_url="https://invalid.example/models/1",
-                thumbnail_url=None,
-                provider_rank=1,
-                access=self._access,
+                offers=(
+                    ModelAcquisitionOffer(
+                        reference=ModelSuggestionReference(
+                            self.provider_id,
+                            "Synthetic Registry",
+                            "model-1",
+                            "version-1",
+                        ),
+                        file_name=self._file_name,
+                        size_bytes=len(_PAYLOAD),
+                        download_url="https://invalid.example/model",
+                        model_page_url="https://invalid.example/models/1",
+                        thumbnail_url=None,
+                        provider_rank=1,
+                        access=self._access,
+                    ),
+                ),
             ),
         )
 
@@ -173,6 +178,7 @@ class _SyntheticProvider(ModelSuggestionProvider):
     def acquire(
         self,
         suggestion: ModelSuggestion,
+        offer: ModelAcquisitionOffer,
         *,
         destination: Path,
         cancellation: CancellationProbe | None,
@@ -181,7 +187,7 @@ class _SyntheticProvider(ModelSuggestionProvider):
 
         if cancellation is not None and cancellation.is_cancelled():
             raise InterruptedError("Synthetic model acquisition was cancelled.")
-        model_path = destination / "Anima" / suggestion.file_name
+        model_path = destination / "Anima" / offer.file_name
         model_path.parent.mkdir(parents=True, exist_ok=True)
         model_path.write_bytes(_PAYLOAD)
         return AcquisitionResult(

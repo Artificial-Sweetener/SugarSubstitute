@@ -48,12 +48,15 @@ def parse_model(
 
     if not isinstance(value, dict):
         return None
+    mapping = family.civitai
+    if mapping is None:
+        return None
     model_id = _positive_integer(value.get("id"))
     model_name = _text(value.get("name"))
     if (
         model_id is None
         or model_name is None
-        or _text(value.get("type")) != family.civitai.model_type
+        or _text(value.get("type")) != mapping.model_type
         or value.get("nsfw") is not False
         or value.get("mode") is not None
     ):
@@ -111,12 +114,19 @@ def model_page_identity(value: str) -> tuple[int, int | None]:
     """Return the model and optional exact-version identity from a trusted page URL."""
 
     parsed = urlparse(value.strip())
-    if parsed.scheme != "https" or parsed.hostname not in {
-        "civitai.com",
-        "www.civitai.com",
-        "civitai.red",
-        "www.civitai.red",
-    }:
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname
+        not in {
+            "civitai.com",
+            "www.civitai.com",
+            "civitai.red",
+            "www.civitai.red",
+        }
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in {None, 443}
+    ):
         raise ValueError("Only HTTPS CivitAI model links are supported.")
     match = re.fullmatch(r"/models/(\d+)(?:/[^/?#]+)?/?", parsed.path)
     if match is None:
@@ -175,6 +185,49 @@ def safe_thumbnail(
             and normalized.height > normalized.width
         ):
             return image_id, _large_preview_url(url)
+    return None
+
+
+def safe_version_thumbnail(
+    value: object,
+    *,
+    thumbnail_policy: CivitaiThumbnailPolicy,
+) -> str | None:
+    """Choose a safe version preview even when CivitAI omits image IDs."""
+
+    if not isinstance(value, list):
+        return None
+    for image in value:
+        if not isinstance(image, dict):
+            continue
+        url = _text(image.get("url"))
+        width = _positive_integer(image.get("width"))
+        height = _positive_integer(image.get("height"))
+        if (
+            url is None
+            or not _is_civitai_asset_url(url)
+            or width is None
+            or height is None
+            or min(width, height) < 256
+        ):
+            continue
+        normalized = CivitaiImage(
+            image_id=_positive_integer(image.get("id")),
+            url=url,
+            image_type=_text(image.get("type")),
+            nsfw=image.get("nsfw") if isinstance(image.get("nsfw"), bool) else None,
+            nsfw_level=(
+                image.get("nsfwLevel")
+                if isinstance(image.get("nsfwLevel"), (str, int))
+                and not isinstance(image.get("nsfwLevel"), bool)
+                else None
+            ),
+            width=width,
+            height=height,
+            meta=None,
+        )
+        if thumbnail_policy.allows_image(normalized):
+            return _large_preview_url(url)
     return None
 
 

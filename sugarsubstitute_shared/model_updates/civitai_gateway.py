@@ -45,16 +45,45 @@ class CivitaiCompatibleUpdateGateway:
     ) -> DiscoveredModel | None:
         """Return the newest safe compatible version only when current is observed."""
 
-        candidate: DiscoveredModel | None = None
-        for version in self._client.discover_model_versions(
+        family = self.compatible_family(
+            model_id=model_id,
+            current_version_id=current_version_id,
+            artifact_kind=artifact_kind,
+            base_model=base_model,
+        )
+        return (
+            family[-1]
+            if family and family[-1].version_id != current_version_id
+            else None
+        )
+
+    def compatible_family(
+        self,
+        *,
+        model_id: int,
+        current_version_id: int,
+        artifact_kind: ModelArtifactKind,
+        base_model: str | None,
+    ) -> tuple[DiscoveredModel, ...]:
+        """Return the verified same-kind, same-base family oldest to newest."""
+
+        versions = self._client.discover_model_versions(
             model_id=model_id,
             artifact_kind=artifact_kind,
+        )
+        if not any(
+            version.version_id == current_version_id
+            and version.artifact_kind is artifact_kind
+            and _same_base_model(version.base_model, base_model)
+            for version in versions
         ):
-            if version.version_id == current_version_id:
-                return candidate
-            if candidate is None and _same_base_model(version.base_model, base_model):
-                candidate = version
-        return None
+            return ()
+        return tuple(
+            version
+            for version in reversed(versions)
+            if version.artifact_kind is artifact_kind
+            and _same_base_model(version.base_model, base_model)
+        )
 
 
 def _same_base_model(candidate: str | None, current: str | None) -> bool:

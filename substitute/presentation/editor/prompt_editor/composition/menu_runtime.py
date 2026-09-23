@@ -27,6 +27,7 @@ from PySide6.QtGui import QContextMenuEvent
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -86,6 +87,7 @@ class PromptEditorMenuActionBindings:
     rich_prompt_rendering_enabled: Callable[[], bool]
     toggle_rich_prompt_rendering: Callable[[bool], None]
     metadata_action_handler: ModelMetadataContextActionHandler | None
+    model_updates: ModelUpdatePickerBridge | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +168,7 @@ def build_prompt_editor_menu_runtime(
         cursor_global_position=host.cursor_global_position,
         external_url_actions=actions.external_url_actions,
         metadata_action_handler=actions.metadata_action_handler,
+        model_updates=actions.model_updates,
     )
     prompt_requests = menu_factory.build_prompt_menu_presenter(
         snapshot_reader=snapshot_assembler,

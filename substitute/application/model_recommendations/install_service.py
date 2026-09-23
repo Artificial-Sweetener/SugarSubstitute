@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection
+from collections.abc import Callable, Collection, Mapping
 from pathlib import Path
 import shutil
 from typing import Protocol
@@ -36,6 +36,7 @@ from substitute.domain.model_recommendations import (
     ModelInstallPlan,
     ModelInstallProgress,
     ModelRecommendation,
+    ModelFamilyId,
     SUPPORTED_MODEL_FAMILIES,
     SupportedModelFamilyCatalog,
 )
@@ -95,6 +96,8 @@ class ModelInstallRecipePlanner:
                         root,
                         family.primary_artifact_kind,
                     ),
+                    provider_id=recommendation.provider_id,
+                    provider_name=recommendation.provider_name,
                 )
             )
         return ModelInstallPlan(
@@ -111,10 +114,14 @@ class ModelInstallService:
         self,
         *,
         primary_acquisition: ModelAcquisitionService,
+        civitai_upscaler_acquisition: ModelAcquisitionService | None = None,
+        provider_acquisitions: Mapping[str, ModelAcquisitionService] | None = None,
     ) -> None:
         """Store the CivitAI acquisition boundary for selected models."""
 
         self._primary_acquisition = primary_acquisition
+        self._civitai_upscaler_acquisition = civitai_upscaler_acquisition
+        self._provider_acquisitions = dict(provider_acquisitions or {})
 
     def acquire(
         self,
@@ -150,7 +157,17 @@ class ModelInstallService:
                         )
                     )
 
-            result = self._primary_acquisition.acquire(
+            acquisition = self._provider_acquisitions.get(
+                file.provider_id,
+                self._primary_acquisition,
+            )
+            if (
+                file.provider_id == "civitai"
+                and file.family_id is ModelFamilyId.UPSCALERS
+                and self._civitai_upscaler_acquisition is not None
+            ):
+                acquisition = self._civitai_upscaler_acquisition
+            result = acquisition.acquire(
                 _as_discovered_model(file),
                 destination_dir=file.destination_dir,
                 cancellation=cancellation,

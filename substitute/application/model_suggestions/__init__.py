@@ -21,9 +21,15 @@ from substitute.application.model_suggestions.service import (
     ModelSuggestionProvider,
     ModelSuggestionService,
 )
+from substitute.application.model_suggestions.upscaler_catalog import (
+    CURATED_UPSCALERS,
+    CuratedUpscaler,
+)
 
 __all__ = [
     "ModelSuggestionEngine",
     "ModelSuggestionProvider",
     "ModelSuggestionService",
+    "CURATED_UPSCALERS",
+    "CuratedUpscaler",
 ]

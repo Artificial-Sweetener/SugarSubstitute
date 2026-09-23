@@ -88,6 +88,9 @@ from substitute.app.bootstrap.persistent_cache_composition import (
     build_danbooru_cache_repository,
     build_model_cache_repositories,
 )
+from substitute.app.bootstrap.model_acquisition_composition import (
+    build_model_acquisition_runtime,
+)
 from substitute.app.bootstrap.prompt_editor_execution import (
     create_editor_panel_execution_factories,
 )
@@ -1143,6 +1146,12 @@ def _build_main_window_dependencies(
     from sugarsubstitute_shared.model_discovery.civitai_client import (
         CivitaiDiscoveryClient,
     )
+    from substitute.infrastructure.model_recommendations.civitai_payload_parser import (
+        safe_version_thumbnail,
+    )
+    from substitute.infrastructure.model_recommendations.thumbnail_fetcher import (
+        CivitaiThumbnailFetcher,
+    )
     from sugarsubstitute_shared.model_updates import (
         CivitaiCompatibleUpdateGateway,
         ModelUpdateService,
@@ -1864,50 +1873,57 @@ def _build_main_window_dependencies(
         model_recipe_step_started_at,
     )
     model_recipe_step_started_at = perf_counter()
-    model_catalog_service = ModelCatalogService(
-        backend=model_metadata_backend,
-        metadata_catalog=model_metadata_store,
-        snapshot_store=model_caches.snapshots,
-    )
-    model_update_service = ModelUpdateService(
-        usage=FileModelUsageRepository(context.user_settings_dir),
-        updates=CivitaiCompatibleUpdateGateway(
-            CivitaiDiscoveryClient(
-                api_key_provider=civitai_credential_service.load_api_key,
-            )
-        ),
-    )
-    from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
-    from sugarsubstitute_shared.model_updates import ModelUpdateAcquisitionService
-
     model_update_model_root = (
         context.comfy_target.workspace_path / "models"
         if context.comfy_target.mode is ComfyTargetMode.MANAGED_LOCAL
         and context.comfy_target.workspace_path is not None
         else None
     )
-    model_update_acquisition_service = (
-        ModelUpdateAcquisitionService(
-            model_root=model_update_model_root,
-            acquisition=ModelAcquisitionService(
-                allowed_roots=(model_update_model_root,),
-                api_key_provider=civitai_credential_service.load_api_key,
-            ),
-        )
-        if model_update_model_root is not None
-        else None
-    )
-    from substitute.app.bootstrap.model_suggestion_composition import (
-        compose_model_suggestion_service,
-    )
-
-    empty_model_picker_discovery_service = compose_model_suggestion_service(
+    model_acquisition = build_model_acquisition_runtime(
         model_root=model_update_model_root,
+        prepared_caches=prepared_caches,
         credentials=civitai_credential_service,
         preferences=civitai_preference_service,
-        thumbnails=model_thumbnail_store,
-        thumbnail_assets=model_metadata_store,
+        thumbnail_preparer=model_thumbnail_store,
+        thumbnail_store=model_metadata_store,
     )
+    openmodeldb = model_acquisition.openmodeldb
+    model_catalog_service = ModelCatalogService(
+        backend=model_metadata_backend,
+        metadata_catalog=model_metadata_store,
+        snapshot_store=model_caches.snapshots,
+        providers=(openmodeldb.catalog_provider,),
+    )
+
+    def update_thumbnail_url(images: object) -> str | None:
+        """Apply current CivitAI thumbnail consent to one version image list."""
+
+        active = civitai_preference_service.load_preferences()
+        return safe_version_thumbnail(
+            images,
+            thumbnail_policy=CivitaiThumbnailPolicy(
+                active.thumbnail_safety_policy
+                if active.thumbnail_downloads_enabled
+                else CivitaiThumbnailSafetyPolicy.DISABLED
+            ),
+        )
+
+    model_update_service = ModelUpdateService(
+        usage=FileModelUsageRepository(context.user_settings_dir),
+        installed_hashes=lambda kind: frozenset(
+            item.sha256
+            for item in model_catalog_service.refresh_models(kind.value)
+            if item.sha256 is not None
+        ),
+        updates=CivitaiCompatibleUpdateGateway(
+            CivitaiDiscoveryClient(
+                api_key_provider=civitai_credential_service.load_api_key,
+                thumbnail_selector=update_thumbnail_url,
+            )
+        ),
+    )
+    model_update_acquisition_service = model_acquisition.updates
+    empty_model_picker_discovery_service = model_acquisition.suggestions
     generation_model_usage_recorder = GenerationModelUsageRecorder(
         catalog=model_catalog_service,
         usage=model_update_service,
@@ -2485,6 +2501,7 @@ def _build_main_window_dependencies(
                 )
             ),
             thumbnail_policy_provider=current_civitai_thumbnail_policy,
+            recovery_gateways=(openmodeldb.recovery_gateway,),
         ),
         recipe_model_download_resolution_service=RecipeModelDownloadResolutionService(
             backend=model_metadata_backend,
@@ -2498,6 +2515,7 @@ def _build_main_window_dependencies(
                 )
             ),
             model_downloaded=record_downloaded_model,
+            direct_acquirer=openmodeldb.recipe_acquirer,
         ),
         workflow_export_service=workflow_export_service,
         portable_model_manifest_service=portable_model_manifest_service,
@@ -2559,6 +2577,7 @@ def _build_main_window_dependencies(
         model_update_service=model_update_service,
         model_update_model_root=model_update_model_root,
         model_update_acquisition_service=model_update_acquisition_service,
+        model_update_thumbnail_fetcher=CivitaiThumbnailFetcher().fetch,
         empty_model_picker_discovery_service=(empty_model_picker_discovery_service),
         model_choice_resolver=model_choice_resolver,
         thumbnail_asset_repository=thumbnail_asset_repository,

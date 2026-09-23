@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from substitute.application.execution import CancellationSource
@@ -193,6 +194,64 @@ def test_service_stops_before_provider_access_when_cancelled() -> None:
         )
         == ()
     )
+
+
+def test_upscaler_without_thumbnail_remains_ready_without_image_fetch() -> None:
+    """A real model lacking preview media still appears in both setup flows."""
+
+    class _NoPreviewGateway(_Gateway):
+        """Return an otherwise valid OpenModelDB upscaler without an image."""
+
+        def discover(
+            self, query: ModelRecommendationQuery, **_kwargs: object
+        ) -> tuple[ModelRecommendation, ...]:
+            """Return one no-preview recommendation."""
+
+            return (replace(_recommendation(query.family_id, 1), thumbnail_url=None),)
+
+        def resolve_model_page(
+            self, family_id: ModelFamilyId, url: str
+        ) -> ModelRecommendation | None:
+            """Return the same model when requested by its page link."""
+
+            return replace(_recommendation(family_id, 1), thumbnail_url=None)
+
+    thumbnails = _Thumbnails()
+    service = ModelOnboardingApplicationService(
+        scanner=_Scanner(), gateway=_NoPreviewGateway(), thumbnail_fetcher=thumbnails
+    )
+
+    page = service.recommend(
+        (ModelFamilyId.UPSCALERS,), cancellation=CancellationSource(generation=1)
+    )[0]
+    result = service.resolve_model_links(
+        ModelFamilyId.UPSCALERS,
+        ("https://openmodeldb.info/models/4x-Remacri",),
+        cancellation=CancellationSource(generation=2),
+    )[0]
+
+    assert page.cards[0].thumbnail_failed
+    assert result.status is RecommendationLinkStatus.READY
+    assert result.card is not None and result.card.thumbnail_failed
+    assert thumbnails.calls == []
+
+
+def test_link_import_deduplicates_exact_hash_across_providers() -> None:
+    """An alternate CivitAI page must not queue the curated file twice."""
+
+    service = ModelOnboardingApplicationService(
+        scanner=_Scanner(), gateway=_Gateway(), thumbnail_fetcher=_Thumbnails()
+    )
+    curated_sha256 = _recommendation(ModelFamilyId.UPSCALERS, 1).sha256
+
+    result = service.resolve_model_links(
+        ModelFamilyId.UPSCALERS,
+        ("https://civitai.com/models/1",),
+        cancellation=CancellationSource(generation=3),
+        excluded_sha256=frozenset({curated_sha256}),
+    )
+
+    assert result[0].status is RecommendationLinkStatus.DUPLICATE
 
 
 def _recommendation(family: ModelFamilyId, rank: int) -> ModelRecommendation:
