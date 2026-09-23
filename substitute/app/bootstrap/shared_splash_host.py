@@ -219,6 +219,9 @@ def _handle_session_message(
     if message.message_type == "clear_activity":
         splash.clear_activity()
         return
+    if message.message_type == "activity_observed":
+        splash.record_activity()
+        return
     if message.message_type == "fatal" and message.line is not None:
         splash.show_failure(message.line)
         return

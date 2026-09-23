@@ -102,6 +102,8 @@ def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
     assert progress.lines == [
         "Checking for SugarSubstitute updates.",
+        "Installing SugarSubstitute 0.4.0",
+        "Installing SugarSubstitute dependencies",
         "Installed SugarSubstitute 0.4.0.",
     ]
     assert [activity.initial_text for activity in progress.activities] == [
@@ -520,6 +522,7 @@ class _Progress:
         self.lines: list[str] = []
         self.activities: list[SplashActivity] = []
         self.clear_activity_calls = 0
+        self.observed_activity_calls = 0
 
     def append_log(self, line: str) -> None:
         """Record one progress line."""
@@ -530,6 +533,11 @@ class _Progress:
         """Record one active update operation."""
 
         self.activities.append(activity)
+
+    def record_activity(self) -> None:
+        """Record one non-log update work observation."""
+
+        self.observed_activity_calls += 1
 
     def clear_activity(self) -> None:
         """Record one active update cleanup."""

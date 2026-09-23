@@ -215,7 +215,7 @@ Prompt preview:
       <translation>%1 個のモデルを追加済み</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2152"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="89"></location>
       <source>%1 of %2</source>
       <translation>%1 / %2</translation>
     </message>
@@ -253,31 +253,6 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="928"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>Substitute を開く前に、保存済みのセットアップ項目 %1 件を修復する必要があります。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="325"></location>
-      <source>%1 uses %2, but CivitAI did not find a matching download.</source>
-      <translation>%1 は %2 を使用していますが、CivitAI で一致するダウンロードが見つかりませんでした。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="331"></location>
-      <source>%1 uses %2, but CivitAI did not offer a safe download.</source>
-      <translation>%1 は %2 を使用していますが、CivitAI から安全にダウンロードできませんでした。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="317"></location>
-      <source>%1 uses %2, which is missing.</source>
-      <translation>%1 が使用する %2 がありません。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="342"></location>
-      <source>%1 uses %2. Download information is unavailable.</source>
-      <translation>%1 は %2 を使用しています。ダウンロード情報を取得できません。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="337"></location>
-      <source>%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.</source>
-      <translation>%1 は %2 を使用しています。検索するには、設定で CivitAI のモデル検索を有効にしてください。</translation>
     </message>
     <message>
       <location filename="../substitute/application/managed_text_assets/wildcard_adapter.py" line="185"></location>
@@ -514,7 +489,7 @@ This is taking much longer than expected</source>
       <translation>API キーを保存できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="130"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="138"></location>
       <source>API key required</source>
       <translation>APIキーが必要です</translation>
     </message>
@@ -794,6 +769,11 @@ This is taking much longer than expected</source>
       <translation>管理対象のコアは自動更新されましたが、実行環境にはまだ互換性がありません。管理対象の Comfy インストールを修復するか、Substitute を更新してください。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="233"></location>
+      <source>Automatic model downloads are disabled. Open CivitAI Settings to review model download preferences.</source>
+      <translation>モデルの自動ダウンロードは無効です。CivitAI の設定を開いて、モデルのダウンロード設定を確認してください。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="504"></location>
       <source>Automatically detect</source>
       <translation>自動検出</translation>
@@ -959,12 +939,12 @@ This is taking much longer than expected</source>
       <translation>キャンセル済み - 保存された出力はありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2147"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="84"></location>
       <source>Cancelling download...</source>
       <translation>ダウンロードをキャンセルしています...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2105"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="40"></location>
       <source>Cancelling the model download.</source>
       <translation>モデルのダウンロードをキャンセルしています。</translation>
     </message>
@@ -1109,7 +1089,7 @@ This is taking much longer than expected</source>
       <translation>確認しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/application/model_metadata/prompt_preset_scope_resolver.py" line="140"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="214"></location>
       <source>Checkpoint</source>
       <translation>チェックポイント</translation>
     </message>
@@ -1439,7 +1419,7 @@ This is taking much longer than expected</source>
       <translation>モードを選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="106"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="108"></location>
       <source>CivitAI API key</source>
       <translation>CivitAI API キー</translation>
     </message>
@@ -1624,7 +1604,7 @@ This is taking much longer than expected</source>
       <translation>セットアップを続ける前に ComfyUI を終了してください</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="113"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>Substitute を起動する前に ComfyUI を終了してください</translation>
     </message>
@@ -1854,12 +1834,12 @@ This is taking much longer than expected</source>
       <translation>ComfyUI フォルダー</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="89"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI はすでに実行中です</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="91"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI は既定のポート 8188 ですでに実行中です。Substitute が正しく動作するには、ComfyUI を自身で起動して制御する必要があります。</translation>
     </message>
@@ -1894,7 +1874,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI は準備完了です。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="115"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI は既定のポート 8188 で応答していますが、Substitute はそのプロセスを安全に確認できませんでした。ComfyUI を手動で終了してから、Substitute をもう一度起動してください。</translation>
     </message>
@@ -2192,6 +2172,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1266"></location>
       <source>Control which Danbooru ratings may render as image previews.</source>
       <translation>画像プレビューに表示できる Danbooru レーティングを設定します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="218"></location>
+      <source>ControlNet</source>
+      <translation>ControlNetモデル</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="339"></location>
@@ -2652,7 +2637,7 @@ Install these nodes now?</source>
       <translation>ダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_download_text.py" line="43"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="219"></location>
       <source>Download %1 models</source>
       <translation>%1 個のモデルをダウンロード</translation>
     </message>
@@ -2662,17 +2647,12 @@ Install these nodes now?</source>
       <translation>CivitAI サムネイルをダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="208"></location>
-      <source>Download and open recipe</source>
-      <translation>レシピをダウンロードして開く</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="340"></location>
       <source>Download and use</source>
       <translation>ダウンロードして使用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2149"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="86"></location>
       <source>Download failed.</source>
       <translation>ダウンロードに失敗しました。</translation>
     </message>
@@ -2697,7 +2677,7 @@ Install these nodes now?</source>
       <translation>選択項目をダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1431"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="211"></location>
       <source>Downloading %1</source>
       <translation>%1 をダウンロードしています</translation>
     </message>
@@ -2717,12 +2697,12 @@ Install these nodes now?</source>
       <translation>%1 をダウンロードして検証しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="166"></location>
+      <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="179"></location>
       <source>Downloading model</source>
       <translation>モデルをダウンロードしています</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="169"></location>
+      <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="183"></location>
       <source>Downloading the model this recipe needs.</source>
       <translation>このレシピに必要なモデルをダウンロードしています。</translation>
     </message>
@@ -2732,7 +2712,7 @@ Install these nodes now?</source>
       <translation>選択したモデルファイルをダウンロードしています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2151"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="43"></location>
       <source>Downloading...</source>
       <translation>ダウンロードしています...</translation>
     </message>
@@ -2922,7 +2902,7 @@ Install these nodes now?</source>
       <translation>ComfyUI ワークフローとしてエクスポート...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="816"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="778"></location>
       <source>Export workflow failed</source>
       <translation>ワークフローをエクスポートできませんでした</translation>
     </message>
@@ -2973,7 +2953,7 @@ Install these nodes now?</source>
       <translation>生成リスナーセッションに接続できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="817"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="779"></location>
       <source>Failed to export workflow: %1</source>
       <translation>ワークフローをエクスポートできませんでした：%1</translation>
     </message>
@@ -2993,7 +2973,7 @@ Install these nodes now?</source>
       <translation>生成画像を読み込めませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1403"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1365"></location>
       <source>Failed to load recipe: %1</source>
       <translation>レシピを読み込めませんでした：%1</translation>
     </message>
@@ -3750,6 +3730,11 @@ Install these nodes now?</source>
       <translation>Comfy ノードのライブ定義を利用できません</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="215"></location>
+      <source>LoRA</source>
+      <translation>LoRAモデル</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="108"></location>
       <source>LoRA autocomplete</source>
       <translation>LoRA 自動補完</translation>
@@ -3805,7 +3790,7 @@ Install these nodes now?</source>
       <translation>読み込みエラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1402"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1364"></location>
       <source>Load recipe failed</source>
       <translation>レシピを読み込めませんでした</translation>
     </message>
@@ -3870,7 +3855,7 @@ Install these nodes now?</source>
       <translation>ComfyUI の実行環境を読み込んでいます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="275"></location>
+      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="61"></location>
       <source>Loading...</source>
       <translation>読み込み中...</translation>
     </message>
@@ -4085,7 +4070,7 @@ Install these nodes now?</source>
       <translation>フィールドがありません：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="132"></location>
+      <location filename="../substitute/application/generation/failure_summary.py" line="91"></location>
       <source>Missing model</source>
       <translation>不足しているモデル</translation>
     </message>
@@ -4115,14 +4100,9 @@ Install these nodes now?</source>
       <translation>モデル検索から無効な結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1696"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="280"></location>
       <source>Model download failed</source>
       <translation>モデルのダウンロードに失敗しました</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="145"></location>
-      <source>Model download progress</source>
-      <translation>モデルのダウンロード進行状況</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="340"></location>
@@ -4150,7 +4130,7 @@ Install these nodes now?</source>
       <translation>モデルのダウンロード — %2 MiB中%1 MiB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="391"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="230"></location>
       <source>Model file</source>
       <translation>モデルファイル</translation>
     </message>
@@ -4203,6 +4183,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_folder_setup_page.py" line="90"></location>
       <source>Models folder</source>
       <translation>モデルフォルダー</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="134"></location>
+      <source>Models required by this workflow</source>
+      <translation>このワークフローに必要なモデル</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="53"></location>
@@ -4440,6 +4425,11 @@ Install these nodes now?</source>
       <translation>検証済みのリポジトリはありません。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="146"></location>
+      <source>No safe file</source>
+      <translation>安全なファイルなし</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
       <source>No selection</source>
       <translation>未選択</translation>
@@ -4460,11 +4450,6 @@ Install these nodes now?</source>
 I’ll bring my own</source>
       <translation>結構です。
 自分のものを使います</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="252"></location>
-      <source>No thumbnail</source>
-      <translation>サムネイルなし</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="365"></location>
@@ -4612,7 +4597,7 @@ I’ll bring my own</source>
       <translation>すべて Photoshop で開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="195"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="212"></location>
       <source>Open CivitAI Settings</source>
       <translation>CivitAI 設定を開く</translation>
     </message>
@@ -5012,7 +4997,7 @@ I’ll bring my own</source>
       <translation>アプリケーション画面を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2099"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="34"></location>
       <source>Preparing the download.</source>
       <translation>ダウンロードを準備しています。</translation>
     </message>
@@ -5806,6 +5791,11 @@ No known extension claimant.</source>
       <translation>起動レポートを確認してください。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="240"></location>
+      <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
+      <translation>接続中の ComfyUI 環境にダウンロードする前に、これらの完全一致モデルを確認してください。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
       <source>Rich prompt rendering</source>
       <translation>リッチプロンプト表示</translation>
@@ -6296,11 +6286,6 @@ No known extension claimant.</source>
       <translation>ComfyUI の準備が整う前にセットアップが停止しました。セットアップログで詳細を確認し、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="131"></location>
-      <source>Setup task activity</source>
-      <translation>セットアップタスクの動作状況</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="194"></location>
       <source>Setup was interrupted</source>
       <translation>セットアップが中断されました</translation>
@@ -6451,7 +6436,7 @@ No known extension claimant.</source>
       <translation>スマート選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="164"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="182"></location>
       <source>Some CivitAI downloads require an API key. Paste it here to use it for this download and save it for next time.</source>
       <translation>一部の CivitAI ダウンロードには API キーが必要です。ここに貼り付けると、今回のダウンロードに使用し、次回のために保存します。</translation>
     </message>
@@ -6464,6 +6449,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="114"></location>
       <source>Some required connection details are missing or no longer valid.</source>
       <translation>必要な接続情報の一部がないか、無効になっています。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="237"></location>
+      <source>Some required models do not have a verified automatic download. Review each item for details.</source>
+      <translation>必要なモデルの一部には、検証済みの自動ダウンロードがありません。各項目の詳細を確認してください。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="81"></location>
@@ -6541,7 +6531,7 @@ No known extension claimant.</source>
       <translation>SugarSubstitute を起動しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="173"></location>
+      <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="188"></location>
       <source>Starting download...</source>
       <translation>ダウンロードを開始しています...</translation>
     </message>
@@ -6561,7 +6551,7 @@ No known extension claimant.</source>
       <translation>ComfyUI サーバーを起動しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2101"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="36"></location>
       <source>Starting the model download.</source>
       <translation>モデルのダウンロードを開始しています。</translation>
     </message>
@@ -6716,6 +6706,11 @@ No known extension claimant.</source>
       <translation>シャットダウンが完了したことを確認できませんでした。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="285"></location>
+      <source>Substitute could not download and verify every model this workflow needs.</source>
+      <translation>Substitute は、このワークフローに必要なすべてのモデルをダウンロードして検証できませんでした。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="120"></location>
       <source>Substitute could not finish closing completely.</source>
       <translation>Substitute を完全に終了できませんでした。</translation>
@@ -6746,7 +6741,7 @@ No known extension claimant.</source>
       <translation>このローカル ComfyUI の準備を完了できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="200"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="289"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute はこの ComfyUI ワークフロードキュメントを読み取れませんでした。</translation>
     </message>
@@ -6966,7 +6961,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2796"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2771"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -7427,7 +7422,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>管理対象の ComfyUI はまだ準備できていません。修復を続けてインストールしてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2107"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="42"></location>
       <source>The model download failed.</source>
       <translation>モデルのダウンロードに失敗しました。</translation>
     </message>
@@ -7437,7 +7432,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>この接続先ではモデルダウンロードサービスを利用できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2103"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="38"></location>
       <source>The model has finished downloading.</source>
       <translation>モデルのダウンロードが完了しました。</translation>
     </message>
@@ -7652,11 +7647,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>初回は少し時間がかかる場合があります。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="411"></location>
-      <source>This cube</source>
-      <translation>このキューブ</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="256"></location>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>ライブ Comfy メタデータを利用できないため、このキューブを表示できません。</translation>
@@ -7690,21 +7680,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="59"></location>
       <source>This model requires a CivitAI API key</source>
       <translation>このモデルにはCivitAI APIキーが必要です</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
-      <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
-      <translation>このレシピでは、現在の ComfyUI モデルフォルダーにないモデルを使用します。設定で CivitAI モデル検索を有効にして検索してください。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="366"></location>
-      <source>This recipe uses a model that is not available in your current ComfyUI model folders. We could not find an automatic download that is safe to offer.</source>
-      <translation>このレシピでは、現在の ComfyUI モデルフォルダーにないモデルを使用します。安全に提供できる自動ダウンロードは見つかりませんでした。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="361"></location>
-      <source>This recipe uses a model that is not in your current ComfyUI model folders. We found a matching file on CivitAI and can download it for you, then open the recipe.</source>
-      <translation>このレシピでは、現在の ComfyUI モデルフォルダーにないモデルを使用します。CivitAI で一致するファイルが見つかりました。ダウンロードしてからレシピを開くことができます。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="223"></location>
@@ -7877,7 +7852,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>素材を更新できません</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="45"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="148"></location>
       <source>Unavailable</source>
       <translation>利用不可</translation>
     </message>
@@ -8062,9 +8037,9 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の拡張機能カタログを更新しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2145"></location>
-      <source>Updating the recipe...</source>
-      <translation>レシピを更新しています...</translation>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="216"></location>
+      <source>Upscaler</source>
+      <translation>アップスケーラー</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="378"></location>
@@ -8212,6 +8187,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>%3 にある ComfyUI Python %1（%2）を使用しています。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="217"></location>
+      <source>VAE</source>
+      <translation>VAEモデル</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="741"></location>
       <source>Validated and synced %1.</source>
       <translation>%1 を検証して同期しました。</translation>
@@ -8257,7 +8237,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>%2 で %1 を表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="114"></location>
+      <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="127"></location>
       <source>View %1 on CivitAI</source>
       <translation>CivitAIで%1を見る</translation>
     </message>
@@ -8302,7 +8282,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の準備が整うのを待っています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="80"></location>
       <source>Waiting for the download to start...</source>
       <translation>ダウンロードの開始を待っています...</translation>
     </message>
@@ -8422,7 +8402,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ワークフローとプロンプトのコンテキスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="199"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="282"></location>
       <source>Workflow could not be loaded</source>
       <translation>ワークフローを読み込めませんでした</translation>
     </message>
@@ -8437,7 +8417,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>処理中...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="97"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>Substitute で ComfyUI を終了して続行しますか？</translation>
     </message>
@@ -8532,11 +8512,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>[検証] PyTorch=%1 バックエンド=%2 チャンネル=%3 デバイス=%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="419"></location>
-      <source>a model</source>
-      <translation>モデル</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="85"></location>
       <source>by</source>
       <translation>幅</translation>
@@ -8582,7 +8557,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>管理対象の ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2136"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="73"></location>
       <source>model</source>
       <translation>モデル</translation>
     </message>

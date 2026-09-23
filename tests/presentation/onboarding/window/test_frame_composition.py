@@ -54,6 +54,9 @@ from sugarsubstitute_shared.presentation.installer_surface import (
     InstallerBodyMaterialSurface,
     InstallerBrandBar,
 )
+from sugarsubstitute_shared.presentation.activity_progress_bar import (
+    ACTIVITY_PROGRESS_SCALE,
+)
 
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -215,7 +218,10 @@ def test_onboarding_window_builds_all_required_pages(
     assert log_view.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
     assert not hasattr(window.provisioning_page, "progress_bar")
     assert window.provisioning_page.details_container.isHidden() is True
-    assert window.provisioning_page.overall_progress_bar.maximum() == 100
+    assert (
+        window.provisioning_page.overall_progress_bar.maximum()
+        == ACTIVITY_PROGRESS_SCALE
+    )
     assert log_view.maximumHeight() == 280
     assert log_view.minimumHeight() == 120
     assert (

@@ -159,8 +159,18 @@ def test_exit_two_repairs_arbitrary_missing_and_outdated_packs_together(
         "--workspace",
         str(tmp_path),
     ]
+    bootstrap = [
+        str(python_path),
+        "-m",
+        "sugarcubes.maintenance",
+        "cube-deps",
+        "sync-and-check",
+        "--workspace",
+        str(tmp_path),
+        "--sync-enabled-repos",
+    ]
     assert commands == [
-        preflight,
+        bootstrap,
         [
             str(python_path),
             "-m",

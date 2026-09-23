@@ -21,6 +21,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from substitute.application.recipes.workflow_export_service import WorkflowExportService
+from substitute.application.workflows.portable_model_manifest import (
+    WorkflowModelManifestAnnotator,
+)
 
 
 class FakeWorkflowRepository:
@@ -76,6 +79,7 @@ def build_service(
     payload: dict[str, object] | None = None,
     *,
     node_definition_gateway: FakeNodeDefinitionGateway | None = None,
+    model_manifest_annotator: WorkflowModelManifestAnnotator | None = None,
 ) -> tuple[
     WorkflowExportService,
     FakeWorkflowRepository,
@@ -89,6 +93,7 @@ def build_service(
             workflow_repository=repository,
             workflow_payload_compiler=compiler,
             node_definition_gateway=node_definition_gateway,
+            model_manifest_annotator=model_manifest_annotator,
         ),
         repository,
         compiler,

@@ -24,6 +24,12 @@ import pytest
 
 from launcher.sugarsubstitute_launcher import process, process_execution
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_readiness import (
+    READINESS_DELEGATION_PATH_ENV,
+    READINESS_DELEGATION_TOKEN_ENV,
+    READINESS_PATH_ENV,
+    READINESS_TOKEN_ENV,
+)
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.supervisor_handoff import (
     SUPERVISOR_HANDOFF_CREATED_AT_ENV,
@@ -52,6 +58,7 @@ def test_installer_handoff_builds_stable_launcher_command(tmp_path: Path) -> Non
         f"--install-root={subprocess_path(layout.root)}",
         "--handoff-geometry=10,20,1200,800",
         "--locale=ja",
+        "--launch-intent=setup",
         "--unrelated-internal-flag",
     ]
 
@@ -60,6 +67,7 @@ def test_installer_handoff_builds_stable_launcher_command(tmp_path: Path) -> Non
         f"--install-root={subprocess_path(layout.root)}",
         "--handoff-geometry=10,20,1200,800",
         "--locale=ja",
+        "--launch-intent=setup",
     ]
 
 
@@ -123,10 +131,10 @@ def test_installer_handoff_waits_for_exact_active_supervisor(
     assert captured_environment[SUPERVISOR_HANDOFF_CREATED_AT_ENV] == "123.5"
 
 
-def test_detached_handoff_drops_completed_crash_supervision(
+def test_detached_handoff_drops_completed_process_contracts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A new stable launcher must not inherit a partial prior-run contract."""
+    """A new launcher must not inherit crash or readiness from a previous run."""
 
     crash_names = (
         CRASH_RUN_ID_ENV,
@@ -139,6 +147,14 @@ def test_detached_handoff_drops_completed_crash_supervision(
         CRASHPAD_CLIENT_LIBRARY_ENV,
     )
     for name in crash_names:
+        monkeypatch.setenv(name, f"inherited-{name}")
+    readiness_names = (
+        READINESS_PATH_ENV,
+        READINESS_TOKEN_ENV,
+        READINESS_DELEGATION_PATH_ENV,
+        READINESS_DELEGATION_TOKEN_ENV,
+    )
+    for name in readiness_names:
         monkeypatch.setenv(name, f"inherited-{name}")
     monkeypatch.setenv("SUGAR_SUBSTITUTE_UNRELATED", "preserved")
     captured: dict[str, object] = {}
@@ -157,6 +173,7 @@ def test_detached_handoff_drops_completed_crash_supervision(
     assert isinstance(environment, dict)
     assert environment["SUGAR_SUBSTITUTE_UNRELATED"] == "preserved"
     assert set(crash_names).isdisjoint(environment)
+    assert set(readiness_names).isdisjoint(environment)
     assert (
         captured["startup_timeout_seconds"]
         == process_execution.HANDOFF_STARTUP_TIMEOUT_SECONDS

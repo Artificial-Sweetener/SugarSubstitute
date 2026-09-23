@@ -28,6 +28,7 @@ from launcher.sugarsubstitute_launcher.update_progress import LauncherUpdateProg
 from launcher.sugarsubstitute_launcher.update_activity import launcher_update_activity
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
+from sugarsubstitute_shared.launcher_update.downloader import LauncherBundleDownloader
 from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     launcher_bundle_target_for_key,
@@ -63,7 +64,7 @@ class LauncherUpdatePreparation:
         launcher_version: str = LAUNCHER_VERSION,
     ) -> None:
         """Bind the running launcher version and external bundle acquisition boundary."""
-        self._stager = stager or LauncherBundleStager()
+        self._stager = stager
         self._launcher_version = launcher_version
 
     def stage(
@@ -105,9 +106,17 @@ class LauncherUpdatePreparation:
             if minimum_comparison < 0:
                 raise LauncherMinimumVersionError(error_message)
             raise RuntimeError(error_message)
-        progress.start_activity(launcher_update_activity(manifest.version))
+        activity = launcher_update_activity(manifest.version)
+        progress.append_log(activity.initial_text)
+        progress.start_activity(activity)
         try:
-            request_path = self._stager.stage(
+            stager = self._stager or LauncherBundleStager(
+                downloader=LauncherBundleDownloader(
+                    progress_observer=lambda _transfer: progress.record_activity()
+                ),
+                activity_observer=progress.record_activity,
+            )
+            request_path = stager.stage(
                 install_root=layout.root,
                 version=manifest.version,
                 target=launcher_bundle_target_for_key(layout.target.key),

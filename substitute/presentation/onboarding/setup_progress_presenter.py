@@ -130,6 +130,7 @@ class SetupProgressPresenter:
                 )
         apply_application_text(self._page.status_label, event.message)
         self._render()
+        self._page.record_activity()
         return True
 
     def snapshot(self) -> SetupProgressSnapshot:
@@ -158,11 +159,6 @@ class SetupProgressPresenter:
         """Render the current projection without estimating elapsed-time progress."""
 
         snapshot = self.snapshot()
-        self._page.set_progress(
-            completed_tasks=snapshot.completed_tasks,
-            total_tasks=snapshot.total_tasks,
-            active=snapshot.active,
-        )
         if (
             snapshot.model_completed_bytes is not None
             and snapshot.model_total_bytes is not None
@@ -175,6 +171,11 @@ class SetupProgressPresenter:
                 total_items=snapshot.model_total_items,
                 complete=snapshot.model_complete,
             )
+        self._page.set_progress(
+            completed_tasks=snapshot.completed_tasks,
+            total_tasks=snapshot.total_tasks,
+            active=snapshot.active,
+        )
 
 
 __all__ = ["SetupProgressPresenter", "SetupProgressSnapshot"]

@@ -26,6 +26,10 @@ from pathlib import Path
 from typing import Any, Literal, Self
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.launcher_update.persistence import (
+    open_atomic_read,
+    replace_atomic,
+)
 
 
 CONFIG_SCHEMA_VERSION = 1
@@ -152,7 +156,8 @@ class LauncherConfig:
     def load(cls, path: Path) -> Self:
         """Load launcher config from disk and reject unsupported schemas."""
 
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        with open_atomic_read(path) as source:
+            payload = json.load(source)
         if not isinstance(payload, dict):
             raise ValueError(f"Launcher config must be a JSON object: {path}")
         schema_version = payload.get("schema_version")
@@ -189,7 +194,7 @@ class LauncherConfig:
                 )
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temporary_path, path)
+            replace_atomic(temporary_path, path)
         finally:
             temporary_path.unlink(missing_ok=True)
 

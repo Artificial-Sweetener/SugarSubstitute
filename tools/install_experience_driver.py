@@ -35,6 +35,7 @@ from tools.install_experience_scenarios import (
     InstallExperienceScenario,
 )
 from tools.install_experience_capture import (
+    capture_model_download_progress_checkpoint,
     capture_onboarding_checkpoint as _capture,
     prepare_opaque_dark_capture_surface,
 )
@@ -230,6 +231,12 @@ def _drive_onboarding_scenario(
         _wait_for_page(window, "OnboardingProvisioningPage")
         _capture(window, artifact_root, scenario.slug, "provisioning", evidence)
         if scenario.slug == "managed-sdxl-and-anima":
+            capture_model_download_progress_checkpoint(
+                window,
+                artifact_root,
+                scenario.slug,
+                evidence,
+            )
             _click(window, "OnboardingShowSetupLogButton")
             QTest.qWait(20)
             _capture(

@@ -23,8 +23,11 @@ import stat
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from collections.abc import Callable
 from typing import Literal
 import zipfile
+
+from sugarsubstitute_shared.asset_transfer import ObservedActivity
 
 
 class SecureArchiveError(RuntimeError):
@@ -49,6 +52,7 @@ def safe_extract_zip(
     zip_path: Path,
     destination_dir: Path,
     symlink_policy: ArchiveSymlinkPolicy = "preserve-contained",
+    activity_observer: Callable[[], None] | None = None,
 ) -> None:
     """Validate a ZIP once, then extract it under one symlink policy."""
 
@@ -60,6 +64,7 @@ def safe_extract_zip(
             f"Archive destination must be empty: {destination_dir}"
         )
     destination_dir.mkdir(parents=True, exist_ok=True)
+    activity = ObservedActivity(activity_observer)
     with zipfile.ZipFile(zip_path) as archive:
         members = _validated_members(archive, symlink_policy=symlink_policy)
         for member in members:
@@ -68,6 +73,7 @@ def safe_extract_zip(
             target_path = destination_root.joinpath(*member.path.parts)
             if member.kind == "directory":
                 target_path.mkdir(parents=True, exist_ok=True)
+                activity.record()
                 continue
             target_path.parent.mkdir(parents=True, exist_ok=True)
             with (
@@ -78,6 +84,7 @@ def safe_extract_zip(
             archived_permissions = (member.info.external_attr >> 16) & 0o777
             if archived_permissions:
                 target_path.chmod(archived_permissions)
+            activity.record()
         for member in members:
             if member.kind != "symlink" or member.link_target is None:
                 continue
@@ -87,6 +94,7 @@ def safe_extract_zip(
                 member.link_target,
                 target_is_directory=_symlink_targets_directory(member, members),
             )
+            activity.record()
 
 
 def safe_extract_tar_gzip(*, tar_path: Path, destination_dir: Path) -> None:

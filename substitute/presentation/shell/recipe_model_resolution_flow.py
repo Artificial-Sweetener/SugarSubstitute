@@ -34,8 +34,8 @@ from substitute.application.recipes import (
     RecipeModelResolutionRequired,
 )
 from substitute.presentation.dialogs import (
-    RecipeModelResolutionAction,
-    RecipeModelResolutionDialog,
+    ModelAcquisitionAction,
+    ModelAcquisitionDialog,
 )
 
 
@@ -61,7 +61,7 @@ def resolve_missing_recipe_models_with_dialog(
     downloads_enabled = (
         download_service.downloads_enabled() if download_service is not None else False
     )
-    dialog = RecipeModelResolutionDialog(
+    dialog = ModelAcquisitionDialog(
         required,
         has_api_key=credential_service.has_api_key(),
         downloads_enabled=downloads_enabled,
@@ -69,10 +69,10 @@ def resolve_missing_recipe_models_with_dialog(
     )
     if dialog.exec() != QDialog.DialogCode.Accepted:
         return None
-    if dialog.selected_action == RecipeModelResolutionAction.SETTINGS:
+    if dialog.selected_action is ModelAcquisitionAction.SETTINGS:
         open_settings()
         return None
-    if dialog.selected_action != RecipeModelResolutionAction.DOWNLOAD:
+    if dialog.selected_action is not ModelAcquisitionAction.DOWNLOAD:
         return None
     if download_service is None:
         QMessageBox.warning(
@@ -113,7 +113,7 @@ def prepare_missing_recipe_model_download(
     downloads_enabled = (
         download_service.downloads_enabled() if download_service is not None else False
     )
-    dialog = RecipeModelResolutionDialog(
+    dialog = ModelAcquisitionDialog(
         required,
         has_api_key=credential_service.has_api_key(),
         downloads_enabled=downloads_enabled,
@@ -121,10 +121,10 @@ def prepare_missing_recipe_model_download(
     )
     if dialog.exec() != QDialog.DialogCode.Accepted:
         return None
-    if dialog.selected_action == RecipeModelResolutionAction.SETTINGS:
+    if dialog.selected_action is ModelAcquisitionAction.SETTINGS:
         open_settings()
         return None
-    if dialog.selected_action != RecipeModelResolutionAction.DOWNLOAD:
+    if dialog.selected_action is not ModelAcquisitionAction.DOWNLOAD:
         return None
     if download_service is None:
         QMessageBox.warning(
