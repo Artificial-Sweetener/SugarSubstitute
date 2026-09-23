@@ -83,6 +83,51 @@ def _layout(tmp_path: Path) -> InstallLayout:
     return layout
 
 
+def test_root_refresh_handoff_precedes_app_update_and_launch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A selected launcher must relinquish ownership before root replacement."""
+
+    layout = _layout(tmp_path)
+    expected_root = layout.root
+    closed: list[bool] = []
+
+    class _Refresh:
+        """Report a required root replacement at the handoff boundary."""
+
+        def start_if_required(self, *, layout: InstallLayout) -> bool:
+            """Require refresh before the app update orchestrator starts."""
+
+            assert layout.root == expected_root
+            return True
+
+    class _Splash:
+        """Record release of the current launcher's visible splash."""
+
+        def close(self) -> None:
+            """Record that the selected launcher relinquished presentation."""
+
+            closed.append(True)
+
+    monkeypatch.setattr(installed_app_handoff, "LauncherBaselineRefresh", _Refresh)
+    monkeypatch.setattr(
+        installed_app_handoff,
+        "LauncherUpdateOrchestrator",
+        lambda: pytest.fail("App update ran before required root refresh."),
+    )
+
+    installed_app_handoff.complete_installed_app_handoff(
+        layout=layout,
+        broker=_Broker(),  # type: ignore[arg-type]
+        locale_argument="--locale=en",
+        no_update_check=False,
+        splash_session=cast(Any, _Splash()),
+        handoff_geometry=None,
+    )
+
+    assert closed == [True]
+
+
 def test_application_child_environment_replaces_legacy_release_paths(
     tmp_path: Path,
 ) -> None:

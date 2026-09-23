@@ -30,6 +30,7 @@ from launcher.sugarsubstitute_launcher.config import (
     LauncherConfig,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
 from tools.ci.candidate_release_source import (
     CandidateReleaseSource,
@@ -38,6 +39,9 @@ from tools.ci.candidate_release_source import (
 )
 from tools.ci.historical_install_qualification import (
     assert_historical_user_configuration_preserved,
+)
+from tools.ci.historical_launcher_chain_evidence import (
+    assert_candidate_root_readiness,
 )
 from tools.ci.historical_launch_qualification import (
     assert_historical_installed_launch_contract,
@@ -166,6 +170,16 @@ def qualify_historical_update(
                     deadline,
                     phase="candidate main-shell readiness",
                 ),
+            )
+            assert_installed_root_launcher_version(
+                install_root=qualification.install_root,
+                expected_version=qualification.candidate_version,
+            )
+            assert_candidate_root_readiness(
+                install_root=qualification.install_root,
+                candidate_launch=candidate_launch,
+                readiness_path=evidence.readiness_path,
+                token=evidence.token,
             )
             assert_installed_release_channel(
                 install_root=qualification.install_root,
@@ -308,6 +322,26 @@ def assert_installed_release_channel(
         )
 
 
+def assert_installed_root_launcher_version(
+    *, install_root: Path, expected_version: str
+) -> None:
+    """Reject a visible candidate whose original launcher root stayed outdated."""
+
+    record_path = install_root / "launcher" / "installation.json"
+    try:
+        record = LauncherInstallationRecord.load(record_path)
+    except (OSError, ValueError) as error:
+        raise InstallerLifecycleError(
+            "Installed launcher root version record is unreadable."
+        ) from error
+    if record is None or record.version != expected_version:
+        observed = record.version if record is not None else "missing"
+        raise InstallerLifecycleError(
+            "Installed launcher root did not update with the release: "
+            f"expected {expected_version}, got {observed}."
+        )
+
+
 def _remaining_timeout(deadline: float, *, phase: str) -> float:
     """Return the positive shared migration budget remaining for one phase."""
 
@@ -322,6 +356,7 @@ def _remaining_timeout(deadline: float, *, phase: str) -> float:
 __all__ = [
     "HistoricalUpdateQualification",
     "HistoricalUpdateRoute",
+    "assert_installed_root_launcher_version",
     "assert_installed_release_channel",
     "historical_update_route",
     "qualify_historical_update",

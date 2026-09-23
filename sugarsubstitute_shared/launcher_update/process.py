@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Start a durable detached helper that can update launcher generations."""
+"""Start independent helpers for launcher updates and root refreshes."""
 
 from __future__ import annotations
 
@@ -118,6 +118,55 @@ def relaunch_updated_launcher(executable_path: Path) -> None:
         )
 
 
+def schedule_required_baseline_refresh(
+    *,
+    request_path: Path,
+    helper_executable: Path,
+    wait_pid: int,
+) -> int:
+    """Run a verified selected launcher outside the root it must replace."""
+
+    from sugarsubstitute_shared.launcher_update.bundle_selection import (
+        LauncherBundleSelection,
+    )
+    from sugarsubstitute_shared.process_identity import capture_process_identity
+
+    path = operational_path(request_path)
+    request = LauncherUpdateRequest.load(path)
+    root = operational_path(request.install_root).resolve()
+    target = launcher_bundle_target_for_key(request.target_key)
+    selected = LauncherBundleSelection(root, target).resolve()
+    helper = operational_path(helper_executable).resolve()
+    if (
+        selected.generation is None
+        or selected.version != request.version
+        or helper != (selected.root / target.executable_relative_path).resolve()
+    ):
+        raise ValueError(
+            "Baseline refresh helper is not the verified selected launcher."
+        )
+    request.with_process_behavior(
+        relaunch=True,
+        wait_identity=capture_process_identity(wait_pid),
+    ).save(path)
+    environment = without_application_readiness_environment(
+        without_crash_supervision_environment(clean_frozen_parent_environment())
+    )
+    log_path = root / "launcher" / "logs" / "launcher-update.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as output:
+        return _start_independent(
+            [
+                subprocess_path(helper),
+                "--apply-launcher-baseline-refresh",
+                subprocess_path(path),
+            ],
+            cwd=root,
+            environment=environment,
+            output_fd=output.fileno(),
+        )
+
+
 def _start_independent(
     command: list[str],
     *,
@@ -152,4 +201,8 @@ def _start_independent(
         return process.pid
 
 
-__all__ = ["schedule_launcher_update", "relaunch_updated_launcher"]
+__all__ = [
+    "schedule_launcher_update",
+    "schedule_required_baseline_refresh",
+    "relaunch_updated_launcher",
+]
