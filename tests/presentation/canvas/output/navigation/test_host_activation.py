@@ -26,11 +26,13 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
+from substitute.presentation.canvas.output.output_navigation_activation import (
     activate_output_grid_for_source,
     activate_output_item,
     activate_output_scene,
     activate_output_scene_overview,
+)
+from substitute.presentation.canvas.output.output_navigation_selector_sync import (
     sync_output_scene_selector_button,
     sync_output_set_selector_button,
     sync_output_source_selector_button,

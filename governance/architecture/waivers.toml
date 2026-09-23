@@ -288,32 +288,6 @@ next_limit = 510
 debt = "SS-ARCH-035"
 
 [[waivers]]
-id = "SS-WAIVER-R036"
-owner = "output navigation bar"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/output/output_canvas_navigation_bar.py"
-kind = "remediation"
-justification = "The assessed file mixes navigation view-model and tab rebuild planning, text measurement and width policy, Qt widget state application, compare, source, set, and scene selector synchronization. Extract pure navigation planning and measurement from Qt widget-state application."
-issue = "chore:SS-ARCH-036"
-review_by = 2026-12-15
-max_lines = 625
-next_limit = 500
-debt = "SS-ARCH-036"
-
-[[waivers]]
-id = "SS-WAIVER-R037"
-owner = "output navigation"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/output/output_canvas_navigation_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes navigation-bar responsive placement, set, source, scene, grid, and item activation, selection restoration policy, selector presentation synchronization, host adapter discovery and signal dispatch. Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
-issue = "chore:SS-ARCH-037"
-review_by = 2026-12-15
-max_lines = 825
-next_limit = 750
-debt = "SS-ARCH-037"
-
-[[waivers]]
 id = "SS-WAIVER-R039"
 owner = "cube stack cart"
 rule = "STRUCT003"

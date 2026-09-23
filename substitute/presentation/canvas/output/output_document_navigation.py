@@ -33,26 +33,20 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
 )
 from substitute.application.workflows.output_compare_state import OutputCompareState
-from substitute.application.workflows.output_preview_projection import (
-    overlay_preview_scenes,
-    overlay_preview_sources,
-)
-from substitute.application.workflows.output_preview_registry import OutputPreviewLane
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_selector_metrics import (
     selector_width_for_widget_text,
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
-    activate_output_item,
-    select_output_scene,
-    select_output_source,
-    select_output_set,
-    sync_output_scene_selector_button,
-    sync_output_set_selector_button,
-    sync_output_source_selector_button,
+from substitute.presentation.canvas.output import output_navigation_activation
+from substitute.presentation.canvas.output import output_navigation_selection
+from substitute.presentation.canvas.output import output_navigation_selector_sync
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
+)
+from substitute.presentation.canvas.output.output_navigation_projection import (
+    OutputNavigationProjection,
 )
 from substitute.presentation.canvas.output.output_canvas_picker_controller import (
     OutputCanvasPickerController,
@@ -97,14 +91,23 @@ class OutputDocumentNavigation:
 
     host: OutputCanvas
     _source_tabs: OutputCanvasSourceTabsController = field(init=False)
+    _projection: OutputNavigationProjection = field(init=False)
     _compare: OutputCompareController = field(init=False)
     _picker: OutputCanvasPickerController = field(init=False)
 
     def __post_init__(self) -> None:
         """Build one source-tab, picker, and compare-control collaboration set."""
 
+        self._projection = OutputNavigationProjection(
+            projection=lambda: self.host._output_projection,
+            active_scene_overview=lambda: self.host.active_scene_overview,
+            active_scene_key=lambda: self.host.active_scene_key,
+            scene_count=lambda: self.host.scene_count,
+            output_session=lambda: self.host._output_session,
+            preview_registry=lambda: self.host._preview_registry,
+        )
         self._source_tabs = OutputCanvasSourceTabsController(
-            visible_sources=lambda: tuple(self._visible_sources().values()),
+            visible_sources=lambda: tuple(self._projection.visible_sources().values()),
             cached_signature=lambda: getattr(
                 self.host,
                 "_source_tab_cache_signature",
@@ -128,11 +131,15 @@ class OutputDocumentNavigation:
                 "_source_tab_tooltip_filters",
             ),
             measure_preferred_width=lambda: (
-                OutputCanvasNavigationController.measure_tabbar_preferred_width(
+                OutputNavigationLayoutAdapter.measure_tabbar_preferred_width(
                     self.host.tabbar
                 )
             ),
-            sync_source_selector=lambda: sync_output_source_selector_button(self.host),
+            sync_source_selector=lambda: (
+                output_navigation_selector_sync.sync_output_source_selector_button(
+                    self.host
+                )
+            ),
             install_tooltip_filter=lambda tab_item, parent, delay: (
                 ensure_fluent_tooltip_filter(
                     cast(QWidget, tab_item),
@@ -160,28 +167,28 @@ class OutputDocumentNavigation:
             self.host.set_count = 0
             self._source_tabs.rebuild_source_tabs(active_source_key=None)
         else:
-            sources = self._visible_sources()
+            sources = self._projection.visible_sources()
             self.host.set_count = OutputCanvasRouteModel.set_count_for_sources(
                 tuple(sources.values())
             )
             self._source_tabs.rebuild_source_tabs(
                 active_source_key=self.host.active_source_key
             )
-        sync_output_scene_selector_button(self.host)
-        sync_output_set_selector_button(self.host)
-        sync_output_source_selector_button(self.host)
+        output_navigation_selector_sync.sync_output_scene_selector_button(self.host)
+        output_navigation_selector_sync.sync_output_set_selector_button(self.host)
+        output_navigation_selector_sync.sync_output_source_selector_button(self.host)
         sync_output_comparison_navigation_buttons(self.host)
         update_output_tabbar_container(self.host)
 
     def visible_sources(self) -> dict[str, OutputCanvasSourceGroup]:
         """Return final sources overlaid with current transient placeholders."""
 
-        return self._visible_sources()
+        return self._projection.visible_sources()
 
     def scene_groups(self) -> dict[str, OutputCanvasSceneGroup]:
         """Return final scenes overlaid with current transient placeholders."""
 
-        return self._scene_groups()
+        return self._projection.scene_groups()
 
     def handle_workspace_presentation(self, presentation: CanvasPresentation) -> None:
         """Persist user divider movement forwarded by the public workspace state."""
@@ -212,26 +219,26 @@ class OutputDocumentNavigation:
         if projection is None:
             return False
         if self.host.active_scene_overview:
-            for scene in self._scene_groups().values():
+            for scene in self._projection.scene_groups().values():
                 if image_id in {scene.preview_image_id, scene.primary_image_id}:
                     self.host.release_preview_navigation()
-                    select_output_scene(
+                    output_navigation_selection.select_output_scene(
                         self.host,
                         scene.scene_key,
-                        scene_groups_by_key=self._scene_groups(),
+                        scene_groups_by_key=self._projection.scene_groups(),
                         update_tabbar_container=lambda: update_output_tabbar_container(
                             self.host
                         ),
                     )
                     return True
             return False
-        for source in self._visible_sources().values():
+        for source in self._projection.visible_sources().values():
             for item in source.images_by_set.values():
                 if item.image_id == image_id:
                     if self._activate_preview_item(source.source_key, item):
                         return True
                     self.host.release_preview_navigation()
-                    activate_output_item(
+                    output_navigation_activation.activate_output_item(
                         self.host,
                         source.source_key,
                         item,
@@ -307,12 +314,20 @@ class OutputDocumentNavigation:
                 "active_scene_key",
                 scene_key,
             ),
-            sync_scene_selector_button=lambda: sync_output_scene_selector_button(
-                self.host
+            sync_scene_selector_button=lambda: (
+                output_navigation_selector_sync.sync_output_scene_selector_button(
+                    self.host
+                )
             ),
-            sync_set_selector_button=lambda: sync_output_set_selector_button(self.host),
-            sync_source_selector_button=lambda: sync_output_source_selector_button(
-                self.host
+            sync_set_selector_button=lambda: (
+                output_navigation_selector_sync.sync_output_set_selector_button(
+                    self.host
+                )
+            ),
+            sync_source_selector_button=lambda: (
+                output_navigation_selector_sync.sync_output_source_selector_button(
+                    self.host
+                )
             ),
             sync_comparison_nav_buttons=lambda: (
                 sync_output_comparison_navigation_buttons(self.host)
@@ -338,7 +353,7 @@ class OutputDocumentNavigation:
             grid_available_for_visible_sources=lambda: (
                 self.host.active_set_index == 0
                 or OutputCanvasRouteModel.first_batch_overview_source_key(
-                    self._visible_sources()
+                    self._projection.visible_sources()
                 )
                 is not None
             ),
@@ -359,7 +374,7 @@ class OutputDocumentNavigation:
             active_scene_overview=lambda: self.host.active_scene_overview,
             active_scene_key=lambda: self.host.active_scene_key,
             scene_selector_button=lambda: self.host.scene_selector_button,
-            scene_groups_by_key=self._scene_groups,
+            scene_groups_by_key=self._projection.scene_groups,
             scene_picker_row_width=self._scene_picker_width,
             show_scene_picker_for=lambda anchor, items, active, width, callback: (
                 self.host._scene_picker.show_for(
@@ -373,7 +388,7 @@ class OutputDocumentNavigation:
             on_scene_selected=self._select_scene,
             active_source_key=lambda: self.host.active_source_key,
             source_selector_button=lambda: self.host.source_selector_button,
-            visible_source_groups_by_key=self._visible_sources,
+            visible_source_groups_by_key=self._projection.visible_sources,
             source_picker_row_width=self._source_picker_width,
             show_source_picker_for=lambda anchor, items, active, width, callback: (
                 self.host._source_picker.show_for(
@@ -404,7 +419,7 @@ class OutputDocumentNavigation:
         """Apply one set picker choice through existing product navigation policy."""
 
         source_key = self.host.active_source_key
-        source = self._visible_sources().get(source_key or "")
+        source = self._projection.visible_sources().get(source_key or "")
         if source is not None:
             item = source.images_by_set.get(set_index)
             if item is not None and self._activate_preview_item(
@@ -413,17 +428,17 @@ class OutputDocumentNavigation:
             ):
                 return
         self.host.release_preview_navigation()
-        select_output_set(
+        output_navigation_selection.select_output_set(
             self.host,
             set_index,
-            source_groups_by_key=self._visible_sources(),
+            source_groups_by_key=self._projection.visible_sources(),
             update_tabbar_container=lambda: update_output_tabbar_container(self.host),
         )
 
     def _select_source(self, source_key: str) -> None:
         """Apply one source tab or picker choice through product navigation policy."""
 
-        source = self._visible_sources().get(source_key)
+        source = self._projection.visible_sources().get(source_key)
         preview_grid_ids = (
             ()
             if source is None or self.host.active_set_index != 0
@@ -431,10 +446,10 @@ class OutputDocumentNavigation:
         )
         if preview_grid_ids:
             self.host.release_preview_navigation()
-            select_output_source(
+            output_navigation_selection.select_output_source(
                 self.host,
                 source_key,
-                source_groups_by_key=self._visible_sources(),
+                source_groups_by_key=self._projection.visible_sources(),
                 update_tabbar_container=lambda: update_output_tabbar_container(
                     self.host
                 ),
@@ -449,10 +464,10 @@ class OutputDocumentNavigation:
         if item is not None and self._activate_preview_item(source_key, item):
             return
         self.host.release_preview_navigation()
-        select_output_source(
+        output_navigation_selection.select_output_source(
             self.host,
             source_key,
-            source_groups_by_key=self._visible_sources(),
+            source_groups_by_key=self._projection.visible_sources(),
             update_tabbar_container=lambda: update_output_tabbar_container(self.host),
         )
 
@@ -466,7 +481,7 @@ class OutputDocumentNavigation:
         lane = self.host._preview_registry.lane_for_id(item.image_id)
         if lane is None:
             return False
-        activate_output_item(
+        output_navigation_activation.activate_output_item(
             self.host,
             source_key,
             item,
@@ -479,49 +494,10 @@ class OutputDocumentNavigation:
     def _select_scene(self, scene_key: str) -> None:
         """Apply one scene picker choice through product navigation policy."""
 
-        self.host._preview_navigation.select_scene(scene_key, self._scene_groups())
-
-    def _visible_sources(self) -> dict[str, OutputCanvasSourceGroup]:
-        """Return sources valid for the current scene-level navigation scope."""
-
-        projection = self.host._output_projection
-        if projection is None or self.host.active_scene_overview:
-            return {}
-        scene_groups = self._scene_groups()
-        active_scene = (
-            scene_groups.get(self.host.active_scene_key)
-            if self.host.active_scene_key
-            else None
+        self.host._preview_navigation.select_scene(
+            scene_key,
+            self._projection.scene_groups(),
         )
-        if active_scene is not None:
-            return {source.source_key: source for source in active_scene.sources}
-        if self.host.scene_count <= 1:
-            sources = overlay_preview_sources(
-                projection.sources,
-                self._preview_lanes(),
-                scene_key=None,
-            )
-            return {source.source_key: source for source in sources}
-        return {}
-
-    def _scene_groups(self) -> dict[str, OutputCanvasSceneGroup]:
-        """Return current final scene groups keyed by their stable workflow identity."""
-
-        projection = self.host._output_projection
-        scenes = overlay_preview_scenes(
-            () if projection is None else projection.scene_groups,
-            self._preview_lanes(),
-        )
-        return {scene.scene_key: scene for scene in scenes}
-
-    def _preview_lanes(self) -> tuple[OutputPreviewLane, ...]:
-        """Return preview lanes belonging to the bound Output session."""
-
-        session = self.host._output_session
-        registry = self.host._preview_registry
-        if session is None or registry is None:
-            return ()
-        return registry.lanes_for_session(session)
 
     def _scene_picker_width(self, items: tuple[CanvasNavPickerItem, ...]) -> int:
         """Return a scene menu width that fits its anchor and localized labels."""

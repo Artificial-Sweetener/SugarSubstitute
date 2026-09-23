@@ -338,37 +338,6 @@ responsibilities = [
 next_extraction = "Extract mask-picker refresh from image and mask materialization presentation."
 
 [[debts]]
-id = "SS-ARCH-036"
-owner = "output navigation bar"
-paths = ["substitute/presentation/canvas/output/output_canvas_navigation_bar.py"]
-fingerprint = "sha256:7f9f835c5566bc583273f1f9c6c96fe93a3709d18f9536004eef78d1f5da32e2"
-issue = "chore:SS-ARCH-036"
-review_by = 2026-12-15
-responsibilities = [
-  "navigation view-model and tab rebuild planning",
-  "text measurement and width policy",
-  "Qt widget state application",
-  "compare, source, set, and scene selector synchronization",
-]
-next_extraction = "Extract pure navigation planning and measurement from Qt widget-state application."
-
-[[debts]]
-id = "SS-ARCH-037"
-owner = "output navigation"
-paths = ["substitute/presentation/canvas/output/output_canvas_navigation_controller.py"]
-fingerprint = "sha256:d7a1f185ad42c75912ea0259dbc99f1e8f376772e168e3102b106a2321007304"
-issue = "chore:SS-ARCH-037"
-review_by = 2026-12-15
-responsibilities = [
-  "navigation-bar responsive placement adapter",
-  "set, source, scene, grid, and item activation",
-  "selection restoration policy",
-  "selector presentation synchronization",
-  "host adapter discovery and signal dispatch",
-]
-next_extraction = "Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
-
-[[debts]]
 id = "SS-ARCH-039"
 owner = "cube stack cart"
 paths = ["substitute/presentation/cube_picker/cube_stack_cart_modal.py"]

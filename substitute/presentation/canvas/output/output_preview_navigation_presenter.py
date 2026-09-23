@@ -48,7 +48,7 @@ from substitute.domain.workflow import OutputFocusMode
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
+from substitute.presentation.canvas.output.output_navigation_activation import (
     activate_output_scene,
     activate_output_scene_overview,
 )
