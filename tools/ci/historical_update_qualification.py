@@ -179,6 +179,7 @@ def qualify_historical_update(
                 install_root=qualification.install_root,
                 candidate_launch=candidate_launch,
                 readiness_path=evidence.readiness_path,
+                event_log_path=evidence.event_log_path,
                 token=evidence.token,
             )
             assert_installed_release_channel(

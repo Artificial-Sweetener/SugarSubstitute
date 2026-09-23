@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 from typing import cast
@@ -216,6 +217,8 @@ def test_historical_update_requires_root_to_accept_the_new_main_shell(
     )
     log_path.write_text(old_line, encoding="utf-8")
     launch = SimpleNamespace(progress_baselines=((log_path, (True, len(old_line))),))
+    event_log_path = tmp_path / "qualification.jsonl"
+    event_log_path.write_text("", encoding="utf-8")
     selected_line = (
         "INFO process=200 launcher.sugarsubstitute_launcher."
         "application_readiness_supervisor Accepted painted application surface | "
@@ -230,6 +233,9 @@ def test_historical_update_requires_root_to_accept_the_new_main_shell(
             install_root=install_root,
             candidate_launch=launch,
             surface_pid=500,
+            event_log_path=event_log_path,
+            token="current-launch",
+            attester_pids=(200,),
         )
 
     with log_path.open("a", encoding="utf-8") as output:
@@ -243,4 +249,83 @@ def test_historical_update_requires_root_to_accept_the_new_main_shell(
         install_root=install_root,
         candidate_launch=launch,
         surface_pid=500,
+        event_log_path=event_log_path,
+        token="current-launch",
+        attester_pids=(200,),
     )
+
+
+def test_historical_update_accepts_only_attested_direct_root_main_shell(
+    tmp_path: Path,
+) -> None:
+    """A restarted direct root must be identified by its launch path and receipt."""
+
+    install_root = tmp_path / "installation"
+    layout = InstallLayout.from_root(install_root)
+    log_path = layout.logs_dir / "launcher.log"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text("", encoding="utf-8")
+    launch = SimpleNamespace(progress_baselines=((log_path, (True, 0)),))
+    event_log_path = tmp_path / "qualification.jsonl"
+    acceptance = (
+        "INFO process=8532 launcher.sugarsubstitute_launcher."
+        "application_readiness_supervisor Accepted painted application surface | "
+        "candidate_pid=1304 | surface_pid=6904 | surface=main_shell | "
+        "outer_contract=True\n"
+    )
+    log_path.write_text(acceptance, encoding="utf-8")
+
+    def write_startup(*, path: Path, token: str, pid: int = 8532) -> None:
+        """Record one launcher identity in the qualification event stream."""
+
+        event_log_path.write_text(
+            json.dumps(
+                {
+                    "event": "launcher.startup.resolved",
+                    "fields": {"invocation_path": str(path)},
+                    "pid": pid,
+                    "token": token,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def assert_direct_root() -> None:
+        """Check the current evidence against the candidate main shell."""
+
+        assert_root_main_shell_acknowledgement(
+            install_root=install_root,
+            candidate_launch=launch,
+            surface_pid=6904,
+            event_log_path=event_log_path,
+            token="current-launch",
+            attester_pids=(8532, 8860),
+        )
+
+    write_startup(path=layout.executable_path, token="another-launch")
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_direct_root()
+
+    write_startup(
+        path=install_root / "selected" / "SugarSubstitute.exe", token="current-launch"
+    )
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_direct_root()
+
+    write_startup(path=layout.executable_path, token="current-launch", pid=3176)
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_direct_root()
+
+    write_startup(path=layout.executable_path, token="current-launch")
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_root_main_shell_acknowledgement(
+            install_root=install_root,
+            candidate_launch=launch,
+            surface_pid=6904,
+            event_log_path=event_log_path,
+            token="current-launch",
+            attester_pids=(8860,),
+        )
+
+    assert_direct_root()
