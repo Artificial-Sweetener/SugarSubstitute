@@ -100,9 +100,6 @@ from substitute.presentation.shell.main_window_dependencies import (
 from substitute.presentation.shell.main_window_workspace import (
     build_main_window_workspace,
 )
-from substitute.presentation.shell.workspace_canvas_actions import (
-    WorkspaceCanvasActions,
-)
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurfaceInvalidationService,
 )
@@ -120,6 +117,10 @@ from tests.support.prompt_editor.autocomplete_support import (
     RecordingPromptAutocompleteGateway,
 )
 from tests.support.execution import immediate_editor_panel_execution_factories
+from tests.support.workspace_output_controller import (
+    compose_workspace_output_actions,
+    compose_workspace_output_controller,
+)
 from tests.support.prompt_editor.real_shell.session_support import (
     _ErrorPresenter,
     _GenerationJobQueueService,
@@ -276,9 +277,16 @@ class PromptEditorRealShell(QMainWindow):
             enqueue_prompt_scene=lambda *_args, **_kwargs: None
         )
 
-        self.workspace_canvas_actions = WorkspaceCanvasActions(
-            cast(Any, self),
+        workspace_output_actions = compose_workspace_output_actions(
+            self,
             error_presenter=_ErrorPresenter(self.error_reports),
+        )
+        self.workspace_canvas_actions = workspace_output_actions.canvas_actions
+        self.workspace_output_preparation_actions = (
+            workspace_output_actions.preparation_actions
+        )
+        self.workspace_output_external_actions = (
+            workspace_output_actions.external_actions
         )
         self._error_presenter = _ErrorPresenter(self.error_reports)
         self._menu_container = QWidget()
@@ -305,13 +313,13 @@ class PromptEditorRealShell(QMainWindow):
             open_single_external_editor=(
                 cast(
                     Any,
-                    self.workspace_canvas_actions.open_image_in_external_editor,
+                    self.workspace_output_external_actions.open_image_in_external_editor,
                 )
             ),
             open_all_external_editor=(
                 cast(
                     Any,
-                    self.workspace_canvas_actions.open_images_in_external_editor,
+                    self.workspace_output_external_actions.open_images_in_external_editor,
                 )
             ),
         )
@@ -330,7 +338,15 @@ class PromptEditorRealShell(QMainWindow):
         self.editor_panel_container: QStackedWidget = (
             workspace_parts.editor_panel_container
         )
-        self.input_canvas_state_service = workspace_parts.input_canvas_state_service
+        self.input_canvas_state = workspace_parts.input_canvas_state
+        self.input_routes = workspace_parts.input_canvas_state.routes
+        self.input_image_assets = workspace_parts.input_canvas_state.images
+        self.input_mask_assets = workspace_parts.input_canvas_state.masks
+        self.input_mask_restoration = (
+            workspace_parts.input_canvas_state.mask_restoration
+        )
+        self.input_mask_visuals = workspace_parts.input_canvas_state.mask_visuals
+        self.input_asset_cleanup = workspace_parts.input_canvas_state.cleanup
         self.output_canvas_state_service = workspace_parts.output_canvas_state_service
         self.output_canvas_projection_coordinator = (
             workspace_parts.output_canvas_projection_coordinator
@@ -339,6 +355,12 @@ class PromptEditorRealShell(QMainWindow):
             workspace_parts.workflow_canvas_projection_coordinator
         )
         self.canvas_image_registry = workspace_parts.canvas_image_registry
+        output_actions = compose_workspace_output_controller(
+            self,
+            actions=workspace_output_actions,
+        )
+        self.workspace_output_navigation_actions = output_actions.navigation_actions
+        self.workspace_controller = output_actions.controller
         self.output_canvas = self.canvas_host.canvas_for("Output")
         self.canvas_host_container = workspace_parts.canvas_host_container
         self.splitter = workspace_parts.splitter

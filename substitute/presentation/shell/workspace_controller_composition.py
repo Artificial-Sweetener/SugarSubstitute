@@ -61,6 +61,18 @@ from substitute.presentation.shell.workspace_canvas_actions import (
     WorkspaceCanvasActionView,
     WorkspaceCanvasActions,
 )
+from substitute.presentation.shell.workspace_output_external_actions import (
+    WorkspaceOutputExternalActions,
+    WorkspaceOutputExternalView,
+)
+from substitute.presentation.shell.workspace_output_navigation_actions import (
+    WorkspaceOutputNavigationActions,
+    WorkspaceOutputNavigationView,
+)
+from substitute.presentation.shell.workspace_output_preparation_actions import (
+    WorkspaceOutputPreparationActions,
+    WorkspaceOutputPreparationView,
+)
 from substitute.presentation.shell.workspace_cube_picker_actions import (
     CatalogRefreshRoute,
     WorkspaceCubePickerActionView,
@@ -123,6 +135,9 @@ class WorkspaceControllerCollaborators:
     workflow_workspace: WorkflowWorkspaceCoordinator
     workflow_duplicate_service: WorkflowDuplicateService
     canvas_actions: WorkspaceCanvasActions
+    output_navigation_actions: WorkspaceOutputNavigationActions
+    output_external_actions: WorkspaceOutputExternalActions
+    output_preparation_actions: WorkspaceOutputPreparationActions
     cube_picker_actions: WorkspaceCubePickerActions
     cube_stack_actions: WorkspaceCubeStackActions
     file_actions: WorkspaceFileActions
@@ -191,9 +206,16 @@ def compose_workspace_controller_collaborators(
         ErrorReportPresenterProtocol | None,
         getattr(host, "_error_presenter", None),
     )
-    canvas_actions = WorkspaceCanvasActions(
-        views.canvas,
+    canvas_actions = WorkspaceCanvasActions(views.canvas)
+    output_preparation_actions = WorkspaceOutputPreparationActions(
+        cast(WorkspaceOutputPreparationView, views.canvas),
         error_presenter=error_presenter,
+    )
+    output_navigation_actions = WorkspaceOutputNavigationActions(
+        cast(WorkspaceOutputNavigationView, views.canvas)
+    )
+    output_external_actions = WorkspaceOutputExternalActions(
+        cast(WorkspaceOutputExternalView, views.canvas),
         asset_reveal_service=getattr(host, "asset_reveal_service", None),
     )
     cube_picker_actions = WorkspaceCubePickerActions(
@@ -330,6 +352,9 @@ def compose_workspace_controller_collaborators(
         workflow_workspace=workflow_workspace,
         workflow_duplicate_service=workflow_duplicate_service,
         canvas_actions=canvas_actions,
+        output_navigation_actions=output_navigation_actions,
+        output_external_actions=output_external_actions,
+        output_preparation_actions=output_preparation_actions,
         cube_picker_actions=cube_picker_actions,
         cube_stack_actions=cube_stack_actions,
         file_actions=file_actions,

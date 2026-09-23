@@ -23,9 +23,9 @@ from uuid import UUID
 
 from substitute.application.workflows.input_canvas_ports import (
     CanvasIoServicePort,
-    InputCanvasStateServicePort,
     WorkflowAssetServicePort,
 )
+from substitute.application.workflows import input_mask_asset_service
 from substitute.application.workflows.input_canvas_models import (
     MaskMaterializationResult,
 )
@@ -44,14 +44,14 @@ class InputMaskMaterializationService:
     def __init__(
         self,
         *,
-        input_canvas_state_service: InputCanvasStateServicePort,
+        input_masks: input_mask_asset_service.InputMaskAssetService,
         canvas_io_service: CanvasIoServicePort,
         workflow_asset_service: WorkflowAssetServicePort,
         graph_section_service: WorkflowGraphSectionService,
     ) -> None:
         """Capture the focused state, IO, asset, and graph collaborators."""
 
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_masks = input_masks
         self._canvas_io_service = canvas_io_service
         self._workflow_asset_service = workflow_asset_service
         self._graph_section_service = graph_section_service
@@ -165,7 +165,7 @@ class InputMaskMaterializationService:
                     expected_size=image_dimensions,
                     actual_mask_size=explicit_mask_dimensions,
                 )
-                mask_id = self._input_canvas_state_service.load_mask_from_file(
+                mask_id = self._input_masks.load_from_file(
                     workflow_id,
                     workflow,
                     binding.association_key,
@@ -220,7 +220,7 @@ class InputMaskMaterializationService:
                     expected_size=image_dimensions,
                     actual_mask_size=mask_dimensions,
                 )
-                mask_id = self._input_canvas_state_service.load_mask_from_file(
+                mask_id = self._input_masks.load_from_file(
                     workflow_id,
                     workflow,
                     binding.association_key,
@@ -264,7 +264,7 @@ class InputMaskMaterializationService:
                     selected_mask_path=str(compatible_previous_path.resolve()),
                     expected_size=image_dimensions,
                 )
-                mask_id = self._input_canvas_state_service.load_mask_from_file(
+                mask_id = self._input_masks.load_from_file(
                     workflow_id,
                     workflow,
                     binding.association_key,
@@ -371,7 +371,7 @@ class InputMaskMaterializationService:
                     selected_mask_path=str(compatible_previous_path.resolve()),
                     expected_size=image_dimensions,
                 )
-                mask_id = self._input_canvas_state_service.load_mask_from_file(
+                mask_id = self._input_masks.load_from_file(
                     workflow_id,
                     workflow,
                     binding.association_key,
@@ -413,7 +413,7 @@ class InputMaskMaterializationService:
             binding=binding,
             path=selected_mask_path,
         )
-        mask_id = self._input_canvas_state_service.create_mask_for_image(
+        mask_id = self._input_masks.create_for_image(
             workflow_id,
             workflow,
             binding.association_key,
@@ -496,7 +496,7 @@ class InputMaskMaterializationService:
                 str(associated_image_id) if associated_image_id is not None else ""
             ),
         )
-        self._input_canvas_state_service.drop_mask_association(
+        self._input_masks.drop_association(
             workflow,
             binding.association_key,
         )

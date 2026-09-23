@@ -171,9 +171,7 @@ def test_hidden_restore_runtime_replays_deferred_masks_after_install() -> None:
         hydrate_restored_workspace_snapshot=hydrate,
         install_hydrated_prehydrated_workspace=install,
     )
-    view.input_canvas_state_service = SimpleNamespace(
-        restore_input_mask=restore_input_mask
-    )
+    view.input_mask_restoration = SimpleNamespace(restore=restore_input_mask)
     view.restored_ordered_mask_collections = SimpleNamespace(
         reconcile=lambda _workflows: events.append("reconcile_ordered_masks")
     )

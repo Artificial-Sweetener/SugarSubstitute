@@ -31,7 +31,8 @@ from substitute.presentation.shell.workspace_input_canvas_adapter import (
     handle_input_image_clicked_for_view,
     handle_input_mask_changed_for_view,
     handle_input_mask_clicked_for_view,
-    input_canvas_presenter_for_view,
+    input_image_materialization_presenter_for_view,
+    input_mask_picker_presenter_for_view,
     materialize_loaded_cube_input_canvas_for_view,
     reconcile_active_input_canvas_image_for_view,
     reconcile_input_canvas_authority_for_view,
@@ -73,11 +74,16 @@ def test_adapter_has_no_qt_or_controller_imports() -> None:
     assert forbidden == set()
 
 
-def test_input_canvas_presenter_for_view_requires_presenter() -> None:
-    """Presenter lookup should fail closed when the shell has no presenter."""
+def test_input_presenter_lookups_require_direct_owners() -> None:
+    """Presenter lookups should fail closed when direct owners are absent."""
 
-    with pytest.raises(RuntimeError, match="InputCanvasPresenter is required"):
-        input_canvas_presenter_for_view(SimpleNamespace())
+    with pytest.raises(
+        RuntimeError,
+        match="InputImageMaterializationPresenter is required",
+    ):
+        input_image_materialization_presenter_for_view(SimpleNamespace())
+    with pytest.raises(RuntimeError, match="InputMaskPickerPresenter is required"):
+        input_mask_picker_presenter_for_view(SimpleNamespace())
 
 
 def test_input_canvas_intents_delegate_to_presenter() -> None:
@@ -90,15 +96,13 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
         handle_mask_changed=lambda *args: calls.append(("mask_changed", args)),
         handle_mask_clicked=lambda *args: calls.append(("mask_clicked", args)),
     )
-    presenter = SimpleNamespace(
-        handle_input_canvas_image_loaded=lambda *args: calls.append(
-            ("image_loaded", args)
-        ),
-        refresh_active_mask_pickers=lambda: calls.append(("mask_pickers", ())),
-        reconcile_active_input_canvas_image=lambda: calls.append(("reconcile", ())),
-        materialize_loaded_cube_input_canvas=lambda *args: calls.append(
-            ("materialize", args)
-        ),
+    image_presenter = SimpleNamespace(
+        handle_loaded_image=lambda *args: calls.append(("image_loaded", args)),
+        reconcile_active=lambda: calls.append(("reconcile", ())),
+        materialize_loaded_cube=lambda *args: calls.append(("materialize", args)),
+    )
+    mask_picker_presenter = SimpleNamespace(
+        refresh_active=lambda: calls.append(("mask_pickers", ()))
     )
 
     def reconcile_authority(workflows: object, workflow_id: str) -> object:
@@ -108,7 +112,8 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
         return SimpleNamespace(removed_input_keys=())
 
     view = SimpleNamespace(
-        input_canvas_presenter=presenter,
+        input_image_materialization_presenter=image_presenter,
+        input_mask_picker_presenter=mask_picker_presenter,
         input_node_interaction_controller=interaction_controller,
         input_canvas_authority_reconciliation_service=SimpleNamespace(
             reconcile=reconcile_authority

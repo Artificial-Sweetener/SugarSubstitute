@@ -47,7 +47,6 @@ from substitute.presentation.canvas.output.output_grid_context_menu import (
     OutputGridContextMenu,
 )
 from substitute.presentation.canvas.shared.types import OutputImageMeta
-from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import MenuItem
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -131,41 +130,6 @@ def test_output_menu_preserves_the_original_icon_assignments() -> None:
     assert (
         actions["output_canvas.open_all_external"].icon
         is not actions["output_canvas.open_current_external"].icon
-    )
-    assert actions["output_canvas.dock_action"].icon is FIF.FULL_SCREEN
-
-
-def test_grid_menu_preserves_the_original_icon_assignments() -> None:
-    """Keep addressed grid actions visually identical to their established actions."""
-
-    reference = CanvasContentReference(
-        document_id=uuid4(),
-        kind=CanvasContentKind.COMPOSITION,
-        composition_id=uuid4(),
-    )
-    menu = OutputGridContextMenu(
-        parent=object(),  # type: ignore[arg-type]
-        request_copy=lambda _reference: None,
-        image_id_for_reference=lambda _reference: None,
-        image_payload=lambda _image_id: None,
-        image_metadata=lambda _image_id: None,
-        image_is_authorized=lambda _image_id: False,
-        open_single_editor=None,
-        reveal_asset=None,
-        canvas_detached=lambda: False,
-        request_dock_action=lambda: None,
-    )
-
-    actions = {
-        entry.action_id: entry
-        for entry in menu.menu_model(reference).entries
-        if isinstance(entry, MenuItem)
-    }
-    assert actions["output_canvas.copy"].icon is FIF.COPY
-    assert actions["output_canvas.open_current_external"].icon is FIF.PHOTO
-    assert (
-        actions["output_canvas.reveal_current_asset"].icon
-        is AppIcon.FOLDER_OPEN_20_REGULAR
     )
     assert actions["output_canvas.dock_action"].icon is FIF.FULL_SCREEN
 

@@ -43,7 +43,7 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_selector_state import (
     scene_selector_full_text,
     source_selector_full_text,
 )

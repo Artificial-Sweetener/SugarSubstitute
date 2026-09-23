@@ -79,7 +79,7 @@ def compose_direct_workflow_file_actions(
                 source="direct_workflow_loaded",
             ),
             materialize_loaded_section=lambda workflow_id, section_key: (
-                shell.input_canvas_presenter.materialize_loaded_workflow_section(
+                shell.input_image_materialization_presenter.materialize_loaded_section(
                     workflow_id,
                     section_key,
                 )

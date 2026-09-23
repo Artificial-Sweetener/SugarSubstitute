@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_selector_state import (
     SourceSelectorButtonState,
-    apply_compare_source_button_state,
-    apply_source_selector_button_state,
     compare_source_button_state,
     source_selector_button_state,
+)
+from substitute.presentation.canvas.output.output_navigation_widget_adapter import (
+    apply_compare_source_button_state,
+    apply_source_selector_button_state,
 )
 
 

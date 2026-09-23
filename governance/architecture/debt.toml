@@ -243,38 +243,6 @@ responsibilities = [
 next_extraction = "Extract model metadata enrichment from recipe persistence and document classification."
 
 [[debts]]
-id = "SS-ARCH-023"
-owner = "input canvas state"
-paths = ["substitute/application/workflows/input_canvas_state_service.py"]
-fingerprint = "sha256:e85ec5b12b2845659d0943593fef6b8591716e611fed5e0679353ae29fb84124"
-issue = "chore:SS-ARCH-023"
-review_by = 2026-12-15
-responsibilities = [
-  "input route projection and scope binding",
-  "input image loading, claiming, and restoration",
-  "mask creation, loading, update, and removal",
-  "asset ownership cleanup",
-  "mask opacity synchronization",
-]
-next_extraction = "Extract image and mask asset lifecycle from route projection and visual-state synchronization."
-
-[[debts]]
-id = "SS-ARCH-024"
-owner = "output preview lifecycle"
-paths = ["substitute/application/workflows/output_preview_lifecycle_service.py"]
-fingerprint = "sha256:9027f5708bfb5808703d45235140273b39a132e2d388da6989c0d008c15968af"
-issue = "chore:SS-ARCH-024"
-review_by = 2026-12-15
-responsibilities = [
-  "output revision caching",
-  "preview slot identity and matching",
-  "completed-output retirement planning",
-  "run transition mutation",
-  "registry snapshot projection",
-]
-next_extraction = "Extract revision-cache ownership from pure preview identity and retirement policy."
-
-[[debts]]
 id = "SS-ARCH-025"
 owner = "workflow assets"
 paths = ["substitute/application/workflows/workflow_asset_service.py"]
@@ -288,22 +256,6 @@ responsibilities = [
   "project and local path resolution",
 ]
 next_extraction = "Extract persisted asset-reference decoding and path resolution from workflow graph association mutation."
-
-[[debts]]
-id = "SS-ARCH-026"
-owner = "workflow input canvas"
-paths = ["substitute/application/workflows/workflow_input_canvas_service.py"]
-  fingerprint = "sha256:a0bae5d87ecb0ce5e94641beb2bb2c937f56021bc271f98c298714fdbbee3fb2"
-issue = "chore:SS-ARCH-026"
-review_by = 2026-12-15
-responsibilities = [
-  "ordered mask-region mutation",
-  "image and mask asset association",
-  "loaded image identity reconciliation",
-  "image and mask materialization",
-  "canvas plan and section projection",
-]
-next_extraction = "Extract ordered-region and association mutation from materialization and loaded-canvas reconciliation."
 
 [[debts]]
 id = "SS-ARCH-028"
@@ -337,52 +289,6 @@ responsibilities = [
   "HTTP response and queue error translation",
 ]
 next_extraction = "Extract listener-session transport from queue mutation and interruption transport."
-
-[[debts]]
-id = "SS-ARCH-035"
-owner = "input canvas presentation"
-paths = ["substitute/presentation/canvas/input/input_canvas_presenter.py"]
-fingerprint = "sha256:e46a7c2c0918eb14eda621d1e75eda4b78086fdf60915a9d3ce1466181e958b7"
-issue = "chore:SS-ARCH-035"
-review_by = 2026-12-15
-responsibilities = [
-  "image selection materialization and reconciliation",
-  "mask selection and validation",
-  "loaded cube and workflow-section materialization",
-  "mask-picker refresh and change publication",
-]
-next_extraction = "Extract mask-picker refresh from image and mask materialization presentation."
-
-[[debts]]
-id = "SS-ARCH-036"
-owner = "output navigation bar"
-paths = ["substitute/presentation/canvas/output/output_canvas_navigation_bar.py"]
-fingerprint = "sha256:7f9f835c5566bc583273f1f9c6c96fe93a3709d18f9536004eef78d1f5da32e2"
-issue = "chore:SS-ARCH-036"
-review_by = 2026-12-15
-responsibilities = [
-  "navigation view-model and tab rebuild planning",
-  "text measurement and width policy",
-  "Qt widget state application",
-  "compare, source, set, and scene selector synchronization",
-]
-next_extraction = "Extract pure navigation planning and measurement from Qt widget-state application."
-
-[[debts]]
-id = "SS-ARCH-037"
-owner = "output navigation"
-paths = ["substitute/presentation/canvas/output/output_canvas_navigation_controller.py"]
-fingerprint = "sha256:d7a1f185ad42c75912ea0259dbc99f1e8f376772e168e3102b106a2321007304"
-issue = "chore:SS-ARCH-037"
-review_by = 2026-12-15
-responsibilities = [
-  "navigation-bar responsive placement adapter",
-  "set, source, scene, grid, and item activation",
-  "selection restoration policy",
-  "selector presentation synchronization",
-  "host adapter discovery and signal dispatch",
-]
-next_extraction = "Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
 
 [[debts]]
 id = "SS-ARCH-039"
@@ -859,7 +765,7 @@ next_extraction = "Extract editor metadata and busy-controller composition behin
 id = "SS-ARCH-081"
 owner = "main window workspace scaffold"
 paths = ["substitute/presentation/shell/main_window_workspace.py"]
-fingerprint = "sha256:44e7eaec75a00d159828964b0a20344cb8fb6b70be45dd3eebbeb14554c9f3c7"
+fingerprint = "sha256:57c3a2c33075a55120362d956968aabbb5f59255e038134018498b47dd1f0d7b"
 issue = "chore:SS-ARCH-081"
 review_by = 2026-12-15
 responsibilities = [
@@ -903,39 +809,6 @@ responsibilities = [
   "completion and clean-state publication",
 ]
 next_extraction = "Separate the active feature refresh facade from dirty-surface reconciliation."
-
-[[debts]]
-id = "SS-ARCH-084"
-owner = "workflow workspace lifecycle"
-paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:2e46aea2cb4e848c6467d1865a646c0cf29351b890b44f498ea0ab7503c024c8"
-issue = "chore:SS-ARCH-084"
-review_by = 2026-12-15
-responsibilities = [
-  "workflow activation and surface projection",
-  "tab-switch performance diagnostics",
-  "workflow add, close, reopen, duplicate, and rename",
-  "closed-workflow snapshot buffering",
-  "image and widget resource cleanup",
-  "tabbar and surface invalidation coordination",
-]
-next_extraction = "Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
-
-[[debts]]
-id = "SS-ARCH-085"
-owner = "workspace canvas actions"
-paths = ["substitute/presentation/shell/workspace_canvas_actions.py"]
-fingerprint = "sha256:c98eb272c713bdde8f00fec1117d028f5308335da19cd967cc4c678e0040bcd0"
-issue = "chore:SS-ARCH-085"
-review_by = 2026-12-15
-responsibilities = [
-  "output focus and navigation mutation",
-  "external editor and asset reveal actions",
-  "generated and loaded output ingestion",
-  "output preparation and authorization",
-  "canvas host visibility and error presentation",
-]
-next_extraction = "Split external actions and output ingestion from output-navigation commands."
 
 [[debts]]
 id = "SS-ARCH-087"

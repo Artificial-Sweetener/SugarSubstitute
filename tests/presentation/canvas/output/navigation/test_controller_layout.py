@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
     OutputCanvasNavigationVisibilityPolicy,
@@ -88,7 +88,7 @@ def test_measure_tabbar_preferred_width_uses_item_widths_spacing_and_margins() -
         layout=lambda: layout,
     )
 
-    width = OutputCanvasNavigationController.measure_tabbar_preferred_width(tabbar)
+    width = OutputNavigationLayoutAdapter.measure_tabbar_preferred_width(tabbar)
 
     assert width == 40 + 52 + 6 + 3 + 5
     assert layout.invalidated is True
@@ -98,7 +98,7 @@ def test_measure_tabbar_preferred_width_uses_item_widths_spacing_and_margins() -
 def test_navigation_bar_width_supports_more_than_three_controls() -> None:
     """Extended navigation widths should include every positive control width."""
 
-    width = OutputCanvasNavigationController.navigation_bar_width(
+    width = OutputNavigationLayoutAdapter.navigation_bar_width(
         (20, 0, 30, 40),
         gap=4,
         extra_pad=3,
@@ -113,7 +113,7 @@ def test_hide_compare_navigation_containers_hides_both_bars() -> None:
     base = PlacedWidgetSpy()
     comparison = PlacedWidgetSpy()
 
-    OutputCanvasNavigationController.hide_compare_navigation_containers(
+    OutputNavigationLayoutAdapter.hide_compare_navigation_containers(
         base_container=base,
         comparison_container=comparison,
     )
@@ -130,7 +130,7 @@ def test_apply_compare_navigation_visibility_hides_tabs_and_sets_controls() -> N
     set_selector = PlacedWidgetSpy()
     source_selector = PlacedWidgetSpy()
 
-    OutputCanvasNavigationController.apply_compare_navigation_visibility(
+    OutputNavigationLayoutAdapter.apply_compare_navigation_visibility(
         tabbar=tabbar,
         scene_selector=scene_selector,
         set_selector=set_selector,
@@ -156,7 +156,7 @@ def test_place_compare_bar_places_visible_controls_and_hides_empty_widths() -> N
     hidden = PlacedWidgetSpy()
     second = PlacedWidgetSpy()
 
-    OutputCanvasNavigationController.place_compare_bar(
+    OutputNavigationLayoutAdapter.place_compare_bar(
         container=container,
         background=background,
         geometry=OutputNavBarGeometry(x=12, y=24, width=190, height=42, stacked=False),
@@ -189,7 +189,7 @@ def test_hide_source_navigation_hides_all_optional_controls() -> None:
     scene_selector = PlacedWidgetSpy()
     source_selector = PlacedWidgetSpy()
 
-    OutputCanvasNavigationController.hide_source_navigation(
+    OutputNavigationLayoutAdapter.hide_source_navigation(
         container=container,
         tabbar=tabbar,
         set_selector=set_selector,
@@ -212,7 +212,7 @@ def test_set_source_navigation_visibility_applies_each_control_state() -> None:
     scene_selector = PlacedWidgetSpy()
     source_selector = PlacedWidgetSpy()
 
-    OutputCanvasNavigationController.set_source_navigation_visibility(
+    OutputNavigationLayoutAdapter.set_source_navigation_visibility(
         tabbar=tabbar,
         set_selector=set_selector,
         scene_selector=scene_selector,
@@ -239,7 +239,7 @@ def test_place_source_bar_places_controls_in_navigation_order() -> None:
     scene_selector = PlacedWidgetSpy()
     source_selector = PlacedWidgetSpy()
 
-    OutputCanvasNavigationController.place_source_bar(
+    OutputNavigationLayoutAdapter.place_source_bar(
         container=container,
         background=background,
         geometry=OutputNavBarGeometry(x=8, y=320, width=200, height=42, stacked=False),
@@ -278,13 +278,13 @@ def test_button_width_uses_current_width_then_size_hint() -> None:
     """Button width should prefer settled geometry and fall back to size hint."""
 
     assert (
-        OutputCanvasNavigationController.button_width(
+        OutputNavigationLayoutAdapter.button_width(
             WidgetStub(width_value=36, size_hint_width=80),
         )
         == 36
     )
     assert (
-        OutputCanvasNavigationController.button_width(
+        OutputNavigationLayoutAdapter.button_width(
             WidgetStub(width_value=0, size_hint_width=80),
         )
         == 80

@@ -25,6 +25,10 @@ from sugarsubstitute_shared.presentation.localization import (
     render_application_text,
 )
 
+from substitute.presentation.canvas.output.output_transfer_drag_provider import (
+    OUTPUT_DRAG_GESTURE_ENDED_MESSAGE,
+)
+
 
 class OutputTransferFailurePresenter:
     """Own user-facing drag and clipboard transfer failure feedback."""
@@ -44,9 +48,11 @@ class OutputTransferFailurePresenter:
             parent=self._parent.window(),
         )
 
-    def report_drag_failure(self, _reason: str) -> None:
+    def report_drag_failure(self, reason: str) -> None:
         """Present one localized drag failure without exposing technical detail."""
 
+        if reason == OUTPUT_DRAG_GESTURE_ENDED_MESSAGE:
+            return
         InfoBar.error(
             title=render_application_text(app_text("Drag")),
             content=render_application_text(

@@ -75,9 +75,6 @@ if TYPE_CHECKING:
     from substitute.application.workflows.input_canvas_plan_service import (
         InputCanvasPlanService,
     )
-    from substitute.application.workflows.input_canvas_state_service import (
-        InputCanvasStateService,
-    )
     from substitute.application.workflows.node_link_endpoint_service import (
         NodeLinkEndpointService,
     )
@@ -188,12 +185,11 @@ if TYPE_CHECKING:
     from substitute.application.workflows.workflow_duplicate_service import (
         WorkflowDuplicateService,
     )
-    from substitute.application.workflows.workflow_input_canvas_service import (
+    from substitute.application.workflows.input_canvas_models import (
         InputCanvasMaterializationResult,
         LoadedInputCanvasImageIdentityResolution,
         MaskMaterializationResult,
         UserSelectedInputMaskResult,
-        WorkflowInputCanvasService,
     )
     from substitute.application.workflows.workflow_link_reconciliation_service import (
         WorkflowLinkReconciliationService,
@@ -292,7 +288,7 @@ _EXPORT_MODULES = {
     ),
     "ImageMeta": "substitute.domain.workflow",
     "InputCanvasMaterializationResult": (
-        "substitute.application.workflows.workflow_input_canvas_service"
+        "substitute.application.workflows.input_canvas_models"
     ),
     "InputAssetEndpointService": (
         "substitute.application.workflows.input_asset_endpoint_service"
@@ -306,16 +302,13 @@ _EXPORT_MODULES = {
     "InputCanvasInteractionProfileService": (
         "substitute.application.workflows.input_canvas_interaction_profile_service"
     ),
-    "InputCanvasStateService": (
-        "substitute.application.workflows.input_canvas_state_service"
-    ),
     "LoadedInputCanvasImageIdentityResolution": (
-        "substitute.application.workflows.workflow_input_canvas_service"
+        "substitute.application.workflows.input_canvas_models"
     ),
     "LiveFinalOutputEvent": "substitute.application.workflows.output_visual_events",
     "LivePreviewEvent": "substitute.application.workflows.output_visual_events",
     "MaskMaterializationResult": (
-        "substitute.application.workflows.workflow_input_canvas_service"
+        "substitute.application.workflows.input_canvas_models"
     ),
     "NodeLinkEndpoint": "substitute.domain.links",
     "NodeLinkEndpointIndex": "substitute.domain.links",
@@ -487,10 +480,7 @@ _EXPORT_MODULES = {
     ),
     "WorkflowState": "substitute.domain.workflow",
     "UserSelectedInputMaskResult": (
-        "substitute.application.workflows.workflow_input_canvas_service"
-    ),
-    "WorkflowInputCanvasService": (
-        "substitute.application.workflows.workflow_input_canvas_service"
+        "substitute.application.workflows.input_canvas_models"
     ),
     "WorkflowLinkReconciliationService": (
         "substitute.application.workflows.workflow_link_reconciliation_service"
@@ -577,7 +567,6 @@ __all__ = [
     "InputCanvasCapabilityService",
     "InputCanvasInteractionProfileService",
     "InputCanvasPlanService",
-    "InputCanvasStateService",
     "LoadedInputCanvasImageIdentityResolution",
     "LiveFinalOutputEvent",
     "LivePreviewEvent",
@@ -658,7 +647,6 @@ __all__ = [
     "WorkflowSessionState",
     "WorkflowState",
     "UserSelectedInputMaskResult",
-    "WorkflowInputCanvasService",
     "WorkflowLinkReconciliationService",
     "WorkflowTabCreation",
     "WorkflowTabService",

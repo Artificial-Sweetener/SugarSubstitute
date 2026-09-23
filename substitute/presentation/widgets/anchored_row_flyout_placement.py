@@ -36,6 +36,53 @@ class AnchoredRowFlyoutPlacement:
     placement_mode: AnchoredRowFlyoutPlacementMode
 
 
+@dataclass(frozen=True, slots=True)
+class AnchoredRowFlyoutViewport:
+    """Describe the row window that preserves selected-row anchor overlap."""
+
+    maximum_view_height: int
+    active_row_slot_from_top: int
+
+
+def anchored_row_flyout_viewport(
+    *,
+    anchor_global_rect: QRect,
+    screen_available_geometry: QRect,
+    row_height: int,
+    row_spacing: int,
+    view_margin: int,
+) -> AnchoredRowFlyoutViewport:
+    """Return a row viewport whose visible surface remains inside the screen."""
+
+    safe_row_height = max(1, row_height)
+    safe_row_spacing = max(0, row_spacing)
+    safe_view_margin = max(0, view_margin)
+    row_stride = safe_row_height + safe_row_spacing
+    screen_bottom = screen_available_geometry.top() + max(
+        1,
+        screen_available_geometry.height(),
+    )
+    available_above = max(
+        0,
+        anchor_global_rect.top() - screen_available_geometry.top() - safe_view_margin,
+    )
+    available_below = max(
+        0,
+        screen_bottom - anchor_global_rect.top() - safe_row_height - safe_view_margin,
+    )
+    rows_above = available_above // row_stride
+    rows_below = available_below // row_stride
+    visible_row_capacity = max(1, rows_above + 1 + rows_below)
+    rows_height = (
+        visible_row_capacity * safe_row_height
+        + max(0, visible_row_capacity - 1) * safe_row_spacing
+    )
+    return AnchoredRowFlyoutViewport(
+        maximum_view_height=rows_height + (2 * safe_view_margin),
+        active_row_slot_from_top=rows_above,
+    )
+
+
 def anchored_row_flyout_placement(
     *,
     anchor_global_rect: QRect,
@@ -119,5 +166,7 @@ def _clamp(value: int, minimum: int, maximum: int) -> int:
 __all__ = [
     "AnchoredRowFlyoutPlacement",
     "AnchoredRowFlyoutPlacementMode",
+    "AnchoredRowFlyoutViewport",
     "anchored_row_flyout_placement",
+    "anchored_row_flyout_viewport",
 ]

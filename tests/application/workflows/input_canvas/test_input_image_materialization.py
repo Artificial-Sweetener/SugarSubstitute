@@ -19,9 +19,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from substitute.application.workflows import (
-    WorkflowInputCanvasService,
-)
 from uuid import uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
@@ -33,8 +30,7 @@ from tests.application.workflows.input_canvas.support import (
     _build_workflow,
     _mask_buffer_path,
     _image_buffer_path,
-    _workflow_input_service,
-    _input_canvas_plan_service,
+    _image_materialization_service,
 )
 
 
@@ -56,7 +52,9 @@ def test_materialize_input_image_updates_load_image_asset_ref(
         expected_mask_path=expected_mask,
         created_destinations=created_destinations,
     )
-    service = _workflow_input_service(input_canvas_state_service, canvas_io_service)
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
+    )
 
     result = service.materialize_input_image(
         workflows={"wf-a": workflow},
@@ -96,10 +94,8 @@ def test_materialize_input_image_hydrates_existing_expected_mask_file(
         dimensions_by_path={existing_mask: (640, 480)},
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(
@@ -143,10 +139,8 @@ def test_materialize_input_image_creates_input_bound_blank_mask_and_updates_buff
         expected_mask_path=expected_mask,
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(
@@ -189,10 +183,8 @@ def test_materialize_input_image_ignores_stale_previous_mask_path(
         expected_mask_path=expected_dog_mask,
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.materialize_input_image(

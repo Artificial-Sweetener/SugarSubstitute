@@ -30,7 +30,7 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_source_tabs import (
     source_tab_items,
     source_tab_removal_keys,
     source_tab_tooltip,

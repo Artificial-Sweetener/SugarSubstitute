@@ -100,6 +100,8 @@ def test_pipeline_projects_through_output_projection_coordinator() -> None:
         ),
         output_commit_handler=SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=coordinator,
