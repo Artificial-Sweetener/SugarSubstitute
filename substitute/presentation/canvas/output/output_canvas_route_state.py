@@ -25,8 +25,9 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
+from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.presentation.canvas.output.output_canvas_preview_state import (
-    output_revision_cache,
+    output_preview_registry,
 )
 from substitute.presentation.canvas.output.output_canvas_route_model import (
     OutputCanvasRouteModel,
@@ -53,13 +54,20 @@ def output_route_state_snapshot(host: object) -> OutputRouteStateSnapshot:
         projection=(
             projection if isinstance(projection, OutputCanvasProjection) else None
         ),
-        preview_scene_groups=dict(
-            output_revision_cache(host).preview_scene_groups_by_key
+        preview_scene_groups=output_preview_registry(host).preview_scene_groups(
+            _output_session(host)
         ),
         active_scene_overview=bool(getattr(host, "active_scene_overview", False)),
         active_scene_key=scene_key if isinstance(scene_key, str) else None,
         scene_count=int(getattr(host, "scene_count", 0)),
     )
+
+
+def _output_session(host: object) -> OutputCanvasSession | None:
+    """Return the host's typed session for revision-scoped preview projection."""
+
+    session = getattr(host, "_output_session", None)
+    return session if isinstance(session, OutputCanvasSession) else None
 
 
 def output_scene_groups_by_key(

@@ -27,9 +27,6 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
-from substitute.application.workflows.output_preview_lifecycle_service import (
-    OutputCanvasRevisionCache,
-)
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewLane,
     OutputPreviewLaneKey,
@@ -49,10 +46,7 @@ def test_output_scene_groups_by_key_overlays_preview_scenes() -> None:
     final_scene = _scene("scene-a", _source("final", _item(uuid4(), 1)))
     preview_id = uuid4()
     preview_scene = _scene("scene-b", _source("preview", _item(uuid4(), 1)))
-    cache = OutputCanvasRevisionCache(
-        registry=OutputPreviewRegistry(),
-        session=None,
-    )
+    registry = OutputPreviewRegistry()
     scene_lane_key = OutputPreviewLaneKey.scene(
         workflow_id="wf",
         generation_run_id="run",
@@ -61,15 +55,17 @@ def test_output_scene_groups_by_key_overlays_preview_scenes() -> None:
         scene_run_id="run",
         scene_key="scene-b",
     )
-    cache.registry._lanes[scene_lane_key] = OutputPreviewLane(
-        key=scene_lane_key,
-        preview_id=preview_id,
-        image=object(),
-        source_label="preview",
-        client_id="client",
-        session_revision=CanvasSessionRevision(1),
-        scene_title=preview_scene.title,
-        scene_order=preview_scene.order,
+    registry.store_accepted_lane(
+        OutputPreviewLane(
+            key=scene_lane_key,
+            preview_id=preview_id,
+            image=object(),
+            source_label="preview",
+            client_id="client",
+            session_revision=CanvasSessionRevision(1),
+            scene_title=preview_scene.title,
+            scene_order=preview_scene.order,
+        )
     )
     host = SimpleNamespace(
         _output_projection=OutputCanvasProjection(
@@ -80,7 +76,7 @@ def test_output_scene_groups_by_key_overlays_preview_scenes() -> None:
             set_count=0,
             scene_groups=(final_scene,),
         ),
-        _revision_cache=cache,
+        _preview_registry=registry,
     )
 
     scene_groups = output_scene_groups_by_key(output_route_state_snapshot(host))
@@ -106,10 +102,7 @@ def test_visible_output_source_groups_by_key_scopes_to_active_scene() -> None:
             set_count=1,
             scene_groups=(scene_b,),
         ),
-        _revision_cache=OutputCanvasRevisionCache(
-            registry=OutputPreviewRegistry(),
-            session=None,
-        ),
+        _preview_registry=OutputPreviewRegistry(),
         active_scene_overview=False,
         active_scene_key="scene-b",
         scene_count=2,

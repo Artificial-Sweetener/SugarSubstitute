@@ -222,19 +222,6 @@ next_limit = 717
 debt = "SS-ARCH-023"
 
 [[waivers]]
-id = "SS-WAIVER-R024"
-owner = "output preview lifecycle"
-rule = "STRUCT003"
-path = "substitute/application/workflows/output_preview_lifecycle_service.py"
-kind = "remediation"
-justification = "The assessed file mixes output revision caching, preview slot identity and matching, completed-output retirement planning, run transition mutation, registry snapshot projection. Extract revision-cache ownership from pure preview identity and retirement policy."
-issue = "chore:SS-ARCH-024"
-review_by = 2026-12-15
-max_lines = 802
-next_limit = 641
-debt = "SS-ARCH-024"
-
-[[waivers]]
 id = "SS-WAIVER-R025"
 owner = "workflow assets"
 rule = "STRUCT003"

@@ -23,9 +23,6 @@ from typing import Any, Protocol, cast
 from sugarsubstitute_shared.presentation.localization import app_text
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
-from substitute.application.workflows.output_canvas_projection import (
-    OutputCanvasProjection,
-)
 from substitute.presentation.canvas.output.output_compare_controller import (
     visible_output_compare_state,
 )
@@ -45,8 +42,9 @@ from substitute.presentation.canvas.output.output_canvas_navigation_controller i
 from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
     OutputCanvasNavigationVisibilityPolicy,
 )
-from substitute.presentation.canvas.output.output_canvas_route_model import (
-    OutputCanvasRouteModel,
+from substitute.presentation.canvas.output.output_canvas_route_state import (
+    output_route_state_snapshot,
+    output_scene_groups_by_key,
 )
 from substitute.presentation.canvas.shared.output_nav_layout import (
     compare_navigation_geometry,
@@ -266,16 +264,8 @@ def sync_output_compare_scene_button(
 ) -> None:
     """Refresh one comparison scene selector from the current projection."""
 
-    projection = getattr(view, "_output_projection", None)
-    revision_cache = getattr(view, "_revision_cache", None)
-    scene_groups = OutputCanvasRouteModel.scene_groups_by_key(
-        projection if isinstance(projection, OutputCanvasProjection) else None,
-        preview_scene_groups_by_key=getattr(
-            revision_cache,
-            "preview_scene_groups_by_key",
-            {},
-        ),
-    )
+    route_state = output_route_state_snapshot(view)
+    scene_groups = output_scene_groups_by_key(route_state)
     scene_count = int(getattr(view, "scene_count", 0))
     full_text = compare_scene_full_text(
         scene_groups.values(),

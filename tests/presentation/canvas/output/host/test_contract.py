@@ -375,7 +375,7 @@ def test_output_canvas_has_no_private_navigation_chrome_methods() -> None:
 
 
 def test_output_canvas_has_no_private_revision_cache_binding_wrapper() -> None:
-    """Preview revision-cache binding should stay in the lifecycle service."""
+    """Preview session projection should stay in the registry adapter."""
 
     source = OUTPUT_CANVAS_SOURCE.read_text(encoding="utf-8")
 
@@ -383,7 +383,7 @@ def test_output_canvas_has_no_private_revision_cache_binding_wrapper() -> None:
 
 
 def test_output_canvas_does_not_mirror_preview_run_state_to_fake_hosts() -> None:
-    """Preview run identity should stay in OutputCanvasRevisionCache."""
+    """Preview run identity should stay in the application registry."""
 
     source = OUTPUT_CANVAS_SOURCE.read_text(encoding="utf-8")
 
@@ -403,7 +403,7 @@ def test_output_canvas_has_no_private_scene_source_group_accessors() -> None:
 
 
 def test_output_canvas_has_no_private_revision_cache_accessor() -> None:
-    """Preview state lookup should use the preview-state adapter owner."""
+    """Preview state lookup should use the registry adapter owner."""
 
     source = OUTPUT_CANVAS_SOURCE.read_text(encoding="utf-8")
 
