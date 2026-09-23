@@ -62,21 +62,16 @@ class ModelSuggestionContext:
     """Describe the compatibility requirements of one model picker."""
 
     artifact_kind: ModelArtifactKind
-    family_id: ModelFamilyId
+    family_id: ModelFamilyId | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class ModelSuggestion:
-    """Describe one exact provider model using application-owned semantics."""
+class ModelAcquisitionOffer:
+    """Describe one provider route for an exact model artifact."""
 
     reference: ModelSuggestionReference
-    context: ModelSuggestionContext
-    model_name: str
-    version_name: str
-    creator: str | None
     file_name: str
     size_bytes: int
-    sha256: str
     download_url: str
     model_page_url: str
     thumbnail_url: str | None
@@ -85,9 +80,54 @@ class ModelSuggestion:
 
     @property
     def identity(self) -> str:
-        """Return an exact identity suitable for UI selection."""
+        """Return the stable provider-scoped offer identity."""
 
-        return f"{self.reference.identity}:{self.sha256.casefold()}"
+        return self.reference.identity
+
+
+@dataclass(frozen=True, slots=True)
+class ModelSuggestion:
+    """Describe one exact artifact and its ordered provider acquisition offers."""
+
+    context: ModelSuggestionContext
+    model_name: str
+    version_name: str
+    creator: str | None
+    sha256: str
+    offers: tuple[ModelAcquisitionOffer, ...]
+
+    def __post_init__(self) -> None:
+        """Reject suggestions without one unambiguous acquisition owner."""
+
+        if not self.offers:
+            raise ValueError("Model suggestions require at least one provider offer.")
+        provider_ids = tuple(offer.reference.provider_id for offer in self.offers)
+        if len(provider_ids) != len(set(provider_ids)):
+            raise ValueError("Model suggestion provider offers must be unique.")
+
+    @property
+    def identity(self) -> str:
+        """Return a provider-independent identity suitable for card selection."""
+
+        return f"{self.context.artifact_kind.value}:{self.sha256.casefold()}"
+
+    @property
+    def primary_offer(self) -> ModelAcquisitionOffer:
+        """Return the highest-priority provider offer."""
+
+        return self.offers[0]
+
+    def offer_for_provider(self, provider_id: str) -> ModelAcquisitionOffer | None:
+        """Return the exact offer owned by one provider when available."""
+
+        return next(
+            (
+                offer
+                for offer in self.offers
+                if offer.reference.provider_id == provider_id
+            ),
+            None,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +141,7 @@ class ModelSuggestionPlan:
 
 
 __all__ = [
+    "ModelAcquisitionOffer",
     "ModelSuggestion",
     "ModelSuggestionAccess",
     "ModelSuggestionAccessPolicy",

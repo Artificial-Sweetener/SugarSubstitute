@@ -54,6 +54,7 @@ from substitute.presentation.widgets.model_picker import (
     ModelPickerThumbnailPreloadRoute,
 )
 from substitute.presentation.model_discovery import EmptyModelPickerAction
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 
 _EDITOR_COMBO_MAX_HINT_WIDTH = 360
 
@@ -72,6 +73,7 @@ class ChoiceFieldBuildRequest:
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
     empty_model_picker_action: EmptyModelPickerAction | None = None
+    model_updates: ModelUpdatePickerBridge | None = None
     node_definition_gateway: NodeDefinitionGateway | None = None
     thumbnail_preload_route_factory: (
         Callable[[QWidget], ModelPickerThumbnailPreloadRoute] | None
@@ -102,6 +104,7 @@ class ChoiceFieldFactory:
                 thumbnail_asset_repository=request.thumbnail_asset_repository,
                 model_metadata_action_handler=request.model_metadata_action_handler,
                 empty_model_picker_action=request.empty_model_picker_action,
+                model_updates=request.model_updates,
                 thumbnail_preload_route_factory=request.thumbnail_preload_route_factory,
             )
 
@@ -122,6 +125,7 @@ class ChoiceFieldFactory:
                 thumbnail_asset_repository=request.thumbnail_asset_repository,
                 model_metadata_action_handler=request.model_metadata_action_handler,
                 empty_model_picker_action=request.empty_model_picker_action,
+                model_updates=request.model_updates,
                 thumbnail_preload_route_factory=request.thumbnail_preload_route_factory,
             )
 
@@ -167,6 +171,7 @@ def _build_prepared_model_picker(
     thumbnail_asset_repository: ThumbnailAssetRepository | None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None,
     empty_model_picker_action: EmptyModelPickerAction | None,
+    model_updates: ModelUpdatePickerBridge | None,
     thumbnail_preload_route_factory: (
         Callable[[QWidget], ModelPickerThumbnailPreloadRoute] | None
     ),
@@ -192,6 +197,7 @@ def _build_prepared_model_picker(
         current_value=str(value) if value is not None else "",
         search_placeholder=model_choice_snapshot.search_placeholder,
         metadata_action_handler=model_metadata_action_handler,
+        model_updates=model_updates,
         empty_model_action=(
             request_empty_model
             if empty_model_picker_action is not None

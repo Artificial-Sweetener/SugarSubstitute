@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Present contained CivitAI model-link validation inside onboarding."""
+"""Present contained provider model-link validation inside onboarding."""
 
 from __future__ import annotations
 
@@ -58,7 +58,10 @@ from substitute.presentation.onboarding.external_link_opener import (
 from substitute.presentation.onboarding.onboarding_model_link_rows import (
     ModelLinkReadyRow,
 )
-from substitute.presentation.resources.brand_icons import civitai_badge_icon_path
+from substitute.presentation.resources.brand_icons import (
+    civitai_badge_icon_path,
+    openmodeldb_badge_icon_path,
+)
 
 
 class ModelLinkImportOverlay(QFrame):
@@ -89,9 +92,11 @@ class ModelLinkImportOverlay(QFrame):
         panel_layout.setSpacing(12)
 
         heading = QHBoxLayout()
-        icon = IconWidget(QIcon(str(civitai_badge_icon_path())), self.panel)
-        icon.setFixedSize(30, 30)
-        heading.addWidget(icon, alignment=Qt.AlignmentFlag.AlignTop)
+        self.provider_icon = IconWidget(
+            QIcon(str(civitai_badge_icon_path())), self.panel
+        )
+        self.provider_icon.setFixedSize(30, 30)
+        heading.addWidget(self.provider_icon, alignment=Qt.AlignmentFlag.AlignTop)
         heading_text = QVBoxLayout()
         heading_text.setSpacing(4)
         self.title_label = LocalizedSubtitleLabel(
@@ -121,6 +126,19 @@ class ModelLinkImportOverlay(QFrame):
             lambda: self.browse_requested.emit(self._browse_url)
         )
         input_actions.addWidget(self.browse_button)
+        self.civitai_browse_button = LocalizedPushButton(
+            app_text("Browse CivitAI"), self.panel
+        )
+        self.civitai_browse_button.setObjectName(
+            "OnboardingCivitaiUpscalerBrowseButton"
+        )
+        self.civitai_browse_button.clicked.connect(
+            lambda: self.browse_requested.emit(
+                "https://civitai.com/models?types=Upscaler"
+            )
+        )
+        self.civitai_browse_button.hide()
+        input_actions.addWidget(self.civitai_browse_button)
         input_actions.addStretch(1)
         self.check_button = LocalizedPushButton(app_text("Check links"), self.panel)
         self.check_button.setObjectName("OnboardingModelLinkCheckButton")
@@ -182,11 +200,47 @@ class ModelLinkImportOverlay(QFrame):
         """Open over the installer and restore this family's accepted links."""
 
         self._family_id = family_id
-        self._browse_url = civitai_model_search_url(family_id)
+        upscalers = family_id is ModelFamilyId.UPSCALERS
+        self._browse_url = (
+            "https://openmodeldb.info/"
+            if upscalers
+            else civitai_model_search_url(family_id)
+        )
+        self.provider_icon.setIcon(
+            QIcon(
+                str(
+                    openmodeldb_badge_icon_path()
+                    if upscalers
+                    else civitai_badge_icon_path()
+                )
+            )
+        )
+        apply_application_text(
+            self.title_label,
+            app_text("Add upscalers by link")
+            if upscalers
+            else app_text("Add models from CivitAI"),
+        )
+        apply_application_text(
+            self.browse_button,
+            app_text("Browse OpenModelDB") if upscalers else app_text("Browse CivitAI"),
+        )
+        self.civitai_browse_button.setVisible(upscalers)
+        self.link_edit.setPlaceholderText(
+            render_application_text(
+                app_text("Paste one OpenModelDB or CivitAI model link per line")
+                if upscalers
+                else app_text("Paste one CivitAI model or version link per line")
+            )
+        )
         self._editing_existing = bool(imported_cards)
         apply_application_text(
             self.description_label,
             app_text(
+                "Browse OpenModelDB or CivitAI, then paste upscaler model links below. We'll check each file before adding it."
+            )
+            if upscalers
+            else app_text(
                 "CivitAI is a library of community-made image models. Browse it, then paste the links you want below—we'll check that they work with %1.",
                 presentation.name,
             ),
@@ -231,7 +285,9 @@ class ModelLinkImportOverlay(QFrame):
         if not results:
             apply_application_text(
                 self.status_label,
-                app_text("Paste at least one CivitAI model link."),
+                app_text("Paste at least one model link.")
+                if self._family_id is ModelFamilyId.UPSCALERS
+                else app_text("Paste at least one CivitAI model link."),
             )
         else:
             self.status_label.hide()
@@ -319,13 +375,21 @@ class ModelLinkImportOverlay(QFrame):
         if result.card is not None:
             return self._ready_row(result.card)
         if result.status is RecommendationLinkStatus.INVALID:
-            text = app_text("Invalid CivitAI model link")
+            text = (
+                app_text("Invalid OpenModelDB or CivitAI model link")
+                if self._family_id is ModelFamilyId.UPSCALERS
+                else app_text("Invalid CivitAI model link")
+            )
         elif result.status is RecommendationLinkStatus.INCOMPATIBLE:
             text = app_text("This model is not compatible with the current family")
         elif result.status is RecommendationLinkStatus.DUPLICATE:
             text = app_text("This model is already in your list")
         else:
-            text = app_text("CivitAI could not check this link right now")
+            text = (
+                app_text("Could not check this model link right now")
+                if self._family_id is ModelFamilyId.UPSCALERS
+                else app_text("CivitAI could not check this link right now")
+            )
         label = LocalizedCaptionLabel(text, self.result_host)
         label.setWordWrap(True)
         return label

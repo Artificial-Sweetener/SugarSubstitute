@@ -82,6 +82,8 @@ def suggestion_context(
         artifact_kind = ModelArtifactKind(model_kind)
     except ValueError:
         return None
+    if artifact_kind is ModelArtifactKind.UPSCALE_MODELS:
+        return ModelSuggestionContext(artifact_kind)
     family = SUPPORTED_MODEL_FAMILIES.for_target_model(target_model)
     if family is None or family.primary_artifact_kind is not artifact_kind:
         return None

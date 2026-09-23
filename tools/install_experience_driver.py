@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import RadioButton  # type: ignore[import-untyped]
 
 from substitute.domain.model_recommendations import ModelFamilyId
+from substitute.domain.model_recommendations import SUPPORTED_MODEL_FAMILIES
 from substitute.presentation.onboarding import OnboardingWindow
 from substitute.presentation.onboarding.onboarding_models import OnboardingTargetMode
 from tools.install_experience_scenarios import (
@@ -211,9 +212,9 @@ def _drive_onboarding_scenario(
         _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
         _click(window, "OnboardingNoExistingModelsButton")
     missing_families = tuple(
-        family
-        for family in (ModelFamilyId.SDXL, ModelFamilyId.ANIMA)
-        if family not in frozenset(scenario.detected_families)
+        definition.family_id
+        for definition in SUPPORTED_MODEL_FAMILIES.families()
+        if definition.family_id not in frozenset(scenario.detected_families)
     )
     if scenario.target != "remote" and missing_families:
         _drive_model_recommendations(
@@ -459,9 +460,12 @@ def _assert_recommendation_page(
         for checkbox in card.findChildren(QCheckBox)
         if checkbox.objectName().startswith("OnboardingRecommendationSelect_")
     ]
-    if len(selectable) != 8 or any(card.isChecked() for card in selectable):
+    expected_checked = family is ModelFamilyId.UPSCALERS
+    if len(selectable) != 8 or any(
+        card.isChecked() != expected_checked for card in selectable
+    ):
         raise RuntimeError(
-            f"{family} recommendation cards are not eight unchecked choices."
+            f"{family} recommendation cards do not match their default selection."
         )
     portraits = [
         portrait
@@ -489,7 +493,10 @@ def _assert_recommendation_page(
         card_center = card.mapToGlobal(card.rect().center()).x()
         portrait_center = portrait.mapToGlobal(portrait.rect().center()).x()
         if abs(card_center - portrait_center) > 1:
-            raise RuntimeError(f"{family} recommendation thumbnail is not centered.")
+            raise RuntimeError(
+                f"{family} recommendation thumbnail is not centered: "
+                f"card={card_center}, portrait={portrait_center}."
+            )
     left = min(card.geometry().left() for card in card_widgets)
     right = max(card.geometry().right() for card in card_widgets)
     grid_center = (left + right) // 2

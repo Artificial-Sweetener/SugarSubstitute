@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from substitute.app.bootstrap.lazy_civitai_client import LazyCivitaiClient
 from substitute.application.civitai import (
     CivitaiCredentialService,
     CivitaiPreferenceService,
@@ -38,7 +39,14 @@ from substitute.infrastructure.model_recommendations.cached_thumbnail_fetcher im
     RecommendationThumbnailAssetStore,
     RecommendationThumbnailPreparer,
 )
-from substitute.infrastructure.model_suggestions import CivitaiModelSuggestionProvider
+from substitute.infrastructure.model_suggestions import (
+    CachedOpenModelDbThumbnailFetcher,
+    CivitaiModelSuggestionProvider,
+    OpenModelDbCatalogClient,
+    OpenModelDbSuggestionProvider,
+    OpenModelDbThumbnailFetcher,
+    require_openmodeldb_download_url,
+)
 from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
 from sugarsubstitute_shared.model_discovery import ModelArtifactDestinationPolicy
 
@@ -50,6 +58,7 @@ def compose_model_suggestion_service(
     preferences: CivitaiPreferenceService,
     thumbnails: RecommendationThumbnailPreparer,
     thumbnail_assets: RecommendationThumbnailAssetStore,
+    openmodeldb_catalog: OpenModelDbCatalogClient,
 ) -> ModelSuggestionService | None:
     """Build discovery only where acquired artifacts have a managed destination."""
 
@@ -58,13 +67,15 @@ def compose_model_suggestion_service(
     acquisition = ModelAcquisitionService(
         allowed_roots=(model_root,),
         api_key_provider=credentials.load_api_key,
+        allowed_extensions=(".safetensors", ".pth", ".pt"),
     )
-    provider = CivitaiModelSuggestionProvider(
+    civitai_policy = CivitaiThumbnailPolicy(
+        preferences.load_preferences().thumbnail_safety_policy
+    )
+    civitai_provider = CivitaiModelSuggestionProvider(
         recommendations=CivitaiFamilyRecommendationGateway(
             api_key_provider=credentials.load_api_key,
-            thumbnail_policy_provider=lambda: CivitaiThumbnailPolicy(
-                preferences.load_preferences().thumbnail_safety_policy
-            ),
+            thumbnail_policy_provider=lambda: civitai_policy,
         ),
         thumbnails=CachedRecommendationThumbnailFetcher(
             fetcher=CivitaiThumbnailFetcher(),
@@ -72,10 +83,26 @@ def compose_model_suggestion_service(
             asset_store=thumbnail_assets,
         ),
         acquisition=acquisition,
+        upscaler_catalog=openmodeldb_catalog,
+        metadata=LazyCivitaiClient(api_key_provider=credentials.load_api_key),
+        thumbnail_policy=civitai_policy,
+    )
+    openmodeldb_provider = OpenModelDbSuggestionProvider(
+        catalog=openmodeldb_catalog,
+        thumbnails=CachedOpenModelDbThumbnailFetcher(
+            fetcher=OpenModelDbThumbnailFetcher(),
+            preparer=thumbnails,
+            asset_store=thumbnail_assets,
+        ),
+        acquisition=ModelAcquisitionService(
+            allowed_roots=(model_root,),
+            download_url_validator=require_openmodeldb_download_url,
+            allowed_extensions=(".safetensors", ".pth"),
+        ),
     )
     return ModelSuggestionService(
         destinations=ModelArtifactDestinationPolicy(model_root),
-        engine=ModelSuggestionEngine((provider,)),
+        engine=ModelSuggestionEngine((openmodeldb_provider, civitai_provider)),
     )
 
 

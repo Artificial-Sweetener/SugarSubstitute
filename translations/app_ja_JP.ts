@@ -105,9 +105,9 @@ Prompt preview:
       <translation>%1（バイパス）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="93"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="109"></location>
       <source>%1 API key required</source>
-      <translation>%1 APIキーが必要です</translation>
+      <translation>%1 の API キーが必要です</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
@@ -165,6 +165,11 @@ Prompt preview:
       <translation>%1 には、キューブライブラリにまだコミットされていない変更があります。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="307"></location>
+      <source>%1 downloaded beside your current file.</source>
+      <translation>%1 を現在のファイルと同じフォルダーにダウンロードしました。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1675"></location>
       <source>%1 extension claimants | %2 | summary: %3</source>
       <translation>%1 件の拡張機能から要求 | %2 | 概要の出典：%3</translation>
@@ -200,22 +205,17 @@ Prompt preview:
       <translation>メタデータ %1 件、画像プレビュー %2 件、%3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="89"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="59"></location>
       <source>%1 model recommendation</source>
       <translation>モデル候補 %1 件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="224"></location>
-      <source>%1 model update(s) downloaded beside your current files.</source>
-      <translation>%1 件のモデル更新を現在のファイルと並べてダウンロードしました。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="307"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="313"></location>
       <source>%1 models added</source>
       <translation>%1 個のモデルを追加済み</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="89"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="88"></location>
       <source>%1 of %2</source>
       <translation>%1 / %2</translation>
     </message>
@@ -253,6 +253,11 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="928"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>Substitute を開く前に、保存済みのセットアップ項目 %1 件を修復する必要があります。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="95"></location>
+      <source>%1 selected models need a CivitAI API key</source>
+      <translation>選択した%1件のモデルにはCivitAI APIキーが必要です</translation>
     </message>
     <message>
       <location filename="../substitute/application/managed_text_assets/wildcard_adapter.py" line="185"></location>
@@ -295,19 +300,19 @@ Prompt preview:
       <translation>%1 · %2 · 更新あり</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="79"></location>
-      <source>%1 · by %2 · %3 GiB</source>
-      <translation>%1 · %2 作 · %3 GiB</translation>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="333"></location>
+      <source>%1 · %2 · oldest to newest</source>
+      <translation>%1 · %2 · 古い順</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="93"></location>
+      <source>%1 · by %2 · %3 GiB · %4</source>
+      <translation>%1 · %2作 · %3 GiB · %4</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="812"></location>
       <source>%1 • %2</source>
       <translation>%1 • %2</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="174"></location>
-      <source>%1 → %2 · %3 · %4</source>
-      <translation>%1 → %2 · %3 · %4</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="350"></location>
@@ -318,6 +323,11 @@ Prompt preview:
       <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="85"></location>
+      <source>%1, version %2</source>
+      <translation>%1、バージョン %2</translation>
     </message>
     <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="69"></location>
@@ -384,7 +394,7 @@ This is taking much longer than expected</source>
       <translation>インストール済みパッケージ 1 個</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="305"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="311"></location>
       <source>1 model added</source>
       <translation>1 個のモデルを追加済み</translation>
     </message>
@@ -529,12 +539,17 @@ This is taking much longer than expected</source>
       <translation>追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="385"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="335"></location>
+      <source>Add %1 key</source>
+      <translation>%1 のキーを追加</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="449"></location>
       <source>Add %1 models</source>
       <translation>%1 個のモデルを追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="383"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="447"></location>
       <source>Add 1 model</source>
       <translation>1 個のモデルを追加</translation>
     </message>
@@ -569,12 +584,12 @@ This is taking much longer than expected</source>
       <translation>カスタムタグを追加し、不要なタグ候補を非表示にします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="166"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="184"></location>
       <source>Add models</source>
       <translation>モデルを追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="98"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="103"></location>
       <source>Add models from CivitAI</source>
       <translation>CivitAI からモデルを追加</translation>
     </message>
@@ -584,14 +599,14 @@ This is taking much longer than expected</source>
       <translation>辞書に追加</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="220"></location>
+      <source>Add upscalers by link</source>
+      <translation>リンクからアップスケーラーを追加</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="126"></location>
       <source>Add your CivitAI API key.</source>
       <translation>CivitAI APIキーを追加してください。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="63"></location>
-      <source>Add your key to download this model. The key is stored securely and can be changed later in Settings.</source>
-      <translation>このモデルをダウンロードするにはキーを追加してください。キーは安全に保存され、後で設定から変更できます。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1208"></location>
@@ -814,7 +829,7 @@ This is taking much longer than expected</source>
       <translation>Base-Cubes の同期に失敗しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="677"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="738"></location>
       <source>Batch %1</source>
       <translation>バッチ %1</translation>
     </message>
@@ -849,7 +864,7 @@ This is taking much longer than expected</source>
       <translation>参照</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="118"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="123"></location>
       <source>Browse CivitAI</source>
       <translation>CivitAI を見る</translation>
     </message>
@@ -857,6 +872,16 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/thumbnail_picker_base.py" line="78"></location>
       <source>Browse Files</source>
       <translation>ファイルを参照</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="226"></location>
+      <source>Browse OpenModelDB</source>
+      <translation>OpenModelDBを閲覧</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="239"></location>
+      <source>Browse OpenModelDB or CivitAI, then paste upscaler model links below. We'll check each file before adding it.</source>
+      <translation>OpenModelDBまたはCivitAIを閲覧し、アップスケーラーモデルのリンクを下に貼り付けてください。追加前に各ファイルを確認します。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="331"></location>
@@ -939,7 +964,7 @@ This is taking much longer than expected</source>
       <translation>キャンセル済み - 保存された出力はありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="84"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="83"></location>
       <source>Cancelling download...</source>
       <translation>ダウンロードをキャンセルしています...</translation>
     </message>
@@ -984,7 +1009,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI を確認</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="125"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="143"></location>
       <source>Check links</source>
       <translation>リンクを確認</translation>
     </message>
@@ -1049,7 +1074,7 @@ This is taking much longer than expected</source>
       <translation>実行中の ComfyUI を確認しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="217"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
       <source>Checking model links…</source>
       <translation>モデルリンクを確認中…</translation>
     </message>
@@ -1139,22 +1164,12 @@ This is taking much longer than expected</source>
       <translation>フォルダーを選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="243"></location>
-      <source>Choose a model to download and use in this picker.</source>
-      <translation>このピッカーでダウンロードして使用するモデルを選択してください。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="80"></location>
-      <source>Choose a model to download, explore CivitAI, or bring your own.</source>
-      <translation>ダウンロードするモデルを選ぶか、CivitAI を探すか、自分のモデルを使います。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="516"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="523"></location>
       <source>Choose a models folder before reviewing downloads.</source>
       <translation>ダウンロードを確認する前にモデルフォルダーを選んでください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="153"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="145"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>入力キャンバスとマスクの新しいサイズを選択</translation>
     </message>
@@ -1199,7 +1214,7 @@ This is taking much longer than expected</source>
       <translation>色を選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="216"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="275"></location>
       <source>Choose detector thumbnail</source>
       <translation>検出器のサムネイルを選択</translation>
     </message>
@@ -1219,7 +1234,7 @@ This is taking much longer than expected</source>
       <translation>フォルダーを選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="284"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="295"></location>
       <source>Choose from CivitAI</source>
       <translation>CivitAI から選ぶ</translation>
     </message>
@@ -1264,9 +1279,14 @@ This is taking much longer than expected</source>
       <translation>検索方法を選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="79"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="80"></location>
       <source>Choose models</source>
       <translation>モデルを選択</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="81"></location>
+      <source>Choose models to download, explore the provider catalog, or bring your own.</source>
+      <translation>ダウンロードするモデルを選ぶか、プロバイダーのカタログを参照するか、自分のモデルを使用します。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="108"></location>
@@ -1454,7 +1474,7 @@ This is taking much longer than expected</source>
       <translation>CivitAI キャッシュ使用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="328"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="391"></location>
       <source>CivitAI could not check this link right now</source>
       <translation>現在、このリンクを CivitAI で確認できません</translation>
     </message>
@@ -1464,17 +1484,12 @@ This is taking much longer than expected</source>
       <translation>CivitAI で一致する項目が見つからなかったため、既存のメタデータを保持しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="117"></location>
-      <source>CivitAI did not return enough safe previews. You can still browse CivitAI or bring your own model.</source>
-      <translation>CivitAI から安全なプレビューを十分取得できませんでした。CivitAI を参照するか、自分のモデルを使用できます。</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/civitai/preference_service.py" line="185"></location>
       <source>CivitAI download organization settings saved.</source>
       <translation>CivitAI のダウンロード整理設定を保存しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="189"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="243"></location>
       <source>CivitAI is a library of community-made image models. Browse it, then paste the links you want below—we'll check that they work with %1.</source>
       <translation>CivitAI はコミュニティ製の画像モデルを集めたライブラリです。閲覧してリンクを下に貼り付けると、%1 で使えるか確認します。</translation>
     </message>
@@ -1502,16 +1517,6 @@ This is taking much longer than expected</source>
       <location filename="../substitute/application/model_metadata/manual_refresh_service.py" line="370"></location>
       <source>CivitAI metadata refreshed.</source>
       <translation>CivitAI メタデータを更新しました。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="345"></location>
-      <source>CivitAI recommendations could not be loaded. Try again or go back.</source>
-      <translation>CivitAIのおすすめを読み込めませんでした。再試行するか、前に戻ってください。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="312"></location>
-      <source>CivitAI returned no usable recommendations.</source>
-      <translation>CivitAIから利用可能なおすすめが返されませんでした。</translation>
     </message>
     <message>
       <location filename="../substitute/application/model_metadata/manual_refresh_service.py" line="277"></location>
@@ -2219,6 +2224,11 @@ This is taking much longer than expected</source>
       <translation>%1 を追加できませんでした。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="389"></location>
+      <source>Could not check this model link right now</source>
+      <translation>現在、このモデルのリンクを確認できません</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="621"></location>
       <source>Could not install required Cube Library nodes.</source>
       <translation>キューブライブラリに必要なノードをインストールできませんでした。</translation>
@@ -2254,7 +2264,7 @@ This is taking much longer than expected</source>
       <translation>現在のターゲットで %1 を検証できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="294"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="325"></location>
       <source>Credentials are unavailable for %1.</source>
       <translation>%1 の認証情報を利用できません。</translation>
     </message>
@@ -2422,7 +2432,12 @@ Install these nodes now?</source>
 これらのノードを今すぐインストールしますか？</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="446"></location>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="62"></location>
+      <source>Curated restoration and enlargement models from OpenModelDB.</source>
+      <translation>OpenModelDB から厳選した修復・拡大モデルです。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="507"></location>
       <source>Current image</source>
       <translation>現在の画像</translation>
     </message>
@@ -2587,7 +2602,7 @@ Install these nodes now?</source>
       <translation>診断ログ</translation>
     </message>
     <message>
-      <location filename="../substitute/application/model_metadata/prompt_preset_scope_resolver.py" line="139"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="430"></location>
       <source>Diffusion model</source>
       <translation>拡散モデル</translation>
     </message>
@@ -2617,6 +2632,11 @@ Install these nodes now?</source>
       <translation>変更を破棄</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="39"></location>
+      <source>Dismiss</source>
+      <translation>非表示にする</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="38"></location>
       <source>Do you have an existing models folder?</source>
       <translation>既存のモデルフォルダーがありますか？</translation>
@@ -2625,6 +2645,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="75"></location>
       <source>Don't Save</source>
       <translation>保存しない</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="44"></location>
+      <source>Don't check for updates for %1</source>
+      <translation>%1 の更新を確認しない</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
@@ -2647,14 +2672,34 @@ Install these nodes now?</source>
       <translation>CivitAI サムネイルをダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="340"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="40"></location>
+      <source>Download a model?</source>
+      <translation>モデルをダウンロードしますか？</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="36"></location>
+      <source>Download an image model?</source>
+      <translation>画像生成モデルをダウンロードしますか？</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="28"></location>
+      <source>Download an upscaler model?</source>
+      <translation>画像拡大モデルをダウンロードしますか？</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="271"></location>
       <source>Download and use</source>
       <translation>ダウンロードして使用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="86"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="85"></location>
       <source>Download failed.</source>
       <translation>ダウンロードに失敗しました。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="157"></location>
+      <source>Download from %1</source>
+      <translation>%1 からダウンロード</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="238"></location>
@@ -2672,9 +2717,9 @@ Install these nodes now?</source>
       <translation>モデルピッカーのサムネイル用にプロバイダー画像をダウンロードします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="135"></location>
-      <source>Download selected</source>
-      <translation>選択項目をダウンロード</translation>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="390"></location>
+      <source>Download version</source>
+      <translation>バージョンをダウンロード</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="211"></location>
@@ -2692,7 +2737,7 @@ Install these nodes now?</source>
       <translation>%1をダウンロード中 — %3 MiB中%2 MiB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="283"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="210"></location>
       <source>Downloading and verifying %1…</source>
       <translation>%1 をダウンロードして検証しています…</translation>
     </message>
@@ -2740,6 +2785,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="155"></location>
       <source>Duplicate segment warnings</source>
       <translation>重複部分の警告</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="61"></location>
+      <source>ESRGAN upscalers</source>
+      <translation>ESRGAN アップスケーラー</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="69"></location>
@@ -2792,7 +2842,7 @@ Install these nodes now?</source>
       <translation>先頭を強調</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="434"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="440"></location>
       <source>Enable</source>
       <translation>有効にする</translation>
     </message>
@@ -2892,7 +2942,7 @@ Install these nodes now?</source>
       <translation>キュー内のワークフローを Comfy に送信する前に、プロンプトのワイルドカードを展開します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="329"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="254"></location>
       <source>Explore more</source>
       <translation>さらに探す</translation>
     </message>
@@ -2902,7 +2952,7 @@ Install these nodes now?</source>
       <translation>ComfyUI ワークフローとしてエクスポート...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="778"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="776"></location>
       <source>Export workflow failed</source>
       <translation>ワークフローをエクスポートできませんでした</translation>
     </message>
@@ -2953,7 +3003,7 @@ Install these nodes now?</source>
       <translation>生成リスナーセッションに接続できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="779"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="777"></location>
       <source>Failed to export workflow: %1</source>
       <translation>ワークフローをエクスポートできませんでした：%1</translation>
     </message>
@@ -2973,7 +3023,7 @@ Install these nodes now?</source>
       <translation>生成画像を読み込めませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1365"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1363"></location>
       <source>Failed to load recipe: %1</source>
       <translation>レシピを読み込めませんでした：%1</translation>
     </message>
@@ -3040,12 +3090,7 @@ Install these nodes now?</source>
       <translation>ComfyUI の環境を探す</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="305"></location>
-      <source>Find a model</source>
-      <translation>モデルを探す</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="189"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="164"></location>
       <source>Find models</source>
       <translation>モデルを探す</translation>
     </message>
@@ -3055,7 +3100,7 @@ Install these nodes now?</source>
       <translation>Python を探しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="210"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="111"></location>
       <source>Finding compatible models…</source>
       <translation>互換性のあるモデルを検索しています…</translation>
     </message>
@@ -3275,6 +3320,11 @@ Install these nodes now?</source>
       <translation>「現在の ComfyUI を使用」に戻ってください。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="236"></location>
+      <source>Go to %1 page</source>
+      <translation>%1 のページへ移動</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/civitai_page_action.py" line="33"></location>
       <source>Go to CivitAI page</source>
       <translation>CivitAI ページを開く</translation>
@@ -3440,9 +3490,14 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="633"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="694"></location>
       <source>Image %1</source>
       <translation>画像 %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="37"></location>
+      <source>Image models create new images from your prompts.</source>
+      <translation>画像生成モデルは、入力した指示から新しい画像を作ります。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/load_image.py" line="70"></location>
@@ -3453,6 +3508,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="82"></location>
       <source>Impact: %1</source>
       <translation>影響：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="101"></location>
+      <source>In use</source>
+      <translation>使用中</translation>
     </message>
     <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="63"></location>
@@ -3565,9 +3625,14 @@ Install these nodes now?</source>
       <translation>操作</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="322"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="381"></location>
       <source>Invalid CivitAI model link</source>
       <translation>無効な CivitAI モデルリンク</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="379"></location>
+      <source>Invalid OpenModelDB or CivitAI model link</source>
+      <translation>OpenModelDBまたはCivitAIのモデルリンクが無効です</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="184"></location>
@@ -3790,7 +3855,7 @@ Install these nodes now?</source>
       <translation>読み込みエラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1364"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1362"></location>
       <source>Load recipe failed</source>
       <translation>レシピを読み込めませんでした</translation>
     </message>
@@ -3840,12 +3905,17 @@ Install these nodes now?</source>
       <translation>定義を読み込んでいます</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_portrait.py" line="94"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="187"></location>
+      <source>Loading model versions…</source>
+      <translation>モデルのバージョンを読み込み中…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_portrait.py" line="95"></location>
       <source>Loading preview…</source>
       <translation>プレビューを読み込んでいます…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="299"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="301"></location>
       <source>Loading recommendations…</source>
       <translation>おすすめを読み込んでいます…</translation>
     </message>
@@ -4090,17 +4160,17 @@ Install these nodes now?</source>
       <translation>モデルソース</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="388"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="510"></location>
       <source>Model discovery failed: %1</source>
       <translation>モデルの検索に失敗しました: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="208"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="231"></location>
       <source>Model discovery returned invalid results.</source>
       <translation>モデル検索から無効な結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="280"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="307"></location>
       <source>Model download failed</source>
       <translation>モデルのダウンロードに失敗しました</translation>
     </message>
@@ -4110,7 +4180,7 @@ Install these nodes now?</source>
       <translation>モデルのダウンロード進行状況</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="340"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="462"></location>
       <source>Model download returned invalid results.</source>
       <translation>モデルのダウンロードから無効な結果が返されました。</translation>
     </message>
@@ -4120,12 +4190,12 @@ Install these nodes now?</source>
       <translation>モデルをダウンロードできません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="158"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="166"></location>
       <source>Model downloads are unavailable for this ComfyUI target. You can still add files to its model folders manually.</source>
       <translation>この ComfyUI 接続先ではモデルをダウンロードできません。モデルフォルダーへ手動で追加することはできます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="218"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="339"></location>
       <source>Model downloads returned invalid results.</source>
       <translation>モデルのダウンロードから無効な結果が返されました。</translation>
     </message>
@@ -4150,29 +4220,29 @@ Install these nodes now?</source>
       <translation>モデルフォルダーのパターン</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="292"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="294"></location>
       <source>Model recommendations are unavailable in this setup run.</source>
       <translation>このセットアップではモデルのおすすめを利用できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="250"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="347"></location>
+      <source>Model recommendations could not be loaded. Try again or go back.</source>
+      <translation>モデルのおすすめを読み込めませんでした。もう一度試すか、前に戻ってください。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="461"></location>
       <source>Model update operation failed: %1</source>
       <translation>モデル更新処理に失敗しました: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="161"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="185"></location>
       <source>Model update results were invalid.</source>
       <translation>モデル更新の結果が無効でした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="74"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="468"></location>
       <source>Model updates</source>
       <translation>モデルの更新</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="177"></location>
-      <source>Model updates are available, but this ComfyUI target has no local download destination.</source>
-      <translation>モデルの更新がありますが、この ComfyUI 接続先にはローカルのダウンロード先がありません。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="328"></location>
@@ -4183,6 +4253,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_download_summary.py" line="53"></location>
       <source>Models</source>
       <translation>モデル</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="41"></location>
+      <source>Models add new ways to create and edit images.</source>
+      <translation>モデルを追加すると、画像の作成や編集の方法が広がります。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_folder_setup_page.py" line="90"></location>
@@ -4280,11 +4355,6 @@ Install these nodes now?</source>
       <translation>新規カスタムリスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="191"></location>
-      <source>New file destination: %1</source>
-      <translation>新しいファイルの保存先: %1</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="197"></location>
       <source>New size</source>
       <translation>新しいサイズ</translation>
@@ -4335,14 +4405,19 @@ Install these nodes now?</source>
       <translation>予定されている変更はありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="245"></location>
-      <source>No compatible model suggestions are available right now.</source>
-      <translation>現在、互換性のあるモデル候補はありません。</translation>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="158"></location>
+      <source>No compatible models are available right now.</source>
+      <translation>現在、対応するモデルはありません。</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/security/keyring_civitai_credential_store.py" line="182"></location>
       <source>No compatible operating-system credential store is available.</source>
       <translation>対応しているオペレーティングシステムの認証情報ストアがありません。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="242"></location>
+      <source>No compatible versions are available.</source>
+      <translation>互換性のあるバージョンはありません。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1110"></location>
@@ -4405,6 +4480,11 @@ Install these nodes now?</source>
       <translation>モデルのダウンロードは選択されていません。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="154"></location>
+      <source>No models that can be downloaded without a key are available right now.</source>
+      <translation>現在、キーなしでダウンロードできるモデルはありません。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/error_report_builder.py" line="215"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>ノード固有の検証エラーは報告されませんでした。</translation>
@@ -4450,7 +4530,7 @@ Install these nodes now?</source>
       <translation>スペルの候補はありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="197"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="201"></location>
       <source>No thanks,
 I’ll bring my own</source>
       <translation>結構です。
@@ -4527,7 +4607,7 @@ I’ll bring my own</source>
       <translation>未読み込み</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="336"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="267"></location>
       <source>Not now</source>
       <translation>後で</translation>
     </message>
@@ -4582,6 +4662,11 @@ I’ll bring my own</source>
       <translation>Pixiv では：</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="134"></location>
+      <source>On disk</source>
+      <translation>ディスク上</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="94"></location>
       <source>Opacity</source>
       <translation>不透明度</translation>
@@ -4605,6 +4690,11 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="212"></location>
       <source>Open CivitAI Settings</source>
       <translation>CivitAI 設定を開く</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="115"></location>
+      <source>Open CivitAI account settings</source>
+      <translation>CivitAI のアカウント設定を開く</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/features/lora_context_menu.py" line="104"></location>
@@ -4782,7 +4872,7 @@ I’ll bring my own</source>
       <translation>貼り付け</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="71"></location>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="125"></location>
       <source>Paste CivitAI API key</source>
       <translation>CivitAI API キーを貼り付け</translation>
     </message>
@@ -4802,24 +4892,34 @@ I’ll bring my own</source>
       <translation>https://github.com/owner/repository のような URL を貼り付けてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="285"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="296"></location>
       <source>Paste and preview model links.</source>
       <translation>モデルリンクを貼り付けてプレビューします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="234"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="290"></location>
       <source>Paste at least one CivitAI model link.</source>
       <translation>CivitAI モデルのリンクを 1 つ以上貼り付けてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="150"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="288"></location>
+      <source>Paste at least one model link.</source>
+      <translation>モデルのリンクを1つ以上貼り付けてください。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="168"></location>
       <source>Paste links above to preview compatible models.</source>
       <translation>互換性のあるモデルをプレビューするには、上にリンクを貼り付けてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="112"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="117"></location>
       <source>Paste one CivitAI model or version link per line</source>
       <translation>CivitAI のモデルまたはバージョンのリンクを 1 行に 1 つ貼り付け</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="231"></location>
+      <source>Paste one OpenModelDB or CivitAI model link per line</source>
+      <translation>OpenModelDBまたはCivitAIのモデルリンクを1行に1つずつ貼り付けてください</translation>
     </message>
     <message>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="55"></location>
@@ -4907,7 +5007,7 @@ I’ll bring my own</source>
       <translation>しばらくお待ちください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="268"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="274"></location>
       <source>Popular %1 models</source>
       <translation>人気の%1モデル</translation>
     </message>
@@ -5072,7 +5172,7 @@ I’ll bring my own</source>
       <translation>プレビューの種類</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="296"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="74"></location>
       <source>Preview unavailable</source>
       <translation>プレビューを利用できません</translation>
     </message>
@@ -5282,6 +5382,11 @@ I’ll bring my own</source>
       <translation>理由：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="272"></location>
+      <source>Recommended upscalers</source>
+      <translation>おすすめのアップスケーラー</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_navigation_presentation.py" line="45"></location>
       <source>Reconfigure</source>
       <translation>再設定</translation>
@@ -5337,7 +5442,7 @@ I’ll bring my own</source>
       <translation>更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="256"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="315"></location>
       <source>Refresh CivitAI metadata</source>
       <translation>CivitAI メタデータを更新</translation>
     </message>
@@ -5721,9 +5826,14 @@ No known extension claimant.</source>
       <translation>モデルのダウンロードを確認</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="309"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="317"></location>
       <source>Review or add more CivitAI links.</source>
       <translation>CivitAI リンクを確認または追加します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="315"></location>
+      <source>Review or add more model links.</source>
+      <translation>モデルリンクを確認または追加します。</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="125"></location>
@@ -5916,7 +6026,7 @@ No known extension claimant.</source>
       <translation>Sugar Script に名前を付けて保存...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="78"></location>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="141"></location>
       <source>Save and continue</source>
       <translation>保存して続行</translation>
     </message>
@@ -6031,17 +6141,17 @@ No known extension claimant.</source>
       <translation>ComfyUI のモデルと素材をスキャンしています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="214"></location>
-      <source>Scanning for SDXL and Anima…</source>
-      <translation>SDXLとAnimaをスキャンしています…</translation>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="215"></location>
+      <source>Scanning for generation models and upscalers…</source>
+      <translation>生成モデルとアップスケーラーをスキャン中…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="215"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="217"></location>
       <source>Scanning…</source>
       <translation>スキャンしています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="516"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="577"></location>
       <source>Scene</source>
       <translation>シーン</translation>
     </message>
@@ -6146,7 +6256,7 @@ No known extension claimant.</source>
       <translation>すべて選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="257"></location>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="264"></location>
       <source>Select model</source>
       <translation>モデルを選択</translation>
     </message>
@@ -6171,7 +6281,7 @@ No known extension claimant.</source>
       <translation>サーバーエンドポイント</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="317"></location>
+      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="320"></location>
       <source>Set Global Override</source>
       <translation>グローバルオーバーライドを設定</translation>
     </message>
@@ -6191,7 +6301,7 @@ No known extension claimant.</source>
       <translation>幅を基準に縦横比を設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="55"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="58"></location>
       <source>Set thumbnail from canvas</source>
       <translation>キャンバスの画像をサムネイルに設定</translation>
     </message>
@@ -6336,6 +6446,11 @@ No known extension claimant.</source>
       <translation>詳細入力を表示</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="260"></location>
+      <source>Show all models</source>
+      <translation>すべてのモデルを表示</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_expander_surfaces.py" line="339"></location>
       <source>Show all settings</source>
       <translation>すべての設定を表示</translation>
@@ -6359,6 +6474,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1246"></location>
       <source>Show images in wiki viewer</source>
       <translation>Wiki ビューアーに画像を表示</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="128"></location>
+      <source>Show models that don't require a key</source>
+      <translation>キーが不要なモデルを表示</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
@@ -6421,6 +6541,13 @@ No known extension claimant.</source>
       <translation>クリーンアップが完了する前に、終了処理がタイムアウトしました。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="105"></location>
+      <source>Sign in to CivitAI or create an account.
+Then create an API key in Account Settings and paste it here.</source>
+      <translation>CivitAIにサインインするか、アカウントを作成してください。
+アカウント設定でAPIキーを作成し、ここに貼り付けてください。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="83"></location>
       <source>Size</source>
       <translation>サイズ</translation>
@@ -6454,6 +6581,11 @@ No known extension claimant.</source>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="84"></location>
       <source>Some built-in or API nodes may be unavailable in ComfyUI.</source>
       <translation>ComfyUI の一部の組み込みノードまたは API ノードを利用できない可能性があります。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="118"></location>
+      <source>Some previews are unavailable. You can still browse the provider catalog or bring your own model.</source>
+      <translation>一部のプレビューを利用できません。プロバイダーのカタログを参照するか、自分のモデルを使用できます。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="114"></location>
@@ -6716,7 +6848,7 @@ No known extension claimant.</source>
       <translation>シャットダウンが完了したことを確認できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="285"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="312"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute は、このワークフローに必要なすべてのモデルをダウンロードして検証できませんでした。</translation>
     </message>
@@ -6751,7 +6883,7 @@ No known extension claimant.</source>
       <translation>このローカル ComfyUI の準備を完了できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="289"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="316"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute はこの ComfyUI ワークフロードキュメントを読み取れませんでした。</translation>
     </message>
@@ -6971,7 +7103,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2771"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2790"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -7367,7 +7499,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI 用のデスクトップネイティブ Qt フロントエンド</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="350"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="472"></location>
       <source>The downloaded model has an invalid destination.</source>
       <translation>ダウンロードしたモデルの保存先が無効です。</translation>
     </message>
@@ -7437,22 +7569,22 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>モデルのダウンロードに失敗しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="191"></location>
-      <source>The model download service is unavailable for this target.</source>
-      <translation>この接続先ではモデルダウンロードサービスを利用できません。</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/shell/model_download_progress.py" line="38"></location>
       <source>The model has finished downloading.</source>
       <translation>モデルのダウンロードが完了しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="258"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="314"></location>
+      <source>The model providers returned no usable recommendations.</source>
+      <translation>モデルプロバイダーから利用可能なおすすめを取得できませんでした。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="260"></location>
       <source>The models folder could not be fully scanned. Try again or choose No.</source>
       <translation>モデルフォルダーを最後までスキャンできませんでした。再試行するか「いいえ」を選んでください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="338"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="340"></location>
       <source>The models folder could not be scanned. Try again or choose No.</source>
       <translation>モデルフォルダーをスキャンできませんでした。再試行するか「いいえ」を選んでください。</translation>
     </message>
@@ -7557,7 +7689,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>選択したモデルのフィンガープリントを取得できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="280"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="385"></location>
       <source>The selected model is no longer available.</source>
       <translation>選択したモデルは利用できなくなりました。</translation>
     </message>
@@ -7642,11 +7774,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>これらの変更は再起動後に適用されます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="307"></location>
-      <source>These popular models are compatible with this picker. Nothing downloads until you choose one.</source>
-      <translation>これらはこのピッカーと互換性のある人気モデルです。選択するまで何もダウンロードされません。</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="119"></location>
       <source>This CivitAI model needs an API key</source>
       <translation>このCivitAIモデルにはAPIキーが必要です</translation>
@@ -7677,18 +7804,18 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>その ComfyUI アドレスで使用するポート番号です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="326"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="386"></location>
       <source>This model is already in your list</source>
       <translation>このモデルはすでにリストにあります</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="324"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="384"></location>
       <source>This model is not compatible with the current family</source>
       <translation>このモデルは現在のファミリーと互換性がありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="59"></location>
-      <source>This model requires a CivitAI API key</source>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="93"></location>
+      <source>This model needs a CivitAI API key</source>
       <translation>このモデルにはCivitAI APIキーが必要です</translation>
     </message>
     <message>
@@ -7787,7 +7914,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>別の検索語をお試しください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="371"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="373"></location>
       <source>Try again</source>
       <translation>再試行</translation>
     </message>
@@ -7892,19 +8019,9 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>不明</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="181"></location>
-      <source>Unknown base model</source>
-      <translation>不明なベースモデル</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cubes/cube_picker_models.py" line="546"></location>
       <source>Unknown source</source>
       <translation>不明なソース</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="178"></location>
-      <source>Unknown version</source>
-      <translation>不明なバージョン</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="58"></location>
@@ -7952,6 +8069,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>更新あり</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_update_button.py" line="69"></location>
+      <source>Update available — view versions</source>
+      <translation>更新があります — バージョンを表示</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/update_rollback_notice.py" line="88"></location>
       <source>Update failed</source>
       <translation>アップデートに失敗しました</translation>
@@ -7985,16 +8107,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="224"></location>
       <source>Updated versions are available for loaded cubes.</source>
       <translation>読み込まれたキューブに新しいバージョンがあります。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="103"></location>
-      <source>Updates are available for models you use</source>
-      <translation>使用中のモデルに更新があります</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="108"></location>
-      <source>Updates are optional. Downloaded versions are added beside your current files, and existing workflows keep using their current model.</source>
-      <translation>更新は任意です。ダウンロードしたバージョンは現在のファイルと並べて追加され、既存のワークフローは現在のモデルを使い続けます。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
@@ -8050,6 +8162,16 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="216"></location>
       <source>Upscaler</source>
       <translation>アップスケーラー</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="60"></location>
+      <source>Upscalers</source>
+      <translation>アップスケーラー</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="29"></location>
+      <source>Upscalers enlarge existing images and refine details.</source>
+      <translation>画像拡大モデルは既存の画像を大きくし、細部を整えます。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="378"></location>
@@ -8242,7 +8364,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>バージョン：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="120"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="329"></location>
+      <source>Versions of %1</source>
+      <translation>%1 のバージョン</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="203"></location>
       <source>View %1 on %2</source>
       <translation>%2 で %1 を表示</translation>
     </message>
@@ -8257,7 +8384,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の起動診断を表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="166"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="221"></location>
+      <source>View model updates</source>
+      <translation>モデルの更新を表示</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="378"></location>
       <source>View on CivitAI</source>
       <translation>CivitAI で表示</translation>
     </message>
@@ -8292,7 +8424,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の準備が整うのを待っています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="80"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="79"></location>
       <source>Waiting for the download to start...</source>
       <translation>ダウンロードの開始を待っています...</translation>
     </message>
@@ -8412,7 +8544,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ワークフローとプロンプトのコンテキスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="282"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="309"></location>
       <source>Workflow could not be loaded</source>
       <translation>ワークフローを読み込めませんでした</translation>
     </message>
@@ -8567,7 +8699,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>管理対象の ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="73"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="72"></location>
       <source>model</source>
       <translation>モデル</translation>
     </message>

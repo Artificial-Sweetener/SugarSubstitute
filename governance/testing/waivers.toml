@@ -1337,6 +1337,45 @@ issue = "chore:SS-TEST-WAIVER-C0283"
 review_by = 2026-12-15
 
 [[waivers]]
+id = "SS-TEST-WAIVER-C0295"
+owner = "Headless production model-gallery render"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/tools/test_render_openmodeldb_upscaler_picker.py|isolated-module"]
+paths = ["tests/tools/test_render_openmodeldb_upscaler_picker.py"]
+fingerprint = "sha256:ef6a4993ce14f2239a7e62b781d66fc7a20aa28e9e6ebcc6c93a8988a071d8a3"
+rationale = "This headless qualification mounts and captures the production QFluent model gallery and full-shell overlay in one QApplication. It passed in fresh processes but repeatedly aborted inside Qt event processing after unrelated model-discovery tests reused the same Windows xdist worker. It owns temporary screenshots and no shared port or cross-process state; a fresh process retains the complete render contract without requiring serialization against other tests."
+issue = "chore:SS-TEST-WAIVER-C0295"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0296"
+owner = "Onboarding background-preparation Qt lifecycle"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/onboarding/controller/test_background_preparation.py|isolated-module"]
+paths = ["tests/presentation/onboarding/controller/test_background_preparation.py"]
+fingerprint = "sha256:1d1245fd970c03e1856dbe762d4d33d04dd1f39ef3fd7e05da57958d16406203"
+rationale = "The superseded-preparation cancellation test crashed a Windows xdist worker after the full parallel suite reused its Qt application across earlier tests; the retained process guard named the exact active test. The complete module passed in a fresh process, with temporary inputs, workers, and widgets owned by the module and no shared cross-process resource. Fresh-process isolation preserves the cancellation behavior and remains safely concurrent."
+issue = "chore:SS-TEST-WAIVER-C0296"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0297"
+owner = "Interactive installer handoff Qt lifecycle"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/tools/test_installer_experience_smoke.py|isolated-module"]
+paths = ["tests/tools/test_installer_experience_smoke.py"]
+fingerprint = "sha256:991aad243af900dc39653db9cb4fb25ab2c266b9fa710fc70465e10c6acb3a7c"
+rationale = "The real launcher-to-setup handoff timed out inside Qt terminal output after thousands of tests reused one Windows xdist worker; its five-minute process guard retained the test ID and native event-loop stack. The complete module passed promptly in a fresh process and its synthetic release source, temporary install root, and windows are process-local. Fresh-process isolation preserves the full handoff proof without global serialization."
+issue = "chore:SS-TEST-WAIVER-C0297"
+review_by = 2026-12-15
+
+[[waivers]]
 id = "SS-TEST-WAIVER-C0284"
 owner = "Native application-instance broker contract"
 kind = "classification"

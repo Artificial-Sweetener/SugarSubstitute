@@ -14,8 +14,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose model-update review presentation."""
+"""Expose model-update picker presentation."""
 
-from substitute.presentation.model_updates.model_update_modal import ModelUpdateModal
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 
-__all__ = ["ModelUpdateModal"]
+__all__ = ["ModelUpdatePickerBridge"]

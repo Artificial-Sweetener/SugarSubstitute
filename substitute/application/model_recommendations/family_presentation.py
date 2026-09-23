@@ -56,6 +56,13 @@ _PRESENTATIONS = {
             "A high-quality image model family suited to detailed prompt following."
         ),
     ),
+    ModelFamilyId.UPSCALERS: ModelFamilyPresentation(
+        name=app_text("Upscalers"),
+        recommendation_name=app_text("ESRGAN upscalers"),
+        description=app_text(
+            "Curated restoration and enlargement models from OpenModelDB."
+        ),
+    ),
 }
 
 

@@ -75,6 +75,7 @@ class _FakePromptEditor:
         prompt_spellcheck_service: object = None,
         thumbnail_asset_repository: object = None,
         model_metadata_action_handler: object = None,
+        model_updates: object = None,
         prompt_task_executor_factory: object = None,
         danbooru_lookup_dispatcher_factory: object = None,
         maximum_visible_lines: object = "prompt-default",
@@ -99,6 +100,7 @@ class _FakePromptEditor:
         self.prompt_spellcheck_service = prompt_spellcheck_service
         self.thumbnail_asset_repository = thumbnail_asset_repository
         self.model_metadata_action_handler = model_metadata_action_handler
+        self.model_updates = model_updates
         self.prompt_task_executor_factory = prompt_task_executor_factory
         self.danbooru_lookup_dispatcher_factory = danbooru_lookup_dispatcher_factory
         self.maximum_visible_lines = maximum_visible_lines

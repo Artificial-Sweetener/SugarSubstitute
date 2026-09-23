@@ -25,11 +25,11 @@ from PySide6.QtGui import QDesktopServices
 from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.presentation.onboarding.external_link_opener import (
     civitai_model_search_url,
-    open_civitai_model_page,
+    open_onboarding_model_page,
 )
 
 
-def test_opener_accepts_only_civitai_https_model_pages(
+def test_opener_accepts_only_supported_https_model_pages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Open trusted model pages and reject origins, ports, and unrelated paths."""
@@ -48,17 +48,22 @@ def test_opener_accepts_only_civitai_https_model_pages(
         record_opened_url,
     )
 
-    assert open_civitai_model_page("https://civitai.com/models/123/example")
-    assert open_civitai_model_page("https://www.civitai.com/models")
-    assert open_civitai_model_page(
+    assert open_onboarding_model_page("https://civitai.com/models/123/example")
+    assert open_onboarding_model_page("https://www.civitai.com/models")
+    assert open_onboarding_model_page(
         "https://civitai.red/models/934764/miaomiao-harem?modelVersionId=1142097"
     )
-    assert open_civitai_model_page(civitai_model_search_url(ModelFamilyId.SDXL))
-    assert not open_civitai_model_page("http://civitai.com/models/123")
-    assert not open_civitai_model_page("https://civitai.example/models/123")
-    assert not open_civitai_model_page("https://civitai.com:444/models/123")
-    assert not open_civitai_model_page("https://user@civitai.com/models/123")
-    assert not open_civitai_model_page("https://civitai.com/api/download/models/123")
+    assert open_onboarding_model_page(civitai_model_search_url(ModelFamilyId.SDXL))
+    assert open_onboarding_model_page("https://openmodeldb.info/")
+    assert open_onboarding_model_page("https://openmodeldb.info/models/4x-Remacri")
+    assert not open_onboarding_model_page("http://civitai.com/models/123")
+    assert not open_onboarding_model_page("https://civitai.example/models/123")
+    assert not open_onboarding_model_page("https://civitai.com:444/models/123")
+    assert not open_onboarding_model_page("https://user@civitai.com/models/123")
+    assert not open_onboarding_model_page("https://civitai.com/api/download/models/123")
+    assert not open_onboarding_model_page(
+        "https://openmodeldb.info:444/models/4x-Remacri"
+    )
     assert opened == [
         "https://civitai.com/models/123/example",
         "https://www.civitai.com/models",
@@ -71,6 +76,8 @@ def test_opener_accepts_only_civitai_https_model_pages(
             "&baseModel=SDXL+Hyper&baseModel=SDXL+Lightning"
             "&baseModel=SDXL+Turbo&modelType=Checkpoint"
         ),
+        "https://openmodeldb.info/",
+        "https://openmodeldb.info/models/4x-Remacri",
     ]
 
 

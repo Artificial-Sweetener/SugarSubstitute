@@ -18,16 +18,31 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 import logging
 from pathlib import Path
 from typing import Protocol
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import InfoBar, InfoBarPosition  # type: ignore[import-untyped]
 
-from substitute.presentation.model_updates import ModelUpdateModal
+from substitute.presentation.model_discovery.discovery_overlay import (
+    ModelDiscoveryOverlay,
+)
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
+from substitute.presentation.model_updates.version_family_modal import (
+    ModelVersionFamilyModal,
+)
+from substitute.presentation.model_updates.version_thumbnail_loader import (
+    VersionThumbnailLoad,
+)
+from substitute.presentation.qt.execution.thread_pool_dispatcher import (
+    start_qt_runnable,
+)
+from substitute.presentation.widgets.civitai_page_action import open_external_url
+from sugarsubstitute_shared.model_discovery import DiscoveredModel
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.model_updates import (
     ModelUpdateAcquisitionService,
@@ -49,9 +64,6 @@ class ModelUpdatePreferenceSource(Protocol):
         """Return preferences carrying model-update consent."""
 
 
-UpdateChooser = Callable[
-    [Sequence[ModelUpdateProposal], Path, QWidget], tuple[str, ...]
-]
 Feedback = Callable[[str, str], None]
 
 
@@ -85,7 +97,7 @@ class _UpdateTask(QObject):
 
 
 class ModelUpdateNotificationController(QObject):
-    """Own consent-gated checks, review, and side-by-side update downloads."""
+    """Publish quiet update badges and open explicit version-family exploration."""
 
     def __init__(
         self,
@@ -95,7 +107,7 @@ class ModelUpdateNotificationController(QObject):
         updates: ModelUpdateService,
         model_root: Path | None,
         acquisition: ModelUpdateAcquisitionService | None,
-        chooser: UpdateChooser | None = None,
+        fetch_thumbnail: Callable[[str], bytes] | None = None,
         feedback: Feedback | None = None,
     ) -> None:
         """Store update boundaries without starting network work."""
@@ -106,12 +118,20 @@ class ModelUpdateNotificationController(QObject):
         self._updates = updates
         self._model_root = model_root
         self._acquisition = acquisition
-        self._chooser = chooser or self._choose_updates
+        self._fetch_thumbnail = fetch_thumbnail
         self._feedback = feedback or self._show_feedback
+        self.picker_bridge = ModelUpdatePickerBridge(self)
+        self.picker_bridge.familyRequested.connect(self._present_family)
+        self.picker_bridge.dismissRequested.connect(self._dismiss_update)
+        self.picker_bridge.pageOptOutRequested.connect(self._disable_page_updates)
         self._thread: QThread | None = None
         self._task: _UpdateTask | None = None
-        self._presented: set[str] = set()
+        self._overlay: ModelDiscoveryOverlay | None = None
+        self._family_modal: ModelVersionFamilyModal | None = None
+        self._active_proposal: ModelUpdateProposal | None = None
         self._after_release: Callable[[], None] | None = None
+        self._thumbnail_jobs: set[VersionThumbnailLoad] = set()
+        self._active_thumbnail_load: VersionThumbnailLoad | None = None
 
     @property
     def running(self) -> bool:
@@ -122,7 +142,10 @@ class ModelUpdateNotificationController(QObject):
     def check_on_focus(self) -> bool:
         """Start a relevant update check only after explicit opt-in."""
 
-        if self.running or not self._notifications_enabled():
+        if not self._notifications_enabled():
+            self.picker_bridge.replace(())
+            return False
+        if self.running or self._family_modal is not None:
             return False
         return self._start(
             lambda: self._updates.check_updates(ModelUpdatePreferences(enabled=True)),
@@ -133,6 +156,10 @@ class ModelUpdateNotificationController(QObject):
     def close(self) -> None:
         """Request background-task interruption during shell shutdown."""
 
+        if self._overlay is not None:
+            self._overlay.close()
+        for job in self._thumbnail_jobs:
+            job.cancel()
         thread = self._thread
         if thread is not None:
             thread.requestInterruption()
@@ -152,7 +179,7 @@ class ModelUpdateNotificationController(QObject):
 
     @Slot(object)
     def _handle_proposals(self, value: object) -> None:
-        """Present new exact versions and start only checked downloads."""
+        """Publish badges without interrupting the current workflow."""
 
         if not isinstance(value, tuple) or not all(
             isinstance(item, ModelUpdateProposal) for item in value
@@ -161,72 +188,169 @@ class ModelUpdateNotificationController(QObject):
                 "error", _text(app_text("Model update results were invalid."))
             )
             return
-        proposals = tuple(
-            proposal
-            for proposal in value
-            if model_update_identity(proposal) not in self._presented
+        self.picker_bridge.replace(
+            value
+            if self._model_root is not None and self._acquisition is not None
+            else ()
         )
-        if not proposals:
+
+    @Slot(str)
+    def _dismiss_update(self, sha256: str) -> None:
+        """Persist one dismissed candidate and remove its visible badge."""
+
+        proposal = self.picker_bridge.proposal_for_sha(sha256)
+        if proposal is None:
             return
-        self._presented.update(model_update_identity(item) for item in proposals)
-        model_root = self._model_root
-        if model_root is None:
-            self._feedback(
-                "warning",
-                _text(
-                    app_text(
-                        "Model updates are available, but this ComfyUI target has no local download destination."
-                    )
-                ),
+        try:
+            dismissed = self._updates.dismiss_update(
+                sha256=sha256, version_id=proposal.candidate.version_id
             )
+        except (OSError, RuntimeError, ValueError):
+            _LOGGER.exception("Could not dismiss model update for SHA %s.", sha256)
             return
-        selected = self._chooser(proposals, model_root, self._parent_widget)
-        if not selected:
+        if dismissed:
+            self.picker_bridge.remove(sha256)
+
+    @Slot(str)
+    def _disable_page_updates(self, sha256: str) -> None:
+        """Persist a page-level opt-out and clear all of its visible badges."""
+
+        proposal = self.picker_bridge.proposal_for_sha(sha256)
+        model_id = proposal.current.model_id if proposal is not None else None
+        if model_id is None:
             return
+        try:
+            disabled = self._updates.disable_model_updates(model_id)
+        except (OSError, RuntimeError, ValueError):
+            _LOGGER.exception("Could not disable model updates for page %s.", model_id)
+            return
+        if disabled:
+            self.picker_bridge.remove_page(model_id)
+
+    @Slot(str)
+    def _present_family(self, sha256: str) -> None:
+        """Open a contained chronology only after a picker action requests it."""
+
+        if self._family_modal is not None or self.running:
+            return
+        proposal = self.picker_bridge.proposal_for_sha(sha256)
+        if proposal is None:
+            return
+        overlay = ModelDiscoveryOverlay(owner=self._parent_widget)
+        modal = ModelVersionFamilyModal(
+            proposal=proposal,
+            open_url=open_external_url,
+            parent=overlay,
+        )
+        overlay.attach(modal)
+        modal.finished.connect(self._dismiss_family)
+        modal.downloadRequested.connect(self._download_version)
+        self._overlay = overlay
+        self._family_modal = modal
+        self._active_proposal = proposal
+        overlay.present()
+        modal.show_loading()
+        self._start(
+            lambda: (
+                self._updates.version_family(proposal),
+                self._updates.installed_hashes_for_kind(proposal.current.artifact_kind),
+            ),
+            on_succeeded=self._handle_family,
+            on_failed=self._show_modal_failure,
+            operation="family",
+        )
+
+    @Slot(object)
+    def _handle_family(self, value: object) -> None:
+        """Show only the queried installed model's verified family."""
+
+        modal = self._family_modal
+        proposal = self._active_proposal
+        if modal is None or proposal is None:
+            return
+        if not isinstance(value, tuple) or len(value) != 2:
+            modal.show_failure(_text(app_text("Model update results were invalid.")))
+            return
+        versions, installed_hashes = value
+        if (
+            not isinstance(versions, tuple)
+            or not isinstance(installed_hashes, frozenset)
+            or not all(isinstance(item, str) for item in installed_hashes)
+            or not all(
+                isinstance(item, DiscoveredModel)
+                and item.artifact_kind is proposal.current.artifact_kind
+                and item.base_model is not None
+                and proposal.current.base_model is not None
+                and item.base_model.casefold() == proposal.current.base_model.casefold()
+                for item in versions
+            )
+        ):
+            modal.show_failure(_text(app_text("Model update results were invalid.")))
+            return
+        modal.show_family(versions, installed_hashes=installed_hashes)
+        if self._fetch_thumbnail is not None:
+            self._start_thumbnails(versions)
+        else:
+            for version in versions:
+                modal.set_thumbnail_unavailable(version.version_id)
+
+    @Slot(object)
+    def _download_version(self, value: object) -> None:
+        """Queue one selected exact version beside the installed file."""
+
+        modal = self._family_modal
+        proposal = self._active_proposal
         acquisition = self._acquisition
-        if acquisition is None:
-            self._feedback(
-                "error",
-                _text(
-                    app_text(
-                        "The model download service is unavailable for this target."
-                    )
-                ),
-            )
+        if (
+            modal is None
+            or proposal is None
+            or acquisition is None
+            or not isinstance(value, DiscoveredModel)
+            or modal.selected_version != value
+        ):
             return
+        selected = ModelUpdateProposal(proposal.current, value)
+        modal.set_downloading()
 
         def start_download() -> None:
-            """Queue the reviewed transfer after update discovery releases its thread."""
+            """Transfer only after the version lookup task has released."""
 
             self._start(
                 lambda: acquisition.download_selected(
-                    proposals,
-                    selected_identities=selected,
+                    (selected,),
+                    selected_identities=(model_update_identity(selected),),
                 ),
                 on_succeeded=self._handle_downloads,
+                on_failed=self._show_modal_failure,
                 operation="download",
             )
 
-        self._after_release = start_download
+        if self.running:
+            self._after_release = start_download
+        else:
+            start_download()
 
     @Slot(object)
     def _handle_downloads(self, value: object) -> None:
-        """Report verified side-by-side completion without changing workflows."""
+        """Keep the family visible after verified side-by-side completion."""
 
-        if not isinstance(value, tuple):
-            self._feedback(
-                "error", _text(app_text("Model downloads returned invalid results."))
+        modal = self._family_modal
+        if modal is None:
+            return
+        if not isinstance(value, tuple) or len(value) != 1:
+            modal.show_failure(
+                _text(app_text("Model downloads returned invalid results."))
             )
             return
-        self._feedback(
-            "success",
-            _text(
-                app_text(
-                    "%1 model update(s) downloaded beside your current files.",
-                    len(value),
-                )
-            ),
-        )
+        proposal = self._active_proposal
+        selected = modal.selected_version
+        if (
+            proposal is not None
+            and selected is not None
+            and selected.version_id == proposal.candidate.version_id
+        ):
+            self._dismiss_update(proposal.current.sha256)
+        modal.finish_download()
 
     def _start(
         self,
@@ -234,6 +358,7 @@ class ModelUpdateNotificationController(QObject):
         *,
         on_succeeded: Callable[[object], None],
         operation: str,
+        on_failed: Callable[[str], None] | None = None,
     ) -> bool:
         """Start one background task and bind deterministic owner-thread cleanup."""
 
@@ -244,12 +369,8 @@ class ModelUpdateNotificationController(QObject):
         task.moveToThread(thread)
         thread.started.connect(task.run)
         task.succeeded.connect(on_succeeded)
-        task.failed.connect(
-            lambda detail: self._feedback(
-                "error",
-                _text(app_text("Model update operation failed: %1", detail)),
-            )
-        )
+        if on_failed is not None:
+            task.failed.connect(on_failed)
         task.finished.connect(thread.quit)
         task.finished.connect(task.deleteLater)
         thread.finished.connect(thread.deleteLater)
@@ -269,23 +390,79 @@ class ModelUpdateNotificationController(QObject):
         if after_release is not None:
             after_release()
 
-    @staticmethod
-    def _choose_updates(
-        proposals: Sequence[ModelUpdateProposal],
-        model_root: Path,
-        parent: QWidget,
-    ) -> tuple[str, ...]:
-        """Run the production unchecked update review modal."""
+    @Slot(int)
+    def _dismiss_family(self, _result: int) -> None:
+        """Remove the full-window wash when version browsing ends."""
 
-        modal = ModelUpdateModal(
-            proposals=proposals,
-            model_root=model_root,
-            parent=parent,
-        )
-        try:
-            return modal.choose_updates()
-        finally:
-            modal.deleteLater()
+        overlay = self._overlay
+        self._overlay = None
+        self._family_modal = None
+        self._active_proposal = None
+        if self._active_thumbnail_load is not None:
+            self._active_thumbnail_load.cancel()
+            self._active_thumbnail_load = None
+        if overlay is not None:
+            overlay.hide()
+            overlay.deleteLater()
+
+    def _start_thumbnails(self, versions: tuple[DiscoveredModel, ...]) -> None:
+        """Fetch independent card previews without blocking version selection."""
+
+        fetch = self._fetch_thumbnail
+        if fetch is None:
+            return
+        job = VersionThumbnailLoad(versions, fetch=fetch)
+        job.signals.loaded.connect(self._thumbnail_loaded)
+        job.signals.failed.connect(self._thumbnail_failed)
+        job.signals.finished.connect(self._thumbnail_finished)
+        self._thumbnail_jobs.add(job)
+        self._active_thumbnail_load = job
+        start_qt_runnable(job)
+
+    @Slot(int, object)
+    def _thumbnail_loaded(self, version_id: int, payload: object) -> None:
+        """Decode only current-family, bounded image bytes on the GUI thread."""
+
+        job = self._active_thumbnail_load
+        modal = self._family_modal
+        if job is None or modal is None or self.sender() is not job.signals:
+            return
+        image = QImage.fromData(payload) if isinstance(payload, bytes) else QImage()
+        if image.isNull():
+            modal.set_thumbnail_unavailable(version_id)
+        else:
+            modal.set_thumbnail(version_id, image)
+
+    @Slot(int)
+    def _thumbnail_failed(self, version_id: int) -> None:
+        """Settle one current-family card without affecting other previews."""
+
+        job = self._active_thumbnail_load
+        modal = self._family_modal
+        if job is not None and modal is not None and self.sender() is job.signals:
+            modal.set_thumbnail_unavailable(version_id)
+
+    @Slot()
+    def _thumbnail_finished(self) -> None:
+        """Release a finished task while preserving another active family."""
+
+        sender = self.sender()
+        for job in tuple(self._thumbnail_jobs):
+            if job.signals is sender:
+                self._thumbnail_jobs.remove(job)
+                if self._active_thumbnail_load is job:
+                    self._active_thumbnail_load = None
+                break
+
+    @Slot(str)
+    def _show_modal_failure(self, detail: str) -> None:
+        """Keep an explicit user-requested failure inside the family panel."""
+
+        modal = self._family_modal
+        if modal is not None:
+            modal.show_failure(
+                _text(app_text("Model update operation failed: %1", detail))
+            )
 
     def _show_feedback(self, severity: str, message: str) -> None:
         """Show a localized, non-blocking shell notification."""
