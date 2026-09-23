@@ -24,6 +24,11 @@ from typing import cast
 from substitute.application.cubes import CubeStackService
 from substitute.application.workflows import CubeDuplicationService
 from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.cube_library import (
+    WorkflowCubeAccess,
+    WorkflowCubeClassification,
+    WorkflowCubeLibraryClass,
+)
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowInvalidationReason,
     WorkflowSurfaceInvalidationService,
@@ -190,4 +195,74 @@ def test_output_persistence_command_mutes_only_the_workflow_cube_instance() -> N
     assert presentation_updates == [(0, False)]
     assert invalidation.dirty_state("wf-a").reasons == (
         WorkflowInvalidationReason.CUBE_OUTPUT_PERSISTENCE_CHANGED,
+    )
+
+
+def test_capture_command_refreshes_shared_cube_card_availability() -> None:
+    """Successful capture should remove capture actions for the shared definition."""
+
+    first = _cube("First")
+    second = _cube("Second")
+    wild = _classification(WorkflowCubeLibraryClass.NONE, {"keep", "capture"})
+    first.library_classification = wild
+    second.library_classification = wild
+    workflow = WorkflowState(
+        cubes={"First": first, "Second": second},
+        stack_order=["First", "Second"],
+    )
+    presentation_updates: list[tuple[int, bool]] = []
+    aliases = ["First", "Second"]
+    stack = SimpleNamespace(
+        count=lambda: len(aliases),
+        tabItem=lambda index: SimpleNamespace(routeKey=lambda: aliases[index]),
+        setTabCaptureAvailable=lambda index, available: presentation_updates.append(
+            (index, available)
+        ),
+    )
+
+    def capture_cube(_workflow: WorkflowState, alias: str) -> object:
+        """Replace both shared classifications as the application service does."""
+
+        assert alias == "First"
+        captured = _classification(WorkflowCubeLibraryClass.CAPTURED, {"keep"})
+        first.library_classification = captured
+        second.library_classification = captured
+        return object()
+
+    view = cast(
+        WorkspaceCubeStackActionView,
+        SimpleNamespace(
+            active_cube_stack=stack,
+            workflow_cube_library_service=SimpleNamespace(capture_cube=capture_cube),
+            get_active_workflow=lambda: workflow,
+        ),
+    )
+    actions = WorkspaceCubeStackActions(
+        view,
+        duplication_service=cast(CubeDuplicationService, object()),
+        stack_presenter=cast(CubeStackPresenter, object()),
+        surface_projector=cast(CubeSurfaceProjectionCoordinator, object()),
+    )
+
+    actions.on_cube_capture_requested("First")
+
+    assert presentation_updates == [(0, False), (1, False)]
+
+
+def _classification(
+    library_class: WorkflowCubeLibraryClass,
+    operations: set[str],
+) -> WorkflowCubeClassification:
+    """Build one shared workflow Cube classification."""
+
+    return WorkflowCubeClassification(
+        definition_id="definition-shared",
+        cube_id="Owner/Cube.cube",
+        cube_version="1.0.0",
+        semantic_hash="a" * 64,
+        instance_ids=("first", "second"),
+        primary_class=library_class,
+        access=WorkflowCubeAccess.READ_ONLY,
+        source_available=False,
+        permitted_operations=frozenset(operations),
     )

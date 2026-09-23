@@ -96,11 +96,13 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
     closed_calls: list[bool] = []
     duplicate_calls: list[bool] = []
     persistence_calls: list[bool] = []
+    capture_calls: list[bool] = []
     item.closed.connect(lambda: closed_calls.append(True))
     item.duplicateRequested.connect(lambda _item: duplicate_calls.append(True))
     item.outputPersistenceToggleRequested.connect(
         lambda _item: persistence_calls.append(True)
     )
+    item.captureRequested.connect(lambda _item: capture_calls.append(True))
 
     item._showContextMenu(QPoint(0, 0))
 
@@ -120,6 +122,21 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
     assert persistence_calls == [True]
     assert duplicate_calls == [True]
     assert closed_calls == [True]
+
+    item.setCaptureAvailable(True)
+    item._showContextMenu(QPoint(0, 0))
+
+    capture_menu = FakeRoundMenu.instances[1]
+    assert [action.text() for action in capture_menu.actions] == [
+        "Don't save outputs",
+        "Rename",
+        "Duplicate",
+        "Capture Cube",
+        "Bypass",
+        "Remove",
+    ]
+    capture_menu.actions[3].trigger()
+    assert capture_calls == [True]
 
     item.close()
     item.deleteLater()

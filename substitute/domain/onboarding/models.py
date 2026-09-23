@@ -117,6 +117,16 @@ class ComfyEndpoint:
 
         return self._http_url("/sugarcubes/v2/workflows/cubes/replace")
 
+    def sugarcubes_workflow_cube_classification_url(self) -> str:
+        """Return the SugarCubes workflow Cube classification URL."""
+
+        return self._http_url("/sugarcubes/v2/cubes/classify-workflow")
+
+    def sugarcubes_workflow_cube_capture_url(self) -> str:
+        """Return the SugarCubes Captured Cube persistence URL."""
+
+        return self._http_url("/sugarcubes/v2/cubes/captured")
+
     def interrupt_url(self) -> str:
         """Return the interrupt endpoint URL."""
 
