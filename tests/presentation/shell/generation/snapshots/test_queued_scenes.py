@@ -174,8 +174,8 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshots = controller.build_queued_generation_snapshots()

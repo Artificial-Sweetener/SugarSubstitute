@@ -323,21 +323,6 @@ responsibilities = [
 next_extraction = "Extract listener-session transport from queue mutation and interruption transport."
 
 [[debts]]
-id = "SS-ARCH-035"
-owner = "input canvas presentation"
-paths = ["substitute/presentation/canvas/input/input_canvas_presenter.py"]
-fingerprint = "sha256:e46a7c2c0918eb14eda621d1e75eda4b78086fdf60915a9d3ce1466181e958b7"
-issue = "chore:SS-ARCH-035"
-review_by = 2026-12-15
-responsibilities = [
-  "image selection materialization and reconciliation",
-  "mask selection and validation",
-  "loaded cube and workflow-section materialization",
-  "mask-picker refresh and change publication",
-]
-next_extraction = "Extract mask-picker refresh from image and mask materialization presentation."
-
-[[debts]]
 id = "SS-ARCH-039"
 owner = "cube stack cart"
 paths = ["substitute/presentation/cube_picker/cube_stack_cart_modal.py"]

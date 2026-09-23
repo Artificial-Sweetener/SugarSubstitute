@@ -98,8 +98,8 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshots = controller.build_queued_generation_snapshots()
@@ -219,8 +219,8 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshots = controller.build_queued_generation_snapshots()

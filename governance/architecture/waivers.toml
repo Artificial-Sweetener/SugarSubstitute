@@ -275,19 +275,6 @@ next_limit = 500
 debt = "SS-ARCH-032"
 
 [[waivers]]
-id = "SS-WAIVER-R035"
-owner = "input canvas presentation"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/input/input_canvas_presenter.py"
-kind = "remediation"
-justification = "The assessed file mixes image selection materialization and reconciliation, mask selection and validation, loaded cube and workflow-section materialization, and mask-picker refresh and change publication. Extract mask-picker refresh from image and mask materialization presentation."
-issue = "chore:SS-ARCH-035"
-review_by = 2026-12-15
-max_lines = 634
-next_limit = 510
-debt = "SS-ARCH-035"
-
-[[waivers]]
 id = "SS-WAIVER-R039"
 owner = "cube stack cart"
 rule = "STRUCT003"
@@ -1839,10 +1826,10 @@ owner = "input canvas composition"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/input_canvas_composition.py"
 kind = "structural"
-justification = "MainWindowInputCanvasComposition and compose_input_canvas_controllers define one atomic dependency graph for the Input canvas. The factory constructs, wires, returns, and publishes that graph in dependency order; extracting individual constructors would split one composition authority and obscure lifecycle ordering without creating an independent behavioral owner."
+justification = "MainWindowInputCanvasComposition and compose_input_canvas_controllers own the remaining atomic Input-canvas dependency graph after delegating the cohesive image, mask, and picker presentation subgraph to input_presentation_composition. The root still constructs, wires, returns, and publishes application services, document controllers, and lifecycle observers in dependency order; further extraction would split their shared mount and teardown authority."
 issue = "chore:SS-WAIVER-S151"
 review_by = 2026-12-15
-max_lines = 509
+max_lines = 504
 
 [[waivers]]
 id = "SS-WAIVER-S152"

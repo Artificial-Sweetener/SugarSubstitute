@@ -36,28 +36,32 @@ from substitute.application.ports import (
 )
 
 
-class InputCanvasPresenterProtocol(Protocol):
-    """Describe Input document presentation required by the shell."""
+class InputImageMaterializationPresenterProtocol(Protocol):
+    """Describe Input image presentation required by the shell."""
 
-    def handle_input_canvas_image_loaded(
+    def handle_loaded_image(
         self,
         image_id: object,
         image_path: str,
     ) -> None:
         """Handle CuteCanvas-confirmed Input image load intent."""
 
-    def refresh_active_mask_pickers(self) -> None:
-        """Refresh active editor-panel mask pickers from workflow asset state."""
-
-    def materialize_loaded_cube_input_canvas(
+    def materialize_loaded_cube(
         self,
         workflow_id: str,
         cube_alias: str,
     ) -> None:
         """Materialize loaded-cube Input canvas state."""
 
-    def reconcile_active_input_canvas_image(self) -> None:
+    def reconcile_active(self) -> None:
         """Reconcile the active CuteCanvas Input image before generation."""
+
+
+class InputMaskPickerPresenterProtocol(Protocol):
+    """Describe scalar Input mask-picker projection required by the shell."""
+
+    def refresh_active(self) -> None:
+        """Refresh active editor-panel mask pickers from workflow asset state."""
 
 
 class InputNodeInteractionControllerProtocol(Protocol):
@@ -251,7 +255,8 @@ __all__ = [
     "GenerationFeedbackDispatcherProtocol",
     "GenerationInterruptFailurePresenterProtocol",
     "GenerationQueueProgressState",
-    "InputCanvasPresenterProtocol",
+    "InputImageMaterializationPresenterProtocol",
+    "InputMaskPickerPresenterProtocol",
     "InputNodeInteractionControllerProtocol",
     "InputGenerationSnapshotProtocol",
     "WorkflowNameResolverProtocol",

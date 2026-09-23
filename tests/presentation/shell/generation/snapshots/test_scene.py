@@ -169,8 +169,8 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshot = controller.build_scene_generation_snapshot("portrait")
