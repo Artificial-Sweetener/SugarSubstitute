@@ -116,25 +116,32 @@ class RepairPreparationService:
         """Compose checksum-verifying staging adapters with observed transfer boundaries."""
 
         self._progress_observer = progress_observer
+        self._latest_transfer: dict[PreparationStage, TransferProgress] = {}
         self._app_stager = app_stager or AppPayloadStager(
             downloader=AssetDownloader(
                 progress_observer=lambda progress: self._report(
                     PreparationStage.APPLICATION, transfer=progress
                 )
-            )
+            ),
+            activity_observer=lambda: self._report(PreparationStage.APPLICATION),
         )
         self._launcher_stager = launcher_stager or LauncherBundleStager(
             downloader=LauncherBundleDownloader(
                 progress_observer=lambda progress: self._report(
                     PreparationStage.LAUNCHER, transfer=progress
                 )
-            )
+            ),
+            activity_observer=lambda: self._report(PreparationStage.LAUNCHER),
         )
 
     def _report(
         self, stage: PreparationStage, *, transfer: TransferProgress | None = None
     ) -> None:
         """Publish work without allowing a failed presentation to abort preparation."""
+        if transfer is not None:
+            self._latest_transfer[stage] = transfer
+        else:
+            transfer = self._latest_transfer.get(stage)
         if self._progress_observer is not None:
             try:
                 self._progress_observer(PreparationProgress(stage, transfer))
@@ -218,9 +225,15 @@ class RepairPreparationService:
             destination_dir=staging_root / "launcher",
         )
         self._report(PreparationStage.VERIFY_APPLICATION)
-        app_digest = directory_tree_sha256(staged_app.staging_dir)
+        app_digest = directory_tree_sha256(
+            staged_app.staging_dir,
+            activity_observer=lambda: self._report(PreparationStage.VERIFY_APPLICATION),
+        )
         self._report(PreparationStage.VERIFY_LAUNCHER)
-        launcher_digest = directory_tree_sha256(staged_launcher)
+        launcher_digest = directory_tree_sha256(
+            staged_launcher,
+            activity_observer=lambda: self._report(PreparationStage.VERIFY_LAUNCHER),
+        )
         request = PreparedRepairRequest(
             preparation_id=preparation_id,
             install_root=layout.root,

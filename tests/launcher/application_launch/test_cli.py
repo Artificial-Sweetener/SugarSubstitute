@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 
 
 def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
@@ -40,6 +41,7 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
             "10,20,1260,800",
             "--locale",
             "ja-JP",
+            "--launch-intent=setup",
         ]
     )
 
@@ -54,6 +56,7 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     assert args.locale_override == "ja-JP"
     assert args.crash_report_incident_id is None
     assert args.launcher_ui_child is False
+    assert args.launch_intent is ApplicationLaunchIntent.SETUP
 
 
 def test_launcher_args_parse_internal_crash_report_mode(tmp_path: Path) -> None:

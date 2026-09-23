@@ -111,9 +111,13 @@ def run_clean_install_harness(
     clean: bool = True,
     allow_non_default_clean: bool = False,
     setup_timeout_seconds: int = DEFAULT_SETUP_TIMEOUT_SECONDS,
+    endpoint_port: int = 8188,
     log: Callable[[str], None] = print,
 ) -> CleanInstallHarnessResult:
     """Install from an external package and verify Base-Cubes live node classes."""
+
+    if not 1 <= endpoint_port <= 65_535:
+        raise ValueError("Harness endpoint port must be between 1 and 65535.")
 
     resolved_install_root = install_root.expanduser().resolve()
     resolved_model_root = model_root.expanduser().resolve()
@@ -168,6 +172,7 @@ def run_clean_install_harness(
             install_root=layout.root,
             model_root=resolved_model_root,
             setup_timeout_seconds=setup_timeout_seconds,
+            endpoint_port=endpoint_port,
         ),
         timeout_seconds=setup_timeout_seconds + 300,
         log=log,
@@ -359,6 +364,7 @@ def _full_setup_script(
     install_root: Path,
     model_root: Path,
     setup_timeout_seconds: int,
+    endpoint_port: int,
 ) -> str:
     """Build the installed-runtime script that performs setup and live verification."""
 
@@ -404,7 +410,7 @@ draft = OnboardingDraftState(
     installation_root=install_root,
     target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
     endpoint_host="127.0.0.1",
-    endpoint_port=8188,
+    endpoint_port={endpoint_port},
     managed_workspace_path=install_root / "comfyui",
     attached_workspace_path=install_root / "comfyui",
     managed_model_root=model_root,
@@ -512,6 +518,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         clean=not args.no_clean,
         allow_non_default_clean=args.allow_non_default_clean,
         setup_timeout_seconds=args.setup_timeout_seconds,
+        endpoint_port=args.endpoint_port,
     )
     print(
         "HARNESS_COMPLETE "
@@ -543,6 +550,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
         type=int,
         default=DEFAULT_SETUP_TIMEOUT_SECONDS,
     )
+    parser.add_argument("--endpoint-port", type=int, default=8188)
     return parser.parse_args(list(argv))
 
 

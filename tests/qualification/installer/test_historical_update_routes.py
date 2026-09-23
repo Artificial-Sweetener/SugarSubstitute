@@ -18,21 +18,29 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 from typing import cast
+from types import SimpleNamespace
 
 import pytest
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from tools.ci.historical_update_qualification import (
     HistoricalUpdateQualification,
     HistoricalUpdateRoute,
+    assert_installed_root_launcher_version,
     historical_update_route,
     qualify_historical_update,
 )
+from tools.ci.historical_launcher_chain_evidence import (
+    assert_root_main_shell_acknowledgement,
+)
 from tools.ci.loopback_port_lease import LoopbackPortLease
+from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
 
 @pytest.mark.parametrize(
@@ -125,6 +133,14 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
         lambda **_arguments: events.append("channel"),
     )
     monkeypatch.setattr(
+        "tools.ci.historical_update_qualification.assert_installed_root_launcher_version",
+        lambda **_arguments: events.append("root"),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_update_qualification.assert_candidate_root_readiness",
+        lambda **_arguments: events.append("root_ready"),
+    )
+    monkeypatch.setattr(
         "tools.ci.historical_update_qualification.terminate_owned_managed_comfy",
         lambda _install_root: events.append("cleanup"),
     )
@@ -157,4 +173,159 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
         f"--install-root={install_root.resolve()}",
         "--manifest-url=https://example.test/candidate.json",
     ]
-    assert events[1:] == ["launch", "verify", "channel", "cleanup"]
+    assert events[1:] == [
+        "launch",
+        "verify",
+        "root",
+        "root_ready",
+        "channel",
+        "cleanup",
+    ]
+
+
+def test_historical_update_rejects_visible_app_under_outdated_root(
+    tmp_path: Path,
+) -> None:
+    """A candidate shell alone cannot qualify an old launcher root."""
+
+    root = tmp_path / "installation"
+    record_path = root / "launcher" / "installation.json"
+    record_path.parent.mkdir(parents=True)
+    LauncherInstallationRecord(version="0.23.1", target_key="windows_x64").save(
+        record_path
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="expected 0.24.2, got 0.23.1"):
+        assert_installed_root_launcher_version(
+            install_root=root, expected_version="0.24.2"
+        )
+
+
+def test_historical_update_requires_root_to_accept_the_new_main_shell(
+    tmp_path: Path,
+) -> None:
+    """A selected launcher's receipt cannot stand in for the root's receipt."""
+
+    install_root = tmp_path / "installation"
+    log_path = install_root / "launcher" / "logs" / "launcher.log"
+    log_path.parent.mkdir(parents=True)
+    old_line = (
+        "INFO process=99 launcher.sugarsubstitute_launcher."
+        "application_readiness_supervisor Accepted painted application surface | "
+        "candidate_pid=100 | surface_pid=500 | surface=main_shell | "
+        "outer_contract=False\n"
+    )
+    log_path.write_text(old_line, encoding="utf-8")
+    launch = SimpleNamespace(progress_baselines=((log_path, (True, len(old_line))),))
+    event_log_path = tmp_path / "qualification.jsonl"
+    event_log_path.write_text("", encoding="utf-8")
+    selected_line = (
+        "INFO process=200 launcher.sugarsubstitute_launcher."
+        "application_readiness_supervisor Accepted painted application surface | "
+        "candidate_pid=300 | surface_pid=500 | surface=main_shell | "
+        "outer_contract=True\n"
+    )
+    with log_path.open("a", encoding="utf-8") as output:
+        output.write(selected_line)
+
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_root_main_shell_acknowledgement(
+            install_root=install_root,
+            candidate_launch=launch,
+            surface_pid=500,
+            event_log_path=event_log_path,
+            token="current-launch",
+            attester_pids=(200,),
+        )
+
+    with log_path.open("a", encoding="utf-8") as output:
+        output.write(
+            "INFO process=400 launcher.sugarsubstitute_launcher."
+            "application_readiness_supervisor Accepted painted application surface | "
+            "candidate_pid=200 | surface_pid=500 | surface=main_shell | "
+            "outer_contract=False\n"
+        )
+    assert_root_main_shell_acknowledgement(
+        install_root=install_root,
+        candidate_launch=launch,
+        surface_pid=500,
+        event_log_path=event_log_path,
+        token="current-launch",
+        attester_pids=(200,),
+    )
+
+
+def test_historical_update_accepts_only_attested_direct_root_main_shell(
+    tmp_path: Path,
+) -> None:
+    """A restarted direct root must be identified by its launch path and receipt."""
+
+    install_root = tmp_path / "installation"
+    layout = InstallLayout.from_root(install_root)
+    log_path = layout.logs_dir / "launcher.log"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text("", encoding="utf-8")
+    launch = SimpleNamespace(progress_baselines=((log_path, (True, 0)),))
+    event_log_path = tmp_path / "qualification.jsonl"
+    acceptance = (
+        "INFO process=8532 launcher.sugarsubstitute_launcher."
+        "application_readiness_supervisor Accepted painted application surface | "
+        "candidate_pid=1304 | surface_pid=6904 | surface=main_shell | "
+        "outer_contract=True\n"
+    )
+    log_path.write_text(acceptance, encoding="utf-8")
+
+    def write_startup(*, path: Path, token: str, pid: int = 8532) -> None:
+        """Record one launcher identity in the qualification event stream."""
+
+        event_log_path.write_text(
+            json.dumps(
+                {
+                    "event": "launcher.startup.resolved",
+                    "fields": {"invocation_path": str(path)},
+                    "pid": pid,
+                    "token": token,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def assert_direct_root() -> None:
+        """Check the current evidence against the candidate main shell."""
+
+        assert_root_main_shell_acknowledgement(
+            install_root=install_root,
+            candidate_launch=launch,
+            surface_pid=6904,
+            event_log_path=event_log_path,
+            token="current-launch",
+            attester_pids=(8532, 8860),
+        )
+
+    write_startup(path=layout.executable_path, token="another-launch")
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_direct_root()
+
+    write_startup(
+        path=install_root / "selected" / "SugarSubstitute.exe", token="current-launch"
+    )
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_direct_root()
+
+    write_startup(path=layout.executable_path, token="current-launch", pid=3176)
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_direct_root()
+
+    write_startup(path=layout.executable_path, token="current-launch")
+    with pytest.raises(InstallerLifecycleError, match="root did not accept"):
+        assert_root_main_shell_acknowledgement(
+            install_root=install_root,
+            candidate_launch=launch,
+            surface_pid=6904,
+            event_log_path=event_log_path,
+            token="current-launch",
+            attester_pids=(8860,),
+        )
+
+    assert_direct_root()

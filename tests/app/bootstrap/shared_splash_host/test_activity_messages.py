@@ -37,6 +37,7 @@ class _Splash:
         self.activities: list[SplashActivity] = []
         self.lines: list[str] = []
         self.clear_calls = 0
+        self.observed_activity_calls = 0
         self.close_calls = 0
 
     def start_activity(self, activity: SplashActivity) -> None:
@@ -48,6 +49,11 @@ class _Splash:
         """Record one activity clear."""
 
         self.clear_calls += 1
+
+    def record_activity(self) -> None:
+        """Record work that intentionally produces no console line."""
+
+        self.observed_activity_calls += 1
 
     def append_log(self, line: str) -> None:
         """Record one durable log line."""
@@ -87,6 +93,7 @@ def test_shared_splash_host_dispatches_activity_across_application_handoff() -> 
     messages = (
         SplashSessionMessage("activity", "token", activity=activity),
         SplashSessionMessage("log", "token", line="Downloaded package metadata."),
+        SplashSessionMessage("activity_observed", "token"),
         SplashSessionMessage("clear_activity", "token"),
         SplashSessionMessage("close", "token"),
     )
@@ -100,6 +107,7 @@ def test_shared_splash_host_dispatches_activity_across_application_handoff() -> 
 
     assert splash.activities == [activity]
     assert splash.lines == ["Downloaded package metadata."]
+    assert splash.observed_activity_calls == 1
     assert splash.clear_calls == 1
     assert splash.close_calls == 1
     assert application.quit_calls == 0

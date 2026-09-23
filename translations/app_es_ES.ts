@@ -105,7 +105,7 @@ Vista previa del prompt:
       <translation>%1 (omitido)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="109"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="125"></location>
       <source>%1 API key required</source>
       <translation>Se requiere una clave API de %1</translation>
     </message>
@@ -165,7 +165,7 @@ Vista previa del prompt:
       <translation>%1 tiene cambios de la biblioteca de cubos sin confirmar.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="307"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="326"></location>
       <source>%1 downloaded beside your current file.</source>
       <translation>%1 se descargó junto al archivo actual.</translation>
     </message>
@@ -205,7 +205,7 @@ Vista previa del prompt:
       <translation>%1 entradas de metadatos, %2 vistas previas de imágenes, %3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="59"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="75"></location>
       <source>%1 model recommendation</source>
       <translation>%1 recomendación de modelo</translation>
     </message>
@@ -220,7 +220,7 @@ Vista previa del prompt:
       <translation>%1 de %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="245"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="230"></location>
       <source>%1 of %2 setup tasks complete</source>
       <translation>%1 de %2 tareas de configuración completadas</translation>
     </message>
@@ -250,7 +250,7 @@ Vista previa del prompt:
       <translation>%1 píxeles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="928"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="936"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>%1 elementos guardados de la instalación necesitan reparación antes de que Substitute pueda abrirse.</translation>
     </message>
@@ -300,7 +300,7 @@ Vista previa del prompt:
       <translation>%1 · %2 · Actualización disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="333"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="353"></location>
       <source>%1 · %2 · oldest to newest</source>
       <translation>%1 · %2 · del más antiguo al más reciente</translation>
     </message>
@@ -325,7 +325,7 @@ Vista previa del prompt:
       <translation>%1%2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="85"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="101"></location>
       <source>%1, version %2</source>
       <translation>%1, versión %2</translation>
     </message>
@@ -644,7 +644,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Todas las clasificaciones</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="202"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="184"></location>
       <source>All setup tasks are complete.</source>
       <translation>Todas las tareas de configuración están completas.</translation>
     </message>
@@ -949,7 +949,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Cancelar tarea</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="415"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="428"></location>
       <source>Cancel loading</source>
       <translation>Cancelar la carga</translation>
     </message>
@@ -1064,7 +1064,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Comprobando el entorno de Python de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="690"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="698"></location>
       <source>Checking ComfyUI…</source>
       <translation>Comprobando ComfyUI…</translation>
     </message>
@@ -1109,7 +1109,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Comprobando el ejecutable de Python seleccionado…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="753"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="761"></location>
       <source>Checking…</source>
       <translation>Comprobando…</translation>
     </message>
@@ -1789,7 +1789,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Aún no se pudo comprobar ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1185"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1192"></location>
       <source>ComfyUI could not be checked yet: %1</source>
       <translation>Aún no se pudo comprobar ComfyUI: %1</translation>
     </message>
@@ -2582,7 +2582,7 @@ Install these nodes now?</source>
       <translation>Detectar desde ComfyUI en ejecución</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="775"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="783"></location>
       <source>Detect from running ComfyUI instead</source>
       <translation>Detectar desde ComfyUI en ejecución</translation>
     </message>
@@ -2602,7 +2602,7 @@ Install these nodes now?</source>
       <translation>Registros de diagnóstico</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="430"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="452"></location>
       <source>Diffusion model</source>
       <translation>Modelo de difusión</translation>
     </message>
@@ -2632,7 +2632,7 @@ Install these nodes now?</source>
       <translation>Descartar cambios</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="39"></location>
+      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="55"></location>
       <source>Dismiss</source>
       <translation>Descartar</translation>
     </message>
@@ -2647,7 +2647,7 @@ Install these nodes now?</source>
       <translation>No guardar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="44"></location>
+      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="60"></location>
       <source>Don't check for updates for %1</source>
       <translation>No buscar actualizaciones de %1</translation>
     </message>
@@ -2672,17 +2672,17 @@ Install these nodes now?</source>
       <translation>Descargar miniaturas de CivitAI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="40"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="48"></location>
       <source>Download a model?</source>
       <translation>¿Descargar un modelo?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="36"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="44"></location>
       <source>Download an image model?</source>
       <translation>¿Descargar un modelo de imagen?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="28"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="36"></location>
       <source>Download an upscaler model?</source>
       <translation>¿Descargar un modelo de ampliación?</translation>
     </message>
@@ -2697,7 +2697,7 @@ Install these nodes now?</source>
       <translation>La descarga ha fallado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="157"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="173"></location>
       <source>Download from %1</source>
       <translation>Descargar desde %1</translation>
     </message>
@@ -2717,7 +2717,7 @@ Install these nodes now?</source>
       <translation>Descarga imágenes del proveedor para usarlas como miniaturas en el selector de modelos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="390"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="412"></location>
       <source>Download version</source>
       <translation>Descargar versión</translation>
     </message>
@@ -2727,12 +2727,12 @@ Install these nodes now?</source>
       <translation>Descargando %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="290"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="276"></location>
       <source>Downloading %1 (%2 of %3) — %4 of %5 MiB</source>
       <translation>Descargando %1 (%2 de %3) — %4 de %5 MiB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="300"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="286"></location>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>Descargando %1 — %2 de %3 MiB</translation>
     </message>
@@ -3095,7 +3095,7 @@ Install these nodes now?</source>
       <translation>Buscar modelos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="597"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="605"></location>
       <source>Finding Python…</source>
       <translation>Buscando Python…</translation>
     </message>
@@ -3130,7 +3130,7 @@ Install these nodes now?</source>
       <translation>Finalizando la carga de los nodos personalizados de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="68"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
       <source>Finishing your setup</source>
       <translation>Finalizando tu instalación</translation>
     </message>
@@ -3380,7 +3380,7 @@ Install these nodes now?</source>
       <translation>Oculto por las preferencias de contenido</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="431"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
       <source>Hide Comfy output</source>
       <translation>Ocultar la salida de Comfy</translation>
     </message>
@@ -3405,7 +3405,7 @@ Install these nodes now?</source>
       <translation>Ocultar ajustes de conexión</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="470"></location>
       <source>Hide details</source>
       <translation>Ocultar detalles</translation>
     </message>
@@ -3425,7 +3425,7 @@ Install these nodes now?</source>
       <translation>Ocultar informe</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Hide setup log</source>
       <translation>Ocultar registro de configuración</translation>
     </message>
@@ -3495,7 +3495,7 @@ Install these nodes now?</source>
       <translation>Imagen %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="37"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="45"></location>
       <source>Image models create new images from your prompts.</source>
       <translation>Los modelos de imagen crean imágenes nuevas a partir de tus indicaciones.</translation>
     </message>
@@ -3510,7 +3510,7 @@ Install these nodes now?</source>
       <translation>Impacto: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="101"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="117"></location>
       <source>In use</source>
       <translation>En uso</translation>
     </message>
@@ -3760,7 +3760,7 @@ Install these nodes now?</source>
       <translation>Argumentos de inicio</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="434"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="438"></location>
       <source>Launch command</source>
       <translation>Comando de inicio</translation>
     </message>
@@ -3905,7 +3905,7 @@ Install these nodes now?</source>
       <translation>Cargando la definición</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="187"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="206"></location>
       <source>Loading model versions…</source>
       <translation>Cargando versiones del modelo…</translation>
     </message>
@@ -3925,7 +3925,7 @@ Install these nodes now?</source>
       <translation>Cargando el entorno de ejecución de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="61"></location>
+      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="63"></location>
       <source>Loading...</source>
       <translation>Cargando...</translation>
     </message>
@@ -4175,11 +4175,6 @@ Install these nodes now?</source>
       <translation>No se pudo descargar el modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="145"></location>
-      <source>Model download progress</source>
-      <translation>Progreso de descarga de modelos</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="462"></location>
       <source>Model download returned invalid results.</source>
       <translation>La descarga del modelo devolvió resultados no válidos.</translation>
@@ -4195,12 +4190,12 @@ Install these nodes now?</source>
       <translation>Las descargas de modelos no están disponibles para este destino de ComfyUI. Aún puedes añadir archivos manualmente a sus carpetas de modelos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="339"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="342"></location>
       <source>Model downloads returned invalid results.</source>
       <translation>Las descargas de modelos devolvieron resultados no válidos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="281"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="267"></location>
       <source>Model downloads — %1 of %2 MiB</source>
       <translation>Descargas de modelos — %1 de %2 MiB</translation>
     </message>
@@ -4230,17 +4225,17 @@ Install these nodes now?</source>
       <translation>No se pudieron cargar las recomendaciones de modelos. Inténtalo de nuevo o vuelve atrás.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="461"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="464"></location>
       <source>Model update operation failed: %1</source>
       <translation>Error en la actualización del modelo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="185"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="188"></location>
       <source>Model update results were invalid.</source>
       <translation>Los resultados de actualización del modelo no eran válidos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="468"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="471"></location>
       <source>Model updates</source>
       <translation>Actualizaciones de modelos</translation>
     </message>
@@ -4255,7 +4250,7 @@ Install these nodes now?</source>
       <translation>Modelos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="41"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="49"></location>
       <source>Models add new ways to create and edit images.</source>
       <translation>Los modelos ofrecen nuevas formas de crear y editar imágenes.</translation>
     </message>
@@ -4415,7 +4410,7 @@ Install these nodes now?</source>
       <translation>No hay ningún almacén de credenciales compatible disponible en el sistema operativo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="242"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="261"></location>
       <source>No compatible versions are available.</source>
       <translation>No hay versiones compatibles disponibles.</translation>
     </message>
@@ -4537,7 +4532,7 @@ I’ll bring my own</source>
 Usaré el mío.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="365"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="373"></location>
       <source>No, show recommendations</source>
       <translation>No, mostrar recomendaciones</translation>
     </message>
@@ -4662,7 +4657,7 @@ Usaré el mío.</translation>
       <translation>En Pixiv:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="134"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="152"></location>
       <source>On disk</source>
       <translation>En el disco</translation>
     </message>
@@ -4707,12 +4702,12 @@ Usaré el mío.</translation>
       <translation>Abrir ComfyUI manualmente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="793"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="801"></location>
       <source>Open Substitute</source>
       <translation>Abrir Substitute</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="390"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="394"></location>
       <source>Open Substitute and start creating.</source>
       <translation>Abre Substitute y empieza a crear.</translation>
     </message>
@@ -4842,7 +4837,7 @@ Usaré el mío.</translation>
       <translation>Se guardó la configuración de salida.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="122"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="127"></location>
       <source>Overall setup progress</source>
       <translation>Progreso general de configuración</translation>
     </message>
@@ -5087,7 +5082,7 @@ Usaré el mío.</translation>
       <translation>Preparando la compatibilidad con aceleración administrada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="226"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="209"></location>
       <source>Preparing setup tasks…</source>
       <translation>Preparando tareas de configuración…</translation>
     </message>
@@ -5856,7 +5851,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa los detalles siguientes y continúa con la reparación para terminar la instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="990"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="997"></location>
       <source>Review the details below, fix the reported issue, and try again.</source>
       <translation>Revisa los detalles siguientes, corrige el problema notificado y vuelve a intentarlo.</translation>
     </message>
@@ -5926,12 +5921,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Girar a la derecha</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="280"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="283"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="421"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="424"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -6246,7 +6241,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Seleccionar el ejecutable de Python manualmente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="767"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="775"></location>
       <source>Select Python manually instead</source>
       <translation>Seleccionar Python manualmente</translation>
     </message>
@@ -6371,22 +6366,22 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración está guardada y lista.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="168"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="154"></location>
       <source>Setup log</source>
       <translation>Registro de configuración</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="938"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="946"></location>
       <source>Setup needs attention</source>
       <translation>La instalación necesita atención</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="989"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="996"></location>
       <source>Setup needs attention.</source>
       <translation>La instalación necesita atención.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="227"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="210"></location>
       <source>Setup progress appears here. Open the setup log only when you want technical details.</source>
       <translation>El progreso de la configuración aparece aquí. Abre el registro solo si quieres ver detalles técnicos.</translation>
     </message>
@@ -6399,11 +6394,6 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="262"></location>
       <source>Setup stopped before ComfyUI was ready. Review the setup log for details, then try again.</source>
       <translation>La configuración se detuvo antes de que ComfyUI estuviera listo. Revisa el registro de configuración para obtener más información y vuelve a intentarlo.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="131"></location>
-      <source>Setup task activity</source>
-      <translation>Actividad de tareas de configuración</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="194"></location>
@@ -6426,7 +6416,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Acorta el nombre de archivo o carpeta en %1 y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="431"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
       <source>Show Comfy output</source>
       <translation>Mostrar la salida de Comfy</translation>
     </message>
@@ -6461,7 +6451,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar extensiones dependientes</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="470"></location>
       <source>Show details</source>
       <translation>Mostrar detalles</translation>
     </message>
@@ -6491,7 +6481,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Muestra fotogramas de vista previa del muestreador mientras ComfyUI está generando.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Show setup log</source>
       <translation>Mostrar registro de configuración</translation>
     </message>
@@ -6668,7 +6658,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Inicia esta instalación de ComfyUI con el acceso directo, script o iniciador que uses habitualmente. Mantén abierto este instalador; Substitute la detectará automáticamente.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="103"></location>
+      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="111"></location>
       <source>Starting SugarSubstitute.</source>
       <translation>Iniciando SugarSubstitute.</translation>
     </message>
@@ -6678,12 +6668,12 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Iniciando la descarga...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="949"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="958"></location>
       <source>Starting setup.</source>
       <translation>Iniciando la instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="187"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="173"></location>
       <source>Starting setup…</source>
       <translation>Iniciando la instalación…</translation>
     </message>
@@ -6703,7 +6693,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Registro del inicio</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="821"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="829"></location>
       <source>Step %1 of %2 · %3</source>
       <translation>Paso %1 de %2 · %3</translation>
     </message>
@@ -7524,7 +7514,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El script de inicio de la extensión ha fallado antes de que terminaran las importaciones normales.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="70"></location>
       <source>The first setup can take a few minutes.</source>
       <translation>La primera instalación puede tardar unos minutos.</translation>
     </message>
@@ -7659,7 +7649,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El servidor de Comfy seleccionado no ofrece administración de entornos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1142"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1149"></location>
       <source>The selected Python executable could not be validated.</source>
       <translation>No se pudo validar el ejecutable de Python seleccionado.</translation>
     </message>
@@ -8069,7 +8059,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualización disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_picker/model_picker_update_button.py" line="69"></location>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_update_button.py" line="85"></location>
       <source>Update available — view versions</source>
       <translation>Actualización disponible — ver versiones</translation>
     </message>
@@ -8169,7 +8159,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Reescaladores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="29"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="37"></location>
       <source>Upscalers enlarge existing images and refine details.</source>
       <translation>Los modelos de ampliación agrandan imágenes existentes y mejoran los detalles.</translation>
     </message>
@@ -8364,12 +8354,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Versión: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="329"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="349"></location>
       <source>Versions of %1</source>
       <translation>Versiones de %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="203"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="219"></location>
       <source>View %1 on %2</source>
       <translation>Ver %1 en %2</translation>
     </message>
@@ -8389,7 +8379,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Ver actualizaciones del modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="378"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="400"></location>
       <source>View on CivitAI</source>
       <translation>Ver en CivitAI</translation>
     </message>
@@ -8554,7 +8544,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Nombre del flujo de trabajo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="782"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="790"></location>
       <source>Working...</source>
       <translation>Trabajando...</translation>
     </message>
@@ -8579,7 +8569,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Sí</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="370"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="378"></location>
       <source>Yes, choose folder</source>
       <translation>Sí, elegir carpeta</translation>
     </message>
@@ -8614,7 +8604,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Ya casi has terminado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="389"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="393"></location>
       <source>You're ready</source>
       <translation>Todo está listo</translation>
     </message>
@@ -8634,12 +8624,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El plan de descargas revisado sigue seleccionado. Añade una clave de API de CivitAI y vuelve a intentar la configuración.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1035"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1042"></location>
       <source>Your setup is saved and ready to use.</source>
       <translation>Tu instalación está guardada y lista para usar.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1031"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1038"></location>
       <source>Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration.</source>
       <translation>Tu instalación actualizada se ha guardado. Cierra Substitute y vuelve a abrirlo para usar la nueva configuración.</translation>
     </message>

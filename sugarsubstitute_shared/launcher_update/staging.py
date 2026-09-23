@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 import logging
 import shutil
 from pathlib import Path
@@ -43,6 +44,7 @@ from sugarsubstitute_shared.launcher_update.delegation_contract import (
     validate_launcher_successor,
 )
 from sugarsubstitute_shared.windows_long_paths import operational_path
+from sugarsubstitute_shared.asset_transfer import ObservedActivity
 
 
 class LauncherBundleStager:
@@ -52,10 +54,12 @@ class LauncherBundleStager:
         self,
         *,
         downloader: LauncherBundleDownloader | None = None,
+        activity_observer: Callable[[], None] | None = None,
     ) -> None:
         """Store the asset downloader used by this stager."""
 
         self._downloader = downloader or LauncherBundleDownloader()
+        self._activity_observer = activity_observer
 
     def stage(
         self,
@@ -128,10 +132,18 @@ class LauncherBundleStager:
         with TemporaryDirectory(prefix="bundle-", dir=download_root) as temporary:
             archive_path = Path(temporary) / "bundle.zip"
             self._downloader.download(asset=asset, destination=archive_path)
-            _verify_sha256(archive_path, expected=asset.sha256)
+            _verify_sha256(
+                archive_path,
+                expected=asset.sha256,
+                activity_observer=self._activity_observer,
+            )
             if destination.exists():
                 shutil.rmtree(destination)
-            safe_extract_zip(zip_path=archive_path, destination_dir=destination)
+            safe_extract_zip(
+                zip_path=archive_path,
+                destination_dir=destination,
+                activity_observer=self._activity_observer,
+            )
             normalize_staged_bundle_permissions(bundle_dir=destination, target=target)
             validate_launcher_bundle(bundle_dir=destination, target=target)
         return destination
@@ -151,13 +163,20 @@ def normalize_staged_bundle_permissions(
         executable_path.chmod(executable_path.stat().st_mode | target.executable_mode)
 
 
-def _verify_sha256(path: Path, *, expected: str) -> None:
+def _verify_sha256(
+    path: Path,
+    *,
+    expected: str,
+    activity_observer: Callable[[], None] | None = None,
+) -> None:
     """Reject an asset whose bytes differ from the release manifest."""
 
     digest = hashlib.sha256()
+    activity = ObservedActivity(activity_observer)
     with path.open("rb") as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
+            activity.record()
     if digest.hexdigest().lower() != expected.lower():
         raise LauncherBundleValidationError(
             f"Launcher bundle SHA256 mismatch: {path.name}"

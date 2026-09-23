@@ -195,10 +195,10 @@ def test_supervisor_replaces_outer_receipt_across_authorized_restart(
     assert child_environments[1][READINESS_TOKEN_ENV] == "main-shell-token"
 
 
-def test_nested_supervisor_projects_final_surface_to_original_outer_contract(
+def test_nested_supervisor_acknowledges_immediate_and_original_outer_contracts(
     tmp_path: Path,
 ) -> None:
-    """A setup child must not strand final readiness inside its private proof."""
+    """Every supervising hop must receive the final painted-shell proof."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
     outer_receipt_path = tmp_path / "qualification" / "candidate.json"
@@ -269,6 +269,17 @@ def test_nested_supervisor_projects_final_surface_to_original_outer_contract(
         command=["python", "main.py"],
         environment=setup_child_environment,
     )
+
+    immediate_receipt = ApplicationReadinessReceipt.from_json(
+        json.loads(
+            Path(setup_child_environment[READINESS_PATH_ENV]).read_text(
+                encoding="utf-8"
+            )
+        )
+    )
+    assert immediate_receipt.pid == app_process.pid
+    assert immediate_receipt.token == "setup-private-token"
+    assert immediate_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
 
     final_receipt = ApplicationReadinessReceipt.from_json(
         json.loads(outer_receipt_path.read_text(encoding="utf-8"))

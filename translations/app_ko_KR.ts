@@ -50,7 +50,7 @@ Prompt preview:
       <translation>%1(우회됨)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="109"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="125"></location>
       <source>%1 API key required</source>
       <translation>%1 API 키 필요</translation>
     </message>
@@ -110,7 +110,7 @@ Prompt preview:
       <translation>%1에 아직 커밋하지 않은 큐브 라이브러리 변경 사항이 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="307"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="326"></location>
       <source>%1 downloaded beside your current file.</source>
       <translation>%1을(를) 현재 파일 옆에 다운로드했습니다.</translation>
     </message>
@@ -150,7 +150,7 @@ Prompt preview:
       <translation>메타데이터 항목 %1개, 이미지 미리 보기 %2개, %3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="59"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="75"></location>
       <source>%1 model recommendation</source>
       <translation>모델 추천 %1개</translation>
     </message>
@@ -165,7 +165,7 @@ Prompt preview:
       <translation>%2개 중 %1개</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="245"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="230"></location>
       <source>%1 of %2 setup tasks complete</source>
       <translation>설정 작업 %2개 중 %1개 완료</translation>
     </message>
@@ -195,7 +195,7 @@ Prompt preview:
       <translation>%1 픽셀</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="928"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="936"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>Substitute를 열기 전에 저장된 설정 항목 %1개를 복구해야 합니다.</translation>
     </message>
@@ -245,7 +245,7 @@ Prompt preview:
       <translation>%1 � %2 � 업데이트 가능</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="333"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="353"></location>
       <source>%1 · %2 · oldest to newest</source>
       <translation>%1 · %2 · 오래된 버전부터</translation>
     </message>
@@ -270,7 +270,7 @@ Prompt preview:
       <translation>%1%2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="85"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="101"></location>
       <source>%1, version %2</source>
       <translation>%1, 버전 %2</translation>
     </message>
@@ -589,7 +589,7 @@ This is taking much longer than expected</source>
       <translation>모든 등급</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="202"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="184"></location>
       <source>All setup tasks are complete.</source>
       <translation>모든 설정 작업이 완료되었습니다.</translation>
     </message>
@@ -894,7 +894,7 @@ This is taking much longer than expected</source>
       <translation>작업 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="415"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="428"></location>
       <source>Cancel loading</source>
       <translation>불러오기 취소</translation>
     </message>
@@ -1009,7 +1009,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI의 Python 환경을 확인하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="690"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="698"></location>
       <source>Checking ComfyUI…</source>
       <translation>ComfyUI 확인 중�</translation>
     </message>
@@ -1054,7 +1054,7 @@ This is taking much longer than expected</source>
       <translation>선택한 Python 실행 파일 확인 중�</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="753"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="761"></location>
       <source>Checking…</source>
       <translation>확인 중�</translation>
     </message>
@@ -1734,7 +1734,7 @@ This is taking much longer than expected</source>
       <translation>아직 ComfyUI를 확인할 수 없습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1185"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1192"></location>
       <source>ComfyUI could not be checked yet: %1</source>
       <translation>아직 ComfyUI를 확인할 수 없습니다: %1</translation>
     </message>
@@ -2527,7 +2527,7 @@ Install these nodes now?</source>
       <translation>실행 중인 ComfyUI에서 감지</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="775"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="783"></location>
       <source>Detect from running ComfyUI instead</source>
       <translation>대신 실행 중인 ComfyUI에서 감지</translation>
     </message>
@@ -2547,7 +2547,7 @@ Install these nodes now?</source>
       <translation>진단 로그</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="430"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="452"></location>
       <source>Diffusion model</source>
       <translation>확산 모델</translation>
     </message>
@@ -2577,7 +2577,7 @@ Install these nodes now?</source>
       <translation>변경 사항 버리기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="39"></location>
+      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="55"></location>
       <source>Dismiss</source>
       <translation>닫기</translation>
     </message>
@@ -2592,7 +2592,7 @@ Install these nodes now?</source>
       <translation>저장 안 함</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="44"></location>
+      <location filename="../substitute/presentation/model_updates/icon_menu.py" line="60"></location>
       <source>Don't check for updates for %1</source>
       <translation>%1의 업데이트 확인 안 함</translation>
     </message>
@@ -2617,17 +2617,17 @@ Install these nodes now?</source>
       <translation>CivitAI 썸네일 다운로드</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="40"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="48"></location>
       <source>Download a model?</source>
       <translation>모델을 다운로드할까요?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="36"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="44"></location>
       <source>Download an image model?</source>
       <translation>이미지 모델을 다운로드할까요?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="28"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="36"></location>
       <source>Download an upscaler model?</source>
       <translation>업스케일러 모델을 다운로드할까요?</translation>
     </message>
@@ -2642,7 +2642,7 @@ Install these nodes now?</source>
       <translation>다운로드에 실패했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="157"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="173"></location>
       <source>Download from %1</source>
       <translation>%1에서 다운로드</translation>
     </message>
@@ -2662,7 +2662,7 @@ Install these nodes now?</source>
       <translation>모델 선택기 썸네일에 사용할 제공자 이미지를 다운로드합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="390"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="412"></location>
       <source>Download version</source>
       <translation>버전 다운로드</translation>
     </message>
@@ -2672,12 +2672,12 @@ Install these nodes now?</source>
       <translation>%1 다운로드 중</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="290"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="276"></location>
       <source>Downloading %1 (%2 of %3) — %4 of %5 MiB</source>
       <translation>%1 다운로드 중(%3개 중 %2개) — %5 MiB 중 %4 MiB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="300"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="286"></location>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>%1 다운로드 중 — %3 MiB 중 %2 MiB</translation>
     </message>
@@ -3040,7 +3040,7 @@ Install these nodes now?</source>
       <translation>모델 찾기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="597"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="605"></location>
       <source>Finding Python…</source>
       <translation>Python 찾는 중�</translation>
     </message>
@@ -3075,7 +3075,7 @@ Install these nodes now?</source>
       <translation>ComfyUI 사용자 지정 노드 불러오기를 마무리하고 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="68"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
       <source>Finishing your setup</source>
       <translation>설정 마무리 중</translation>
     </message>
@@ -3325,7 +3325,7 @@ Install these nodes now?</source>
       <translation>콘텐츠 환경 설정에 의해 숨겨짐</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="431"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
       <source>Hide Comfy output</source>
       <translation>Comfy 출력 숨기기</translation>
     </message>
@@ -3350,7 +3350,7 @@ Install these nodes now?</source>
       <translation>연결 설정 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="470"></location>
       <source>Hide details</source>
       <translation>세부 정보 숨기기</translation>
     </message>
@@ -3370,7 +3370,7 @@ Install these nodes now?</source>
       <translation>보고서 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Hide setup log</source>
       <translation>설정 로그 숨기기</translation>
     </message>
@@ -3440,7 +3440,7 @@ Install these nodes now?</source>
       <translation>이미지 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="37"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="45"></location>
       <source>Image models create new images from your prompts.</source>
       <translation>이미지 모델은 입력한 프롬프트로 새 이미지를 만듭니다.</translation>
     </message>
@@ -3455,7 +3455,7 @@ Install these nodes now?</source>
       <translation>영향: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="101"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="117"></location>
       <source>In use</source>
       <translation>사용 중</translation>
     </message>
@@ -3705,7 +3705,7 @@ Install these nodes now?</source>
       <translation>실행 인수</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="434"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="438"></location>
       <source>Launch command</source>
       <translation>실행 명령</translation>
     </message>
@@ -3850,7 +3850,7 @@ Install these nodes now?</source>
       <translation>정의 불러오는 중</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="187"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="206"></location>
       <source>Loading model versions…</source>
       <translation>모델 버전 불러오는 중…</translation>
     </message>
@@ -3870,7 +3870,7 @@ Install these nodes now?</source>
       <translation>ComfyUI 실행 환경을 불러오고 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="61"></location>
+      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="63"></location>
       <source>Loading...</source>
       <translation>불러오는 중...</translation>
     </message>
@@ -4120,11 +4120,6 @@ Install these nodes now?</source>
       <translation>모델 다운로드 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="145"></location>
-      <source>Model download progress</source>
-      <translation>모델 다운로드 진행률</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="462"></location>
       <source>Model download returned invalid results.</source>
       <translation>모델 다운로드가 잘못된 결과를 반환했습니다.</translation>
@@ -4140,12 +4135,12 @@ Install these nodes now?</source>
       <translation>이 ComfyUI 대상에서는 모델 다운로드를 사용할 수 없습니다. 모델 폴더에 파일을 직접 추가할 수는 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="339"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="342"></location>
       <source>Model downloads returned invalid results.</source>
       <translation>모델 다운로드에서 잘못된 결과를 반환했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="281"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="267"></location>
       <source>Model downloads — %1 of %2 MiB</source>
       <translation>모델 다운로드 — %2 MiB 중 %1 MiB</translation>
     </message>
@@ -4175,17 +4170,17 @@ Install these nodes now?</source>
       <translation>모델 추천을 불러올 수 없습니다. 다시 시도하거나 뒤로 이동하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="461"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="464"></location>
       <source>Model update operation failed: %1</source>
       <translation>모델 업데이트 작업 실패: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="185"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="188"></location>
       <source>Model update results were invalid.</source>
       <translation>모델 업데이트 결과가 잘못되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="468"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="471"></location>
       <source>Model updates</source>
       <translation>모델 업데이트</translation>
     </message>
@@ -4200,7 +4195,7 @@ Install these nodes now?</source>
       <translation>모델</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="41"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="49"></location>
       <source>Models add new ways to create and edit images.</source>
       <translation>모델을 추가하면 이미지를 만들고 편집하는 방법이 늘어납니다.</translation>
     </message>
@@ -4360,7 +4355,7 @@ Install these nodes now?</source>
       <translation>호환되는 운영 체제 자격 증명 저장소가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="242"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="261"></location>
       <source>No compatible versions are available.</source>
       <translation>호환되는 버전이 없습니다.</translation>
     </message>
@@ -4482,7 +4477,7 @@ I’ll bring my own</source>
 직접 준비하겠습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="365"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="373"></location>
       <source>No, show recommendations</source>
       <translation>아니요, 추천 보기</translation>
     </message>
@@ -4607,7 +4602,7 @@ I’ll bring my own</source>
       <translation>Pixiv에서:</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="134"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="152"></location>
       <source>On disk</source>
       <translation>디스크에 있음</translation>
     </message>
@@ -4652,12 +4647,12 @@ I’ll bring my own</source>
       <translation>직접 ComfyUI 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="793"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="801"></location>
       <source>Open Substitute</source>
       <translation>Substitute 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="390"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="394"></location>
       <source>Open Substitute and start creating.</source>
       <translation>Substitute를 열고 창작을 시작하세요.</translation>
     </message>
@@ -4787,7 +4782,7 @@ I’ll bring my own</source>
       <translation>출력 설정을 저장했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="122"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="127"></location>
       <source>Overall setup progress</source>
       <translation>전체 설정 진행률</translation>
     </message>
@@ -5032,7 +5027,7 @@ I’ll bring my own</source>
       <translation>관리형 가속 지원을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="226"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="209"></location>
       <source>Preparing setup tasks…</source>
       <translation>설정 작업을 준비하는 중…</translation>
     </message>
@@ -5801,7 +5796,7 @@ No known extension claimant.</source>
       <translation>아래 세부 정보를 검토하고 복구를 계속하여 설정을 마치세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="990"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="997"></location>
       <source>Review the details below, fix the reported issue, and try again.</source>
       <translation>아래 세부 정보를 검토하고 보고된 문제를 해결한 다음 다시 시도하세요.</translation>
     </message>
@@ -5871,12 +5866,12 @@ No known extension claimant.</source>
       <translation>오른쪽으로 회전</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="280"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="283"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="421"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="424"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -6191,7 +6186,7 @@ No known extension claimant.</source>
       <translation>Python 실행 파일 수동 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="767"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="775"></location>
       <source>Select Python manually instead</source>
       <translation>대신 Python 수동 선택</translation>
     </message>
@@ -6316,22 +6311,22 @@ No known extension claimant.</source>
       <translation>설정이 저장되어 준비되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="168"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="154"></location>
       <source>Setup log</source>
       <translation>설정 로그</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="938"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="946"></location>
       <source>Setup needs attention</source>
       <translation>설정을 확인해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="989"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="996"></location>
       <source>Setup needs attention.</source>
       <translation>설정을 확인해야 합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="227"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="210"></location>
       <source>Setup progress appears here. Open the setup log only when you want technical details.</source>
       <translation>설정 진행 상황이 여기에 표시됩니다. 기술 세부 정보가 필요할 때만 설정 로그를 여세요.</translation>
     </message>
@@ -6344,11 +6339,6 @@ No known extension claimant.</source>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="262"></location>
       <source>Setup stopped before ComfyUI was ready. Review the setup log for details, then try again.</source>
       <translation>ComfyUI가 준비되기 전에 설정이 중단되었습니다. 설정 로그에서 자세한 내용을 확인한 후 다시 시도하세요.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="131"></location>
-      <source>Setup task activity</source>
-      <translation>설정 작업 활동</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="194"></location>
@@ -6371,7 +6361,7 @@ No known extension claimant.</source>
       <translation>%1의 파일 또는 폴더 이름을 줄인 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="431"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
       <source>Show Comfy output</source>
       <translation>Comfy 출력 표시</translation>
     </message>
@@ -6406,7 +6396,7 @@ No known extension claimant.</source>
       <translation>종속 확장 프로그램 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="470"></location>
       <source>Show details</source>
       <translation>세부 정보 표시</translation>
     </message>
@@ -6436,7 +6426,7 @@ No known extension claimant.</source>
       <translation>ComfyUI가 생성하는 동안 샘플러 미리 보기 프레임을 표시합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Show setup log</source>
       <translation>설정 로그 표시</translation>
     </message>
@@ -6613,7 +6603,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>평소 사용하는 바로 가기, 스크립트 또는 실행기로 이 ComfyUI 설치를 시작하세요. 이 설치 프로그램은 열어 두세요. Substitute가 자동으로 감지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="103"></location>
+      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="111"></location>
       <source>Starting SugarSubstitute.</source>
       <translation>SugarSubstitute를 시작하는 중입니다.</translation>
     </message>
@@ -6623,12 +6613,12 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>다운로드 시작 중...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="949"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="958"></location>
       <source>Starting setup.</source>
       <translation>설정을 시작하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="187"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="173"></location>
       <source>Starting setup…</source>
       <translation>설정 시작 중�</translation>
     </message>
@@ -6648,7 +6638,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>시작 기록</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="821"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="829"></location>
       <source>Step %1 of %2 · %3</source>
       <translation>%2단계 중 %1단계 · %3</translation>
     </message>
@@ -7469,7 +7459,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>일반 가져오기가 완료되기 전에 확장 프로그램 시작 스크립트가 실패했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="70"></location>
       <source>The first setup can take a few minutes.</source>
       <translation>최초 설정에는 몇 분 정도 걸릴 수 있습니다.</translation>
     </message>
@@ -7604,7 +7594,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 Comfy 서버에서 환경 관리를 제공하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1142"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1149"></location>
       <source>The selected Python executable could not be validated.</source>
       <translation>선택한 Python 실행 파일을 검증하지 못했습니다.</translation>
     </message>
@@ -8014,7 +8004,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>업데이트 가능</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_picker/model_picker_update_button.py" line="69"></location>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_update_button.py" line="85"></location>
       <source>Update available — view versions</source>
       <translation>업데이트 사용 가능 — 버전 보기</translation>
     </message>
@@ -8114,7 +8104,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>업스케일러</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="29"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_copy.py" line="37"></location>
       <source>Upscalers enlarge existing images and refine details.</source>
       <translation>업스케일러는 기존 이미지를 확대하고 세부 묘사를 다듬습니다.</translation>
     </message>
@@ -8309,12 +8299,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>버전: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="329"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="349"></location>
       <source>Versions of %1</source>
       <translation>%1 버전</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="203"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="219"></location>
       <source>View %1 on %2</source>
       <translation>%2에서 %1 보기</translation>
     </message>
@@ -8334,7 +8324,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>모델 업데이트 보기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="378"></location>
+      <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="400"></location>
       <source>View on CivitAI</source>
       <translation>CivitAI에서 보기</translation>
     </message>
@@ -8499,7 +8489,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로 이름</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="782"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="790"></location>
       <source>Working...</source>
       <translation>작업 중...</translation>
     </message>
@@ -8524,7 +8514,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>예</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="370"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="378"></location>
       <source>Yes, choose folder</source>
       <translation>예, 폴더 선택</translation>
     </message>
@@ -8559,7 +8549,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>거의 다 됐습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="389"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="393"></location>
       <source>You're ready</source>
       <translation>준비되었습니다</translation>
     </message>
@@ -8579,12 +8569,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>검토한 다운로드 계획은 그대로 선택되어 있습니다. CivitAI API 키를 추가한 후 설정을 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1035"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1042"></location>
       <source>Your setup is saved and ready to use.</source>
       <translation>설정이 저장되었으며 사용할 준비가 되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1031"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1038"></location>
       <source>Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration.</source>
       <translation>업데이트된 설정이 저장되었습니다. 새 구성을 사용하려면 지금 Substitute를 닫았다가 다시 여세요.</translation>
     </message>
