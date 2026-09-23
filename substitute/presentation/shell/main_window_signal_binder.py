@@ -284,6 +284,9 @@ class MainWindowSignalBinder:
         cube_stack.cubeDuplicateRequested.connect(
             cube_stack_actions.on_cube_duplicate_requested
         )
+        capture_requested = getattr(cube_stack, "cubeCaptureRequested", None)
+        if capture_requested is not None and hasattr(capture_requested, "connect"):
+            capture_requested.connect(cube_stack_actions.on_cube_capture_requested)
         bypass_toggle_requested = getattr(
             cube_stack,
             "cubeBypassToggleRequested",

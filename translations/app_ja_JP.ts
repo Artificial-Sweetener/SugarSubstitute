@@ -215,12 +215,12 @@ Prompt preview:
       <translation>%1 個のモデルを追加済み</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="89"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="88"></location>
       <source>%1 of %2</source>
       <translation>%1 / %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="245"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="230"></location>
       <source>%1 of %2 setup tasks complete</source>
       <translation>セットアップタスク %2 件中 %1 件が完了</translation>
     </message>
@@ -250,7 +250,7 @@ Prompt preview:
       <translation>%1 ピクセル</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="928"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="936"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>Substitute を開く前に、保存済みのセットアップ項目 %1 件を修復する必要があります。</translation>
     </message>
@@ -629,7 +629,7 @@ This is taking much longer than expected</source>
       <translation>すべてのレーティング</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="202"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="184"></location>
       <source>All setup tasks are complete.</source>
       <translation>すべてのセットアップタスクが完了しました。</translation>
     </message>
@@ -879,7 +879,7 @@ This is taking much longer than expected</source>
       <translation>ブラシ設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="310"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="327"></location>
       <source>Bypass</source>
       <translation>バイパス</translation>
     </message>
@@ -924,7 +924,7 @@ This is taking much longer than expected</source>
       <translation>ジョブをキャンセル</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="415"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="428"></location>
       <source>Cancel loading</source>
       <translation>読み込みをキャンセル</translation>
     </message>
@@ -939,7 +939,7 @@ This is taking much longer than expected</source>
       <translation>キャンセル済み - 保存された出力はありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="84"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="83"></location>
       <source>Cancelling download...</source>
       <translation>ダウンロードをキャンセルしています...</translation>
     </message>
@@ -947,6 +947,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/shell/model_download_progress.py" line="40"></location>
       <source>Cancelling the model download.</source>
       <translation>モデルのダウンロードをキャンセルしています。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="315"></location>
+      <source>Capture Cube</source>
+      <translation>キューブをキャプチャ</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
@@ -1039,7 +1044,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI の Python 環境を確認しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="690"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="698"></location>
       <source>Checking ComfyUI…</source>
       <translation>ComfyUI を確認しています…</translation>
     </message>
@@ -1084,7 +1089,7 @@ This is taking much longer than expected</source>
       <translation>選択した Python 実行ファイルを確認しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="753"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="761"></location>
       <source>Checking…</source>
       <translation>確認しています…</translation>
     </message>
@@ -1154,7 +1159,7 @@ This is taking much longer than expected</source>
       <translation>ダウンロードを確認する前にモデルフォルダーを選んでください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="153"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="145"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>入力キャンバスとマスクの新しいサイズを選択</translation>
     </message>
@@ -1784,7 +1789,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI はまだ確認できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1185"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1192"></location>
       <source>ComfyUI could not be checked yet: %1</source>
       <translation>ComfyUI はまだ確認できません：%1</translation>
     </message>
@@ -2567,7 +2572,7 @@ Install these nodes now?</source>
       <translation>実行中の ComfyUI から検出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="775"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="783"></location>
       <source>Detect from running ComfyUI instead</source>
       <translation>代わりに実行中の ComfyUI から検出</translation>
     </message>
@@ -2627,7 +2632,7 @@ Install these nodes now?</source>
       <translation>保存しない</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="291"></location>
       <source>Don't save outputs</source>
       <translation>出力を保存しない</translation>
     </message>
@@ -2652,7 +2657,7 @@ Install these nodes now?</source>
       <translation>ダウンロードして使用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="86"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="85"></location>
       <source>Download failed.</source>
       <translation>ダウンロードに失敗しました。</translation>
     </message>
@@ -2682,12 +2687,12 @@ Install these nodes now?</source>
       <translation>%1 をダウンロードしています</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="290"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="276"></location>
       <source>Downloading %1 (%2 of %3) — %4 of %5 MiB</source>
       <translation>%1をダウンロード中（%3件中%2件）— %5 MiB中%4 MiB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="300"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="286"></location>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>%1をダウンロード中 — %3 MiB中%2 MiB</translation>
     </message>
@@ -2727,7 +2732,7 @@ Install these nodes now?</source>
       <translation>ドラッグとコピーの形式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="301"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="306"></location>
       <source>Duplicate</source>
       <translation>複製</translation>
     </message>
@@ -2902,7 +2907,7 @@ Install these nodes now?</source>
       <translation>ComfyUI ワークフローとしてエクスポート...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="778"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="776"></location>
       <source>Export workflow failed</source>
       <translation>ワークフローをエクスポートできませんでした</translation>
     </message>
@@ -2953,7 +2958,7 @@ Install these nodes now?</source>
       <translation>生成リスナーセッションに接続できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="779"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="777"></location>
       <source>Failed to export workflow: %1</source>
       <translation>ワークフローをエクスポートできませんでした：%1</translation>
     </message>
@@ -2973,7 +2978,7 @@ Install these nodes now?</source>
       <translation>生成画像を読み込めませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1365"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1363"></location>
       <source>Failed to load recipe: %1</source>
       <translation>レシピを読み込めませんでした：%1</translation>
     </message>
@@ -3050,7 +3055,7 @@ Install these nodes now?</source>
       <translation>モデルを探す</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="597"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="605"></location>
       <source>Finding Python…</source>
       <translation>Python を探しています…</translation>
     </message>
@@ -3085,7 +3090,7 @@ Install these nodes now?</source>
       <translation>ComfyUI のカスタムノードの読み込みを完了しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="68"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
       <source>Finishing your setup</source>
       <translation>セットアップを完了しています</translation>
     </message>
@@ -3145,7 +3150,7 @@ Install these nodes now?</source>
       <translation>グラフィックスプロセッサ (GPU)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>このセッションでは GUI を再起動できません。</translation>
     </message>
@@ -3330,7 +3335,7 @@ Install these nodes now?</source>
       <translation>コンテンツ設定により非表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="431"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
       <source>Hide Comfy output</source>
       <translation>Comfy 出力を隠す</translation>
     </message>
@@ -3355,7 +3360,7 @@ Install these nodes now?</source>
       <translation>接続設定を隠す</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="470"></location>
       <source>Hide details</source>
       <translation>詳細を隠す</translation>
     </message>
@@ -3375,7 +3380,7 @@ Install these nodes now?</source>
       <translation>レポートを隠す</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Hide setup log</source>
       <translation>セットアップログを隠す</translation>
     </message>
@@ -3695,7 +3700,7 @@ Install these nodes now?</source>
       <translation>起動引数</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="434"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="438"></location>
       <source>Launch command</source>
       <translation>起動コマンド</translation>
     </message>
@@ -3790,7 +3795,7 @@ Install these nodes now?</source>
       <translation>読み込みエラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1364"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1362"></location>
       <source>Load recipe failed</source>
       <translation>レシピを読み込めませんでした</translation>
     </message>
@@ -3855,7 +3860,7 @@ Install these nodes now?</source>
       <translation>ComfyUI の実行環境を読み込んでいます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="61"></location>
+      <location filename="../substitute/presentation/shell/splash_progress_panel.py" line="63"></location>
       <source>Loading...</source>
       <translation>読み込み中...</translation>
     </message>
@@ -4100,7 +4105,7 @@ Install these nodes now?</source>
       <translation>モデル検索から無効な結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="280"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="307"></location>
       <source>Model download failed</source>
       <translation>モデルのダウンロードに失敗しました</translation>
     </message>
@@ -4125,7 +4130,7 @@ Install these nodes now?</source>
       <translation>モデルのダウンロードから無効な結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="281"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="267"></location>
       <source>Model downloads — %1 of %2 MiB</source>
       <translation>モデルのダウンロード — %2 MiB中%1 MiB</translation>
     </message>
@@ -4452,7 +4457,7 @@ I’ll bring my own</source>
 自分のものを使います</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="365"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="373"></location>
       <source>No, show recommendations</source>
       <translation>いいえ、おすすめを表示</translation>
     </message>
@@ -4612,12 +4617,12 @@ I’ll bring my own</source>
       <translation>自分で ComfyUI を開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="793"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="801"></location>
       <source>Open Substitute</source>
       <translation>Substitute を開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="390"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="394"></location>
       <source>Open Substitute and start creating.</source>
       <translation>Substitute を開いて制作を始めましょう。</translation>
     </message>
@@ -4747,7 +4752,7 @@ I’ll bring my own</source>
       <translation>出力設定を保存しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="122"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="127"></location>
       <source>Overall setup progress</source>
       <translation>セットアップ全体の進行状況</translation>
     </message>
@@ -4982,7 +4987,7 @@ I’ll bring my own</source>
       <translation>管理対象のアクセラレーション対応を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="226"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="209"></location>
       <source>Preparing setup tasks…</source>
       <translation>セットアップタスクを準備しています…</translation>
     </message>
@@ -5422,7 +5427,7 @@ I’ll bring my own</source>
       <translation>不要な項目を削除してからダウンロードしてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="308"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="325"></location>
       <source>Remove bypass</source>
       <translation>バイパスを解除</translation>
     </message>
@@ -5741,7 +5746,7 @@ No known extension claimant.</source>
       <translation>以下の詳細を確認し、修復を続けてセットアップを完了してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="990"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="997"></location>
       <source>Review the details below, fix the reported issue, and try again.</source>
       <translation>以下の詳細を確認し、報告された問題を修正して、もう一度お試しください。</translation>
     </message>
@@ -5811,12 +5816,12 @@ No known extension claimant.</source>
       <translation>右に回転</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="280"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="283"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute の起動スプラッシュを実行します。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="421"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="424"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute のスプラッシュホストを実行します。</translation>
     </message>
@@ -5956,7 +5961,7 @@ No known extension claimant.</source>
       <translation>プリセットを保存または読み込む</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="288"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="293"></location>
       <source>Save outputs</source>
       <translation>出力を保存</translation>
     </message>
@@ -6131,7 +6136,7 @@ No known extension claimant.</source>
       <translation>Python 実行ファイルを手動で選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="767"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="775"></location>
       <source>Select Python manually instead</source>
       <translation>代わりに Python を手動で選択</translation>
     </message>
@@ -6256,22 +6261,22 @@ No known extension claimant.</source>
       <translation>セットアップを保存し、準備ができました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="168"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="154"></location>
       <source>Setup log</source>
       <translation>セットアップログ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="938"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="946"></location>
       <source>Setup needs attention</source>
       <translation>セットアップに確認が必要です</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="989"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="996"></location>
       <source>Setup needs attention.</source>
       <translation>セットアップを確認してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="227"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="210"></location>
       <source>Setup progress appears here. Open the setup log only when you want technical details.</source>
       <translation>セットアップの進行状況がここに表示されます。技術的な詳細が必要な場合だけログを開いてください。</translation>
     </message>
@@ -6306,7 +6311,7 @@ No known extension claimant.</source>
       <translation>%1 にあるファイル名またはフォルダー名を短くしてから、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="431"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
       <source>Show Comfy output</source>
       <translation>Comfy 出力を表示</translation>
     </message>
@@ -6336,7 +6341,7 @@ No known extension claimant.</source>
       <translation>依存する拡張機能を表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="470"></location>
       <source>Show details</source>
       <translation>詳細を表示</translation>
     </message>
@@ -6361,7 +6366,7 @@ No known extension claimant.</source>
       <translation>ComfyUI の生成中にサンプラーのプレビューフレームを表示します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Show setup log</source>
       <translation>セットアップログを表示</translation>
     </message>
@@ -6526,7 +6531,7 @@ No known extension claimant.</source>
       <translation>普段お使いのショートカット、スクリプト、またはランチャーでこの ComfyUI を起動してください。このインストーラーは開いたままにしてください。Substitute が自動的に検出します。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="103"></location>
+      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="111"></location>
       <source>Starting SugarSubstitute.</source>
       <translation>SugarSubstitute を起動しています。</translation>
     </message>
@@ -6536,12 +6541,12 @@ No known extension claimant.</source>
       <translation>ダウンロードを開始しています...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="949"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="958"></location>
       <source>Starting setup.</source>
       <translation>セットアップを開始しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="187"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="173"></location>
       <source>Starting setup…</source>
       <translation>セットアップを開始しています…</translation>
     </message>
@@ -6561,7 +6566,7 @@ No known extension claimant.</source>
       <translation>起動記録</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="821"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="829"></location>
       <source>Step %1 of %2 · %3</source>
       <translation>%2 ステップ中 %1 · %3</translation>
     </message>
@@ -6706,7 +6711,7 @@ No known extension claimant.</source>
       <translation>シャットダウンが完了したことを確認できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="285"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="312"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute は、このワークフローに必要なすべてのモデルをダウンロードして検証できませんでした。</translation>
     </message>
@@ -6741,7 +6746,7 @@ No known extension claimant.</source>
       <translation>このローカル ComfyUI の準備を完了できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="289"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="316"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute はこの ComfyUI ワークフロードキュメントを読み取れませんでした。</translation>
     </message>
@@ -7382,7 +7387,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>通常のインポートが完了する前に、拡張機能の起動スクリプトが失敗しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="70"></location>
       <source>The first setup can take a few minutes.</source>
       <translation>初回セットアップには数分かかる場合があります。</translation>
     </message>
@@ -7517,7 +7522,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>選択した Comfy サーバーは環境管理機能を提供していません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1142"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1149"></location>
       <source>The selected Python executable could not be validated.</source>
       <translation>選択した Python 実行ファイルを検証できませんでした。</translation>
     </message>
@@ -8282,7 +8287,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の準備が整うのを待っています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="80"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="79"></location>
       <source>Waiting for the download to start...</source>
       <translation>ダウンロードの開始を待っています...</translation>
     </message>
@@ -8402,7 +8407,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ワークフローとプロンプトのコンテキスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="282"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="309"></location>
       <source>Workflow could not be loaded</source>
       <translation>ワークフローを読み込めませんでした</translation>
     </message>
@@ -8412,7 +8417,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ワークフロー名</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="782"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="790"></location>
       <source>Working...</source>
       <translation>処理中...</translation>
     </message>
@@ -8437,7 +8442,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>はい</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="370"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="378"></location>
       <source>Yes, choose folder</source>
       <translation>はい、フォルダーを選択</translation>
     </message>
@@ -8472,7 +8477,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>もうすぐ完了です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="389"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="393"></location>
       <source>You're ready</source>
       <translation>準備ができました</translation>
     </message>
@@ -8492,12 +8497,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>確認済みのダウンロード内容は選択されたままです。CivitAI APIキーを追加して、セットアップを再試行してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1035"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1042"></location>
       <source>Your setup is saved and ready to use.</source>
       <translation>設定を保存しました。すぐに使用できます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1031"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1038"></location>
       <source>Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration.</source>
       <translation>更新した設定を保存しました。新しい設定を使用するには、Substitute を閉じてからもう一度起動してください。</translation>
     </message>
@@ -8557,7 +8562,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>管理対象の ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/model_download_progress.py" line="73"></location>
+      <location filename="../substitute/presentation/shell/model_download_progress.py" line="72"></location>
       <source>model</source>
       <translation>モデル</translation>
     </message>

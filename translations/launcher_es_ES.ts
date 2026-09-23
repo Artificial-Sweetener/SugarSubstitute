@@ -24,7 +24,7 @@
       <translation>Siempre se conserva</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="174"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="156"></location>
       <source>App entrypoint: %1</source>
       <translation>Punto de entrada de la aplicación: %1</translation>
     </message>
@@ -49,22 +49,22 @@
       <translation>Cancelar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="138"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="128"></location>
       <source>Cancel repair</source>
       <translation>Cancelar reparación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="184"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="186"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>Buscando actualizaciones de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="134"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="124"></location>
       <source>Checking repair files</source>
       <translation>Comprobando los archivos de reparación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="112"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="86"></location>
       <source>Checking the repair release</source>
       <translation>Comprobando la versión de reparación</translation>
     </message>
@@ -104,7 +104,7 @@
       <translation>Elige tu idioma</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="167"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="156"></location>
       <source>Close</source>
       <translation>Cerrar</translation>
     </message>
@@ -114,32 +114,32 @@
       <translation>Continuar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="191"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="192"></location>
       <source>Continuing install from installed launcher.</source>
       <translation>Continuando la instalación desde el iniciador instalado.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="437"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="440"></location>
       <source>Could not install the Python runtime.</source>
       <translation>No se pudo instalar el entorno de ejecución de Python.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="442"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="445"></location>
       <source>Could not start SugarSubstitute setup.</source>
       <translation>No se pudo iniciar la instalación de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="174"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="182"></location>
       <source>Created install root: %1</source>
       <translation>Carpeta raíz de instalación creada: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="83"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="73"></location>
       <source>Details</source>
       <translation>Detalles</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="393"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="396"></location>
       <source>Details: %1</source>
       <translation>Detalles: %1</translation>
     </message>
@@ -159,12 +159,12 @@
       <translation>Finalizando el paso de configuración actual antes de cerrar.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="84"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="75"></location>
       <source>Getting things ready…</source>
       <translation>Preparando todo…</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="204"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="185"></location>
       <source>Hide details</source>
       <translation>Ocultar detalles</translation>
     </message>
@@ -174,7 +174,7 @@
       <translation>Instalar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="399"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="402"></location>
       <source>Install application</source>
       <translation>Instalar la aplicación</translation>
     </message>
@@ -184,7 +184,7 @@
       <translation>Carpeta de instalación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="309"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="311"></location>
       <source>Install root is not prepared yet.</source>
       <translation>La carpeta raíz de instalación aún no está preparada.</translation>
     </message>
@@ -194,32 +194,32 @@
       <translation>Instalar el entorno de ejecución</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="315"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="331"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>Se instaló SugarSubstitute %1.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="171"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="153"></location>
       <source>Installed app payload version: %1</source>
       <translation>Versión instalada de la aplicación: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="161"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="169"></location>
       <source>Installed launcher: %1</source>
       <translation>Iniciador instalado: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="410"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="413"></location>
       <source>Installer returned an invalid layout.</source>
       <translation>El instalador devolvió una estructura no válida.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="245"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="212"></location>
       <source>Installing Python runtime and app dependencies.</source>
       <translation>Instalando el entorno de ejecución de Python y las dependencias de la aplicación.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="244"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="211"></location>
       <source>Installing SugarSubstitute</source>
       <translation>Instalando SugarSubstitute</translation>
     </message>
@@ -264,7 +264,7 @@
       <translation>No se modificó nada más. Revisa el informe y vuelve a intentar este paso.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="176"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="165"></location>
       <source>Open SugarSubstitute</source>
       <translation>Abrir SugarSubstitute</translation>
     </message>
@@ -299,17 +299,17 @@
       <translation>Preparando Comfy</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="241"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="208"></location>
       <source>Preparing SugarSubstitute install.</source>
       <translation>Preparando la instalación de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="114"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="88"></location>
       <source>Preparing application files</source>
       <translation>Preparando los archivos de la aplicación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="116"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="90"></location>
       <source>Preparing launcher files</source>
       <translation>Preparando los archivos del iniciador</translation>
     </message>
@@ -324,7 +324,7 @@
       <translation>Preparando el entorno de ejecución de la aplicación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="122"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="96"></location>
       <source>Preparing the repair helper</source>
       <translation>Preparando el asistente de reparación</translation>
     </message>
@@ -339,7 +339,7 @@
       <translation>Devolver Substitute a un estado limpio</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="188"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="189"></location>
       <source>Ready.</source>
       <translation>Listo.</translation>
     </message>
@@ -364,7 +364,7 @@
       <translation>Reparar Substitute y ComfyUI administrado</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="172"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="161"></location>
       <source>Repair complete</source>
       <translation>Reparación completada</translation>
     </message>
@@ -374,7 +374,7 @@
       <translation>No se pudo preparar la reparación. La instalación activa no se modificó. Detalles: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="124"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="98"></location>
       <source>Repair is ready</source>
       <translation>Todo listo para la reparación</translation>
     </message>
@@ -384,22 +384,22 @@
       <translation>La reparación está lista. Cerrando esta ventana para reemplazar los archivos de la aplicación.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="133"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="123"></location>
       <source>Repair keeps your files and models.</source>
       <translation>La reparación conserva los archivos y los modelos.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="194"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="195"></location>
       <source>Repair mode requested.</source>
       <translation>Se solicitó el modo de reparación.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="178"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="167"></location>
       <source>Repair needs attention</source>
       <translation>La reparación requiere atención</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="132"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="122"></location>
       <source>Repairing SugarSubstitute</source>
       <translation>Reparando SugarSubstitute</translation>
     </message>
@@ -434,12 +434,12 @@
       <translation>Vuelve a esa sesión de Windows y cierra SugarSubstitute; después, vuelve a intentarlo aquí.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="180"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="169"></location>
       <source>Review the details, then try the repair again.</source>
       <translation>Revisa los detalles y vuelve a intentar la reparación.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="97"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="101"></location>
       <source>Runtime ready: %1</source>
       <translation>Entorno de ejecución listo: %1</translation>
     </message>
@@ -449,12 +449,12 @@
       <translation>Guardando la configuración de la instalación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="202"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="183"></location>
       <source>Setting up SugarSubstitute</source>
       <translation>Configurando SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="316"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="318"></location>
       <source>Setup command is not available yet.</source>
       <translation>El comando de instalación aún no está disponible.</translation>
     </message>
@@ -464,12 +464,12 @@
       <translation>No se pudo continuar con la instalación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="396"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="399"></location>
       <source>Setup could not continue. Review the details and try again.</source>
       <translation>No se pudo continuar con la instalación. Revisa los detalles y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="391"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="394"></location>
       <source>Setup failed. Check the details below and try again.</source>
       <translation>La instalación ha fallado. Consulta los detalles siguientes y vuelve a intentarlo.</translation>
     </message>
@@ -479,17 +479,17 @@
       <translation>Instalación iniciada</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="99"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="103"></location>
       <source>Setup stopped at a safe point.</source>
       <translation>La configuración se detuvo en un punto seguro.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="121"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="93"></location>
       <source>Show details</source>
       <translation>Mostrar detalles</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="168"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="176"></location>
       <source>Source-run launcher detected; skipped executable self-copy.</source>
       <translation>Se detectó un iniciador ejecutado desde el código fuente; se omitió la copia del propio ejecutable.</translation>
     </message>
@@ -509,17 +509,17 @@
       <translation>Iniciar reparación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="110"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="114"></location>
       <source>Started SugarSubstitute setup.</source>
       <translation>Se inició la instalación de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="248"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="215"></location>
       <source>Starting SugarSubstitute setup.</source>
       <translation>Iniciando la instalación de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="146"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="119"></location>
       <source>Step %1 of %2</source>
       <translation>Paso %1 de %2</translation>
     </message>
@@ -544,7 +544,7 @@
       <translation>El lanzador de SugarSubstitute sigue actualizándose a %1—la red o el almacenamiento lento pueden estar causando el retraso</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="154"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="144"></location>
       <source>Stopping repair. This window will close when the repair process has stopped.</source>
       <translation>Deteniendo la reparación. Esta ventana se cerrará cuando el proceso de reparación se haya detenido.</translation>
     </message>
@@ -569,7 +569,7 @@
       <translation>SugarSubstitute está abierto en otra sesión de Windows.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="174"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="163"></location>
       <source>SugarSubstitute is ready to open.</source>
       <translation>SugarSubstitute está listo para abrirse.</translation>
     </message>
@@ -589,22 +589,22 @@
       <translation>La instancia existente de SugarSubstitute no mostró una ventana utilizable.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/launcher_update_preparation.py" line="133"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/launcher_update_preparation.py" line="142"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>El iniciador se reiniciará para completar la actualización.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="329"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="331"></location>
       <source>This can take a while the first time.</source>
       <translation>La primera vez puede tardar un poco.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="182"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
       <source>Try again</source>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="199"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="200"></location>
       <source>Update check disabled for this launch.</source>
       <translation>La búsqueda de actualizaciones está desactivada para este inicio.</translation>
     </message>
@@ -634,17 +634,17 @@
       <translation>Usa una carpeta con permisos de escritura dentro de tu carpeta personal, como ~/Applications/SugarSubstitute. Las carpetas de Aplicaciones del sistema pueden requerir acceso de administrador para las actualizaciones y la preparación del entorno de ejecución.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="118"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="92"></location>
       <source>Verifying application files</source>
       <translation>Verificando los archivos de la aplicación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="120"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="94"></location>
       <source>Verifying launcher files</source>
       <translation>Verificando los archivos del iniciador</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="158"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_progress_page.py" line="134"></location>
       <source>Waiting for the setup window to open.</source>
       <translation>Esperando a que se abra la ventana de instalación.</translation>
     </message>
@@ -654,12 +654,12 @@
       <translation>Windows limita cada nombre de archivo o carpeta a 255 caracteres. Acorta el nombre en %1 y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="265"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="266"></location>
       <source>Working...</source>
       <translation>Trabajando...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="177"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="185"></location>
       <source>Wrote launcher config: %1</source>
       <translation>Configuración del iniciador guardada: %1</translation>
     </message>

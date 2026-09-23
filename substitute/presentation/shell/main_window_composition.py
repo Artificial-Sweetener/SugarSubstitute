@@ -53,9 +53,6 @@ from substitute.presentation.editor.panel.lora_metadata_refresh_controller impor
 )
 from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
-from substitute.infrastructure.external.sugarcubes_workflow_analysis_client import (
-    SugarCubesWorkflowAnalysisClient,
-)
 
 from .canvas_route_controller import canvas_route_controller_for
 from .comfy_runtime_actions import ComfyRuntimeActions
@@ -88,6 +85,7 @@ from .initial_workspace_controller import InitialWorkspaceController
 from .main_window_signal_binder import MainWindowSignalBinder
 from .generation_feedback_sink import ShellGenerationFeedbackSink
 from .main_window_dependencies import MainWindowDependencies
+from .workflow_cube_library_composition import build_workflow_cube_library_service
 from .main_window_startup_trace import startup_phase
 from .model_catalog_update_controller import ModelCatalogUpdateController
 from .model_update_notification_controller import ModelUpdateNotificationController
@@ -296,9 +294,10 @@ def capture_dependencies(
     shell.workspace_generation_controller = dependencies.workspace_generation_controller
     shell.path_bundle = dependencies.path_bundle
     shell.node_definition_gateway = dependencies.node_definition_gateway
-    shell.cube_graph_gateway = SugarCubesWorkflowAnalysisClient(
+    shell.workflow_cube_library_service = build_workflow_cube_library_service(
         dependencies.comfy_target.endpoint
     )
+    shell.cube_graph_gateway = shell.workflow_cube_library_service
     shell.cube_stack_service = CubeStackService(
         GraphBackedCubeStackService(shell.cube_graph_gateway)
     )
