@@ -530,7 +530,7 @@ kind = "structural"
 justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators, including the renderer-owned exact-weight glyph bounds now exposed through this adapter; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
 issue = "chore:SS-WAIVER-S156"
 review_by = 2026-12-15
-max_lines = 1141
+max_lines = 1147
 
 [[waivers]]
 id = "SS-WAIVER-S157"
@@ -1914,7 +1914,7 @@ kind = "structural"
 justification = "PromptTokenWeightControls owns one mounted overlay projection over a single prepared geometry snapshot and visible-token state. Visibility, host/viewport transforms, overlay bounds, hit mapping, token-range publication, and passive render-state publication must use the same token and rectangles in one refresh; extracting one family would divide the authoritative mounted geometry or duplicate its coordinate and range invariants. Qt input routing, exact editing, command dispatch, gesture timing, wheel intent, preview layout, geometry calculation, and painting are separate collaborators."
 issue = "chore:SS-WAIVER-S154"
 review_by = 2026-12-15
-max_lines = 743
+max_lines = 748
 
 [[waivers]]
 id = "SS-WAIVER-S155"

@@ -224,6 +224,19 @@ class PromptProjectionPresentationQueryOwner:
             scroll_offset=self._scroll_offset(),
         )
 
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+    ) -> PromptProjectionToken | None:
+        """Find emphasis owning visible text without a dedicated token run."""
+
+        return (
+            self._layout.frame.geometry.tokens.enclosing_emphasis_at_viewport_position(
+                position,
+                scroll_offset=self._scroll_offset(),
+            )
+        )
+
     def token_anchor_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local anchor used by token controls."""
 

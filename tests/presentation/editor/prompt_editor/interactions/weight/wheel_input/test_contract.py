@@ -141,6 +141,57 @@ def test_wheel_over_emphasis_token_adjusts_by_pointer(
     assert box.toPlainText() == "prefix (cat:1.10)"
 
 
+def test_wheel_over_outer_text_of_nested_emphasis_adjusts_outer_weight(
+    widgets: list[QWidget],
+) -> None:
+    """Visible outer text remains wheel-targetable when its run has no token id."""
+
+    source = "(ths (and then this:1.20):1.40)"
+    box = show_prompt_editor(widgets, text=source, width=460)
+    set_cursor_position(box, source.index("ths") + 1)
+    point = box.cursorRect().center()
+    set_cursor_position(box, len(source))
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "(ths (and then this:1.20):1.45)"
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == source
+
+
+def test_wheel_over_inner_text_of_nested_emphasis_adjusts_inner_weight(
+    widgets: list[QWidget],
+) -> None:
+    """Nested hit-testing prefers the inner token over its enclosing emphasis."""
+
+    source = "(ths (and then this:1.20):1.40)"
+    box = show_prompt_editor(widgets, text=source, width=460)
+    set_cursor_position(box, source.index("then") + 1)
+    point = box.cursorRect().center()
+    set_cursor_position(box, len(source))
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "(ths (and then this:1.25):1.40)"
+
+
+def test_wheel_over_plain_text_next_to_nested_emphasis_leaves_weights_unchanged(
+    widgets: list[QWidget],
+) -> None:
+    """Enclosing hit-testing must not claim plain text outside both tokens."""
+
+    source = "plain (ths (and then this:1.20):1.40)"
+    box = show_prompt_editor(widgets, text=source, width=520)
+    set_cursor_position(box, source.index("plain") + 1)
+    point = box.cursorRect().center()
+    set_cursor_position(box, source.index("ths") + 1)
+
+    assert not wheel_widget_at_point(
+        box.viewport(), local_point=point, angle_delta_y=120
+    )
+    assert box.toPlainText() == source
+
+
 def test_same_viewport_wheel_point_crosses_neutral_emphasis(
     widgets: list[QWidget],
 ) -> None:

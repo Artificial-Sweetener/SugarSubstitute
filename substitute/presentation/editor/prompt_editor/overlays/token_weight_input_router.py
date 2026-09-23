@@ -262,7 +262,7 @@ class PromptTokenWeightInputRouter:
         self._press_control(target, event)
 
     def double_click(self, event: QMouseEvent) -> None:
-        """Start exact editing only from an unambiguous number double click."""
+        """Treat rapid arrow clicks as steps and number double-clicks as exact edits."""
 
         if self._exact_edit.active:
             event.accept()
@@ -271,6 +271,9 @@ class PromptTokenWeightInputRouter:
             event.ignore()
             return
         target = self._host.mouse_target_at_local_position(event.position())
+        if target == "increase" or target == "decrease":
+            self._press_control(target, event)
+            return
         token = self._host.visible_token
         if (
             target == "weight"

@@ -99,6 +99,12 @@ class PromptTokenWeightControlsSurface(Protocol):
     ) -> PromptProjectionToken | None:
         """Return the projected token painted under one viewport-local point."""
 
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+    ) -> PromptProjectionToken | None:
+        """Return emphasis containing visible text without a token-specific run."""
+
     def projection_document(self) -> _ProjectionSnapshotLike:
         """Return the current token-aware projection document."""
 
