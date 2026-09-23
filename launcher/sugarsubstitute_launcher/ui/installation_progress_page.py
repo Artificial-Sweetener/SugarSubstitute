@@ -20,29 +20,17 @@ from __future__ import annotations
 
 from typing import cast
 
-from PySide6.QtCore import (
-    QAbstractAnimation,
-    QPropertyAnimation,
-    QSignalBlocker,
-    Qt,
-    Signal,
-    Slot,
-)
+from PySide6.QtCore import QSignalBlocker, Qt, Signal, Slot
 from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsOpacityEffect,
     QLabel,
-    QProgressBar,
     QPushButton,
-    QStackedWidget,
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
     CaptionLabel,
-    ProgressBar,
-    IndeterminateProgressBar,
     PushButton,
     SubtitleLabel,
     FluentIcon as FIF,
@@ -64,6 +52,9 @@ from launcher.sugarsubstitute_launcher.ui.installer_page_layout import (
     build_installer_hero,
 )
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
+from sugarsubstitute_shared.presentation.activity_progress_bar import (
+    ActivityProgressBar,
+)
 
 
 class InstallationProgressPage(QFrame):
@@ -94,29 +85,10 @@ class InstallationProgressPage(QFrame):
         text_layout.addWidget(self._step)
         layout.addLayout(hero)
         layout.addSpacing(12)
-        self.progress_bar = cast(QProgressBar, ProgressBar(self))
+        self.progress_bar = ActivityProgressBar(self)
         self.progress_bar.setObjectName("LauncherInstallProgress")
-        self.progress_bar.setRange(0, len(InstallationStage))
-        self.progress_bar.setValue(0)
         self.progress_bar.setFixedHeight(6)
-        self._opacity = QGraphicsOpacityEffect(self.progress_bar)
-        self._opacity.setOpacity(1.0)
-        self.progress_bar.setGraphicsEffect(self._opacity)
-        self._pulse = QPropertyAnimation(self._opacity, b"opacity", self)
-        self._pulse.setDuration(1600)
-        self._pulse.setStartValue(1.0)
-        self._pulse.setKeyValueAt(0.5, 0.55)
-        self._pulse.setEndValue(1.0)
-        self._pulse.setLoopCount(-1)
-        self._progress_stack = QStackedWidget(self)
-        self._progress_stack.setFixedHeight(6)
-        self._preparation_activity: IndeterminateProgressBar = IndeterminateProgressBar(
-            self, start=False
-        )
-        self._preparation_activity.setFixedHeight(6)
-        self._progress_stack.addWidget(self.progress_bar)
-        self._progress_stack.addWidget(self._preparation_activity)
-        layout.addWidget(self._progress_stack)
+        layout.addWidget(self.progress_bar)
         self.details_button = cast(
             QPushButton, PushButton(launcher_text("Show details"), self)
         )
@@ -135,35 +107,45 @@ class InstallationProgressPage(QFrame):
         layout.addStretch(1)
         self._working = False
         self._stopping = False
+        self._logged_stages: set[InstallationStage] = set()
 
     @Slot(object)
     def set_progress(self, value: object) -> None:
         """Project queued workflow events without interpreting console output."""
         if not isinstance(value, InstallationProgress):
             raise TypeError("Installation progress requires a workflow milestone.")
-        self.progress_bar.setValue(value.completed)
+        self.progress_bar.set_progress(value.completed, value.total)
         self._step.setText(
             launcher_text("Step %1 of %2", int(value.stage) + 1, value.total)
         )
         self.progress_bar.setAccessibleName(_stage_title(value.stage))
         self.progress_bar.setAccessibleDescription(self._step.text())
-        self._preparation_activity.setAccessibleName(_stage_title(value.stage))
-        self._preparation_activity.setAccessibleDescription(self._step.text())
         self._working = value.completed < value.total
+        self._update_activity()
         if not value.finished and not self._stopping:
-            self._activity.start(_stage_title(value.stage))
+            stage_title = _stage_title(value.stage)
+            self._activity.start(stage_title)
+            if value.stage not in self._logged_stages:
+                self._logged_stages.add(value.stage)
+                self.append_log(stage_title)
         if not self._working:
             self._activity.stop()
             self.activity_label.setText(
                 launcher_text("Waiting for the setup window to open.")
             )
-        self._update_pulse()
+        self._update_activity()
 
     def append_log(self, message: str) -> None:
         """Retain diagnostic records without replacing the user's stage headline."""
         self.progress_log.append_line(f"{message}\n")
         if self._working and self.isVisible():
-            self._pulse.setCurrentTime(0)
+            self.progress_bar.record_activity()
+
+    def record_activity(self) -> None:
+        """Pulse once for observed work that does not warrant another log line."""
+
+        if self._working and self.isVisible():
+            self.progress_bar.record_activity()
 
     def record_installed_application(self, application: InstalledApplication) -> None:
         """Expose verified payload identity in the installer's optional details."""
@@ -185,7 +167,7 @@ class InstallationProgressPage(QFrame):
         self._working = False
         self._stopping = False
         self._activity.stop()
-        self._update_pulse()
+        self._update_activity()
         self.activity_label.setText(message)
         with QSignalBlocker(self.details_button):
             self.details_button.setChecked(True)
@@ -193,12 +175,11 @@ class InstallationProgressPage(QFrame):
 
     def hideEvent(self, event: QHideEvent) -> None:
         """Release animation work when the progress surface is hidden or closed."""
-        self._pulse.stop()
-        self._preparation_activity.stop()
+        self.progress_bar.set_activity_enabled(False)
         super().hideEvent(event)
 
     def showEvent(self, event: QShowEvent) -> None:
-        """Resume visible activity without advancing completion."""
+        """Rearm visible activity without manufacturing an activity event."""
         self._title.setText(launcher_text("Setting up SugarSubstitute"))
         self.details_button.setText(
             launcher_text("Hide details")
@@ -206,25 +187,11 @@ class InstallationProgressPage(QFrame):
             else launcher_text("Show details")
         )
         super().showEvent(event)
-        self._update_pulse()
+        self._update_activity()
 
-    def _update_pulse(self) -> None:
-        """Animate activity independently from the determinate Fluent bar value."""
-        preparing = self._working and self.progress_bar.value() == 0
-        self._progress_stack.setCurrentWidget(
-            self._preparation_activity if preparing else self.progress_bar
-        )
-        if preparing and self.isVisible():
-            if not self._preparation_activity.isStarted():
-                self._preparation_activity.start()
-        else:
-            self._preparation_activity.stop()
-        if self._working and self.isVisible() and not preparing:
-            if self._pulse.state() is not QAbstractAnimation.State.Running:
-                self._pulse.start()
-        else:
-            self._pulse.stop()
-            self._opacity.setOpacity(1.0)
+    def _update_activity(self) -> None:
+        """Arm activity pulses without changing workflow-owned completion."""
+        self.progress_bar.set_activity_enabled(self._working and self.isVisible())
 
     def _set_details_visible(self, visible: bool) -> None:
         """Resize the containing page when optional technical details change."""

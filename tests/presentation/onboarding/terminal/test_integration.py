@@ -122,6 +122,8 @@ def test_onboarding_window_routes_controller_logs_into_shared_terminal_view(
     window = OnboardingWindow(controller=controller)
     owned_qt_objects.append(window)
 
+    terminal_controller.provisioning_started.emit()
+    assert window.provisioning_page.overall_progress_bar.activity_running is False
     terminal_controller.progress_log_emitted.emit("Configured managed ComfyUI.\n")
 
     output_title = window.provisioning_page.findChild(QWidget, "OnboardingOutputTitle")
@@ -130,6 +132,7 @@ def test_onboarding_window_routes_controller_logs_into_shared_terminal_view(
         window.provisioning_page.details_surface.log_view.toPlainText()
         == "Configured managed ComfyUI."
     )
+    assert window.provisioning_page.overall_progress_bar.activity_running is True
 
 
 def test_onboarding_and_shell_use_same_terminal_surface_style(

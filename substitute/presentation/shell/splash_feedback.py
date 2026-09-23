@@ -98,7 +98,7 @@ class SplashFeedback(QWidget):
         self._presenter.textChanged.connect(self._panel.set_activity_status)
 
     def append_log(self, line: str) -> None:
-        """Retain output while operation feedback remains independent of log volume."""
+        """Retain output and pulse once to represent newly observed console activity."""
         if not line:
             return
         self._stream.append_line(line)
@@ -125,6 +125,13 @@ class SplashFeedback(QWidget):
         assert self._presenter is not None
         self._presenter.clear_detail()
         self._panel.set_progress(progress, status=status)
+
+    def record_activity(self) -> None:
+        """Pulse for observed work that does not warrant a console record."""
+
+        self.enrich()
+        assert self._panel is not None
+        self._panel.record_activity()
 
     def start_activity(self, activity: SplashActivity) -> None:
         """Start the operation presenter shared by status and diagnostics."""

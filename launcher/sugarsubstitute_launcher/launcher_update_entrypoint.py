@@ -23,20 +23,32 @@ from typing import Sequence
 
 
 _UPDATE_ARGUMENT = "--apply-launcher-update"
+_BASELINE_REFRESH_ARGUMENT = "--apply-launcher-baseline-refresh"
 
 
 def run_launcher_update_invocation(arguments: Sequence[str]) -> int | None:
     """Apply an internal update request or leave ordinary startup untouched."""
 
-    if not arguments or arguments[0] != _UPDATE_ARGUMENT:
+    if not arguments or arguments[0] not in {
+        _UPDATE_ARGUMENT,
+        _BASELINE_REFRESH_ARGUMENT,
+    }:
         return None
     if len(arguments) != 2:
-        raise ValueError(f"usage: {_UPDATE_ARGUMENT} REQUEST_PATH")
+        raise ValueError(f"usage: {arguments[0]} REQUEST_PATH")
+    request_path = Path(arguments[1]).expanduser().resolve()
+    if arguments[0] == _BASELINE_REFRESH_ARGUMENT:
+        from sugarsubstitute_shared.launcher_update.baseline_refresh_helper import (
+            apply_required_baseline_refresh,
+        )
+
+        apply_required_baseline_refresh(request_path)
+        return 0
     from sugarsubstitute_shared.launcher_update.helper import (
         apply_launcher_update_request,
     )
 
-    apply_launcher_update_request(Path(arguments[1]).expanduser().resolve())
+    apply_launcher_update_request(request_path)
     return 0
 
 

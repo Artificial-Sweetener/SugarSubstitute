@@ -28,6 +28,10 @@ from launcher.sugarsubstitute_launcher.application.installation.workflow import 
     InstallationWorkflow,
 )
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
+from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
+from launcher.sugarsubstitute_launcher.payload_staging import AppPayloadStager
+from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
+from launcher.sugarsubstitute_launcher.launcher_bundle import LauncherBundleInstaller
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import (
@@ -42,11 +46,14 @@ from launcher.sugarsubstitute_launcher.runtime_command import (
 )
 from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvider
+from sugarsubstitute_shared.launcher_update.downloader import LauncherBundleDownloader
+from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 
 
 def build_installation_workflow(
     *,
     output_callback: Callable[[str], None] | None = None,
+    activity_callback: Callable[[], None] | None = None,
     progress_observer: InstallationProgressObserver | None = None,
     cancellation: Event | None = None,
     admit_installation: Callable[[InstallLayout], bool] | None = None,
@@ -54,9 +61,28 @@ def build_installation_workflow(
 ) -> InstallationWorkflow:
     """Build the production installation workflow and its concrete adapters."""
 
+    record_activity = activity_callback or (lambda: None)
+
     return InstallationWorkflow(
         layout_preparer=LayoutInstaller(),
-        artifact_installer=FirstRunInstaller(),
+        artifact_installer=FirstRunInstaller(
+            launcher_bundle_installer=LauncherBundleInstaller(
+                stager=LauncherBundleStager(
+                    downloader=LauncherBundleDownloader(
+                        progress_observer=lambda _transfer: record_activity()
+                    ),
+                    activity_observer=record_activity,
+                )
+            ),
+            payload_installer=AppPayloadInstaller(
+                stager=AppPayloadStager(
+                    downloader=AssetDownloader(
+                        progress_observer=lambda _transfer: record_activity()
+                    ),
+                    activity_observer=record_activity,
+                )
+            ),
+        ),
         runtime_provisioner=InstalledRuntimeSetup(
             UvManagedRuntimeInstaller(
                 uv_provider=VerifiedUvExecutableProvider(

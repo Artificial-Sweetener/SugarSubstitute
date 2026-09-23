@@ -69,6 +69,7 @@ class HttpsUpdateHarnessResult:
     asset_url: str
     request_paths: tuple[str, ...]
     installed_version: str
+    observed_activity_count: int
 
 
 class RecordingRuntimeReconciler:
@@ -104,6 +105,7 @@ class RecordingProgress:
         self.lines: list[str] = []
         self.activities: list[SplashActivity] = []
         self.clear_activity_calls = 0
+        self.observed_activity_count = 0
 
     def append_log(self, line: str) -> None:
         """Record one progress line."""
@@ -114,6 +116,11 @@ class RecordingProgress:
         """Record one launcher update activity."""
 
         self.activities.append(activity)
+
+    def record_activity(self) -> None:
+        """Record one producer-confirmed unit of update work."""
+
+        self.observed_activity_count += 1
 
     def clear_activity(self) -> None:
         """Record one launcher update activity cleanup."""
@@ -206,7 +213,6 @@ def run_https_update_harness(
     from launcher.sugarsubstitute_launcher.config import LauncherConfig
     from launcher.sugarsubstitute_launcher.config import ReleaseSourceConfig
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-    from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
     from launcher.sugarsubstitute_launcher.release_sources import (
         release_source_from_config,
     )
@@ -255,7 +261,6 @@ def run_https_update_harness(
             runtime_reconciler = RecordingRuntimeReconciler()
             progress = RecordingProgress()
             result = LauncherUpdateOrchestrator(
-                payload_installer=AppPayloadInstaller(),
                 runtime_reconciler=runtime_reconciler,
                 now=_fixed_now,
             ).run(
@@ -288,6 +293,7 @@ def run_https_update_harness(
                     layout.state_path
                 ).installed_app_version
                 or "",
+                observed_activity_count=progress.observed_activity_count,
             )
     finally:
         if previous_ssl_cert_file is None:
@@ -479,6 +485,8 @@ def _assert_prepared_update(
         raise HttpsUpdateHarnessError("Previous payload was not preserved.")
     expected_progress = [
         "Checking for SugarSubstitute updates.",
+        f"Installing SugarSubstitute {NEW_VERSION}",
+        "Installing SugarSubstitute dependencies",
         f"Installed SugarSubstitute {NEW_VERSION}.",
     ]
     if progress.lines != expected_progress:
@@ -513,6 +521,10 @@ def _assert_prepared_update(
     if progress.clear_activity_calls != 1:
         raise HttpsUpdateHarnessError(
             "Update activity was not cleared after runtime preparation."
+        )
+    if progress.observed_activity_count < 8:
+        raise HttpsUpdateHarnessError(
+            "Update payload work did not reach the progress surface."
         )
     return previous_app
 
@@ -554,6 +566,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"asset_url={result.asset_url}")
     print(f"installed_version={result.installed_version}")
     print(f"requests={','.join(result.request_paths)}")
+    print(f"observed_activity_count={result.observed_activity_count}")
     if args.keep_artifacts:
         print(f"harness_root={result.harness_root}")
         print(f"install_root={result.install_root}")

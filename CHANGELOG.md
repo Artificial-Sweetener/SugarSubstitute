@@ -1,3 +1,21 @@
+# [0.25.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.2...v0.25.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **editor:** keep canvas dimensions readable at every card width ([0ecc291](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0ecc291af921c66539fce72aedea3a112f03c902))
+* **progress:** keep setup and maintenance visibly active ([466da01](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/466da01789d3b91eb842e7a39f30dde5ad5e31c0))
+* **setup:** keep onboarding on one uninterrupted progress surface ([edbc35e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/edbc35eb2b837ed0c364238f000bd9699869ddb3))
+* **sugarcubes:** prepare cube repositories without system Git ([e98d54c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e98d54ce02d63258104111234488f9795319ffb1))
+* **updates:** commit Windows updates deterministically under active readers ([2726bc5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2726bc58796cf7695fd56fd16adc81fa31e02f07))
+* **updates:** keep SugarSubstitute running after launcher upgrades ([517e1e0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/517e1e02000f1e3e8702abfd9896389ad5f83fa0))
+* **workflows:** keep portable model recovery from blocking startup ([6de6a73](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6de6a731a4ce4cc5477fd3c2231d27ecc5cd6489))
+
+
+### Features
+
+* **workflows:** recover required models from portable workflow metadata ([195c8ef](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/195c8ef3c17434c389ccc263920c2d753d37d16f))
+
 ## [0.24.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.1...v0.24.2) (2026-09-22)
 
 

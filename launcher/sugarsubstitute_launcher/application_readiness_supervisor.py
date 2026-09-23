@@ -33,6 +33,9 @@ from launcher.sugarsubstitute_launcher.application_startup_contract import (
     CandidateProcess,
     ApplicationStartupCancelled,
 )
+from launcher.sugarsubstitute_launcher.application_readiness_qualification import (
+    publish_qualification_receipt,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.application_readiness import (
@@ -50,7 +53,6 @@ from sugarsubstitute_shared.application_readiness import (
     WRITABLE_READINESS_SCHEMA_VERSIONS,
     publish_application_readiness_receipt,
 )
-from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 
 
 DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
@@ -85,14 +87,21 @@ class ApplicationReadinessError(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class _OuterReadinessReceipt:
+    """Identify one supervising ancestor's authenticated receipt."""
+
+    path: Path
+    token: str
+    schema_version: int
+
+
+@dataclass(frozen=True, slots=True)
 class _ReadinessContract:
-    """Separate one child proof from an optional caller-owned outer proof."""
+    """Separate the child proof from every supervising ancestor's proof."""
 
     child_receipt_path: Path
     child_token: str
-    outer_receipt_path: Path | None
-    outer_token: str | None
-    outer_schema_version: int | None
+    outer_receipts: tuple[_OuterReadinessReceipt, ...]
 
 
 class ApplicationReadinessSupervisor:
@@ -150,15 +159,14 @@ class ApplicationReadinessSupervisor:
             str(version) for version in WRITABLE_READINESS_SCHEMA_VERSIONS
         )
         child_environment[READINESS_SCHEMA_ENV] = str(READINESS_SCHEMA_VERSION)
-        if contract.outer_receipt_path is not None and contract.outer_token is not None:
+        if contract.outer_receipts:
+            delegated_receipt = contract.outer_receipts[-1]
             child_environment[READINESS_DELEGATION_PATH_ENV] = str(
-                contract.outer_receipt_path
+                delegated_receipt.path
             )
-            child_environment[READINESS_DELEGATION_TOKEN_ENV] = contract.outer_token
-            if contract.outer_schema_version is None:
-                raise RuntimeError("Outer readiness schema was not resolved.")
+            child_environment[READINESS_DELEGATION_TOKEN_ENV] = delegated_receipt.token
             child_environment[READINESS_DELEGATION_SCHEMA_ENV] = str(
-                contract.outer_schema_version
+                delegated_receipt.schema_version
             )
         process, startup_log_path = self._process_starter(
             command,
@@ -170,7 +178,7 @@ class ApplicationReadinessSupervisor:
             "accepted_surfaces=%s | outer_contract=%s",
             process.pid,
             ",".join(sorted(surface.value for surface in self._accepted_surfaces)),
-            contract.outer_receipt_path is not None,
+            bool(contract.outer_receipts),
         )
         try:
             deadline = started_at + self._timeout_seconds
@@ -192,9 +200,10 @@ class ApplicationReadinessSupervisor:
                     )
                     self._require_accepted_surface(receipt)
                     self._publish_outer_receipt(contract=contract, receipt=receipt)
-                    self._publish_qualification_receipt(
+                    publish_qualification_receipt(
                         environment=environment,
                         receipt=receipt,
+                        attester_pids=_extended_attestation_chain(receipt),
                     )
                     _LOGGER.info(
                         "Accepted painted application surface | candidate_pid=%s | "
@@ -202,7 +211,7 @@ class ApplicationReadinessSupervisor:
                         process.pid,
                         receipt.pid,
                         receipt.surface.value,
-                        contract.outer_receipt_path is not None,
+                        bool(contract.outer_receipts),
                     )
                     return process
                 self._wait(_POLL_INTERVAL_SECONDS)
@@ -224,14 +233,14 @@ class ApplicationReadinessSupervisor:
                         "readiness_receipt_state": (
                             "present" if receipt_path.exists() else "missing"
                         ),
-                        "readiness_outer_contract": (
-                            contract.outer_receipt_path is not None
-                        ),
+                        "readiness_outer_contract": (bool(contract.outer_receipts)),
                         "readiness_child_schema": READINESS_SCHEMA_VERSION,
                         "readiness_outer_schema": (
-                            contract.outer_schema_version
-                            if contract.outer_schema_version is not None
-                            else "none"
+                            ",".join(
+                                str(target.schema_version)
+                                for target in contract.outer_receipts
+                            )
+                            or "none"
                         ),
                         "readiness_termination_action": termination_action,
                     }
@@ -290,16 +299,32 @@ class ApplicationReadinessSupervisor:
             raise ApplicationReadinessError(
                 "Application readiness delegation schema requires a path and token."
             )
-        outer_path = delegated_path or external_path
-        outer_token = delegated_token or external_token
-        outer_schema = delegated_schema or external_schema
-        if outer_path and outer_token:
-            outer_schema_version = _resolve_outer_schema_version(
-                declared_schema=outer_schema,
-                advertised_versions=environment.get(
-                    READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV
+        outer_receipts = tuple(
+            _OuterReadinessReceipt(
+                path=Path(path).expanduser().resolve(),
+                token=token,
+                schema_version=_resolve_outer_schema_version(
+                    declared_schema=schema,
+                    advertised_versions=environment.get(
+                        READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV
+                    ),
                 ),
             )
+            for path, token, schema in (
+                (external_path, external_token, external_schema),
+                (delegated_path, delegated_token, delegated_schema),
+            )
+            if path and token
+        )
+        if len(outer_receipts) == 2 and (
+            outer_receipts[0].path == outer_receipts[1].path
+        ):
+            if outer_receipts[0] != outer_receipts[1]:
+                raise ApplicationReadinessError(
+                    "Application readiness contracts conflict at one receipt path."
+                )
+            outer_receipts = outer_receipts[:1]
+        if outer_receipts:
             return _ReadinessContract(
                 child_receipt_path=(
                     layout.launcher_dir
@@ -307,16 +332,12 @@ class ApplicationReadinessSupervisor:
                     / f"candidate-{secrets.token_hex(16)}.json"
                 ),
                 child_token=self._token_factory(),
-                outer_receipt_path=Path(outer_path).expanduser().resolve(),
-                outer_token=outer_token,
-                outer_schema_version=outer_schema_version,
+                outer_receipts=outer_receipts,
             )
         return _ReadinessContract(
             child_receipt_path=layout.launcher_dir / "readiness" / "candidate.json",
             child_token=self._token_factory(),
-            outer_receipt_path=None,
-            outer_token=None,
-            outer_schema_version=None,
+            outer_receipts=(),
         )
 
     @staticmethod
@@ -327,58 +348,22 @@ class ApplicationReadinessSupervisor:
     ) -> None:
         """Preserve the painted process while attesting through this process hop."""
 
-        if (
-            contract.outer_receipt_path is None
-            or contract.outer_token is None
-            or contract.outer_schema_version is None
-        ):
-            return
-        publish_application_readiness_receipt(
-            receipt_path=contract.outer_receipt_path,
-            receipt=ApplicationReadinessReceipt(
-                pid=receipt.pid,
-                token=contract.outer_token,
-                surface=receipt.surface,
-                parent_pid=(
-                    receipt.parent_pid
-                    if contract.outer_schema_version >= READINESS_SCHEMA_VERSION
-                    else os.getpid()
-                ),
-                milestones=receipt.milestones,
-                attester_pids=_extended_attestation_chain(receipt),
-            ),
-            schema_version=contract.outer_schema_version,
-        )
-
-    @staticmethod
-    def _publish_qualification_receipt(
-        *,
-        environment: Mapping[str, str],
-        receipt: ApplicationReadinessReceipt,
-    ) -> None:
-        """Mirror validated readiness across legacy detached update handoffs."""
-
-        try:
-            plan = InstallerQualificationPlan.from_environment(environment)
-            if plan is None:
-                return
+        for target in contract.outer_receipts:
             publish_application_readiness_receipt(
-                receipt_path=plan.readiness_receipt_path,
+                receipt_path=target.path,
                 receipt=ApplicationReadinessReceipt(
                     pid=receipt.pid,
-                    token=plan.token,
+                    token=target.token,
                     surface=receipt.surface,
-                    parent_pid=receipt.parent_pid,
+                    parent_pid=(
+                        receipt.parent_pid
+                        if target.schema_version >= READINESS_SCHEMA_VERSION
+                        else os.getpid()
+                    ),
                     milestones=receipt.milestones,
                     attester_pids=_extended_attestation_chain(receipt),
                 ),
-            )
-        except (OSError, ValueError) as error:
-            _LOGGER.warning(
-                "Could not publish installer qualification readiness | "
-                "error_type=%s | error=%s",
-                type(error).__name__,
-                error,
+                schema_version=target.schema_version,
             )
 
     @staticmethod

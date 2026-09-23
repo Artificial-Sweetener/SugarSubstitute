@@ -24,10 +24,11 @@ from launcher.sugarsubstitute_launcher.application.repair.progress import (
 
 def repair_progress_from_message(message: dict[str, object]) -> RepairProgress:
     """Validate the executor's domain progress at the process boundary."""
-    stage, completed, total = (
+    stage, completed, total, activity = (
         message.get("stage"),
         message.get("completed"),
         message.get("total"),
+        message.get("activity", False),
     )
     if (
         type(completed) is not int
@@ -38,10 +39,15 @@ def repair_progress_from_message(message: dict[str, object]) -> RepairProgress:
         raise ValueError("Repair worker progress counts are malformed.")
     if stage is not None and not isinstance(stage, str):
         raise ValueError("Repair worker progress stage is malformed.")
+    if type(activity) is not bool:
+        raise ValueError("Repair worker progress activity is malformed.")
     if (stage is None) != (completed == total):
         raise ValueError("Repair worker progress completion is inconsistent.")
     return RepairProgress(
-        RepairStage(stage) if stage is not None else None, completed, total
+        RepairStage(stage) if stage is not None else None,
+        completed,
+        total,
+        activity,
     )
 
 
@@ -52,4 +58,5 @@ def repair_progress_to_message(progress: RepairProgress) -> dict[str, object]:
         "stage": progress.stage.value if progress.stage is not None else None,
         "completed": progress.completed,
         "total": progress.total,
+        "activity": progress.activity,
     }

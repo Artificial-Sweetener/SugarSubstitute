@@ -56,3 +56,25 @@ def test_entrypoint_rejects_incomplete_private_invocation() -> None:
 
     with pytest.raises(ValueError, match="REQUEST_PATH"):
         run_launcher_update_invocation(("--apply-launcher-update",))
+
+
+def test_entrypoint_runs_required_baseline_refresh(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A selected launcher must invoke root replacement, not generation activation."""
+
+    request = tmp_path / "baseline-refresh.json"
+    observed: list[Path] = []
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.launcher_update.baseline_refresh_helper."
+        "apply_required_baseline_refresh",
+        observed.append,
+    )
+
+    assert (
+        run_launcher_update_invocation(
+            ("--apply-launcher-baseline-refresh", str(request))
+        )
+        == 0
+    )
+    assert observed == [request.resolve()]

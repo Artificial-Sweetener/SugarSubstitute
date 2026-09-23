@@ -88,6 +88,13 @@ class SocketSplashSessionClient:
             return
         self._send("activity", line=None, activity=activity)
 
+    def record_activity(self) -> None:
+        """Report observed work without adding a diagnostic line or completion."""
+
+        if self._spec.protocol_version < 3:
+            return
+        self._send("activity_observed", line=None)
+
     def clear_activity(self) -> None:
         """Stop the active splash activity and remove its transient row."""
 

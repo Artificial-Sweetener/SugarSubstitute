@@ -166,13 +166,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             candidate=startup_candidate,
         )
     )
+    setup_launch = args.launch_intent.value == "setup" or args.continue_install
+    if setup_launch and splash_session is not None:
+        splash_session.close()
+        splash_session = None
     if not args.launcher_ui_child:
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
         )
 
         try:
-            if splash_session is None:
+            if splash_session is None and not setup_launch and attempt_installed_app:
                 splash_session = start_launcher_splash_session(
                     layout=layout, locale_override=args.locale_override
                 )
@@ -203,8 +207,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     nonlocal splash_session
                     if splash_session is not None:
                         splash_session.close()
-                    splash_session = start_launcher_splash_session(
-                        layout=layout, locale_override=args.locale_override
+                    splash_session = (
+                        None
+                        if setup_launch
+                        else start_launcher_splash_session(
+                            layout=layout, locale_override=args.locale_override
+                        )
                     )
 
                 selected_result = dispatch_selected_launcher(
@@ -297,9 +305,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     layout=layout,
                     broker=broker,
                     locale_argument=locale_argument,
-                    no_update_check=args.no_update_check,
+                    no_update_check=args.no_update_check or setup_launch,
                     splash_session=splash_session,
                     handoff_geometry=args.handoff_geometry,
+                    launch_intent=args.launch_intent,
                 )
                 broker.close()
                 broker = None
