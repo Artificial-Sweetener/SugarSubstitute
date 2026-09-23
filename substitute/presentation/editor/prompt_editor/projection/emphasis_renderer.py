@@ -375,6 +375,18 @@ class PromptEmphasisSuffixRenderer:
             base_font=base_font,
         )
 
+    def weight_edit_rect(
+        self,
+        run: PromptProjectionRun,
+        token: PromptProjectionToken,
+        rect: QRectF,
+        *,
+        base_font: QFont,
+    ) -> QRectF | None:
+        """Use the painted emphasis glyph slot for native exact editing."""
+
+        return self._weight_text_rect(rect, token, run, base_font=base_font)
+
     def measure_inline_object(
         self,
         run: PromptProjectionRun,

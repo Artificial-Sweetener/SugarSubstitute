@@ -333,6 +333,11 @@ class PromptProjectionSurfaceEditorFacade:
 
         return self._bindings.presentation.queries.token_weight_text_rect(token)
 
+    def token_weight_edit_rect(self, token: PromptProjectionToken) -> QRectF | None:
+        """Return the painted weight glyph area for native exact editing."""
+
+        return self._bindings.presentation.queries.token_weight_edit_rect(token)
+
     def defer_source_rebuilds_until_prompt_state(self, enabled: bool) -> None:
         """Set whether source edits wait for controller-owned prompt snapshots."""
 

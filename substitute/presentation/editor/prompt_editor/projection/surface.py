@@ -601,6 +601,11 @@ class PromptProjectionSurface(QAbstractScrollArea):
 
         return self._editor_facade.token_weight_text_rect(token)
 
+    def token_weight_edit_rect(self, token: PromptProjectionToken) -> QRectF | None:
+        """Return the viewport-local painted weight glyph area for native editing."""
+
+        return self._editor_facade.token_weight_edit_rect(token)
+
     def toPlainText(self) -> str:
         """Return the current raw prompt source text."""
 

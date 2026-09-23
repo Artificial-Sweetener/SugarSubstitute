@@ -22,7 +22,7 @@ from decimal import Decimal
 from dataclasses import replace
 
 import pytest
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, QRect, Qt
 from PySide6.QtGui import QContextMenuEvent, QInputMethodEvent, QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLineEdit
@@ -39,6 +39,74 @@ from tests.support.prompt_editor.real_shell.invariants.snapshot import (
 from tests.support.prompt_editor.real_shell.scenario import (
     PromptEditorRealShellScenario,
 )
+from tests.support.prompt_editor.projection_engine_support import surface_for
+
+
+@pytest.mark.parametrize(
+    ("source", "value_text", "lora"),
+    [
+        ("(red cube:1.25)", "1.25", False),
+        ("((atmospheric:2.80) perspective:1.15)", "2.80", False),
+        ("<lora:detail:1.25>", "1.25", True),
+    ],
+    ids=["emphasis", "nested-emphasis", "lora"],
+)
+def test_exact_weight_input_starts_at_displayed_weight_origin(
+    real_shell_scenario: PromptEditorRealShellScenario,
+    source: str,
+    value_text: str,
+    lora: bool,
+) -> None:
+    """Align the native edit caret with the first painted weight glyph."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text=source)
+    real_shell_scenario.input.focus_editor(field)
+    surface = surface_for(field.editor)
+    token = next(
+        token
+        for token in surface.projection_document().tokens
+        if token.value_text == value_text
+    )
+    displayed_slot = surface.token_weight_text_rect(token)
+    assert displayed_slot is not None
+    displayed_text_left = displayed_slot.left() + (4.0 if lora else 0.0)
+
+    start_exact_weight_edit(field.editor, token)
+    editor = QApplication.focusWidget()
+    assert isinstance(editor, QLineEdit)
+    editor.setCursorPosition(0)
+    QApplication.processEvents()
+    cursor_rect = editor.inputMethodQuery(Qt.InputMethodQuery.ImCursorRectangle)
+    assert isinstance(cursor_rect, QRect)
+    edit_text_left = (
+        editor.geometry().left() + cursor_rect.left() + cursor_rect.width() / 2.0
+    )
+
+    assert edit_text_left == pytest.approx(displayed_text_left, abs=0.75), (
+        displayed_slot,
+        editor.geometry(),
+        cursor_rect,
+        editor.text(),
+        editor.font().toString(),
+    )
+
+    editor.selectAll()
+    QTest.keyClicks(editor, "0.95")
+    editor.setCursorPosition(0)
+    QApplication.processEvents()
+    editing_token = surface.exact_weight_editor.token()
+    assert editing_token is not None
+    editing_rect = surface.token_weight_edit_rect(editing_token)
+    assert editing_rect is not None
+    edited_cursor_rect = editor.inputMethodQuery(Qt.InputMethodQuery.ImCursorRectangle)
+    assert isinstance(edited_cursor_rect, QRect)
+    edited_text_left = (
+        editor.geometry().left()
+        + edited_cursor_rect.left()
+        + edited_cursor_rect.width() / 2.0
+    )
+    assert edited_text_left == pytest.approx(editing_rect.left(), abs=0.75)
+    assert field.editor.toPlainText() == source
 
 
 @pytest.mark.parametrize("lora", [False, True], ids=["emphasis", "lora"])

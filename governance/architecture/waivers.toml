@@ -527,10 +527,10 @@ owner = "mounted prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
 kind = "structural"
-justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
+justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators, including the renderer-owned exact-weight glyph bounds now exposed through this adapter; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
 issue = "chore:SS-WAIVER-S156"
 review_by = 2026-12-15
-max_lines = 1138
+max_lines = 1141
 
 [[waivers]]
 id = "SS-WAIVER-S157"
@@ -1900,10 +1900,10 @@ owner = "LoRA inline projection rendering"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/lora_renderer.py"
 kind = "structural"
-justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, paint, and interaction-geometry contract for a LoRA projection run. Title elision, stable weight placement, chevron and banner composition, anchor geometry, hit testing, and selection must derive from the same dimensions; extracting a transition or geometry family would duplicate those invariants and permit layout to diverge from painting. PromptLoraThumbnailCache, PromptLoraPaintCache, and BannerTextPainter remain independent collaborators, while bounded title segmentation is private memoization keyed by the renderer's font, text, and width inputs."
+justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, paint, and interaction-geometry contract for a LoRA projection run. Title elision, stable weight placement, editable glyph bounds inside the padded weight pill, chevron and banner composition, anchor geometry, hit testing, and selection must derive from the same dimensions; extracting a transition or geometry family would duplicate those invariants and permit layout to diverge from painting. PromptLoraThumbnailCache, PromptLoraPaintCache, and BannerTextPainter remain independent collaborators, while bounded title segmentation is private memoization keyed by the renderer's font, text, and width inputs."
 issue = "chore:SS-WAIVER-S153"
 review_by = 2026-12-15
-max_lines = 631
+max_lines = 647
 
 [[waivers]]
 id = "SS-WAIVER-S154"

@@ -240,5 +240,13 @@ class PromptProjectionPresentationQueryOwner:
             scroll_offset=self._scroll_offset(),
         )
 
+    def token_weight_edit_rect(self, token: PromptProjectionToken) -> QRectF | None:
+        """Return the painted weight glyph area for native exact editing."""
+
+        return self._layout.frame.geometry.tokens.token_weight_edit_rect(
+            token,
+            scroll_offset=self._scroll_offset(),
+        )
+
 
 __all__ = ["PromptProjectionPresentationQueryOwner"]
