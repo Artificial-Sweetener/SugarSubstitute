@@ -162,12 +162,14 @@ class MainWindow(QMainWindow):
                 comfy_output_stream=dependencies.comfy_output_stream,
                 output_preview_registry=self.output_preview_registry,
                 open_single_external_editor=(
-                    self.workspace_canvas_actions.open_image_in_external_editor
+                    self.workspace_controller.output_external_actions.open_image_in_external_editor
                 ),
                 open_all_external_editor=(
-                    self.workspace_canvas_actions.open_images_in_external_editor
+                    self.workspace_controller.output_external_actions.open_images_in_external_editor
                 ),
-                reveal_output_asset=self.workspace_canvas_actions.reveal_output_asset,
+                reveal_output_asset=(
+                    self.workspace_controller.output_external_actions.reveal_output_asset
+                ),
                 configure_output_thumbnail_context=(
                     dependencies.configure_output_thumbnail_context
                 ),

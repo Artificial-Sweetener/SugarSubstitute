@@ -103,6 +103,12 @@ from substitute.presentation.shell.main_window_workspace import (
 from substitute.presentation.shell.workspace_canvas_actions import (
     WorkspaceCanvasActions,
 )
+from substitute.presentation.shell.workspace_output_external_actions import (
+    WorkspaceOutputExternalActions,
+)
+from substitute.presentation.shell.workspace_output_navigation_actions import (
+    WorkspaceOutputNavigationActions,
+)
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurfaceInvalidationService,
 )
@@ -280,6 +286,9 @@ class PromptEditorRealShell(QMainWindow):
             cast(Any, self),
             error_presenter=_ErrorPresenter(self.error_reports),
         )
+        self.workspace_output_external_actions = WorkspaceOutputExternalActions(
+            cast(Any, self)
+        )
         self._error_presenter = _ErrorPresenter(self.error_reports)
         self._menu_container = QWidget()
         self._menu_container.setLayout(QHBoxLayout())
@@ -305,13 +314,13 @@ class PromptEditorRealShell(QMainWindow):
             open_single_external_editor=(
                 cast(
                     Any,
-                    self.workspace_canvas_actions.open_image_in_external_editor,
+                    self.workspace_output_external_actions.open_image_in_external_editor,
                 )
             ),
             open_all_external_editor=(
                 cast(
                     Any,
-                    self.workspace_canvas_actions.open_images_in_external_editor,
+                    self.workspace_output_external_actions.open_images_in_external_editor,
                 )
             ),
         )
@@ -347,6 +356,13 @@ class PromptEditorRealShell(QMainWindow):
             workspace_parts.workflow_canvas_projection_coordinator
         )
         self.canvas_image_registry = workspace_parts.canvas_image_registry
+        self.workspace_output_navigation_actions = WorkspaceOutputNavigationActions(
+            cast(Any, self)
+        )
+        self.workspace_controller = SimpleNamespace(
+            output_navigation_actions=self.workspace_output_navigation_actions,
+            output_external_actions=self.workspace_output_external_actions,
+        )
         self.output_canvas = self.canvas_host.canvas_for("Output")
         self.canvas_host_container = workspace_parts.canvas_host_container
         self.splitter = workspace_parts.splitter

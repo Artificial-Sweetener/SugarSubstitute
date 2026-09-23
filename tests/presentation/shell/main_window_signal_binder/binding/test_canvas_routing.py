@@ -48,18 +48,20 @@ def test_canvas_signals_route_output_events_and_canvas_selection_autosave() -> N
         activeOutputCompareChanged=_Signal(),
     )
     shell = SimpleNamespace(
-        workspace_canvas_actions=SimpleNamespace(
-            on_active_output_changed=lambda uuid_str: events.append(
-                ("active_output", uuid_str)
-            ),
-            on_active_output_grid_changed=lambda source_key: events.append(
-                ("active_output_grid", source_key)
-            ),
-            on_active_output_scene_changed=lambda selection: events.append(
-                ("active_output_scene", selection)
-            ),
-            on_output_compare_changed=lambda compare_key: events.append(
-                ("compare", compare_key)
+        workspace_controller=SimpleNamespace(
+            output_navigation_actions=SimpleNamespace(
+                on_active_output_changed=lambda uuid_str: events.append(
+                    ("active_output", uuid_str)
+                ),
+                on_active_output_grid_changed=lambda source_key: events.append(
+                    ("active_output_grid", source_key)
+                ),
+                on_active_output_scene_changed=lambda selection: events.append(
+                    ("active_output_scene", selection)
+                ),
+                on_output_compare_changed=lambda compare_key: events.append(
+                    ("compare", compare_key)
+                ),
             ),
         ),
         session_autosave_controller=SimpleNamespace(

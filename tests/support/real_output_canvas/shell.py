@@ -84,6 +84,12 @@ from substitute.presentation.shell.main_window_workspace import (
 from substitute.presentation.shell.workspace_canvas_actions import (
     WorkspaceCanvasActions,
 )
+from substitute.presentation.shell.workspace_output_external_actions import (
+    WorkspaceOutputExternalActions,
+)
+from substitute.presentation.shell.workspace_output_navigation_actions import (
+    WorkspaceOutputNavigationActions,
+)
 from substitute.presentation.shell.workflow_workspace_coordinator import (
     WorkflowWorkspaceCoordinator,
     WorkflowWorkspaceView,
@@ -174,6 +180,9 @@ class _HarnessShell(QMainWindow):
             cast(Any, self),
             error_presenter=_ErrorPresenter(self.error_reports),
         )
+        self.workspace_output_external_actions = WorkspaceOutputExternalActions(
+            cast(Any, self)
+        )
         self._menu_container = QWidget()
         self._menu_container.setLayout(QHBoxLayout())
         workspace_parts = build_main_window_workspace(
@@ -186,13 +195,13 @@ class _HarnessShell(QMainWindow):
             open_single_external_editor=(
                 cast(
                     Any,
-                    self.workspace_canvas_actions.open_image_in_external_editor,
+                    self.workspace_output_external_actions.open_image_in_external_editor,
                 )
             ),
             open_all_external_editor=(
                 cast(
                     Any,
-                    self.workspace_canvas_actions.open_images_in_external_editor,
+                    self.workspace_output_external_actions.open_images_in_external_editor,
                 )
             ),
         )
@@ -235,6 +244,13 @@ class _HarnessShell(QMainWindow):
         self.canvas_image_registry = workspace_parts.canvas_image_registry
         self.output_floating_chrome_factory = (
             workspace_parts.output_floating_chrome_factory
+        )
+        self.workspace_output_navigation_actions = WorkspaceOutputNavigationActions(
+            cast(Any, self)
+        )
+        self.workspace_controller = SimpleNamespace(
+            output_navigation_actions=self.workspace_output_navigation_actions,
+            output_external_actions=self.workspace_output_external_actions,
         )
         self.output_canvas = self.canvas_host.canvas_for("Output")
         self.workflow_workspace = WorkflowWorkspaceCoordinator(
