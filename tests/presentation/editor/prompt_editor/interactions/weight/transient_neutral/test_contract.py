@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
@@ -75,6 +75,50 @@ def test_overlay_owned_transient_neutral_emphasis_survives_caret_moves(
     ]
     assert len(tokens) == 1
     assert tokens[0].synthetic is True
+
+
+def test_nested_outer_neutral_keeps_its_control_target_until_pointer_leaves(
+    widgets: list[QWidget],
+) -> None:
+    """Keep a nested outer shell at 1.00 so its down arrow can cross below one."""
+
+    source = "((atmospheric:2.80) perspective:1.05)"
+    box = show_prompt_editor(widgets, text=source, width=460)
+    set_cursor_position(box, source.index("perspective") + 1)
+    outer = emphasis_token_for(box)
+    controls = reveal_emphasis_controls(box, outer)
+    assert controls.decrease_rect is not None
+    control_parent = controls.parentWidget()
+    assert control_parent is not None
+    fixed_global_point = control_parent.mapToGlobal(
+        controls.decrease_rect.center().toPoint()
+    )
+
+    click_control_rect(controls, controls.decrease_rect)
+
+    assert box.toPlainText() == "(atmospheric:2.80) perspective"
+    matching = [
+        token
+        for token in surface_for(box).projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+        and token.content_range == (0, len(box.toPlainText()))
+    ]
+    assert len(matching) == 1
+    assert matching[0].synthetic
+    assert controls.visible_token is not None
+    assert controls.visible_token.token_id == matching[0].token_id
+    assert controls.decrease_rect is not None
+    assert (
+        control_parent.mapToGlobal(controls.decrease_rect.center().toPoint())
+        == fixed_global_point
+    )
+    QTest.mouseClick(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    process_events(ensure_qapp())
+    assert box.toPlainText() == "((atmospheric:2.80) perspective:0.95)"
 
 
 def test_overlay_owned_transient_neutral_emphasis_clears_when_controls_hide(

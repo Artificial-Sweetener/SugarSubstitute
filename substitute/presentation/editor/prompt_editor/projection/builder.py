@@ -196,7 +196,7 @@ class PromptProjectionBuilder:
         decoration_accent_ranges: tuple[tuple[int, int], ...],
         scene_error_keys: frozenset[str],
     ) -> tuple[PromptProjectionCollapseCandidate, ...]:
-        """Combine independent semantic feature candidates in source order."""
+        """Order semantic candidates with enclosing equal-start spans first."""
 
         all_supported_ranges = tuple(
             sorted((span.start, span.end) for span in render_plan.syntax_spans)
@@ -241,7 +241,7 @@ class PromptProjectionBuilder:
                 all_supported_ranges=all_supported_ranges,
             )
         )
-        candidates.sort(key=lambda candidate: candidate.start)
+        candidates.sort(key=lambda candidate: (candidate.start, -candidate.end))
         return tuple(candidates)
 
 
