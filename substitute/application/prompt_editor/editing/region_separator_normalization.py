@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from substitute.domain.prompt.regions.syntax import (
@@ -39,7 +40,7 @@ class PromptRegionSeparatorNormalization:
     """Describe separator-normalized source and every original boundary mapping."""
 
     text: str
-    boundary_positions: tuple[int, ...]
+    boundary_positions: Sequence[int]
 
 
 def normalize_typed_region_separator(
@@ -300,7 +301,7 @@ def _identity_normalization(text: str) -> PromptRegionSeparatorNormalization:
 
     return PromptRegionSeparatorNormalization(
         text=text,
-        boundary_positions=tuple(range(len(text) + 1)),
+        boundary_positions=range(len(text) + 1),
     )
 
 

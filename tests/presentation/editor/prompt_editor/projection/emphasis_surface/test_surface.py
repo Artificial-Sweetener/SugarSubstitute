@@ -28,8 +28,10 @@ from PySide6.QtWidgets import QWidget
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.document.views import PromptDocumentView
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from tests.support.prompt_editor.autocomplete_support import prompt_syntax_profile
 from tests.support.prompt_editor.projection_engine_support import (
@@ -193,9 +195,11 @@ def test_projection_surface_pulses_emphasis_feedback_without_rebuild(
     surface = surface_for(box)
     token = first_emphasis_token(box)
     rebuild_calls: list[str] = []
-    cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
+    cast(Any, surface)._presentation_runtime.rebuild.rebuild = lambda: (
+        rebuild_calls.append("rebuild")
+    )
 
-    surface.pulse_emphasis_feedback(
+    surface.emphasis.pulse_feedback(
         outer_start=token.source_start,
         outer_end=token.source_end,
     )
@@ -217,7 +221,7 @@ def test_projection_surface_applies_changed_emphasis_prompt_state_incrementally(
     surface = surface_for(box)
     document_view, render_plan = _prompt_state_for_projection_text("(cat:1.10), suffix")
     rebuild_calls: list[str] = []
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
 
     def record_rebuild() -> None:
         """Record and perform the authoritative projection rebuild."""
@@ -225,7 +229,7 @@ def test_projection_surface_applies_changed_emphasis_prompt_state_incrementally(
         rebuild_calls.append("rebuild")
         original_rebuild_projection()
 
-    cast(Any, surface)._rebuild_projection = record_rebuild
+    cast(Any, surface)._presentation_runtime.rebuild.rebuild = record_rebuild
 
     surface_source_commands(surface).replace_document_text_with_prompt_state(
         "(cat:1.10), suffix",
@@ -255,7 +259,9 @@ def test_projection_surface_reflows_when_emphasis_prompt_state_changes_geometry(
         "(cat:10.00), suffix"
     )
     rebuild_calls: list[str] = []
-    cast(Any, surface)._rebuild_projection = lambda: rebuild_calls.append("rebuild")
+    cast(Any, surface)._presentation_runtime.rebuild.rebuild = lambda: (
+        rebuild_calls.append("rebuild")
+    )
 
     surface_source_commands(surface).replace_document_text_with_prompt_state(
         "(cat:10.00), suffix",
@@ -282,14 +288,14 @@ def test_projection_surface_can_project_and_clear_transient_neutral_emphasis(
     )
     surface = surface_for(box)
 
-    surface.show_transient_neutral_emphasis(content_start=0, content_end=3)
+    surface.emphasis.show_transient_neutral(content_start=0, content_end=3)
 
     token = first_emphasis_token(box)
     assert box.toPlainText() == "cat, dog"
     assert token.synthetic is True
     assert token.value_text == "1.00"
 
-    surface.clear_transient_neutral_emphasis()
+    surface.emphasis.clear_transient_neutral()
 
     assert surface.projection_document().tokens == ()
 

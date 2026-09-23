@@ -330,7 +330,7 @@ class PromptAutocompleteInputPort(Protocol):
 
     @property
     def panel(self) -> PromptAutocompletePanel | None:
-        """Return the live autocomplete panel while legacy tests inspect it."""
+        """Return the live panel owned by autocomplete presentation."""
 
     def handle_key_press(self, event: QKeyEvent) -> bool:
         """Handle autocomplete-owned non-text key presses."""

@@ -33,6 +33,9 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import app_text
 
+from substitute.application.model_metadata import ModelProviderLink
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
+
 from substitute.presentation.shell.output_canvas_thumbnail_choices import (
     OutputCanvasThumbnailChoice,
 )
@@ -55,6 +58,20 @@ from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRen
 _SET_THUMBNAIL_FROM_CANVAS_LABEL = app_text("Set thumbnail from canvas")
 _READ_ONLY_VISUAL_METADATA_MODEL_KINDS = frozenset({"ultralytics"})
 _ULTRALYTICS_MODEL_KIND = "ultralytics"
+
+
+def _provider_page_callback(
+    open_url: UrlOpener,
+    link: ModelProviderLink,
+) -> Callable[[], None]:
+    """Return a no-argument callback for one provider page link."""
+
+    def open_page() -> None:
+        """Open the captured provider model page."""
+
+        open_url(link.model_page_url)
+
+    return open_page
 
 
 class ModelMetadataContextActionHandler(Protocol):
@@ -101,6 +118,8 @@ class ModelMetadataContextMenuTarget:
     model_kind: str | None = None
     model_page_url: str | None = None
     trained_words: tuple[str, ...] = ()
+    provider_links: tuple[ModelProviderLink, ...] = ()
+    sha256: str | None = None
 
     def display_label(self) -> str:
         """Return a compact human label for action text and diagnostics."""
@@ -151,6 +170,7 @@ class ModelMetadataContextMenuActionBuilder:
         target_updated: Callable[[], None] | None = None,
         thumbnail_library_opening: Callable[[], None] | None = None,
         schedule_modal_action: Callable[[Callable[[], None]], None] | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
     ) -> None:
         """Store collaborators used by shared metadata actions."""
 
@@ -159,6 +179,7 @@ class ModelMetadataContextMenuActionBuilder:
         self._target_updated = target_updated
         self._thumbnail_library_opening = thumbnail_library_opening
         self._schedule_modal_action = schedule_modal_action or _run_immediately
+        self._model_updates = model_updates
 
     def menu_items_for_target(
         self,
@@ -167,12 +188,13 @@ class ModelMetadataContextMenuActionBuilder:
         """Return all currently available menu items for one metadata target."""
 
         items: list[ModelMetadataMenuItem] = []
+        update_action = self.update_family_action_for_target(target)
+        if update_action is not None:
+            items.append(update_action)
         library_action = self.thumbnail_library_action_for_target(target)
         if library_action is not None:
             items.append(library_action)
-        page_action = self.civitai_page_action_for_target(target)
-        if page_action is not None:
-            items.append(page_action)
+        items.extend(self.provider_page_actions_for_target(target))
         refresh_action = self.refresh_metadata_action_for_target(target)
         if refresh_action is not None:
             items.append(refresh_action)
@@ -180,6 +202,43 @@ class ModelMetadataContextMenuActionBuilder:
         if thumbnail_action is not None:
             items.append(thumbnail_action)
         return tuple(items)
+
+    def update_family_action_for_target(
+        self, target: ModelMetadataContextMenuTarget
+    ) -> ModelMetadataMenuAction | None:
+        """Offer the same version-family action on banner and thumbnail menus."""
+
+        updates = self._model_updates
+        if updates is None or updates.proposal_for_sha(target.sha256) is None:
+            return None
+
+        def request_family() -> None:
+            """Defer the requested chronology until the context menu closes."""
+
+            updates.request_family(target.sha256)
+
+        return ModelMetadataMenuAction(
+            app_text("View model updates"),
+            lambda: self._schedule_modal_action(request_family),
+        )
+
+    def provider_page_actions_for_target(
+        self,
+        target: ModelMetadataContextMenuTarget,
+    ) -> tuple[ModelMetadataMenuAction, ...]:
+        """Return ordered provider-page actions for one exact model artifact."""
+
+        if not target.provider_links:
+            civitai_action = self.civitai_page_action_for_target(target)
+            return () if civitai_action is None else (civitai_action,)
+        return tuple(
+            ModelMetadataMenuAction(
+                app_text("Go to %1 page", link.provider_name),
+                _provider_page_callback(self._open_url, link),
+            )
+            for link in target.provider_links
+            if link.model_page_url.strip()
+        )
 
     def thumbnail_library_action_for_target(
         self,
@@ -287,6 +346,7 @@ class ModelMetadataContextMenuPresenter:
         action_builder: ModelMetadataContextMenuActionBuilder | None = None,
         target_updated: Callable[[], None] | None = None,
         thumbnail_library_opening: Callable[[], None] | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
     ) -> None:
         """Bind a Qt parent and action builder for future menu openings."""
 
@@ -297,6 +357,7 @@ class ModelMetadataContextMenuPresenter:
             target_updated=target_updated,
             thumbnail_library_opening=thumbnail_library_opening,
             schedule_modal_action=_schedule_on_next_gui_turn,
+            model_updates=model_updates,
         )
 
     def menu_items_for_target(

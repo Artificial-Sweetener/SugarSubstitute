@@ -51,6 +51,12 @@ from .scroll_delegate import (
     PromptShellScrollSurface,
     PromptShellSignal,
 )
+from .runtime import (
+    PromptEditorShellRuntime,
+    PromptEditorShellRuntimeBindings,
+    PromptEditorShellRuntimeMount,
+    build_prompt_editor_shell_runtime,
+)
 from .widget import (
     PROMPT_EDITOR_HOST_FACADE_INVENTORY,
     PROMPT_EDITOR_PUBLIC_WIDGET_SIGNALS,
@@ -70,6 +76,9 @@ __all__ = [
     "PromptEditorHostFacadeInventory",
     "PromptEditorPublicWidgetBoundary",
     "PromptEditorShell",
+    "PromptEditorShellRuntime",
+    "PromptEditorShellRuntimeBindings",
+    "PromptEditorShellRuntimeMount",
     "PromptResizeHandle",
     "PromptResizeHandleHost",
     "PromptShellChromeHost",
@@ -90,4 +99,5 @@ __all__ = [
     "PromptShellSizingHost",
     "PromptShellSizingSignal",
     "update_prompt_fill_backing",
+    "build_prompt_editor_shell_runtime",
 ]

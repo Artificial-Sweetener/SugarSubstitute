@@ -24,8 +24,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.editor.prompt_editor.projection.surface import (
-    PromptProjectionSurface,
+from substitute.presentation.editor.prompt_editor.projection.caret_visual import (
+    PromptSurfaceCaretVisualController,
 )
 from tests.support.prompt_editor.projection_engine_support import (
     ensure_qapp,
@@ -85,8 +85,8 @@ def test_projection_surface_caret_blinks_after_half_cycle(
     """The custom caret should toggle visibility using the surface flash-time seam."""
 
     monkeypatch.setattr(
-        PromptProjectionSurface,
-        "_cursor_flash_time_ms",
+        PromptSurfaceCaretVisualController,
+        "cursor_flash_time_ms",
         lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
@@ -114,8 +114,8 @@ def test_projection_surface_caret_move_resets_blink_to_visible(
 
     app = ensure_qapp()
     monkeypatch.setattr(
-        PromptProjectionSurface,
-        "_cursor_flash_time_ms",
+        PromptSurfaceCaretVisualController,
+        "cursor_flash_time_ms",
         lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
@@ -129,7 +129,7 @@ def test_projection_surface_caret_move_resets_blink_to_visible(
     )
     process_events(app)
 
-    surface_for(box)._set_caret_blink_visible(False)  # noqa: SLF001
+    surface_for(box)._caret_visual_controller.set_caret_blink_visible(False)  # noqa: SLF001
     assert _surface_should_paint_caret(box) is False
 
     QTest.keyClick(box, Qt.Key.Key_Right)
@@ -197,8 +197,8 @@ def test_projection_surface_text_edit_resets_blink_to_visible(
 
     app = ensure_qapp()
     monkeypatch.setattr(
-        PromptProjectionSurface,
-        "_cursor_flash_time_ms",
+        PromptSurfaceCaretVisualController,
+        "cursor_flash_time_ms",
         lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
@@ -207,7 +207,7 @@ def test_projection_surface_text_edit_resets_blink_to_visible(
         width=220,
     )
 
-    surface_for(box)._set_caret_blink_visible(False)  # noqa: SLF001
+    surface_for(box)._caret_visual_controller.set_caret_blink_visible(False)  # noqa: SLF001
     assert _surface_should_paint_caret(box) is False
 
     QTest.keyClicks(box, "a")
@@ -224,8 +224,8 @@ def test_projection_surface_focus_loss_hides_caret(
 
     app = ensure_qapp()
     monkeypatch.setattr(
-        PromptProjectionSurface,
-        "_cursor_flash_time_ms",
+        PromptSurfaceCaretVisualController,
+        "cursor_flash_time_ms",
         lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
@@ -253,8 +253,8 @@ def test_projection_surface_non_blinking_setting_keeps_caret_visible(
 
     app = ensure_qapp()
     monkeypatch.setattr(
-        PromptProjectionSurface,
-        "_cursor_flash_time_ms",
+        PromptSurfaceCaretVisualController,
+        "cursor_flash_time_ms",
         lambda self: 0,
     )
     box = show_prompt_editor(

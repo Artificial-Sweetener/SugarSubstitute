@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from collections.abc import Callable
 
 from PySide6.QtWidgets import QApplication
@@ -30,6 +34,7 @@ from tests.support.prompt_editor.real_shell.scenario import (
 
 from substitute.presentation.editor.panel.view import EditorPanel
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.resources.cube_icon_factory import CubeIconFactory
 
 
 def test_real_shell_mounts_prompt_editor_through_editor_panel(
@@ -57,6 +62,18 @@ def test_real_shell_mounts_prompt_editor_through_editor_panel(
     assert field.editor.isVisible()
 
 
+def test_real_shell_composes_cube_icon_resolution(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Provide production icon resolution to every mounted workflow surface."""
+
+    assert isinstance(real_shell_scenario.shell.cube_icon_factory, CubeIconFactory)
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
+
+    assert field.workflow.workflow_id in real_shell_scenario.shell.cube_stacks
+
+
 def test_real_shell_uses_composed_prompt_editor_collaborators(
     real_shell_scenario: PromptEditorRealShellScenario,
 ) -> None:
@@ -65,9 +82,10 @@ def test_real_shell_uses_composed_prompt_editor_collaborators(
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
     editor = field.editor
 
-    assert isinstance(getattr(editor, "_surface", None), QWidget)
-    assert getattr(editor, "_autocomplete", None) is not None
-    assert getattr(editor, "_interaction_controller", None) is not None
+    runtime = editor._runtime
+    assert isinstance(runtime.projection.surface, QWidget)
+    assert runtime.core.autocomplete.autocomplete is not None
+    assert runtime.core.syntax.interaction_controller is not None
 
     real_shell_scenario.input.type_text(field, "re")
     real_shell_scenario.wait_until(
@@ -75,7 +93,7 @@ def test_real_shell_uses_composed_prompt_editor_collaborators(
     )
 
     assert real_shell_scenario.autocomplete_gateway.calls[-1][0] == "re"
-    assert getattr(editor, "_autocomplete_panel", None) is not None
+    assert autocomplete_panel(editor) is not None
 
 
 def test_active_real_shell_does_not_request_reactivation(

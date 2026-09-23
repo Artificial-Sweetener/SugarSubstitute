@@ -43,6 +43,7 @@ from substitute.presentation.editor.prompt_editor.overlays.reorder_interaction_d
 from substitute.presentation.editor.prompt_editor.overlays.reorder_telemetry import (
     PromptReorderTelemetry,
 )
+from tests.support.prompt_editor.runtime_owners import apply_reorder_autoscroll_step
 from tests.support.qt.lifecycle import destroy_widget_roots
 
 
@@ -165,7 +166,7 @@ def test_autoscroll_step_coalesces_without_synchronous_geometry_refresh(
     )
 
     owner.update_for_pointer(QPoint(50, 99))
-    owner.apply_step_for_tests()
+    apply_reorder_autoscroll_step(owner)
 
     assert scrollbar.value() == 34
     assert owner.counters()["autoscroll_pending_invalidation_count"] == 1
@@ -195,8 +196,8 @@ def test_autoscroll_flush_applies_latest_invalidation_and_target_refresh(
     )
 
     owner.update_for_pointer(QPoint(50, 99))
-    owner.apply_step_for_tests()
-    owner.apply_step_for_tests()
+    apply_reorder_autoscroll_step(owner)
+    apply_reorder_autoscroll_step(owner)
 
     assert owner.flush_pending_invalidation(reason="pointer_drop") is True
     assert owner.flush_pending_invalidation(reason="already_flushed") is False
@@ -236,7 +237,7 @@ def test_autoscroll_noop_step_does_not_invalidate(
     )
 
     owner.update_for_pointer(QPoint(50, 99))
-    owner.apply_step_for_tests()
+    apply_reorder_autoscroll_step(owner)
 
     assert scrollbar.value() == 100
     assert owner.counters()["autoscroll_noop_step_count"] == 1

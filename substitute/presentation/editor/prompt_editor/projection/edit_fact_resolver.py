@@ -57,6 +57,13 @@ class PromptEditFactResolver:
         """Return whether one character changes immediate projection semantics."""
 
         focused_token = document.token_by_id(cursor_state.token_id)
+        comma_inside_editable_content = bool(
+            focused_token is not None
+            and focused_token.supports_text_content_navigation
+            and focused_token.content_start is not None
+            and focused_token.content_end is not None
+            and focused_token.content_start <= start <= focused_token.content_end
+        )
         comma_requires_projection = (
             start != end
             or display_mode is not PromptProjectionDisplayMode.PROJECTED
@@ -66,6 +73,7 @@ class PromptEditFactResolver:
             or (
                 focused_token is not None
                 and focused_token.source_start < start < focused_token.source_end
+                and not comma_inside_editable_content
             )
         )
         return self._policy.typed_character_requires_projection(
@@ -123,6 +131,19 @@ class PromptEditFactResolver:
         """Return whether one insertion sits inside projected token syntax."""
 
         return self._policy.source_insertion_is_inside_token(
+            source_position=source_position,
+            tokens=document.tokens,
+        )
+
+    def source_insertion_is_inside_text_content(
+        self,
+        source_position: int,
+        *,
+        document: PromptProjectionDocument,
+    ) -> bool:
+        """Return whether insertion sits inside editable projected text content."""
+
+        return self._policy.source_insertion_is_inside_text_content(
             source_position=source_position,
             tokens=document.tokens,
         )

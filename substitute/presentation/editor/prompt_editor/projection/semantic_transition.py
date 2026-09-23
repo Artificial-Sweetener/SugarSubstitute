@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 

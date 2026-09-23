@@ -163,6 +163,7 @@ def test_rich_choice_resolver_upgrades_lora_values_without_node_registry() -> No
         "loras",
         "vae",
         "diffusion_models",
+        "upscale_models",
     ]
 
 
@@ -319,6 +320,7 @@ def test_rich_choice_resolver_prewarm_loads_catalog_before_first_resolve() -> No
         "loras",
         "vae",
         "diffusion_models",
+        "upscale_models",
     ]
 
 
@@ -332,6 +334,7 @@ def test_rich_choice_resolver_exposes_enabled_kinds() -> None:
         "loras",
         "vae",
         "diffusion_models",
+        "upscale_models",
     )
 
 
@@ -358,6 +361,7 @@ def test_rich_choice_resolver_prewarm_caches_exact_option_lists() -> None:
         "loras",
         "vae",
         "diffusion_models",
+        "upscale_models",
     ]
 
 
@@ -385,10 +389,12 @@ def test_rich_choice_resolver_invalidate_reloads_catalog_values() -> None:
         "loras",
         "vae",
         "diffusion_models",
+        "upscale_models",
         "checkpoints",
         "loras",
         "vae",
         "diffusion_models",
+        "upscale_models",
     ]
 
 

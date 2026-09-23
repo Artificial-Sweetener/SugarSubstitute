@@ -39,6 +39,7 @@ from tests.support.prompt_editor.projection_engine_support import (
     show_prompt_editor,
     surface_for,
 )
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 from tests.presentation.editor.prompt_editor.selection.support import (
     _first_emphasis_token,
 )
@@ -74,8 +75,13 @@ def test_projection_selection_ctrl_up_wraps_the_entire_manual_multiword_selectio
     assert cursor.selectionStart() == 11
     assert cursor.selectionEnd() == 11
     assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
-    surface_for(box)._emphasis_feedback_timer.timeout.emit()  # noqa: SLF001
-    process_events(app)
+    wait_for_qt_condition(
+        lambda: (
+            not projection_paint_state_for(box).is_token_decoration_accented(
+                token.token_id
+            )
+        )
+    )
     assert not projection_paint_state_for(box).is_token_decoration_accented(
         token.token_id
     )
@@ -140,7 +146,9 @@ def test_prompt_editor_keypress_mutes_autocomplete_after_accepted_ctrl_arrow(
 
     cast(
         Any, box
-    )._interaction_controller.handle_post_key_press = handle_post_key_press_double
+    )._runtime.core.syntax.interaction_controller.handle_post_key_press = (
+        handle_post_key_press_double
+    )
     event = QKeyEvent(
         QEvent.Type.KeyPress,
         Qt.Key.Key_Up,
@@ -185,8 +193,13 @@ def test_projection_selection_ctrl_down_adjusts_existing_emphasis_when_surface_r
     assert cursor.selectionStart() == 11
     assert cursor.selectionEnd() == 11
     assert projection_paint_state_for(box).is_token_decoration_accented(token.token_id)
-    surface_for(box)._emphasis_feedback_timer.timeout.emit()  # noqa: SLF001
-    process_events(app)
+    wait_for_qt_condition(
+        lambda: (
+            not projection_paint_state_for(box).is_token_decoration_accented(
+                token.token_id
+            )
+        )
+    )
     assert not projection_paint_state_for(box).is_token_decoration_accented(
         token.token_id
     )
@@ -314,10 +327,11 @@ def test_projection_selection_ctrl_down_keeps_caret_at_transient_content_end(
     assert focused_token is not None
     assert focused_token.synthetic is True
     assert (
-        surface._cursor_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+        surface._caret_state_owner.cursor_state.placement
+        is PromptProjectionCaretPlacement.TOKEN_CONTENT
     )
-    assert surface._cursor_state.token_id == focused_token.token_id
-    assert surface._cursor_state.token_slot == 3
+    assert surface._caret_state_owner.cursor_state.token_id == focused_token.token_id
+    assert surface._caret_state_owner.cursor_state.token_slot == 3
 
 
 def test_projection_selection_ctrl_session_keeps_caret_at_transient_content_end(
@@ -361,10 +375,11 @@ def test_projection_selection_ctrl_session_keeps_caret_at_transient_content_end(
     assert focused_token is not None
     assert focused_token.synthetic is True
     assert (
-        surface._cursor_state.placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+        surface._caret_state_owner.cursor_state.placement
+        is PromptProjectionCaretPlacement.TOKEN_CONTENT
     )
-    assert surface._cursor_state.token_id == focused_token.token_id
-    assert surface._cursor_state.token_slot == 3
+    assert surface._caret_state_owner.cursor_state.token_id == focused_token.token_id
+    assert surface._caret_state_owner.cursor_state.token_slot == 3
 
 
 def test_projection_selection_ctrl_up_can_restore_emphasis_from_transient_neutral(

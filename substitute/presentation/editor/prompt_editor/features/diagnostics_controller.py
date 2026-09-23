@@ -54,6 +54,7 @@ from ..async_work import (
     QtPromptEditorDebouncer,
     QtPromptEditorMainThreadDispatcher,
 )
+from .diagnostic_action_dispatcher import PromptDiagnosticActionDispatcher
 from .diagnostics_presentation import (
     PromptDiagnosticsHost,
     PromptDiagnosticsPresentation,
@@ -128,13 +129,18 @@ class PromptDiagnosticsFeatureController:
             parent=cast(Any, parent),
         )
         self._request_channel = request_channel
+        action_dispatcher = PromptDiagnosticActionDispatcher(
+            host=host,
+            providers=self._providers,
+            refresh_requester=self,
+        )
         self._presentation = PromptDiagnosticsPresentation(
             host=host,
             surface=surface,
             providers=self._providers,
             wildcard_feature=wildcard_feature,
             feature_profile_id=feature_profile.identity.feature_profile_id,
-            refresh_requester=self,
+            action_dispatcher=action_dispatcher,
             display_policy=display_policy,
         )
         self._refresh_lifecycle = PromptDiagnosticsRefreshLifecycle(

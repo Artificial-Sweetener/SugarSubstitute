@@ -21,7 +21,7 @@ from __future__ import annotations
 from PySide6.QtCore import QAbstractAnimation, Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QWidget
-from qfluentwidgets import RadioButton, TransparentToolButton  # type: ignore[import-untyped]
+from qfluentwidgets import CheckBox, RadioButton, TransparentToolButton  # type: ignore[import-untyped]
 
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
@@ -133,6 +133,7 @@ def test_recommendation_page_renders_centered_five_by_two_family_choices() -> No
     ]
     portraits = page.findChildren(RecommendationPortrait)
     assert len(checkboxes) == 8
+    assert all(isinstance(checkbox, CheckBox) for checkbox in checkboxes)
     assert not any(checkbox.isChecked() for checkbox in checkboxes)
     assert all(checkbox.accessibleName() for checkbox in checkboxes)
     assert len(portraits) == 8
@@ -165,6 +166,37 @@ def test_recommendation_page_renders_centered_five_by_two_family_choices() -> No
     assert "creator" not in card_text
     assert "popular this month" not in card_text
     assert "version" not in card_text
+    page.close()
+
+
+def test_recommendation_selection_preserves_large_provider_identity() -> None:
+    """Selecting an OpenModelDB card must retain its full provider-neutral ID."""
+
+    ensure_qt_application()
+    version_id = 273172137497545
+    page = ModelRecommendationPage()
+    page.set_recommendations(
+        FamilyRecommendationPage(
+            ModelFamilyId.UPSCALERS,
+            (
+                _card_with_identity(
+                    family=ModelFamilyId.UPSCALERS,
+                    model_id=version_id,
+                    version_id=version_id,
+                ),
+            ),
+        ),
+        selected_version_ids=frozenset(),
+        use_own_model=False,
+    )
+    observed: list[tuple[int, bool]] = []
+    page.selection_changed.connect(
+        lambda identity, selected: observed.append((identity, selected))
+    )
+
+    page.visible_cards()[0].checkbox.click()
+
+    assert observed == [(version_id, True)]
     page.close()
 
 
@@ -218,6 +250,7 @@ def test_model_session_preserves_loaded_selections_and_rejects_stale_ids() -> No
     pages = (
         FamilyRecommendationPage(ModelFamilyId.SDXL, (_card(ModelFamilyId.SDXL, 1),)),
         FamilyRecommendationPage(ModelFamilyId.ANIMA, (_card(ModelFamilyId.ANIMA, 1),)),
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, ()),
     )
 
     assert session.accept_recommendations(pages)
@@ -248,6 +281,7 @@ def test_model_session_reuses_exact_cards_when_reentering_the_same_flow() -> Non
             ModelFamilyId.ANIMA,
             tuple(_card(ModelFamilyId.ANIMA, rank) for rank in range(1, 4)),
         ),
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, ()),
     )
     assert session.accept_recommendations(pages)
     first_thumbnail = pages[0].cards[0].thumbnail
@@ -270,6 +304,7 @@ def test_model_session_reuses_exact_cards_when_reentering_the_same_flow() -> Non
     assert session.select_missing_families(frozenset()) == (
         ModelFamilyId.SDXL,
         ModelFamilyId.ANIMA,
+        ModelFamilyId.UPSCALERS,
     )
 
     assert session.has_loaded_recommendations()
@@ -315,6 +350,7 @@ def test_shared_model_page_versions_keep_selections_and_thumbnails_independent()
     pages = (
         FamilyRecommendationPage(ModelFamilyId.SDXL, (sdxl,)),
         FamilyRecommendationPage(ModelFamilyId.ANIMA, (anima,)),
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, ()),
     )
     assert session.accept_recommendations(pages)
 
@@ -349,6 +385,7 @@ def test_imported_models_persist_per_family_and_join_the_editable_checkout() -> 
             ModelFamilyId.ANIMA,
             tuple(_card(ModelFamilyId.ANIMA, rank) for rank in range(1, 9)),
         ),
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, ()),
     )
     assert session.accept_recommendations(pages)
     imported = _card_with_identity(

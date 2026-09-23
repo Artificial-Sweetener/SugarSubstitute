@@ -79,18 +79,20 @@ def test_reorder_host_resolves_destination_after_drag_start_settles_geometry(
     overlay.preview_build_facts = SimpleNamespace(
         snapshot=lambda: SimpleNamespace(base_drag_layout_view=overlay.base_drag_layout)
     )
-    overlay._geometry = SimpleNamespace(
-        state=SimpleNamespace(
-            placement_snapshot=SimpleNamespace(
-                placement_for_target=placement_for_target
+    overlay._runtime = SimpleNamespace(
+        geometry=SimpleNamespace(
+            state=SimpleNamespace(
+                placement_snapshot=SimpleNamespace(
+                    placement_for_target=placement_for_target
+                )
             )
-        )
-    )
-    overlay._gesture = SimpleNamespace(
-        state=SimpleNamespace(
-            drag_intent_size=QSizeF(40.0, 20.0),
-            drag_grab_offset=QPointF(20.0, 10.0),
-        )
+        ),
+        gesture=SimpleNamespace(
+            state=SimpleNamespace(
+                drag_intent_size=QSizeF(40.0, 20.0),
+                drag_grab_offset=QPointF(20.0, 10.0),
+            )
+        ),
     )
     pressed = False
     drag_started = False
@@ -129,8 +131,17 @@ def test_reorder_host_resolves_destination_after_drag_start_settles_geometry(
         SimpleNamespace(startDragDistance=lambda: 10),
     )
     host = PromptReorderAbuseActionHost()
+    editor = SimpleNamespace(
+        _runtime=SimpleNamespace(
+            core=SimpleNamespace(
+                syntax=SimpleNamespace(
+                    interaction_controller=SimpleNamespace(segment_overlay=overlay)
+                )
+            )
+        )
+    )
 
-    host.reorder_drag_press(SimpleNamespace(_segment_overlay=overlay), "1:0")
-    host.reorder_drag_threshold(SimpleNamespace(_segment_overlay=overlay))
+    host.reorder_drag_press(editor, "1:0")
+    host.reorder_drag_threshold(editor)
 
     assert host._target == QPoint(410, 60)

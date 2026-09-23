@@ -37,8 +37,8 @@ from .models import (
     PromptProjectionLineCaretStopSnapshot,
     PromptProjectionLineSnapshot,
 )
+from .snapshot_indexes import LineCaretRectMapping
 from .shifted_snapshot import (
-    LineCaretRectMapping,
     concrete_line_snapshot,
     concrete_text_fragment,
 )

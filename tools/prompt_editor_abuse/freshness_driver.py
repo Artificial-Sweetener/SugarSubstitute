@@ -130,7 +130,7 @@ def _wait_for_current_owners(
 def _projection_is_current(editor: Any, source_text: str) -> bool:
     """Return whether projection source and pending-work state are current."""
 
-    surface = editor._surface
+    surface = editor._runtime.projection.surface
     return bool(
         surface.projection_document().source_text == source_text
         and not surface._projection_freshness_controller.has_pending_update()
@@ -140,10 +140,11 @@ def _projection_is_current(editor: Any, source_text: str) -> bool:
 def _semantics_are_current(editor: Any, source_text: str) -> bool:
     """Return whether semantic source and pending task state are current."""
 
-    interaction = editor._interaction_controller
+    interaction = editor._runtime.core.syntax.interaction_controller
     refresh = interaction._semantic_refresh
     return bool(
-        editor._surface.editor_state.semantic.document.source_text == source_text
+        editor._runtime.projection.surface.editor_state.semantic.document.source_text
+        == source_text
         and refresh._pending_request is None
         and refresh._active_task_identity is None
     )

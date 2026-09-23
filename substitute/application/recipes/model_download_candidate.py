@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from substitute.application.model_metadata import CivitaiMetadataGateway
 from substitute.domain.model_metadata import (
@@ -52,6 +53,40 @@ class RecipeModelDownloadCandidate:
     model_page_url: str
     thumbnail_url: str | None = None
     download_access: CivitaiDownloadAccess = CivitaiDownloadAccess.UNKNOWN
+    provider_id: str = "civitai"
+    provider_name: str = "CivitAI"
+    size_bytes: int | None = None
+
+
+class RecipeModelRecoveryGateway(Protocol):
+    """Resolve a verified recovery candidate from an exact model hash."""
+
+    def candidate(
+        self,
+        *,
+        kind: str,
+        sha256: str,
+    ) -> RecipeModelDownloadCandidate | None:
+        """Return a safe exact-hash candidate for a supported model role."""
+
+
+def candidate_from_recovery_gateways(
+    gateways: tuple[RecipeModelRecoveryGateway, ...],
+    *,
+    kind: str,
+    sha256: str,
+) -> RecipeModelDownloadCandidate | None:
+    """Return the first provider-ordered exact-hash recovery candidate."""
+
+    return next(
+        (
+            candidate
+            for gateway in gateways
+            for candidate in (gateway.candidate(kind=kind, sha256=sha256),)
+            if candidate is not None
+        ),
+        None,
+    )
 
 
 def candidate_from_civitai_version(
@@ -93,6 +128,7 @@ def candidate_from_civitai_version(
         model_page_url=version.model_page_url,
         thumbnail_url=_thumbnail_url(version, thumbnail_policy=thumbnail_policy),
         download_access=download_access,
+        size_bytes=(None if file.size_kb is None else round(file.size_kb * 1024)),
     )
 
 
@@ -160,6 +196,8 @@ def _string_metadata(file: CivitaiFile, key: str) -> str | None:
 
 __all__ = [
     "RecipeModelDownloadCandidate",
+    "RecipeModelRecoveryGateway",
+    "candidate_from_recovery_gateways",
     "candidate_from_civitai_version",
     "civitai_download_access",
 ]

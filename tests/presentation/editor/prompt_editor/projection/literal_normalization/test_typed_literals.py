@@ -117,7 +117,11 @@ def test_projection_surface_direct_weighted_emphasis_invalidates_raw_backing_fil
     assert first_emphasis_token(box).display_text == "small"
     assert surface.projection_document().tokens[-1].display_text == "test"
     assert invalidated_rects
-    assert box.viewport().rect() in invalidated_rects
+    assert all(not rect.isEmpty() for rect in invalidated_rects)
+    edited_line = surface._layout.frame.output.snapshot.lines[-1]  # noqa: SLF001
+    assert any(
+        rect.top() <= edited_line.top <= rect.bottom() for rect in invalidated_rects
+    )
 
 
 def test_projection_surface_typing_inline_decimal_emphasis_keeps_live_shells(

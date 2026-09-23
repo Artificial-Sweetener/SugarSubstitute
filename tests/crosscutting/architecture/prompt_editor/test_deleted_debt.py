@@ -101,3 +101,26 @@ def test_deleted_geometry_graph_cannot_return() -> None:
         not tuple(path.glob("*.py")) and not tuple(path.glob("*.pyi"))
         for path in deleted_source_roots
     )
+
+
+def test_abuse_action_dispatch_keeps_capability_owners_separate() -> None:
+    """Keep harness routing independent from Qt capability implementations."""
+
+    abuse_root = PROJECT_ROOT / "tools" / "prompt_editor_abuse"
+    action_driver_source = (abuse_root / "action_driver.py").read_text(encoding="utf-8")
+    expected_owners = {
+        "action_host.py": "class PromptAbuseActionHost",
+        "event_loop_driver.py": "class PromptAbuseEventLoopDriver",
+        "feature_action_driver.py": "class PromptAbuseFeatureActionDriver",
+        "keyboard_action_driver.py": "class PromptAbuseKeyboardActionDriver",
+        "source_action_driver.py": "class PromptAbuseSourceActionDriver",
+        "measured_dispatch.py": "def dispatch_typed_text(",
+    }
+
+    assert "def dispatch_action(" in action_driver_source
+    assert "class PromptAbuseActionHost" not in action_driver_source
+    assert "QContextMenuEvent" not in action_driver_source
+    assert "QTest" not in action_driver_source
+    for filename, owner_declaration in expected_owners.items():
+        owner_source = (abuse_root / filename).read_text(encoding="utf-8")
+        assert owner_declaration in owner_source

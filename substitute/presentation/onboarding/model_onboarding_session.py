@@ -143,10 +143,19 @@ class ModelOnboardingSession:
 
         if tuple(page.family_id for page in pages) != self._state.missing_families:
             return False
+        default_ids = {
+            card.recommendation.version_id
+            for page in pages
+            if page.family_id is ModelFamilyId.UPSCALERS
+            for card in page.cards[:8]
+        }
         self._state = replace(
             self._state,
             recommendation_pages=pages,
             recommendation_page_index=0,
+            selected_version_ids=self._state.selected_version_ids.union(default_ids)
+            if not self._state.recommendation_pages
+            else self._state.selected_version_ids,
         )
         return True
 

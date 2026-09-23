@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for Phase 23 catalog-backed snapshot contract types."""
+"""Verify shared catalog snapshot contracts used by prompt features."""
 
 from __future__ import annotations
 
@@ -23,18 +23,15 @@ from pathlib import Path
 
 import pytest
 
-from substitute.presentation.editor.prompt_editor.features import (
-    PHASE23_CATALOG_FOREGROUND_INVENTORY,
-    CatalogForegroundConsumer,
-    CatalogLookupClassification,
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
 )
 
 
-def test_catalog_snapshot_identity_carries_phase23_freshness_inputs() -> None:
-    """Snapshot identity should include every Phase 23 freshness dimension."""
+def test_catalog_snapshot_identity_carries_foreground_freshness_inputs() -> None:
+    """Snapshot identity should include every foreground freshness dimension."""
 
     identity = CatalogSnapshotIdentity(
         source_revision=12,
@@ -128,45 +125,6 @@ def test_catalog_snapshot_status_requires_reasons_for_non_ready_states() -> None
         CatalogSnapshotStatus(CatalogSnapshotReadiness.WARM, "unexpected")
 
 
-def test_phase23_inventory_assigns_every_foreground_consumer_to_subphase() -> None:
-    """Every catalog-backed foreground consumer should have a Phase 23 owner."""
-
-    consumers = {item.consumer for item in PHASE23_CATALOG_FOREGROUND_INVENTORY}
-
-    assert consumers == set(CatalogForegroundConsumer)
-    assert all(
-        item.sub_phase.startswith("23.")
-        for item in PHASE23_CATALOG_FOREGROUND_INVENTORY
-    )
-    assert all(item.snapshot_owner for item in PHASE23_CATALOG_FOREGROUND_INVENTORY)
-    assert all(
-        item.baseline_test.startswith("tests/")
-        for item in PHASE23_CATALOG_FOREGROUND_INVENTORY
-    )
-
-
-def test_phase23_inventory_classifies_existing_lookup_tokens() -> None:
-    """Phase 23.1 should classify each direct lookup family before extraction."""
-
-    token_classification = {
-        item.lookup_token: item.classification
-        for item in PHASE23_CATALOG_FOREGROUND_INVENTORY
-    }
-
-    assert token_classification["refresh_loras("] is (
-        CatalogLookupClassification.EXPLICIT_REFRESH
-    )
-    assert token_classification["list_loras("] is (
-        CatalogLookupClassification.EXPLICIT_REFRESH
-    )
-    assert token_classification["search_wildcards("] is (
-        CatalogLookupClassification.FORBIDDEN_FOREGROUND
-    )
-    assert token_classification["read_thumbnail_asset("] is (
-        CatalogLookupClassification.BACKGROUND_WARMUP
-    )
-
-
 def test_catalog_snapshot_contract_types_are_passive_dataclasses() -> None:
     """Snapshot contracts should not import Qt, widgets, or application services."""
 
@@ -180,9 +138,8 @@ def test_catalog_snapshot_contract_types_are_passive_dataclasses() -> None:
         / "substitute"
         / "presentation"
         / "editor"
-        / "prompt_editor"
-        / "features"
-        / "catalog_snapshots.py"
+        / "catalog"
+        / "snapshots.py"
     ).read_text(encoding="utf-8")
     forbidden_tokens = (
         "PySide6",

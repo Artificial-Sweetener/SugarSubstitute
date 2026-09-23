@@ -25,21 +25,35 @@ from .scenario_builder import PromptAbuseScenarioBuilder
 def prompt_decoration_boundary_scenarios() -> tuple[PromptAbuseScenario, ...]:
     """Return hostile edits that settle projection before boundary continuation."""
 
-    source_text = "(1girl, blue hair:1.2)"
-    content_end = source_text.index(":1.2)")
-    builder = PromptAbuseScenarioBuilder(
-        source_text,
+    continuation_text = "(1girl, blue hair:1.2)"
+    content_end = continuation_text.index(":1.2)")
+    continuation = PromptAbuseScenarioBuilder(
+        continuation_text,
         cursor_position=content_end,
     )
-    builder.type_text(",")
-    builder.drain_events()
-    builder.type_text(" red eyes")
-    builder.drain_events()
+    continuation.type_text(",")
+    continuation.drain_events()
+    continuation.type_text(" red eyes")
+    continuation.drain_events()
+
+    adjacent_comma_text = "ornaments,(red:1.10) heart"
+    token_start = adjacent_comma_text.index("(")
+    adjacent_comma = PromptAbuseScenarioBuilder(
+        adjacent_comma_text,
+        cursor_position=token_start,
+    )
+    adjacent_comma.key("left")
+    adjacent_comma.key("right")
     return (
-        builder.build(
+        continuation.build(
             "decoration-content-end-continuation",
-            source_text,
+            continuation_text,
             initial_cursor_position=content_end,
+        ),
+        adjacent_comma.build(
+            "decorated-comma-boundary-navigation",
+            adjacent_comma_text,
+            initial_cursor_position=token_start,
         ),
     )
 

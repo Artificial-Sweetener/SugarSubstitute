@@ -21,7 +21,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from substitute.application.model_metadata import (
+    ModelCatalogProviderMatch,
     ModelCatalogService,
+    ModelProviderLink,
     ModelThumbnailVariant,
 )
 from substitute.domain.model_metadata import (
@@ -31,6 +33,58 @@ from substitute.domain.model_metadata import (
 )
 
 from .support import _FakeBackend, _FakeCatalog, _entry, _record
+
+
+class _OpenModelDbProvider:
+    """Return one deterministic exact-hash provider match."""
+
+    def match(self, *, kind: str, sha256: str) -> ModelCatalogProviderMatch | None:
+        """Match only the fixture upscaler hash."""
+
+        if kind != "upscale_models" or sha256 != "ABC":
+            return None
+        return ModelCatalogProviderMatch(
+            link=ModelProviderLink(
+                provider_id="openmodeldb",
+                provider_name="OpenModelDB",
+                model_id="4x-test",
+                version_id="ABC",
+                model_page_url="https://openmodeldb.info/models/4x-test",
+            ),
+            model_name="4x Test Upscaler",
+            version_name="4× · ESRGAN",
+            tags=("restoration",),
+            thumbnail=None,
+        )
+
+
+def test_openmodeldb_exact_hash_precedes_civitai_but_preserves_both_links() -> None:
+    """Installed upscalers should use OpenModelDB copy with CivitAI still linked."""
+
+    service = ModelCatalogService(
+        backend=_FakeBackend((_entry("upscale_models", "4x-test.pth", "ABC"),)),
+        metadata_catalog=_FakeCatalog(
+            (
+                _record(
+                    kind="upscale_models",
+                    value="4x-test.pth",
+                    sha256="ABC",
+                    model_name="CivitAI Name",
+                ),
+            )
+        ),
+        providers=(_OpenModelDbProvider(),),
+    )
+
+    item = service.list_models("upscale_models")[0]
+
+    assert item.extension == ".pth"
+    assert item.display_name == "4x Test Upscaler"
+    assert item.provider_name == "openmodeldb"
+    assert [link.provider_id for link in item.provider_links] == [
+        "openmodeldb",
+        "civitai",
+    ]
 
 
 def test_model_catalog_preserves_thumbnail_variants_without_file_checks(

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+from types import SimpleNamespace
 
 from tools.prompt_editor_abuse.action_counter_probe import (
     PromptAbuseActionCounterProbe,
@@ -78,7 +78,18 @@ def test_campaign_reports_structural_and_timing_evidence_independently() -> None
 def test_structural_instrumentation_attributes_external_counts_per_action() -> None:
     """Opt-in method instrumentation should remain attributable by action."""
 
-    probe = PromptAbuseActionCounterProbe(object())
+    probe = PromptAbuseActionCounterProbe(
+        SimpleNamespace(
+            _runtime=SimpleNamespace(
+                core=SimpleNamespace(
+                    syntax=SimpleNamespace(
+                        interaction_controller=SimpleNamespace(segment_overlay=None)
+                    )
+                ),
+                projection_or_none=None,
+            )
+        )
+    )
     with prompt_abuse_structural_instrumentation(enabled=True) as instrumentation:
         assert instrumentation is not None
         probe.begin_unit()

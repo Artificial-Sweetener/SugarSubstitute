@@ -82,7 +82,7 @@ class ReorderPointerTarget:
 def current_reorder_overlay(editor: PromptEditor) -> SegmentReorderOverlay:
     """Return the active reorder overlay created by the real editor."""
 
-    overlay = getattr(editor, "_segment_overlay", None)
+    overlay = editor._runtime.core.syntax.interaction_controller.segment_overlay
     if not isinstance(overlay, SegmentReorderOverlay):
         raise RuntimeError("Alt did not create a prompt reorder overlay.")
     return overlay
@@ -238,7 +238,7 @@ def exercise_reorder_geometry_caches(
 def surface_for(editor: PromptEditor) -> PromptProjectionSurface:
     """Return the prompt projection surface owned by one editor."""
 
-    return cast(PromptProjectionSurface, getattr(editor, "_surface"))
+    return editor._runtime.projection.surface
 
 
 def reorder_cache_counts(editor: PromptEditor) -> dict[str, int]:

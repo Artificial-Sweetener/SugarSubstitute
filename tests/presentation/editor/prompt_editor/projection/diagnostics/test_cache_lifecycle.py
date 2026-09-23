@@ -112,11 +112,11 @@ def test_projection_surface_rejects_superseded_diagnostic_warm_work(
         "source_range_fragments",
         record_fragments,
     )
-    surface.set_diagnostics(old_diagnostics)
-    surface.set_diagnostics((latest_diagnostic,))
+    surface.diagnostics.set_diagnostics(old_diagnostics)
+    surface.diagnostics.set_diagnostics((latest_diagnostic,))
     wait_for_diagnostic_layer(surface, has_underlines=True)
 
-    owner = cast(Any, surface)._diagnostic_layer_owner
+    owner = surface.diagnostics
     assert fragment_queries == [(latest_start, latest_end)]
     assert owner.layer.underlines
 
@@ -143,7 +143,7 @@ def test_projection_surface_reuses_diagnostic_fragment_geometry(
         message=f"Possible spelling issue: {word}",
         payload=PromptSpellingDiagnosticPayload(word=word),
     )
-    surface.set_diagnostics((diagnostic,))
+    surface.diagnostics.set_diagnostics((diagnostic,))
     fragment_lookup_count = _observe_source_range_fragment_lookups(monkeypatch)
     viewport_rect = QRectF(surface.viewport().rect())
     scroll_offset = cast(Any, surface)._scroll_offset()
@@ -174,7 +174,7 @@ def test_projection_surface_reuses_diagnostic_fragment_geometry(
         message=f"Possible spelling issue: {word}",
         payload=PromptSpellingDiagnosticPayload(word=word),
     )
-    surface.set_diagnostics((replacement,))
+    surface.diagnostics.set_diagnostics((replacement,))
     replacement_fragments = _diagnostic_fragments(
         surface,
         replacement,

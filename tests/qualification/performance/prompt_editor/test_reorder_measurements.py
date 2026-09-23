@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -78,7 +79,9 @@ class _EditorWithCounters:
     def __init__(self, surface: object) -> None:
         """Store the marker surface returned by ``surface_for``."""
 
-        self._surface = surface
+        self._runtime = SimpleNamespace(
+            projection=SimpleNamespace(surface=surface),
+        )
 
     def reorder_geometry_cache_counters(self) -> dict[str, object]:
         """Return counters that include unsupported values."""
@@ -179,7 +182,18 @@ def test_build_reorder_measurement_state_prepares_preview_and_base_state() -> No
 def test_current_reorder_overlay_requires_real_overlay() -> None:
     """Overlay lookup should fail closed when Alt did not create the overlay."""
 
-    editor = cast(PromptEditor, object())
+    editor = cast(
+        PromptEditor,
+        SimpleNamespace(
+            _runtime=SimpleNamespace(
+                core=SimpleNamespace(
+                    syntax=SimpleNamespace(
+                        interaction_controller=SimpleNamespace(segment_overlay=None)
+                    )
+                )
+            )
+        ),
+    )
 
     with pytest.raises(RuntimeError, match="Alt did not create"):
         current_reorder_overlay(editor)

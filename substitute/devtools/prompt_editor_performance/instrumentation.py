@@ -43,9 +43,16 @@ class PromptEditorInstrumentationObserver:
 
         self._instrumentation = instrumentation
         self._lock = Lock()
+        self._owners: dict[int, object] = {}
+        self._owner_event_counts: dict[tuple[int, PromptEditorWorkEvent], int] = {}
 
-    def record(self, event: PromptEditorWorkEvent, elapsed_ms: float) -> None:
-        """Record one owner event without reading the measured owner."""
+    def record(
+        self,
+        event: PromptEditorWorkEvent,
+        elapsed_ms: float,
+        owner: object | None = None,
+    ) -> None:
+        """Record one owner event and retain exact-owner attribution."""
 
         with self._lock:
             counter = getattr(self._instrumentation, event.value)
@@ -54,6 +61,26 @@ class PromptEditorInstrumentationObserver:
                     f"Prompt editor work event has no counter: {event.value}"
                 )
             counter.record(elapsed_ms)
+            if owner is not None:
+                owner_id = id(owner)
+                self._owners[owner_id] = owner
+                owner_key = (owner_id, event)
+                self._owner_event_counts[owner_key] = (
+                    self._owner_event_counts.get(owner_key, 0) + 1
+                )
+
+    def owner_event_count(
+        self,
+        event: PromptEditorWorkEvent,
+        owner: object,
+    ) -> int:
+        """Return event count attributed to one exact live owner instance."""
+
+        with self._lock:
+            owner_id = id(owner)
+            if self._owners.get(owner_id) is not owner:
+                return 0
+            return self._owner_event_counts.get((owner_id, event), 0)
 
 
 @contextmanager
@@ -62,19 +89,19 @@ def instrument_prompt_editor(
     *,
     enabled: bool = True,
     suppress_context_menu_exec: bool = True,
-) -> Iterator[None]:
+) -> Iterator[PromptEditorInstrumentationObserver | None]:
     """Observe stable owner events for one benchmark or abuse campaign."""
 
     if not enabled:
         with _suppress_context_menu_execution(enabled=suppress_context_menu_exec):
-            yield
+            yield None
         return
     observer = PromptEditorInstrumentationObserver(instrumentation)
     with (
         observe_prompt_editor_work(observer),
         _suppress_context_menu_execution(enabled=suppress_context_menu_exec),
     ):
-        yield
+        yield observer
 
 
 @contextmanager

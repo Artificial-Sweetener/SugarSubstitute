@@ -26,7 +26,7 @@ from collections.abc import Hashable
 from substitute.presentation.editor.prompt_editor.commands.feature_commands import (
     PromptFeatureSnapshotIdentity,
 )
-from substitute.presentation.editor.prompt_editor.features.catalog_snapshots import (
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,

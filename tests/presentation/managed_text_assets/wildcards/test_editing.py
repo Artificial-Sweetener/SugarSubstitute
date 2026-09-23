@@ -21,12 +21,21 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QTextCursor
+from PySide6.QtTest import QTest
 
 from substitute.application.managed_text_assets.wildcard_csv_document_parser import (
     parse_wildcard_csv_document,
 )
-from substitute.application.prompt_wildcards import PromptWildcardFileManagementService
+from substitute.application.prompt_wildcards import (
+    PromptWildcardFileManagementService,
+    PromptWildcardResolver,
+)
 from substitute.infrastructure.persistence import FilePromptWildcardFileRepository
+from substitute.infrastructure.persistence.file_prompt_wildcard_catalog_gateway import (
+    FilePromptWildcardCatalogGateway,
+)
 from substitute.presentation.managed_text_assets import (
     WildcardManagementOpener,
 )
@@ -58,7 +67,9 @@ def test_wildcard_modal_context_insert_preserves_csv_and_cursor(
     cursor.setPosition(len("value\nalpha"))
     editor.setTextCursor(cursor)
 
-    result = editor._context_insertion.insert_context_menu_text(', "detail"')
+    result = editor._runtime.core.context_insertion.insert_context_menu_text(
+        ', "detail"'
+    )
     app.processEvents()
 
     assert result.status == "applied"
@@ -67,6 +78,63 @@ def test_wildcard_modal_context_insert_preserves_csv_and_cursor(
     assert editor.textCursor().position() == len(editor.toPlainText()) - 2
     editor.undo()
     assert editor.toPlainText() == "value\nalpha\n"
+
+    editor.redo()
+    modal._save_button.click()
+    assert service.read_file("characters.csv") == 'value\n"alpha, ""detail"""\n'
+    assert _resolver(tmp_path).resolve(
+        "{csv:characters:value}", seed=1
+    ).resolved_text == ('alpha, "detail"')
+
+
+def test_wildcard_modal_saved_txt_edit_resolves_under_workflow_seeds(
+    tmp_path: Path,
+) -> None:
+    """Typing and saving in the mounted editor should feed seeded resolution."""
+
+    app = ensure_qapp()
+    service = PromptWildcardFileManagementService(
+        FilePromptWildcardFileRepository(tmp_path / "wildcards")
+    )
+    service.create_text_file("subject", "first\nsecond\n")
+    modal = WildcardManagementOpener(
+        wildcard_file_management_service=service,
+        prompt_runtime_services=_prompt_runtime_services(),
+    ).create_modal(None)
+    editor = cast(Any, modal._editor.editor())
+    owner = modal.parentWidget()
+    assert owner is not None
+    owner.show()
+    modal.show()
+    editor.setFocus()
+    app.processEvents()
+
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+    QTest.keyClicks(editor, "third")
+    QTest.keyClick(editor, Qt.Key.Key_Return)
+    app.processEvents()
+    assert editor.toPlainText() == "first\nsecond\nthird\n"
+
+    modal._save_button.click()
+    assert service.read_file("subject.txt") == "first\nsecond\nthird\n"
+    resolver = _resolver(tmp_path)
+    assert resolver.resolve("portrait {subject}", seed=1).resolved_text == (
+        "portrait first"
+    )
+    assert resolver.resolve("portrait {subject}", seed=5).resolved_text == (
+        "portrait third"
+    )
+
+
+def _resolver(tmp_path: Path) -> PromptWildcardResolver:
+    """Resolve managed files through the production catalog gateway."""
+
+    return PromptWildcardResolver(
+        FilePromptWildcardCatalogGateway(
+            user_wildcards_root=tmp_path / "wildcards",
+            comfy_custom_nodes_root=None,
+        )
+    )
 
 
 def test_wildcard_modal_projects_prompt_syntax_inside_quoted_csv_values(
@@ -90,7 +158,8 @@ def test_wildcard_modal_projects_prompt_syntax_inside_quoted_csv_values(
     app.processEvents()
 
     token_kinds = {
-        token.kind.value for token in editor._surface.projection_document().tokens
+        token.kind.value
+        for token in editor._runtime.projection.surface.projection_document().tokens
     }
 
     assert token_kinds == {"emphasis", "wildcard", "lora"}

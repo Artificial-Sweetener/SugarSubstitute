@@ -25,6 +25,7 @@ from PySide6.QtCore import QEvent, QPoint, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
+from tests.support.prompt_editor.runtime_owners import apply_reorder_autoscroll_step
 
 
 from .support import (
@@ -158,8 +159,9 @@ def test_reorder_autoscroll_steps_do_not_rebuild_surface_projection(
     before = _performance_counters(overlay)
 
     before_geometry_generation = overlay.geometry_generation_state().generation_id
-    cast(Any, overlay)._autoscroll.apply_step_for_tests()
-    cast(Any, overlay)._autoscroll.apply_step_for_tests()
+    autoscroll = cast(Any, overlay)._runtime.autoscroll
+    apply_reorder_autoscroll_step(autoscroll)
+    apply_reorder_autoscroll_step(autoscroll)
 
     after_ticks_before_flush = _performance_counters(overlay)
 

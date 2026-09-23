@@ -28,8 +28,8 @@ from sugarsubstitute_shared.model_updates.models import (
     ModelUsageRecord,
 )
 
-_SCHEMA_VERSION = 2
-_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, _SCHEMA_VERSION})
+_SCHEMA_VERSION = 3
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, 2, _SCHEMA_VERSION})
 
 
 class ModelUpdateStateError(RuntimeError):
@@ -123,6 +123,10 @@ def _parse_usage(value: object, *, schema_version: object) -> ModelUsageRecord:
         base_model=_optional_string(value.get("base_model")),
         usage_count=usage_count,
         last_used_at=timestamp.astimezone(UTC),
+        dismissed_version_id=_optional_positive_int(value.get("dismissed_version_id")),
+        updates_disabled_for_model=_optional_bool(
+            value.get("updates_disabled_for_model")
+        ),
     )
 
 
@@ -138,6 +142,8 @@ def _usage_payload(record: ModelUsageRecord) -> dict[str, object]:
         "base_model": record.base_model,
         "usage_count": record.usage_count,
         "last_used_at": record.last_used_at.astimezone(UTC).isoformat(),
+        "dismissed_version_id": record.dismissed_version_id,
+        "updates_disabled_for_model": record.updates_disabled_for_model,
     }
 
 
@@ -154,6 +160,16 @@ def _optional_string(value: object) -> str | None:
     """Normalize an optional provider string."""
 
     return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _optional_bool(value: object) -> bool:
+    """Reject malformed authoritative opt-out state."""
+
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ValueError("Model-page update preference must be a boolean.")
+    return value
 
 
 def _optional_positive_int(value: object) -> int | None:

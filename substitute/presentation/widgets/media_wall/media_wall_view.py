@@ -51,6 +51,9 @@ from substitute.presentation.widgets.media_wall.justified_layout import (
     build_justified_rows,
 )
 from substitute.presentation.widgets.media_wall.media_wall_item import MediaWallItem
+from substitute.presentation.widgets.media_wall.media_wall_badge import (
+    media_wall_badge_rect,
+)
 from substitute.presentation.widgets.media_wall.media_wall_marquee import (
     TitleMarqueeState,
     resolve_title_marquee_state,
@@ -93,6 +96,8 @@ class MediaWallView(QAbstractScrollArea):
 
     itemActivated = Signal(object)
     itemContextMenuRequested = Signal(object, QPoint)
+    itemBadgeActivated = Signal(object)
+    itemBadgeContextMenuRequested = Signal(object, QPoint)
     _DEFAULT_WHEEL_STEP = 72
     _OVERSCAN_ROWS = 1
 
@@ -242,6 +247,15 @@ class MediaWallView(QAbstractScrollArea):
         item = self._item_at(point)
         if item is None:
             return None
+        placed = self._placed_item_by_id.get(item.item_id)
+        if (
+            placed is not None
+            and item.corner_badge_icon is not None
+            and media_wall_badge_rect(
+                placed.rect.translated(0, -self.verticalScrollBar().value())
+            ).contains(point)
+        ):
+            return item.corner_badge_tooltip
         return item.tooltip
 
     def paintEvent(self, event: QPaintEvent) -> None:
@@ -333,13 +347,32 @@ class MediaWallView(QAbstractScrollArea):
             return
         self._set_current_item(item.item_id)
         if event.button() == Qt.MouseButton.RightButton:
-            self.itemContextMenuRequested.emit(
-                item.payload,
-                event.globalPosition().toPoint(),
-            )
+            if self._badge_contains(item, event.position().toPoint()):
+                self.itemBadgeContextMenuRequested.emit(
+                    item.payload, event.globalPosition().toPoint()
+                )
+            else:
+                self.itemContextMenuRequested.emit(
+                    item.payload,
+                    event.globalPosition().toPoint(),
+                )
+        elif self._badge_contains(item, event.position().toPoint()):
+            self.itemBadgeActivated.emit(item.payload)
         else:
             self.itemActivated.emit(item.payload)
         event.accept()
+
+    def _badge_contains(self, item: MediaWallItem, point: QPoint) -> bool:
+        """Recognize only the badge on the exact clicked tile."""
+
+        placed = self._placed_item_by_id.get(item.item_id)
+        return bool(
+            placed is not None
+            and item.corner_badge_icon is not None
+            and media_wall_badge_rect(
+                placed.rect.translated(0, -self.verticalScrollBar().value())
+            ).contains(point)
+        )
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Support basic keyboard navigation and activation."""

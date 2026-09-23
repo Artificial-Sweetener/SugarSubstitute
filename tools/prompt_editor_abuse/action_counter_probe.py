@@ -21,7 +21,9 @@ from __future__ import annotations
 from typing import Any, cast
 
 from .models import PromptAbuseActionOwnerDelta
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 from .structural_instrumentation import active_structural_counter_counts
+from substitute.shared.diagnostics.prompt_editor_work import PromptEditorWorkEvent
 
 
 class PromptAbuseActionCounterProbe:
@@ -42,7 +44,7 @@ class PromptAbuseActionCounterProbe:
         self._overlay_before = _active_reorder_overlay(self._editor)
         self._counters_before = _numeric_reorder_counters(self._overlay_before)
         self._editor_counters_before = _prompt_editor_counters(self._editor)
-        self._structural_counters_before = active_structural_counter_counts()
+        self._structural_counters_before = _structural_counters(self._editor)
 
     def finish_unit(
         self,
@@ -64,7 +66,7 @@ class PromptAbuseActionCounterProbe:
             for name, value in counters_after.items()
             if value > counters_before.get(name, 0.0)
         }
-        structural_counters_after = active_structural_counter_counts()
+        structural_counters_after = _structural_counters(self._editor)
         editor_counters_after = _prompt_editor_counters(self._editor)
         editor_deltas = {
             name: value - self._editor_counters_before.get(name, 0.0)
@@ -103,7 +105,7 @@ class PromptAbuseActionCounterProbe:
 def _active_reorder_overlay(editor: object) -> Any | None:
     """Return the production reorder overlay without creating one."""
 
-    return getattr(editor, "_segment_overlay", None)
+    return segment_overlay(editor)
 
 
 def _numeric_reorder_counters(overlay: Any | None) -> dict[str, float]:
@@ -122,12 +124,33 @@ def _numeric_reorder_counters(overlay: Any | None) -> dict[str, float]:
 def _prompt_editor_counters(editor: object) -> dict[str, float]:
     """Return existing editor counters without triggering owner preparation."""
 
-    surface = getattr(editor, "_surface", None)
-    region_chrome = getattr(surface, "_region_chrome", None)
+    runtime = getattr(editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    region_chrome_presentation = getattr(
+        presentation_runtime,
+        "region_chrome",
+        None,
+    )
+    region_chrome = getattr(region_chrome_presentation, "chrome", None)
     prepare_count = getattr(region_chrome, "prepare_count", None)
     if not isinstance(prepare_count, int):
         return {}
     return {"region_chrome_prepare_count": float(prepare_count)}
+
+
+def _structural_counters(editor: object) -> dict[str, float]:
+    """Return structural counters with surface work scoped to this editor."""
+
+    runtime = getattr(editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
+    if surface is None:
+        return active_structural_counter_counts()
+    return active_structural_counter_counts(
+        event_owners={PromptEditorWorkEvent.SURFACE_RESIZE_EVENT: surface}
+    )
 
 
 __all__ = ["PromptAbuseActionCounterProbe"]

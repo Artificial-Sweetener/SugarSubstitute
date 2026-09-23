@@ -47,7 +47,9 @@ from .content_text_styles import (
     text_style_for_run,
 )
 from .paint_state import PromptProjectionPaintState
-from .tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +98,7 @@ class PromptProjectionPaintInput:
         str,
         PromptProjectionTextPaintStyle,
     ] = field(init=False, repr=False, compare=False)
-    _effective_inline_bindings: Mapping[
+    _effective_inline_bindings: dict[
         int,
         PromptProjectionInlinePaintBinding,
     ] = field(init=False, repr=False, compare=False)
@@ -191,10 +193,7 @@ class PromptProjectionPaintInput:
         object.__setattr__(
             self,
             "_effective_inline_bindings",
-            self.base_inline_bindings.effective_overrides(
-                runs_by_id=effective_runs,
-                tokens_by_id=effective_tokens,
-            ),
+            {},
         )
 
     def effective_run(self, run_id: str | None) -> PromptProjectionRun | None:
@@ -240,7 +239,24 @@ class PromptProjectionPaintInput:
         effective = self._effective_inline_bindings.get(fragment_id)
         if effective is not None:
             return effective
-        return self.base_inline_bindings.binding(fragment)
+        base = self.base_inline_bindings.binding(fragment)
+        if base is None:
+            return None
+        effective_run = self._effective_runs_by_id.get(base.run.run_id, base.run)
+        effective_token = self._effective_tokens_by_id.get(
+            base.token.token_id,
+            base.token,
+        )
+        if effective_run is base.run and effective_token is base.token:
+            effective = base
+        else:
+            effective = PromptProjectionInlinePaintBinding(
+                renderer=base.renderer,
+                run=effective_run,
+                token=effective_token,
+            )
+        self._effective_inline_bindings[fragment_id] = effective
+        return effective
 
 
 def effective_run_for_paint(

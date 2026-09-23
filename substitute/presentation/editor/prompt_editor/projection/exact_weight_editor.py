@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Protocol
 
 from PySide6.QtCore import (
@@ -51,7 +52,7 @@ from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRen
 from ..core.projection.document import PromptProjectionDocument
 from ..core.projection.tokens import PromptProjectionToken, PromptProjectionTokenKind
 from .session import PromptProjectionSession
-from .tokens import emphasis_weight_font
+from .inline_renderer_typography import inline_weight_font
 
 
 class PromptExactWeightEditorHost(Protocol):
@@ -68,11 +69,8 @@ class PromptExactWeightEditorHost(Protocol):
     def projection_document(self) -> PromptProjectionDocument:
         """Return the current prepared token projection."""
 
-    def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
-        """Return the authoritative viewport-local weight bounds."""
-
-    def _rebuild_projection(self) -> None:
-        """Publish a projection after native edit state changes."""
+    def token_weight_edit_rect(self, token: PromptProjectionToken) -> QRectF | None:
+        """Return the viewport-local painted glyph area for the native input."""
 
 
 class PromptExactWeightEditor(QLineEdit):
@@ -81,11 +79,17 @@ class PromptExactWeightEditor(QLineEdit):
     commit_requested = Signal()
     cancel_requested = Signal()
 
-    def __init__(self, host: PromptExactWeightEditorHost) -> None:
+    def __init__(
+        self,
+        host: PromptExactWeightEditorHost,
+        *,
+        rebuild_projection: Callable[[], None],
+    ) -> None:
         """Mount one native input whose geometry derives from the token projection."""
 
         super().__init__(host.viewport())
         self._host = host
+        self._rebuild_projection = rebuild_projection
         self._publishing = False
         self.setObjectName("PromptExactWeightEditor")
         self.setFrame(False)
@@ -121,8 +125,8 @@ class PromptExactWeightEditor(QLineEdit):
             or token.content_end is None
         ):
             return
-        self.setFont(emphasis_weight_font(self._host.font()))
-        rect = self._host.token_weight_text_rect(token)
+        self.setFont(inline_weight_font(self._host.font()))
+        rect = self._host.token_weight_edit_rect(token)
         slot_width = (
             rect.width()
             if rect is not None
@@ -144,7 +148,7 @@ class PromptExactWeightEditor(QLineEdit):
             caret_index=self.cursorPosition(),
             select_all=True,
         )
-        self._host._rebuild_projection()
+        self._rebuild_projection()
         self.refresh_geometry()
         self.show()
         self.raise_()
@@ -173,7 +177,7 @@ class PromptExactWeightEditor(QLineEdit):
             return
         self._host._session.clear_exact_weight_edit()
         self.hide()
-        self._host._rebuild_projection()
+        self._rebuild_projection()
 
     def token(self) -> PromptProjectionToken | None:
         """Resolve the edited token from its source identity after projection changes."""
@@ -204,7 +208,7 @@ class PromptExactWeightEditor(QLineEdit):
             self.hide()
             return
         token = self.token()
-        rect = self._host.token_weight_text_rect(token) if token is not None else None
+        rect = self._host.token_weight_edit_rect(token) if token is not None else None
         if rect is None:
             self.hide()
             return
@@ -325,7 +329,7 @@ class PromptExactWeightEditor(QLineEdit):
                 caret_index=self.cursorPosition(),
                 select_all=select_all,
             )
-            self._host._rebuild_projection()
+            self._rebuild_projection()
             self.refresh_geometry()
         finally:
             self._publishing = False

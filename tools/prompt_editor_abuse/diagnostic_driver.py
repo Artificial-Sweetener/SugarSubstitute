@@ -67,7 +67,7 @@ def capture_scenario_diagnostics(
         field = mounted.field
         target = mounted.target
         action_host = mounted.action_host
-        surface = cast(Any, field.editor)._surface
+        surface = cast(Any, field.editor)._runtime.projection.surface
         edit_pipeline = surface._edit_pipeline
         original_rebuild = surface._projection_applicator.rebuild_projection
         original_apply = edit_pipeline.apply

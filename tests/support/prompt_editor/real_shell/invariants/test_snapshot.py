@@ -122,6 +122,8 @@ class _SnapshotInvariantState:
         "selection_range": (0, 5),
         "selection_rects": ((0.0, 0.0, 32.0, 16.0),),
         "semantic_is_current": True,
+        "semantic_refresh_pending": False,
+        "semantic_refresh_active": False,
         "shell_document_vertical_padding": None,
         "shell_natural_height": None,
         "shell_outer_vertical_padding": None,

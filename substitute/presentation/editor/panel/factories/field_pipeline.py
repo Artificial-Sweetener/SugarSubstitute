@@ -65,6 +65,7 @@ from substitute.application.prompt_editor.lora.scheduled import (
 )
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.model_discovery import EmptyModelPickerAction
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.editor.panel.factories import (
     choice_factory as _choice_factory,
 )
@@ -159,6 +160,7 @@ def build_widget_for_field_behavior(
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
     empty_model_picker_action: EmptyModelPickerAction | None = None,
+    model_updates: ModelUpdatePickerBridge | None = None,
     node_definition_gateway: NodeDefinitionGateway | None = None,
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
     danbooru_lookup_dispatcher_factory: (
@@ -197,6 +199,7 @@ def build_widget_for_field_behavior(
                 prompt_spellcheck_service=prompt_spellcheck_service,
                 thumbnail_asset_repository=thumbnail_asset_repository,
                 model_metadata_action_handler=model_metadata_action_handler,
+                model_updates=model_updates,
                 prompt_task_executor_factory=prompt_task_executor_factory,
                 danbooru_lookup_dispatcher_factory=(danbooru_lookup_dispatcher_factory),
             )
@@ -252,6 +255,7 @@ def build_widget_for_field_behavior(
             thumbnail_asset_repository=thumbnail_asset_repository,
             model_metadata_action_handler=model_metadata_action_handler,
             empty_model_picker_action=empty_model_picker_action,
+            model_updates=model_updates,
             node_definition_gateway=node_definition_gateway,
             thumbnail_preload_route_factory=(
                 model_picker_thumbnail_preload_route_factory
@@ -358,6 +362,7 @@ def build_widget_for_field_spec(
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
     empty_model_picker_action: EmptyModelPickerAction | None = None,
+    model_updates: ModelUpdatePickerBridge | None = None,
     node_definition_gateway: NodeDefinitionGateway | None = None,
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
     danbooru_lookup_dispatcher_factory: (
@@ -398,6 +403,7 @@ def build_widget_for_field_spec(
         thumbnail_asset_repository=thumbnail_asset_repository,
         model_metadata_action_handler=model_metadata_action_handler,
         empty_model_picker_action=empty_model_picker_action,
+        model_updates=model_updates,
         node_definition_gateway=node_definition_gateway,
         prompt_task_executor_factory=prompt_task_executor_factory,
         danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,

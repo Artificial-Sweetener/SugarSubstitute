@@ -268,16 +268,19 @@ def test_wildcard_autocomplete_preserves_immediately_completed_warm_snapshot() -
         gateway=gateway,
         request_channel=channel,
     )
+    refreshed: list[None] = []
 
     snapshot = controller.wildcard_autocomplete_snapshot(
         prefix="a",
         limit=10,
         query_identity=("wildcard", "a", 10),
         current_query_identity=lambda: ("wildcard", "a", 10),
+        refresh_current_query=lambda: refreshed.append(None),
     )
 
     assert snapshot.status.readiness is CatalogSnapshotReadiness.WARM
     assert [row.tag for row in snapshot.suggestions] == ["aanimal"]
+    assert refreshed == []
     assert controller.snapshot.status is not None
     assert controller.snapshot.status.readiness is CatalogSnapshotReadiness.WARM
 
