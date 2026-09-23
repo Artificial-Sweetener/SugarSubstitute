@@ -26,18 +26,22 @@ from sugarsubstitute_shared.presentation.localization import render_application_
 from substitute.presentation.canvas.output.output_compare_controller import (
     visible_output_compare_state,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
-    apply_compare_scene_button_state,
-    apply_compare_source_button_state,
-    apply_compare_set_button_state,
-    compare_scene_full_text,
+from substitute.presentation.canvas.output.output_navigation_selector_metrics import (
     selector_display_text_for_metrics,
     selector_font_metrics_for_widget,
     selector_width_for_metrics_text,
+)
+from substitute.presentation.canvas.output.output_navigation_selector_state import (
+    compare_scene_full_text,
+)
+from substitute.presentation.canvas.output.output_navigation_widget_adapter import (
+    apply_compare_scene_button_state,
+    apply_compare_source_button_state,
+    apply_compare_set_button_state,
     sync_comparison_navigation_buttons,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
     OutputCanvasNavigationVisibilityPolicy,
@@ -70,7 +74,7 @@ def update_output_compare_nav_containers(host: object) -> None:
 
     state = visible_output_compare_state(host)
     if not state.enabled or state.base is None or state.comparison is None:
-        OutputCanvasNavigationController.hide_compare_navigation_containers(
+        OutputNavigationLayoutAdapter.hide_compare_navigation_containers(
             base_container=getattr(host, "tabbar_container"),
             comparison_container=getattr(host, "comparison_nav_container"),
         )
@@ -94,7 +98,7 @@ def update_output_compare_nav_containers(host: object) -> None:
         set_count=compare_controller.compare_set_count("comparison"),
     )
     setattr(host, "_source_tabs_collapsed", visibility.source_tabs_collapsed)
-    OutputCanvasNavigationController.apply_compare_navigation_visibility(
+    OutputNavigationLayoutAdapter.apply_compare_navigation_visibility(
         tabbar=getattr(host, "tabbar"),
         scene_selector=getattr(host, "scene_selector_button"),
         set_selector=getattr(host, "set_selector_button"),
@@ -103,7 +107,7 @@ def update_output_compare_nav_containers(host: object) -> None:
     )
     sync_output_comparison_navigation_buttons(host)
     base_scene_w = (
-        OutputCanvasNavigationController.button_width(
+        OutputNavigationLayoutAdapter.button_width(
             getattr(host, "scene_selector_button"),
         )
         if visibility.show_scene_selector
@@ -111,36 +115,36 @@ def update_output_compare_nav_containers(host: object) -> None:
     )
     set_selector = getattr(host, "set_selector_button")
     base_set_w = (
-        OutputCanvasNavigationController.button_width(set_selector)
+        OutputNavigationLayoutAdapter.button_width(set_selector)
         if visibility.show_set_selector
         else 0
     )
-    base_source_w = OutputCanvasNavigationController.button_width(
+    base_source_w = OutputNavigationLayoutAdapter.button_width(
         getattr(host, "source_selector_button"),
     )
     comparison_scene_w = (
-        OutputCanvasNavigationController.button_width(
+        OutputNavigationLayoutAdapter.button_width(
             getattr(host, "comparison_scene_selector_button"),
         )
         if visibility.show_scene_selector
         else 0
     )
     comparison_set_w = (
-        OutputCanvasNavigationController.button_width(
+        OutputNavigationLayoutAdapter.button_width(
             getattr(host, "comparison_set_selector_button"),
         )
         if comparison_visibility.show_set_selector
         else 0
     )
-    comparison_source_w = OutputCanvasNavigationController.button_width(
+    comparison_source_w = OutputNavigationLayoutAdapter.button_width(
         getattr(host, "comparison_source_selector_button"),
     )
-    base_width = OutputCanvasNavigationController.navigation_bar_width(
+    base_width = OutputNavigationLayoutAdapter.navigation_bar_width(
         (base_scene_w, base_set_w, base_source_w),
         gap=gap,
         extra_pad=extra_pad,
     )
-    comparison_width = OutputCanvasNavigationController.navigation_bar_width(
+    comparison_width = OutputNavigationLayoutAdapter.navigation_bar_width(
         (comparison_scene_w, comparison_set_w, comparison_source_w),
         gap=gap,
         extra_pad=extra_pad,
@@ -195,14 +199,14 @@ def _compare_controller(host: object) -> _CompareNavigationController:
     return cast(_CompareNavigationController, controller)
 
 
-def _navigation_controller(host: object) -> OutputCanvasNavigationController:
+def _navigation_controller(host: object) -> OutputNavigationLayoutAdapter:
     """Return the navigation geometry controller composed for a host."""
 
     runtime = getattr(host, "_runtime", None)
     controller = getattr(getattr(runtime, "navigation", None), "controller", None)
     if controller is None:
         controller = getattr(host, "_navigation_controller", None)
-    if not isinstance(controller, OutputCanvasNavigationController):
+    if not isinstance(controller, OutputNavigationLayoutAdapter):
         raise TypeError("Output navigation chrome requires a navigation controller.")
     return controller
 

@@ -28,8 +28,8 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
 )
 from substitute.domain.workflow import ImageMeta
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
 )
 
 
@@ -203,11 +203,11 @@ def build_controller(
     tabbar: object | None = None,
     cached_width: int = 0,
     cached_updates: list[int] | None = None,
-) -> OutputCanvasNavigationController:
+) -> OutputNavigationLayoutAdapter:
     """Return a navigation controller with deterministic collaborators."""
 
     updates = cached_updates if cached_updates is not None else []
-    return OutputCanvasNavigationController(
+    return OutputNavigationLayoutAdapter(
         canvas_width=lambda: canvas_width,
         tabbar=lambda: tabbar or WidgetStub(width_value=120, size_hint_width=0),
         cached_source_tabbar_width=lambda: cached_width,

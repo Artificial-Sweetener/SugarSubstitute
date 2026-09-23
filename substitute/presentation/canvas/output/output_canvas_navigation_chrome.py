@@ -35,13 +35,13 @@ from substitute.presentation.canvas.output.output_compare_navigation_chrome impo
 from substitute.presentation.canvas.output.output_compare_controller import (
     visible_output_compare_state,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_selector_metrics import (
     scene_selector_current_width,
     source_selector_current_width,
 )
 
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
     OutputCanvasNavigationVisibilityPolicy,
@@ -126,7 +126,7 @@ def update_output_tabbar_container(
     tabbar_w = (
         navigation_controller.preferred_tabbar_width() if show_source_navigation else 0
     )
-    expanded_width = OutputCanvasNavigationController.navigation_bar_width(
+    expanded_width = OutputNavigationLayoutAdapter.navigation_bar_width(
         (scene_w, selector_w, tabbar_w),
         gap=gap,
         extra_pad=extra_pad,
@@ -148,7 +148,7 @@ def update_output_tabbar_container(
         and not show_set_selector
     ):
         scene_selector = getattr(host, "scene_selector_button", None)
-        OutputCanvasNavigationController.hide_source_navigation(
+        OutputNavigationLayoutAdapter.hide_source_navigation(
             container=getattr(host, "tabbar_container"),
             tabbar=tabbar,
             set_selector=set_selector,
@@ -157,7 +157,7 @@ def update_output_tabbar_container(
         )
         return
     scene_selector = getattr(host, "scene_selector_button", None)
-    OutputCanvasNavigationController.set_source_navigation_visibility(
+    OutputNavigationLayoutAdapter.set_source_navigation_visibility(
         tabbar=tabbar,
         set_selector=set_selector,
         scene_selector=scene_selector,
@@ -191,7 +191,7 @@ def _schedule_deferred_source_navigation_geometry(
     host: object,
     *,
     scheduler: Callable[[int, Callable[[], None]], None],
-    navigation_controller: OutputCanvasNavigationController,
+    navigation_controller: OutputNavigationLayoutAdapter,
     show_source_navigation: bool,
     show_source_tabs: bool,
     show_source_selector: bool,
@@ -246,7 +246,7 @@ def _schedule_deferred_source_navigation_geometry(
 def _apply_deferred_source_navigation_geometry(
     host: object,
     *,
-    navigation_controller: OutputCanvasNavigationController,
+    navigation_controller: OutputNavigationLayoutAdapter,
     show_source_navigation: bool,
     show_source_tabs: bool,
     show_source_selector: bool,
@@ -265,7 +265,7 @@ def _apply_deferred_source_navigation_geometry(
     settled_tabbar_w = (
         navigation_controller.preferred_tabbar_width() if show_source_navigation else 0
     )
-    settled_expanded_width = OutputCanvasNavigationController.navigation_bar_width(
+    settled_expanded_width = OutputNavigationLayoutAdapter.navigation_bar_width(
         (scene_w, selector_w, settled_tabbar_w),
         gap=gap,
         extra_pad=extra_pad,
@@ -324,7 +324,7 @@ def _apply_deferred_source_navigation_geometry(
         set_selector.height() if show_set_selector else 0,
         28,
     )
-    bg_w = OutputCanvasNavigationController.navigation_bar_width(
+    bg_w = OutputNavigationLayoutAdapter.navigation_bar_width(
         (
             scene_w,
             selector_w,
@@ -337,7 +337,7 @@ def _apply_deferred_source_navigation_geometry(
     bg_h = control_h + 2 * extra_pad
     parent_h = int(getattr(host, "height")())
     y = parent_h - bg_h - padding_bottom
-    OutputCanvasNavigationController.place_source_bar(
+    OutputNavigationLayoutAdapter.place_source_bar(
         container=getattr(host, "tabbar_container"),
         background=getattr(host, "tabbar_bg"),
         geometry=OutputNavBarGeometry(
@@ -366,14 +366,14 @@ def _apply_deferred_source_navigation_geometry(
     )
 
 
-def _navigation_controller(host: object) -> OutputCanvasNavigationController:
+def _navigation_controller(host: object) -> OutputNavigationLayoutAdapter:
     """Return the composed navigation controller for a host."""
 
     runtime = getattr(host, "_runtime", None)
     controller = getattr(getattr(runtime, "navigation", None), "controller", None)
     if controller is None:
         controller = getattr(host, "_navigation_controller", None)
-    if not isinstance(controller, OutputCanvasNavigationController):
+    if not isinstance(controller, OutputNavigationLayoutAdapter):
         raise TypeError("Output navigation chrome requires a navigation controller.")
     return controller
 

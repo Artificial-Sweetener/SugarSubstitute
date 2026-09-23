@@ -33,13 +33,17 @@ OUTPUT_CANVAS_SOURCE = (
     / "output"
     / "output_canvas_view.py"
 )
-OUTPUT_NAVIGATION_CONTROLLER_SOURCE = (
+OUTPUT_NAVIGATION_COMMAND_SOURCES = tuple(
     Path(__file__).resolve().parents[5]
     / "substitute"
     / "presentation"
     / "canvas"
     / "output"
-    / "output_canvas_navigation_controller.py"
+    / filename
+    for filename in (
+        "output_navigation_activation.py",
+        "output_navigation_selection.py",
+    )
 )
 
 
@@ -359,7 +363,9 @@ def test_output_canvas_has_no_private_scene_activation_wrapper() -> None:
 def test_output_navigation_adapters_use_explicit_chrome_callback() -> None:
     """Navigation adapters should not discover private tabbar methods by name."""
 
-    source = OUTPUT_NAVIGATION_CONTROLLER_SOURCE.read_text(encoding="utf-8")
+    source = "\n".join(
+        path.read_text(encoding="utf-8") for path in OUTPUT_NAVIGATION_COMMAND_SOURCES
+    )
 
     assert "_call_host_method" not in source
     assert '"_update_tabbar_container"' not in source
