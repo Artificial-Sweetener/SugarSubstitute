@@ -24,6 +24,9 @@ from dataclasses import dataclass, field
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QFont, QFontMetricsF
 
+from substitute.application.prompt_editor.document.visible_source import (
+    visible_indices_for_source_range,
+)
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionSelection,
 )
@@ -297,9 +300,9 @@ class PromptSelectionGeometry:
         selected_end = min(selection.end, fragment_source_end)
         if selected_end <= selected_start:
             return None
-        start_index = fragment.source_positions.index(selected_start)
-        end_index = fragment.source_positions.index(selected_end)
-        return (start_index, end_index)
+        return visible_indices_for_source_range(
+            fragment.source_positions, selected_start, selected_end
+        )
 
     def _selection_rects_for_selection(
         self,

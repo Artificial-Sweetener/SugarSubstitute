@@ -64,6 +64,26 @@ def plain_text_edit_is_supported(edit: PromptProjectionIncrementalEdit) -> bool:
     )
 
 
+def edit_may_change_literal_escape_visibility(
+    edit: PromptProjectionIncrementalEdit,
+) -> bool:
+    """Require canonical projection when an edit may alter a hidden escape."""
+
+    previous_start = max(0, edit.start - 1)
+    previous_end = min(len(edit.previous_source_text), edit.end + 1)
+    next_end = min(
+        len(edit.next_source_text),
+        edit.start + len(edit.replacement_text) + 1,
+    )
+    replaced_text = edit.previous_source_text[edit.start : edit.end]
+    return (
+        "\\" in edit.previous_source_text[previous_start:previous_end]
+        or "\\" in edit.next_source_text[previous_start:next_end]
+        or any(character in "()" for character in replaced_text)
+        or any(character in "()" for character in edit.replacement_text)
+    )
+
+
 def edit_intersects_token(
     edit: PromptProjectionIncrementalEdit,
     tokens: Sequence[PromptProjectionToken],
@@ -190,6 +210,7 @@ def run_has_contiguous_source_positions(run: PromptProjectionRun) -> bool:
 
 
 __all__ = [
+    "edit_may_change_literal_escape_visibility",
     "edit_intersects_syntax_span",
     "edit_intersects_token",
     "plain_text_edit_is_supported",

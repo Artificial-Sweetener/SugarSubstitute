@@ -24,6 +24,9 @@ from dataclasses import replace
 from substitute.application.prompt_editor.document.views import (
     PromptRegionStructureView,
 )
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
+)
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretMap,
 )
@@ -406,9 +409,10 @@ def _edit_text_content_token(
         raise ValueError("Editable text token has no content range.")
     return replace(
         remapped,
-        display_text=edit.next_source_text[
-            remapped.content_start : remapped.content_end
-        ],
+        display_text=map_prompt_source_for_display(
+            edit.next_source_text[remapped.content_start : remapped.content_end],
+            source_start=remapped.content_start,
+        ).display_text,
     )
 
 
