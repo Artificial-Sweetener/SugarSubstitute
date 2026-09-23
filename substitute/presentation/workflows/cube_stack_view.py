@@ -105,6 +105,7 @@ class CubeStack(ReorderableTabBarBase):
     cubeRenameEditRequested = Signal(str)
     cubeRenameRequested = Signal(str, str)
     cubeDuplicateRequested = Signal(str)
+    cubeCaptureRequested = Signal(str)
     cubeBypassToggleRequested = Signal(str)
     cubeOutputPersistenceToggleRequested = Signal(str)
     aliasEditingFinished = Signal(str)
@@ -264,6 +265,13 @@ class CubeStack(ReorderableTabBarBase):
         if route_key:
             self.cubeDuplicateRequested.emit(route_key)
 
+    def _onCaptureRequested(self, tab_item: CubeItem) -> None:
+        """Forward a capture request with the current route key."""
+
+        route_key = tab_item.routeKey() or ""
+        if route_key:
+            self.cubeCaptureRequested.emit(route_key)
+
     def _onTabRenamed(self, tab_item: ReorderableTabItemBase, new_name: str) -> None:
         """Forward one inline rename request without resolving alias policy locally."""
         old_key = tab_item.routeKey() or ""
@@ -296,6 +304,7 @@ class CubeStack(ReorderableTabBarBase):
             item.aliasEditRequested.connect(self._onAliasEditRequested)
             item.aliasEditingFinished.connect(self._onAliasEditingFinished)
             item.duplicateRequested.connect(self._onDuplicateRequested)
+            item.captureRequested.connect(self._onCaptureRequested)
             item.bypassToggleRequested.connect(self._onBypassToggleRequested)
             item.outputPersistenceToggleRequested.connect(
                 self._onOutputPersistenceToggleRequested
@@ -371,6 +380,15 @@ class CubeStack(ReorderableTabBarBase):
         item = self.items[index]
         if isinstance(item, CubeItem):
             item.setOutputPersistenceEnabled(enabled)
+
+    def setTabCaptureAvailable(self, index: int, available: bool) -> None:
+        """Apply exact-capture availability to one cube tab."""
+
+        if not 0 <= index < len(self.items):
+            return
+        item = self.items[index]
+        if isinstance(item, CubeItem):
+            item.setCaptureAvailable(available)
 
     def setCompact(self, compact: bool) -> None:
         """Toggle icons-only stack presentation."""
