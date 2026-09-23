@@ -22,7 +22,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QAbstractAnimation
+from PySide6.QtCore import QAbstractAnimation, QThread
 from PySide6.QtWidgets import QWidget
 
 from substitute.domain.model_suggestions import (
@@ -228,12 +228,15 @@ def test_repeated_discovery_lifecycles_remain_animation_graph_free(
 
     retained_modal: ModelDiscoveryModal | None = None
     retained_card: ModelSuggestionCard | None = None
+    task_threads = tuple(parent.findChildren(QThread))
+    assert len(task_threads) == 1
     for _cycle in range(128):
         assert controller.request_for_empty_picker(context, lambda _value: None)
         modal = parent.findChild(ModelDiscoveryModal)
         assert modal is not None
         wait_for_qt_condition(lambda: not controller.running)
         assert modal.findChildren(QAbstractAnimation) == []
+        assert tuple(parent.findChildren(QThread)) == task_threads
         card = modal.findChild(ModelSuggestionCard)
         assert card is not None
         if retained_modal is None:

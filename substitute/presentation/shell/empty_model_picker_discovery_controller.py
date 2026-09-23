@@ -23,7 +23,7 @@ from dataclasses import dataclass
 import logging
 from typing import Protocol
 
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import InfoBar  # type: ignore[import-untyped]
 
@@ -44,6 +44,9 @@ from substitute.presentation.model_discovery.credential_prompt import (
 )
 from substitute.presentation.model_discovery.discovery_overlay import (
     ModelDiscoveryOverlay,
+)
+from substitute.presentation.model_discovery.discovery_task_runner import (
+    DiscoveryTaskRunner,
 )
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.model_acquisition import AcquisitionResult
@@ -70,49 +73,6 @@ class ModelCatalogRefresher(Protocol):
         """Reload authoritative catalog rows from the active ComfyUI target."""
 
 
-class _ThreadCancellation:
-    """Expose QThread interruption through the acquisition cancellation port."""
-
-    def __init__(self, thread: QThread) -> None:
-        """Store the operation's owning thread."""
-
-        self._thread = thread
-
-    def is_cancelled(self) -> bool:
-        """Return whether shutdown or modal cancellation interrupted the task."""
-
-        return self._thread.isInterruptionRequested()
-
-
-class _SuggestionTask(QObject):
-    """Run one bounded provider operation away from the Qt owner thread."""
-
-    succeeded = Signal(object)
-    failed = Signal(str)
-    finished = Signal()
-
-    def __init__(self, work: Callable[[], object], *, operation: str) -> None:
-        """Store one blocking use case and its diagnostic identity."""
-
-        super().__init__()
-        self._work = work
-        self._operation = operation
-
-    @Slot()
-    def run(self) -> None:
-        """Execute the use case and always release its owning thread."""
-
-        try:
-            value = self._work()
-        except Exception as error:
-            _LOGGER.exception("Model suggestion operation failed: %s", self._operation)
-            self.failed.emit(str(error) or type(error).__name__)
-        else:
-            self.succeeded.emit(value)
-        finally:
-            self.finished.emit()
-
-
 class EmptyModelPickerDiscoveryController(QObject):
     """Own discovery, explicit credentials, verified transfer, and picker refresh."""
 
@@ -131,8 +91,11 @@ class EmptyModelPickerDiscoveryController(QObject):
         self._service = service
         self._catalog = catalog
         self._credentials = credentials
-        self._thread: QThread | None = None
-        self._task: _SuggestionTask | None = None
+        self._runner = DiscoveryTaskRunner(self)
+        self._runner.succeeded.connect(self._handle_operation_success)
+        self._runner.failed.connect(self._show_failure)
+        self._runner.finished.connect(self._release_task)
+        self._operation_succeeded: Callable[[object], None] | None = None
         self._modal: ModelDiscoveryModal | None = None
         self._reusable_modal: ModelDiscoveryModal | None = None
         self._overlay: ModelDiscoveryOverlay | None = None
@@ -147,7 +110,7 @@ class EmptyModelPickerDiscoveryController(QObject):
     def running(self) -> bool:
         """Return whether provider discovery, preview, or acquisition is active."""
 
-        return self._thread is not None
+        return self._runner.running
 
     def request_for_empty_picker(
         self,
@@ -210,12 +173,7 @@ class EmptyModelPickerDiscoveryController(QObject):
         self._modal = None
         self._reusable_modal = None
         self._overlay = None
-        thread = self._thread
-        if thread is not None:
-            thread.requestInterruption()
-            thread.quit()
-            if not thread.wait(5000):
-                _LOGGER.warning("Model suggestion task did not stop before shutdown.")
+        self._runner.close()
 
     @Slot(object)
     def _handle_plan(self, value: object) -> None:
@@ -268,17 +226,17 @@ class EmptyModelPickerDiscoveryController(QObject):
             else:
                 modal.set_thumbnail(item.identity, item.thumbnail)
 
-    @staticmethod
     def _load_thumbnails(
+        self,
         service: ModelSuggestionService,
         suggestions: tuple[ModelSuggestion, ...],
     ) -> tuple[_ThumbnailLoadResult, ...]:
         """Settle each preview independently so one provider asset cannot fail all."""
 
         results: list[_ThumbnailLoadResult] = []
-        thread = QThread.currentThread()
+        cancellation = self._runner.current_cancellation()
         for suggestion in suggestions:
-            if thread.isInterruptionRequested():
+            if cancellation.is_cancelled():
                 break
             try:
                 thumbnail = service.fetch_thumbnail(suggestion)
@@ -422,13 +380,11 @@ class EmptyModelPickerDiscoveryController(QObject):
         def acquire() -> object:
             """Acquire and refresh the catalog before publishing the field value."""
 
-            thread = self._thread
-            cancellation = _ThreadCancellation(thread) if thread is not None else None
             result = service.acquire(
                 plan,
                 identity,
                 provider_id=provider_id,
-                cancellation=cancellation,
+                cancellation=self._runner.current_cancellation(),
             )
             model_kind = plan.context.artifact_kind.value
             self._catalog.invalidate(model_kind)
@@ -484,22 +440,18 @@ class EmptyModelPickerDiscoveryController(QObject):
     ) -> bool:
         """Start one operation and preserve any next operation until release."""
 
-        if self._thread is not None:
+        if self._runner.running:
             return False
-        thread = QThread(self)
-        task = _SuggestionTask(work, operation=operation)
-        task.moveToThread(thread)
-        thread.started.connect(task.run)
-        task.succeeded.connect(on_succeeded)
-        task.failed.connect(self._show_failure)
-        task.finished.connect(thread.quit)
-        task.finished.connect(task.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        thread.destroyed.connect(self._release_task)
-        self._thread = thread
-        self._task = task
-        thread.start()
-        return True
+        self._operation_succeeded = on_succeeded
+        return self._runner.start(work, operation)
+
+    @Slot(object)
+    def _handle_operation_success(self, value: object) -> None:
+        """Deliver one task result to its current presentation callback."""
+
+        on_succeeded = self._operation_succeeded
+        if on_succeeded is not None:
+            on_succeeded(value)
 
     @Slot(str)
     def _show_failure(self, detail: str) -> None:
@@ -514,8 +466,7 @@ class EmptyModelPickerDiscoveryController(QObject):
     def _release_task(self) -> None:
         """Release one task and start a queued dependent operation."""
 
-        self._thread = None
-        self._task = None
+        self._operation_succeeded = None
         pending, self._pending_operation = self._pending_operation, None
         if pending is not None and self._modal is not None:
             self._start(*pending)
@@ -526,9 +477,7 @@ class EmptyModelPickerDiscoveryController(QObject):
 
         if self._overlay is not None:
             self._overlay.hide()
-        thread = self._thread
-        if thread is not None:
-            thread.requestInterruption()
+        self._runner.cancel()
         self._modal = None
         self._plan = None
         self._installed_value_receiver = None
