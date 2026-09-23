@@ -50,13 +50,20 @@ def test_paint_reads_only_event_clip_and_published_render_frame(
         del args, kwargs
         raise AssertionError("paint discovered mutable prompt state")
 
-    for method_name in (
-        "_publish_render_frame",
+    monkeypatch.setattr(surface, "_publish_render_frame", reject_discovery)
+    monkeypatch.setattr(
+        surface._presentation_runtime.render_publication,  # noqa: SLF001
         "_should_paint_caret",
+        reject_discovery,
+    )
+    monkeypatch.setattr(
+        surface._presentation_runtime.render_publication,  # noqa: SLF001
         "_preview_visible_region",
-        "_fresh_reorder_surface_chrome",
-    ):
-        monkeypatch.setattr(surface, method_name, reject_discovery)
+        reject_discovery,
+    )
+    monkeypatch.setattr(
+        surface._presentation_runtime.render_publication, "publish", reject_discovery
+    )  # noqa: SLF001
 
     image = render_surface_viewport(surface)
 

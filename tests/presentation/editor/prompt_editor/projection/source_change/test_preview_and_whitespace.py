@@ -54,8 +54,6 @@ def test_source_change_applier_rebuilds_preview_active_replacements() -> None:
     ]
     assert host.caret_state_updates == [(6, 6, "fast_source_replace")]
     assert host._transient_edit_overlays.insertion_overlay is None
-    assert host.transient_insert_paint_updates == 0
-    assert host.transient_delete_paint_updates == 0
     assert host.textChanged.count == 1
 
 

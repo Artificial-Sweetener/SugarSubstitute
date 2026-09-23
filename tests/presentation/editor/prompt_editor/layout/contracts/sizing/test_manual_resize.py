@@ -243,7 +243,7 @@ def test_prompt_editor_manual_height_does_not_expand_beyond_content_height(
     support.process_events(app)
 
     assert box.manualScrollHeight() == minimum_height * 6
-    sizing = support.cast(support.Any, getattr(box, "_sizing"))
+    sizing = support.cast(support.Any, box._runtime.shell.sizing)
     assert box.height() == support.cast(int, sizing.last_natural_height)
     assert box.height() > expanded_height
     manual_height = box.manualScrollHeight()

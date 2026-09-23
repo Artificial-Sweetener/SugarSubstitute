@@ -37,7 +37,7 @@ from ..async_work import (
 )
 from ..core.state.revisions import PromptSourceIdentity
 
-from .catalog_snapshots import (
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
@@ -201,14 +201,23 @@ class PromptWildcardAutocompletePresentation:
             limit=limit,
             query_identity=query_identity,
         )
+        submission_active = True
+
+        def refresh_after_submission() -> None:
+            """Refresh only when completion did not settle inside this query call."""
+
+            if not submission_active and refresh_current_query is not None:
+                refresh_current_query()
+
         self.request_wildcard_autocomplete_refresh(
             prefix=prefix,
             limit=limit,
             source_identity=source_identity,
             query_identity=query_identity,
             current_query_identity=current_query_identity,
-            refresh_current_query=refresh_current_query,
+            refresh_current_query=refresh_after_submission,
         )
+        submission_active = False
         completed_during_submission = self._autocomplete_cache.get(cache_key)
         if completed_during_submission is not None:
             snapshot = self._query_snapshot(
@@ -309,14 +318,14 @@ class PromptWildcardAutocompletePresentation:
     def pending_autocomplete_cache_keys(
         self,
     ) -> tuple[PromptWildcardAutocompleteCacheKey, ...]:
-        """Return pending wildcard autocomplete cache keys for tests."""
+        """Return pending wildcard autocomplete keys for observability."""
 
         return tuple(self._pending_autocomplete_requests)
 
     def cached_autocomplete_cache_keys(
         self,
     ) -> tuple[PromptWildcardAutocompleteCacheKey, ...]:
-        """Return cached wildcard autocomplete keys in LRU order for tests."""
+        """Return cached wildcard autocomplete keys in LRU order."""
 
         return self._autocomplete_cache.keys()
 

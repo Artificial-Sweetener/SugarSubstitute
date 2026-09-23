@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
@@ -52,13 +54,22 @@ def test_projection_token_editing_typing_inside_collapsed_emphasis_keeps_token_c
     _set_cursor_position(box, token.content_end)
     process_events(app)
     QTest.keyClicks(box, "s")
-    process_events(app)
 
+    surface = surface_for(box)
     next_token = _first_emphasis_token(box)
     assert box.toPlainText() == "(cats:1.05), suffix"
-    assert surface_for(box).projection_document().tokens != ()
+    assert surface.projection_document().tokens != ()
     assert next_token.display_text == "cats"
     assert box.textCursor().position() == next_token.content_end
+    assert surface.editor_state.semantic.document.source_text == "(cat:1.05), suffix"
+    assert surface.editor_state.edit_semantic.document.source_text == (
+        "(cats:1.05), suffix"
+    )
+    semantic_refresh = cast(
+        Any,
+        box._runtime.core.syntax.interaction_controller._semantic_refresh,  # noqa: SLF001
+    )
+    assert semantic_refresh._pending_request is not None  # noqa: SLF001
 
 
 def test_projection_token_editing_delete_inside_collapsed_emphasis_keeps_token_collapsed(

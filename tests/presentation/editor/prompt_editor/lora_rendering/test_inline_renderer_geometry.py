@@ -24,7 +24,7 @@ from PySide6.QtGui import QFont, QFontMetricsF
 from substitute.presentation.editor.prompt_editor.projection.metrics import (
     projection_text_line_height,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.lora_renderer import (
     PromptLoraInlineObjectRenderer,
 )
 

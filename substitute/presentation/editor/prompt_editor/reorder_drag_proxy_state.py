@@ -45,11 +45,17 @@ from .projection.observability import (
     reorder_drag_started_at,
 )
 from .projection.session import PromptProjectionSession
-from .projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.lora_renderer import (
     PromptLoraInlineObjectRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 

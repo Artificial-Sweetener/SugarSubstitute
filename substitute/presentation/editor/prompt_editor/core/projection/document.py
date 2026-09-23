@@ -57,6 +57,18 @@ class PromptProjectionDocument:
         repr=False,
         compare=False,
     )
+    _token_ids: frozenset[str] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _run_ids: frozenset[str] | None = field(
+        default=None,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     @classmethod
     def empty(cls) -> PromptProjectionDocument:
@@ -97,6 +109,34 @@ class PromptProjectionDocument:
         """Return the visible run matching one stable run identifier."""
 
         return self.mapping.run_by_id(run_id)
+
+    def token_ids(self) -> frozenset[str]:
+        """Return stable token identifiers without forcing lazy coordinates."""
+
+        optimized_lookup = getattr(self.tokens, "token_ids", None)
+        if callable(optimized_lookup):
+            optimized_ids = optimized_lookup()
+            if isinstance(optimized_ids, frozenset):
+                return optimized_ids
+        token_ids = self._token_ids
+        if token_ids is None:
+            token_ids = frozenset(token.token_id for token in self.tokens)
+            object.__setattr__(self, "_token_ids", token_ids)
+        return token_ids
+
+    def run_ids(self) -> frozenset[str]:
+        """Return stable run identifiers without forcing lazy coordinates."""
+
+        optimized_lookup = getattr(self.runs, "run_ids", None)
+        if callable(optimized_lookup):
+            optimized_ids = optimized_lookup()
+            if isinstance(optimized_ids, frozenset):
+                return optimized_ids
+        run_ids = self._run_ids
+        if run_ids is None:
+            run_ids = frozenset(run.run_id for run in self.runs)
+            object.__setattr__(self, "_run_ids", run_ids)
+        return run_ids
 
     def runs_for_token(
         self,

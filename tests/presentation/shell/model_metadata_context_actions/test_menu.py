@@ -27,6 +27,7 @@ from uuid import UUID, uuid4
 from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QWidget
 
+from substitute.application.model_metadata import ModelProviderLink
 from substitute.presentation.shell.output_canvas_thumbnail_choices import (
     OutputCanvasThumbnailChoice,
 )
@@ -148,6 +149,54 @@ def test_metadata_context_menu_builds_civitai_page_action() -> None:
     assert actions[0].label == "Go to CivitAI page"
     actions[0].callback()
     assert opened_urls == ["https://civitai.com/models/1?modelVersionId=2"]
+
+
+def test_metadata_context_menu_builds_all_exact_provider_page_actions() -> None:
+    """Installed mixed-source models should expose both provider pages in order."""
+
+    opened_urls: list[str] = []
+
+    def open_url(url: str) -> bool:
+        """Record provider navigation without opening a browser."""
+
+        opened_urls.append(url)
+        return True
+
+    builder = ModelMetadataContextMenuActionBuilder(open_url=open_url)
+    target = ModelMetadataContextMenuTarget(
+        title="Restoration upscaler",
+        backend_value="restoration.pth",
+        model_kind="upscale_models",
+        provider_links=(
+            ModelProviderLink(
+                "openmodeldb",
+                "OpenModelDB",
+                "restoration",
+                "hash",
+                "https://openmodeldb.info/models/restoration",
+            ),
+            ModelProviderLink(
+                "civitai",
+                "CivitAI",
+                "10",
+                "20",
+                "https://civitai.com/models/10?modelVersionId=20",
+            ),
+        ),
+    )
+
+    actions = _actions(builder.menu_items_for_target(target))
+
+    assert [render_source_application_text(action.label) for action in actions[:2]] == [
+        "Go to OpenModelDB page",
+        "Go to CivitAI page",
+    ]
+    actions[0].callback()
+    actions[1].callback()
+    assert opened_urls == [
+        "https://openmodeldb.info/models/restoration",
+        "https://civitai.com/models/10?modelVersionId=20",
+    ]
 
 
 def test_metadata_context_menu_builds_refresh_action_for_local_identity() -> None:

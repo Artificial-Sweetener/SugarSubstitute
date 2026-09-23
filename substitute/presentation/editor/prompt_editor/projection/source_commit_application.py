@@ -27,7 +27,10 @@ from substitute.presentation.editor.prompt_editor.core.editing.commit import (
 
 from .source_document_commit_application import PromptSourceDocumentCommitApplication
 from .source_history_commit_application import PromptSourceHistoryCommitApplication
-from .source_range_commit_application import PromptSourceRangeCommitApplication
+from .source_range_commit_application import (
+    PromptCanonicalSemanticPreparer,
+    PromptSourceRangeCommitApplication,
+)
 
 TProjectionPayload = TypeVar("TProjectionPayload")
 
@@ -64,6 +67,14 @@ class PromptProjectionSourceCommitApplication(Generic[TProjectionPayload]):
             self._document.apply(commit)
             return
         raise ValueError(f"Unsupported prompt edit scope: {commit.scope!r}")
+
+    def bind_canonical_semantic_preparer(
+        self,
+        preparer: PromptCanonicalSemanticPreparer,
+    ) -> None:
+        """Bind canonical paste preparation to the range-edit owner."""
+
+        self._range_edit.bind_canonical_semantic_preparer(preparer)
 
 
 __all__ = ["PromptProjectionSourceCommitApplication"]

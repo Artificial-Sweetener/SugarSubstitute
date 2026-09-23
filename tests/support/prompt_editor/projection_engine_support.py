@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    token_weight_controls,
+)
+
 from typing import Any, cast
 
 
@@ -225,7 +229,7 @@ def show_prompt_editor(
 def surface_for(box: PromptEditor) -> PromptProjectionSurface:
     """Return the live projection surface owned by one prompt editor."""
 
-    return cast(PromptProjectionSurface, getattr(box, "_surface"))
+    return box._runtime.projection.surface
 
 
 def set_prompt_cursor_position(box: PromptEditor, position: int) -> None:
@@ -247,5 +251,5 @@ def token_weight_controls_for(box: PromptEditor) -> PromptTokenWeightControls:
 
     return cast(
         PromptTokenWeightControls,
-        getattr(box, "_token_weight_control_overlay"),
+        token_weight_controls(box),
     )

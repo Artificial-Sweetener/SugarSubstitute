@@ -63,7 +63,13 @@ from tests.support.prompt_editor.real_shell.projection_transients import (
 def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     """Return source, caret, and projection state from the real projection owner."""
 
-    surface = getattr(editor, "_surface", None)
+    runtime = getattr(editor, "_runtime", None)
+    core = getattr(runtime, "core", None)
+    syntax = getattr(core, "syntax", None)
+    interaction_controller = getattr(syntax, "interaction_controller", None)
+    semantic_refresh = getattr(interaction_controller, "_semantic_refresh", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
     editor_state = getattr(surface, "editor_state", None)
     revision_graph = getattr(editor_state, "revisions", None)
     semantic_snapshot = getattr(editor_state, "semantic", None)
@@ -103,14 +109,16 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "projection_document",
         None,
     )
-    region_chrome = getattr(surface, "_region_chrome", None)
+    presentation_runtime = getattr(surface, "_presentation_runtime", None)
+    region_chrome_presentation = getattr(presentation_runtime, "region_chrome", None)
+    region_chrome = getattr(region_chrome_presentation, "chrome", None)
     region_chrome_snapshot_for = getattr(region_chrome, "snapshot_for", None)
     region_chrome_snapshot = (
         region_chrome_snapshot_for(layout_output)
         if callable(region_chrome_snapshot_for) and layout_output is not None
         else None
     )
-    render_compositor = getattr(surface, "_render_compositor", None)
+    render_compositor = getattr(presentation_runtime, "render_compositor", None)
     content_cache_snapshot = getattr(
         render_compositor,
         "content_cache_snapshot",
@@ -125,7 +133,7 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "last_paint_identity",
         None,
     )
-    render_frame_owner = getattr(surface, "_render_frame_owner", None)
+    render_frame_owner = getattr(presentation_runtime, "render_frame", None)
     render_frame = getattr(render_frame_owner, "frame", None)
     render_frame_paint_identity = getattr(render_frame, "paint_identity", None)
     paint_cache_identity = getattr(paint_cache_key, "paint_identity", None)
@@ -140,16 +148,17 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
     projection_session = getattr(surface, "_session", None)
     transient_overlays = getattr(surface, "_transient_edit_overlays", None)
     freshness_controller = getattr(surface, "_projection_freshness_controller", None)
-    caret_state = getattr(surface, "_cursor_state", None)
-    anchor_state = getattr(surface, "_anchor_state", None)
+    caret_state_owner = getattr(surface, "_caret_state_owner", None)
+    caret_state = getattr(caret_state_owner, "cursor_state", None)
+    anchor_state = getattr(caret_state_owner, "anchor_state", None)
     caret_map_document = (
         active_projection_document
         if getattr(projection_session, "autocomplete_preview", None) is not None
         else projection_document
     )
     caret_map = getattr(caret_map_document, "caret_map", None)
-    caret_preferred_x = getattr(surface, "_preferred_x", None)
-    caret_rect_override = getattr(surface, "_caret_rect_override", None)
+    caret_preferred_x = getattr(caret_state_owner, "preferred_x", None)
+    caret_rect_override = getattr(caret_state_owner, "caret_rect_override", None)
     freshness = getattr(freshness_controller, "freshness", None)
     pending_update = getattr(freshness_controller, "has_pending_update", None)
     stale_geometry = getattr(
@@ -222,7 +231,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         surface.horizontalScrollBar() if surface is not None else None
     )
     layout_content_size = _layout_content_size(layout_output)
-    shell_sizing = getattr(editor, "_sizing", None)
+    shell = getattr(runtime, "shell", None)
+    shell_sizing = getattr(shell, "sizing", None)
     caret_token_id = getattr(caret_state, "token_id", None)
     anchor_token_id = getattr(anchor_state, "token_id", None)
     projection_region_separators = tuple(
@@ -291,6 +301,12 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
         "semantic_is_current": (
             bool(getattr(revision_graph, "semantic_is_current", False))
         ),
+        "semantic_refresh_pending": (
+            getattr(semantic_refresh, "_pending_request", None) is not None
+        ),
+        "semantic_refresh_active": (
+            getattr(semantic_refresh, "_active_task_identity", None) is not None
+        ),
         "projection_is_current": (
             bool(getattr(revision_graph, "projection_is_current", False))
         ),
@@ -354,7 +370,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             getattr(layout_projection_document, "projection_text", "")
         ),
         "active_projection_layout_required": bool(
-            surface is not None and surface._active_projection_requires_layout()
+            surface is not None
+            and surface._presentation_runtime.active_projection.requires_layout()
         ),
         "layout_uses_projection_document": (
             layout_projection_document is projection_document
@@ -418,7 +435,8 @@ def projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
             caret_rect_override if isinstance(caret_rect_override, QRectF) else None
         ),
         "skip_next_same_source_soft_wrap_move": bool(
-            getattr(surface, "_skip_next_same_source_soft_wrap_move", False)
+            surface is not None
+            and surface._caret_state_owner.source_edit_horizontal_movement_origin_is_pending()
         ),
         "projection_token_count": len(getattr(projection_document, "tokens", ())),
         "projection_run_count": len(getattr(projection_document, "runs", ())),

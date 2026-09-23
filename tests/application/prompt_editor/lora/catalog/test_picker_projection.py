@@ -85,6 +85,7 @@ def test_lora_catalog_inserts_relative_prompt_names_and_tracks_collisions(
     assert "mineru" in mineru.search_text
     assert mineru.display_subtitle == "Version"
     assert mineru.model_page_url == "https://civitai.com/models/1?modelVersionId=2"
+    assert mineru.sha256 == "GHI"
     assert mineru.has_collision is False
 
     collisions = [item for item in items if item.basename == "Expressive_H-000001"]

@@ -22,7 +22,7 @@ from __future__ import annotations
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.document.view_mapper import (
@@ -31,6 +31,9 @@ from substitute.application.prompt_editor.document.view_mapper import (
 from substitute.domain.prompt.document.parser import parse_prompt_document
 from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
     PromptSourceSnapshot,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
 )
 from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
     PromptEditorState,
@@ -98,6 +101,74 @@ def test_source_change_applier_uses_semantic_remapper_for_optimistic_state() -> 
     request = host._edit_pipeline.requests[-1]
     assert not request.direct_deferred_feedback_allowed
     assert request.wrap_reflow_deferrable
+
+
+def test_paste_uses_exact_canonical_semantics_for_first_projection() -> None:
+    """Paste should project once from the canonical state prepared by syntax owner."""
+
+    session = _projection_session("alpha")
+    commit = _range_commit(
+        session,
+        start=5,
+        end=5,
+        replacement_text="!",
+        origin=PromptSourceEditOrigin.PASTE,
+    )
+    host = _SourceChangeHost()
+    prepared_document = prompt_document_view_from_domain(
+        parse_prompt_document("alpha!")
+    )
+    prepared_render_plan = PromptSyntaxRenderPlan(
+        syntax_spans=(),
+        renderer_views=(),
+    )
+    prepared_sources: list[str] = []
+
+    def prepare_canonical_semantics(
+        source_text: str,
+    ) -> tuple[PromptDocumentView, PromptSyntaxRenderPlan]:
+        """Return the exact canonical semantic pair recorded by the test."""
+
+        prepared_sources.append(source_text)
+        return prepared_document, prepared_render_plan
+
+    applier = _source_change_applier(host)
+    applier.bind_canonical_semantic_preparer(prepare_canonical_semantics)
+
+    applier.apply_edit_commit(commit)
+
+    assert prepared_sources == ["alpha!"]
+    assert host._editor_state.edit_semantic.document is prepared_document
+    assert host._editor_state.edit_semantic.render_plan is prepared_render_plan
+
+
+def test_typed_edit_does_not_eagerly_prepare_canonical_semantics() -> None:
+    """Typed edits should retain bounded remapping instead of full preparation."""
+
+    session = _projection_session("alpha")
+    commit = _range_commit(
+        session,
+        start=5,
+        end=5,
+        replacement_text="!",
+    )
+    host = _SourceChangeHost()
+    prepared_sources: list[str] = []
+
+    def record_unexpected_preparation(
+        source_text: str,
+    ) -> tuple[PromptDocumentView, PromptSyntaxRenderPlan] | None:
+        """Record any canonical preparation attempted for a typed edit."""
+
+        prepared_sources.append(source_text)
+        return None
+
+    applier = _source_change_applier(host)
+    applier.bind_canonical_semantic_preparer(record_unexpected_preparation)
+
+    applier.apply_edit_commit(commit)
+
+    assert prepared_sources == []
 
 
 def test_source_change_applier_does_not_stack_unrepresented_wrap_deferral() -> None:

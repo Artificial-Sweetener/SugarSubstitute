@@ -44,11 +44,13 @@ from .models import (
     PromptAbuseScenarioResult,
 )
 from .qt_exception_capture import PromptAbuseQtExceptionCapture
+from .owner_state import capture_prompt_editor_owner_state
 from .real_shell_mount import (
     create_prompt_abuse_real_shell_harness,
     prepare_prompt_abuse_real_shell_mount,
 )
 from .reorder_visual_correctness import capture_prompt_reorder_visual_violations
+from .text_visual_correctness import capture_prompt_text_visual_violations
 
 _SETTLE_TIMEOUT_MS = 3_000.0
 _LOGGER = get_logger(__name__)
@@ -107,6 +109,12 @@ def run_real_shell_scenario(
         scenario,
         artifact_root=artifact_root,
     )
+    if repetition == 0:
+        visual_violations += capture_prompt_text_visual_violations(
+            scenario,
+            repetition=repetition,
+            artifact_root=artifact_root,
+        )
     if visual_violations:
         result = replace(
             result,
@@ -176,18 +184,19 @@ def _editor_is_current(editor: object, expected_source: str) -> bool:
     prompt_editor = cast(Any, editor)
     if prompt_editor.toPlainText() != expected_source:
         return False
-    surface = prompt_editor._surface
+    runtime = prompt_editor._runtime
+    surface = runtime.projection.surface
     if surface.projection_document().source_text != expected_source:
         return False
     if (
         surface._projection_freshness_controller.has_pending_update()
         or surface.has_stale_projection_geometry()
-        or prompt_editor._sizing.layout_work_pending
-        or prompt_editor._scroll_delegate.geometry_sync_pending
-        or prompt_editor._scroll_delegate.geometry_follow_up_pending
+        or runtime.shell.sizing.layout_work_pending
+        or runtime.shell.scrolling.geometry_sync_pending
+        or runtime.shell.scrolling.geometry_follow_up_pending
     ):
         return False
-    semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
+    semantic_refresh = runtime.core.syntax.interaction_controller._semantic_refresh
     semantic_source = surface.editor_state.semantic.document.source_text
     return (
         semantic_source == expected_source
@@ -200,10 +209,11 @@ def _editor_settlement_state(editor: object, expected_source: str) -> dict[str, 
     """Return exact owner state when bounded prompt settlement fails."""
 
     prompt_editor = cast(Any, editor)
-    surface = prompt_editor._surface
-    sizing = prompt_editor._sizing
-    scroll_delegate = prompt_editor._scroll_delegate
-    semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
+    runtime = prompt_editor._runtime
+    surface = runtime.projection.surface
+    sizing = runtime.shell.sizing
+    scroll_delegate = runtime.shell.scrolling
+    semantic_refresh = runtime.core.syntax.interaction_controller._semantic_refresh
     return {
         "source_current": prompt_editor.toPlainText() == expected_source,
         "projection_current": (
@@ -240,17 +250,24 @@ def _capture_real_shell_correctness(
         label=f"{scenario.name}-repetition-{repetition}",
     )
     prompt_editor = cast(Any, field.editor)
+    owner_state = capture_prompt_editor_owner_state(prompt_editor)
+    invariant_violations = list(snapshot_invariant_violations(snapshot))
+    if owner_state.layout_fragment_ownership_valid is False:
+        invariant_violations.append(
+            "layout_fragment_owner_invalid:final:"
+            f"{owner_state.layout_fragment_ownership_mismatch}"
+        )
     return PromptAbuseCorrectnessSnapshot(
         actual_text=snapshot.source_text,
         projection_current=(
-            prompt_editor._surface.projection_document().source_text
+            prompt_editor._runtime.projection.surface.projection_document().source_text
             == scenario.expected_text
         ),
         semantic_current=(
-            prompt_editor._surface.editor_state.semantic.document.source_text
+            prompt_editor._runtime.projection.surface.editor_state.semantic.document.source_text
             == scenario.expected_text
         ),
-        invariant_violations=snapshot_invariant_violations(snapshot),
+        invariant_violations=tuple(invariant_violations),
     )
 
 

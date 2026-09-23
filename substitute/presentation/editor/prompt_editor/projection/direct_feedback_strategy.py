@@ -18,12 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-
-from PySide6.QtCore import QRectF
-
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -35,12 +31,12 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 
 from .edit_pipeline_contracts import PromptProjectionSourceChangeApplyRequest
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from .freshness_controller import PromptProjectionFreshnessController
 from .transient_edit_overlays import (
-    PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
-    PromptProjectionTransientInsertionOverlay,
 )
+from .transient_edit_presentation_owner import PromptTransientEditPresentation
 
 PromptDirectFeedbackEditorState = PromptEditorDocumentState[
     PromptDocumentView,
@@ -49,46 +45,27 @@ PromptDirectFeedbackEditorState = PromptEditorDocumentState[
 ]
 
 
-class PromptDirectFeedbackContext(Protocol):
-    """Expose current caret geometry and bounded feedback repaint effects."""
-
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the committed document-local caret rectangle."""
-
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Repaint changed transient insertion feedback."""
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Repaint changed transient deletion feedback."""
-
-
 class PromptDirectFeedbackStrategy:
     """Own the allocation-bounded feedback path for approved plain typing."""
 
     def __init__(
         self,
-        context: PromptDirectFeedbackContext,
         *,
+        caret_geometry: PromptProjectionCaretGeometryOwner,
         editor_state: PromptDirectFeedbackEditorState,
         freshness: PromptProjectionFreshnessController,
         layout: PromptLayoutEditToFrameCoordinator,
         overlays: PromptProjectionTransientEditOverlayController,
+        presentation: PromptTransientEditPresentation,
     ) -> None:
         """Store explicit state, freshness, geometry, and overlay owners."""
 
-        self._context = context
+        self._caret_geometry = caret_geometry
         self._editor_state = editor_state
         self._freshness = freshness
         self._layout = layout
         self._overlays = overlays
+        self._presentation = presentation
 
     def try_defer_direct(
         self,
@@ -110,7 +87,7 @@ class PromptDirectFeedbackStrategy:
                 current_source_identity=source_identity
             )
         )
-        caret_rect = self._context._current_caret_document_rect()
+        caret_rect = self._caret_geometry.current_document_rect()
         insertion_overlay = self._overlays.single_character_insertion_overlay(
             start=start,
             replacement_text=replacement_text,
@@ -140,11 +117,11 @@ class PromptDirectFeedbackStrategy:
             insertion_overlay=insertion_overlay,
             deletion_overlay=None,
         )
-        self._context._update_transient_insertion_overlay_paint(
+        self._presentation.update_insertion_overlay_paint(
             previous_insertion_overlay,
             insertion_overlay,
         )
-        self._context._update_transient_deletion_overlay_paint(
+        self._presentation.update_deletion_overlay_paint(
             request.previous_deletion_overlay,
             None,
         )
@@ -152,6 +129,5 @@ class PromptDirectFeedbackStrategy:
 
 
 __all__ = [
-    "PromptDirectFeedbackContext",
     "PromptDirectFeedbackStrategy",
 ]

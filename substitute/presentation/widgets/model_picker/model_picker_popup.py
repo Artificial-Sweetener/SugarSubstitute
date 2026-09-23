@@ -61,6 +61,7 @@ from substitute.presentation.widgets.model_picker.model_picker_models import (
 from substitute.presentation.widgets.model_picker.model_picker_wall import (
     ModelPickerWallView,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -93,6 +94,7 @@ class ModelPickerPopup(QWidget):
         dismissal_guard_widgets: Iterable[QWidget] = (),
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
         metadata_target_updated: Callable[[], None] | None = None,
         thumbnail_library_opening: Callable[[], None] | None = None,
         search_focus_requested: Callable[[], None] | None = None,
@@ -147,6 +149,7 @@ class ModelPickerPopup(QWidget):
             thumbnail_preloader=thumbnail_preloader,
             open_url=open_url,
             metadata_action_handler=metadata_action_handler,
+            model_updates=model_updates,
             metadata_target_updated=metadata_target_updated,
             thumbnail_library_opening=thumbnail_library_opening,
         )

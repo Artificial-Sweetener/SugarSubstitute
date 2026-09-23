@@ -80,6 +80,7 @@ def test_reorder_visual_interaction_topology_flows_outward() -> None:
     view = f"{prefix}overlays.reorder_view"
     overlay = f"{prefix}overlays.reorder_overlay"
     factory = f"{prefix}composition.reorder_overlay_factory"
+    runtime_factory = f"{prefix}composition.reorder_overlay_runtime_factory"
     gesture_controller = f"{prefix}overlays.reorder_gesture_controller"
     interaction_geometry = f"{prefix}projection.reorder_interaction_geometry"
     interaction_state = f"{prefix}projection.reorder_interaction_geometry_state"
@@ -90,6 +91,7 @@ def test_reorder_visual_interaction_topology_flows_outward() -> None:
         f"{prefix}interactions.reorder_interaction",
         f"{prefix}widget",
         factory,
+        runtime_factory,
     }
     assert graph[visual_style].isdisjoint(
         {visual_geometry, interaction_visual, render_state, visual_owner, view}
@@ -171,7 +173,7 @@ def test_reorder_visual_interaction_topology_flows_outward() -> None:
         f"{prefix}projection.reorder_pointer_hit_testing",
     } <= graph[pointer_target_resolution]
     assert graph[pointer_target_resolution].isdisjoint(forbidden_outer)
-    assert pointer_target_resolution in graph[overlay]
+    assert pointer_target_resolution in graph[runtime_factory]
     assert {
         animation_presentation,
         displacement_intent,
@@ -200,7 +202,7 @@ def test_reorder_visual_interaction_topology_flows_outward() -> None:
         }
         | forbidden_outer
     )
-    assert pointer_target_transition in graph[overlay]
+    assert pointer_target_transition in graph[runtime_factory]
     assert graph[pointer_move_owner] == {
         autoscroll,
         drag_proxy_visual_owner,
@@ -227,7 +229,7 @@ def test_reorder_visual_interaction_topology_flows_outward() -> None:
         }
         | forbidden_outer
     )
-    assert pointer_move_owner in graph[overlay]
+    assert pointer_move_owner in graph[runtime_factory]
     assert graph[pointer_drag_start_owner] == {
         animation_presentation,
         autoscroll,

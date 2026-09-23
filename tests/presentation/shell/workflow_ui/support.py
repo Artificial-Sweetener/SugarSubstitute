@@ -151,6 +151,7 @@ def build_workflow_shell() -> SimpleNamespace:
         "empty_model_picker_discovery_controller": SimpleNamespace(
             request_for_empty_picker=lambda _kind: False
         ),
+        "model_update_notification_controller": SimpleNamespace(picker_bridge=object()),
         "node_behavior_service": object(),
         "user_preset_service": object(),
         "_error_presenter": object(),

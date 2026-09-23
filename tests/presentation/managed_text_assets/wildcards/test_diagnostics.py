@@ -55,11 +55,11 @@ def test_wildcard_management_modal_rejects_scene_markers_without_projecting_scen
     modal = opener.create_modal(None)
     editor = cast(Any, modal._editor.editor())
     app.processEvents()
-    diagnostics = editor._diagnostics_feature_controller
+    diagnostics = editor._runtime.core.diagnostics
     diagnostics.refresh_now()
     app.processEvents()
 
-    projection = editor._surface.projection_document()
+    projection = editor._runtime.projection.surface.projection_document()
     assert projection.projection_text.startswith("**portrait")
     assert all(token.kind.value != "scene" for token in projection.tokens)
     marker = next(
@@ -75,8 +75,8 @@ def test_wildcard_management_modal_rejects_scene_markers_without_projecting_scen
         "Scenes aren’t supported in wildcard values.",
     )
     assert actions[0].enabled is False
-    scene_publication = editor._scene_context_publication
-    scene_preparation = editor._scene_position_preparation
+    scene_publication = editor._runtime.core.services.scene_context_publication
+    scene_preparation = editor._runtime.core.services.scene_position_preparation
     scene_publication.set_scene_autocomplete_titles(("Portrait",))
     scene_publication.set_queueable_scene_keys(frozenset({"portrait"}))
     assert scene_publication.snapshot.autocomplete.ready is False
@@ -89,9 +89,10 @@ def test_wildcard_management_modal_rejects_scene_markers_without_projecting_scen
     assert prepared_scene.context is not None
     assert prepared_scene.context.scene_key is None
     assert prepared_scene.context.queueable_scene_key is None
-    document_view = editor._document_service.build_document_view(editor.toPlainText())
+    document_service = editor._runtime.core.syntax.document_service
+    document_view = document_service.build_document_view(editor.toPlainText())
     assert (
-        editor._document_service.scene_autocomplete_query_at_cursor(
+        document_service.scene_autocomplete_query_at_cursor(
             text=editor.toPlainText(),
             cursor_position=2,
             has_selection=False,
@@ -124,7 +125,7 @@ def test_wildcard_modal_rejects_scene_markers_only_inside_csv_values(
     ).create_modal(None)
     editor = cast(Any, modal._editor.editor())
     app.processEvents()
-    diagnostics = editor._diagnostics_feature_controller
+    diagnostics = editor._runtime.core.diagnostics
 
     diagnostics.refresh_now()
     app.processEvents()
@@ -159,7 +160,7 @@ def test_wildcard_modal_isolates_only_duplicate_diagnostics_by_value(
     editor = cast(Any, modal._editor.editor())
     app.processEvents()
 
-    diagnostics = editor._diagnostics_feature_controller
+    diagnostics = editor._runtime.core.diagnostics
     diagnostics.refresh_now()
     app.processEvents()
     duplicates = tuple(
@@ -224,7 +225,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     ).create_modal(None)
     editor = cast(Any, modal._editor.editor())
     app.processEvents()
-    diagnostics = editor._diagnostics_feature_controller
+    diagnostics = editor._runtime.core.diagnostics
     cursor = editor.textCursor()
     cursor.setPosition(len(editor.toPlainText()))
     editor.setTextCursor(cursor)
@@ -234,7 +235,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     assert (
         sum(
             token.kind.value == "wildcard"
-            for token in editor._surface.projection_document().tokens
+            for token in editor._runtime.projection.surface.projection_document().tokens
         )
         == 1
     )
@@ -255,7 +256,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     app.processEvents()
     assert all(
         token.kind.value != "wildcard"
-        for token in editor._surface.projection_document().tokens
+        for token in editor._runtime.projection.surface.projection_document().tokens
     )
     assert all(
         diagnostic.kind is not PromptDiagnosticKind.WILDCARD
@@ -275,7 +276,7 @@ def test_wildcard_asset_switch_rebinds_diagnostic_value_mapping(
     assert (
         sum(
             token.kind.value == "wildcard"
-            for token in editor._surface.projection_document().tokens
+            for token in editor._runtime.projection.surface.projection_document().tokens
         )
         == 1
     )

@@ -132,6 +132,11 @@ class PromptAutocompleteQueryResultLifecycle:
         self._latest_query_state = query_state
         return self._publication.retarget_from_query_state(query_state)
 
+    def has_active_session(self) -> bool:
+        """Return whether source edits have a live session to retarget."""
+
+        return self._publication.has_active_session()
+
     def refresh_results_from_source_snapshot(
         self,
         snapshot: PromptAutocompleteQuerySourceSnapshot,

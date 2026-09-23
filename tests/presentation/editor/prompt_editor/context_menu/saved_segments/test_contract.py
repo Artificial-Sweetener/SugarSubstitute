@@ -17,8 +17,6 @@
 """Verify saved prompt-segment actions and dialog contracts."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from typing import Any, cast
 import pytest
 from PySide6.QtGui import QTextCursor
@@ -28,6 +26,9 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 )
 from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
     PromptTextMenu,
+)
+from substitute.presentation.editor.prompt_editor.host_adapter import (
+    PromptEditorHostAdapter,
 )
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetMenuItem,
@@ -47,6 +48,7 @@ from tests.presentation.editor.prompt_editor.context_menu.saved_segments.mountin
     _PromptSegmentPresetSource,
     create_prompt_editor_with_segments,
 )
+from tests.support.prompt_editor.runtime_owners import set_context_menu_selection_state
 
 
 def test_prompt_editor_segment_source_uses_custom_qfluent_menu(
@@ -54,12 +56,12 @@ def test_prompt_editor_segment_source_uses_custom_qfluent_menu(
 ) -> None:
     """Saved prompt segment support should route through the custom QFluent menu."""
 
-    editor = create_prompt_editor_with_segments(
+    create_prompt_editor_with_segments(
         prompt_widgets,
         _PromptSegmentPresetSource(),
     )
 
-    assert cast(Any, editor)._prompt_menu_requires_custom_actions()
+    assert PromptEditorHostAdapter.prompt_menu_requires_custom_actions()
 
 
 def test_prompt_editor_context_menu_adds_save_segment_for_selection(
@@ -86,6 +88,7 @@ def test_prompt_editor_context_menu_adds_save_segment_for_selection(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         prompt_segment_model=PromptSegmentPresetMenuModel(),
         save_prompt_segment=lambda: None,
     )
@@ -107,6 +110,7 @@ def test_prompt_editor_context_menu_groups_prompt_utilities_before_rich_renderin
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         selected_prompt_text="long hair",
         save_prompt_segment=lambda: None,
         lookup_danbooru_wiki=lambda: None,
@@ -149,7 +153,7 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
         _ = self
         insert_state = cast(
             Any, editor
-        )._shell_context_menu.consume_context_insert_state()
+        )._runtime.host.menu.shell.consume_context_insert_state()
         observed_insert_states.append(
             (
                 insert_state.insert_position,
@@ -159,7 +163,7 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "beta")
     )
 
@@ -167,11 +171,12 @@ def test_phase24_1_shell_menu_open_records_context_insert_state(
     cursor.setPosition(0)
     cursor.setPosition(5, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
-    cast(Any, editor)._set_context_menu_selection_state_for_tests(
+    set_context_menu_selection_state(
+        editor,
         had_selection=True,
         selection_snapshot=(0, 5, "alpha"),
     )
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "alpha")
     )
 
@@ -215,7 +220,7 @@ def test_prompt_editor_context_menu_uses_cached_segment_menu_model(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "alpha")
     )
 

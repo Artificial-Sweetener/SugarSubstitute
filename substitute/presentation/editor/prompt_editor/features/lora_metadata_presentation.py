@@ -37,7 +37,10 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from substitute.presentation.widgets.media_wall import MediaThumbnailReadiness
 
 from ..commands.feature_commands import PromptFeatureSnapshotIdentity
-from .catalog_snapshots import CatalogSnapshotIdentity, CatalogSnapshotStatus
+from substitute.presentation.editor.catalog.snapshots import (
+    CatalogSnapshotIdentity,
+    CatalogSnapshotStatus,
+)
 from .feature_profile_controller import PromptFeatureProfileController
 from .lora_context_menu import (
     PromptLoraContextActionController,

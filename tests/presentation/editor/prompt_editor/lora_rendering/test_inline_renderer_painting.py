@@ -31,7 +31,7 @@ from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionThumbnailVariant,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.lora_renderer import (
     PromptLoraInlineObjectRenderer,
 )
 from substitute.presentation.semantic_colors import semantic_error_color

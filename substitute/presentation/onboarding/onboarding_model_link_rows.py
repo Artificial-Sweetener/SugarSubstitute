@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import FluentIcon as FIF, ToolButton  # type: ignore[import-untyped]
 
@@ -28,6 +28,7 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
     set_fluent_tooltip_text,
 )
 from sugarsubstitute_shared.presentation.localization import render_application_text
+from sugarsubstitute_shared.presentation.localization import apply_application_text
 
 from substitute.application.model_recommendations import RecommendationCardAsset
 from substitute.presentation.localization import (
@@ -37,6 +38,7 @@ from substitute.presentation.localization import (
 from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     thumbnail_image,
 )
+from substitute.presentation.resources.brand_icons import model_provider_badge_icon_path
 
 
 class ModelLinkReadyRow(QFrame):
@@ -53,7 +55,7 @@ class ModelLinkReadyRow(QFrame):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(6, 5, 6, 5)
         layout.setSpacing(10)
-        preview = QLabel(self)
+        preview = LocalizedCaptionLabel("", self)
         preview.setObjectName("OnboardingModelLinkThumbnail")
         preview.setFixedSize(44, 44)
         preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -68,7 +70,19 @@ class ModelLinkReadyRow(QFrame):
                     )
                 )
             )
+        else:
+            apply_application_text(preview, app_text("Preview unavailable"))
+            preview.setWordWrap(True)
         layout.addWidget(preview)
+
+        provider_icon_path = model_provider_badge_icon_path(recommendation.provider_id)
+        if provider_icon_path is not None:
+            provider_icon = QLabel(self)
+            provider_icon.setObjectName("OnboardingModelLinkProviderIcon")
+            provider_icon.setFixedSize(24, 24)
+            provider_icon.setPixmap(QIcon(str(provider_icon_path)).pixmap(24, 24))
+            provider_icon.setAccessibleName(recommendation.provider_name)
+            layout.addWidget(provider_icon)
 
         identity = QVBoxLayout()
         identity.setSpacing(1)
@@ -77,10 +91,11 @@ class ModelLinkReadyRow(QFrame):
         identity.addWidget(
             LocalizedCaptionLabel(
                 app_text(
-                    "%1 · by %2 · %3 GiB",
+                    "%1 · by %2 · %3 GiB · %4",
                     recommendation.version_name,
-                    recommendation.creator or "CivitAI",
+                    recommendation.creator or recommendation.provider_name,
                     f"{size_gib:.1f}",
+                    recommendation.provider_name,
                 ),
                 self,
             )

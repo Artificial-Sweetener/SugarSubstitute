@@ -139,6 +139,8 @@ class PromptProjectionTextMutationRangeResolver:
         """Resolve a collapsed visible caret to its authoritative source boundary."""
 
         caret = context.cursor_state
+        if caret.source_position != requested_position:
+            return requested_position
         token = _token_by_id(context.tokens, caret.token_id)
         if token is None:
             return requested_position

@@ -49,8 +49,10 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptEmphasisRendererView,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptEmphasisRendererView,
     PromptWildcardRendererView,
 )
 from substitute.application.prompt_editor.diagnostics.duplicate_segments import (

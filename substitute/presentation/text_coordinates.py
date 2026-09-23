@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
+from functools import lru_cache
 
 from PySide6.QtCore import QTextBoundaryFinder
 
@@ -57,19 +58,18 @@ class TextCoordinateMap:
         ``prefer_after`` so callers never split a non-BMP character.
         """
 
-        target = max(0, utf16_offset)
-        consumed = 0
-        for index, character in enumerate(self.text):
-            next_consumed = consumed + _utf16_code_units(character)
-            if target < next_consumed:
-                return index + 1 if prefer_after else index
-            if target == next_consumed:
-                return index + 1
-            consumed = next_consumed
-        return len(self.text)
+        return min(
+            len(self.text),
+            _python_index_for_utf16_offset(
+                self.utf16_offsets_by_python_index(),
+                max(0, utf16_offset),
+                prefer_after=prefer_after,
+            ),
+        )
 
+    @lru_cache(maxsize=4096)
     def utf16_offsets_by_python_index(self) -> tuple[int, ...]:
-        """Return the Qt UTF-16 offset of every Python code-point boundary."""
+        """Return exact-text memoized UTF-16 offsets for every Python boundary."""
 
         offsets = [0]
         consumed = 0
@@ -78,8 +78,9 @@ class TextCoordinateMap:
             offsets.append(consumed)
         return tuple(offsets)
 
+    @lru_cache(maxsize=4096)
     def grapheme_boundaries(self) -> tuple[int, ...]:
-        """Return Python indices at every Unicode grapheme-cluster boundary."""
+        """Return exact-text memoized Unicode grapheme-cluster boundaries."""
 
         finder = QTextBoundaryFinder(
             QTextBoundaryFinder.BoundaryType.Grapheme,

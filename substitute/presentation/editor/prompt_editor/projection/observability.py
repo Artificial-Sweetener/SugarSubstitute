@@ -26,7 +26,7 @@ import time
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QColor
 
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
 )
@@ -309,6 +309,54 @@ def reorder_drag_rect_context(rect: QRectF, *, prefix: str) -> dict[str, str]:
     }
 
 
+def log_reorder_range_geometry_query(
+    operation: str,
+    *,
+    started_at: float,
+    preview_state: object | None,
+    start: int,
+    end: int,
+    fragment_count: int,
+) -> None:
+    """Record one prompt-safe reorder range geometry query."""
+
+    log_reorder_drag_timing(
+        operation,
+        started_at=started_at,
+        gesture_id=getattr(preview_state, "instrumentation_gesture_id", None),
+        event_id=getattr(preview_state, "instrumentation_event_id", None),
+        reason=getattr(preview_state, "instrumentation_reason", ""),
+        start=start,
+        end=end,
+        range_length=end - start,
+        fragment_count=fragment_count,
+    )
+
+
+def log_reorder_cursor_geometry_query(
+    operation: str,
+    *,
+    started_at: float,
+    preview_state: object | None,
+    position: int,
+    cursor_rect: QRectF,
+) -> None:
+    """Record one prompt-safe reorder cursor geometry query."""
+
+    log_reorder_drag_timing(
+        operation,
+        started_at=started_at,
+        gesture_id=getattr(preview_state, "instrumentation_gesture_id", None),
+        event_id=getattr(preview_state, "instrumentation_event_id", None),
+        reason=getattr(preview_state, "instrumentation_reason", ""),
+        position=position,
+        rect_left=f"{cursor_rect.left():.2f}",
+        rect_top=f"{cursor_rect.top():.2f}",
+        rect_width=f"{cursor_rect.width():.2f}",
+        rect_height=f"{cursor_rect.height():.2f}",
+    )
+
+
 def _validated_reorder_context_fields(
     context: Mapping[str, object],
 ) -> dict[str, object]:
@@ -426,8 +474,10 @@ def _is_safe_target_context_field(normalized: str) -> bool:
 
 __all__ = [
     "log_projection_timing",
+    "log_reorder_cursor_geometry_query",
     "log_reorder_drag_event",
     "log_reorder_drag_timing",
+    "log_reorder_range_geometry_query",
     "next_reorder_drag_gesture_id",
     "projection_observability_started_at",
     "render_plan_lora_span_count",

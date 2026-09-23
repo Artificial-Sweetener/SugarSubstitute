@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Compose real read-only CivitAI discovery for the interactive installer smoke."""
+"""Compose real provider discovery for the interactive installer smoke."""
 
 from __future__ import annotations
 
@@ -25,6 +25,11 @@ from substitute.application.model_recommendations import (
     ModelOnboardingApplicationService,
 )
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
+from substitute.app.bootstrap.persistent_cache_composition import (
+    build_openmodeldb_catalog,
+    build_recommendation_thumbnail_cache,
+)
+from substitute.app.bootstrap.persistent_cache_runtime import PersistentCacheRuntime
 from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_model_thumbnail_submitter,
     create_onboarding_model_submitter,
@@ -32,8 +37,15 @@ from substitute.app.bootstrap.onboarding_execution import (
 from substitute.domain.model_metadata import STANDARD_THUMBNAIL_ROLE, ThumbnailAsset
 from substitute.domain.model_recommendations import ModelRecommendation
 from substitute.infrastructure.model_recommendations import (
+    CachedRecommendationThumbnailFetcher,
     CivitaiFamilyRecommendationGateway,
     CivitaiThumbnailFetcher,
+    ProviderRecommendationGateway,
+    ProviderRecommendationThumbnailFetcher,
+)
+from substitute.infrastructure.model_suggestions import (
+    CachedOpenModelDbThumbnailFetcher,
+    OpenModelDbThumbnailFetcher,
 )
 from substitute.infrastructure.persistence.model_thumbnail_store import (
     ModelThumbnailStore,
@@ -64,6 +76,8 @@ class TransientRecommendationThumbnailFetcher:
     def fetch(self, recommendation: ModelRecommendation) -> ThumbnailAsset:
         """Return one validated Qt-ready asset without writing it to disk."""
 
+        if recommendation.thumbnail_url is None:
+            raise ValueError("Recommendation has no preview image.")
         payload = self._fetcher.fetch(recommendation.thumbnail_url)
         prepared = self._preparer.cache_local_thumbnail(
             sha256=recommendation.sha256,
@@ -87,17 +101,33 @@ class TransientRecommendationThumbnailFetcher:
 def create_live_model_onboarding_coordinator(
     *,
     runtime: ExecutionRuntime,
+    cache_runtime: PersistentCacheRuntime,
     parent: QObject,
 ) -> ModelOnboardingCoordinator:
-    """Build live CivitAI discovery while leaving install effects synthetic."""
+    """Build live provider discovery while leaving install effects synthetic."""
 
     request_submitter = create_onboarding_model_submitter(runtime, parent)
     thumbnail_submitter = create_onboarding_model_thumbnail_submitter(runtime, parent)
+    thumbnail_cache = build_recommendation_thumbnail_cache(cache_runtime)
     return ModelOnboardingCoordinator(
         service=ModelOnboardingApplicationService(
             scanner=ExistingModelFamilyScanner(),
-            gateway=CivitaiFamilyRecommendationGateway(),
-            thumbnail_fetcher=TransientRecommendationThumbnailFetcher(),
+            gateway=ProviderRecommendationGateway(
+                civitai=CivitaiFamilyRecommendationGateway(),
+                openmodeldb=build_openmodeldb_catalog(cache_runtime.prepared),
+            ),
+            thumbnail_fetcher=ProviderRecommendationThumbnailFetcher(
+                civitai=CachedRecommendationThumbnailFetcher(
+                    fetcher=CivitaiThumbnailFetcher(),
+                    preparer=thumbnail_cache.preparer,
+                    asset_store=thumbnail_cache.assets,
+                ),
+                openmodeldb=CachedOpenModelDbThumbnailFetcher(
+                    fetcher=OpenModelDbThumbnailFetcher(),
+                    preparer=thumbnail_cache.preparer,
+                    asset_store=thumbnail_cache.assets,
+                ),
+            ),
         ),
         request_submitter=request_submitter,
         close_request_submitter=request_submitter.close,

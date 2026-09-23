@@ -61,7 +61,7 @@ def test_projection_surface_reorder_placement_uses_chip_visual_vertical_affordan
         document_view,
         base_drag_layout_view,
     )
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         _build_reorder_preview_state(
             text,
             dragged_chip_index=1,
@@ -69,12 +69,12 @@ def test_projection_surface_reorder_placement_uses_chip_visual_vertical_affordan
         )
     )
     process_events(app)
-    snapshot = surface.reorder_base_drag_placement_snapshot(
+    snapshot = surface.reorder.base_drag_placement_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
 
-    placement = surface.reorder_placement_at_rect(
+    placement = surface.reorder.placement_at_rect(
         QRectF(16.0, 8.0, 126.0, 26.0),
         snapshot=snapshot,
         active_placement_id=None,
@@ -103,7 +103,7 @@ def test_projection_surface_reorder_base_drag_geometry_reuses_stable_cache(
         document_view,
         base_drag_layout_view,
     )
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         _build_reorder_preview_state(
             text,
             dragged_chip_index=1,
@@ -112,19 +112,19 @@ def test_projection_surface_reorder_base_drag_geometry_reuses_stable_cache(
     )
     process_events(app)
 
-    first_chip_snapshot = surface.reorder_base_drag_chip_geometry_snapshot(
+    first_chip_snapshot = surface.reorder.base_drag_chip_geometry_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
-    second_chip_snapshot = surface.reorder_base_drag_chip_geometry_snapshot(
+    second_chip_snapshot = surface.reorder.base_drag_chip_geometry_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
-    first_placement_snapshot = surface.reorder_base_drag_placement_snapshot(
+    first_placement_snapshot = surface.reorder.base_drag_placement_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
-    second_placement_snapshot = surface.reorder_base_drag_placement_snapshot(
+    second_placement_snapshot = surface.reorder.base_drag_placement_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
@@ -152,7 +152,7 @@ def test_projection_surface_reorder_base_drag_geometry_cache_invalidates_on_resi
         document_view,
         base_drag_layout_view,
     )
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         _build_reorder_preview_state(
             text,
             dragged_chip_index=1,
@@ -160,14 +160,14 @@ def test_projection_surface_reorder_base_drag_geometry_cache_invalidates_on_resi
         )
     )
     process_events(app)
-    first_chip_snapshot = surface.reorder_base_drag_chip_geometry_snapshot(
+    first_chip_snapshot = surface.reorder.base_drag_chip_geometry_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
 
     box.resize(420, box.height())
     process_events(app)
-    resized_chip_snapshot = surface.reorder_base_drag_chip_geometry_snapshot(
+    resized_chip_snapshot = surface.reorder.base_drag_chip_geometry_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
@@ -196,14 +196,14 @@ def test_projection_surface_reorder_preview_chip_geometry_reuses_target_cache(
         dragged_chip_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=2),
     )
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     process_events(app)
 
-    first_snapshot = surface.reorder_preview_chip_geometry_snapshot(
+    first_snapshot = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    second_snapshot = surface.reorder_preview_chip_geometry_snapshot(
+    second_snapshot = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
@@ -232,19 +232,19 @@ def test_projection_surface_reorder_preview_chip_geometry_reports_chip_reuse(
         dragged_chip_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=2),
     )
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     process_events(app)
-    surface.reset_reorder_geometry_cache_counters()
+    surface.reorder.reset_cache_counters()
 
-    first_snapshot = surface.reorder_preview_chip_geometry_snapshot(
+    first_snapshot = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    second_snapshot = surface.reorder_preview_chip_geometry_snapshot(
+    second_snapshot = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
-    counters = surface.reorder_geometry_cache_counters()
+    counters = surface.reorder.cache_counters()
 
     assert second_snapshot is first_snapshot
     assert counters["preview_chip_geometry_reused_chip_count"] == len(
@@ -278,7 +278,7 @@ def test_projection_surface_reorder_placement_exposes_wrapped_visual_line_target
         document_view,
         base_drag_layout_view,
     )
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         _build_reorder_preview_state(
             text,
             dragged_chip_index=5,
@@ -286,7 +286,7 @@ def test_projection_surface_reorder_placement_exposes_wrapped_visual_line_target
         )
     )
     process_events(app)
-    snapshot = surface.reorder_base_drag_placement_snapshot(
+    snapshot = surface.reorder.base_drag_placement_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
@@ -297,7 +297,7 @@ def test_projection_surface_reorder_placement_exposes_wrapped_visual_line_target
         and placement.placement_id.visual_line_index > 0
     )
 
-    selected = surface.reorder_placement_at_rect(
+    selected = surface.reorder.placement_at_rect(
         lower_line_placement.hit_rect,
         snapshot=snapshot,
         active_placement_id=None,

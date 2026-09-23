@@ -61,7 +61,9 @@ class PromptWorkflowProbes:
         panel = self._shell.editor_panels[field.workflow.workflow_id]
         candidate = panel.active_model_context_controller.current_model()
         active_snapshot = panel.active_model_snapshot_controller.snapshot
-        segment_controller = cast(Any, field.editor)._segment_preset_controller
+        segment_controller = cast(
+            Any, field.editor
+        )._runtime.core.services.segment_preset_controller
         editor_snapshot = segment_controller.snapshot
         scopes = editor_snapshot.save_state.save_scopes
         return PromptSegmentScopeProbe(
@@ -103,7 +105,9 @@ class PromptWorkflowProbes:
             requests.append(request)
             return None
 
-        controller = cast(Any, field.editor)._segment_preset_controller
+        controller = cast(
+            Any, field.editor
+        )._runtime.core.services.segment_preset_controller
         controller.save_selected_segment_as_preset(
             selected_text,
             dialog_runner=capture_request,

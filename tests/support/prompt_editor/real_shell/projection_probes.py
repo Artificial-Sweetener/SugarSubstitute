@@ -187,9 +187,9 @@ class PromptProjectionProbes:
         """Record the production path around one headless input action."""
 
         target = self._input.focus_editor(field)
-        surface = cast(Any, field.editor)._surface
+        surface = cast(Any, field.editor)._runtime.projection.surface
         edit_pipeline = surface._edit_pipeline
-        original_rebuild = surface._rebuild_projection
+        original_rebuild = surface._presentation_runtime.rebuild.rebuild
         original_apply = edit_pipeline.apply
         canonical_rebuild_count = 0
         apply_paths: list[str] = []
@@ -218,7 +218,7 @@ class PromptProjectionProbes:
 
             layout_rejection_reasons.append(reason)
 
-        surface._rebuild_projection = counted_rebuild
+        surface._presentation_runtime.rebuild.rebuild = counted_rebuild
         edit_pipeline.apply = recorded_apply
         surface._layout.set_incremental_rejection_observer(record_layout_rejection)
         started_at = perf_counter()
@@ -226,7 +226,7 @@ class PromptProjectionProbes:
             input_action(target)
             wait_for_queued_qt_turn()
         finally:
-            surface._rebuild_projection = original_rebuild
+            surface._presentation_runtime.rebuild.rebuild = original_rebuild
             edit_pipeline.apply = original_apply
             surface._layout.set_incremental_rejection_observer(None)
 
@@ -271,8 +271,9 @@ def scene_projection_sample(
 ) -> PromptSceneProjectionTimelineSample:
     """Capture scene-relevant projection owners without draining events."""
 
-    surface = cast(Any, editor)._surface
-    interaction_controller = cast(Any, editor)._interaction_controller
+    runtime = cast(Any, editor)._runtime
+    surface = runtime.projection.surface
+    interaction_controller = runtime.core.syntax.interaction_controller
     semantic_refresh = interaction_controller._semantic_refresh
     editor_state = surface.editor_state
     projection_document = editor_state.projection.document

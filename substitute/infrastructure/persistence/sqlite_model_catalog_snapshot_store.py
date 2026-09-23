@@ -31,6 +31,7 @@ from substitute.application.cache_lifecycle.cache_ids import (
 from substitute.application.model_metadata import (
     ModelCatalogItem,
     ModelCatalogSnapshot,
+    ModelProviderLink,
     ModelThumbnailVariant,
 )
 from substitute.infrastructure.cache_lifecycle.sqlite_recovery import (
@@ -38,7 +39,7 @@ from substitute.infrastructure.cache_lifecycle.sqlite_recovery import (
 )
 
 _DATABASE_NAME = "model_catalog_snapshots.sqlite3"
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 _MAX_SNAPSHOTS_PER_KIND = 3
 
 
@@ -135,11 +136,11 @@ class SqliteModelCatalogSnapshotStore:
                         provider_name, provider_model_id,
                         provider_model_version_id, provider_model_name,
                         provider_model_version_name, sha256,
-                        thumbnail_variants_json
+                        thumbnail_variants_json, provider_links_json
                     )
                     values (
                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        ?, ?, ?, ?, ?, ?, ?, ?
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?
                     )
                     """,
                     _item_parameters(snapshot_id, order_index, item),
@@ -250,6 +251,7 @@ def _item_parameters(
         item.provider_model_version_name,
         item.sha256,
         _thumbnail_variants_json(item.thumbnail_variants),
+        _provider_links_json(item.provider_links),
     )
 
 
@@ -284,6 +286,7 @@ def _item_from_row(row: sqlite3.Row) -> ModelCatalogItem:
         sha256=_optional_str(row["sha256"]),
         size_bytes=_optional_int(row["file_size"]),
         modified_at=_optional_str(row["modified_at"]),
+        provider_links=_provider_links_from_json(str(row["provider_links_json"])),
     )
 
 
@@ -333,6 +336,53 @@ def _thumbnail_variants_from_json(
             )
         )
     return tuple(variants)
+
+
+def _provider_links_json(links: tuple[ModelProviderLink, ...]) -> str:
+    """Serialize exact-hash provider links for durable picker snapshots."""
+
+    return json.dumps(
+        [
+            {
+                "providerId": link.provider_id,
+                "providerName": link.provider_name,
+                "modelId": link.model_id,
+                "versionId": link.version_id,
+                "modelPageUrl": link.model_page_url,
+            }
+            for link in links
+        ],
+        separators=(",", ":"),
+    )
+
+
+def _provider_links_from_json(payload: str) -> tuple[ModelProviderLink, ...]:
+    """Deserialize exact-hash provider links from one durable snapshot."""
+
+    data = json.loads(payload)
+    if not isinstance(data, list):
+        return ()
+    return tuple(
+        ModelProviderLink(
+            provider_id=str(item["providerId"]),
+            provider_name=str(item["providerName"]),
+            model_id=str(item["modelId"]),
+            version_id=str(item["versionId"]),
+            model_page_url=str(item["modelPageUrl"]),
+        )
+        for item in data
+        if isinstance(item, dict)
+        and all(
+            isinstance(item.get(key), str) and bool(str(item[key]).strip())
+            for key in (
+                "providerId",
+                "providerName",
+                "modelId",
+                "versionId",
+                "modelPageUrl",
+            )
+        )
+    )
 
 
 def _string_tuple_from_json(payload: str) -> tuple[str, ...]:
@@ -409,6 +459,7 @@ create table if not exists catalog_snapshot_items (
   provider_model_version_name text,
   sha256 text,
   thumbnail_variants_json text not null,
+  provider_links_json text not null,
   primary key(snapshot_id, order_index)
 );
 

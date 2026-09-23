@@ -18,12 +18,14 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from threading import Event, Thread
 
 from substitute.application.model_metadata import (
     ModelCatalogService,
     ModelCatalogSnapshot,
+    ModelProviderLink,
 )
 from substitute.domain.model_metadata import BackendModelCatalogEntry
 from substitute.infrastructure.persistence import SqliteModelCatalogSnapshotStore
@@ -190,6 +192,19 @@ def test_model_catalog_loads_durable_snapshot_without_backend(
         snapshot_store=snapshot_store,
     )
     saved_snapshot = service.refresh_snapshot("loras")
+    provider_link = ModelProviderLink(
+        "openmodeldb",
+        "OpenModelDB",
+        "restoration",
+        "hash",
+        "https://openmodeldb.info/models/restoration",
+    )
+    saved_snapshot = replace(
+        saved_snapshot,
+        generation=saved_snapshot.generation + 1,
+        items=(replace(saved_snapshot.items[0], provider_links=(provider_link,)),),
+    )
+    snapshot_store.save_snapshot(saved_snapshot)
     fresh_backend = _FakeBackend(())
     fresh_service = ModelCatalogService(
         backend=fresh_backend,
@@ -207,6 +222,7 @@ def test_model_catalog_loads_durable_snapshot_without_backend(
     ]
     assert loaded_snapshot.items[0].size_bytes == 123
     assert loaded_snapshot.items[0].modified_at == "2026-04-14T01:00:00Z"
+    assert loaded_snapshot.items[0].provider_links == (provider_link,)
     assert fresh_backend.list_model_calls == []
 
 

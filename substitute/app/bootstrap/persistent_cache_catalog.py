@@ -39,6 +39,7 @@ from substitute.application.cache_lifecycle.cache_ids import (
     CACHE_ID_MODEL_CATALOG_SNAPSHOTS,
     CACHE_ID_MODEL_METADATA,
     CACHE_ID_MODEL_THUMBNAILS,
+    CACHE_ID_OPENMODELDB_CATALOG,
     CACHE_ID_RESTORE_PROJECTION,
 )
 from substitute.infrastructure.cache_lifecycle import (
@@ -146,6 +147,13 @@ def build_persistent_cache_catalog(
                 storage_schema="3",
                 semantic_epoch=1,
                 legacy_namespaces=("model_metadata/model_metadata.sqlite3",),
+            ),
+            _remote_registration(
+                cache_id=CACHE_ID_OPENMODELDB_CATALOG,
+                namespace="models/providers/openmodeldb",
+                storage_schema="1",
+                semantic_epoch=1,
+                legacy_namespaces=(),
             ),
             _rendered_registration(
                 cache_id=CACHE_ID_MODEL_THUMBNAILS,
@@ -346,6 +354,7 @@ __all__ = [
     "CACHE_ID_MODEL_CATALOG_SNAPSHOTS",
     "CACHE_ID_MODEL_METADATA",
     "CACHE_ID_MODEL_THUMBNAILS",
+    "CACHE_ID_OPENMODELDB_CATALOG",
     "CACHE_ID_RESTORE_PROJECTION",
     "build_persistent_cache_catalog",
 ]

@@ -27,6 +27,8 @@ from substitute.application.prompt_editor.features.syntax_profile import (
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptWildcardRendererView,
 )
 from substitute.application.ports import (

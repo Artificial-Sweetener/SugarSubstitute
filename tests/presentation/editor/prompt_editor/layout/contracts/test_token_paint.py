@@ -43,7 +43,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from substitute.presentation.editor.prompt_editor.projection.painter import (
     PromptProjectionPainter,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     _emphasis_decoration_metrics,
     _emphasis_parenthesis_color,
     _emphasis_weight_color,
@@ -221,9 +221,9 @@ def test_projection_weight_controls_ignore_deleted_qt_mapping_targets(
     )
 
     assert token_weight_control_lifecycle._qt_object_is_valid(host) is False
-    assert controls._host_point_from_global(QPointF(4.0, 5.0)) is None  # noqa: SLF001
+    assert controls.host_point_from_global(QPointF(4.0, 5.0)) is None
 
-    controls._set_pointer_from_global(QPointF(4.0, 5.0))  # noqa: SLF001
+    controls.set_pointer_from_global(QPointF(4.0, 5.0))
 
     assert controls._gestures.pointer_host_position is None  # noqa: SLF001
 

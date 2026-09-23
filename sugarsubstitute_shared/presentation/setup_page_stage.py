@@ -83,6 +83,13 @@ class SetupPageStage(QScrollArea):
         self.page_stack.setCurrentWidget(page)
         self.refresh_layout()
         self.verticalScrollBar().setValue(0)
+        QTimer.singleShot(0, self._settle_page_switch)
+
+    def _settle_page_switch(self) -> None:
+        """Keep the new page at its heading after deferred child layout work."""
+
+        self.refresh_layout()
+        self.verticalScrollBar().setValue(0)
 
     def schedule_layout_refresh(self) -> None:
         """Refresh after Qt applies a dynamic child visibility change."""

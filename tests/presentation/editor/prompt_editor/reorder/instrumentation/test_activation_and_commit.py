@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 
@@ -57,7 +61,7 @@ def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
 
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     immediate = _performance_counters(overlay)
     view = overlay.findChild(PromptReorderView, "segmentReorderView")
     assert view is not None
@@ -66,7 +70,7 @@ def test_plain_alt_leaves_text_and_raster_work_on_projection_surface(
     assert view.render_state.live_chips == ()
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface._reorder_surface_visual_state.state.chrome_snapshot
+    )._editor._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.chips
     assert view.render_state.raster_paint_count == 0
@@ -157,7 +161,7 @@ def test_reorder_pointer_release_does_not_mutate_source_or_undo(
 
     assert box.toPlainText() == "alpha,beta,"
     assert box.canUndo() is can_undo_before
-    assert overlay._render_publication.publication.unsafe_transient_indices == ()
+    assert overlay._runtime.render.publication.unsafe_transient_indices == ()
     after_release = _performance_counters(overlay)
     assert (
         after_release["drag_proxy_render_state_rebuild_count"]
@@ -192,7 +196,7 @@ def test_plain_alt_keeps_surface_text_after_theme_or_font_invalidation(
     _assert_plain_alt_keeps_surface_text_ownership(overlay)
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     _process_events(app)
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None
 
     reopened_overlay = _open_reorder_overlay(box)
     _assert_plain_alt_keeps_surface_text_ownership(reopened_overlay)
@@ -217,7 +221,7 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
     cursor.setPosition(2)
     box.setTextCursor(cursor)
     overlay = _open_reorder_overlay(box)
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
     QTest.keyClick(box, Qt.Key.Key_Right)
@@ -232,14 +236,14 @@ def test_geometry_refresh_preserves_complete_animation_paint_ownership(
     active_chips = state.preview_chips if state.preview_active else state.live_chips
     surface_chrome = cast(
         Any, box
-    )._surface._reorder_surface_visual_state.state.chrome_snapshot
+    )._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     surface_indices = (
         set()
         if surface_chrome is None
         else {chip.segment_index for chip in surface_chrome.chips}
     )
     rendered_indices = surface_indices | {chip.segment_index for chip in active_chips}
-    expected_indices = set(cast(Any, overlay)._preview_visual_owner.visuals_by_index)
+    expected_indices = set(cast(Any, overlay)._runtime.preview_visuals.visuals_by_index)
 
     assert rendered_indices == expected_indices
     assert not animation_owner.publication.displacement_rects_by_index

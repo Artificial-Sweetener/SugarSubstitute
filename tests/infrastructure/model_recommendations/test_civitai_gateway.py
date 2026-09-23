@@ -163,7 +163,9 @@ def test_exact_family_query_yields_five_unique_thumbnail_complete_cards(
     assert [card.popularity_rank for card in cards] == [1, 2, 3, 4, 5]
     assert all(card.family_id is family_id for card in cards)
     assert all(
-        card.thumbnail_url.startswith("https://image.civitai.com/") for card in cards
+        card.thumbnail_url is not None
+        and card.thumbnail_url.startswith("https://image.civitai.com/")
+        for card in cards
     )
     query = parse_qs(urlparse(provider.urls[1]).query)
     assert query["baseModels"] == [base_model]
@@ -351,6 +353,8 @@ def test_shared_model_page_uses_the_selected_family_versions_own_preview() -> No
         42000,
         42100,
     )
+    assert sdxl[0].thumbnail_url is not None
+    assert anima[0].thumbnail_url is not None
     assert sdxl[0].thumbnail_url.endswith("illustrious-version.jpeg")
     assert anima[0].thumbnail_url.endswith("anima-version.jpeg")
 
@@ -560,4 +564,18 @@ def test_gateway_rejects_changed_enums_and_untrusted_pagination() -> None:
     with pytest.raises(CivitaiRecommendationError):
         CivitaiFamilyRecommendationGateway(fetch_json=provider).discover(
             ModelRecommendationQuery(ModelFamilyId.SDXL)
+        )
+
+
+def test_gateway_rejects_families_owned_by_another_provider() -> None:
+    """Provider-neutral families must not require synthetic CivitAI mappings."""
+
+    def unexpected_fetch(*_args: object, **_kwargs: object) -> object:
+        """Fail if provider mismatch reaches the network boundary."""
+
+        raise AssertionError("CivitAI was queried for an OpenModelDB family.")
+
+    with pytest.raises(CivitaiRecommendationError, match="not available"):
+        CivitaiFamilyRecommendationGateway(fetch_json=unexpected_fetch).discover(
+            ModelRecommendationQuery(ModelFamilyId.UPSCALERS)
         )

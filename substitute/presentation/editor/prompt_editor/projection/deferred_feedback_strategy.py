@@ -20,11 +20,10 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.state.editor_state import (
@@ -44,6 +43,7 @@ from substitute.shared.diagnostics.prompt_editor_work import (
 
 from .edit_pipeline_contracts import PromptProjectionSourceChangeApplyRequest
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from .freshness_controller import (
     PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
@@ -55,6 +55,7 @@ from .transient_edit_overlays import (
     PromptProjectionTransientEditOverlayController,
     PromptProjectionTransientInsertionOverlay,
 )
+from .transient_edit_presentation_owner import PromptTransientEditPresentation
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
 )
@@ -75,23 +76,6 @@ class PromptDeferredFeedbackContext(Protocol):
     def _projection_freshness_blockers(self) -> PromptProjectionFreshnessBlockers:
         """Return current modes that can block deferred projection work."""
 
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the committed document-local caret rectangle."""
-
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Repaint changed transient insertion feedback."""
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Repaint changed transient deletion feedback."""
-
 
 class PromptDeferredFeedbackStrategy:
     """Own deferred scheduling eligibility and transient overlay publication."""
@@ -100,20 +84,24 @@ class PromptDeferredFeedbackStrategy:
         self,
         context: PromptDeferredFeedbackContext,
         *,
+        caret_geometry: PromptProjectionCaretGeometryOwner,
         editor_state: PromptDeferredFeedbackEditorState,
         freshness: PromptProjectionFreshnessController,
         layout: PromptLayoutEditToFrameCoordinator,
         overlays: PromptProjectionTransientEditOverlayController,
         source_line_chrome: PromptSourceLineChrome,
+        presentation: PromptTransientEditPresentation,
     ) -> None:
         """Store explicit scheduling, frame, and overlay owners."""
 
         self._context = context
+        self._caret_geometry = caret_geometry
         self._editor_state = editor_state
         self._freshness = freshness
         self._layout = layout
         self._overlays = overlays
         self._source_line_chrome = source_line_chrome
+        self._presentation = presentation
 
     @prompt_editor_work_result_event(
         prompt_editor_work_true_event(PromptEditorWorkEvent.PROJECTION_WRAP_DEFERRED)
@@ -180,11 +168,11 @@ class PromptDeferredFeedbackStrategy:
             insertion_overlay=insertion_overlay,
             deletion_overlay=deletion_overlay,
         )
-        self._context._update_transient_insertion_overlay_paint(
+        self._presentation.update_insertion_overlay_paint(
             previous_insertion_overlay,
             insertion_overlay,
         )
-        self._context._update_transient_deletion_overlay_paint(
+        self._presentation.update_deletion_overlay_paint(
             request.previous_deletion_overlay,
             deletion_overlay,
         )
@@ -268,7 +256,7 @@ class PromptDeferredFeedbackStrategy:
             anchor_state=request.next_anchor_state,
             source_identity=self._editor_state.source_identity,
             committed_source_identity=self._committed_source_identity(),
-            current_caret_document_rect=(self._context._current_caret_document_rect()),
+            current_caret_document_rect=self._caret_geometry.current_document_rect(),
             insertion_overlay=insertion_overlay,
             metrics=configuration.metrics,
             content_right=self._content_right(),
@@ -293,7 +281,7 @@ class PromptDeferredFeedbackStrategy:
             replacement_text=request.source_edit_replacement_text,
             source_identity=self._editor_state.source_identity,
             committed_source_identity=self._committed_source_identity(),
-            current_caret_document_rect=(self._context._current_caret_document_rect()),
+            current_caret_document_rect=self._caret_geometry.current_document_rect(),
             metrics=configuration.metrics,
             content_right=self._content_right(),
             document_margin=configuration.document_margin,
@@ -344,7 +332,7 @@ class PromptDeferredFeedbackStrategy:
             committed_source_length=len(
                 self._editor_state.projection.document.source_text
             ),
-            caret_rect=self._context._current_caret_document_rect(),
+            caret_rect=self._caret_geometry.current_document_rect(),
             content_right=self._content_right(),
             metrics=self._layout.frame.output.configuration.metrics,
             freshness_is_stale_safe=self._freshness.has_stale_projection_geometry(),

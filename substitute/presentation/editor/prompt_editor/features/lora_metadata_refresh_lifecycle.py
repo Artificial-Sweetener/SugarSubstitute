@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from substitute.presentation.editor.prompt_editor.async_work import (
     PromptEditorMainThreadDispatcher,
@@ -31,17 +32,13 @@ from .lora_picker_snapshots import PromptLoraPickerRefreshResult
 _LOGGER = get_logger("presentation.editor.prompt_editor.features.lora_metadata_refresh")
 
 
-class PromptLoraMetadataRefreshHost(Protocol):
-    """Expose visible-editor render refresh operations to the lifecycle."""
+@dataclass(frozen=True, slots=True)
+class PromptLoraMetadataRefreshBindings:
+    """Declare the mounted state and render operations used by refresh work."""
 
-    def isVisible(self) -> bool:  # noqa: N802
-        """Return whether the editor is currently visible."""
-
-    def has_lora_spans_for_metadata(self) -> bool:
-        """Return whether the current semantic snapshot contains LoRA spans."""
-
-    def refresh_lora_render_metadata_now(self, *, reason: str) -> bool:
-        """Refresh catalog-backed LoRA rendering on the GUI thread."""
+    is_visible: Callable[[], bool]
+    has_lora_spans: Callable[[], bool]
+    refresh_render_metadata: Callable[[str], bool]
 
 
 class PromptLoraMetadataRefreshLifecycle:
@@ -50,13 +47,13 @@ class PromptLoraMetadataRefreshLifecycle:
     def __init__(
         self,
         *,
-        host: PromptLoraMetadataRefreshHost,
+        bindings: PromptLoraMetadataRefreshBindings,
         presentation: PromptLoraMetadataPresentation,
         dispatcher: PromptEditorMainThreadDispatcher,
     ) -> None:
         """Bind one lifecycle to its render host and prepared presentation owner."""
 
-        self._host = host
+        self._bindings = bindings
         self._presentation = presentation
         self._dispatcher = dispatcher
         self._dirty = False
@@ -79,12 +76,12 @@ class PromptLoraMetadataRefreshLifecycle:
     def refresh_if_visible(self) -> bool:
         """Refresh dirty metadata only while its editor remains visible."""
 
-        if not self._dirty or not self._host.isVisible():
+        if not self._dirty or not self._bindings.is_visible():
             return False
         picker_refreshed = False
         try:
             picker_refreshed = self._presentation.refresh_picker_from_cache()
-            if not self._host.has_lora_spans_for_metadata():
+            if not self._bindings.has_lora_spans():
                 self._dirty = False
                 self._publish(stale=False)
                 return picker_refreshed
@@ -112,9 +109,9 @@ class PromptLoraMetadataRefreshLifecycle:
         self._dirty = True
         self._presentation.refresh_picker_from_cache()
         self._publish(stale=True)
-        if not self._host.isVisible():
+        if not self._bindings.is_visible():
             return False
-        if not self._host.has_lora_spans_for_metadata():
+        if not self._bindings.has_lora_spans():
             self._dirty = False
             self._publish(stale=False)
             return False
@@ -191,12 +188,12 @@ class PromptLoraMetadataRefreshLifecycle:
         """Apply the queued render refresh only when the editor is visible."""
 
         self._refresh_pending = False
-        if not self._host.isVisible():
+        if not self._bindings.is_visible():
             self._dirty = True
             self._publish(stale=True)
             return
         try:
-            refreshed = self._host.refresh_lora_render_metadata_now(reason=reason)
+            refreshed = self._bindings.refresh_render_metadata(reason)
         except (OSError, RuntimeError, TypeError, ValueError) as error:
             self._dirty = True
             self._publish(stale=True, unavailable_reason="refresh_failed")
@@ -225,6 +222,6 @@ class PromptLoraMetadataRefreshLifecycle:
 
 
 __all__ = [
-    "PromptLoraMetadataRefreshHost",
+    "PromptLoraMetadataRefreshBindings",
     "PromptLoraMetadataRefreshLifecycle",
 ]

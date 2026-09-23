@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -37,6 +37,7 @@ from .applicator import PromptProjectionApplicator
 from .canonical_edit_reflow import PromptProjectionCanonicalEditReflow
 from .edit_pipeline_contracts import PromptProjectionSourceChangeApplyRequest
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
+from .freshness_controller import ProjectionFreshness
 from .incremental_edit_contracts import (
     PromptProjectionIncrementalEdit,
     PromptProjectionPlainTextApplyResult,
@@ -122,11 +123,11 @@ class PromptIncrementalReflowStrategy:
             previous_document=self._editor_state.projection.document,
             document_view=self._editor_state.edit_semantic.document,
             render_plan=self._editor_state.edit_semantic.render_plan,
-            display_mode=context._display_mode,
+            display_mode=context.display_mode(),
             session=context._session,
             active_span_range=None,
             decoration_accent_ranges=context._decoration_accent_ranges(),
-            scene_error_keys=context._scene_error_keys,
+            scene_error_keys=context.scene_error_keys(),
         )
         if (
             result.status is PromptProjectionPlainTextApplyStatus.REJECTED
@@ -147,24 +148,27 @@ class PromptIncrementalReflowStrategy:
     ) -> PromptProjectionPlainTextApplyResult | None:
         """Try bounded canonical construction and edit-to-frame recovery."""
 
-        start = request.source_edit_start
-        end = request.source_edit_end
-        previous_text = request.previous_source_text
-        if start is None or end is None or previous_text is None:
+        previous_document = self._editor_state.projection.document
+        edit = self._canonical_reflow_edit(
+            request,
+            previous_document=previous_document,
+        )
+        if edit is None:
             return None
+        previous_text, start, end, replacement_text = edit
         context = self._context
         projection_document = self._canonical_reflow.try_build_document(
-            previous_document=self._editor_state.projection.document,
+            previous_document=previous_document,
             previous_source_text=previous_text,
             document_view=request.next_document_view,
             render_plan=request.next_render_plan,
             start=start,
             end=end,
-            replacement_text=request.source_edit_replacement_text or "",
+            replacement_text=replacement_text,
             blockers=context._projection_freshness_blockers(),
             session=context._session,
             decoration_accent_ranges=context._decoration_accent_ranges(),
-            scene_error_keys=context._scene_error_keys,
+            scene_error_keys=context.scene_error_keys(),
         )
         if projection_document is None:
             return None
@@ -172,7 +176,48 @@ class PromptIncrementalReflowStrategy:
             projection_document,
             start=start,
             end=end,
-            replacement_text=request.source_edit_replacement_text or "",
+            replacement_text=replacement_text,
+        )
+
+    @staticmethod
+    def _canonical_reflow_edit(
+        request: PromptProjectionSourceChangeApplyRequest,
+        *,
+        previous_document: PromptProjectionDocument,
+    ) -> tuple[str, int, int, str] | None:
+        """Return one edit against committed geometry, consolidating trailing debt."""
+
+        start = request.source_edit_start
+        end = request.source_edit_end
+        previous_text = request.previous_source_text
+        replacement_text = request.source_edit_replacement_text
+        if (
+            start is None
+            or end is None
+            or previous_text is None
+            or replacement_text is None
+        ):
+            return None
+        committed_text = previous_document.source_text
+        if committed_text == previous_text:
+            return previous_text, start, end, replacement_text
+        if (
+            request.previous_projection_freshness is not ProjectionFreshness.STALE_SAFE
+            or not previous_text.startswith(committed_text)
+            or start != end
+            or start != len(previous_text)
+            or request.text != f"{previous_text}{replacement_text}"
+        ):
+            return None
+        consolidated_replacement = request.text[len(committed_text) :]
+        if not consolidated_replacement:
+            return None
+        committed_end = len(committed_text)
+        return (
+            committed_text,
+            committed_end,
+            committed_end,
+            consolidated_replacement,
         )
 
     def apply_prebuilt(

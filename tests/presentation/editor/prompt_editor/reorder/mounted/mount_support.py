@@ -131,7 +131,7 @@ def _create_overlay(
         document_service=document_service,
         syntax_service=syntax_service,
         syntax_profile=syntax_profile,
-        geometry_owner=surface_for(editor).reorder_geometry_owner,
+        geometry_owner=surface_for(editor).reorder.geometry_owner,
         interaction_metrics=PromptReorderInteractionMetricsOwner(),
     ).create_segment_overlay(editor, layout_policy=document_service)
     overlay = cast(SegmentReorderOverlay, overlay_assembly.overlay)
@@ -218,10 +218,7 @@ def _preview_projection_document(
     """Return the surface-owned projection document currently painted in preview mode."""
 
     editor = cast(PromptEditor, cast(Any, overlay)._editor)
-    return cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(editor), "_reorder_preview_projection").preview_document,
-    )
+    return surface_for(editor).reorder.preview.preview_document
 
 
 def _preview_text(overlay: QWidget) -> str:

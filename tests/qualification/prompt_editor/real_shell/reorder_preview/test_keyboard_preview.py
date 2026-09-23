@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 from PySide6.QtCore import Qt
@@ -82,7 +86,8 @@ def test_real_shell_alt_arrow_preview_layout_matches_settled_layout(
     QTest.keyRelease(editor, Qt.Key.Key_Alt)
     real_shell_scenario.wait_until(
         lambda: (
-            cast(Any, editor)._surface._reorder_preview_projection.preview_frame is None
+            cast(Any, editor)._runtime.projection.surface.reorder.preview.preview_frame
+            is None
         )
     )
     real_shell_scenario.wait_for_queued_delivery()
@@ -116,7 +121,8 @@ def test_real_shell_alt_arrow_keeps_held_chip_border_owned(
 
     QTest.keyPress(editor, Qt.Key.Key_Alt)
     real_shell_scenario.wait_for_queued_delivery()
-    overlay = cast(Any, editor)._segment_overlay
+    overlay = segment_overlay(editor)
+    assert overlay is not None
     held_segment_index = overlay.active_segment_index()
     assert held_segment_index is not None
     before_move = capture_reorder_chip_chrome(
@@ -124,9 +130,9 @@ def test_real_shell_alt_arrow_keeps_held_chip_border_owned(
         segment_index=held_segment_index,
         label="before-move",
     )
-    animation_owner = overlay._animation_presentation
+    animation_owner = overlay._runtime.animation
     animation_owner.set_duration_ms(1000)
-    render_owner = overlay._render_publication
+    render_owner = overlay._runtime.render
     original_sync = render_owner.sync
     animation_frames: list[PromptReorderChipChromeSnapshot] = []
 

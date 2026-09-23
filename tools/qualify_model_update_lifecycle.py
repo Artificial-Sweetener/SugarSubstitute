@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 import hashlib
 import json
@@ -28,11 +29,12 @@ from types import SimpleNamespace
 import tempfile
 from typing import cast
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication, QCheckBox, QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.infrastructure.model_updates import FileModelUsageRepository
-from substitute.presentation.model_updates import ModelUpdateModal
+from substitute.presentation.model_updates.version_family_modal import (
+    ModelVersionFamilyModal,
+)
 from substitute.presentation.shell.model_update_notification_controller import (
     ModelUpdateNotificationController,
 )
@@ -45,7 +47,6 @@ from sugarsubstitute_shared.model_updates import (
     CivitaiCompatibleUpdateGateway,
     ModelUpdateAcquisitionService,
     ModelUpdatePreferences,
-    ModelUpdateProposal,
     ModelUpdateService,
 )
 from tools.model_lifecycle_qualification import runtime_evidence, wait_until
@@ -86,7 +87,7 @@ class _Stream:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run model usage, restart, review, acquisition, and rehydration proof."""
+    """Run model usage, restart, quiet badge, chronology, and transfer proof."""
 
     _ = argv
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -97,7 +98,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         evidence = _qualify_lifecycle(
             application,
             root=Path(root),
-            screenshot_path=artifact_dir / "model-update-modal.png",
+            screenshot_path=artifact_dir / "model-version-family.png",
         )
     report_path = artifact_dir / "model-update-lifecycle-qualification.json"
     report_path.write_text(
@@ -151,52 +152,9 @@ def _qualify_lifecycle(
         )
 
     modal_evidence: dict[str, object] = {}
-
-    def choose_update(
-        proposals: Sequence[ModelUpdateProposal],
-        destination: Path,
-        parent: QWidget,
-    ) -> tuple[str, ...]:
-        """Drive the production modal from unchecked review to explicit consent."""
-
-        modal = ModelUpdateModal(
-            proposals=proposals,
-            model_root=destination,
-            parent=parent,
-        )
-        checks = modal.findChildren(QCheckBox)
-        if len(checks) != 1 or checks[0].isChecked():
-            raise AssertionError(
-                "Update review did not begin with one unchecked model."
-            )
-        modal_evidence["initially_unchecked"] = True
-
-        def accept_selected() -> None:
-            """Capture the visible modal and explicitly select its update."""
-
-            if not modal.grab().save(str(screenshot_path), "PNG"):
-                raise OSError(
-                    f"Could not save update modal evidence: {screenshot_path}"
-                )
-            checks[0].setChecked(True)
-            if not modal.download_button.isEnabled():
-                raise AssertionError("Explicit selection did not enable download.")
-            modal.download_button.click()
-
-        QTimer.singleShot(0, accept_selected)
-        try:
-            selected = modal.choose_updates()
-        finally:
-            modal.deleteLater()
-        if len(selected) != 1:
-            raise AssertionError(
-                "Production update review did not return one selection."
-            )
-        modal_evidence["explicit_selection_count"] = len(selected)
-        return selected
-
-    feedback: list[tuple[str, str]] = []
     parent = QWidget()
+    parent.resize(1280, 820)
+    parent.show()
     controller = ModelUpdateNotificationController(
         parent_widget=parent,
         preferences=_Preferences(),
@@ -209,21 +167,55 @@ def _qualify_lifecycle(
                 stream_opener=lambda _url, _headers, _timeout: _Stream(_UPDATE_PAYLOAD),
             ),
         ),
-        chooser=choose_update,
-        feedback=lambda severity, message: feedback.append((severity, message)),
     )
     if not controller.check_on_focus():
         raise AssertionError("Enabled update notification check did not start.")
     wait_until(
         application,
-        lambda: not controller.running and bool(feedback),
-        "model update acquisition",
+        lambda: (
+            not controller.running
+            and controller.picker_bridge.proposal_for_sha(_CURRENT_HASH) is not None
+        ),
+        "quiet model-update badge",
     )
+    if parent.findChildren(ModelVersionFamilyModal):
+        raise AssertionError("Focus opened an unsolicited update dialog.")
+    controller.picker_bridge.request_family(_CURRENT_HASH)
+    wait_until(
+        application,
+        lambda: (
+            bool(parent.findChildren(ModelVersionFamilyModal))
+            and bool(parent.findChildren(ModelVersionFamilyModal)[0]._cards)
+        ),
+        "explicit version-family lookup",
+    )
+    modal = parent.findChildren(ModelVersionFamilyModal)[0]
+    if tuple(modal._cards) != (10, 20) or modal.download_button.isEnabled():
+        raise AssertionError("The unselected family is not chronological.")
+    if modal.isWindow():
+        raise AssertionError("Version chronology opened a separate window.")
+    modal_evidence["opened_only_on_request"] = True
+    modal_evidence["chronological_versions"] = list(modal._cards)
+    application.processEvents()
+    if not parent.grab().save(str(screenshot_path), "PNG"):
+        raise OSError(f"Could not save version-family evidence: {screenshot_path}")
+    modal._cards[20].portrait.checkbox.setChecked(True)
+    if not modal.download_button.isEnabled():
+        raise AssertionError("Selecting one version did not enable download.")
+    modal.download_button.click()
+    wait_until(
+        application,
+        lambda: (
+            not controller.running and modal._cards[20].state_label.text() == "On disk"
+        ),
+        "selected model update acquisition",
+    )
+    modal_evidence["explicit_selection_count"] = 1
+    modal.reject()
     controller.close()
+    parent.close()
     parent.deleteLater()
     application.processEvents()
-    if feedback[-1][0] != "success":
-        raise AssertionError(f"Update acquisition did not report success: {feedback}.")
 
     updated_path = model_root / "checkpoints" / "updated.safetensors"
     if current_path.read_bytes() != _CURRENT_PAYLOAD:
@@ -233,27 +225,29 @@ def _qualify_lifecycle(
 
     second_restart_repository = FileModelUsageRepository(settings_root)
     second_restart_records = second_restart_repository.load()
-    if second_restart_records != initial_records:
-        raise AssertionError("Update acquisition changed authoritative usage state.")
+    if second_restart_records != (
+        replace(initial_records[0], dismissed_version_id=20),
+    ):
+        raise AssertionError("The completed update was not remembered across restart.")
     second_restart_proposals = _new_update_service(
         second_restart_repository
     ).check_updates(ModelUpdatePreferences(enabled=True))
-    if len(second_restart_proposals) != 1:
-        raise AssertionError("Update availability disappeared after a second restart.")
+    if second_restart_proposals:
+        raise AssertionError("The completed update was offered again after restart.")
 
     return {
         "result": "passed",
         "external_network_used": False,
         "usage_persisted_before_restart": True,
         "update_available_after_first_restart": True,
-        "update_available_after_second_restart": True,
+        "completed_update_suppressed_after_second_restart": True,
         "current_model_preserved": True,
         "updated_model_installed_beside_current": True,
         "current_sha256": hashlib.sha256(current_path.read_bytes()).hexdigest(),
         "updated_sha256": hashlib.sha256(updated_path.read_bytes()).hexdigest(),
         "candidate_version_id": proposal.candidate.version_id,
         "modal": modal_evidence,
-        "feedback_severity": feedback[-1][0],
+        "provider_check_was_noninterruptive": True,
         "runtime": runtime_evidence(),
     }
 

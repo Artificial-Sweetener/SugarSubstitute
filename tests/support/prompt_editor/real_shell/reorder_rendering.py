@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 from PySide6.QtCore import QLineF, QPoint, QRectF
@@ -45,8 +49,8 @@ def capture_source_line_chrome(
     """Render source-line chrome headlessly using active preview geometry."""
 
     wait_for_queued_qt_turn()
-    surface = cast(Any, editor)._surface
-    preview_frame = surface._reorder_preview_projection.preview_frame
+    surface = cast(Any, editor)._runtime.projection.surface
+    preview_frame = surface.reorder.preview.preview_frame
     frame = preview_frame if preview_frame is not None else surface._layout.frame
     viewport = surface.viewport()
     image = QImage(
@@ -80,11 +84,11 @@ def capture_source_line_chrome(
                 (color.red(), color.green(), color.blue(), color.alpha()),
             )
         )
-    segment_overlay = editor._segment_overlay
+    overlay = segment_overlay(editor)
     return PromptSourceLineChromeRenderProbe(
         label=label,
         reorder_overlay_active=bool(
-            isinstance(segment_overlay, QWidget) and segment_overlay.isVisible()
+            isinstance(overlay, QWidget) and overlay.isVisible()
         ),
         projection_preview_active=preview_frame is not None,
         line_colors=tuple(line_colors),
@@ -98,8 +102,8 @@ def capture_reorder_layout(
 ) -> PromptReorderRenderedLayoutSnapshot:
     """Capture the exact preview-or-live frame currently rendered by the surface."""
 
-    surface = cast(Any, field.editor)._surface
-    preview_frame = surface._reorder_preview_projection.preview_frame
+    surface = cast(Any, field.editor)._runtime.projection.surface
+    preview_frame = surface.reorder.preview.preview_frame
     frame = preview_frame if preview_frame is not None else surface._layout.frame
     output = frame.output
     snapshot = output.snapshot
@@ -121,7 +125,7 @@ def capture_reorder_layout(
             (fragment_kind, fragment_value, rectangle_tuple(fragment.rect))
         )
     content_size = snapshot.content_size
-    render_frame = surface._render_frame_owner.frame
+    render_frame = surface._presentation_runtime.render_frame.frame
     region_layer = render_frame.region_layer
     return PromptReorderRenderedLayoutSnapshot(
         label=label,
@@ -161,8 +165,9 @@ def capture_reorder_chip_chrome(
 ) -> PromptReorderChipChromeSnapshot:
     """Capture the paint owners and border style for one semantic reorder chip."""
 
-    overlay = cast(Any, field.editor)._segment_overlay
-    publication = overlay._render_publication.publication
+    overlay = segment_overlay(field.editor)
+    assert overlay is not None
+    publication = overlay._runtime.render.publication
     overlay_state = publication.overlay_state
     overlay_chips = (
         overlay_state.preview_chips
@@ -179,7 +184,7 @@ def capture_reorder_chip_chrome(
         for chip in overlay_chips
         if chip.segment_index == segment_index
     )
-    animation = overlay._animation_presentation.publication
+    animation = overlay._runtime.animation.publication
     return PromptReorderChipChromeSnapshot(
         label=label,
         segment_index=segment_index,

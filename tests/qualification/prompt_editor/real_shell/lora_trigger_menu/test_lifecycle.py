@@ -229,7 +229,7 @@ def test_real_shell_lora_trigger_probe_recovers_after_explicit_rewarm(
         cast(
             Any,
             editor,
-        )._lora_trigger_word_controller.prewarm_current_source()
+        )._runtime.features.lora_trigger_words.prewarm_current_source()
         shell_harness.wait_until(
             lambda: cached_scheduled_loras(editor, editor.toPlainText()) is not None
         )

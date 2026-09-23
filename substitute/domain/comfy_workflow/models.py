@@ -56,6 +56,7 @@ class ProjectedCubeDocument:
     """Expose one embedded Cube document as a view of its owning Comfy graph."""
 
     node_id: str | int
+    definition_id: str
     alias: str
     active: bool
     document: JsonObject
@@ -134,13 +135,14 @@ class DirectWorkflowState:
             document = (
                 documents.get(definition_id) if isinstance(definition_id, str) else None
             )
-            if document is None:
+            if not isinstance(definition_id, str) or document is None:
                 raise ValueError(
                     f"Marked Cube graph node {instance.node_id!r} has no embedded document."
                 )
             result.append(
                 ProjectedCubeDocument(
                     node_id=instance.node_id,
+                    definition_id=definition_id,
                     alias=instance.alias,
                     active=instance.active,
                     document=document,

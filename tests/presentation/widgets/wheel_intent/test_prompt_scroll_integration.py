@@ -151,7 +151,7 @@ def test_prompt_host_wheel_denial_does_not_scroll_surface() -> None:
 
     assert scrollbar.value() == 0
     assert not denied_event.isAccepted()
-    assert surface_for(box)._wheel_handler._boundary_spill is None  # noqa: SLF001
+    assert surface_for(box)._input_runtime.wheel._boundary_spill is None  # noqa: SLF001
 
     destroy_widget_roots(widgets)
 
@@ -318,7 +318,7 @@ def test_unarmed_prompt_boundary_wheel_does_not_create_spill() -> None:
 
     assert scrollbar.value() == scrollbar.maximum()
     assert not boundary_event.isAccepted()
-    assert surface_for(box)._wheel_handler._boundary_spill is None  # noqa: SLF001
+    assert surface_for(box)._input_runtime.wheel._boundary_spill is None  # noqa: SLF001
 
     destroy_widget_roots(widgets)
 

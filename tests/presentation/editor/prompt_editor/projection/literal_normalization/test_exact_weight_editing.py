@@ -36,6 +36,7 @@ from tests.support.prompt_editor.projection_surface_support import (
     flush_projection_update_scheduler,
     flush_semantic_refresh,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
+    submit_scheduled_semantic_refresh,
 )
 
 
@@ -87,7 +88,7 @@ def test_projection_surface_reclassifies_edited_literal_group_as_existing_emphas
     assert committed_token.value_text == "1.20"
     assert committed_token.editing_value_text is None
     assert box.textCursor().position() == committed_token.source_end
-    assert getattr(surface, "_cursor_state").placement is (
+    assert surface._caret_state_owner.cursor_state.placement is (  # noqa: SLF001
         PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
     )
 
@@ -108,6 +109,38 @@ def test_projection_surface_space_after_inline_weight_stays_at_content_boundary(
     box.setTextCursor(cursor)
 
     QTest.keyClicks(box, ":1.20")
+    process_events(app)
+    QTest.keyClick(box, Qt.Key.Key_Space)
+    process_events(app)
+
+    token = first_emphasis_token(box)
+    assert box.toPlainText() == "(test :1.20)"
+    assert token.value_text == "1.20"
+    assert token.editing_value_text is None
+    assert box.textCursor().position() == len("(test ")
+
+
+def test_projection_surface_space_resolves_weight_typed_across_debounce_boundary(
+    widgets: list[QWidget],
+) -> None:
+    """Space should resolve a completed weight after an earlier semantic refresh."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text=r"\(test\)",
+        width=240,
+    )
+    surface = surface_for(box)
+    cursor = box.textCursor()
+    cursor.setPosition(len(r"\(test"))
+    box.setTextCursor(cursor)
+
+    QTest.keyClicks(box, ":")
+    submit_scheduled_semantic_refresh(box)
+    flush_projection_update_scheduler(surface)
+    process_events(app)
+    QTest.keyClicks(box, "1.20")
     process_events(app)
     QTest.keyClick(box, Qt.Key.Key_Space)
     process_events(app)
@@ -183,7 +216,7 @@ def test_projection_surface_auto_exact_weight_edit_uses_existing_click_commit_fl
     process_events(app)
 
     editing_token = first_emphasis_token(box)
-    should_paint_caret = getattr(surface, "_should_paint_caret")
+    should_paint_caret = surface._caret_visual_controller.should_paint_caret  # noqa: SLF001
     assert box.toPlainText() == "(test:1), dog"
     assert editing_token.editing_value_text == "1.20"
     assert not should_paint_caret()

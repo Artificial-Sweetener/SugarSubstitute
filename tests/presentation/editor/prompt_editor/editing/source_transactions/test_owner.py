@@ -50,7 +50,12 @@ class _WorkRecorder:
 
     counts: Counter[PromptEditorWorkEvent] = field(default_factory=Counter)
 
-    def record(self, event: PromptEditorWorkEvent, elapsed_ms: float) -> None:
+    def record(
+        self,
+        event: PromptEditorWorkEvent,
+        elapsed_ms: float,
+        owner: object | None = None,
+    ) -> None:
         """Record one owner operation."""
 
         _ = elapsed_ms

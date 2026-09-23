@@ -43,6 +43,7 @@ from substitute.application.node_behavior import FieldBehavior
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.domain.model_suggestions import (
+    ModelAcquisitionOffer,
     ModelSuggestion,
     ModelSuggestionAccess,
     ModelSuggestionAccessPolicy,
@@ -63,7 +64,10 @@ from substitute.presentation.model_discovery import (
     ModelDiscoveryModal,
     ModelSuggestionCredentialCoordinator,
 )
-from substitute.presentation.model_discovery.discovery_modal import ModelSuggestionCard
+from substitute.presentation.model_discovery.credential_prompt import (
+    CredentialPromptChoice,
+)
+from substitute.presentation.model_discovery.discovery_card import ModelSuggestionCard
 from substitute.presentation.shell.empty_model_picker_discovery_controller import (
     EmptyModelPickerDiscoveryController,
 )
@@ -137,24 +141,28 @@ class _SyntheticProvider(ModelSuggestionProvider):
             return ()
         return (
             ModelSuggestion(
-                reference=ModelSuggestionReference(
-                    self.provider_id,
-                    "Synthetic Registry",
-                    "model-1",
-                    "version-1",
-                ),
                 context=context,
                 model_name="Synthetic Anima",
                 version_name="v1",
                 creator="Qualification",
-                file_name=self._file_name,
-                size_bytes=len(_PAYLOAD),
                 sha256=digest,
-                download_url="https://invalid.example/model",
-                model_page_url="https://invalid.example/models/1",
-                thumbnail_url=None,
-                provider_rank=1,
-                access=self._access,
+                offers=(
+                    ModelAcquisitionOffer(
+                        reference=ModelSuggestionReference(
+                            self.provider_id,
+                            "Synthetic Registry",
+                            "model-1",
+                            "version-1",
+                        ),
+                        file_name=self._file_name,
+                        size_bytes=len(_PAYLOAD),
+                        download_url="https://invalid.example/model",
+                        model_page_url="https://invalid.example/models/1",
+                        thumbnail_url=None,
+                        provider_rank=1,
+                        access=self._access,
+                    ),
+                ),
             ),
         )
 
@@ -173,6 +181,7 @@ class _SyntheticProvider(ModelSuggestionProvider):
     def acquire(
         self,
         suggestion: ModelSuggestion,
+        offer: ModelAcquisitionOffer,
         *,
         destination: Path,
         cancellation: CancellationProbe | None,
@@ -181,7 +190,7 @@ class _SyntheticProvider(ModelSuggestionProvider):
 
         if cancellation is not None and cancellation.is_cancelled():
             raise InterruptedError("Synthetic model acquisition was cancelled.")
-        model_path = destination / "Anima" / suggestion.file_name
+        model_path = destination / "Anima" / offer.file_name
         model_path.parent.mkdir(parents=True, exist_ok=True)
         model_path.write_bytes(_PAYLOAD)
         return AcquisitionResult(
@@ -201,11 +210,12 @@ class _CredentialHandler:
         """Initialize with no configured credential and no prompts."""
 
         self.prompt_count = 0
+        self._has_credential = False
 
     def has_credential(self) -> bool:
-        """Return false so protected acquisition must request authorization."""
+        """Reflect a key saved by the explicit synthetic credential choice."""
 
-        return False
+        return self._has_credential
 
     def request_credential(self, parent: QWidget) -> bool:
         """Record a user-driven prompt and approve the synthetic qualification."""
@@ -213,7 +223,21 @@ class _CredentialHandler:
         if not isinstance(parent, ModelDiscoveryModal):
             raise AssertionError("Credential prompt lost the discovery parent.")
         self.prompt_count += 1
+        self._has_credential = True
         return True
+
+    def request_choice(
+        self, parent: QWidget, *, protected_model_count: int
+    ) -> CredentialPromptChoice:
+        """Approve the selected protected model through the key-layer contract."""
+
+        if not isinstance(parent, ModelDiscoveryModal):
+            raise AssertionError("Credential choice lost the discovery parent.")
+        if protected_model_count != 1:
+            raise AssertionError("Credential choice lost the selected model count.")
+        self.prompt_count += 1
+        self._has_credential = True
+        return CredentialPromptChoice.SAVED
 
 
 def main(argv: Sequence[str] | None = None) -> int:

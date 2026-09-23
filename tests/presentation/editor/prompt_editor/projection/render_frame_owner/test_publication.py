@@ -38,7 +38,7 @@ def test_unchanged_render_publication_reuses_exact_frame(
 
     box = show_prompt_editor(widgets, text="alpha beta", width=360)
     surface = surface_for(box)
-    owner = cast(Any, surface)._render_frame_owner
+    owner = cast(Any, surface)._presentation_runtime.render_frame
     initial_frame = owner.frame
 
     cast(Any, surface)._publish_render_frame()

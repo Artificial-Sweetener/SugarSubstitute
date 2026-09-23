@@ -74,26 +74,26 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
 
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
 
-    preview_document = surface._reorder_preview_projection.preview_document  # noqa: SLF001
+    preview_document = surface.reorder.preview.preview_document  # noqa: SLF001
     assert preview_document is not None
     assert preview_document.source_text == "beta, alpha, gamma"
     assert surface.projection_document().source_text == "alpha, beta, gamma"
-    counters = surface.reorder_geometry_cache_counters()
+    counters = surface.reorder.cache_counters()
     assert counters["preview_projection_full_layout_count"] == 0
     assert counters["preview_projection_incremental_layout_count"] == 2
     beta_range = preview_state.preview_snapshot.chip_rendered_ranges_by_index[1]
-    assert surface.reorder_preview_fragments(
+    assert surface.reorder.preview_fragments(
         start=beta_range[0],
         end=beta_range[1],
     )
-    preview_chip_snapshot = surface.reorder_preview_chip_geometry_snapshot(
+    preview_chip_snapshot = surface.reorder.preview_chip_geometry_snapshot(
         snapshot=preview_state.preview_snapshot,
         layout_view=preview_layout_view,
     )
     assert preview_chip_snapshot.geometries_by_chip_index[1].chip_index == 1
-    preview_paint_snapshots = surface.reorder_preview_chip_projection_paint_snapshots(
+    preview_paint_snapshots = surface.reorder.preview_chip_paint_snapshots(
         chip_geometry_snapshot=preview_chip_snapshot,
         chip_owned_ranges_by_index=(
             preview_state.preview_snapshot.chip_owned_ranges_by_index
@@ -107,7 +107,7 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
         == (preview_state.preview_snapshot.chip_owned_ranges_by_index[1])
     )
     assert beta_paint_snapshot.text_fragments
-    preview_frame = surface._reorder_preview_projection.preview_frame  # noqa: SLF001
+    preview_frame = surface.reorder.preview.preview_frame  # noqa: SLF001
     assert preview_frame is not None
     preview_selection_geometry = preview_frame.geometry.selection
     source_range_fragments = PromptSelectionGeometry.source_range_fragments
@@ -137,7 +137,7 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
         "source_range_fragments",
         fail_redundant_fragment_lookup,
     )
-    surface.set_reorder_surface_visual_publication(
+    surface.reorder.presentation.publish(
         PromptReorderSurfaceVisualPublication(
             mode="preview",
             chips=(),
@@ -146,21 +146,21 @@ def test_projection_surface_switches_to_reorder_preview_text_and_exposes_preview
             },
         )
     )
-    assert surface._preview_visible_region() is not None  # noqa: SLF001
-    assert surface.reorder_preview_cursor_rect(beta_range[0]).isEmpty() is False
+    assert surface.reorder.presentation.preview_visible_region() is not None  # noqa: SLF001
+    assert surface.reorder.preview_cursor_rect(beta_range[0]).isEmpty() is False
     base_drag_snapshot = preview_state.base_drag_snapshot
     assert base_drag_snapshot is not None
     base_range = base_drag_snapshot.chip_rendered_ranges_by_index[0]
-    assert surface.reorder_base_drag_fragments(
+    assert surface.reorder.base_drag_fragments(
         start=base_range[0],
         end=base_range[1],
     )
-    base_chip_snapshot = surface.reorder_base_drag_chip_geometry_snapshot(
+    base_chip_snapshot = surface.reorder.base_drag_chip_geometry_snapshot(
         snapshot=base_drag_snapshot,
         layout_view=base_drag_layout_view,
     )
     assert base_chip_snapshot.geometries_by_chip_index[0].chip_index == 0
-    assert surface.reorder_base_drag_cursor_rect(base_range[0]).isEmpty() is False
+    assert surface.reorder.base_drag_cursor_rect(base_range[0]).isEmpty() is False
 
 
 def test_projection_surface_keeps_reused_reorder_layouts_at_editor_width(
@@ -179,11 +179,11 @@ def test_projection_surface_keeps_reused_reorder_layouts_at_editor_width(
         dragged_chip_index=1,
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
 
-    preview_frame = surface._reorder_preview_projection.preview_frame  # noqa: SLF001
+    preview_frame = surface.reorder.preview.preview_frame  # noqa: SLF001
     base_drag_frame = (  # noqa: SLF001
-        surface._reorder_preview_projection.base_drag_frame
+        surface.reorder.preview.base_drag_frame
     )
     assert preview_frame is not None
     assert base_drag_frame is not None
@@ -212,7 +212,7 @@ def test_reorder_base_drag_rebuilds_suffix_with_resolvable_semantics(
     )
     base_drag_snapshot = preview_state.base_drag_snapshot
     assert base_drag_snapshot is not None
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         replace(
             preview_state,
             preview_snapshot=base_drag_snapshot,
@@ -221,7 +221,7 @@ def test_reorder_base_drag_rebuilds_suffix_with_resolvable_semantics(
         )
     )
 
-    preview_frame = surface._reorder_preview_projection.preview_frame  # noqa: SLF001
+    preview_frame = surface.reorder.preview.preview_frame  # noqa: SLF001
     assert preview_frame is not None
     unresolved_fragments = tuple(
         fragment
@@ -235,11 +235,11 @@ def test_reorder_base_drag_rebuilds_suffix_with_resolvable_semantics(
     )
     assert unresolved_fragments == ()
     preview_document = (  # noqa: SLF001
-        surface._reorder_preview_projection.preview_document
+        surface.reorder.preview.preview_document
     )
     assert preview_document is not None
     assert "ordinary text before decoration" in preview_document.source_text
-    incremental_layout_count = surface.reorder_geometry_cache_counters()[
+    incremental_layout_count = surface.reorder.cache_counters()[
         "preview_projection_incremental_layout_count"
     ]
     assert isinstance(incremental_layout_count, int)

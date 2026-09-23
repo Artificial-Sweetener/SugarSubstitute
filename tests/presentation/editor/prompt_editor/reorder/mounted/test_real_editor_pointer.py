@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 from PySide6.QtCore import QPoint, Qt
@@ -71,7 +75,7 @@ def _overlay_preview_segment_indices(overlay: QWidget) -> list[int]:
 def _overlay_blank_line_target_visuals(overlay: QWidget) -> tuple[object, ...]:
     """Return the current virtual blank-line target visuals for the reorder overlay."""
 
-    visuals = cast(Any, overlay)._geometry.state.drop_target_visuals
+    visuals = cast(Any, overlay)._runtime.geometry.state.drop_target_visuals
     return tuple(
         visual
         for visual in cast(tuple[object, ...], visuals)
@@ -84,10 +88,7 @@ def _editor_reorder_preview_document(
 ) -> PromptProjectionDocument | None:
     """Return the surface-owned preview document active during reorder mode."""
 
-    return cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(box), "_reorder_preview_projection").preview_document,
-    )
+    return surface_for(box).reorder.preview.preview_document
 
 
 def _editor_reorder_preview_text(box: PromptEditor) -> str:
@@ -102,7 +103,7 @@ def _editor_reorder_preview_text(box: PromptEditor) -> str:
 def _flush_reorder_preview(box: PromptEditor) -> None:
     """Synchronize the owner-published reorder preview for a direct assertion."""
 
-    interaction = cast(Any, getattr(box, "_interaction_controller"))
+    interaction = cast(Any, box._runtime.core.syntax.interaction_controller)
     publication = interaction._reorder._overlay_session._preview_publication
     publication.flush(reason="test_reorder_preview", forced=True)
     box.flush_pending_projection_update(reason="test_reorder_preview")
@@ -157,7 +158,7 @@ def test_prompt_editor_real_widget_retains_focus_during_alt_reorder_drag(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
     assert box.hasFocus() is True
 
@@ -222,7 +223,7 @@ def test_prompt_editor_real_widget_commits_actual_reorder_on_alt_release(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
     assert _editor_reorder_preview_document(box) is None
 
@@ -240,7 +241,12 @@ def test_prompt_editor_real_widget_commits_actual_reorder_on_alt_release(
     assert second_chip.cursor().shape() == Qt.CursorShape.OpenHandCursor
     assert _editor_reorder_preview_document(box) is not None
     assert _editor_reorder_preview_text(box) == "beta, alpha,"
-    ordered_segment_indices = cast(Any, overlay).ordered_chip_indices()
+    mounted_overlay = cast(SegmentReorderOverlay, overlay)
+    landing_state, landing_counters = mounted_overlay.landing_shadow_diagnostics()
+    landing_owner = cast(Any, mounted_overlay)._runtime.performance.landing_preview
+    assert landing_state == landing_owner.state.publication
+    assert landing_counters == landing_owner.counters
+    ordered_segment_indices = mounted_overlay.ordered_chip_indices()
     preview_segment_indices = _overlay_preview_segment_indices(overlay)
 
     QTest.keyRelease(box, Qt.Key.Key_Alt)
@@ -252,7 +258,7 @@ def test_prompt_editor_real_widget_commits_actual_reorder_on_alt_release(
     assert box.textCursor().selectionStart() == 1
     assert box.textCursor().selectionEnd() == 1
     assert _editor_reorder_preview_document(box) is None
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None
 
 
 def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt_release(
@@ -282,7 +288,7 @@ def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
 
     alpha_chip = _overlay_chip_by_segment_index(overlay, 0)
@@ -312,7 +318,7 @@ def test_prompt_editor_real_widget_accumulates_multiple_reorder_drags_before_alt
 
     assert box.toPlainText() == "gamma, beta, alpha"
     assert _editor_reorder_preview_document(box) is None
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None
 
 
 def test_prompt_editor_real_widget_keeps_emphasis_rendering_during_reorder_drag(
@@ -338,7 +344,7 @@ def test_prompt_editor_real_widget_keeps_emphasis_rendering_during_reorder_drag(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
 
     emphasized_chip = _overlay_chip_by_segment_index(overlay, 0)
@@ -402,7 +408,7 @@ def test_prompt_editor_real_widget_reorder_commit_round_trips_through_editor_und
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
 
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
@@ -452,7 +458,7 @@ def test_prompt_editor_real_widget_reorder_commit_preserves_line_break_slot_form
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
 
     first_chip = _overlay_chip_by_segment_index(overlay, 0)
@@ -467,7 +473,7 @@ def test_prompt_editor_real_widget_reorder_commit_preserves_line_break_slot_form
     process_events(app)
 
     assert box.toPlainText() == "beta, alpha,\ngamma"
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None
 
 
 def test_prompt_editor_real_widget_can_drop_tag_onto_specific_blank_line(
@@ -496,7 +502,7 @@ def test_prompt_editor_real_widget_can_drop_tag_onto_specific_blank_line(
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = cast(QWidget, getattr(box, "_segment_overlay"))
+    overlay = cast(QWidget, segment_overlay(box))
     assert overlay is not None
 
     soft_lighting_chip = _overlay_chip_by_segment_index(overlay, 5)
@@ -544,7 +550,7 @@ def test_prompt_editor_real_widget_can_drop_tag_onto_specific_blank_line(
         == "1girl, detailed eyes, portrait, looking at viewer,\n\n\nsolo,\n\n"
         "soft lighting, pastel colors, clean lineart, highres"
     )
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None
 
 
 def test_prompt_editor_real_widget_reorder_preview_still_wraps_in_narrow_card_width(
@@ -572,7 +578,7 @@ def test_prompt_editor_real_widget_reorder_preview_still_wraps_in_narrow_card_wi
     QTest.keyPress(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    overlay = getattr(box, "_segment_overlay")
+    overlay = segment_overlay(box)
     assert overlay is not None
 
     chips = _overlay_pointer_regions(overlay)
@@ -586,4 +592,4 @@ def test_prompt_editor_real_widget_reorder_preview_still_wraps_in_narrow_card_wi
     QTest.keyRelease(box, Qt.Key.Key_Alt)
     process_events(app)
 
-    assert getattr(box, "_segment_overlay") is None
+    assert segment_overlay(box) is None

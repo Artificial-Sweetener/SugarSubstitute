@@ -162,7 +162,7 @@ def test_real_shell_scene_marker_typing_preserves_unmapped_source_caret(
     assert field.editor.toPlainText() == expected_text
     assert tuple(
         token.display_text
-        for token in field.editor._surface.projection_document().tokens  # noqa: SLF001
+        for token in field.editor._runtime.projection.surface.projection_document().tokens  # noqa: SLF001
         if token.kind.value == "scene"
     ) == ("Burst Scene", "Landscape")
 
@@ -310,4 +310,14 @@ def test_real_shell_scene_title_typing_keeps_every_character_visually_owned(
             snapshot.projection_document_source_text == snapshot.source_text
             or snapshot.transient_insertion_overlay_valid
         )
-        assert snapshot.caret_rect_intersects_viewport
+        assert snapshot.caret_rect_intersects_viewport, (
+            f"caret={snapshot.caret_rect}; viewport={snapshot.viewport_rect}; "
+            f"scroll={snapshot.scroll_values}; max={snapshot.vertical_scroll_maximum}; "
+            f"geometry={snapshot.geometries}; content={snapshot.layout_content_width}; "
+            f"text={snapshot.layout_text_width}; "
+            f"margin={snapshot.projection_metrics_document_margin}; "
+            f"lines={snapshot.layout_line_count}; "
+            f"transient={snapshot.transient_caret_geometry_present}/"
+            f"{snapshot.transient_caret_geometry_valid}; "
+            f"freshness={snapshot.projection_freshness}"
+        )

@@ -50,7 +50,11 @@ def test_context_menu_adds_checked_rich_rendering_action(
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
+    )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
 
     action = next(
@@ -71,6 +75,7 @@ def test_context_menu_adds_checked_rich_rendering_action(
     unchecked_menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         rich_prompt_rendering_enabled=False,
     )
     unchecked_menu.exec(editor.mapToGlobal(editor.rect().center()))
@@ -95,6 +100,7 @@ def test_context_menu_adds_disabled_diagnostic_explainer(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         diagnostic_actions=(
             PromptContextMenuAction(
                 label="Wildcard not found",
@@ -131,6 +137,7 @@ def test_context_menu_aligns_enabled_diagnostic_actions(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         diagnostic_actions=(
             PromptContextMenuAction(
                 label="teh",
@@ -166,6 +173,7 @@ def test_context_menu_rich_rendering_action_toggles_editor(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         rich_prompt_rendering_enabled=editor.richPromptRenderingEnabled(),
         toggle_rich_prompt_rendering=editor.setRichPromptRenderingEnabled,
     )
@@ -183,6 +191,7 @@ def test_context_menu_rich_rendering_action_toggles_editor(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         rich_prompt_rendering_enabled=editor.richPromptRenderingEnabled(),
         toggle_rich_prompt_rendering=editor.setRichPromptRenderingEnabled,
     )
@@ -212,6 +221,7 @@ def test_context_menu_rich_rendering_action_preserves_selection(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         rich_prompt_rendering_enabled=editor.richPromptRenderingEnabled(),
         toggle_rich_prompt_rendering=editor.setRichPromptRenderingEnabled,
     )

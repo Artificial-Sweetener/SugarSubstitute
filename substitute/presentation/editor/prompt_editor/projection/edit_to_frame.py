@@ -28,7 +28,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
     PromptProjectionDocument,
 )
 from .prepared_frame import PromptProjectionPreparedFrame
-from .tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 from ..layout.canonical_engine import (
     PromptCanonicalLayoutEngine,
     PromptLineReuseMismatchObserver,

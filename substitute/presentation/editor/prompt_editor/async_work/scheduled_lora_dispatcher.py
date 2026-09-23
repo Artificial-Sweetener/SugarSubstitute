@@ -308,12 +308,12 @@ class PromptScheduledLoraContextCoordinator:
         return self._prompt_context_token(self.cache_key_for_prompt(prompt_text))
 
     def pending_cache_keys(self) -> tuple[PromptScheduledLoraContextCacheKey, ...]:
-        """Return currently pending cache keys for tests and guardrails."""
+        """Return pending cache keys for lifecycle observability."""
 
         return tuple(self._pending_requests)
 
     def cached_cache_keys(self) -> tuple[PromptScheduledLoraContextCacheKey, ...]:
-        """Return cached keys in LRU order for tests and guardrails."""
+        """Return cached keys in LRU order for cache observability."""
 
         return tuple(self._context_cache)
 

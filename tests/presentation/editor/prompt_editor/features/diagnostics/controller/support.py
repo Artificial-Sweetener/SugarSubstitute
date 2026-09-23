@@ -451,6 +451,11 @@ class _FakeDebouncer:
         self.request_count += 1
         self._pending = callback
 
+    def request_soon(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Store one next-turn callback through the deterministic fake."""
+
+        self.request(callback, reason=reason)
+
     def flush(self, *, reason: str) -> bool:
         """Run and clear the latest pending callback."""
 

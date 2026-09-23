@@ -90,6 +90,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 cürrëntly hàs üncömmïttëd Cübë Lïbràry chàngës. ···⟧</translation>
     </message>
     <message>
+      <source>%1 downloaded beside your current file.</source>
+      <translation>⟦%1 döwnlöàdëd bësïdë yöür cürrënt fïlë. ···⟧</translation>
+    </message>
+    <message>
       <source>%1 extension claimants | %2 | summary: %3</source>
       <translation>⟦%1 ëxtënsïön clàïmànts | %2 | sümmàry: %3 ···⟧</translation>
     </message>
@@ -120,10 +124,6 @@ Prömpt prëvïëw:
     <message>
       <source>%1 model recommendation</source>
       <translation>⟦%1 mödël rëcömmëndàtïön ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 model update(s) downloaded beside your current files.</source>
-      <translation>⟦%1 mödël üpdàtë(s) döwnlöàdëd bësïdë yöür cürrënt fïlës. ···⟧</translation>
     </message>
     <message>
       <source>%1 models added</source>
@@ -162,6 +162,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 sàvëd sëtüp ïtëms nëëd rëpàïr bëförë Sübstïtütë càn öpën. ···⟧</translation>
     </message>
     <message>
+      <source>%1 selected models need a CivitAI API key</source>
+      <translation>⟦%1 sëlëctëd mödëls nëëd à CïvïtÅÏ ÅPÏ këy ···⟧</translation>
+    </message>
+    <message>
       <source>%1 wildcard</source>
       <translation>⟦%1 wïldcàrd ···⟧</translation>
     </message>
@@ -194,16 +198,16 @@ Prömpt prëvïëw:
       <translation>⟦%1 · %2 · Üpdàtë àvàïlàblë ···⟧</translation>
     </message>
     <message>
-      <source>%1 · by %2 · %3 GiB</source>
-      <translation>⟦%1 · by %2 · %3 GïB ···⟧</translation>
+      <source>%1 · %2 · oldest to newest</source>
+      <translation>⟦%1 · %2 · öldëst tö nëwëst ···⟧</translation>
+    </message>
+    <message>
+      <source>%1 · by %2 · %3 GiB · %4</source>
+      <translation>⟦%1 · by %2 · %3 GïB · %4 ···⟧</translation>
     </message>
     <message>
       <source>%1 • %2</source>
       <translation>⟦%1 • %2 ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 → %2 · %3 · %4</source>
-      <translation>⟦%1 → %2 · %3 · %4 ···⟧</translation>
     </message>
     <message>
       <source>%1% complete</source>
@@ -212,6 +216,10 @@ Prömpt prëvïëw:
     <message>
       <source>%1%2</source>
       <translation>⟦%1%2 ···⟧</translation>
+    </message>
+    <message>
+      <source>%1, version %2</source>
+      <translation>⟦%1, vërsïön %2 ···⟧</translation>
     </message>
     <message>
       <source>%1. %2</source>
@@ -382,6 +390,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Ådd ···⟧</translation>
     </message>
     <message>
+      <source>Add %1 key</source>
+      <translation>⟦Ådd %1 këy ···⟧</translation>
+    </message>
+    <message>
       <source>Add %1 models</source>
       <translation>⟦Ådd %1 mödëls ···⟧</translation>
     </message>
@@ -426,12 +438,12 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Ådd tö dïctïönàry ···⟧</translation>
     </message>
     <message>
-      <source>Add your CivitAI API key.</source>
-      <translation>⟦Ådd yöür CïvïtÅÏ ÅPÏ këy. ···⟧</translation>
+      <source>Add upscalers by link</source>
+      <translation>⟦Ådd üpscàlërs by lïnk ···⟧</translation>
     </message>
     <message>
-      <source>Add your key to download this model. The key is stored securely and can be changed later in Settings.</source>
-      <translation>⟦Ådd yöür këy tö döwnlöàd thïs mödël. Thë këy ïs störëd sëcürëly ànd càn bë chàngëd làtër ïn Sëttïngs. ···⟧</translation>
+      <source>Add your CivitAI API key.</source>
+      <translation>⟦Ådd yöür CïvïtÅÏ ÅPÏ këy. ···⟧</translation>
     </message>
     <message>
       <source>Adding uninstall to planned changes.</source>
@@ -646,6 +658,14 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Bröwsë Fïlës ···⟧</translation>
     </message>
     <message>
+      <source>Browse OpenModelDB</source>
+      <translation>⟦Bröwsë ÖpënMödëlDB ···⟧</translation>
+    </message>
+    <message>
+      <source>Browse OpenModelDB or CivitAI, then paste upscaler model links below. We'll check each file before adding it.</source>
+      <translation>⟦Bröwsë ÖpënMödëlDB ör CïvïtÅÏ, thën pàstë üpscàlër mödël lïnks bëlöw. Wë'll chëck ëàch fïlë bëförë àddïng ït. ···⟧</translation>
+    </message>
+    <message>
       <source>Browse for Python executable…</source>
       <translation>⟦Bröwsë för Pythön ëxëcütàblë… ···⟧</translation>
     </message>
@@ -716,6 +736,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Cancelling the model download.</source>
       <translation>⟦Càncëllïng thë mödël döwnlöàd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Capture Cube</source>
+      <translation>⟦Càptürë Cübë ···⟧</translation>
     </message>
     <message>
       <source>Change canvas resolution</source>
@@ -870,14 +894,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Chöösë à földër ···⟧</translation>
     </message>
     <message>
-      <source>Choose a model to download and use in this picker.</source>
-      <translation>⟦Chöösë à mödël tö döwnlöàd ànd üsë ïn thïs pïckër. ···⟧</translation>
-    </message>
-    <message>
-      <source>Choose a model to download, explore CivitAI, or bring your own.</source>
-      <translation>⟦Chöösë à mödël tö döwnlöàd, ëxplörë CïvïtÅÏ, ör brïng yöür öwn. ···⟧</translation>
-    </message>
-    <message>
       <source>Choose a models folder before reviewing downloads.</source>
       <translation>⟦Chöösë à mödëls földër bëförë rëvïëwïng döwnlöàds. ···⟧</translation>
     </message>
@@ -972,6 +988,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose models</source>
       <translation>⟦Chöösë mödëls ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose models to download, explore the provider catalog, or bring your own.</source>
+      <translation>⟦Chöösë mödëls tö döwnlöàd, ëxplörë thë prövïdër càtàlög, ör brïng yöür öwn. ···⟧</translation>
     </message>
     <message>
       <source>Choose output folder</source>
@@ -1130,10 +1150,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦CïvïtÅÏ dïd nöt rëtürn à màtch; ëxïstïng mëtàdàtà wàs këpt. ···⟧</translation>
     </message>
     <message>
-      <source>CivitAI did not return enough safe previews. You can still browse CivitAI or bring your own model.</source>
-      <translation>⟦CïvïtÅÏ dïd nöt rëtürn ënöügh sàfë prëvïëws. Yöü càn stïll bröwsë CïvïtÅÏ ör brïng yöür öwn mödël. ···⟧</translation>
-    </message>
-    <message>
       <source>CivitAI download organization settings saved.</source>
       <translation>⟦CïvïtÅÏ döwnlöàd örgànïzàtïön sëttïngs sàvëd. ···⟧</translation>
     </message>
@@ -1160,14 +1176,6 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>CivitAI metadata refreshed.</source>
       <translation>⟦CïvïtÅÏ mëtàdàtà rëfrëshëd. ···⟧</translation>
-    </message>
-    <message>
-      <source>CivitAI recommendations could not be loaded. Try again or go back.</source>
-      <translation>⟦CïvïtÅÏ rëcömmëndàtïöns cöüld nöt bë löàdëd. Try àgàïn ör gö bàck. ···⟧</translation>
-    </message>
-    <message>
-      <source>CivitAI returned no usable recommendations.</source>
-      <translation>⟦CïvïtÅÏ rëtürnëd nö üsàblë rëcömmëndàtïöns. ···⟧</translation>
     </message>
     <message>
       <source>CivitAI returned unusable metadata; existing metadata was kept.</source>
@@ -1734,6 +1742,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cöüld nöt àdd %1. ···⟧</translation>
     </message>
     <message>
+      <source>Could not check this model link right now</source>
+      <translation>⟦Cöüld nöt chëck thïs mödël lïnk rïght nöw ···⟧</translation>
+    </message>
+    <message>
       <source>Could not install required Cube Library nodes.</source>
       <translation>⟦Cöüld nöt ïnstàll rëqüïrëd Cübë Lïbràry nödës. ···⟧</translation>
     </message>
@@ -1898,6 +1910,10 @@ Install these nodes now?</source>
 Ïnstàll thësë nödës nöw? ···⟧</translation>
     </message>
     <message>
+      <source>Curated restoration and enlargement models from OpenModelDB.</source>
+      <translation>⟦Cüràtëd rëstöràtïön ànd ënlàrgëmënt mödëls fröm ÖpënMödëlDB. ···⟧</translation>
+    </message>
+    <message>
       <source>Current image</source>
       <translation>⟦Cürrënt ïmàgë ···⟧</translation>
     </message>
@@ -2054,12 +2070,20 @@ Install these nodes now?</source>
       <translation>⟦Dïscàrd chàngës ···⟧</translation>
     </message>
     <message>
+      <source>Dismiss</source>
+      <translation>⟦Dïsmïss ···⟧</translation>
+    </message>
+    <message>
       <source>Do you have an existing models folder?</source>
       <translation>⟦Dö yöü hàvë àn ëxïstïng mödëls földër? ···⟧</translation>
     </message>
     <message>
       <source>Don't Save</source>
       <translation>⟦Dön't Sàvë ···⟧</translation>
+    </message>
+    <message>
+      <source>Don't check for updates for %1</source>
+      <translation>⟦Dön't chëck för üpdàtës för %1 ···⟧</translation>
     </message>
     <message>
       <source>Don't save outputs</source>
@@ -2078,12 +2102,28 @@ Install these nodes now?</source>
       <translation>⟦Döwnlöàd CïvïtÅÏ thümbnàïls ···⟧</translation>
     </message>
     <message>
+      <source>Download a model?</source>
+      <translation>⟦Döwnlöàd à mödël? ···⟧</translation>
+    </message>
+    <message>
+      <source>Download an image model?</source>
+      <translation>⟦Döwnlöàd àn ïmàgë mödël? ···⟧</translation>
+    </message>
+    <message>
+      <source>Download an upscaler model?</source>
+      <translation>⟦Döwnlöàd àn üpscàlër mödël? ···⟧</translation>
+    </message>
+    <message>
       <source>Download and use</source>
       <translation>⟦Döwnlöàd ànd üsë ···⟧</translation>
     </message>
     <message>
       <source>Download failed.</source>
       <translation>⟦Döwnlöàd fàïlëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Download from %1</source>
+      <translation>⟦Döwnlöàd fröm %1 ···⟧</translation>
     </message>
     <message>
       <source>Download organization</source>
@@ -2098,8 +2138,8 @@ Install these nodes now?</source>
       <translation>⟦Döwnlöàd prövïdër ïmàgës för mödël pïckër thümbnàïls. ···⟧</translation>
     </message>
     <message>
-      <source>Download selected</source>
-      <translation>⟦Döwnlöàd sëlëctëd ···⟧</translation>
+      <source>Download version</source>
+      <translation>⟦Döwnlöàd vërsïön ···⟧</translation>
     </message>
     <message>
       <source>Downloading %1</source>
@@ -2152,6 +2192,10 @@ Install these nodes now?</source>
     <message>
       <source>Duplicate segment warnings</source>
       <translation>⟦Düplïcàtë sëgmënt wàrnïngs ···⟧</translation>
+    </message>
+    <message>
+      <source>ESRGAN upscalers</source>
+      <translation>⟦ËSRGÅN üpscàlërs ···⟧</translation>
     </message>
     <message>
       <source>Edit Color</source>
@@ -2390,10 +2434,6 @@ Install these nodes now?</source>
       <translation>⟦Fïnd CömfyÜÏ's ënvïrönmënt ···⟧</translation>
     </message>
     <message>
-      <source>Find a model</source>
-      <translation>⟦Fïnd à mödël ···⟧</translation>
-    </message>
-    <message>
       <source>Find models</source>
       <translation>⟦Fïnd mödëls ···⟧</translation>
     </message>
@@ -2578,6 +2618,10 @@ Install these nodes now?</source>
       <translation>⟦Gö bàck tö My Cürrënt CömfyÜÏ. ···⟧</translation>
     </message>
     <message>
+      <source>Go to %1 page</source>
+      <translation>⟦Gö tö %1 pàgë ···⟧</translation>
+    </message>
+    <message>
       <source>Go to CivitAI page</source>
       <translation>⟦Gö tö CïvïtÅÏ pàgë ···⟧</translation>
     </message>
@@ -2714,12 +2758,20 @@ Install these nodes now?</source>
       <translation>⟦Ïmàgë %1 ···⟧</translation>
     </message>
     <message>
+      <source>Image models create new images from your prompts.</source>
+      <translation>⟦Ïmàgë mödëls crëàtë nëw ïmàgës fröm yöür prömpts. ···⟧</translation>
+    </message>
+    <message>
       <source>Images (*.png *.jpg *.jpeg *.bmp *.gif)</source>
       <translation>⟦Ïmàgës (*.png *.jpg *.jpëg *.bmp *.gïf) ···⟧</translation>
     </message>
     <message>
       <source>Impact: %1</source>
       <translation>⟦Ïmpàct: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>In use</source>
+      <translation>⟦Ïn üsë ···⟧</translation>
     </message>
     <message>
       <source>Incident count: %1</source>
@@ -2812,6 +2864,10 @@ Install these nodes now?</source>
     <message>
       <source>Invalid CivitAI model link</source>
       <translation>⟦Ïnvàlïd CïvïtÅÏ mödël lïnk ···⟧</translation>
+    </message>
+    <message>
+      <source>Invalid OpenModelDB or CivitAI model link</source>
+      <translation>⟦Ïnvàlïd ÖpënMödëlDB ör CïvïtÅÏ mödël lïnk ···⟧</translation>
     </message>
     <message>
       <source>Invalid backslash escape in the extension's Python code.</source>
@@ -3028,6 +3084,10 @@ Install these nodes now?</source>
     <message>
       <source>Loading definition</source>
       <translation>⟦Löàdïng dëfïnïtïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Loading model versions…</source>
+      <translation>⟦Löàdïng mödël vërsïöns… ···⟧</translation>
     </message>
     <message>
       <source>Loading preview…</source>
@@ -3278,6 +3338,10 @@ Install these nodes now?</source>
       <translation>⟦Mödël rëcömmëndàtïöns àrë ünàvàïlàblë ïn thïs sëtüp rün. ···⟧</translation>
     </message>
     <message>
+      <source>Model recommendations could not be loaded. Try again or go back.</source>
+      <translation>⟦Mödël rëcömmëndàtïöns cöüld nöt bë löàdëd. Try àgàïn ör gö bàck. ···⟧</translation>
+    </message>
+    <message>
       <source>Model update operation failed: %1</source>
       <translation>⟦Mödël üpdàtë öpëràtïön fàïlëd: %1 ···⟧</translation>
     </message>
@@ -3290,16 +3354,16 @@ Install these nodes now?</source>
       <translation>⟦Mödël üpdàtës ···⟧</translation>
     </message>
     <message>
-      <source>Model updates are available, but this ComfyUI target has no local download destination.</source>
-      <translation>⟦Mödël üpdàtës àrë àvàïlàblë, büt thïs CömfyÜÏ tàrgët hàs nö löcàl döwnlöàd dëstïnàtïön. ···⟧</translation>
-    </message>
-    <message>
       <source>Model: %1</source>
       <translation>⟦Mödël: %1 ···⟧</translation>
     </message>
     <message>
       <source>Models</source>
       <translation>⟦Mödëls ···⟧</translation>
+    </message>
+    <message>
+      <source>Models add new ways to create and edit images.</source>
+      <translation>⟦Mödëls àdd nëw wàys tö crëàtë ànd ëdït ïmàgës. ···⟧</translation>
     </message>
     <message>
       <source>Models folder</source>
@@ -3378,10 +3442,6 @@ Install these nodes now?</source>
       <translation>⟦Nëw cüstöm lïst ···⟧</translation>
     </message>
     <message>
-      <source>New file destination: %1</source>
-      <translation>⟦Nëw fïlë dëstïnàtïön: %1 ···⟧</translation>
-    </message>
-    <message>
       <source>New size</source>
       <translation>⟦Nëw sïzë ···⟧</translation>
     </message>
@@ -3422,12 +3482,16 @@ Install these nodes now?</source>
       <translation>⟦Nö chàngës plànnëd. ···⟧</translation>
     </message>
     <message>
-      <source>No compatible model suggestions are available right now.</source>
-      <translation>⟦Nö cömpàtïblë mödël süggëstïöns àrë àvàïlàblë rïght nöw. ···⟧</translation>
+      <source>No compatible models are available right now.</source>
+      <translation>⟦Nö cömpàtïblë mödëls àrë àvàïlàblë rïght nöw. ···⟧</translation>
     </message>
     <message>
       <source>No compatible operating-system credential store is available.</source>
       <translation>⟦Nö cömpàtïblë öpëràtïng-systëm crëdëntïàl störë ïs àvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
+      <source>No compatible versions are available.</source>
+      <translation>⟦Nö cömpàtïblë vërsïöns àrë àvàïlàblë. ···⟧</translation>
     </message>
     <message>
       <source>No cubes available</source>
@@ -3476,6 +3540,10 @@ Install these nodes now?</source>
     <message>
       <source>No model downloads were selected.</source>
       <translation>⟦Nö mödël döwnlöàds wërë sëlëctëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>No models that can be downloaded without a key are available right now.</source>
+      <translation>⟦Nö mödëls thàt càn bë döwnlöàdëd wïthöüt à këy àrë àvàïlàblë rïght nöw. ···⟧</translation>
     </message>
     <message>
       <source>No node-specific validation errors were reported.</source>
@@ -3620,6 +3688,10 @@ I’ll bring my own</source>
       <translation>⟦Ön Pïxïv: ···⟧</translation>
     </message>
     <message>
+      <source>On disk</source>
+      <translation>⟦Ön dïsk ···⟧</translation>
+    </message>
+    <message>
       <source>Opacity</source>
       <translation>⟦Öpàcïty ···⟧</translation>
     </message>
@@ -3638,6 +3710,10 @@ I’ll bring my own</source>
     <message>
       <source>Open CivitAI Settings</source>
       <translation>⟦Öpën CïvïtÅÏ Sëttïngs ···⟧</translation>
+    </message>
+    <message>
+      <source>Open CivitAI account settings</source>
+      <translation>⟦Öpën CïvïtÅÏ àccöünt sëttïngs ···⟧</translation>
     </message>
     <message>
       <source>Open CivitAI page</source>
@@ -3804,12 +3880,20 @@ I’ll bring my own</source>
       <translation>⟦Pàstë àt lëàst önë CïvïtÅÏ mödël lïnk. ···⟧</translation>
     </message>
     <message>
+      <source>Paste at least one model link.</source>
+      <translation>⟦Pàstë àt lëàst önë mödël lïnk. ···⟧</translation>
+    </message>
+    <message>
       <source>Paste links above to preview compatible models.</source>
       <translation>⟦Pàstë lïnks àbövë tö prëvïëw cömpàtïblë mödëls. ···⟧</translation>
     </message>
     <message>
       <source>Paste one CivitAI model or version link per line</source>
       <translation>⟦Pàstë önë CïvïtÅÏ mödël ör vërsïön lïnk për lïnë ···⟧</translation>
+    </message>
+    <message>
+      <source>Paste one OpenModelDB or CivitAI model link per line</source>
+      <translation>⟦Pàstë önë ÖpënMödëlDB ör CïvïtÅÏ mödël lïnk për lïnë ···⟧</translation>
     </message>
     <message>
       <source>Paste supported Danbooru post or image URLs as prompt tags.</source>
@@ -4180,6 +4264,10 @@ I’ll bring my own</source>
       <translation>⟦Rëàsön: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Recommended upscalers</source>
+      <translation>⟦Rëcömmëndëd üpscàlërs ···⟧</translation>
+    </message>
+    <message>
       <source>Reconfigure</source>
       <translation>⟦Rëcönfïgürë ···⟧</translation>
     </message>
@@ -4536,6 +4624,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëvïëw ör àdd mörë CïvïtÅÏ lïnks. ···⟧</translation>
     </message>
     <message>
+      <source>Review or add more model links.</source>
+      <translation>⟦Rëvïëw ör àdd mörë mödël lïnks. ···⟧</translation>
+    </message>
+    <message>
       <source>Review the SugarCubes diagnostic details and repair the listed cube pack or dependency when convenient.</source>
       <translation>⟦Rëvïëw thë SügàrCübës dïàgnöstïc dëtàïls ànd rëpàïr thë lïstëd cübë pàck ör dëpëndëncy whën cönvënïënt. ···⟧</translation>
     </message>
@@ -4780,8 +4872,8 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Scànnïng CömfyÜÏ mödëls ànd àssëts. ···⟧</translation>
     </message>
     <message>
-      <source>Scanning for SDXL and Anima…</source>
-      <translation>⟦Scànnïng för SDXL ànd Ånïmà… ···⟧</translation>
+      <source>Scanning for generation models and upscalers…</source>
+      <translation>⟦Scànnïng för gënëràtïön mödëls ànd üpscàlërs… ···⟧</translation>
     </message>
     <message>
       <source>Scanning…</source>
@@ -5020,6 +5112,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Shöw àdvàncëd ïnpüts ···⟧</translation>
     </message>
     <message>
+      <source>Show all models</source>
+      <translation>⟦Shöw àll mödëls ···⟧</translation>
+    </message>
+    <message>
       <source>Show all settings</source>
       <translation>⟦Shöw àll sëttïngs ···⟧</translation>
     </message>
@@ -5038,6 +5134,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Show images in wiki viewer</source>
       <translation>⟦Shöw ïmàgës ïn wïkï vïëwër ···⟧</translation>
+    </message>
+    <message>
+      <source>Show models that don't require a key</source>
+      <translation>⟦Shöw mödëls thàt dön't rëqüïrë à këy ···⟧</translation>
     </message>
     <message>
       <source>Show report</source>
@@ -5088,6 +5188,12 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Shütdöwn tïmëd öüt bëförë clëànüp cöüld fïnïsh. ···⟧</translation>
     </message>
     <message>
+      <source>Sign in to CivitAI or create an account.
+Then create an API key in Account Settings and paste it here.</source>
+      <translation>⟦Sïgn ïn tö CïvïtÅÏ ör crëàtë àn àccöünt.
+Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë. ···⟧</translation>
+    </message>
+    <message>
       <source>Size</source>
       <translation>⟦Sïzë ···⟧</translation>
     </message>
@@ -5114,6 +5220,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Some built-in or API nodes may be unavailable in ComfyUI.</source>
       <translation>⟦Sömë büïlt-ïn ör ÅPÏ nödës mày bë ünàvàïlàblë ïn CömfyÜÏ. ···⟧</translation>
+    </message>
+    <message>
+      <source>Some previews are unavailable. You can still browse the provider catalog or bring your own model.</source>
+      <translation>⟦Sömë prëvïëws àrë ünàvàïlàblë. Yöü càn stïll bröwsë thë prövïdër càtàlög ör brïng yöür öwn mödël. ···⟧</translation>
     </message>
     <message>
       <source>Some required connection details are missing or no longer valid.</source>
@@ -5902,12 +6012,12 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë mödël döwnlöàd fàïlëd. ···⟧</translation>
     </message>
     <message>
-      <source>The model download service is unavailable for this target.</source>
-      <translation>⟦Thë mödël döwnlöàd sërvïcë ïs ünàvàïlàblë för thïs tàrgët. ···⟧</translation>
-    </message>
-    <message>
       <source>The model has finished downloading.</source>
       <translation>⟦Thë mödël hàs fïnïshëd döwnlöàdïng. ···⟧</translation>
+    </message>
+    <message>
+      <source>The model providers returned no usable recommendations.</source>
+      <translation>⟦Thë mödël prövïdërs rëtürnëd nö üsàblë rëcömmëndàtïöns. ···⟧</translation>
     </message>
     <message>
       <source>The models folder could not be fully scanned. Try again or choose No.</source>
@@ -6066,10 +6176,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thësë chàngës wïll àpply àftër rëstàrt. ···⟧</translation>
     </message>
     <message>
-      <source>These popular models are compatible with this picker. Nothing downloads until you choose one.</source>
-      <translation>⟦Thësë pöpülàr mödëls àrë cömpàtïblë wïth thïs pïckër. Nöthïng döwnlöàds üntïl yöü chöösë önë. ···⟧</translation>
-    </message>
-    <message>
       <source>This CivitAI model needs an API key</source>
       <translation>⟦Thïs CïvïtÅÏ mödël nëëds àn ÅPÏ këy ···⟧</translation>
     </message>
@@ -6102,8 +6208,8 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thïs mödël ïs nöt cömpàtïblë wïth thë cürrënt fàmïly ···⟧</translation>
     </message>
     <message>
-      <source>This model requires a CivitAI API key</source>
-      <translation>⟦Thïs mödël rëqüïrës à CïvïtÅÏ ÅPÏ këy ···⟧</translation>
+      <source>This model needs a CivitAI API key</source>
+      <translation>⟦Thïs mödël nëëds à CïvïtÅÏ ÅPÏ këy ···⟧</translation>
     </message>
     <message>
       <source>This screen updates as soon as the matching ComfyUI process appears.</source>
@@ -6266,16 +6372,8 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Ünknöwn ···⟧</translation>
     </message>
     <message>
-      <source>Unknown base model</source>
-      <translation>⟦Ünknöwn bàsë mödël ···⟧</translation>
-    </message>
-    <message>
       <source>Unknown source</source>
       <translation>⟦Ünknöwn söürcë ···⟧</translation>
-    </message>
-    <message>
-      <source>Unknown version</source>
-      <translation>⟦Ünknöwn vërsïön ···⟧</translation>
     </message>
     <message>
       <source>Unsaved work</source>
@@ -6314,6 +6412,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üpdàtë àvàïlàblë ···⟧</translation>
     </message>
     <message>
+      <source>Update available — view versions</source>
+      <translation>⟦Üpdàtë àvàïlàblë — vïëw vërsïöns ···⟧</translation>
+    </message>
+    <message>
       <source>Update failed</source>
       <translation>⟦Üpdàtë fàïlëd ···⟧</translation>
     </message>
@@ -6340,14 +6442,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Updated versions are available for loaded cubes.</source>
       <translation>⟦Üpdàtëd vërsïöns àrë àvàïlàblë för löàdëd cübës. ···⟧</translation>
-    </message>
-    <message>
-      <source>Updates are available for models you use</source>
-      <translation>⟦Üpdàtës àrë àvàïlàblë för mödëls yöü üsë ···⟧</translation>
-    </message>
-    <message>
-      <source>Updates are optional. Downloaded versions are added beside your current files, and existing workflows keep using their current model.</source>
-      <translation>⟦Üpdàtës àrë öptïönàl. Döwnlöàdëd vërsïöns àrë àddëd bësïdë yöür cürrënt fïlës, ànd ëxïstïng wörkflöws këëp üsïng thëïr cürrënt mödël. ···⟧</translation>
     </message>
     <message>
       <source>Updating</source>
@@ -6392,6 +6486,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Upscaler</source>
       <translation>⟦Üpscàlër ···⟧</translation>
+    </message>
+    <message>
+      <source>Upscalers</source>
+      <translation>⟦Üpscàlërs ···⟧</translation>
+    </message>
+    <message>
+      <source>Upscalers enlarge existing images and refine details.</source>
+      <translation>⟦Üpscàlërs ënlàrgë ëxïstïng ïmàgës ànd rëfïnë dëtàïls. ···⟧</translation>
     </message>
     <message>
       <source>Use Browse beside Python executable and choose the Python ComfyUI actually uses.</source>
@@ -6546,6 +6648,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Vërsïön: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Versions of %1</source>
+      <translation>⟦Vërsïöns öf %1 ···⟧</translation>
+    </message>
+    <message>
       <source>View %1 on %2</source>
       <translation>⟦Vïëw %1 ön %2 ···⟧</translation>
     </message>
@@ -6556,6 +6662,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>View ComfyUI startup diagnostics</source>
       <translation>⟦Vïëw CömfyÜÏ stàrtüp dïàgnöstïcs ···⟧</translation>
+    </message>
+    <message>
+      <source>View model updates</source>
+      <translation>⟦Vïëw mödël üpdàtës ···⟧</translation>
     </message>
     <message>
       <source>View on CivitAI</source>

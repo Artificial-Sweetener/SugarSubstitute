@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 from PySide6.QtGui import QTextCursor
@@ -31,8 +32,12 @@ from substitute.devtools.prompt_editor_performance.metrics import (
     Instrumentation,
     ScenarioResult,
 )
+from substitute.devtools.prompt_editor_performance.qt_app import (
+    prompt_performance_application,
+)
 from substitute.devtools.prompt_editor_performance.scenarios import (
     ALL_PROMPT_EDITOR_FEATURES,
+    DANBOORU_IMPORT_URL,
     Scenario,
 )
 from substitute.presentation.editor.prompt_editor import PromptEditor
@@ -109,7 +114,14 @@ class _MeasurementEditorDouble:
         """Initialize projection and semantic setup records."""
 
         self.projection_flush_reasons: list[str] = []
-        self._interaction_controller = _InteractionControllerDouble()
+        interaction_controller = _InteractionControllerDouble()
+        self._runtime = SimpleNamespace(
+            core=SimpleNamespace(
+                syntax=SimpleNamespace(
+                    interaction_controller=interaction_controller,
+                )
+            )
+        )
 
     def flush_pending_projection_update(self, *, reason: str) -> None:
         """Record one projection-owner flush."""
@@ -261,8 +273,47 @@ def test_settle_prompt_editor_publishes_setup_before_measurement(
     )
 
     assert editor.projection_flush_reasons == ["performance_setup"]
-    assert editor._interaction_controller.flush_reasons == ["performance_setup"]
+    assert editor._runtime.core.syntax.interaction_controller.flush_reasons == [
+        "performance_setup"
+    ]
     assert processed_apps == [app]
+
+
+def test_context_menu_scenario_uses_the_mounted_menu_owner() -> None:
+    """Exercise context-menu timing through the production-mounted runtime."""
+
+    result = runner.run_scenario(
+        prompt_performance_application(),
+        Scenario(
+            "context-menu-mounted-owner",
+            "alpha, beta",
+            operation="context_menu",
+            cursor_position=2,
+        ),
+        observe_owner_work=False,
+    )
+
+    assert result.operations == 1
+    assert result.max_ms >= 0.0
+
+
+def test_danbooru_paste_scenario_uses_the_mounted_projection_owner() -> None:
+    """Exercise paste-import timing through the production-mounted runtime."""
+
+    result = runner.run_scenario(
+        prompt_performance_application(),
+        Scenario(
+            "danbooru-paste-mounted-owner",
+            "alpha, beta",
+            operation="paste_import",
+            clipboard_text=DANBOORU_IMPORT_URL,
+            danbooru_import_enabled=True,
+        ),
+        observe_owner_work=False,
+    )
+
+    assert result.operations == 1
+    assert result.max_ms >= 0.0
 
 
 def _imported_module_names(tree: ast.AST) -> set[str]:

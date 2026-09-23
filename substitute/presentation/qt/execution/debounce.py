@@ -53,6 +53,7 @@ class QtDebouncer(QObject):
         _require_non_negative(interval_ms, field_name="interval_ms")
         self._owner_thread = QThread.currentThread()
         self._destroyed = False
+        self._interval_ms = interval_ms
         self._pending: _PendingDebounceCallback | None = None
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -76,7 +77,17 @@ class QtDebouncer(QObject):
         if not self._timer_is_operational():
             self._pending = None
             return
-        self._timer.start()
+        self._timer.start(self._interval_ms)
+
+    def request_soon(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Schedule the latest callback for the next Qt event-loop turn."""
+
+        self._ensure_owner_thread()
+        self._pending = _PendingDebounceCallback(callback=callback, reason=reason)
+        if not self._timer_is_operational():
+            self._pending = None
+            return
+        self._timer.start(0)
 
     def flush(self, *, reason: str) -> bool:
         """Run the latest pending callback immediately."""

@@ -20,9 +20,7 @@ from __future__ import annotations
 
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
-from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutation,
-)
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from tests.support.prompt_editor.autocomplete_support import prompt_syntax_profile
 from tests.presentation.editor.prompt_editor.interactions.support.collaborators import (
     syntax_renderer_double,

@@ -51,7 +51,7 @@ def wait_for_diagnostic_layer(
 ) -> None:
     """Wait for diagnostic publication and bounded fragment warming to finish."""
 
-    owner = cast(Any, surface)._diagnostic_layer_owner
+    owner = surface.diagnostics
 
     def layer_is_ready() -> bool:
         """Return whether publication and its warming lifecycle are complete."""
@@ -135,7 +135,7 @@ def _diagnostic_fragments(
     assert layout_identity is not None
     return cast(
         tuple[QRectF, ...],
-        prompt_surface._diagnostic_layer_owner.fragments(
+        prompt_surface.diagnostics.fragments(
             diagnostic,
             geometry=prompt_surface._layout.frame.geometry,
             viewport_rect=viewport_rect,

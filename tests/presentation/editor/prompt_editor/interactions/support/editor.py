@@ -147,6 +147,8 @@ class ControllerEditorDouble:
         self.clear_reorder_preview_state_calls = 0
         self.autocomplete_preview_state_calls: list[object | None] = []
         self.has_pending_projection_update_result = False
+        self.requires_immediate_semantic_refresh_result = False
+        self.requires_semantic_refresh_before_boundary_result = False
         self.flush_pending_projection_update_calls: list[str] = []
         self._reorder_preview_state: object | None = None
         self.clear_emphasis_adjustment_session_calls = 0
@@ -262,6 +264,16 @@ class ControllerEditorDouble:
         """Return whether a projection update is pending."""
 
         return self.has_pending_projection_update_result
+
+    def requires_immediate_semantic_refresh(self) -> bool:
+        """Return whether the latest source edit needs synchronous semantics."""
+
+        return self.requires_immediate_semantic_refresh_result
+
+    def requires_semantic_refresh_before_boundary(self) -> bool:
+        """Return whether the latest source edit can change syntax."""
+
+        return self.requires_semantic_refresh_before_boundary_result
 
     def flush_pending_projection_update(self, *, reason: str) -> None:
         """Record pending projection flushes."""

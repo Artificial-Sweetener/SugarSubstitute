@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 
 from substitute.application.prompt_editor.diagnostics.models import (
@@ -38,7 +39,7 @@ from substitute.application.prompt_editor.document.views import (
 from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptEmphasisRendererView,
     PromptLoraRendererSpanView,
     PromptLoraRendererView,
@@ -294,6 +295,43 @@ def test_semantic_remapper_drops_intersecting_semantic_ranges() -> None:
     next_document_view, _next_render_plan = result
     assert next_document_view.segments == ()
     assert next_document_view.emphasis_spans == document_view.emphasis_spans
+
+
+def test_semantic_remapper_drops_outer_span_without_duplicating_nested_prefix() -> None:
+    """An edit after a child invalidates its parent but leaves the child in place."""
+
+    previous_text = "a" * 90
+    next_text = previous_text[:31] + " " + previous_text[31:]
+    document_view, render_plan = _prompt_state(previous_text)
+    outer = replace(_emphasis(), outer_start=10, outer_end=40)
+    inner = replace(_emphasis(), outer_start=20, outer_end=30, depth=2)
+    document_view = replace(document_view, emphasis_spans=(outer, inner))
+    renderer = render_plan.renderer_view_for_kind("emphasis")
+    assert isinstance(renderer, PromptEmphasisRendererView)
+    render_plan = replace(
+        render_plan,
+        renderer_views=tuple(
+            replace(view, emphasis_spans=(outer, inner)) if view is renderer else view
+            for view in render_plan.renderer_views
+        ),
+    )
+
+    result = PromptProjectionSemanticRemapper().optimistic_prompt_state_for_edit(
+        current_document_view=document_view,
+        current_render_plan=render_plan,
+        previous_text=previous_text,
+        next_text=next_text,
+        start=31,
+        end=31,
+        replacement_text=" ",
+    )
+
+    assert result is not None
+    next_document_view, next_render_plan = result
+    assert next_document_view.emphasis_spans == (inner,)
+    next_renderer = next_render_plan.renderer_view_for_kind("emphasis")
+    assert isinstance(next_renderer, PromptEmphasisRendererView)
+    assert next_renderer.emphasis_spans == (inner,)
 
 
 def test_semantic_remapper_preserves_insertion_at_range_boundaries() -> None:

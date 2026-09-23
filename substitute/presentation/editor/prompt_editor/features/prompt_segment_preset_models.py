@@ -22,7 +22,7 @@ from collections.abc import Callable, Hashable
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from substitute.presentation.editor.prompt_editor.features.catalog_snapshots import (
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,

@@ -148,3 +148,37 @@ def test_projection_builder_can_project_transient_neutral_emphasis_without_sourc
     assert token.display_text == "cat"
     assert token.value_text == "1.00"
     assert token.content_range == (0, 3)
+
+
+def test_real_weight_supersedes_stale_neutral_preview_after_wheel_step() -> None:
+    """Publish one real token when a prior neutral preview still overlaps it."""
+
+    session = PromptProjectionSession()
+    session.set_transient_neutral_emphasis(
+        content_start=0,
+        content_end=3,
+        owner=PromptTransientNeutralEmphasisOwner.OVERLAY,
+    )
+
+    projection = _build_projection("(cat:0.95)", session=session)
+
+    assert len(projection.tokens) == 1
+    assert projection.tokens[0].synthetic is False
+    assert projection.tokens[0].value_text == "0.95"
+
+
+def test_neutral_preview_inside_real_emphasis_remains_nested() -> None:
+    """Keep a deliberate neutral inner preview inside a weighted phrase."""
+
+    session = PromptProjectionSession()
+    session.set_transient_neutral_emphasis(
+        content_start=1,
+        content_end=4,
+        owner=PromptTransientNeutralEmphasisOwner.OVERLAY,
+    )
+
+    projection = _build_projection("(cat dog:1.15)", session=session)
+
+    assert [token.value_text for token in projection.tokens] == ["1.15", "1.00"]
+    assert projection.tokens[0].synthetic is False
+    assert projection.tokens[1].synthetic is True

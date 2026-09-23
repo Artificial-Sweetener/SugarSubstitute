@@ -26,7 +26,7 @@ from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.editing.source_buffer import (
@@ -38,10 +38,13 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 from substitute.presentation.editor.prompt_editor.projection.freshness_controller import (
     PromptProjectionFreshnessBlockers,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_state_owner import (
+    PromptProjectionCaretStateOwner,
+)
 from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
     PromptLayoutEditToFrameCoordinator,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
@@ -51,9 +54,7 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
     PromptProjectionDisplayMode,
 )
 from substitute.presentation.editor.prompt_editor.projection.transient_edit_overlays import (
-    PromptProjectionTransientDeletionOverlay,
     PromptProjectionTransientEditOverlayController,
-    PromptProjectionTransientInsertionOverlay,
 )
 
 from .projection_state import (
@@ -138,14 +139,19 @@ class _SourceChangeHost:
             PromptProjectionInlineObjectRendererRegistry(())
         )
         self._caret_visibility_prompt_state_revision = 0
-        self._cursor_state = PromptProjectionCaretState(source_position=0)
-        self._anchor_state = PromptProjectionCaretState(source_position=0)
-        self._caret_rect_override: QRectF | None = None
+        self._caret_state_owner = PromptProjectionCaretStateOwner(
+            PromptProjectionCaretState(source_position=0)
+        )
         self._transient_edit_overlays = PromptProjectionTransientEditOverlayController()
-        self._preferred_x: float | None = 3.0
+        self._caret_state_owner.set_preferred_x(3.0)
         self._scroll_bar = _ScrollBarRecorder()
         self._viewport = _ViewportRecorder()
-        self.marked_source_changes: list[tuple[bool, int]] = []
+        self.marked_source_changes = (
+            self._projection_freshness_controller.marked_source_changes
+        )
+        self.input_method_source_changes = 0
+        self.reorder_source_changes = 0
+        self.render_source_changes: list[bool] = []
         self.cursor_position_updates: list[tuple[int, int]] = []
         self.undo_available_emissions: list[bool] = []
         self.redo_available_emissions: list[bool] = []
@@ -156,8 +162,6 @@ class _SourceChangeHost:
         self.autocomplete_preview_clear_count = 0
         self.layout_sync_commits = 0
         self.horizontal_origin_marks = 0
-        self.transient_insert_paint_updates = 0
-        self.transient_delete_paint_updates = 0
         self.caret_visibility_checks = 0
         self.caret_blink_restarts = 0
         self.implicit_parenthesis_depth = 0
@@ -207,14 +211,14 @@ class _SourceChangeHost:
 
         return self._editor_state.semantic.document.source_text
 
-    def clear_autocomplete_preview_state(self) -> None:
+    def clear_preview_state(self) -> None:
         """Record authoritative autocomplete preview owner clears."""
 
         self.autocomplete_preview_clear_count += 1
         self._session.set_autocomplete_preview(None)
 
-    def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
-        """Record geometry warm scheduling."""
+    def schedule(self, *, reason: str) -> None:
+        """Record one geometry reuse warm request."""
 
         self.geometry_warm_reasons.append(reason)
 
@@ -229,37 +233,44 @@ class _SourceChangeHost:
             expanded_source_range_active=False,
         )
 
-    def _current_caret_document_rect(self) -> QRectF:
+    def current_document_rect(self) -> QRectF:
         """Return stable caret geometry for transient overlay tests."""
 
         return QRectF(1.0, 2.0, 3.0, 12.0)
 
-    def _mark_source_text_changed(
-        self,
-        *,
-        deferrable_projection: bool,
-        source_snapshot: PromptSourceSnapshot,
-        clear_diagnostic_fragment_cache: bool = True,
-    ) -> None:
-        """Record source change freshness inputs."""
+    def record_input_method_source_changed(self) -> None:
+        """Record composition invalidation for a committed source revision."""
 
-        _ = clear_diagnostic_fragment_cache
-        source_identity = self._editor_state.publish_source(source_snapshot)
-        self.marked_source_changes.append(
-            (deferrable_projection, source_identity.source_revision)
-        )
+        self.input_method_source_changes += 1
+
+    def record_reorder_source_changed(self) -> None:
+        """Record reorder invalidation for a committed source revision."""
+
+        self.reorder_source_changes += 1
+
+    def record_render_source_changed(self, clear_fragment_cache: bool) -> None:
+        """Record render invalidation and diagnostic cache policy."""
+
+        self.render_source_changes.append(clear_fragment_cache)
 
     def _rebuild_projection(self) -> None:
         """Record a projection rebuild."""
 
         self.rebuilds += 1
 
-    def _clear_diagnostic_fragment_cache(self, *, reason: str) -> None:
-        """Accept diagnostic cache clear calls."""
+    @property
+    def cursor_state(self) -> PromptProjectionCaretState:
+        """Return the recorded projection cursor state."""
 
-        _ = reason
+        return self._caret_state_owner.cursor_state
 
-    def _set_deferred_source_caret_states(
+    @property
+    def anchor_state(self) -> PromptProjectionCaretState:
+        """Return the recorded projection anchor state."""
+
+        return self._caret_state_owner.anchor_state
+
+    def publish_deferred(
         self,
         *,
         cursor_state: PromptProjectionCaretState,
@@ -271,7 +282,7 @@ class _SourceChangeHost:
             (cursor_state.source_position, anchor_state.source_position)
         )
 
-    def _set_caret_states(
+    def publish(
         self,
         *,
         cursor_state: PromptProjectionCaretState,
@@ -292,45 +303,44 @@ class _SourceChangeHost:
             (cursor_state.source_position, anchor_state.source_position, reason)
         )
 
-    def _sync_editing_session_to_caret_states(self) -> None:
-        """Accept editing-session sync calls."""
+    def publish_direct_feedback(
+        self,
+        *,
+        cursor_state: PromptProjectionCaretState,
+        anchor_state: PromptProjectionCaretState,
+    ) -> None:
+        """Record direct-feedback state and refresh its caret visuals."""
 
-    def _ensure_caret_visible(self) -> None:
-        """Record caret visibility checks."""
+        self.replace_states(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+            clear_caret_rect_override=True,
+            reset_preferred_x=False,
+        )
+        self.refresh_visibility()
+
+    def replace_states(
+        self,
+        *,
+        cursor_state: PromptProjectionCaretState,
+        anchor_state: PromptProjectionCaretState,
+        clear_caret_rect_override: bool,
+        reset_preferred_x: bool,
+    ) -> None:
+        """Replace recorded projection caret state."""
+
+        self._caret_state_owner.replace_states(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+            clear_caret_rect_override=clear_caret_rect_override,
+            reset_preferred_x=reset_preferred_x,
+        )
+
+    def refresh_visibility(self) -> None:
+        """Record caret visibility and blink refresh effects."""
 
         self.caret_visibility_checks += 1
-
-    def _update_transient_insertion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientInsertionOverlay | None,
-        next_overlay: PromptProjectionTransientInsertionOverlay | None,
-    ) -> None:
-        """Record insertion overlay paint updates."""
-
-        _ = previous_overlay
-        _ = next_overlay
-        self.transient_insert_paint_updates += 1
-
-    def _update_transient_deletion_overlay_paint(
-        self,
-        previous_overlay: PromptProjectionTransientDeletionOverlay | None,
-        next_overlay: PromptProjectionTransientDeletionOverlay | None,
-    ) -> None:
-        """Record deletion overlay paint updates."""
-
-        _ = previous_overlay
-        _ = next_overlay
-        self.transient_delete_paint_updates += 1
-
-    def _restart_caret_blink_cycle(self) -> None:
-        """Record caret blink restart."""
-
         self.caret_blink_restarts += 1
-
-    def _clear_transient_caret_geometry(self) -> None:
-        """Clear transient caret state."""
-
-        self._transient_edit_overlays.clear()
 
     def _sync_layout_state(self, *, commit_projection: bool = False) -> None:
         """Record layout sync calls."""
@@ -338,7 +348,7 @@ class _SourceChangeHost:
         if commit_projection:
             self.layout_sync_commits += 1
 
-    def _mark_source_edit_horizontal_movement_origin(self) -> None:
+    def mark_source_edit_horizontal_movement_origin(self) -> None:
         """Record horizontal movement origin marking."""
 
         self.horizontal_origin_marks += 1

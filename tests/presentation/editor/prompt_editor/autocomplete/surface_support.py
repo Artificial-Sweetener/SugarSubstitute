@@ -99,7 +99,7 @@ def editor_autocomplete_preview_text(box: PromptEditor) -> str:
 def has_pending_autocomplete_refresh(box: PromptEditor) -> bool:
     """Return the timing owner's current scheduled-refresh state."""
 
-    interaction = cast(Any, getattr(box, "_interaction_controller"))
+    interaction = cast(Any, box._runtime.core.syntax.interaction_controller)
     return cast(bool, interaction._autocomplete_timing_controller.has_pending_refresh)
 
 

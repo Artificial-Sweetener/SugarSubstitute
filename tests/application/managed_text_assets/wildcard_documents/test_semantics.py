@@ -124,6 +124,20 @@ def test_csv_wildcard_semantics_exclude_headers_and_map_data_cells() -> None:
     )
 
 
+def test_csv_wildcard_semantics_reuse_mappings_for_identical_source() -> None:
+    """Reuse one immutable mapping snapshot while CSV source is unchanged."""
+
+    semantics = WildcardCsvDocumentSemantics()
+    source = 'Name,Prompt\nhero,"red hair, blue eyes"\n'
+
+    first = semantics.value_mappings_for_text(source)
+    second = semantics.value_mappings_for_text(source)
+    changed = semantics.value_mappings_for_text(source + 'villain,"dark coat"\n')
+
+    assert second is first
+    assert changed is not first
+
+
 def test_csv_wildcard_semantics_map_empty_data_cells_to_safe_anchors() -> None:
     """Empty CSV data cells should remain writable values without exposing headers."""
 

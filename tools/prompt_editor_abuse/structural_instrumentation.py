@@ -22,18 +22,33 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import fields
+from dataclasses import dataclass
+from collections.abc import Mapping
 
 from substitute.devtools.prompt_editor_performance.instrumentation import (
+    PromptEditorInstrumentationObserver,
     instrument_prompt_editor,
 )
 from substitute.devtools.prompt_editor_performance.metrics import (
     Instrumentation,
     OperationCounter,
 )
+from substitute.shared.diagnostics.prompt_editor_work import PromptEditorWorkEvent
 
-_ACTIVE_INSTRUMENTATION: ContextVar[Instrumentation | None] = ContextVar(
-    "prompt_abuse_structural_instrumentation",
-    default=None,
+
+@dataclass(frozen=True, slots=True)
+class _ActiveStructuralInstrumentation:
+    """Store campaign counters with exact-owner attribution."""
+
+    instrumentation: Instrumentation
+    observer: PromptEditorInstrumentationObserver
+
+
+_ACTIVE_INSTRUMENTATION: ContextVar[_ActiveStructuralInstrumentation | None] = (
+    ContextVar(
+        "prompt_abuse_structural_instrumentation",
+        default=None,
+    )
 )
 
 
@@ -48,31 +63,43 @@ def prompt_abuse_structural_instrumentation(
         yield None
         return
     instrumentation = Instrumentation.create()
-    token = _ACTIVE_INSTRUMENTATION.set(instrumentation)
-    try:
-        with instrument_prompt_editor(
-            instrumentation,
-            suppress_context_menu_exec=False,
-        ):
+    with instrument_prompt_editor(
+        instrumentation,
+        suppress_context_menu_exec=False,
+    ) as observer:
+        if observer is None:
+            raise RuntimeError("Enabled prompt-editor instrumentation has no observer")
+        token = _ACTIVE_INSTRUMENTATION.set(
+            _ActiveStructuralInstrumentation(instrumentation, observer)
+        )
+        try:
             yield instrumentation
-    finally:
-        _ACTIVE_INSTRUMENTATION.reset(token)
+        finally:
+            _ACTIVE_INSTRUMENTATION.reset(token)
 
 
-def active_structural_counter_counts() -> dict[str, float]:
-    """Return current external call counts without adding hot-path work."""
+def active_structural_counter_counts(
+    *,
+    event_owners: Mapping[PromptEditorWorkEvent, object] | None = None,
+) -> dict[str, float]:
+    """Return external counts, scoped to exact owners where requested."""
 
-    instrumentation = _ACTIVE_INSTRUMENTATION.get()
-    if instrumentation is None:
+    active = _ACTIVE_INSTRUMENTATION.get()
+    if active is None:
         return {}
-    return {
+    counts = {
         f"instrumented_{instrumentation_field.name}_count": float(counter.count)
-        for instrumentation_field in fields(instrumentation)
+        for instrumentation_field in fields(active.instrumentation)
         if isinstance(
-            counter := getattr(instrumentation, instrumentation_field.name),
+            counter := getattr(active.instrumentation, instrumentation_field.name),
             OperationCounter,
         )
     }
+    for event, owner in (event_owners or {}).items():
+        counts[f"instrumented_{event.value}_count"] = float(
+            active.observer.owner_event_count(event, owner)
+        )
+    return counts
 
 
 def structural_instrumentation_active() -> bool:

@@ -52,9 +52,11 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptEmphasisRendererView,
     PromptLoraRendererView,
-    PromptSyntaxService,
     PromptWildcardRendererView,
 )
 from tests.support.prompt_editor.projection_engine_support import (

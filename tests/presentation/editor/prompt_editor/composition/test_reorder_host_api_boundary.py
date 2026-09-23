@@ -21,7 +21,8 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 from substitute.presentation.editor.prompt_editor.shell.widget import (
     PROMPT_EDITOR_HOST_FACADE_INVENTORY,
@@ -49,8 +50,24 @@ REORDER_HOST_METHODS = (
     "execute_reorder_action",
 )
 
-SURFACE_REORDER_HOST_METHODS = tuple(
-    method for method in REORDER_HOST_METHODS if method != "execute_reorder_action"
+REORDER_FACADE_METHODS = (
+    "set_reorder_preview_state",
+    "clear_reorder_preview_state",
+    "reorder_preview_fragments",
+    "reorder_live_chip_geometry_snapshot",
+    "reorder_live_placement_snapshot",
+    "reorder_preview_chip_geometry_snapshot",
+    "reorder_live_chip_projection_paint_snapshots",
+    "reorder_preview_chip_projection_paint_snapshots",
+    "set_reorder_surface_visual_publication",
+    "reorder_preview_cursor_rect",
+    "reorder_base_drag_fragments",
+    "reorder_base_drag_chip_geometry_snapshot",
+    "reorder_base_drag_cursor_rect",
+    "reorder_base_drag_placement_snapshot",
+    "reset_reorder_geometry_cache_counters",
+    "reorder_geometry_cache_counters",
+    "reorder_placement_at_rect",
 )
 
 FORBIDDEN_HOST_IMPORT_MODULES = (
@@ -75,10 +92,11 @@ FORBIDDEN_HOST_IMPORT_MODULES = (
 class _RecordingCollaborator:
     """Record forwarded calls while returning deterministic method results."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, aliases: dict[str, str] | None = None) -> None:
         """Initialize call recording."""
 
         self.calls: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
+        self._aliases = {} if aliases is None else aliases
 
     def __getattr__(self, name: str) -> Any:
         """Return a recorder for one forwarded method name."""
@@ -86,8 +104,9 @@ class _RecordingCollaborator:
         def record(*args: object, **kwargs: object) -> object:
             """Record one call and return a method-specific sentinel."""
 
-            self.calls.append((name, args, kwargs))
-            return _result_for(name)
+            recorded_name = self._aliases.get(name, name)
+            self.calls.append((recorded_name, args, kwargs))
+            return _result_for(recorded_name)
 
         return record
 
@@ -98,8 +117,47 @@ class _PromptEditorHostDouble:
     def __init__(self) -> None:
         """Create surface and reorder-command fakes."""
 
-        self._surface = _RecordingCollaborator()
-        self._reorder_commands = _RecordingCollaborator()
+        surface = cast(Any, _RecordingCollaborator())
+        surface.reorder = _RecordingCollaborator(
+            aliases={
+                "set_preview_state": "set_reorder_preview_state",
+                "clear_preview_state": "clear_reorder_preview_state",
+                "preview_fragments": "reorder_preview_fragments",
+                "live_chip_geometry_snapshot": "reorder_live_chip_geometry_snapshot",
+                "live_placement_snapshot": "reorder_live_placement_snapshot",
+                "preview_chip_geometry_snapshot": (
+                    "reorder_preview_chip_geometry_snapshot"
+                ),
+                "live_chip_paint_snapshots": (
+                    "reorder_live_chip_projection_paint_snapshots"
+                ),
+                "preview_chip_paint_snapshots": (
+                    "reorder_preview_chip_projection_paint_snapshots"
+                ),
+                "preview_cursor_rect": "reorder_preview_cursor_rect",
+                "base_drag_fragments": "reorder_base_drag_fragments",
+                "base_drag_chip_geometry_snapshot": (
+                    "reorder_base_drag_chip_geometry_snapshot"
+                ),
+                "base_drag_cursor_rect": "reorder_base_drag_cursor_rect",
+                "base_drag_placement_snapshot": (
+                    "reorder_base_drag_placement_snapshot"
+                ),
+                "reset_cache_counters": "reset_reorder_geometry_cache_counters",
+                "cache_counters": "reorder_geometry_cache_counters",
+                "placement_at_rect": "reorder_placement_at_rect",
+            }
+        )
+        surface.reorder.presentation = _RecordingCollaborator(
+            aliases={"publish": "set_reorder_surface_visual_publication"}
+        )
+        reorder_commands = _RecordingCollaborator()
+        self._runtime = SimpleNamespace(
+            projection=SimpleNamespace(
+                surface=surface,
+                reorder_commands=reorder_commands,
+            )
+        )
 
 
 def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() -> None:
@@ -125,12 +183,45 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
         == "result:reorder_live_chip_geometry_snapshot"
     )
     assert (
+        PROMPT_EDITOR_METHODS.reorder_live_placement_snapshot(
+            host,
+            layout_view="layout",
+            chip_geometry_snapshot="chip-geometry",
+            gap_ranges_by_index="gap-ranges",
+        )
+        == "result:reorder_live_placement_snapshot"
+    )
+    assert (
         PROMPT_EDITOR_METHODS.reorder_preview_chip_geometry_snapshot(
             host,
             snapshot="preview-snapshot",
             layout_view="preview-layout",
         )
         == "result:reorder_preview_chip_geometry_snapshot"
+    )
+    assert (
+        PROMPT_EDITOR_METHODS.reorder_live_chip_projection_paint_snapshots(
+            host,
+            chip_geometry_snapshot="live-geometry",
+            chip_owned_ranges_by_index="live-owned-ranges",
+        )
+        == "result:reorder_live_chip_projection_paint_snapshots"
+    )
+    assert (
+        PROMPT_EDITOR_METHODS.reorder_preview_chip_projection_paint_snapshots(
+            host,
+            chip_geometry_snapshot="preview-geometry",
+            chip_owned_ranges_by_index="preview-owned-ranges",
+            chip_indices=frozenset({2}),
+        )
+        == "result:reorder_preview_chip_projection_paint_snapshots"
+    )
+    assert (
+        PROMPT_EDITOR_METHODS.set_reorder_surface_visual_publication(
+            host,
+            "visual-publication",
+        )
+        is None
     )
     assert (
         PROMPT_EDITOR_METHODS.reorder_preview_cursor_rect(host, 7)
@@ -175,8 +266,10 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
         == "result:reorder_placement_at_rect"
     )
 
-    assert host._reorder_commands.calls == []
-    assert host._surface.calls == [
+    projection = host._runtime.projection
+    assert projection.reorder_commands.calls == []
+    assert projection.surface.calls == []
+    assert projection.surface.reorder.calls == [
         ("set_reorder_preview_state", ("preview-state",), {}),
         ("clear_reorder_preview_state", (), {}),
         ("reorder_preview_fragments", (), {"start": 1, "end": 4}),
@@ -190,9 +283,35 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
             },
         ),
         (
+            "reorder_live_placement_snapshot",
+            (),
+            {
+                "layout_view": "layout",
+                "chip_geometry_snapshot": "chip-geometry",
+                "gap_ranges_by_index": "gap-ranges",
+            },
+        ),
+        (
             "reorder_preview_chip_geometry_snapshot",
             (),
             {"snapshot": "preview-snapshot", "layout_view": "preview-layout"},
+        ),
+        (
+            "reorder_live_chip_projection_paint_snapshots",
+            (),
+            {
+                "chip_geometry_snapshot": "live-geometry",
+                "chip_owned_ranges_by_index": "live-owned-ranges",
+            },
+        ),
+        (
+            "reorder_preview_chip_projection_paint_snapshots",
+            (),
+            {
+                "chip_geometry_snapshot": "preview-geometry",
+                "chip_owned_ranges_by_index": "preview-owned-ranges",
+                "chip_indices": frozenset({2}),
+            },
         ),
         ("reorder_preview_cursor_rect", (7,), {}),
         ("reorder_base_drag_fragments", (), {"start": 2, "end": 8}),
@@ -218,6 +337,13 @@ def test_prompt_editor_forwards_reorder_surface_methods_to_projection_surface() 
             },
         ),
     ]
+    assert projection.surface.reorder.presentation.calls == [
+        (
+            "set_reorder_surface_visual_publication",
+            ("visual-publication",),
+            {},
+        )
+    ]
 
 
 def test_prompt_editor_forwards_reorder_commits_to_focused_command_owner() -> None:
@@ -234,8 +360,9 @@ def test_prompt_editor_forwards_reorder_commits_to_focused_command_owner() -> No
     )
 
     assert result == "result:execute"
-    assert host._surface.calls == []
-    assert host._reorder_commands.calls == [
+    projection = host._runtime.projection
+    assert projection.surface.calls == []
+    assert projection.reorder_commands.calls == [
         (
             "execute",
             ("request",),
@@ -256,6 +383,34 @@ def test_shell_widget_boundary_exposes_reorder_host_methods() -> None:
 
     assert set(REORDER_HOST_METHODS) <= boundary_methods
     assert set(REORDER_HOST_METHODS) <= inventory_methods
+
+
+def test_reorder_facade_exclusively_owns_surface_api_adaptation() -> None:
+    """Keep the stable reorder host API out of the mixed shell implementation."""
+
+    repository_root = Path(__file__).resolve().parents[5]
+    prompt_editor_root = (
+        repository_root / "substitute" / "presentation" / "editor" / "prompt_editor"
+    )
+    widget_source = (prompt_editor_root / "widget.py").read_text(encoding="utf-8")
+    facade_source = (prompt_editor_root / "reorder_facade.py").read_text(
+        encoding="utf-8"
+    )
+
+    widget_tree = ast.parse(widget_source)
+    editor_class = next(
+        node
+        for node in widget_tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "PromptEditor"
+    )
+    assert any(
+        isinstance(base, ast.Name) and base.id == "PromptEditorReorderFacade"
+        for base in editor_class.bases
+    )
+    for method_name in REORDER_FACADE_METHODS:
+        declaration = f"def {method_name}("
+        assert declaration in facade_source
+        assert declaration not in widget_source
 
 
 def test_host_boundary_files_do_not_import_future_reorder_internals() -> None:
@@ -315,7 +470,6 @@ def _host_facade_inventory_methods() -> set[str]:
         *PROMPT_EDITOR_HOST_FACADE_INVENTORY.feature_action_presentation,
         *PROMPT_EDITOR_HOST_FACADE_INVENTORY.external_action_execution,
         *PROMPT_EDITOR_HOST_FACADE_INVENTORY.command_source_adapter,
-        *PROMPT_EDITOR_HOST_FACADE_INVENTORY.obsolete_internal_bridge,
     }
 
 
@@ -364,6 +518,7 @@ def _result_for(method_name: str) -> object:
         "set_reorder_preview_state",
         "clear_reorder_preview_state",
         "reset_reorder_geometry_cache_counters",
+        "set_reorder_surface_visual_publication",
     }:
         return None
     return f"result:{method_name}"

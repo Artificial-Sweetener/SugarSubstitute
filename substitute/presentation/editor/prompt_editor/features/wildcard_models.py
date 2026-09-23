@@ -25,7 +25,10 @@ from substitute.application.ports import PromptAutocompleteSuggestion
 
 from ..async_work import PromptAsyncResultIdentity
 from ..core.state.revisions import PromptSourceIdentity
-from .catalog_snapshots import CatalogSnapshotIdentity, CatalogSnapshotStatus
+from substitute.presentation.editor.catalog.snapshots import (
+    CatalogSnapshotIdentity,
+    CatalogSnapshotStatus,
+)
 
 PromptWildcardAutocompleteCacheKey = tuple[Hashable, str, int]
 PromptWildcardAutocompleteRefreshCallback = Callable[[], None]

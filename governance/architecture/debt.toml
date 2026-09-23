@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-fingerprint = "sha256:b685a23c6c36f438f0b0d8ec473ac3d3879bc0254140800b186ae6d105464f9b"
+fingerprint = "sha256:251b6254359e67e87e1f58a86526fd281700890c6ed96eb5d97b34068d491fdc"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -155,7 +155,7 @@ next_extraction = "Extract output-run allocation and live-result projection from
 id = "SS-ARCH-014"
 owner = "model catalog"
 paths = ["substitute/application/model_metadata/model_catalog_service.py"]
-fingerprint = "sha256:f1358caed2e399dcf7bc06db6760196f62b370da0f71bce0c450cda2914ae19e"
+fingerprint = "sha256:06ca287b0d1ef95f8119752bcda3b907081cf2df29e46be4202b50144d0e7966"
 issue = "chore:SS-ARCH-014"
 review_by = 2026-12-15
 responsibilities = [
@@ -213,58 +213,10 @@ responsibilities = [
 next_extraction = "Extract toolbar and serialization projections from override mutation and workflow application."
 
 [[debts]]
-id = "SS-ARCH-018"
-owner = "prompt mutation"
-paths = ["substitute/application/prompt_editor/editing/mutation_service.py"]
-fingerprint = "sha256:9367a8b86bca4b669fd7ac335b6a9e3ee45258cd4ef3d19a367a884af5bff936"
-issue = "chore:SS-ARCH-018"
-review_by = 2026-12-15
-responsibilities = [
-  "generic syntax-action routing",
-  "emphasis weight mutation",
-  "LoRA and wildcard mutation",
-  "chip and layout reordering",
-  "application-to-domain mutation adaptation",
-]
-next_extraction = "Extract syntax-family mutation handlers and reorder mutation behind the common PromptMutation result contract."
-
-[[debts]]
-id = "SS-ARCH-019"
-owner = "prompt LoRA catalog"
-paths = ["substitute/application/prompt_editor/lora/catalog.py"]
-fingerprint = "sha256:85258b7900837ec7de636f09eb8980a122d76c48e58700a92bd794ad5d70ba88"
-issue = "chore:SS-ARCH-019"
-review_by = 2026-12-15
-responsibilities = [
-  "catalog cache lifecycle and refresh",
-  "model-record adaptation",
-  "exact and suffix lookup",
-  "autocomplete fallback ranking",
-  "thumbnail and search-text projection",
-]
-next_extraction = "Extract pure LoRA lookup and ranking from catalog cache lifecycle and model-record adaptation."
-
-[[debts]]
-id = "SS-ARCH-020"
-owner = "prompt syntax projection"
-paths = ["substitute/application/prompt_editor/projection/syntax_service.py"]
-fingerprint = "sha256:da13a778cb415ebd1c3396fcde57430b714b9e7a1debbea88c555e44102778fd"
-issue = "chore:SS-ARCH-020"
-review_by = 2026-12-15
-responsibilities = [
-  "renderer-view model definitions",
-  "render-plan construction and caching",
-  "wildcard span projection",
-  "LoRA catalog resolution and span projection",
-  "identity-revision cache bookkeeping and diagnostics",
-]
-next_extraction = "Extract syntax-family span projectors and cache identity tracking from render-plan orchestration."
-
-[[debts]]
 id = "SS-ARCH-021"
 owner = "recipe model resolution"
 paths = ["substitute/application/recipes/model_load_resolution.py"]
-fingerprint = "sha256:4f37c90549d35d64d7928985a966861749e7b2c4c8e3f711b8206ba391dad87c"
+fingerprint = "sha256:15a822db7a70a8ecaf5cb184f38b39c5db194aabb38e070d452b65acc21a8405"
 issue = "chore:SS-ARCH-021"
 review_by = 2026-12-15
 responsibilities = [
@@ -352,22 +304,6 @@ responsibilities = [
   "canvas plan and section projection",
 ]
 next_extraction = "Extract ordered-region and association mutation from materialization and loaded-canvas reconciliation."
-
-[[debts]]
-id = "SS-ARCH-027"
-owner = "prompt editor performance operations"
-paths = ["substitute/devtools/prompt_editor_performance/qt_operations.py"]
-fingerprint = "sha256:cedf59a8375b568c662e4032f417f4d756bfc619768bb42c926371414beae42f"
-issue = "chore:SS-ARCH-027"
-review_by = 2026-12-15
-responsibilities = [
-  "scenario operation dispatch",
-  "basic keyboard and selection timings",
-  "paint and diagnostic cache timings",
-  "reorder interaction timings",
-  "focus, hover, resize, scroll, and menu timings",
-]
-next_extraction = "Split operation families into focused timing modules behind the scenario-operation registry."
 
 [[debts]]
 id = "SS-ARCH-028"
@@ -546,7 +482,7 @@ next_extraction = "Extract pure dimension transforms and saved-dimension command
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:d8bd89250a70ce55be7e2435db1ddc7f2b014bc729a029a7bc27621529179625"
+fingerprint = "sha256:01e03c67de1d959303259f8054ba1c496973408443f4803748915a1c6b70fe5f"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
@@ -563,7 +499,7 @@ next_extraction = "Extract title, icon, and link-endpoint composition from node-
 id = "SS-ARCH-046"
 owner = "toolbar global overrides"
 paths = ["substitute/presentation/editor/panel/overrides_controller.py"]
-fingerprint = "sha256:63ce64a8ba88d589b4dbc13a8f213b712f3bb7468c38f8ec7baacbb289bfa161"
+fingerprint = "sha256:e98336a2c397553fd4e2c9903129b83b5544795d408d7c768e470896d66f4f03"
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
 responsibilities = [
@@ -644,7 +580,7 @@ next_extraction = "Extract corpus/match projection and refresh scheduling from r
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:2376f71178bbab3f1ed13efffe5c379394bd7b77da304342985b5592d13b3a4b"
+fingerprint = "sha256:511e452dc992e61589fd440bcfd25075b2bf20070b5db6ba98dc52d7d8ce60fa"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
@@ -690,173 +626,6 @@ responsibilities = [
 next_extraction = "Extract field sizing policy and visibility registration from row construction."
 
 [[debts]]
-id = "SS-ARCH-054"
-owner = "prompt editor composition"
-paths = ["substitute/presentation/editor/prompt_editor/composition/factory.py"]
-fingerprint = "sha256:c584ab294b615e0345c9f284a5bdf4a913ea31945e6c1603e089285fbb386cfb"
-issue = "chore:SS-ARCH-054"
-review_by = 2026-12-15
-responsibilities = [
-  "async executor and request-channel composition",
-  "Danbooru dialog and external-action composition",
-  "projection and editing collaborator composition",
-  "autocomplete and LoRA feature composition",
-  "context-menu and syntax collaborator composition",
-  "top-level bundle assembly",
-]
-next_extraction = "Split feature-specific subfactories from the top-level prompt-editor composition boundary."
-
-[[debts]]
-id = "SS-ARCH-055"
-owner = "prompt diagnostics presentation"
-paths = ["substitute/presentation/editor/prompt_editor/features/diagnostics_presentation.py"]
-fingerprint = "sha256:88a9a18e29f14f3ab04689f88edb1080990a1b4a4dbd8b92767108dce23870bc"
-issue = "chore:SS-ARCH-055"
-review_by = 2026-12-15
-responsibilities = [
-  "prepared diagnostic snapshot ownership",
-  "cursor hit testing",
-  "context-menu action preparation",
-  "diagnostic command dispatch",
-  "refresh request and visible-surface publication",
-]
-next_extraction = "Extract diagnostic command dispatch from prepared diagnostic and menu presentation."
-
-[[debts]]
-id = "SS-ARCH-056"
-owner = "canonical prompt layout"
-paths = ["substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"]
-fingerprint = "sha256:3ca14aeb75e1ab86f67253c62d43591643ccdb10c201b93a6ec5fdc9036b17be"
-issue = "chore:SS-ARCH-056"
-review_by = 2026-12-15
-responsibilities = [
-  "text measurement and font cache",
-  "projection-run to piece partitioning",
-  "word wrapping and break policy",
-  "decoration keep-group planning",
-  "line and fragment construction",
-  "source-boundary and caret mapping",
-]
-next_extraction = "Extract text measurement, wrap policy, and source-boundary mapping from line-layout assembly."
-
-[[debts]]
-id = "SS-ARCH-057"
-owner = "prompt autocomplete panel"
-paths = ["substitute/presentation/editor/prompt_editor/overlays/autocomplete_panel.py"]
-fingerprint = "sha256:911197d469941d50bcacb6cacd7be8173361b8c6eeff85d0986ade5d33c4a705"
-issue = "chore:SS-ARCH-057"
-review_by = 2026-12-15
-responsibilities = [
-  "overlay protocol and render-state models",
-  "tag row measurement and custom painting",
-  "LoRA wall navigation adaptation",
-  "panel content reconciliation and selection",
-  "overlay sizing, visibility, and activation lifecycle",
-]
-next_extraction = "Extract row rendering and LoRA-wall adaptation from panel state, layout, and visibility ownership."
-
-[[debts]]
-id = "SS-ARCH-058"
-owner = "prompt reorder overlay"
-paths = ["substitute/presentation/editor/prompt_editor/overlays/reorder_overlay.py"]
-fingerprint = "sha256:65dcc576448957c61ad648efb46fb07d144afb6c2336d1fc4a9dab5c673da5a7"
-issue = "chore:SS-ARCH-058"
-review_by = 2026-12-15
-responsibilities = [
-  "overlay widget lifecycle and painting",
-  "pointer and keyboard drag session",
-  "animation state and raster warmup",
-  "reorder geometry and landing projection",
-  "autoscroll invalidation",
-  "performance counters and diagnostic publication",
-]
-next_extraction = "Extract animation/raster ownership and geometry projection from overlay interaction and widget lifecycle."
-
-[[debts]]
-id = "SS-ARCH-059"
-owner = "prompt token-weight controls"
-paths = ["substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"]
-fingerprint = "sha256:ec0029962280a776a38e39288eef94ef91fc2eb68db12cffbe4f0dd7edbd1b55"
-issue = "chore:SS-ARCH-059"
-review_by = 2026-12-15
-responsibilities = [
-  "control overlay geometry and visibility",
-  "pointer, click, and wheel gesture routing",
-  "exact-weight activation and completion gesture routing",
-  "token preview and hover state",
-  "wheel-intent coordination",
-  "runtime widget lifecycle and event filtering",
-]
-next_extraction = "Extract remaining exact-edit activation gestures, wheel-intent, and preview controllers from overlay geometry and widget presentation."
-
-[[debts]]
-id = "SS-ARCH-060"
-owner = "prompt projection construction"
-paths = ["substitute/presentation/editor/prompt_editor/projection/builder.py"]
-fingerprint = "sha256:aa433b0edb5ce75cbdab576eddafc56712296de5933b27e8df0d9016cdaba594"
-issue = "chore:SS-ARCH-060"
-review_by = 2026-12-15
-responsibilities = [
-  "base run construction",
-  "syntax renderer-view adaptation",
-  "LoRA collapse and status projection",
-  "exact-weight edit projection",
-  "inline preview insertion and run splitting",
-  "projection range recomputation",
-]
-next_extraction = "Extract LoRA, exact-weight, and inline-preview feature projectors from base run construction."
-
-[[debts]]
-id = "SS-ARCH-061"
-owner = "prompt projection surface"
-paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:471a05af360403ca8cc42928e2891e96870d26155e8885e0e7489e6e233a9f6d"
-issue = "chore:SS-ARCH-061"
-review_by = 2026-12-15
-responsibilities = [
-  "source editing and input-method handling",
-  "projection, layout, freshness, and publication coordination",
-  "caret, selection, scrolling, and hit testing",
-  "paint caches and custom rendering",
-  "autocomplete, diagnostics, reorder, region, and token-weight interaction hosting",
-  "clipboard, drag/drop, undo, focus, and tooltip routing",
-]
-next_extraction = "Extract input/editing, paint publication, and feature-interaction hosts from the mounted projection surface."
-
-[[debts]]
-id = "SS-ARCH-062"
-owner = "prompt inline token rendering"
-paths = ["substitute/presentation/editor/prompt_editor/projection/tokens.py"]
-fingerprint = "sha256:50edcafde62aa7f50690b618efe9555888f76151f752c4288ec88e039e5faa12"
-issue = "chore:SS-ARCH-062"
-review_by = 2026-12-15
-responsibilities = [
-  "shared inline renderer contract",
-  "emphasis measurement and static token painting",
-  "wildcard inline rendering",
-  "LoRA banner rendering and media presentation",
-  "renderer registration and theme adaptation",
-]
-next_extraction = "Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
-
-[[debts]]
-id = "SS-ARCH-064"
-owner = "prompt editor shell"
-paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:077a6576ee0bbf3a6fde4cadabe91e2ffe05143b0d949abed8c1b169b5fd2b47"
-issue = "chore:SS-ARCH-064"
-review_by = 2026-12-15
-responsibilities = [
-  "QFluent text-edit host compatibility",
-  "projection surface composition and lifecycle",
-  "keyboard, clipboard, drag/drop, context-menu, and focus routing",
-  "autocomplete, diagnostics, reorder, and weight feature coordination",
-  "prompt state, metadata, and semantic-action publication",
-  "chrome, scrolling, sizing, and editor-panel integration",
-]
-next_extraction = "Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
-
-[[debts]]
 id = "SS-ARCH-065"
 owner = "managed text asset modal"
 paths = ["substitute/presentation/managed_text_assets/managed_text_asset_modal.py"]
@@ -876,7 +645,7 @@ next_extraction = "Extract managed-asset commands and editor persistence from mo
 id = "SS-ARCH-068"
 owner = "onboarding window"
 paths = ["substitute/presentation/onboarding/onboarding_window.py"]
-fingerprint = "sha256:c7596aa8d0da03d5b8ec4544816ab7dfa15f746975bf99c14fb77855a45deec3"
+fingerprint = "sha256:a7f0e5a3382526e8786c729625cb6280e77c520ea9a45185335b50926b43dd8c"
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
 responsibilities = [
@@ -1074,7 +843,7 @@ next_extraction = "Extract override/dependent-control refresh and callback adapt
 id = "SS-ARCH-080"
 owner = "main window composition"
 paths = ["substitute/presentation/shell/main_window_composition.py"]
-fingerprint = "sha256:0fbe0e086a15f51b266a1df210b08ea41c7e02a3a8aca73a9656360289d0975b"
+fingerprint = "sha256:03da30f39d944b0f039716ae2d90939066eff36b2c8a88a070911fe27d4ffd5a"
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
 responsibilities = [
@@ -1205,7 +974,7 @@ next_extraction = "Extract recipe model acquisition orchestration and output res
 id = "SS-ARCH-090"
 owner = "model picker field"
 paths = ["substitute/presentation/widgets/model_picker/model_picker_field.py"]
-fingerprint = "sha256:9328f23cf77f7b3a8ea143cd3ffa350b5e97281ae46c778a06671ed417d36bf7"
+fingerprint = "sha256:3c0470b6a528df4d6d9bfb95d8b50f7715218a810aa35a855d7fe2511f95ea17"
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
 responsibilities = [
@@ -1267,22 +1036,6 @@ responsibilities = [
   "trace aggregation and budget summaries",
 ]
 next_extraction = "Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
-
-[[debts]]
-id = "SS-ARCH-094"
-owner = "prompt abuse action dispatch"
-paths = ["tools/prompt_editor_abuse/action_driver.py"]
-fingerprint = "sha256:2e6985ff615809c88554f5f28e111566165af4592d599e291c4a2a022396dd0b"
-issue = "chore:SS-ARCH-094"
-review_by = 2026-12-15
-responsibilities = [
-  "generic mounted prompt-editor action host and collaborator composition",
-  "action checkpoint, timing, and semantic-completion orchestration",
-  "keyboard, text, and event-drain dispatch",
-  "source selection and caret projection",
-  "diagnostic, picker, and context-menu feature invocation",
-]
-next_extraction = "Extract keyboard/text/drain dispatch and diagnostic/picker/context-menu feature interaction from the generic mounted action host."
 
 [[debts]]
 id = "SS-ARCH-095"

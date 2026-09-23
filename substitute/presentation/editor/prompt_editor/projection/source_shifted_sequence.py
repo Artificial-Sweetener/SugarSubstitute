@@ -160,29 +160,34 @@ def remap_source_sequence(
     """Drop edit overlaps and lazily shift the unchanged sorted suffix."""
 
     wrapped_items = source_sequence(items, shift_item=shift_item)
-    prefix_end = 0
-    suffix_start = len(wrapped_items)
+    segments: list[_SourceSegment[TSourceItem]] = []
+    unchanged_start = 0
     for index, item in enumerate(wrapped_items):
         range_start, range_end = source_range(item)
-        overlaps = (
-            range_start < start < range_end
-            if start == end
-            else range_start < end and start < range_end
-        )
         if range_end <= start:
-            prefix_end = index + 1
             continue
-        if overlaps:
-            suffix_start = index + 1
-            continue
-        suffix_start = index
-        break
-    segments = list(_segments_for_range(wrapped_items, start=0, stop=prefix_end))
+        segments.extend(
+            _segments_for_range(
+                wrapped_items,
+                start=unchanged_start,
+                stop=index,
+            )
+        )
+        if range_start >= end:
+            segments.extend(
+                replace(segment, delta=segment.delta + delta)
+                for segment in _segments_for_range(
+                    wrapped_items,
+                    start=index,
+                    stop=len(wrapped_items),
+                )
+            )
+            return PromptSourceShiftedSequence(segments)
+        unchanged_start = index + 1
     segments.extend(
-        replace(segment, delta=segment.delta + delta)
-        for segment in _segments_for_range(
+        _segments_for_range(
             wrapped_items,
-            start=suffix_start,
+            start=unchanged_start,
             stop=len(wrapped_items),
         )
     )

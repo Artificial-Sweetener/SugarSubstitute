@@ -31,8 +31,10 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.async_work import (
     PromptAsyncRequest,
@@ -142,6 +144,12 @@ class _FakeSemanticDebouncer:
 
     def request(self, callback: Callable[[], None], *, reason: str) -> None:
         """Store the latest callback and reason."""
+
+        self.pending_callback = callback
+        self.request_reasons.append(reason)
+
+    def request_soon(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Store the latest next-turn callback and reason."""
 
         self.pending_callback = callback
         self.request_reasons.append(reason)
@@ -335,6 +343,27 @@ def test_semantic_refresh_coalesces_latest_request_identity_and_reason() -> None
     assert applied.identity.scene_context_id == "scene-a"
     assert applied.identity.cube_context_id == "cube-a"
     assert applied.identity.cancellation_generation == 1
+
+
+def test_semantic_refresh_can_publish_pending_work_on_the_next_event_turn() -> None:
+    """Completed syntax should publish after input without extending key dispatch."""
+
+    host = _FakeSemanticHost(source_text="alpha")
+    controller, debouncer, channel = _build_controller(host)
+    host.source_text = "(alpha:1.20)"
+    host.source_revision = 2
+    controller.queue_source_changed(host.source_text, reason="text_changed")
+
+    controller.schedule_pending_soon(reason="syntax_closing_key")
+
+    assert debouncer.request_reasons[-1] == "syntax_closing_key"
+    assert channel.handles == []
+
+    debouncer.fire()
+
+    assert channel.handles == []
+    assert host.applied_requests[-1].source_text == "(alpha:1.20)"
+    assert host.applied_requests[-1].reason == "text_changed"
 
 
 def test_semantic_refresh_rejects_stale_source_revision_even_when_text_matches(

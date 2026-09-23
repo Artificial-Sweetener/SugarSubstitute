@@ -18,12 +18,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject
+from PySide6.QtWidgets import QScrollBar, QWidget
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -38,13 +40,19 @@ from .deferred_feedback_strategy import (
     PromptDeferredFeedbackContext,
     PromptDeferredFeedbackStrategy,
 )
-from .direct_feedback_strategy import (
-    PromptDirectFeedbackContext,
-    PromptDirectFeedbackStrategy,
+from .direct_feedback_strategy import PromptDirectFeedbackStrategy
+from .diagnostic_layer_owner import PromptDiagnosticLayerOwner
+from .autocomplete_preview_projection_owner import (
+    PromptAutocompletePreviewProjectionOwner,
 )
 from .edit_pipeline import PromptEditPipeline
 from .edit_publication import PromptEditPublication, PromptEditPublicationSink
-from .freshness_controller import PromptProjectionFreshnessController
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
+from .freshness_controller import (
+    PromptProjectionFreshnessBlockers,
+    PromptProjectionFreshnessController,
+)
 from .frame_state import PromptProjectionFrameStatePublisher
 from .history_checkpoint_strategy import PromptHistoryCheckpointStrategy
 from .incremental_reflow_strategy import PromptIncrementalReflowStrategy
@@ -60,19 +68,19 @@ from .wildcard_edit_expansion import PromptWildcardEditExpansion
 from .semantic_remap import PromptProjectionSemanticRemapper
 from .session import PromptProjectionSession
 from .source_line_chrome import PromptSourceLineChrome
+from .source_lifecycle_effects import PromptProjectionSourceLifecycleEffects
 from .source_projection_application import PromptSourceProjectionApplication
 from .source_commit_application import PromptProjectionSourceCommitApplication
 from .source_change_transaction import (
     PromptProjectionSourceChangeTransaction,
 )
+from .source_change_publication import PromptSourceChangePublicationOwner
 from .source_commit_ports import (
-    PromptSourceChangeCaretSink,
-    PromptSourceChangeEffectSink,
+    PromptSourceCommitPresentationSink,
     PromptSourceReplacementPointerSink,
 )
 from .source_document_commit_application import (
     PromptSourceDocumentCommitApplication,
-    PromptSourceDocumentCommitEffectSink,
 )
 from .source_edit_projection_facts import (
     PromptSourceEditProjectionFactContext,
@@ -82,6 +90,7 @@ from .source_history_commit_application import PromptSourceHistoryCommitApplicat
 from .source_range_commit_application import PromptSourceRangeCommitApplication
 from .source_document import PromptProjectionSourceDocument
 from .transient_edit_overlays import PromptProjectionTransientEditOverlayController
+from .transient_edit_presentation_owner import PromptTransientEditPresentationOwner
 from .trailing_edit_strategy import PromptTrailingEditStrategy
 from .undo_payload import PromptProjectionUndoPayload
 from .update_scheduler import PendingProjectionUpdate
@@ -95,7 +104,8 @@ class PromptProjectionSourceStateOwners:
     source_commit_application: PromptProjectionSourceCommitApplication[
         PromptProjectionUndoPayload
     ]
-    transient_edit_overlays: PromptProjectionTransientEditOverlayController
+    source_change_publication: PromptSourceChangePublicationOwner
+    transient_edit_presentation: PromptTransientEditPresentationOwner
     freshness_controller: PromptProjectionFreshnessController
     edit_pipeline: PromptEditPipeline
     prompt_state_applier: PromptProjectionPromptStateApplier
@@ -117,13 +127,25 @@ class PromptProjectionSourceStateBindings:
     pointer_sink: PromptSourceReplacementPointerSink
     publication_sink: PromptEditPublicationSink
     build_context: PromptProjectionBuildContext
-    direct_feedback_context: PromptDirectFeedbackContext
     deferred_feedback_context: PromptDeferredFeedbackContext
     prompt_state_host: PromptProjectionPromptStateHost
     fact_context: PromptSourceEditProjectionFactContext
-    source_effect_sink: PromptSourceChangeEffectSink
-    source_caret_sink: PromptSourceChangeCaretSink
-    document_effect_sink: PromptSourceDocumentCommitEffectSink
+    source_presentation_sink: PromptSourceCommitPresentationSink
+    caret_publication: PromptProjectionCaretPublicationOwner
+    caret_geometry: PromptProjectionCaretGeometryOwner
+    transient_edit_overlays: PromptProjectionTransientEditOverlayController
+    set_cursor_positions: Callable[[int, int], object]
+    active_span_range: Callable[[], tuple[int, int] | None]
+    lifecycle_effects: PromptProjectionSourceLifecycleEffects
+    projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers]
+    input_method_source_changed: Callable[[], None]
+    document_scroll_bar: QScrollBar
+    schedule_geometry_reuse_warm: Callable[[str], None]
+    diagnostics: PromptDiagnosticLayerOwner
+    autocomplete_preview: PromptAutocompletePreviewProjectionOwner
+    transient_viewport: QWidget
+    transient_scroll_offset: Callable[[], float]
+    transient_publish_render_frame: Callable[[], None]
 
 
 class _PromptProjectionScheduledUpdateSink:
@@ -157,10 +179,29 @@ def build_prompt_projection_source_state_owners(
 
     scheduled_update_sink = _PromptProjectionScheduledUpdateSink()
     source_document = PromptProjectionSourceDocument(parent=parent)
-    transient_edit_overlays = PromptProjectionTransientEditOverlayController()
+    transient_edit_overlays = bindings.transient_edit_overlays
+    transient_edit_presentation = PromptTransientEditPresentationOwner(
+        overlays=transient_edit_overlays,
+        metrics=lambda: bindings.layout.frame.output.configuration.metrics,
+        scroll_offset=bindings.transient_scroll_offset,
+        viewport=bindings.transient_viewport,
+        publish_render_frame=bindings.transient_publish_render_frame,
+    )
     freshness_controller = PromptProjectionFreshnessController(
         apply_update=scheduled_update_sink.apply_update,
         parent=parent,
+    )
+    source_change_publication = PromptSourceChangePublicationOwner(
+        editor_state=bindings.editor_state,
+        freshness=freshness_controller,
+        overlays=transient_edit_overlays,
+        input_method_source_changed=bindings.input_method_source_changed,
+        clear_reorder_for_source_change=(
+            bindings.lifecycle_effects.clear_reorder_for_source_change
+        ),
+        invalidate_render_for_source_change=(
+            bindings.lifecycle_effects.invalidate_render_for_source_change
+        ),
     )
     trailing_strategy = PromptTrailingEditStrategy(
         applicator=bindings.applicator,
@@ -172,6 +213,13 @@ def build_prompt_projection_source_state_owners(
         editor_state=bindings.editor_state,
         frame_state=frame_state,
         layout=bindings.layout,
+        diagnostics=bindings.diagnostics,
+        caret_publication=bindings.caret_publication,
+        overlays=transient_edit_overlays,
+        rebuild_projection=bindings.lifecycle_effects.rebuild_projection,
+        active_span_range=bindings.active_span_range,
+        publish_active_span_range=bindings.lifecycle_effects.publish_active_span_range,
+        rebuild_active_projection=bindings.lifecycle_effects.rebuild_active_projection,
     )
     reflow_strategy = PromptIncrementalReflowStrategy(
         bindings.build_context,
@@ -187,19 +235,22 @@ def build_prompt_projection_source_state_owners(
     )
     history_strategy = PromptHistoryCheckpointStrategy(bindings.layout)
     direct_feedback_strategy = PromptDirectFeedbackStrategy(
-        bindings.direct_feedback_context,
+        caret_geometry=bindings.caret_geometry,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         layout=bindings.layout,
         overlays=transient_edit_overlays,
+        presentation=transient_edit_presentation,
     )
     deferred_strategy = PromptDeferredFeedbackStrategy(
         bindings.deferred_feedback_context,
+        caret_geometry=bindings.caret_geometry,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         layout=bindings.layout,
         overlays=transient_edit_overlays,
         source_line_chrome=bindings.source_line_chrome,
+        presentation=transient_edit_presentation,
     )
     edit_pipeline = PromptEditPipeline(
         direct_feedback_strategy=direct_feedback_strategy,
@@ -220,10 +271,18 @@ def build_prompt_projection_source_state_owners(
         bindings.prompt_state_host,
         frame_state=frame_state,
         strategy=prompt_state_strategy,
+        ensure_caret_visible=bindings.lifecycle_effects.ensure_caret_visible,
+        rebuild_projection=bindings.lifecycle_effects.rebuild_projection,
+        publish_active_span_range=bindings.lifecycle_effects.publish_active_span_range,
+        reconcile_committed_active_projection=(
+            bindings.lifecycle_effects.reconcile_committed_active_projection
+        ),
+        rebuild_active_projection=bindings.lifecycle_effects.rebuild_active_projection,
     )
     scheduled_update_sink.wire(prompt_state_applier)
     projection_facts = PromptSourceEditProjectionFactResolver(
         bindings.fact_context,
+        caret_geometry=bindings.caret_geometry,
         applicator=bindings.applicator,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
@@ -232,8 +291,8 @@ def build_prompt_projection_source_state_owners(
     )
     semantic_remapper = PromptProjectionSemanticRemapper()
     source_projection_application = PromptSourceProjectionApplication(
-        bindings.source_effect_sink,
-        bindings.source_caret_sink,
+        bindings.caret_publication,
+        projection_freshness_blockers=bindings.projection_freshness_blockers,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
         pipeline=edit_pipeline,
@@ -242,17 +301,21 @@ def build_prompt_projection_source_state_owners(
     source_change_transaction = PromptProjectionSourceChangeTransaction[
         PromptProjectionUndoPayload
     ](
-        bindings.source_effect_sink,
+        bindings.source_presentation_sink,
         bindings.pointer_sink,
+        caret_publication=bindings.caret_publication,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
+        source_change_publication=source_change_publication,
         projection_application=source_projection_application,
         semantic_remapper=semantic_remapper,
         session=bindings.session,
         source_document=source_document,
+        autocomplete_preview=bindings.autocomplete_preview,
     )
     range_application = PromptSourceRangeCommitApplication[PromptProjectionUndoPayload](
-        bindings.source_caret_sink,
+        caret_publication=bindings.caret_publication,
+        set_cursor_positions=bindings.set_cursor_positions,
         editor_state=bindings.editor_state,
         projection_facts=projection_facts,
         semantic_remapper=semantic_remapper,
@@ -262,10 +325,11 @@ def build_prompt_projection_source_state_owners(
     history_application = PromptSourceHistoryCommitApplication[
         PromptProjectionUndoPayload
     ](
-        bindings.source_effect_sink,
-        bindings.source_caret_sink,
+        bindings.source_presentation_sink,
+        bindings.caret_publication,
         editor_state=bindings.editor_state,
         freshness=freshness_controller,
+        source_change_publication=source_change_publication,
         projection_application=source_projection_application,
         session=bindings.session,
         source_document=source_document,
@@ -273,8 +337,9 @@ def build_prompt_projection_source_state_owners(
     document_application = PromptSourceDocumentCommitApplication[
         PromptProjectionUndoPayload
     ](
-        bindings.document_effect_sink,
-        bindings.source_caret_sink,
+        bindings.document_scroll_bar,
+        set_cursor_positions=bindings.set_cursor_positions,
+        schedule_geometry_reuse_warm=bindings.schedule_geometry_reuse_warm,
         transaction=source_change_transaction,
     )
     source_commit_application = PromptProjectionSourceCommitApplication[
@@ -287,7 +352,8 @@ def build_prompt_projection_source_state_owners(
     return PromptProjectionSourceStateOwners(
         source_document=source_document,
         source_commit_application=source_commit_application,
-        transient_edit_overlays=transient_edit_overlays,
+        source_change_publication=source_change_publication,
+        transient_edit_presentation=transient_edit_presentation,
         freshness_controller=freshness_controller,
         edit_pipeline=edit_pipeline,
         prompt_state_applier=prompt_state_applier,

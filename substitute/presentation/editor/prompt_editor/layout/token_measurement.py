@@ -26,7 +26,9 @@ from ..core.projection.runs import PromptProjectionRunKind
 from ..core.projection.tokens import PromptProjectionToken
 from ..projection.metrics import PromptProjectionMetrics
 from ..projection.text_style import projection_text_run_font
-from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 
 
 class PromptProjectionTokenMeasurer:

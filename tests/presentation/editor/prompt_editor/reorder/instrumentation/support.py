@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from collections.abc import Iterator
 from typing import Any, cast
 
@@ -150,7 +154,7 @@ def _flush_preview_sync(editor: PromptEditor) -> None:
     publication_owner = cast(
         Any,
         editor,
-    )._interaction_controller._reorder._overlay_session._preview_publication
+    )._runtime.core.syntax.interaction_controller._reorder._overlay_session._preview_publication
     if publication_owner.has_pending():
         for _ in range(2):
             publication_owner._scheduler._timer._run()
@@ -202,10 +206,7 @@ def _editor_reorder_preview_document(
 ) -> PromptProjectionDocument | None:
     """Return the surface-owned reorder preview projection document."""
 
-    return cast(
-        PromptProjectionDocument | None,
-        getattr(surface_for(box), "_reorder_preview_projection").preview_document,
-    )
+    return surface_for(box).reorder.preview.preview_document
 
 
 def _editor_reorder_preview_text(box: PromptEditor) -> str:
@@ -247,7 +248,7 @@ def _open_reorder_overlay(box: PromptEditor) -> SegmentReorderOverlay:
     app = _ensure_qapp()
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    return cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    return cast(SegmentReorderOverlay, segment_overlay(box))
 
 
 def _assert_plain_alt_keeps_surface_text_ownership(
@@ -263,11 +264,11 @@ def _assert_plain_alt_keeps_surface_text_ownership(
     assert state.raster_paint_count == 0
     surface_chrome = cast(
         Any, overlay
-    )._editor._surface._reorder_surface_visual_state.state.chrome_snapshot
+    )._editor._runtime.projection.surface.reorder.presentation.visual_state.state.chrome_snapshot
     assert surface_chrome is not None
     assert surface_chrome.mode == "live"
     assert surface_chrome.chips
-    assert cast(Any, overlay)._live_visual_owner.visual_snapshots_by_index == {}
+    assert cast(Any, overlay)._runtime.live_visuals.visual_snapshots_by_index == {}
 
 
 def _counter_delta(

@@ -360,7 +360,9 @@ def _install_token_wheel_handlers(
 def _token_weight_wheel_owner(box: PromptEditor) -> Any:
     """Return the token-weight wheel-intent owner for focused integration checks."""
 
-    return cast(Any, box)._wheel_controller.token_weight_wheel_intent
+    return cast(
+        Any, box
+    )._runtime.core.syntax.wheel_controller.token_weight_wheel_intent
 
 
 def _reveal_weight_controls_without_dwell(
@@ -382,7 +384,7 @@ def _reveal_weight_controls_without_dwell(
     process_events(app)
     QTest.mouseMove(box.viewport(), token_point)
     process_events(app)
-    controls._set_pointer_from_viewport(QPointF(token_point))  # noqa: SLF001
+    controls.set_pointer_from_viewport(QPointF(token_point))
     controls.refresh_geometry()
     process_events(app)
     return token_point

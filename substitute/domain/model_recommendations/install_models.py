@@ -40,6 +40,8 @@ class ModelInstallFile:
     sha256: str
     size_bytes: int
     destination_dir: Path
+    provider_id: str = "civitai"
+    provider_name: str = "CivitAI"
 
 
 @dataclass(frozen=True, slots=True)

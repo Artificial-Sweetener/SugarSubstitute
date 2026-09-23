@@ -55,6 +55,7 @@ from substitute.application.prompt_editor.lora.scheduled import (
 )
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetSource,
 )
@@ -100,6 +101,7 @@ class PromptEditorFieldBuildRequest:
     prompt_spellcheck_service: PromptSpellcheckService | None = None
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
+    model_updates: ModelUpdatePickerBridge | None = None
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None
     danbooru_lookup_dispatcher_factory: DanbooruWikiLookupDispatcherFactory | None = (
         None
@@ -139,6 +141,7 @@ class PromptEditorFieldFactory:
             prompt_spellcheck_service=request.prompt_spellcheck_service,
             thumbnail_asset_repository=request.thumbnail_asset_repository,
             model_metadata_action_handler=request.model_metadata_action_handler,
+            model_updates=request.model_updates,
             prompt_task_executor_factory=request.prompt_task_executor_factory,
             danbooru_lookup_dispatcher_factory=(
                 request.danbooru_lookup_dispatcher_factory
@@ -174,6 +177,7 @@ def build_prompt_editor_widget(
     prompt_spellcheck_service: PromptSpellcheckService | None = None,
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+    model_updates: ModelUpdatePickerBridge | None = None,
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
     danbooru_lookup_dispatcher_factory: (
         DanbooruWikiLookupDispatcherFactory | None
@@ -209,6 +213,7 @@ def build_prompt_editor_widget(
         prompt_spellcheck_service=prompt_spellcheck_service,
         thumbnail_asset_repository=thumbnail_asset_repository,
         model_metadata_action_handler=model_metadata_action_handler,
+        model_updates=model_updates,
         prompt_task_executor_factory=prompt_task_executor_factory,
         danbooru_lookup_dispatcher_factory=danbooru_lookup_dispatcher_factory,
     )

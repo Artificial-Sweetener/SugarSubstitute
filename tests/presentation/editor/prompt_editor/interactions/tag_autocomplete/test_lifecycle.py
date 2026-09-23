@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from typing import cast
 
 from PySide6.QtCore import Qt
@@ -63,7 +67,7 @@ def test_prompt_editor_real_widget_dismisses_preview_when_context_no_longer_matc
     QTest.keyClicks(editor, "1g")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     QTest.keyClick(editor, Qt.Key.Key_Escape)
     process_events(app)
 
