@@ -375,3 +375,40 @@ def test_composed_output_context_router_uses_full_output_actions_for_detail(
         assert entries[5].icon is FIF.FULL_SCREEN
     finally:
         destroy_qt_object(canvas)
+
+
+def test_composed_grid_menu_uses_authorized_document_images_for_compare(
+    execution_runtime: ExecutionRuntime,
+) -> None:
+    """Grid content must expose Compare from authorized document membership."""
+
+    _app()
+    boundary = create_canvas_session_boundary()
+    canvas = OutputCanvas(
+        execution_runtime=execution_runtime,
+        preview_registry=OutputPreviewRegistry(),
+        route_session_boundary=boundary,
+    )
+    first_id = uuid4()
+    second_id = uuid4()
+    try:
+        assert canvas.document.admit_image(first_id, _image("red"))
+        assert canvas.document.admit_image(second_id, _image("blue"))
+        canvas.bind_projection_session(
+            _session(boundary, _projection(first_id, second_id))
+        )
+        router = compose_output_context_menu(
+            canvas,
+            request_copy=lambda _reference: None,
+        )
+
+        reference = canvas.document.content_reference_for(first_id)
+        assert reference is not None
+        model = router.grid_menu.menu_model(reference)
+
+        action_ids = {
+            entry.action_id for entry in model.entries if isinstance(entry, MenuItem)
+        }
+        assert "output_canvas.compare_outputs" in action_ids
+    finally:
+        destroy_qt_object(canvas)

@@ -47,6 +47,7 @@ def test_drag_provider_materializes_the_captured_document_subject(
     provider = OutputTransferDragProvider(
         resolver=build_transfer_resolver(output_document, tmp_path, {image_id}),
         submitter=ImmediateTaskSubmitter(),
+        drag_is_active=lambda: True,
     )
     published: list[tuple[object | None, BaseException | None]] = []
 
@@ -80,6 +81,7 @@ def test_drag_provider_rejects_retired_captured_subject(
     provider = OutputTransferDragProvider(
         resolver=build_transfer_resolver(output_document, tmp_path, {image_id}),
         submitter=ImmediateTaskSubmitter(),
+        drag_is_active=lambda: True,
     )
     published: list[tuple[object | None, BaseException | None]] = []
 
@@ -93,3 +95,32 @@ def test_drag_provider_rejects_retired_captured_subject(
     assert payload is None
     assert isinstance(error, RuntimeError)
     assert str(error) == "Output image is no longer available."
+
+
+def test_drag_provider_rejects_payload_after_pointer_gesture_ends(
+    tmp_path: Path,
+    output_document: OutputCanvasDocument,
+) -> None:
+    """A late payload must not enter Qt's native drag loop after button release."""
+
+    image_id = uuid4()
+    assert output_document.admit_image(image_id, transfer_image())
+    reference = output_document.content_reference_for(image_id)
+    assert reference is not None
+    provider = OutputTransferDragProvider(
+        resolver=build_transfer_resolver(output_document, tmp_path, {image_id}),
+        submitter=ImmediateTaskSubmitter(),
+        drag_is_active=lambda: False,
+    )
+    published: list[tuple[object | None, BaseException | None]] = []
+
+    provider.materialize(
+        DragSubject(reference),
+        lambda payload, error: published.append((payload, error)),
+    )
+
+    assert len(published) == 1
+    payload, error = published[0]
+    assert payload is None
+    assert isinstance(error, RuntimeError)
+    assert str(error) == "output_drag_gesture_ended"
