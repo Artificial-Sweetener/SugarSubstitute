@@ -220,7 +220,6 @@ class PromptProjectionBuilder:
                 session=session,
                 active_span_range=active_span_range,
                 decoration_accent_ranges=accent_ranges,
-                all_supported_ranges=all_supported_ranges,
             )
         )
         candidates.extend(

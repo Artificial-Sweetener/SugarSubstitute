@@ -70,51 +70,9 @@ class PromptProjectionRunBuilder:
         *,
         collapse_candidates: tuple[PromptProjectionCollapseCandidate, ...],
     ) -> tuple[PromptProjectionRun, ...]:
-        """Interleave plain text with ordered semantic token runs."""
+        """Interleave text and semantic tokens in source nesting order."""
 
-        collapse_by_start = {
-            candidate.start: candidate for candidate in collapse_candidates
-        }
-        runs: list[PromptProjectionRun] = []
-        run_index = 0
-        projection_position = 0
-        plain_start = 0
-        source_index = 0
-        for candidate in collapse_by_start.values():
-            if candidate.start < source_index:
-                continue
-            plain_run = self._plain_text_run(
-                source_text,
-                start=plain_start,
-                end=candidate.start,
-                run_index=run_index,
-                projection_position=projection_position,
-            )
-            if plain_run is not None:
-                runs.append(plain_run)
-                run_index += 1
-                projection_position = plain_run.projection_end
-            candidate_runs = self._projected_token_runs(
-                candidate.token,
-                source_text=source_text,
-                projection_position=projection_position,
-            )
-            runs.extend(candidate_runs)
-            if candidate_runs:
-                run_index += len(candidate_runs)
-                projection_position = candidate_runs[-1].projection_end
-            source_index = candidate.end
-            plain_start = source_index
-        trailing_plain_run = self._plain_text_run(
-            source_text,
-            start=plain_start,
-            end=len(source_text),
-            run_index=run_index,
-            projection_position=projection_position,
-        )
-        if trailing_plain_run is not None:
-            runs.append(trailing_plain_run)
-        return tuple(runs)
+        return _ProjectedRunStream(self, source_text, collapse_candidates).build()
 
     def _plain_text_run(
         self,
@@ -210,7 +168,30 @@ def _emphasis_runs(
     )
     if token.display_text != visible.display_text:
         raise ValueError("Emphasis token and visible source mapping disagree.")
-    prefix_run = PromptProjectionRun(
+    prefix_run = _emphasis_prefix_run(token, projection_position)
+    content_run = PromptProjectionRun(
+        run_id=f"emphasis-content:{token.token_id}",
+        kind=PromptProjectionRunKind.TEXT,
+        source_start=token.content_start,
+        source_end=token.content_end,
+        display_text=visible.display_text,
+        source_positions=visible.source_positions,
+        projection_start=prefix_run.projection_end,
+        projection_end=prefix_run.projection_end + len(visible.display_text),
+        token_id=token.token_id,
+        active=token.active,
+    )
+    suffix_run = _emphasis_suffix_run(token, content_run.projection_end)
+    return (prefix_run, content_run, suffix_run)
+
+
+def _emphasis_prefix_run(
+    token: PromptProjectionToken, projection_position: int
+) -> PromptProjectionRun:
+    """Build the leading decoration for one weighted source shell."""
+
+    assert token.content_start is not None
+    return PromptProjectionRun(
         run_id=f"emphasis-prefix:{token.token_id}",
         kind=PromptProjectionRunKind.INLINE_OBJECT,
         source_start=token.source_start,
@@ -224,33 +205,125 @@ def _emphasis_runs(
         role=PromptProjectionRunRole.TOKEN_LEADING_DECORATION,
         active=token.active,
     )
-    content_run = PromptProjectionRun(
-        run_id=f"emphasis-content:{token.token_id}",
-        kind=PromptProjectionRunKind.TEXT,
-        source_start=token.content_start,
-        source_end=token.content_end,
-        display_text=visible.display_text,
-        source_positions=visible.source_positions,
-        projection_start=prefix_run.projection_end,
-        projection_end=prefix_run.projection_end + len(visible.display_text),
-        token_id=token.token_id,
-        active=token.active,
-    )
-    suffix_run = PromptProjectionRun(
+
+
+def _emphasis_suffix_run(
+    token: PromptProjectionToken, projection_position: int
+) -> PromptProjectionRun:
+    """Build the trailing weighted decoration for one source shell."""
+
+    assert token.content_end is not None
+    return PromptProjectionRun(
         run_id=f"emphasis-suffix:{token.token_id}",
         kind=PromptProjectionRunKind.INLINE_OBJECT,
         source_start=token.content_end,
         source_end=token.source_end,
         display_text=token.value_text or "",
         source_positions=(token.content_end, token.source_end),
-        projection_start=content_run.projection_end,
-        projection_end=content_run.projection_end + 1,
+        projection_start=projection_position,
+        projection_end=projection_position + 1,
         token_id=token.token_id,
         renderer_key=_EMPHASIS_SUFFIX_RENDERER_KEY,
         role=PromptProjectionRunRole.TOKEN_TRAILING_DECORATION,
         active=token.active,
     )
-    return (prefix_run, content_run, suffix_run)
+
+
+class _ProjectedRunStream:
+    """Emit one flat run sequence while retaining nested emphasis decorations."""
+
+    def __init__(
+        self,
+        builder: PromptProjectionRunBuilder,
+        source_text: str,
+        candidates: tuple[PromptProjectionCollapseCandidate, ...],
+    ) -> None:
+        """Store the ordered candidates and current stream positions."""
+
+        self._builder = builder
+        self._source_text = source_text
+        self._candidates = candidates
+        self._runs: list[PromptProjectionRun] = []
+        self._projection_position = 0
+
+    def build(self) -> tuple[PromptProjectionRun, ...]:
+        """Emit each nested shell in one bounded pass without recursion."""
+
+        source_position = 0
+        open_shells: list[PromptProjectionToken] = []
+        for index, candidate in enumerate(self._candidates):
+            while (
+                open_shells
+                and open_shells[-1].content_end is not None
+                and candidate.start >= open_shells[-1].content_end
+            ):
+                source_position = self._close_shell(open_shells.pop(), source_position)
+            range_end = (
+                open_shells[-1].content_end if open_shells else len(self._source_text)
+            )
+            assert range_end is not None
+            if candidate.start < source_position or candidate.end > range_end:
+                raise ValueError("Projection candidates have crossing source ranges.")
+            self._append_plain(source_position, candidate.start)
+            token = candidate.token
+            if token.kind is PromptProjectionTokenKind.EMPHASIS and self._has_child(
+                index, token
+            ):
+                assert token.content_start is not None
+                self._append_run(_emphasis_prefix_run(token, self._projection_position))
+                open_shells.append(token)
+                source_position = token.content_start
+                continue
+            for run in self._builder._projected_token_runs(
+                token,
+                source_text=self._source_text,
+                projection_position=self._projection_position,
+            ):
+                self._append_run(run)
+            source_position = candidate.end
+        while open_shells:
+            source_position = self._close_shell(open_shells.pop(), source_position)
+        self._append_plain(source_position, len(self._source_text))
+        return tuple(self._runs)
+
+    def _has_child(self, index: int, token: PromptProjectionToken) -> bool:
+        """Return whether the following candidate belongs inside this shell."""
+
+        if index + 1 >= len(self._candidates):
+            return False
+        assert token.content_start is not None
+        assert token.content_end is not None
+        child = self._candidates[index + 1]
+        return token.content_start <= child.start and child.end <= token.content_end
+
+    def _close_shell(self, token: PromptProjectionToken, source_position: int) -> int:
+        """Complete one nested content range and emit its trailing decoration."""
+
+        assert token.content_end is not None
+        self._append_plain(source_position, token.content_end)
+        self._append_run(_emphasis_suffix_run(token, self._projection_position))
+        return token.source_end
+
+    def _append_plain(self, start: int, end: int) -> None:
+        """Emit an undecorated source-backed text interval when nonempty."""
+
+        run = self._builder._plain_text_run(
+            self._source_text,
+            start=start,
+            end=end,
+            run_index=len(self._runs),
+            projection_position=self._projection_position,
+        )
+        if run is not None:
+            self._append_run(run)
+
+    def _append_run(self, run: PromptProjectionRun) -> None:
+        """Advance the stream after one contiguous projected run."""
+
+        if run.projection_start != self._projection_position:
+            raise ValueError("Projection run boundaries are not contiguous.")
+        self._runs.append(run)
+        self._projection_position = run.projection_end
 
 
 __all__ = ["PromptProjectionRunBuilder"]

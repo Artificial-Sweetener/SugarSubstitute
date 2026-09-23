@@ -493,12 +493,17 @@ class PromptProjectionCaretMap:
         self,
         source_position: int,
     ) -> PromptProjectionToken | None:
-        """Return the semantic token covering one raw source position when present."""
+        """Return the innermost semantic token covering one source position."""
 
-        for token in self.tokens:
-            if token.source_start <= source_position < token.source_end:
-                return token
-        return None
+        return min(
+            (
+                token
+                for token in self.tokens
+                if token.source_start <= source_position < token.source_end
+            ),
+            key=lambda token: token.source_end - token.source_start,
+            default=None,
+        )
 
     def token_starting_at_source_position(
         self,
@@ -900,9 +905,20 @@ class PromptProjectionCaretMap:
         )
         ordered = sorted(content_states, key=lambda state: state.source_position)
         if not ordered:
-            raise AssertionError(
-                f"Missing content caret states for {token.token_id!r}."
+            assert token.content_start is not None
+            assert token.content_end is not None
+            ordered = sorted(
+                (
+                    stop.state
+                    for stop in self.stops
+                    if token.content_start
+                    <= stop.state.source_position
+                    <= token.content_end
+                ),
+                key=lambda state: state.source_position,
             )
+        if not ordered:
+            raise AssertionError(f"Missing caret states inside {token.token_id!r}.")
         if prefer_after:
             return next(
                 (

@@ -1233,10 +1233,10 @@ owner = "projection caret map"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/core/projection/caret.py"
 kind = "structural"
-justification = "The module defines one immutable caret-state model and its indexed PromptProjectionCaretMap. Source/projection lookup, token boundary queries, next/previous navigation, index construction, and fallback resolution—including source offsets hidden by escaped visible glyphs—all preserve one total visual caret ordering. Splitting the hidden-boundary fallback from this map would duplicate the token stop-order invariant."
+justification = "The module defines one immutable caret-state model and its indexed PromptProjectionCaretMap. Source/projection lookup, token boundary queries, next/previous navigation, index construction, and fallback resolution—including hidden source offsets inside nested token shells—all preserve one total visual caret ordering. Innermost-token selection and fallback to child/plain stops must share the map's canonical stop order; extracting them would duplicate that invariant."
 issue = "chore:SS-WAIVER-S040"
 review_by = 2026-12-15
-max_lines = 830
+max_lines = 846
 
 [[waivers]]
 id = "SS-WAIVER-S041"
