@@ -18,30 +18,21 @@
 
 from __future__ import annotations
 
-from substitute.presentation.workflows.workflow_tabs_view import (
-    set_workflow_tab_source_text,
-    workflow_tab_source_text,
-)
-
-from collections.abc import Callable, Mapping, MutableMapping
+from collections.abc import Callable, Mapping
 from time import perf_counter
-from typing import Protocol, TypeVar
 from typing import cast
 
 from substitute.application.workflows import (
     ClosedWorkflowBuffer,
     ClosedWorkflowSnapshotService,
-    WorkflowSessionService,
-    WorkflowTabService,
 )
-from substitute.application.workflows.project_asset_owner_service import (
-    ProjectAssetOwnerService,
-)
-from substitute.domain.workflow import WorkflowState
-from substitute.presentation.resources import cube_icon_resolver
 from substitute.presentation.shell.closed_workflow_history import (
     ClosedWorkflowHistory,
     ClosedWorkflowHistoryView,
+)
+from substitute.presentation.shell.workflow_closure_coordinator import (
+    WorkflowClosureCoordinator,
+    WorkflowClosureView,
 )
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
@@ -71,9 +62,6 @@ from substitute.presentation.shell.workflow_surface_reconciler import (
     WorkflowSurfaceReconciler,
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (
-    WorkflowInvalidationReason,
-    WorkflowSurface,
-    WorkflowSurfaceDirtyState,
     WorkflowSurfaceInvalidationService,
 )
 from substitute.presentation.shell.workflow_surface_registry import (
@@ -84,232 +72,26 @@ from substitute.presentation.shell.workflow_tab_switch_diagnostics import (
     WorkflowTabSwitchDiagnostic,
     WorkflowTabSwitchDiagnostics,
 )
+from substitute.presentation.shell.workflow_rename_controller import (
+    WorkflowRenameController,
+    WorkflowRenameView,
+)
 from substitute.presentation.shell.workflow_workspace_materializer import (
     WorkflowWorkspaceMaterializationView,
     WorkflowWorkspaceMaterializer,
+)
+from substitute.presentation.shell.workflow_workspace_projection_ports import (
+    WorkflowSurfaceInvalidationProtocol,
+    WorkflowSurfaceRefreshSchedulerProtocol,
+    WorkflowWorkspaceView,
 )
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
     get_logger,
     log_debug,
-    log_exception,
-    log_info,
 )
 
 _LOGGER = get_logger("presentation.shell.workflow_workspace_coordinator")
-WidgetT = TypeVar("WidgetT", bound="LifecycleWidgetProtocol")
-
-
-class WorkflowTabItemProtocol(Protocol):
-    """Describe workflow-tab item operations needed by the coordinator."""
-
-    def routeKey(self) -> str:
-        """Return the workflow route key."""
-
-    def text(self) -> str:
-        """Return the current tab label."""
-
-    def setRouteKey(self, key: str) -> None:
-        """Replace the workflow route key."""
-
-    def setText(self, text: str) -> None:
-        """Replace the workflow tab label."""
-
-
-class WorkflowTabBarProtocol(Protocol):
-    """Describe workflow-tab bar APIs used by lifecycle projection."""
-
-    items: list[WorkflowTabItemProtocol]
-    itemMap: MutableMapping[str, WorkflowTabItemProtocol]
-
-    def addTab(self, routeKey: str, text: str) -> WorkflowTabItemProtocol:
-        """Add a workflow tab and return its item."""
-
-    def insertTab(
-        self,
-        index: int,
-        routeKey: str,
-        text: str,
-    ) -> WorkflowTabItemProtocol:
-        """Insert a workflow tab and return its item."""
-
-    def count(self) -> int:
-        """Return the number of workflow tabs."""
-
-    def currentIndex(self) -> int:
-        """Return the selected tab index."""
-
-    def tabItem(self, index: int) -> WorkflowTabItemProtocol:
-        """Return tab item at index."""
-
-    def workflow_ids_in_order(self) -> list[str]:
-        """Return route keys in rendered order."""
-
-    def select_workflow_tab(self, workflow_id: str, *, emit: bool = False) -> None:
-        """Select workflow tab by id without necessarily emitting user intent."""
-
-    def remove_workflow_tab(self, workflow_id: str, *, emit: bool = False) -> None:
-        """Remove workflow tab by id without necessarily emitting user intent."""
-
-
-class WidgetContainerProtocol(Protocol):
-    """Describe stacked-widget container behavior used by projection."""
-
-    def setCurrentWidget(self, widget: object) -> None:
-        """Set the visible widget."""
-
-    def removeWidget(self, widget: object) -> None:
-        """Remove a widget from the container."""
-
-
-class LifecycleWidgetProtocol(Protocol):
-    """Describe Qt widget lifecycle method used during workflow close."""
-
-    def deleteLater(self) -> None:
-        """Schedule widget deletion."""
-
-
-class WorkflowCubeStackProtocol(LifecycleWidgetProtocol, Protocol):
-    """Describe cube-stack tab APIs used during workflow duplication."""
-
-    def clear(self) -> None:
-        """Remove all cube tabs."""
-
-    def count(self) -> int:
-        """Return current cube tab count."""
-
-    def insertTab(
-        self,
-        index: int,
-        *,
-        routeKey: str,
-        text: str,
-        icon: object | None = None,
-    ) -> object:
-        """Insert one cube tab."""
-
-    def setCurrentIndex(self, index: int) -> None:
-        """Select the current cube tab."""
-
-
-class OverrideManagerProtocol(Protocol):
-    """Describe override-manager behavior used during workflow transitions."""
-
-    def detach_override_widgets(self) -> None:
-        """Detach live override toolbar controls without destroying cached widgets."""
-
-    def _clear_all_override_widgets(self) -> None:
-        """Clear live override toolbar controls."""
-
-    def dispose(self) -> None:
-        """Dispose manager-owned widget resources."""
-
-
-class WorkflowCanvasProjectionCoordinatorProtocol(Protocol):
-    """Describe active workflow canvas projection behavior."""
-
-    def project_workflow(self, workflows: object, active_workflow_id: str) -> None:
-        """Project one active workflow into shared canvas panes."""
-
-
-class OutputCanvasProjectionCoordinatorProtocol(Protocol):
-    """Describe Output projection state cleanup after workflow closure."""
-
-    def discard_workflow_projection_state(self, workflow_id: str) -> None:
-        """Release retained navigation/groups while preserving reopenable images."""
-
-
-class WorkflowSurfaceRefreshSchedulerProtocol(Protocol):
-    """Describe deferred workflow surface refresh scheduling."""
-
-    def request(
-        self,
-        workflow_id: str,
-        *,
-        force_refresh: bool,
-        reason: str,
-        on_complete: Callable[[], None] | None = None,
-    ) -> None:
-        """Schedule refresh for one workflow route."""
-
-    def cancel(self, workflow_id: str | None = None) -> None:
-        """Cancel pending refresh work."""
-
-
-class WorkflowSurfaceInvalidationProtocol(Protocol):
-    """Describe workflow surface invalidation state used by tab policy."""
-
-    def mark_dirty(
-        self,
-        workflow_id: str,
-        surfaces: set[WorkflowSurface] | frozenset[WorkflowSurface],
-        reason: WorkflowInvalidationReason,
-    ) -> None:
-        """Mark workflow surfaces dirty for a specific reason."""
-
-    def mark_clean(
-        self,
-        workflow_id: str,
-        surfaces: set[WorkflowSurface] | frozenset[WorkflowSurface] | None = None,
-    ) -> None:
-        """Mark selected surfaces, or all surfaces, clean."""
-
-    def dirty_state(self, workflow_id: str) -> WorkflowSurfaceDirtyState:
-        """Return current dirty state for one workflow."""
-
-    def is_clean(self, workflow_id: str) -> bool:
-        """Return whether no tracked surface has pending maintenance."""
-
-    def rename_workflow(self, old_workflow_id: str, new_workflow_id: str) -> None:
-        """Move pending maintenance state to a renamed workflow id."""
-
-    def remove_workflow(self, workflow_id: str) -> None:
-        """Forget pending maintenance state for a closed workflow."""
-
-
-class GenerationProgressProjectionProtocol(Protocol):
-    """Describe generation progress projection owned by action controller."""
-
-    def project_active_workflow_progress(self) -> None:
-        """Project selected workflow progress onto shell progress surfaces."""
-
-
-class CanvasRouteControllerProtocol(Protocol):
-    """Describe attached canvas route availability projection."""
-
-    def refresh_input_canvas_availability(self) -> None:
-        """Refresh active workflow input-canvas availability."""
-
-
-class WorkflowWorkspaceView(Protocol):
-    """Describe shell dependencies required for workflow lifecycle projection."""
-
-    closed_workflow_buffer: ClosedWorkflowBuffer
-    closed_workflow_snapshot_service: ClosedWorkflowSnapshotService
-    workflow_tab_service: WorkflowTabService
-    workflow_session_service: WorkflowSessionService[object]
-    workflow_tabbar: WorkflowTabBarProtocol
-    workflow_canvas_projection_coordinator: WorkflowCanvasProjectionCoordinatorProtocol
-    generation_action_controller: GenerationProgressProjectionProtocol
-    canvas_route_controller: CanvasRouteControllerProtocol
-    output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol
-    cube_stacks: dict[str, WorkflowCubeStackProtocol]
-    editor_panels: dict[str, LifecycleWidgetProtocol]
-    override_managers: dict[str, OverrideManagerProtocol | None]
-    cube_icon_factory: cube_icon_resolver.CubeIconFactoryProtocol
-    cube_stack_container: WidgetContainerProtocol
-    editor_panel_container: WidgetContainerProtocol
-
-    def ensure_workflow_ui(
-        self,
-        workflow_id: str,
-        *,
-        set_as_current: bool = True,
-    ) -> tuple[object, object]:
-        """Create deferred workflow-scoped widgets before route activation."""
-
-    def position_search_box(self) -> None:
-        """Reposition the floating search box."""
 
 
 class WorkflowWorkspaceCoordinator:
@@ -402,6 +184,16 @@ class WorkflowWorkspaceCoordinator:
             cast(WorkflowWorkspaceMaterializationView, view),
             closed_workflow_history=self._closed_workflow_history,
             project_workflow=self.project_workflow,
+        )
+        self._closure_coordinator = WorkflowClosureCoordinator(
+            cast(WorkflowClosureView, view),
+            closed_workflow_history=self._closed_workflow_history,
+            surface_invalidation=self._surface_invalidation_service,
+            add_workflow=self.add_workflow,
+            project_workflow=self.project_workflow,
+        )
+        self._rename_controller = WorkflowRenameController(
+            cast(WorkflowRenameView, view)
         )
 
     def activate_workflow(
@@ -738,165 +530,14 @@ class WorkflowWorkspaceCoordinator:
         )
 
     def close_workflow(self, workflow_id: str) -> None:
-        """Close one workflow and project the selected successor exactly once."""
+        """Close one workflow through the scoped-resource lifecycle owner."""
 
-        view = self._view
-        unsaved_controller = getattr(view, "unsaved_work_controller", None)
-        confirm_close = getattr(unsaved_controller, "confirm_workflow_close", None)
-        if callable(confirm_close) and not confirm_close(workflow_id):
-            return
-        ordered_ids = self._workflow_ids_in_order()
-        close_push_result = self._closed_workflow_history.buffer_workflow(
-            workflow_id,
-            ordered_ids,
-        )
-        transition = view.workflow_session_service.close_workflow(
-            workflow_id,
-            ordered_ids,
-        )
-        self._dispose_workflow_ui(workflow_id)
-        self._surface_invalidation_service.remove_workflow(workflow_id)
-        view.output_canvas_projection_coordinator.discard_workflow_projection_state(
-            workflow_id
-        )
-        unsaved_work_service = getattr(view, "unsaved_work_service", None)
-        remove_document_state = getattr(unsaved_work_service, "remove", None)
-        if callable(remove_document_state):
-            remove_document_state(workflow_id)
-        workflow_progress_service = getattr(view, "workflow_progress_service", None)
-        remove_workflow_progress = getattr(
-            workflow_progress_service,
-            "remove_workflow",
-            None,
-        )
-        if callable(remove_workflow_progress):
-            remove_workflow_progress(workflow_id)
-        output_image_pipeline = getattr(view, "output_image_pipeline", None)
-        remove_output_workflow = getattr(output_image_pipeline, "remove_workflow", None)
-        if callable(remove_output_workflow):
-            remove_output_workflow(workflow_id)
-        if transition.removed_workflow is not None:
-            if close_push_result is not None and close_push_result.accepted:
-                self._closed_workflow_history.cleanup_evicted(
-                    close_push_result.evicted_records
-                )
-            else:
-                self._closed_workflow_history.prune_workflow_images(
-                    workflow_id,
-                    transition.removed_workflow,
-                )
-        self._remove_workflow_activity(workflow_id)
-        view.workflow_tabbar.remove_workflow_tab(workflow_id, emit=False)
-
-        if transition.next_active_workflow_id is None:
-            self.add_workflow()
-            return
-        if transition.active_changed:
-            self.project_workflow(
-                transition.next_active_workflow_id,
-                force_refresh=True,
-            )
+        self._closure_coordinator.close_workflow(workflow_id)
 
     def rename_workflow(self, old_workflow_id: str, proposed_name: str) -> None:
-        """Rename one workflow label without changing its immutable identity."""
+        """Rename one workflow through the label-mutation owner."""
 
-        view = self._view
-        tab_item = view.workflow_tabbar.itemMap.get(old_workflow_id)
-        if tab_item is None:
-            return
-        old_label = workflow_tab_source_text(tab_item)
-        existing_labels = {
-            workflow_tab_source_text(item)
-            for workflow_id, item in view.workflow_tabbar.itemMap.items()
-            if workflow_id != old_workflow_id
-        }
-        decision = view.workflow_tab_service.resolve_inline_rename(
-            old_workflow_id=old_workflow_id,
-            proposed_name=proposed_name,
-            existing_labels=existing_labels,
-        )
-        if not decision.accepted:
-            set_workflow_tab_source_text(tab_item, old_label)
-            return
-        if old_label == decision.tab_label:
-            return
-        workflow = view.workflow_session_service.get_workflow(old_workflow_id)
-        if isinstance(workflow, WorkflowState):
-            ProjectAssetOwnerService().pin_legacy_owners(
-                workflow,
-                storage_owner=old_label,
-            )
-        set_workflow_tab_source_text(tab_item, decision.tab_label)
-        unsaved_work_service = getattr(view, "unsaved_work_service", None)
-        mark_document_dirty = getattr(unsaved_work_service, "mark_dirty", None)
-        if callable(mark_document_dirty):
-            mark_document_dirty(old_workflow_id)
-        log_info(
-            _LOGGER,
-            "Renamed workflow display label without changing identity",
-            workflow_id=old_workflow_id,
-            old_label=old_label,
-            new_label=decision.tab_label,
-        )
-
-    def _remove_workflow_activity(self, workflow_id: str) -> None:
-        """Remove unread activity for a closed workflow when supported."""
-
-        activity_service = getattr(self._view, "workflow_activity_service", None)
-        remove_workflow = getattr(activity_service, "remove_workflow", None)
-        if callable(remove_workflow):
-            remove_workflow(workflow_id)
-
-    def _workflow_ids_in_order(self) -> list[str]:
-        """Return workflow ids from the tab bar with fallback for test doubles."""
-
-        tabbar = self._view.workflow_tabbar
-        workflow_ids_in_order = getattr(tabbar, "workflow_ids_in_order", None)
-        if callable(workflow_ids_in_order):
-            return list(workflow_ids_in_order())
-        return [item.routeKey() for item in tabbar.items]
-
-    def _dispose_workflow_ui(self, workflow_id: str) -> None:
-        """Dispose workflow-scoped widgets and manager resources."""
-
-        view = self._view
-        self._remove_widget(
-            workflow_id,
-            mapping=view.cube_stacks,
-            container=view.cube_stack_container,
-        )
-        self._remove_widget(
-            workflow_id,
-            mapping=view.editor_panels,
-            container=view.editor_panel_container,
-        )
-        manager = view.override_managers.pop(workflow_id, None)
-        if manager is None:
-            return
-        try:
-            manager.dispose()
-        except (AttributeError, RuntimeError, TypeError) as error:
-            log_exception(
-                _LOGGER,
-                "Failed to dispose override manager during workflow close",
-                workflow_id=workflow_id,
-                error=error,
-            )
-
-    @staticmethod
-    def _remove_widget(
-        workflow_id: str,
-        *,
-        mapping: MutableMapping[str, WidgetT],
-        container: WidgetContainerProtocol,
-    ) -> None:
-        """Remove one workflow-scoped widget from mapping and container."""
-
-        widget = mapping.pop(workflow_id, None)
-        if widget is None:
-            return
-        container.removeWidget(widget)
-        widget.deleteLater()
+        self._rename_controller.rename_workflow(old_workflow_id, proposed_name)
 
 
 __all__ = [

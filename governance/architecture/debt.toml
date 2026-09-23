@@ -827,22 +827,6 @@ responsibilities = [
 next_extraction = "Separate the active feature refresh facade from dirty-surface reconciliation."
 
 [[debts]]
-id = "SS-ARCH-084"
-owner = "workflow workspace lifecycle"
-paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:82c512dc82f2ad135f1d993ec1cc6a89d11698572456a2b945c087c24436ed10"
-issue = "chore:SS-ARCH-084"
-review_by = 2026-12-15
-responsibilities = [
-  "workflow activation and surface projection",
-  "workflow closure and successor selection",
-  "workflow rename and legacy asset-owner pinning",
-  "workflow-scoped widget disposal",
-  "tabbar, activity, and surface invalidation coordination",
-]
-next_extraction = "Extract workflow closure, rename, and widget disposal from activation and surface projection."
-
-[[debts]]
 id = "SS-ARCH-087"
 owner = "workspace cube picker actions"
 paths = ["substitute/presentation/shell/workspace_cube_picker_actions.py"]
