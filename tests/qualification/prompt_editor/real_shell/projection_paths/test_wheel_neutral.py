@@ -30,6 +30,7 @@ from tests.presentation.editor.prompt_editor.interactions.weight.mounting import
     anchor_rect_for,
     emphasis_token_for,
     reveal_emphasis_controls,
+    token_rect_for,
     wheel_widget_at_point,
 )
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
@@ -123,3 +124,43 @@ def test_neutral_wheel_decoration_disappears_after_pointer_leaves(
     assert settled.source_text == "1girl, portrait"
     assert settled.projection_token_count == 0
     assert not snapshot_invariant_violations(settled)
+
+
+def test_wheel_over_text_crosses_neutral_after_controls_hide(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Keep a viewport-owned wheel gesture active when its control chrome hides."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(
+        initial_text="(1girl:1.05), portrait"
+    )
+    real_shell_scenario.input.focus_editor(field)
+    editor = field.editor
+    token = emphasis_token_for(editor)
+    controls = reveal_emphasis_controls(editor, token)
+    viewport = surface_for(editor).viewport()
+    pointer = token_rect_for(editor, token).center().toPoint()
+    QTest.mouseMove(viewport, pointer)
+    wheel_owner = cast(
+        PromptTokenWeightWheelIntentController,
+        controls._wheel_intent._owner,  # noqa: SLF001
+    )
+    real_shell_scenario.wait_until(
+        lambda: wheel_owner._ready_token is not None,  # noqa: SLF001
+        description="emphasis text wheel hover dwell",
+    )
+
+    assert wheel_widget_at_point(viewport, local_point=pointer, angle_delta_y=-120)
+    real_shell_scenario.wait_until(
+        lambda: controls.visible_token is None,
+        description="controls hide while wheel remains over token text",
+    )
+    neutral = real_shell_scenario.snapshots.capture(field, label="wheel-text-neutral")
+    assert neutral.source_text == "1girl, portrait"
+    assert emphasis_token_for(editor).value_text == "1.00"
+    assert not snapshot_invariant_violations(neutral)
+
+    assert wheel_widget_at_point(viewport, local_point=pointer, angle_delta_y=-120)
+    sub_one = real_shell_scenario.snapshots.capture(field, label="wheel-text-sub-one")
+    assert sub_one.source_text == "(1girl:0.95), portrait"
+    assert not snapshot_invariant_violations(sub_one)

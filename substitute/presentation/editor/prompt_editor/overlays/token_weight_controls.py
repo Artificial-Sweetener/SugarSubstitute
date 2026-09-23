@@ -348,8 +348,8 @@ class PromptTokenWeightControls(QWidget):
         """Hide the overlay and clear any non-pressed visibility state."""
 
         self._set_visible_token(None)
-        self._exact_edit.clear_overlay_emphasis_session()
         if self._weighted_token_at_current_pointer() is None:
+            self._exact_edit.clear_overlay_emphasis_session()
             self._wheel_intent.clear()
         self._increase_rect = None
         self._decrease_rect = None
