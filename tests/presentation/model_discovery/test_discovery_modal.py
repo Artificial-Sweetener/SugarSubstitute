@@ -162,6 +162,26 @@ def test_protected_card_uses_only_a_small_key_indicator(
     modal.deleteLater()
 
 
+def test_replaced_cards_leave_the_visible_gallery_immediately(tmp_path: Path) -> None:
+    """Retire old controls before deferred Qt destruction processes them."""
+
+    context = ModelSuggestionContext(ModelArtifactKind.CHECKPOINTS, ModelFamilyId.SDXL)
+    first = _suggestion(1, context)
+    second = _suggestion(2, context)
+    modal = ModelDiscoveryModal()
+    modal.show_plan(ModelSuggestionPlan(context, (first,), tmp_path, ()))
+    retired_card = modal.findChild(ModelSuggestionCard)
+    assert retired_card is not None
+
+    modal.show_plan(ModelSuggestionPlan(context, (second,), tmp_path, ()))
+
+    assert retired_card.isHidden()
+    current_card = modal.findChildren(ModelSuggestionCard)[-1]
+    assert current_card.identity == second.identity
+    assert not current_card.isHidden()
+    modal.deleteLater()
+
+
 def test_download_failure_restores_review_controls(tmp_path: Path) -> None:
     """A failed transfer must leave the selected card retryable or cancellable."""
 
