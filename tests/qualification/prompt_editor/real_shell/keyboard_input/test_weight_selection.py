@@ -23,7 +23,12 @@ from dataclasses import replace
 
 import pytest
 from PySide6.QtCore import QEvent, QRect, Qt
-from PySide6.QtGui import QContextMenuEvent, QInputMethodEvent, QKeySequence
+from PySide6.QtGui import (
+    QContextMenuEvent,
+    QFontMetricsF,
+    QInputMethodEvent,
+    QKeySequence,
+)
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLineEdit
 from substitute.presentation.widgets.action_menu import ActionMenu
@@ -81,6 +86,11 @@ def test_exact_weight_input_starts_at_displayed_weight_origin(
     edit_text_left = (
         editor.geometry().left() + cursor_rect.left() + cursor_rect.width() / 2.0
     )
+    displayed_text_top = displayed_slot.top() + max(
+        0.0,
+        (displayed_slot.height() - QFontMetricsF(editor.font()).height()) / 2.0,
+    )
+    edit_text_top = editor.geometry().top() + cursor_rect.top()
 
     assert edit_text_left == pytest.approx(displayed_text_left, abs=0.75), (
         displayed_slot,
@@ -89,6 +99,7 @@ def test_exact_weight_input_starts_at_displayed_weight_origin(
         editor.text(),
         editor.font().toString(),
     )
+    assert edit_text_top == pytest.approx(displayed_text_top, abs=1.0)
 
     editor.selectAll()
     QTest.keyClicks(editor, "0.95")
