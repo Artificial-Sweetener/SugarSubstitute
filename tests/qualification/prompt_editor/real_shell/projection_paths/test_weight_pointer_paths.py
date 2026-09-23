@@ -23,6 +23,9 @@ from typing import cast
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionTokenKind,
+)
 from substitute.presentation.editor.prompt_editor.interactions.wheel_controller import (
     PromptTokenWeightWheelIntentController,
 )
@@ -134,3 +137,64 @@ def test_wheel_on_outer_text_of_nested_emphasis_targets_outer_weight(
     increased = real_shell_scenario.snapshots.capture(field, label="outer-increased")
     assert increased.source_text == "(ths (and then this:1.20):1.45)"
     assert not snapshot_invariant_violations(increased)
+
+
+def test_nested_outer_down_arrow_crosses_neutral_without_moving(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """A synthetic outer shell must enclose its child and retain the same arrow."""
+
+    source = "((atmospheric:2.80) perspective:1.05)"
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text=source)
+    real_shell_scenario.input.focus_editor(field)
+    real_shell_scenario.input.set_source_cursor_position(
+        field, source.index("perspective") + 1
+    )
+    editor = field.editor
+    controls = reveal_emphasis_controls(editor, emphasis_token_for(editor))
+    assert controls.decrease_rect is not None
+    control_parent = controls.parentWidget()
+    assert control_parent is not None
+    fixed_global_point = control_parent.mapToGlobal(
+        controls.decrease_rect.center().toPoint()
+    )
+
+    QTest.mouseClick(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    neutral = real_shell_scenario.snapshots.capture(field, label="nested-outer-neutral")
+    assert neutral.source_text == "(atmospheric:2.80) perspective"
+    synthetic = [
+        token
+        for token in surface_for(editor).projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+        and token.synthetic
+        and token.content_range == (0, len(neutral.source_text))
+    ]
+    assert len(synthetic) == 1
+    assert controls.visible_token is not None
+    assert controls.visible_token.token_id == synthetic[0].token_id
+    assert controls.decrease_rect is not None
+    assert (
+        control_parent.mapToGlobal(controls.decrease_rect.center().toPoint())
+        == fixed_global_point
+    )
+    assert not snapshot_invariant_violations(neutral)
+
+    QTest.mouseDClick(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    QTest.mouseRelease(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    below_one = real_shell_scenario.snapshots.capture(
+        field, label="nested-outer-below-one"
+    )
+    assert below_one.source_text == "((atmospheric:2.80) perspective:0.95)"
+    assert not snapshot_invariant_violations(below_one)
