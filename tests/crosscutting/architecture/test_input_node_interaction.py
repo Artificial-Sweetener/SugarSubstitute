@@ -17,8 +17,14 @@
 """Guard the single-owner boundaries around Input picker interaction."""
 
 from substitute.presentation.canvas.host.canvas_host import CanvasHost
-from substitute.presentation.canvas.input.input_canvas_presenter import (
-    InputCanvasPresenter,
+from substitute.presentation.canvas.input.input_image_materialization_presenter import (
+    InputImageMaterializationPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_picker_presenter import (
+    InputMaskPickerPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_selection_presenter import (
+    InputMaskSelectionPresenter,
 )
 from substitute.presentation.canvas.input.input_node_interaction_controller import (
     InputNodeInteractionController,
@@ -34,13 +40,18 @@ from substitute.presentation.editor.panel.widgets.fields.thumbnail_picker_base i
 def test_input_picker_interaction_has_one_owner_per_concern() -> None:
     """Removed parallel APIs must stay absent from their former mixed owners."""
 
-    for legacy_handler in (
-        "handle_input_image_changed",
-        "handle_input_image_clicked",
-        "handle_input_mask_changed",
-        "handle_input_mask_clicked",
+    for presenter in (
+        InputImageMaterializationPresenter,
+        InputMaskPickerPresenter,
+        InputMaskSelectionPresenter,
     ):
-        assert not hasattr(InputCanvasPresenter, legacy_handler)
+        for legacy_handler in (
+            "handle_input_image_changed",
+            "handle_input_image_clicked",
+            "handle_input_mask_changed",
+            "handle_input_mask_clicked",
+        ):
+            assert not hasattr(presenter, legacy_handler)
     assert hasattr(InputNodeInteractionController, "handle_image_changed")
     assert hasattr(InputNodeInteractionController, "handle_mask_clicked")
     assert not hasattr(InputNodePreviewWidget, "clicked")

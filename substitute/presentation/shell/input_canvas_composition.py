@@ -55,9 +55,6 @@ from substitute.application.workflows.workflow_input_canvas_service import (
 from substitute.application.workflows.workflow_input_canvas_duplication_service import (
     WorkflowInputCanvasDuplicationService,
 )
-from substitute.presentation.canvas.input.input_canvas_presenter import (
-    InputCanvasPresenter,
-)
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     create_input_canvas_tool_system,
 )
@@ -131,6 +128,10 @@ from substitute.presentation.shell.canvas_route_controller import (
 from substitute.presentation.shell.input_canvas_shell_adapter import (
     InputCanvasShellAdapter,
 )
+from substitute.presentation.shell.input_presentation_composition import (
+    InputPresentationComposition,
+    compose_input_presenters,
+)
 from substitute.presentation.shell.regional_mask_action_controller import (
     RegionalMaskActionController,
 )
@@ -151,7 +152,7 @@ class MainWindowInputCanvasComposition:
     input_shared_edge_resize_policy: InputSharedEdgeResizePolicy
     input_scene_mapping_changes: InputSceneMappingChanges
     input_canvas_shell_adapter: Any
-    input_canvas_presenter: Any
+    input_presentation: InputPresentationComposition
     input_node_interaction_controller: Any
     input_mask_visual_opacity_controller: Any
     input_document_change_observer: Any
@@ -255,21 +256,13 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         mask_color=region_color,
         preview_coordinator=input_node_preview_coordinator,
     )
-    input_canvas_presenter = InputCanvasPresenter(
-        input_document=input_canvas.document,
-        current_image_id_provider=input_canvas.current_image_id_for_event,
-        active_workflow_provider=shell.get_active_workflow,
-        active_editor_panel_provider=lambda: shell.active_editor_panel,
-        workflow_session_service=shell.workflow_session_service,
-        workflow_input_canvas_service=workflow_input_canvas_service,
-        input_canvas_state_service=shell.input_canvas_state_service,
-        workflow_name_provider=input_canvas_shell_adapter.resolve_workflow_name,
-        projects_dir_provider=lambda: Path(shell.path_bundle.projects_dir),
-        mask_color_provider=region_color,
-        regional_mask_presenter=regional_mask_presenter,
+    input_presentation = compose_input_presenters(
+        shell=shell,
+        input_canvas=input_canvas,
+        workflow_inputs=workflow_input_canvas_service,
+        shell_adapter=input_canvas_shell_adapter,
+        regional_masks=regional_mask_presenter,
         preview_coordinator=input_node_preview_coordinator,
-        mark_canvas_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
-        error_presenter=getattr(shell, "_error_presenter", None),
     )
     regional_interaction_coordinator = RegionalInteractionCoordinator(
         workflow=shell.get_active_workflow,
@@ -304,8 +297,8 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
         workflow_input_canvas_service=workflow_input_canvas_service,
         input_canvas_state_service=shell.input_canvas_state_service,
-        materialize_image_selection=input_canvas_presenter.materialize_image_selection,
-        apply_mask_selection=input_canvas_presenter.apply_mask_selection,
+        materialize_image_selection=(input_presentation.images.materialize_selection),
+        apply_mask_selection=input_presentation.masks.apply_selection,
         handle_ordered_mask_action=regional_mask_actions.handle,
         activate_input_canvas=lambda: bool(
             canvas_route_controller.activate_route(
@@ -313,7 +306,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
                 keyboard_focus=True,
             )
         ),
-        refresh_mask_pickers=input_canvas_presenter.refresh_active_mask_pickers,
+        refresh_mask_pickers=input_presentation.pickers.refresh_active,
     )
     input_mask_visual_opacity_controller = InputMaskVisualOpacityController(
         active_workflow=shell.get_active_workflow,
@@ -435,7 +428,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_shared_edge_resize_policy=input_shared_edge_resize_policy,
         input_scene_mapping_changes=input_scene_mapping_changes,
         input_canvas_shell_adapter=input_canvas_shell_adapter,
-        input_canvas_presenter=input_canvas_presenter,
+        input_presentation=input_presentation,
         input_node_interaction_controller=input_node_interaction_controller,
         input_mask_visual_opacity_controller=input_mask_visual_opacity_controller,
         input_document_change_observer=input_document_change_observer,
@@ -466,7 +459,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     shell.input_shared_edge_resize_policy = composition.input_shared_edge_resize_policy
     shell.input_scene_mapping_changes = composition.input_scene_mapping_changes
     shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
-    shell.input_canvas_presenter = composition.input_canvas_presenter
+    shell.input_image_materialization_presenter = composition.input_presentation.images
+    shell.input_mask_picker_presenter = composition.input_presentation.pickers
+    shell.input_mask_selection_presenter = composition.input_presentation.masks
     shell.input_node_preview_coordinator = input_node_preview_coordinator
     shell.input_node_interaction_controller = (
         composition.input_node_interaction_controller

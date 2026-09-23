@@ -155,11 +155,6 @@ def test_restore_input_image_does_not_bind_preview_during_prehydration() -> None
         input_canvas_state_service=SimpleNamespace(
             restore_input_image=lambda **kwargs: calls.append(kwargs)
         ),
-        input_canvas_presenter=SimpleNamespace(
-            bind_active_node_previews=lambda: (_ for _ in ()).throw(
-                AssertionError("preview binding requires an installed active workflow")
-            )
-        ),
     )
     reference = InputImageReference(
         image_id=str(image_id),

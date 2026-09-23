@@ -112,38 +112,6 @@ class _FakeInputCanvasShellAdapter:
         self.mark_input_canvas_presentation_changed = object()
 
 
-class _FakeInputCanvasPresenter:
-    """Capture presenter wiring and mask-picker refresh requests."""
-
-    def __init__(self, **kwargs: object) -> None:
-        """Store constructor keyword arguments for assertions."""
-
-        self.kwargs = kwargs
-        self.refreshed_masks: list[tuple[object, object]] = []
-
-    def materialize_image_selection(self, *_args: object) -> bool:
-        """Accept image materialization for interaction composition."""
-
-        return True
-
-    def apply_mask_selection(self, *_args: object) -> bool:
-        """Accept mask materialization for interaction composition."""
-
-        return True
-
-    def refresh_active_mask_pickers(self) -> None:
-        """Represent the presenter-owned picker refresh callback."""
-
-    def refresh_mask_picker_from_asset_state(
-        self,
-        cube_alias: object,
-        node_name: object,
-    ) -> None:
-        """Record a saved-mask refresh routed from the save controller."""
-
-        self.refreshed_masks.append((cube_alias, node_name))
-
-
 class _FakeInputDocumentChangeObserver:
     """Capture in-memory document change observer wiring."""
 
@@ -401,7 +369,9 @@ class _InputCompositionShell:
         self.request_session_autosave = object()
         self.workflow_input_canvas_service: object | None = None
         self.input_canvas_authority_reconciliation_service: object | None = None
-        self.input_canvas_presenter: object | None = None
+        self.input_image_materialization_presenter: object | None = None
+        self.input_mask_picker_presenter: object | None = None
+        self.input_mask_selection_presenter: object | None = None
         self.input_node_interaction_controller: object | None = None
         self.input_document_change_observer: object | None = None
         self.input_generation_snapshot_service: object | None = None

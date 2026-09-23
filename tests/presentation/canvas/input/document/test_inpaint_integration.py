@@ -50,8 +50,17 @@ from substitute.application.workflows.workflow_node_definition_service import (
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.infrastructure.persistence import QtImageStore
-from substitute.presentation.canvas.input.input_canvas_presenter import (
-    InputCanvasPresenter,
+from substitute.presentation.canvas.input.input_image_materialization_presenter import (
+    InputImageMaterializationPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_picker_presenter import (
+    InputMaskPickerPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_selection_presenter import (
+    InputMaskSelectionPresenter,
+)
+from substitute.presentation.canvas.input.input_materialization_presenter import (
+    InputMaterializationPresenter,
 )
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
@@ -234,39 +243,77 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
     )
     panel = _EditorPanel()
     canvas_host = _CanvasHost(document.canvas)
-    presenter = InputCanvasPresenter(
+    session = cast(
+        Any,
+        SimpleNamespace(
+            active_workflow_id=workflow_id,
+            workflows={workflow_id: workflow},
+        ),
+    )
+    mask_pickers = InputMaskPickerPresenter(
+        active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
+        workflow_session=session,
+        workflow_inputs=workflow_service,
+        workflow_name=lambda _workflow_id: workflow_name,
+        projects_dir=lambda: tmp_path,
+    )
+    regional_masks = RegionalMaskCollectionPresenter(
         input_document=document,
-        current_image_id_provider=route_projector.current_image_id_for_event,
-        active_workflow_provider=lambda: workflow,
-        active_editor_panel_provider=lambda: panel,
-        workflow_session_service=cast(
-            Any,
-            SimpleNamespace(
-                active_workflow_id=workflow_id,
-                workflows={workflow_id: workflow},
+        active_panel=lambda: panel,
+        mask_color=lambda _index, _total: QColor("red"),
+    )
+    materialization = InputMaterializationPresenter(
+        input_document=document,
+        active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
+        mask_color=lambda _index, _total: QColor("red"),
+        refresh_scalar_mask=lambda cube_alias, node_name, projects_dir: (
+            mask_pickers.refresh(
+                cube_alias,
+                node_name,
+                projects_dir=projects_dir,
             ),
         ),
-        workflow_input_canvas_service=workflow_service,
-        input_canvas_state_service=state_service,
-        workflow_name_provider=lambda _workflow_id: workflow_name,
-        projects_dir_provider=lambda: tmp_path,
-        mask_color_provider=lambda _index, _total: QColor("red"),
-        regional_mask_presenter=RegionalMaskCollectionPresenter(
-            input_document=document,
-            active_panel=lambda: panel,
-            mask_color=lambda _index, _total: QColor("red"),
+        refresh_ordered_mask=regional_masks.refresh,
+        activate_mask=lambda active_workflow, mask_id: (
+            state_service.set_active_workflow_mask(
+                workflow_id,
+                active_workflow,
+                mask_id,
+            )
         ),
+    )
+    image_presenter = InputImageMaterializationPresenter(
+        current_image_id=route_projector.current_image_id_for_event,
+        active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
+        workflow_session=session,
+        workflow_inputs=workflow_service,
+        input_state=state_service,
+        workflow_name=lambda _workflow_id: workflow_name,
+        projects_dir=lambda: tmp_path,
+        materialization=materialization,
+    )
+    mask_presenter = InputMaskSelectionPresenter(
+        active_workflow=lambda: workflow,
+        workflow_session=session,
+        workflow_inputs=workflow_service,
+        workflow_name=lambda _workflow_id: workflow_name,
+        projects_dir=lambda: tmp_path,
+        materialization=materialization,
+        mask_pickers=mask_pickers,
     )
     interaction_controller = InputNodeInteractionController(
         active_workflow=lambda: workflow,
         active_workflow_id=lambda: workflow_id,
         workflow_input_canvas_service=workflow_service,
         input_canvas_state_service=state_service,
-        materialize_image_selection=presenter.materialize_image_selection,
-        apply_mask_selection=presenter.apply_mask_selection,
+        materialize_image_selection=image_presenter.materialize_selection,
+        apply_mask_selection=mask_presenter.apply_selection,
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=lambda: canvas_host.activate_canvas("Input"),
-        refresh_mask_pickers=presenter.refresh_active_mask_pickers,
+        refresh_mask_pickers=mask_pickers.refresh_active,
     )
 
     interaction_controller.handle_image_changed(

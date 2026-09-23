@@ -105,8 +105,8 @@ def _install_input_canvas_reconciliation(
 ) -> None:
     """Install active Input canvas reconciliation on a view."""
 
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=callback or (lambda: None),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=callback or (lambda: None),
     )
 
 
