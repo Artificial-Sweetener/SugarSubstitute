@@ -93,6 +93,11 @@ def test_anchored_row_picker_view_scrolls_only_when_rows_exceed_height(
     assert overflowing_view.requires_scroll() is True
     assert overflowing_scroll.vScrollBar.isVisible() is True
     assert overflowing_view.width() == short_view.width()
+    visible_handle_right = (
+        overflowing_scroll.vScrollBar.x()
+        + overflowing_scroll.vScrollBar.handle.geometry().right()
+    )
+    assert visible_handle_right == overflowing_scroll.rect().right()
 
 
 def test_anchored_row_picker_view_reveals_active_and_keyboard_rows(
