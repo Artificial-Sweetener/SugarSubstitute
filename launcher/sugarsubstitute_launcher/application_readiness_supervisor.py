@@ -57,6 +57,7 @@ from sugarsubstitute_shared.application_readiness import (
 
 DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
 _POLL_INTERVAL_SECONDS = 0.05
+_RECEIPT_PUBLICATION_GRACE_SECONDS = 2.0
 _TERMINATION_TIMEOUT_SECONDS = 5.0
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +85,18 @@ class ApplicationReadinessError(RuntimeError):
 
         for key, value in values.items():
             self.diagnostics.setdefault(key, str(value))
+
+
+def _unreadable_receipt_error(receipt_path: Path) -> ApplicationReadinessError:
+    """Report a receipt that remained unreadable after publication settled."""
+
+    return ApplicationReadinessError(
+        f"SugarSubstitute wrote an invalid readiness receipt: {receipt_path}.",
+        diagnostics={
+            "readiness_failure_kind": "unreadable_receipt",
+            "readiness_observed_schema": "unavailable",
+        },
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +195,8 @@ class ApplicationReadinessSupervisor:
         )
         try:
             deadline = started_at + self._timeout_seconds
+            receipt_access_deadline: float | None = None
+            receipt_access_error: OSError | None = None
             while self._monotonic() < deadline:
                 self._check_cancellation(process)
                 return_code = process.poll()
@@ -193,11 +208,24 @@ class ApplicationReadinessSupervisor:
                         diagnostics={"readiness_failure_kind": "process_exit"},
                     )
                 if receipt_path.exists():
-                    receipt = self._validate_receipt(
-                        receipt_path=receipt_path,
-                        expected_token=token,
-                        expected_pid=process.pid,
-                    )
+                    try:
+                        receipt = self._validate_receipt(
+                            receipt_path=receipt_path,
+                            expected_token=token,
+                            expected_pid=process.pid,
+                        )
+                    except (PermissionError, FileNotFoundError) as error:
+                        receipt_access_error = error
+                        observed_at = self._monotonic()
+                        if receipt_access_deadline is None:
+                            receipt_access_deadline = min(
+                                deadline,
+                                observed_at + _RECEIPT_PUBLICATION_GRACE_SECONDS,
+                            )
+                        if observed_at >= receipt_access_deadline:
+                            raise _unreadable_receipt_error(receipt_path) from error
+                        self._wait(_POLL_INTERVAL_SECONDS)
+                        continue
                     self._require_accepted_surface(receipt)
                     self._publish_outer_receipt(contract=contract, receipt=receipt)
                     publish_qualification_receipt(
@@ -215,6 +243,8 @@ class ApplicationReadinessSupervisor:
                     )
                     return process
                 self._wait(_POLL_INTERVAL_SECONDS)
+            if receipt_access_error is not None:
+                raise _unreadable_receipt_error(receipt_path) from receipt_access_error
             raise ApplicationReadinessError(
                 "SugarSubstitute did not reveal its main window before the startup "
                 f"timeout. Startup log: {startup_log_path}.",
@@ -377,14 +407,10 @@ class ApplicationReadinessSupervisor:
 
         try:
             payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (PermissionError, FileNotFoundError):
+            raise
         except (OSError, json.JSONDecodeError) as error:
-            raise ApplicationReadinessError(
-                f"SugarSubstitute wrote an invalid readiness receipt: {receipt_path}.",
-                diagnostics={
-                    "readiness_failure_kind": "unreadable_receipt",
-                    "readiness_observed_schema": "unavailable",
-                },
-            ) from error
+            raise _unreadable_receipt_error(receipt_path) from error
         try:
             receipt = ApplicationReadinessReceipt.from_json(payload)
         except ValueError as error:
