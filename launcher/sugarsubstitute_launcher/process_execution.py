@@ -26,6 +26,9 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_launch_context import (
     explicit_application_launch_install_root,
 )
+from sugarsubstitute_shared.application_readiness import (
+    without_application_readiness_environment,
+)
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.crash_reporting.protocol import (
     CRASH_RUN_ID_ENV,
@@ -216,7 +219,9 @@ def start_detached_handoff(
     start_detached(
         command,
         startup_timeout_seconds=HANDOFF_STARTUP_TIMEOUT_SECONDS,
-        environment=without_crash_supervision_environment(environment),
+        environment=without_application_readiness_environment(
+            without_crash_supervision_environment(environment)
+        ),
     )
 
 

@@ -33,6 +33,7 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
 )
+from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
 from tools.ci.candidate_release_source import CandidateReleaseSource
@@ -133,12 +134,49 @@ def test_candidate_update_uses_historical_launcher_before_verification(
             )
         )
         events.append(("launch", payload["release_source"]["manifest_url"]))
-        return object()
+        return SimpleNamespace(
+            progress_baselines=(
+                (
+                    InstallLayout.from_root(install_root).logs_dir / "launcher.log",
+                    (False, 0),
+                ),
+            )
+        )
 
     def verify_candidate(**arguments: object) -> None:
-        """Record that readiness follows the single candidate-bound launch."""
+        """Materialize the qualified shell and root state after that launch."""
 
-        del arguments
+        evidence = cast(
+            installer_ui_qualification.InstallerQualificationEvidence,
+            arguments["evidence"],
+        )
+        LauncherInstallationRecord(version="9999.0.109", target_key="windows_x64").save(
+            install_root / "launcher" / "installation.json"
+        )
+        evidence.readiness_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence.readiness_path.write_text(
+            json.dumps(
+                ApplicationReadinessReceipt(
+                    pid=321,
+                    token=evidence.token,
+                    surface=ApplicationReadinessSurface.MAIN_SHELL,
+                    parent_pid=300,
+                ).to_json()
+            ),
+            encoding="utf-8",
+        )
+        layout.logs_dir.mkdir(parents=True, exist_ok=True)
+        (layout.logs_dir / "launcher.log").write_text(
+            "INFO process=200 launcher.sugarsubstitute_launcher."
+            "application_readiness_supervisor Accepted painted application surface | "
+            "candidate_pid=300 | surface_pid=321 | surface=main_shell | "
+            "outer_contract=True\n"
+            "INFO process=400 launcher.sugarsubstitute_launcher."
+            "application_readiness_supervisor Accepted painted application surface | "
+            "candidate_pid=200 | surface_pid=321 | surface=main_shell | "
+            "outer_contract=False\n",
+            encoding="utf-8",
+        )
         events.append(("verify", "9999.0.109"))
 
     monkeypatch.setattr(
