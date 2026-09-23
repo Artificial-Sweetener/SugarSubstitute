@@ -47,6 +47,7 @@ from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
 from substitute.presentation.model_discovery import EmptyModelPickerAction
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.editor.prompt_editor.runtime_services import (
     PromptEditorRuntimeServices,
 )
@@ -73,6 +74,7 @@ class EditorPanelModelServiceBundle:
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
     empty_model_picker_action: EmptyModelPickerAction | None = None
+    model_updates: ModelUpdatePickerBridge | None = None
 
 
 @dataclass(frozen=True, slots=True)

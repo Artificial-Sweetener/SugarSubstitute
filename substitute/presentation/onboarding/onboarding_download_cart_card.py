@@ -67,7 +67,7 @@ QToolButton:pressed {
 class DownloadCartCard(QFrame):
     """Present one exact selected model as a removable checkout item."""
 
-    remove_requested = Signal(int)
+    remove_requested = Signal(object)
 
     def __init__(
         self,

@@ -42,7 +42,11 @@ from substitute.presentation.localization import (
     LocalizedCaptionLabel,
     LocalizedStrongBodyLabel,
 )
-from substitute.presentation.resources.brand_icons import civitai_badge_icon_path
+from substitute.presentation.resources.brand_icons import (
+    civitai_badge_icon_path,
+    model_provider_badge_icon_path,
+    openmodeldb_badge_icon_path,
+)
 from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
     thumbnail_image,
@@ -57,7 +61,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_geometry impor
 class RecommendationCard(QFrame):
     """Render one whole-card selectable model with an unobtrusive provider link."""
 
-    selection_changed = Signal(int, bool)
+    selection_changed = Signal(object, bool)
     link_requested = Signal(str)
 
     def __init__(
@@ -80,7 +84,7 @@ class RecommendationCard(QFrame):
         )
         self.setAccessibleName(accessible_name)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
         image = thumbnail_image(card.thumbnail) if card.thumbnail is not None else None
         self.portrait = RecommendationPortrait(
@@ -99,8 +103,10 @@ class RecommendationCard(QFrame):
         )
         self.portrait.selection_changed.connect(self._set_selected)
         layout.addWidget(self.portrait, alignment=Qt.AlignmentFlag.AlignCenter)
+        provider_icon = model_provider_badge_icon_path(recommendation.provider_id)
         self.link_button = TransparentToolButton(
-            QIcon(str(civitai_badge_icon_path())), self.portrait
+            QIcon(str(provider_icon)) if provider_icon is not None else FIF.GLOBE,
+            self.portrait,
         )
         self.link_button.setObjectName(
             f"OnboardingRecommendationLink_{recommendation.version_id}"
@@ -111,7 +117,11 @@ class RecommendationCard(QFrame):
         self.link_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.link_button.move(10, 10)
         link_tooltip = render_application_text(
-            app_text("View %1 on CivitAI", recommendation.model_name)
+            app_text(
+                "View %1 on %2",
+                recommendation.model_name,
+                recommendation.provider_name,
+            )
         )
         set_fluent_tooltip_text(self.link_button, link_tooltip)
         self.link_button.setAccessibleName(link_tooltip)
@@ -210,7 +220,7 @@ class RecommendationActionCard(QFrame):
         """Replace the action icon with a compact centered accepted-model mosaic."""
 
         self.preview_mosaic.set_cards(cards)
-        has_previews = bool(cards)
+        has_previews = any(card.thumbnail is not None for card in cards)
         self.preview_mosaic.setVisible(has_previews)
         self.icon.setVisible(not has_previews)
 
@@ -256,7 +266,8 @@ class RecommendationPreviewMosaic(QWidget):
                 widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
-        for index, card in enumerate(cards[:4]):
+        visible_cards = tuple(card for card in cards if card.thumbnail is not None)
+        for index, card in enumerate(visible_cards[:4]):
             label = QLabel(self)
             label.setObjectName("OnboardingRecommendationMosaicImage")
             label.setFixedSize(29, 19)
@@ -289,6 +300,18 @@ def civitai_action_card(*, parent: QWidget) -> RecommendationActionCard:
     )
 
 
+def openmodeldb_action_card(*, parent: QWidget) -> RecommendationActionCard:
+    """Return the card that opens the mixed-provider upscaler link workflow."""
+
+    return RecommendationActionCard(
+        title=app_text("Add upscalers by link"),
+        helper=app_text("Paste and preview model links."),
+        icon=QIcon(str(openmodeldb_badge_icon_path())),
+        object_name="OnboardingOpenModelDbImportCard",
+        parent=parent,
+    )
+
+
 def unavailable_recommendation_card(*, parent: QWidget) -> RecommendationActionCard:
     """Return a disabled placeholder that preserves the ten-card composition."""
 
@@ -312,5 +335,6 @@ __all__ = [
     "RecommendationCard",
     "THUMBNAIL_SIZE",
     "civitai_action_card",
+    "openmodeldb_action_card",
     "unavailable_recommendation_card",
 ]

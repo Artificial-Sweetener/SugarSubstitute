@@ -83,6 +83,7 @@ from substitute.presentation.editor.panel.view import EditorPanel
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.shell.generation_action_controller import (
     GenerationActionController,
 )
@@ -201,6 +202,9 @@ class PromptEditorRealShell(QMainWindow):
         self.ultralytics_thumbnail_associations = None
         self.empty_model_picker_discovery_controller = SimpleNamespace(
             request_for_empty_picker=lambda _kind: False
+        )
+        self.model_update_notification_controller = SimpleNamespace(
+            picker_bridge=ModelUpdatePickerBridge(self)
         )
         self.thumbnail_asset_repository = thumbnail_asset_repository
         self.user_preset_service = user_preset_service

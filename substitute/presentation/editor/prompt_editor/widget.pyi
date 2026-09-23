@@ -75,6 +75,7 @@ from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.application.ports import PromptAutocompleteGateway
 from substitute.application.ports import PromptWildcardCatalogGateway
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
@@ -178,6 +179,7 @@ class PromptEditor(QWidget):
         prompt_spellcheck_service: PromptSpellcheckService | None = ...,
         open_url: Callable[[str], bool] | None = ...,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = ...,
+        model_updates: ModelUpdatePickerBridge | None = ...,
         prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = ...,
         danbooru_lookup_dispatcher_factory: (
             DanbooruWikiLookupDispatcherFactory | None

@@ -91,10 +91,17 @@ from substitute.presentation.widgets.model_metadata_context_menu import (
 from substitute.presentation.widgets.model_picker.model_picker_completion import (
     model_picker_inline_completion,
 )
+from substitute.presentation.widgets.model_picker.model_picker_context_target import (
+    model_picker_context_target,
+)
 from substitute.presentation.widgets.model_picker.model_picker_models import (
     ModelPickerItem,
     model_picker_items_from_rich_choice_items,
 )
+from substitute.presentation.widgets.model_picker.model_picker_update_button import (
+    ModelPickerUpdateButton,
+)
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.widgets.model_picker.model_picker_values import (
     clamp_progress_percent as _clamp_progress_percent,
     fallback_display_label as _fallback_display_label,
@@ -760,7 +767,11 @@ class _ModelPickerComboSurface(EditableComboBox):  # type: ignore[misc]
             self.rect().adjusted(
                 _COMBO_TEXT_LEFT_PADDING,
                 0,
-                -_COMBO_TEXT_RIGHT_PADDING,
+                -(
+                    60
+                    if self.property("modelUpdateAvailable") is True
+                    else _COMBO_TEXT_RIGHT_PADDING
+                ),
                 0,
             ),
         )
@@ -850,6 +861,7 @@ class ModelPickerField(QWidget):
         thumbnail_preload_route_factory: (
             Callable[[QWidget], ModelPickerThumbnailPreloadRoute] | None
         ) = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
     ) -> None:
         """Initialize the closed selector from a resolved rich-choice source."""
         super().__init__(parent)
@@ -872,7 +884,9 @@ class ModelPickerField(QWidget):
             action_handler=metadata_action_handler,
             target_updated=self.refresh_metadata,
             thumbnail_library_opening=self._dismiss_popup,
+            model_updates=model_updates,
         )
+        self._model_updates = model_updates
         self._metadata_action_handler = metadata_action_handler
         self._empty_model_action = empty_model_action
         self._thumbnail_cache = MediaWallThumbnailCache(
@@ -926,6 +940,16 @@ class ModelPickerField(QWidget):
         self._surface = _ModelPickerComboSurface(
             self,
             closed_banner_decoration=self._closed_banner_decoration,
+        )
+        self._update_button = (
+            ModelPickerUpdateButton(
+                self._surface,
+                chrome=self._surface,
+                updates=model_updates,
+                selected_sha256=self._selected_model_sha256,
+            )
+            if model_updates is not None
+            else None
         )
         self._surface.openRequested.connect(self.open_picker)
         self._surface.toggleRequested.connect(self._toggle_picker)
@@ -1075,6 +1099,7 @@ class ModelPickerField(QWidget):
             metadata_action_handler=self._metadata_action_handler,
             metadata_target_updated=self.refresh_metadata,
             thumbnail_library_opening=self._dismiss_popup,
+            model_updates=self._model_updates,
             search_focus_requested=self.keep_search_focus_for_popup_interaction,
             external_search_key_pressed=self.handle_popup_search_key,
             parent=self,
@@ -1279,27 +1304,16 @@ class ModelPickerField(QWidget):
     ) -> ModelMetadataContextMenuTarget | None:
         """Return a shared metadata context-menu target for the selected value."""
 
-        item = self._item_by_backend_value.get(self._current_value)
-        if item is None:
-            return None
-        catalog_item = item.catalog_item
-        return ModelMetadataContextMenuTarget(
-            title=item.title,
-            subtitle=item.subtitle,
-            backend_value=item.value,
-            relative_path=(
-                item.value if catalog_item is None else catalog_item.relative_path
-            ),
-            model_kind=item.model_kind,
-            model_page_url=(
-                None if catalog_item is None else catalog_item.model_page_url
-            ),
+        return model_picker_context_target(
+            self._item_by_backend_value.get(self._current_value)
         )
 
     def _begin_search_surface(self) -> None:
         """Switch the combo surface from closed display into search entry mode."""
 
         self._surface.set_search_mode(True)
+        if self._update_button is not None:
+            self._update_button.refresh()
         if isinstance(self._search_placeholder, ApplicationMessage):
             set_localized_placeholder(
                 self._surface,
@@ -1320,6 +1334,8 @@ class ModelPickerField(QWidget):
             return
         self._clear_inline_completion()
         self._surface.set_search_mode(False)
+        if self._update_button is not None:
+            self._update_button.refresh()
         set_localized_placeholder(self._surface, "Select model")
         self._sync_display_label()
 
@@ -1518,6 +1534,8 @@ class ModelPickerField(QWidget):
         """Update the closed field with the best known label for the current value."""
 
         self._closed_display_label = self._display_label_for_value(self._current_value)
+        if self._update_button is not None:
+            self._update_button.refresh()
         self._surface.set_closed_banner_display(
             self._closed_banner_display_for_value(self._current_value)
         )
@@ -1526,6 +1544,14 @@ class ModelPickerField(QWidget):
             self._request_closed_banner_preload()
         self._sync_empty_action_visibility()
         self.updateGeometry()
+
+    def _selected_model_sha256(self) -> str | None:
+        """Return the selected catalog model's exact installed-file identity."""
+
+        item = self._item_by_backend_value.get(self._current_value)
+        if item is None or item.catalog_item is None:
+            return None
+        return item.catalog_item.sha256
 
     def _sync_empty_action_visibility(self) -> None:
         """Render a real action button only for a safely discoverable empty picker."""

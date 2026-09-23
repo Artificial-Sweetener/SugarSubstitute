@@ -40,6 +40,9 @@ if TYPE_CHECKING:
     from substitute.presentation.widgets.model_metadata_context_menu import (
         ModelMetadataContextActionHandler,
     )
+    from substitute.presentation.model_updates.picker_bridge import (
+        ModelUpdatePickerBridge,
+    )
     from substitute.application.ports import (
         PromptAutocompleteGateway,
         PromptWildcardCatalogGateway,
@@ -140,6 +143,7 @@ class PromptEditorConstructionInputs:
     prompt_spellcheck_service: PromptSpellcheckService | None
     open_url: PromptExternalUrlOpener | None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
+    model_updates: ModelUpdatePickerBridge | None = None
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None
     danbooru_lookup_dispatcher_factory: DanbooruWikiLookupDispatcherFactory | None = (
         None

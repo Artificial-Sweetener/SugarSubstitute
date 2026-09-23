@@ -74,6 +74,7 @@ from substitute.presentation.dialogs.danbooru_wiki_dialog import (
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 
 from ..async_work import (
     PromptEditorTaskExecutor,
@@ -788,6 +789,7 @@ class PromptEditorCompositionFactory:
         cursor_global_position: Callable[[], QPoint],
         external_url_actions: PromptExternalUrlActionRunner,
         metadata_action_handler: (ModelMetadataContextActionHandler | None) = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
     ) -> PromptLoraPickerPopupPresenter:
         """Build the LoRA picker popup presenter."""
 
@@ -809,6 +811,7 @@ class PromptEditorCompositionFactory:
                     global_position=global_position,
                     open_url=external_url_actions.open_civitai_model_page,
                     metadata_action_handler=metadata_action_handler,
+                    model_updates=model_updates,
                 ),
             )
 
@@ -857,6 +860,7 @@ class PromptEditorCompositionFactory:
                     thumbnail_cache=cast(PromptLoraThumbnailCache, thumbnail_cache),
                     open_url=external_url_actions.open_civitai_model_page,
                     metadata_action_handler=inputs.model_metadata_action_handler,
+                    model_updates=inputs.model_updates,
                 ),
             )
 

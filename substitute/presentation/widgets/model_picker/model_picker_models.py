@@ -22,6 +22,7 @@ from dataclasses import dataclass
 
 from substitute.application.model_metadata import (
     ModelCatalogItem,
+    ModelProviderLink,
     ModelThumbnailVariant,
     RichChoiceItem,
 )
@@ -47,6 +48,8 @@ class ModelPickerItem:
     model_page_url: str | None
     payload: object
     model_kind: str | None = None
+    provider_links: tuple[ModelProviderLink, ...] = ()
+    sha256: str | None = None
 
 
 def model_picker_items_from_catalog_items(
@@ -91,8 +94,10 @@ def model_picker_item_from_catalog_item(item: ModelCatalogItem) -> ModelPickerIt
         thumbnail_variants=thumbnail_variants,
         aspect_ratio=model_picker_item_aspect_ratio(thumbnail_variants),
         model_page_url=item.model_page_url,
+        provider_links=item.provider_links,
         payload=item,
         model_kind=item.kind,
+        sha256=item.sha256,
     )
 
 
@@ -119,8 +124,12 @@ def model_picker_item_from_rich_choice_item(
         model_page_url=(
             None if item.catalog_item is None else item.catalog_item.model_page_url
         ),
+        provider_links=(
+            () if item.catalog_item is None else item.catalog_item.provider_links
+        ),
         payload=item,
         model_kind=item.model_kind,
+        sha256=(None if item.catalog_item is None else item.catalog_item.sha256),
     )
 
 

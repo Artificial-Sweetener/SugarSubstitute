@@ -22,6 +22,9 @@ from pathlib import Path
 
 QT_LOGO_ICON_PATH = Path(__file__).resolve().parent / "icons" / "QtLogoNeon.png"
 CIVITAI_BADGE_ICON_PATH = Path(__file__).resolve().parent / "icons" / "CivitaiBadge.svg"
+OPENMODELDB_BADGE_ICON_PATH = (
+    Path(__file__).resolve().parent / "icons" / "OpenModelDBBadge.ico"
+)
 
 
 def civitai_badge_icon_path() -> Path:
@@ -42,9 +45,33 @@ def qt_logo_icon_path() -> Path:
     return QT_LOGO_ICON_PATH
 
 
+def openmodeldb_badge_icon_path() -> Path:
+    """Return the official OpenModelDB badge used for provider identification."""
+
+    if not OPENMODELDB_BADGE_ICON_PATH.is_file():
+        raise FileNotFoundError(
+            f"Missing OpenModelDB badge asset: {OPENMODELDB_BADGE_ICON_PATH}"
+        )
+    return OPENMODELDB_BADGE_ICON_PATH
+
+
+def model_provider_badge_icon_path(provider_id: str) -> Path | None:
+    """Return the vendored badge for one recognized model provider."""
+
+    normalized = provider_id.strip().casefold()
+    if normalized == "civitai":
+        return civitai_badge_icon_path()
+    if normalized == "openmodeldb":
+        return openmodeldb_badge_icon_path()
+    return None
+
+
 __all__ = [
     "CIVITAI_BADGE_ICON_PATH",
+    "OPENMODELDB_BADGE_ICON_PATH",
     "QT_LOGO_ICON_PATH",
     "civitai_badge_icon_path",
+    "model_provider_badge_icon_path",
+    "openmodeldb_badge_icon_path",
     "qt_logo_icon_path",
 ]

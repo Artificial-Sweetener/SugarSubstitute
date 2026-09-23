@@ -127,3 +127,64 @@ def test_unreviewed_identity_cannot_start_update_download(tmp_path: Path) -> Non
 
     assert service.download_selected((), selected_identities=("forged",)) == ()
     assert not (tmp_path / "models").exists()
+
+
+def test_update_uses_current_models_nested_directory(tmp_path: Path) -> None:
+    """A chosen version belongs beside its installed family member."""
+
+    model_root = tmp_path / "models"
+    current_path = model_root / "loras" / "artist" / "current.safetensors"
+    current_path.parent.mkdir(parents=True)
+    current_path.write_bytes(b"current")
+    payload = b"new lora"
+    candidate = DiscoveredModel(
+        artifact_kind=ModelArtifactKind.LORAS,
+        model_id=17,
+        version_id=4,
+        model_name="Artist",
+        version_name="v4",
+        creator=None,
+        base_model="Anima",
+        file_name="new.safetensors",
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+        download_url="https://civitai.com/api/download/models/4",
+        model_page_url="https://civitai.com/models/17",
+        thumbnail_url=None,
+        provider_rank=1,
+    )
+    proposal = ModelUpdateProposal(
+        current=ModelUsageRecord(
+            sha256=hashlib.sha256(b"current").hexdigest(),
+            path=Path("artist/current.safetensors"),
+            artifact_kind=ModelArtifactKind.LORAS,
+            model_id=17,
+            version_id=3,
+            base_model="Anima",
+            usage_count=1,
+            last_used_at=datetime(2026, 8, 31, tzinfo=UTC),
+        ),
+        candidate=candidate,
+    )
+
+    def open_stream(url: str, headers: Mapping[str, str], timeout: float) -> _Stream:
+        """Supply exact bytes without external network traffic."""
+
+        _ = (url, headers, timeout)
+        return _Stream(payload)
+
+    service = ModelUpdateAcquisitionService(
+        model_root=model_root,
+        acquisition=ModelAcquisitionService(
+            allowed_roots=(model_root,),
+            stream_opener=open_stream,
+        ),
+    )
+
+    results = service.download_selected(
+        (proposal,), selected_identities=(model_update_identity(proposal),)
+    )
+
+    assert len(results) == 1
+    assert results[0].path == current_path.with_name("new.safetensors")
+    assert current_path.read_bytes() == b"current"

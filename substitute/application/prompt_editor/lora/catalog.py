@@ -248,6 +248,7 @@ class PromptLoraCatalogService:
                     collision_key=model.collision_key,
                     collision_count=model.collision_count,
                     has_collision=model.has_collision,
+                    sha256=model.sha256,
                     search_text=_search_text(
                         display_name=model.display_name,
                         display_subtitle=model.display_subtitle,

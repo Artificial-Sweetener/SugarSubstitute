@@ -107,6 +107,8 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/repair_preparation_execution.py", "QtRepairPreparationExecutor.start", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
     ("qt_thread", "substitute/presentation/shell/empty_model_picker_discovery_controller.py", "EmptyModelPickerDiscoveryController._start", "PySide6.QtCore.QThread", 1, "managed_task_outcomes"),
     ("qt_thread", "substitute/presentation/shell/model_update_notification_controller.py", "ModelUpdateNotificationController._start", "PySide6.QtCore.QThread", 1, "managed_task_outcomes"),
+    ("qt_thread_class", "substitute/presentation/model_updates/version_thumbnail_loader.py", "VersionThumbnailLoad", "PySide6.QtCore.QRunnable", 1, "managed_task_outcomes"),
+    ("async_task", "substitute/presentation/qt/execution/thread_pool_dispatcher.py", "start_qt_runnable", "PySide6.QtCore.QThreadPool.start", 1, "managed_task_outcomes"),
     ("thread", "launcher/sugarsubstitute_launcher/splash_session.py", "_readline_with_timeout", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "launcher/sugarsubstitute_launcher/splash_session.py", "_start_background_pipe_reader", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "sugarsubstitute_shared/application_instance_bindings.py", "ApplicationInstanceBindings._start", "threading.Thread", 1, "bounded_transport_thread"),

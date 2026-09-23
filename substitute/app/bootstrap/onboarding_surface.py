@@ -56,6 +56,7 @@ from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_provisioning_submitter_factory,
 )
 from substitute.app.bootstrap.persistent_cache_composition import (
+    build_openmodeldb_catalog,
     build_recommendation_thumbnail_cache,
 )
 from substitute.app.bootstrap.persistent_cache_runtime import (
@@ -89,6 +90,13 @@ from substitute.infrastructure.model_recommendations import (
     CachedRecommendationThumbnailFetcher,
     CivitaiFamilyRecommendationGateway,
     CivitaiThumbnailFetcher,
+    ProviderRecommendationGateway,
+    ProviderRecommendationThumbnailFetcher,
+)
+from substitute.infrastructure.model_suggestions import (
+    CachedOpenModelDbThumbnailFetcher,
+    OpenModelDbThumbnailFetcher,
+    require_openmodeldb_download_url,
 )
 from substitute.infrastructure.onboarding.setup_transcript import (
     OnboardingSetupTranscript,
@@ -129,6 +137,7 @@ def show_onboarding_surface(
     recommendation_thumbnails = build_recommendation_thumbnail_cache(
         persistent_cache_runtime
     )
+    openmodeldb_catalog = build_openmodeldb_catalog(persistent_cache_runtime.prepared)
     setup_transcript = OnboardingSetupTranscript.open(context.logs_dir)
     onboarding_bundle_factory = cast(
         OnboardingBundleFactory,
@@ -152,6 +161,23 @@ def show_onboarding_surface(
                         ).civitai_credential_service.load_api_key()
                     ),
                 ),
+                civitai_upscaler_acquisition=ModelAcquisitionService(
+                    allowed_roots=(model_root,),
+                    api_key_provider=lambda: (
+                        api_key
+                        or build_onboarding_service_bundle(
+                            context.install_root
+                        ).civitai_credential_service.load_api_key()
+                    ),
+                    allowed_extensions=(".safetensors", ".pth", ".pt"),
+                ),
+                provider_acquisitions={
+                    "openmodeldb": ModelAcquisitionService(
+                        allowed_roots=(model_root,),
+                        download_url_validator=require_openmodeldb_download_url,
+                        allowed_extensions=(".safetensors", ".pth"),
+                    )
+                },
             )
         ),
         external_model_library_configurator=ComfyExternalModelPathsConfigurator(
@@ -200,20 +226,30 @@ def show_onboarding_surface(
                     webui_model_library_detector.model_family_scan_roots
                 )
             ),
-            gateway=CivitaiFamilyRecommendationGateway(
-                api_key_provider=lambda: build_onboarding_service_bundle(
-                    context.install_root
-                ).civitai_credential_service.load_api_key(),
-                thumbnail_policy_provider=lambda: CivitaiThumbnailPolicy(
-                    CivitaiThumbnailSafetyPolicy(
-                        controller.draft.civitai_thumbnail_safety_policy
-                    )
+            gateway=ProviderRecommendationGateway(
+                civitai=CivitaiFamilyRecommendationGateway(
+                    api_key_provider=lambda: build_onboarding_service_bundle(
+                        context.install_root
+                    ).civitai_credential_service.load_api_key(),
+                    thumbnail_policy_provider=lambda: CivitaiThumbnailPolicy(
+                        CivitaiThumbnailSafetyPolicy(
+                            controller.draft.civitai_thumbnail_safety_policy
+                        )
+                    ),
                 ),
+                openmodeldb=openmodeldb_catalog,
             ),
-            thumbnail_fetcher=CachedRecommendationThumbnailFetcher(
-                fetcher=CivitaiThumbnailFetcher(),
-                preparer=recommendation_thumbnails.preparer,
-                asset_store=recommendation_thumbnails.assets,
+            thumbnail_fetcher=ProviderRecommendationThumbnailFetcher(
+                civitai=CachedRecommendationThumbnailFetcher(
+                    fetcher=CivitaiThumbnailFetcher(),
+                    preparer=recommendation_thumbnails.preparer,
+                    asset_store=recommendation_thumbnails.assets,
+                ),
+                openmodeldb=CachedOpenModelDbThumbnailFetcher(
+                    fetcher=OpenModelDbThumbnailFetcher(),
+                    preparer=recommendation_thumbnails.preparer,
+                    asset_store=recommendation_thumbnails.assets,
+                ),
             ),
         ),
         request_submitter=model_submitter,

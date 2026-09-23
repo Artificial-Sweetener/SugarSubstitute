@@ -39,6 +39,8 @@ def civitai_model_search_url(family_id: ModelFamilyId) -> str:
     """Return the family-filtered CivitAI checkpoint search page."""
 
     mapping = SUPPORTED_MODEL_FAMILIES.get(family_id).civitai
+    if mapping is None:
+        raise ValueError("The selected model family is not available from CivitAI.")
     additional_base_models = sorted(
         mapping.linked_base_models - {mapping.recommendation_base_model}
     )
@@ -52,19 +54,23 @@ def civitai_model_search_url(family_id: ModelFamilyId) -> str:
     return f"https://civitai.com/search/models?{query}"
 
 
-def open_civitai_model_page(url: str) -> bool:
-    """Open one validated HTTPS CivitAI model page in the default browser."""
+def open_onboarding_model_page(url: str) -> bool:
+    """Open one validated provider model page in the default browser."""
 
     parsed = QUrl(url)
     path = parsed.path()
+    civitai_path = (
+        path == "/models" or path.startswith("/models/") or path == "/search/models"
+    )
+    openmodeldb_path = path == "/" or path == "/models" or path.startswith("/models/")
     if (
         parsed.scheme().casefold() != "https"
-        or parsed.host().casefold() not in _CIVITAI_HOSTS
+        or not (
+            (parsed.host().casefold() in _CIVITAI_HOSTS and civitai_path)
+            or (parsed.host().casefold() == "openmodeldb.info" and openmodeldb_path)
+        )
         or parsed.userInfo()
         or parsed.port(-1) not in {-1, 443}
-        or not (
-            path == "/models" or path.startswith("/models/") or path == "/search/models"
-        )
     ):
         log_warning(
             _LOGGER,
@@ -82,4 +88,4 @@ def open_civitai_model_page(url: str) -> bool:
     return True
 
 
-__all__ = ["civitai_model_search_url", "open_civitai_model_page"]
+__all__ = ["civitai_model_search_url", "open_onboarding_model_page"]

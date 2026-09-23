@@ -50,6 +50,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_cards import (
     RecommendationActionCard,
     RecommendationCard,
     civitai_action_card,
+    openmodeldb_action_card,
     unavailable_recommendation_card,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_loading import (
@@ -66,7 +67,7 @@ _CURATED_CARD_COUNT = 8
 class ModelRecommendationPage(OnboardingPageFrame):
     """Show eight curated models and two coherent family choices in a 5×2 grid."""
 
-    selection_changed = Signal(int, bool)
+    selection_changed = Signal(object, bool)
     link_requested = Signal(str)
     own_model_changed = Signal(bool)
     model_links_requested = Signal(object, tuple)
@@ -78,7 +79,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
         super().__init__(
             title=app_text("Choose models"),
             description=app_text(
-                "Choose a model to download, explore CivitAI, or bring your own."
+                "Choose models to download, explore the provider catalog, or bring your own."
             ),
             icon=FIF.PHOTO,
             parent=parent,
@@ -115,7 +116,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.body_layout.addWidget(self.loading_row)
         self.empty_label = LocalizedCaptionLabel(
             app_text(
-                "CivitAI did not return enough safe previews. You can still browse CivitAI or bring your own model."
+                "Some previews are unavailable. You can still browse the provider catalog or bring your own model."
             ),
             self,
         )
@@ -189,7 +190,10 @@ class ModelRecommendationPage(OnboardingPageFrame):
             self.card_grid.addWidget(
                 unavailable_recommendation_card(parent=self.card_host)
             )
-        self.import_card = civitai_action_card(parent=self.card_host)
+        if page.family_id is ModelFamilyId.UPSCALERS:
+            self.import_card = openmodeldb_action_card(parent=self.card_host)
+        else:
+            self.import_card = civitai_action_card(parent=self.card_host)
         self.import_card.activated.connect(self._open_import_overlay)
         self._set_import_card_copy(page.imported_cards)
         self.card_grid.addWidget(self.import_card)
@@ -265,7 +269,9 @@ class ModelRecommendationPage(OnboardingPageFrame):
         presentation = model_family_presentation(family_id)
         apply_application_text(
             self.hero_panel.title_label,
-            app_text("Popular %1 models", presentation.recommendation_name),
+            app_text("Recommended upscalers")
+            if family_id is ModelFamilyId.UPSCALERS
+            else app_text("Popular %1 models", presentation.recommendation_name),
         )
 
     def _set_own_model_selected(self, selected: bool) -> None:
@@ -306,7 +312,9 @@ class ModelRecommendationPage(OnboardingPageFrame):
                     if len(cards) == 1
                     else app_text("%1 models added", len(cards))
                 ),
-                app_text("Review or add more CivitAI links."),
+                app_text("Review or add more model links.")
+                if self._family_id is ModelFamilyId.UPSCALERS
+                else app_text("Review or add more CivitAI links."),
             )
         self.import_card.set_previews(cards)
 

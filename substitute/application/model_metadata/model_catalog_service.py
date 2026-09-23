@@ -19,10 +19,8 @@
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
 from pathlib import PurePosixPath, PureWindowsPath
 from threading import RLock
-from typing import Protocol
 
 from substitute.application.execution import BlockingSingleFlight
 from substitute.application.model_metadata.ports import (
@@ -32,79 +30,24 @@ from substitute.application.model_metadata.ports import (
 from substitute.application.model_metadata.model_catalog_snapshot_store import (
     ModelCatalogSnapshotStore,
 )
+from substitute.application.model_metadata.model_catalog_provider import (
+    ModelCatalogProvider,
+    exact_provider_matches,
+    provider_links_for_record,
+    thumbnail_variants_for_match,
+)
+from substitute.application.model_metadata.model_catalog_models import (
+    ModelCatalogItem,
+    ModelCatalogLookup,
+    ModelCatalogSnapshot,
+    ModelThumbnailVariant,
+)
 from substitute.domain.model_metadata import (
     BackendModelCatalogEntry,
     ModelMetadataCacheRecord,
-    STANDARD_THUMBNAIL_ROLE,
 )
 
-_SUPPORTED_MODEL_EXTENSIONS = frozenset({".safetensors", ".ckpt", ".pt"})
-
-
-@dataclass(frozen=True, slots=True)
-class ModelThumbnailVariant:
-    """Reference one prepared model thumbnail asset safe for presentation use."""
-
-    size: int
-    storage_key: str
-    width: int
-    height: int
-    content_format: str
-    byte_size: int
-    role: str = STANDARD_THUMBNAIL_ROLE
-
-
-@dataclass(frozen=True, slots=True)
-class ModelCatalogItem:
-    """Describe one Comfy-visible model enriched with cached provider metadata."""
-
-    kind: str
-    display_name: str
-    display_subtitle: str | None
-    backend_value: str
-    relative_path: str
-    folder: str
-    basename: str
-    extension: str
-    thumbnail_variants: tuple[ModelThumbnailVariant, ...]
-    base_model: str | None
-    trained_words: tuple[str, ...]
-    tags: tuple[str, ...]
-    model_page_url: str | None
-    collision_key: str
-    collision_count: int
-    has_collision: bool
-    search_text: str
-    provider_name: str | None = None
-    provider_model_id: str | None = None
-    provider_model_version_id: str | None = None
-    provider_model_name: str | None = None
-    provider_model_version_name: str | None = None
-    sha256: str | None = None
-    size_bytes: int | None = None
-    modified_at: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class ModelCatalogSnapshot:
-    """Store one canonical model catalog generation for a single kind."""
-
-    kind: str
-    items: tuple[ModelCatalogItem, ...]
-    generation: int
-
-
-class ModelCatalogLookup(Protocol):
-    """Describe picker-ready catalog lookup for metadata-backed model selectors."""
-
-    def list_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Return picker-ready model records for one model kind."""
-
-    def refresh_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Reload and return picker-ready model records for one model kind."""
-
-    def invalidate(self, kind: str | None = None) -> None:
-        """Clear cached snapshots for one kind or all kinds."""
+_SUPPORTED_MODEL_EXTENSIONS = frozenset({".safetensors", ".ckpt", ".pt", ".pth"})
 
 
 class ModelCatalogService:
@@ -116,12 +59,14 @@ class ModelCatalogService:
         backend: BackendModelMetadataGateway,
         metadata_catalog: ModelMetadataCatalogQueryRepository,
         snapshot_store: ModelCatalogSnapshotStore | None = None,
+        providers: tuple[ModelCatalogProvider, ...] = (),
     ) -> None:
         """Store catalog collaborators for model metadata lookup."""
 
         self._backend = backend
         self._metadata_catalog = metadata_catalog
         self._snapshot_store = snapshot_store
+        self._providers = providers
         self._snapshots: dict[str, ModelCatalogSnapshot] = {}
         self._generations: dict[str, int] = {}
         self._snapshot_single_flight: BlockingSingleFlight[
@@ -348,6 +293,27 @@ class ModelCatalogService:
             sha256 = _sha256_for_entry(entry)
             if sha256 is None and record is not None:
                 sha256 = record.local.sha256
+            provider_matches = exact_provider_matches(
+                self._providers,
+                kind=entry.kind,
+                sha256=sha256,
+            )
+            primary_match = provider_matches[0] if provider_matches else None
+            provider_links = provider_links_for_record(record, provider_matches)
+            if primary_match is not None:
+                display_name = primary_match.model_name
+                display_subtitle = primary_match.version_name
+                tags = primary_match.tags
+                model_page_url = primary_match.link.model_page_url
+                provider_name = primary_match.link.provider_id
+                provider_model_id = primary_match.link.model_id
+                provider_model_version_id = primary_match.link.version_id
+                provider_model_name = primary_match.model_name
+                provider_model_version_name = primary_match.version_name
+            thumbnail_variants = thumbnail_variants_for_match(
+                primary_match,
+                fallback=record,
+            )
             items.append(
                 ModelCatalogItem(
                     kind=entry.kind,
@@ -358,7 +324,7 @@ class ModelCatalogService:
                     folder=folder,
                     basename=basename,
                     extension=_extension_for_value(entry.value),
-                    thumbnail_variants=_thumbnail_variants_for_record(record),
+                    thumbnail_variants=thumbnail_variants,
                     base_model=base_model,
                     trained_words=trained_words,
                     tags=tags,
@@ -385,6 +351,7 @@ class ModelCatalogService:
                     sha256=sha256.upper() if sha256 else None,
                     size_bytes=entry.file.size_bytes,
                     modified_at=entry.file.modified_at,
+                    provider_links=provider_links,
                 )
             )
 
@@ -500,7 +467,7 @@ def _items_from_cached_records(
                 folder=folder,
                 basename=basename,
                 extension=_extension_for_value(backend_value),
-                thumbnail_variants=_thumbnail_variants_for_record(record),
+                thumbnail_variants=thumbnail_variants_for_match(None, fallback=record),
                 base_model=base_model,
                 trained_words=trained_words,
                 tags=tags,
@@ -531,6 +498,7 @@ def _items_from_cached_records(
                 sha256=sha256,
                 size_bytes=record.local.size_bytes,
                 modified_at=record.local.modified_at,
+                provider_links=provider_links_for_record(record, ()),
             )
         )
     return tuple(
@@ -678,32 +646,6 @@ def _provider_model_version_id_for_record(
     if record is None or record.provider is None:
         return None
     return str(record.provider.model_version_id)
-
-
-def _thumbnail_variants_for_record(
-    record: ModelMetadataCacheRecord | None,
-) -> tuple[ModelThumbnailVariant, ...]:
-    """Return storage-key thumbnail variants for one cache record."""
-
-    if record is None or record.thumbnail is None:
-        return ()
-    return tuple(
-        sorted(
-            (
-                ModelThumbnailVariant(
-                    size=variant.size,
-                    storage_key=variant.storage_key,
-                    width=variant.width,
-                    height=variant.height,
-                    content_format=variant.content_format,
-                    byte_size=variant.byte_size,
-                    role=variant.role,
-                )
-                for variant in record.thumbnail.variants
-            ),
-            key=lambda variant: (variant.role, variant.size),
-        )
-    )
 
 
 def _strip_supported_extension(value: str) -> str:

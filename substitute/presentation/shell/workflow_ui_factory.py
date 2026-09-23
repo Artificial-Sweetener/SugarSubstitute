@@ -96,6 +96,7 @@ class WorkflowUiFactory:
                 empty_model_picker_action=(
                     self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
                 ),
+                model_updates=self._shell.model_update_notification_controller.picker_bridge,
                 node_behavior_service=self._shell.node_behavior_service,
                 node_presentation_service=self._shell.node_presentation_service,
                 user_preset_service=self._shell.user_preset_service,
@@ -221,6 +222,7 @@ class WorkflowUiFactory:
                 empty_model_picker_action=(
                     self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
                 ),
+                model_updates=self._shell.model_update_notification_controller.picker_bridge,
             )
         manager.override_dropdown_btn = self._shell.override_dropdown_btn
         manager._global_override_menu = self._shell._global_override_menu
