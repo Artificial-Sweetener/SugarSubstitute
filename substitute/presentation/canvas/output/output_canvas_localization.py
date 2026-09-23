@@ -23,7 +23,7 @@ from typing import Protocol, cast
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
+from substitute.presentation.canvas.output.output_navigation_selector_sync import (
     sync_output_scene_selector_button,
     sync_output_source_selector_button,
 )

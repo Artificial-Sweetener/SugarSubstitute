@@ -89,13 +89,13 @@ class InputGenerationMaskMaterializer:
         self,
         *,
         canvas_io_service: GenerationMaskCanvasIoPort,
-        workflow_input_canvas_service: GenerationMaskAssociationPort,
+        input_assets: GenerationMaskAssociationPort,
         workflow_name_provider: Callable[[str], str],
         projects_dir_provider: Callable[[], Path],
     ) -> None:
         """Bind persistence and workflow-copy collaborators."""
         self._canvas_io_service = canvas_io_service
-        self._workflow_input_canvas_service = workflow_input_canvas_service
+        self._input_assets = input_assets
         self._workflow_name_provider = workflow_name_provider
         self._projects_dir_provider = projects_dir_provider
 
@@ -182,19 +182,21 @@ class InputGenerationMaskMaterializer:
             cube_alias, node_name = key
             try:
                 if region_id is None:
-                    associated = self._workflow_input_canvas_service.associate_project_input_mask(
+                    associated = self._input_assets.associate_project_input_mask(
                         execution_workflow,
                         section_key=cube_alias,
                         node_name=node_name,
                         relative_path=relative_path,
                     )
                 else:
-                    associated = self._workflow_input_canvas_service.associate_project_ordered_input_mask(
-                        execution_workflow,
-                        section_key=cube_alias,
-                        node_name=node_name,
-                        region_id=region_id,
-                        relative_path=relative_path,
+                    associated = (
+                        self._input_assets.associate_project_ordered_input_mask(
+                            execution_workflow,
+                            section_key=cube_alias,
+                            node_name=node_name,
+                            region_id=region_id,
+                            relative_path=relative_path,
+                        )
                     )
             except (AttributeError, RuntimeError, TypeError, ValueError) as error:
                 log_exception(

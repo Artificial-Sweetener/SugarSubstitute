@@ -58,6 +58,30 @@ def _import_module() -> ModuleType:
     )
 
 
+def _import_navigation_module() -> ModuleType:
+    """Import the focused Output navigation actions module."""
+
+    return importlib.import_module(
+        "substitute.presentation.shell.workspace_output_navigation_actions"
+    )
+
+
+def _import_external_module() -> ModuleType:
+    """Import the focused external Output actions module."""
+
+    return importlib.import_module(
+        "substitute.presentation.shell.workspace_output_external_actions"
+    )
+
+
+def _import_preparation_module() -> ModuleType:
+    """Import the focused asynchronous Output preparation actions module."""
+
+    return importlib.import_module(
+        "substitute.presentation.shell.workspace_output_preparation_actions"
+    )
+
+
 def _record_and_return(
     records: list[_RecordT],
     record: _RecordT,

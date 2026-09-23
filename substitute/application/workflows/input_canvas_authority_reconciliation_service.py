@@ -24,8 +24,8 @@ from dataclasses import dataclass
 from substitute.application.workflows.generation_input_image_selection_service import (
     GenerationInputImageSelection,
 )
-from substitute.application.workflows.input_canvas_ports import (
-    InputCanvasStateServicePort,
+from substitute.application.workflows.input_asset_cleanup_service import (
+    InputAssetCleanupService,
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
@@ -60,12 +60,12 @@ class InputCanvasAuthorityReconciliationService:
         select_generation_images: Callable[
             [WorkflowState], GenerationInputImageSelection
         ],
-        input_canvas_state_service: InputCanvasStateServicePort,
+        input_cleanup: InputAssetCleanupService,
     ) -> None:
         """Bind graph authority inspection and complete canvas-state retirement."""
 
         self._select_generation_images = select_generation_images
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_cleanup = input_cleanup
 
     def reconcile(
         self,
@@ -82,7 +82,7 @@ class InputCanvasAuthorityReconciliationService:
         removed_input_keys = tuple(
             input_key
             for input_key in stale_input_keys
-            if self._input_canvas_state_service.drop_input_surface(
+            if self._input_cleanup.drop_surface(
                 workflows,
                 workflow_id,
                 input_key,

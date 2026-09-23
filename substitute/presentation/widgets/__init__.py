@@ -59,15 +59,15 @@ def __getattr__(name: str) -> object:
 
         return AnchoredRowPicker
     if name == "AnchoredRowPickerItem":
-        from .anchored_row_picker import AnchoredRowPickerItem
+        from .anchored_row_picker_row import AnchoredRowPickerItem
 
         return AnchoredRowPickerItem
     if name == "AnchoredRowPickerRow":
-        from .anchored_row_picker import AnchoredRowPickerRow
+        from .anchored_row_picker_row import AnchoredRowPickerRow
 
         return AnchoredRowPickerRow
     if name == "AnchoredRowPickerTextMode":
-        from .anchored_row_picker import AnchoredRowPickerTextMode
+        from .anchored_row_picker_row import AnchoredRowPickerTextMode
 
         return AnchoredRowPickerTextMode
     if name == "AnchoredRowPickerView":

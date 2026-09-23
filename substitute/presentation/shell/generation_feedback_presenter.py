@@ -214,11 +214,13 @@ class GenerationFeedbackPresenter:
         self._shell.generation_action_controller.clear_generation_progress()
         self.mark_sampler_progress_model_field_clear_needed()
         self.clear_model_field_load_progress_for_workflow(failure.workflow_id)
-        workspace_canvas_actions = getattr(
-            self._shell, "workspace_canvas_actions", None
+        output_navigation_actions = getattr(
+            getattr(self._shell, "workspace_controller", None),
+            "output_navigation_actions",
+            None,
         )
         clear_previews = getattr(
-            workspace_canvas_actions, "clear_output_previews", None
+            output_navigation_actions, "clear_output_previews", None
         )
         if callable(clear_previews):
             clear_previews(failure.workflow_id)

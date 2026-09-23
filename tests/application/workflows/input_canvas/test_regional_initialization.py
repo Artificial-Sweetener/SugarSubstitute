@@ -19,9 +19,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from substitute.application.workflows import (
-    WorkflowInputCanvasService,
-)
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, ProjectMaskAssetRef
 from substitute.domain.workflow import WorkflowState
@@ -35,7 +32,8 @@ from tests.application.workflows.input_canvas.fakes import (
     _FakeCanvasIoService,
 )
 from tests.application.workflows.input_canvas.support import (
-    _input_canvas_plan_service,
+    _input_canvas_services,
+    _section_materialization_service,
 )
 
 
@@ -123,10 +121,10 @@ def test_materialize_loaded_section_creates_synthetic_mask_only_canvas(
         dimensions_by_path={},
         created_destinations=[],
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
-        canvas_io_service=io_service,
+    service = _section_materialization_service(
+        state_service,
+        io_service,
+        definitions=definitions,
     )
 
     results = service.materialize_loaded_section(
@@ -225,14 +223,14 @@ def test_prompt_by_region_materializes_initial_ordered_mask_at_latent_size(
         mask_id=mask_id,
     )
     created_destinations: list[Path] = []
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
-        canvas_io_service=_FakeCanvasIoService(
+    service = _section_materialization_service(
+        state_service,
+        _FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=expected_mask,
             created_destinations=created_destinations,
         ),
+        definitions=definitions,
     )
 
     results = service.materialize_loaded_section(
@@ -330,7 +328,7 @@ def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
     class DistinctMaskStateService(_FakeInputCanvasStateService):
         """Allocate a distinct fake mask identity for every authored path."""
 
-        def load_mask_from_file(
+        def load_from_file(
             self,
             workflow_id: str,
             active_workflow: WorkflowState,
@@ -357,10 +355,9 @@ def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
     right_path = mask_root / "right.png"
     left_path.write_bytes(b"left")
     right_path.write_bytes(b"right")
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
-        canvas_io_service=_FakeCanvasIoService(
+    service = _section_materialization_service(
+        state_service,
+        _FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=mask_root / "unused.png",
             dimensions_by_path={
@@ -369,6 +366,7 @@ def test_prompt_by_region_rehydrates_every_authored_mask_path_in_order(
             },
             created_destinations=[],
         ),
+        definitions=definitions,
     )
 
     results = service.materialize_loaded_section(
@@ -463,17 +461,17 @@ def test_prompt_by_region_first_add_materializes_synthetic_surface(
     mask_id = uuid4()
     expected_mask = tmp_path / "Recipe" / "masks" / "region.png"
     state_service = _FakeInputCanvasStateService(image_id=image_id, mask_id=mask_id)
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
-        canvas_io_service=_FakeCanvasIoService(
+    services = _input_canvas_services(
+        state_service,
+        _FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=expected_mask,
             created_destinations=[],
         ),
+        definitions=definitions,
     )
 
-    created = service.add_ordered_mask_region(
+    created = services.regions.add_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key="Region",

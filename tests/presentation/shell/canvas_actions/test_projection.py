@@ -25,7 +25,7 @@ from typing import Any
 from substitute.application.ports import OutputImageUpdate
 
 from tests.presentation.shell.canvas_actions.support import (
-    _import_module,
+    _import_preparation_module,
 )
 
 
@@ -34,7 +34,7 @@ def test_update_canvas_callback_submits_output_update_to_pipeline(
 ) -> None:
     """Generated output callbacks should delegate to the async output pipeline."""
 
-    mod = _import_module()
+    mod = _import_preparation_module()
 
     submitted: list[OutputImageUpdate] = []
     image_path = tmp_path / "007_output.png"
@@ -44,7 +44,7 @@ def test_update_canvas_callback_submits_output_update_to_pipeline(
             submit_legacy_output_update=lambda update: submitted.append(update)
         ),
     )
-    actions = mod.WorkspaceCanvasActions(view)
+    actions = mod.WorkspaceOutputPreparationActions(view)
 
     actions.update_canvas_callback(
         workflow_id="wf-1",
@@ -82,7 +82,7 @@ def test_output_image_preparation_failure_reports_error(
 ) -> None:
     """Generated output load failures should use the unified error modal presenter."""
 
-    mod = _import_module()
+    mod = _import_preparation_module()
     from substitute.presentation.shell.output_image_commit_pipeline import (
         FailedOutputImagePreparation,
         OutputImageCommitRequest,
@@ -91,7 +91,7 @@ def test_output_image_preparation_failure_reports_error(
     image_path = tmp_path / "missing.png"
     reports: list[Any] = []
     critical_calls: list[object] = []
-    actions = mod.WorkspaceCanvasActions(
+    actions = mod.WorkspaceOutputPreparationActions(
         SimpleNamespace(),
         error_presenter=SimpleNamespace(
             show_error_report=lambda report: reports.append(report)

@@ -53,7 +53,7 @@ def test_clear_images_for_closed_workflow_keeps_shared_references() -> None:
     _store_image_record(service, shared_id, ImageMeta("wf", "cube", 1, "", ""))
     _store_image_record(service, closed_only_id, ImageMeta("wf", "cube", 1, "", ""))
 
-    input_service.prune_closed_workflow_images(
+    input_service.cleanup.prune_closed_workflow(
         wf_closed,
         {"remaining": wf_remaining},
     )
@@ -156,7 +156,9 @@ def test_prune_closed_workflow_input_images_cleans_input_catalog_and_metadata() 
     closed_workflow.canvas.bind_image("Cube:Image", orphan)
     _store_image_record(service, orphan, ImageMeta("wf", "cube", 7, "", ""))
 
-    input_service.prune_closed_workflow_images(closed_workflow, {"wf": WorkflowState()})
+    input_service.cleanup.prune_closed_workflow(
+        closed_workflow, {"wf": WorkflowState()}
+    )
 
     assert orphan not in input_pane.images
     assert orphan in output_pane.images

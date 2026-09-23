@@ -28,8 +28,8 @@ from substitute.application.workflows.input_canvas_ports import CanvasIoServiceP
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
 )
-from substitute.application.workflows.workflow_input_canvas_service import (
-    WorkflowInputCanvasService,
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.shared.logging.logger import get_logger, log_info
@@ -60,14 +60,14 @@ class WorkflowInputCanvasDuplicationService:
     def __init__(
         self,
         *,
-        workflow_inputs: WorkflowInputCanvasService,
+        input_bindings: InputCanvasBindingService,
         graph_sections: WorkflowGraphSectionService,
         input_document: InputCanvasDocumentPort,
         canvas_io: CanvasIoServicePort,
     ) -> None:
         """Capture graph, document, and filesystem authorities."""
 
-        self._workflow_inputs = workflow_inputs
+        self._input_bindings = input_bindings
         self._graph_sections = graph_sections
         self._input_document = input_document
         self._canvas_io = canvas_io
@@ -90,7 +90,7 @@ class WorkflowInputCanvasDuplicationService:
             collection,
         ) in source.canvas.regional_mask_collections.items():
             section_key, node_name = association_key
-            binding = self._workflow_inputs.binding_for_mask(
+            binding = self._input_bindings.binding_for_mask(
                 source,
                 section_key,
                 node_name,
@@ -142,7 +142,7 @@ class WorkflowInputCanvasDuplicationService:
             if association_key in regional_keys:
                 continue
             section_key, node_name = association_key
-            binding = self._workflow_inputs.binding_for_mask(
+            binding = self._input_bindings.binding_for_mask(
                 source,
                 section_key,
                 node_name,
