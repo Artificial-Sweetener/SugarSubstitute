@@ -191,6 +191,9 @@ def _presenter(
         image_is_authorized=lambda _image_id: True,
         open_single_editor=open_single_editor,
         reveal_asset=reveal_asset,
+        compare_available=lambda: False,
+        compare_enabled=lambda: False,
+        set_compare_enabled=lambda _enabled: None,
         canvas_detached=lambda: False,
         request_dock_action=request_dock_action,
     )

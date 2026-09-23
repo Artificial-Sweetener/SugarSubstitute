@@ -36,6 +36,9 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.application.workflows.output_compare_resolution import (
     output_compare_available,
 )
+from substitute.presentation.canvas.output.output_compare_menu_item import (
+    output_compare_menu_item,
+)
 from substitute.presentation.canvas.shared.types import OutputImageMeta
 from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import (
@@ -193,14 +196,12 @@ class OutputCanvasContextMenu:
         """Return the established compare toggle when the projection supports it."""
 
         projection = self.projection()
-        if projection is None or not output_compare_available(projection):
-            return None
-        return MenuItem(
-            "output_canvas.compare_outputs",
-            app_text("Compare outputs"),
-            checkable=True,
-            checked=compare_enabled,
-            checked_callback=self.set_compare_enabled,
+        return output_compare_menu_item(
+            available=bool(
+                projection is not None and output_compare_available(projection)
+            ),
+            enabled=compare_enabled,
+            set_enabled=self.set_compare_enabled,
         )
 
     def _current_asset_has_path(self) -> bool:
