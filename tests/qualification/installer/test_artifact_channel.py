@@ -209,6 +209,7 @@ def test_qualification_evidence_is_absolute_across_process_working_directories(
     assert plan is not None
     assert plan.install_root == (tmp_path / "installed").resolve()
     assert plan.event_log_path == evidence.event_log_path
+    assert plan.readiness_receipt_path == evidence.readiness_path
     assert evidence.readiness_path.is_absolute()
     assert evidence.trace_path.is_absolute()
     assert evidence.event_log_path.is_absolute()

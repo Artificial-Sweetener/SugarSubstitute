@@ -197,6 +197,12 @@ def test_legacy_qualification_plan_defaults_cpu_override_off(tmp_path: Path) -> 
     restored = InstallerQualificationPlan.from_json(json.dumps(payload))
 
     assert restored.force_cpu_mode is False
+    assert (
+        restored.readiness_receipt_path
+        == (
+            tmp_path / "install" / "launcher" / "readiness" / "ci-installer-chain.json"
+        ).resolve()
+    )
 
 
 def test_managed_qualification_applies_explicit_cpu_choice(tmp_path: Path) -> None:

@@ -60,6 +60,7 @@ from substitute.domain.model_metadata.change_events import (
 )
 from substitute.domain.model_metadata.statuses import (
     BackendHashLookupStatus,
+    CivitaiDownloadAccess,
     CivitaiLookupStatus,
     FingerprintStatus,
     JobStatus,
@@ -96,6 +97,7 @@ __all__ = [
     "BANNER_THUMBNAIL_SIZE",
     "BANNER_THUMBNAIL_WIDTH",
     "CivitaiFile",
+    "CivitaiDownloadAccess",
     "CivitaiImage",
     "CivitaiLookupResult",
     "CivitaiLookupStatus",

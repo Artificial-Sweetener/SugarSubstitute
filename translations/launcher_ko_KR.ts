@@ -683,7 +683,7 @@
   <context>
     <name>AppText</name>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="117"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="126"></location>
       <source>%1: %2</source>
       <translation>%1: %2</translation>
     </message>
@@ -698,24 +698,44 @@
       <translation>닫기</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="212"></location>
+      <source>ComfyUI commit</source>
+      <translation>ComfyUI 커밋</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="211"></location>
+      <source>ComfyUI version</source>
+      <translation>ComfyUI 버전</translation>
+    </message>
+    <message>
       <location filename="../sugarsubstitute_shared/presentation/error_report_view.py" line="287"></location>
       <source>Copy report</source>
       <translation>보고서 복사</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="100"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="119"></location>
+      <source>Diagnostic logs</source>
+      <translation>진단 로그</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="88"></location>
       <source>Error summary</source>
       <translation>오류 요약</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="73"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="61"></location>
       <source>Exception</source>
       <translation>예외</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="108"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="96"></location>
       <source>Exception type: %1</source>
       <translation>예외 유형: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="223"></location>
+      <source>GPU</source>
+      <translation>그래픽 프로세서(GPU)</translation>
     </message>
     <message>
       <location filename="../sugarsubstitute_shared/presentation/error_report_view.py" line="352"></location>
@@ -723,12 +743,27 @@
       <translation>보고서 숨기기</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="103"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="208"></location>
+      <source>Installed launcher version</source>
+      <translation>설치된 런처 버전</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="91"></location>
       <source>Kind: %1</source>
       <translation>종류: %1</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="105"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="226"></location>
+      <source>Launch arguments</source>
+      <translation>실행 인수</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="219"></location>
+      <source>Logical processor count</source>
+      <translation>논리 프로세서 수</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="93"></location>
       <source>Message: %1</source>
       <translation>메시지: %1</translation>
     </message>
@@ -736,6 +771,36 @@
       <location filename="../sugarsubstitute_shared/presentation/full_window_modal.py" line="46"></location>
       <source>OK</source>
       <translation>확인</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="213"></location>
+      <source>Operating system</source>
+      <translation>운영 체제</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="222"></location>
+      <source>Physical memory</source>
+      <translation>물리 메모리</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="217"></location>
+      <source>Processor</source>
+      <translation>프로세서</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="215"></location>
+      <source>Python</source>
+      <translation>Python 런타임</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="216"></location>
+      <source>Python architecture</source>
+      <translation>Python 아키텍처</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="224"></location>
+      <source>Readiness schema</source>
+      <translation>준비 상태 스키마</translation>
     </message>
     <message>
       <location filename="../sugarsubstitute_shared/presentation/error_report_view.py" line="300"></location>
@@ -748,12 +813,12 @@
       <translation>SugarSubstitute 다시 시작</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="131"></location>
-      <source>Runtime context</source>
-      <translation>런타임 컨텍스트</translation>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="128"></location>
+      <source>Runtime and system information</source>
+      <translation>런타임 및 시스템 정보</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="102"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="90"></location>
       <source>Severity: %1</source>
       <translation>심각도: %1</translation>
     </message>
@@ -763,22 +828,22 @@
       <translation>보고서 표시</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="58"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="176"></location>
       <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
       <translation>예기치 않은 문제로 SugarSubstitute가 중지되었습니다. 이 보고서를 복사하여 관리자와 공유할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="69"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="58"></location>
       <source>Stage</source>
       <translation>단계</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="106"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="94"></location>
       <source>Stage: %1</source>
       <translation>단계: %1</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="115"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="103"></location>
       <source>Substitute operation context</source>
       <translation>Substitute 작업 컨텍스트</translation>
     </message>
@@ -788,39 +853,59 @@
       <translation>SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="53"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="167"></location>
+      <source>SugarSubstitute could not finish starting</source>
+      <translation>SugarSubstitute가 시작을 완료하지 못했습니다</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="175"></location>
       <source>SugarSubstitute crashed</source>
       <translation>SugarSubstitute가 충돌했습니다</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="55"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="182"></location>
       <source>SugarSubstitute did not close normally</source>
       <translation>SugarSubstitute가 정상적으로 종료되지 않았습니다</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="63"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="168"></location>
+      <source>SugarSubstitute encountered a confirmed startup failure. Copy this report and share it with the maintainers.</source>
+      <translation>SugarSubstitute에서 확인된 시작 오류가 발생했습니다. 이 보고서를 복사하여 관리자와 공유하세요.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="196"></location>
+      <source>SugarSubstitute payload version</source>
+      <translation>SugarSubstitute 페이로드 버전</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="200"></location>
+      <source>SugarSubstitute recorded release version</source>
+      <translation>SugarSubstitute 기록 릴리스 버전</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="204"></location>
+      <source>Supervising launcher version</source>
+      <translation>감독 런처 버전</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="214"></location>
+      <source>System architecture</source>
+      <translation>시스템 아키텍처</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="183"></location>
       <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
       <translation>이전 SugarSubstitute 세션이 종료 절차를 완료하지 못한 채 끝났습니다. 아래 보고서가 원인을 파악하는 데 도움이 될 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="104"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="92"></location>
       <source>Title: %1</source>
       <translation>제목: %1</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="128"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="112"></location>
       <source>Traceback</source>
       <translation>트레이스백</translation>
-    </message>
-    <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="70"></location>
-      <source>Workflow</source>
-      <translation>워크플로</translation>
-    </message>
-    <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="70"></location>
-      <source>unknown</source>
-      <translation>알 수 없음</translation>
     </message>
   </context>
 </TS>

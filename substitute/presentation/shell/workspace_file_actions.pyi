@@ -16,33 +16,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
-
-from substitute.application.execution import TaskSubmitter
-
-class RecipeModelResolutionRoute:
-    submitter: TaskSubmitter
-    close: Callable[[], None]
-    def __init__(
-        self,
-        *,
-        submitter: TaskSubmitter,
-        close: Callable[[], None],
-    ) -> None: ...
-
-class RecipeModelDownloadRoute:
-    submitter: TaskSubmitter
-    progress_dispatcher: Any
-    close: Callable[[], None]
-    def __init__(
-        self,
-        *,
-        submitter: TaskSubmitter,
-        progress_dispatcher: Any,
-        close: Callable[[], None],
-    ) -> None: ...
 
 class WorkspaceFileActionView(Protocol): ...
 

@@ -199,6 +199,7 @@ def test_headless_locale_override_seeds_shared_durable_preference(
 def _unused_workflow_factory(
     _output_callback: Callable[[str], None],
     _progress_observer: InstallationProgressObserver,
+    _activity_callback: Callable[[], None],
     _cancellation: Event,
 ) -> InstallationWorkflow:
     """Reject installation work in localization-only window tests."""

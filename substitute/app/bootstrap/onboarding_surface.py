@@ -229,7 +229,10 @@ def show_onboarding_surface(
         recipe_planner=ModelInstallRecipePlanner(
             destination_resolver=webui_model_library_detector.install_destination
         ),
-        install_root_locked=resolve_app_layout(context.install_root).installed_payload,
+        install_root_locked=resolve_app_layout(
+            context.install_root,
+            entrypoint_path=entrypoint_path,
+        ).installed_payload,
         initial_geometry=initial_geometry,
         diagnostic_log_sink=(setup_transcript.append if setup_transcript else None),
     )

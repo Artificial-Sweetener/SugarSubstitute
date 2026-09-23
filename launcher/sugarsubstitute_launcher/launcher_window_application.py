@@ -85,10 +85,11 @@ def run_launcher_window(
             repair=args.repair,
             update_check_enabled=not args.no_update_check,
             initial_release_source=initial_install_release_source(args.manifest_url),
-            workflow_factory=lambda output_callback, progress_observer, cancellation: (
+            workflow_factory=lambda output_callback, progress_observer, activity_callback, cancellation: (
                 build_installation_workflow(
                     output_callback=output_callback,
                     progress_observer=progress_observer,
+                    activity_callback=activity_callback,
                     cancellation=cancellation,
                     admit_installation=admit_installation,
                     process_starter=start_installed_launcher_handoff,

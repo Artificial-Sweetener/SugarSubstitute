@@ -41,10 +41,11 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
     IconWidget,
-    IndeterminateProgressBar,
-    ProgressBar,
 )
 
+from sugarsubstitute_shared.presentation.activity_progress_bar import (
+    ActivityProgressBar,
+)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -74,6 +75,12 @@ class ProvisioningPage(OnboardingPageFrame):
         self._failure_user_message: ApplicationText | None = None
         self._failure_steps: tuple[ApplicationText, ...] = ()
         self._log_expanded = False
+        self._completed_tasks = 0
+        self._total_tasks = 1
+        self._model_completed_bytes = 0
+        self._model_total_bytes = 0
+        self._model_complete = False
+        self._output_stream: TerminalOutputStream | None = None
         self.content_column.setMinimumWidth(760)
 
         self.status_panel = QFrame(self)
@@ -114,38 +121,17 @@ class ProvisioningPage(OnboardingPageFrame):
         self.overall_progress_label.setObjectName("OnboardingOverallProgressLabel")
         status_layout.addWidget(self.overall_progress_label)
 
-        self.overall_progress_bar = ProgressBar(self.status_panel, useAni=False)
+        self.overall_progress_bar = ActivityProgressBar(self.status_panel)
         self.overall_progress_bar.setObjectName("OnboardingOverallProgressBar")
-        self.overall_progress_bar.setRange(0, 100)
-        self.overall_progress_bar.setValue(0)
         self.overall_progress_bar.setAccessibleName(
             render_application_text(app_text("Overall setup progress"))
         )
         status_layout.addWidget(self.overall_progress_bar)
 
-        self.activity_progress_bar = IndeterminateProgressBar(
-            self.status_panel, start=False
-        )
-        self.activity_progress_bar.setObjectName("OnboardingActivityProgressBar")
-        self.activity_progress_bar.setAccessibleName(
-            render_application_text(app_text("Setup task activity"))
-        )
-        status_layout.addWidget(self.activity_progress_bar)
-
         self.model_progress_label = LocalizedCaptionLabel("", self.status_panel)
         self.model_progress_label.setObjectName("OnboardingModelProgressLabel")
         self.model_progress_label.hide()
         status_layout.addWidget(self.model_progress_label)
-
-        self.model_progress_bar = ProgressBar(self.status_panel, useAni=False)
-        self.model_progress_bar.setObjectName("OnboardingModelProgressBar")
-        self.model_progress_bar.setRange(0, 100)
-        self.model_progress_bar.setValue(0)
-        self.model_progress_bar.setAccessibleName(
-            render_application_text(app_text("Model download progress"))
-        )
-        self.model_progress_bar.hide()
-        status_layout.addWidget(self.model_progress_bar)
 
         self.show_log_button = LocalizedPushButton(
             app_text("Show setup log"), self.status_panel
@@ -187,28 +173,22 @@ class ProvisioningPage(OnboardingPageFrame):
         set_localized_text(self.status_label, "Starting setup…")
         self._activity_presenter.start()
         self.overall_progress_bar.setError(False)
-        self.model_progress_bar.setError(False)
-        self.activity_progress_bar.setError(False)
-        self.activity_progress_bar.start()
-        self.activity_progress_bar.show()
+        self.overall_progress_bar.set_activity_enabled(True)
 
     def mark_complete(self) -> None:
         """Render the setup as complete."""
 
         self._activity_presenter.stop()
-        self.activity_progress_bar.stop()
-        self.activity_progress_bar.hide()
-        self.overall_progress_bar.setValue(100)
+        self.overall_progress_bar.set_activity_enabled(False)
+        self.overall_progress_bar.set_progress(1, 1)
         set_localized_text(self.overall_progress_label, "All setup tasks are complete.")
 
     def mark_failed(self) -> None:
         """Render the setup as failed without clearing the log output."""
 
         self._activity_presenter.stop()
-        self.activity_progress_bar.stop()
-        self.activity_progress_bar.hide()
+        self.overall_progress_bar.set_activity_enabled(False)
         self.overall_progress_bar.setError(True)
-        self.model_progress_bar.setError(True)
         self.set_log_expanded(True)
 
     def reset_progress(self) -> None:
@@ -218,10 +198,13 @@ class ProvisioningPage(OnboardingPageFrame):
         self._failure_user_message = None
         self._failure_steps = ()
         self.overall_progress_bar.setError(False)
-        self.overall_progress_bar.setValue(0)
-        self.model_progress_bar.setError(False)
-        self.model_progress_bar.setValue(0)
-        self.model_progress_bar.hide()
+        self.overall_progress_bar.reset_progress()
+        self.overall_progress_bar.set_activity_enabled(False)
+        self._completed_tasks = 0
+        self._total_tasks = 1
+        self._model_completed_bytes = 0
+        self._model_total_bytes = 0
+        self._model_complete = False
         self.model_progress_label.hide()
         set_localized_text(self.overall_progress_label, "Preparing setup tasks…")
         set_localized_text(
@@ -241,19 +224,17 @@ class ProvisioningPage(OnboardingPageFrame):
 
         safe_total = max(1, total_tasks)
         safe_completed = max(0, min(completed_tasks, safe_total))
-        self.overall_progress_bar.setValue(round((safe_completed / safe_total) * 100))
+        self._completed_tasks = safe_completed
+        self._total_tasks = safe_total
+        self._render_combined_progress()
         set_localized_text(
             self.overall_progress_label,
             "%1 of %2 setup tasks complete",
             safe_completed,
             safe_total,
         )
-        if active:
-            self.activity_progress_bar.start()
-            self.activity_progress_bar.show()
-        else:
-            self.activity_progress_bar.stop()
-            self.activity_progress_bar.hide()
+        if not active and safe_completed == safe_total:
+            self.overall_progress_bar.set_activity_enabled(False)
 
     def set_model_download_progress(
         self,
@@ -268,12 +249,17 @@ class ProvisioningPage(OnboardingPageFrame):
         """Render exact aggregate model-transfer byte progress."""
 
         if total_bytes <= 0:
-            self.model_progress_bar.hide()
+            self._model_completed_bytes = 0
+            self._model_total_bytes = 0
+            self._model_complete = False
+            self._render_combined_progress()
             self.model_progress_label.hide()
             return
         safe_completed = max(0, min(completed_bytes, total_bytes))
-        self.model_progress_bar.setValue(round((safe_completed / total_bytes) * 100))
-        self.model_progress_bar.show()
+        self._model_completed_bytes = safe_completed
+        self._model_total_bytes = total_bytes
+        self._model_complete = complete
+        self._render_combined_progress()
         self.model_progress_label.show()
         completed_mib = safe_completed / (1024 * 1024)
         total_mib = total_bytes / (1024 * 1024)
@@ -312,6 +298,15 @@ class ProvisioningPage(OnboardingPageFrame):
                 f"{total_mib:,.1f}",
             )
 
+    def _render_combined_progress(self) -> None:
+        """Project task completion and active model bytes onto one physical bar."""
+
+        completed = float(self._completed_tasks)
+        if self._model_total_bytes > 0 and not self._model_complete:
+            completed += self._model_completed_bytes / self._model_total_bytes
+        completed = min(completed, float(self._total_tasks))
+        self.overall_progress_bar.set_progress(completed, self._total_tasks)
+
     def set_log_expanded(self, expanded: bool) -> None:
         """Expand or collapse the inline transcript without leaving the setup page."""
 
@@ -335,12 +330,21 @@ class ProvisioningPage(OnboardingPageFrame):
     def set_output_stream(self, stream: TerminalOutputStream | None) -> None:
         """Bind the shared onboarding output stream to the details surface."""
 
+        self._output_stream = stream
         self.details_surface.set_stream(stream)
 
     def append_log(self, line: str) -> None:
         """Append one non-empty log line to the details surface."""
 
+        if not line:
+            return
         self.details_surface.append_line(line)
+        self.overall_progress_bar.record_activity()
+
+    def record_activity(self) -> None:
+        """Pulse once for accepted setup work without adding transcript noise."""
+
+        self.overall_progress_bar.record_activity()
 
     def clear_details(self) -> None:
         """Reset the rendered details before another provisioning attempt."""

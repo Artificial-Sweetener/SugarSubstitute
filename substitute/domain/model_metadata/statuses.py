@@ -68,6 +68,14 @@ class CivitaiLookupStatus(str, Enum):
     INVALID_RESPONSE = "invalid-response"
 
 
+class CivitaiDownloadAccess(str, Enum):
+    """Describe authentication required to download one CivitAI version."""
+
+    PUBLIC = "public"
+    API_KEY_REQUIRED = "api-key-required"
+    UNKNOWN = "unknown"
+
+
 class ThumbnailSelectionStatus(str, Enum):
     """Describe whether a default CivitAI thumbnail was selected."""
 
@@ -77,6 +85,7 @@ class ThumbnailSelectionStatus(str, Enum):
 
 __all__ = [
     "BackendHashLookupStatus",
+    "CivitaiDownloadAccess",
     "CivitaiLookupStatus",
     "FingerprintStatus",
     "JobStatus",

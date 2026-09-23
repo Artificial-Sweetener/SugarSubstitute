@@ -35,6 +35,9 @@ class SplashPresentationPort(Protocol):
     def start_activity(self, activity: SplashActivity) -> None:
         """Start or replace one independently animated splash activity."""
 
+    def record_activity(self) -> None:
+        """Report real work without requiring a console record."""
+
     def clear_activity(self) -> None:
         """Stop the active splash activity and remove its transient row."""
 
@@ -69,6 +72,9 @@ class NullLaunchSplashClient:
 
         _ = activity
 
+    def record_activity(self) -> None:
+        """Discard one observed activity event."""
+
     def clear_activity(self) -> None:
         """Complete a no-op activity clear."""
 
@@ -97,6 +103,11 @@ class InProcessLaunchSplashClient:
         """Start an activity on the in-process splash widget."""
 
         self._splash_window.start_activity(activity)
+
+    def record_activity(self) -> None:
+        """Forward observed work to the in-process splash widget."""
+
+        self._splash_window.record_activity()
 
     def clear_activity(self) -> None:
         """Clear the in-process splash activity."""

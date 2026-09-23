@@ -71,6 +71,9 @@ class _FailureQueueSplash:
         """Record producer completion without contaminating cleanup call ordering."""
         self.progress.append(progress)
 
+    def record_activity(self) -> None:
+        """Accept one startup work observation."""
+
     def close(self) -> None:
         """Record cleanup of the startup splash."""
 

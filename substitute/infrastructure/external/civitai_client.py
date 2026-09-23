@@ -23,6 +23,7 @@ from typing import Any
 
 from substitute.domain.common import JsonObject
 from substitute.domain.model_metadata import (
+    CivitaiDownloadAccess,
     CivitaiFile,
     CivitaiImage,
     CivitaiLookupResult,
@@ -77,6 +78,17 @@ class CivitaiClient:
                 return CivitaiLookupResult(status=CivitaiLookupStatus.NOT_FOUND)
             response.raise_for_status()
             payload = response.json()
+        except (TypeError, ValueError) as error:
+            log_warning(
+                _LOGGER,
+                "CivitAI lookup returned invalid JSON",
+                sha256=normalized_sha256,
+                error=repr(error),
+            )
+            return CivitaiLookupResult(
+                status=CivitaiLookupStatus.INVALID_RESPONSE,
+                error=str(error),
+            )
         except Exception as error:
             if not is_request_exception(error):
                 raise
@@ -88,17 +100,6 @@ class CivitaiClient:
             )
             return CivitaiLookupResult(
                 status=CivitaiLookupStatus.UNAVAILABLE,
-                error=str(error),
-            )
-        except (TypeError, ValueError) as error:
-            log_warning(
-                _LOGGER,
-                "CivitAI lookup returned invalid JSON",
-                sha256=normalized_sha256,
-                error=repr(error),
-            )
-            return CivitaiLookupResult(
-                status=CivitaiLookupStatus.INVALID_RESPONSE,
                 error=str(error),
             )
         if not isinstance(payload, dict):
@@ -126,7 +127,59 @@ class CivitaiClient:
             version=version,
         )
 
-    def _headers(self) -> dict[str, str]:
+    def model_version_download_access(
+        self,
+        model_version_id: int,
+    ) -> CivitaiDownloadAccess:
+        """Return CivitAI's current authentication requirement for one version."""
+
+        url = f"{_BASE_URL}/model-versions/mini/{model_version_id}"
+        try:
+            response = self._http_get(
+                url,
+                headers=self._headers(include_api_key=False),
+                timeout=self._timeout_seconds,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (TypeError, ValueError) as error:
+            log_warning(
+                _LOGGER,
+                "CivitAI download access returned invalid JSON",
+                model_version_id=model_version_id,
+                error=repr(error),
+            )
+            return CivitaiDownloadAccess.UNKNOWN
+        except Exception as error:
+            if not is_request_exception(error):
+                raise
+            log_warning(
+                _LOGGER,
+                "CivitAI download access lookup failed",
+                model_version_id=model_version_id,
+                error=repr(error),
+            )
+            return CivitaiDownloadAccess.UNKNOWN
+        if not isinstance(payload, dict):
+            return CivitaiDownloadAccess.UNKNOWN
+        availability = _read_str(payload, "availability")
+        requires_auth = payload.get("requireAuth")
+        checks_permission = payload.get("checkPermission")
+        if (
+            availability is None
+            or not isinstance(requires_auth, bool)
+            or not isinstance(checks_permission, bool)
+        ):
+            return CivitaiDownloadAccess.UNKNOWN
+        if (
+            availability.casefold() == "public"
+            and not requires_auth
+            and not checks_permission
+        ):
+            return CivitaiDownloadAccess.PUBLIC
+        return CivitaiDownloadAccess.API_KEY_REQUIRED
+
+    def _headers(self, *, include_api_key: bool = True) -> dict[str, str]:
         """Return CivitAI request headers without logging secrets."""
 
         headers = {
@@ -134,7 +187,11 @@ class CivitaiClient:
             "Content-Type": "application/json",
             "User-Agent": self._user_agent,
         }
-        api_key = self._api_key_provider() if self._api_key_provider else self._api_key
+        api_key = None
+        if include_api_key:
+            api_key = (
+                self._api_key_provider() if self._api_key_provider else self._api_key
+            )
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         return headers

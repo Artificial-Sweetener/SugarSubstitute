@@ -123,6 +123,7 @@ class SideEffectAudit:
         self,
         _log: Callable[[str], None],
         _progress_observer: InstallationProgressObserver,
+        _activity_callback: Callable[[], None],
         _cancellation: Event,
     ) -> Never:
         """Reject workflow construction before install or subprocess work exists."""

@@ -79,6 +79,11 @@ class _DisposedSplash:
 
         raise RuntimeError("disposed")
 
+    def record_activity(self) -> None:
+        """Simulate a disposed splash client."""
+
+        raise RuntimeError("disposed")
+
     def start_activity(self, _activity: SplashActivity) -> None:
         """Simulate a disposed splash client."""
 
@@ -152,6 +157,9 @@ class _Splash:
         """Record one splash line."""
 
         self.lines.append(line)
+
+    def record_activity(self) -> None:
+        """Accept one observed work event."""
 
     def start_activity(self, activity: SplashActivity) -> None:
         """Record one splash activity."""

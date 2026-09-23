@@ -37,6 +37,10 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     launch_managed_process,
 )
 from substitute.infrastructure.comfy.managed_process_probe import ManagedListenerStatus
+from substitute.infrastructure.comfy.managed_process_query import (
+    ListenerPidQueryResult,
+    ListenerPidQueryStatus,
+)
 from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationStatus,
 )
@@ -57,6 +61,7 @@ class _ManagedJob:
 
     launch: ManagedContainmentLaunchResult
     python_process: psutil.Process
+    listener_port: int
 
 
 def _assert_process_exited(process: psutil.Process) -> None:
@@ -71,7 +76,11 @@ def managed_job(tmp_path: Path) -> Iterator[_ManagedJob]:
     """Publish child readiness over a bounded pipe and always retire the owned job."""
     script = tmp_path / "main.py"
     script.write_text(
-        "import os, threading\nprint(os.getpid(), flush=True)\n"
+        "import os, socket, threading\n"
+        "listener = socket.socket()\n"
+        "listener.bind(('127.0.0.1', 0))\n"
+        "listener.listen()\n"
+        "print(os.getpid(), listener.getsockname()[1], flush=True)\n"
         "threading.Event().wait(120)\n",
         encoding="utf-8",
     )
@@ -98,11 +107,13 @@ def managed_job(tmp_path: Path) -> Iterator[_ManagedJob]:
     processes = [psutil.Process(launch.process.pid)]
     try:
         ready = reader.submit(launch.stdout_stream.readline)
-        python_pid = int(ready.result(timeout=15))
+        python_pid, listener_port = (
+            int(value) for value in ready.result(timeout=15).split()
+        )
         python_process = psutil.Process(python_pid)
         if python_pid != launch.process.pid:
             processes.append(python_process)
-        yield _ManagedJob(launch, python_process)
+        yield _ManagedJob(launch, python_process, listener_port)
     finally:
         close_job_containment_handle(launch.containment_handle)
         reader.shutdown(wait=True)
@@ -120,8 +131,10 @@ def test_listener_in_owned_job_is_healthy_even_when_pid_differs_from_root(
     monkeypatch.setattr(managed_process_probe, "is_endpoint_listening", lambda *_: True)
     monkeypatch.setattr(
         managed_process_probe,
-        "get_listener_pid",
-        lambda *_: managed_job.python_process.pid,
+        "query_listener_pid",
+        lambda *_: ListenerPidQueryResult(
+            ListenerPidQueryStatus.RESOLVED, managed_job.python_process.pid
+        ),
     )
     result = managed_process_probe.probe_managed_listener(
         host=metadata.host,
@@ -131,6 +144,30 @@ def test_listener_in_owned_job_is_healthy_even_when_pid_differs_from_root(
     )
     assert result.status is ManagedListenerStatus.OWNED_HEALTHY
     assert managed_job.python_process.is_running()
+
+
+def test_native_listener_query_recognizes_listener_in_owned_job(
+    managed_job: _ManagedJob, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Recognize a real owned listener without invoking PowerShell or another CLI."""
+
+    def forbid_subprocess(*_args: object, **_kwargs: object) -> object:
+        """Reject any fallback to a process-based ownership query."""
+
+        raise AssertionError("Listener ownership must use the Windows native API")
+
+    monkeypatch.setattr(subprocess, "run", forbid_subprocess)
+    monkeypatch.setattr(managed_process_probe, "is_endpoint_listening", lambda *_: True)
+    metadata = replace(managed_job.launch.metadata, port=managed_job.listener_port)
+    result = managed_process_probe.probe_managed_listener(
+        host=metadata.host,
+        port=metadata.port,
+        workspace=metadata.workspace_path,
+        metadata=metadata,
+    )
+
+    assert result.status is ManagedListenerStatus.OWNED_HEALTHY
+    assert result.listener_pid == managed_job.python_process.pid
 
 
 def test_recovered_job_cleanup_does_not_depend_on_taskkill(
@@ -172,10 +209,14 @@ def test_unrelated_listener_is_not_adopted(
 ) -> None:
     """Reject a listener outside the recorded job despite matching endpoint metadata."""
     metadata = managed_job.launch.metadata
-    listener_pid = os.getpid() if listener_resolved else None
+    listener_query = (
+        ListenerPidQueryResult(ListenerPidQueryStatus.RESOLVED, os.getpid())
+        if listener_resolved
+        else ListenerPidQueryResult(ListenerPidQueryStatus.ABSENT)
+    )
     monkeypatch.setattr(managed_process_probe, "is_endpoint_listening", lambda *_: True)
     monkeypatch.setattr(
-        managed_process_probe, "get_listener_pid", lambda *_: listener_pid
+        managed_process_probe, "query_listener_pid", lambda *_: listener_query
     )
     result = managed_process_probe.probe_managed_listener(
         host=metadata.host,
@@ -183,7 +224,12 @@ def test_unrelated_listener_is_not_adopted(
         workspace=metadata.workspace_path,
         metadata=metadata,
     )
-    assert result.status is ManagedListenerStatus.FOREIGN
+    expected_status = (
+        ManagedListenerStatus.FOREIGN
+        if listener_resolved
+        else ManagedListenerStatus.UNKNOWN
+    )
+    assert result.status is expected_status
 
 
 @pytest.mark.parametrize("release_owner", [False, True])

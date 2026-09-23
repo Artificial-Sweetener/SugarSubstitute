@@ -178,6 +178,11 @@ class _DisconnectedProgress:
         _ = activity
         raise OSError("splash disconnected")
 
+    def record_activity(self) -> None:
+        """Reject one non-log work observation."""
+
+        raise OSError("splash disconnected")
+
     def clear_activity(self) -> None:
         """Reject one activity-clear message."""
 

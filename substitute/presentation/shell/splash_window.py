@@ -105,6 +105,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
     failureRequested = Signal(str)
     progressRequested = Signal(object, str)
     activityRequested = Signal(object)
+    activityObserved = Signal()
     activityClearRequested = Signal()
     cancelRequested = Signal()
     firstFramePainted = Signal()
@@ -161,6 +162,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         self.progressRequested.connect(self._do_set_progress)
         self.logRequested.connect(self._do_append_log)
         self.activityRequested.connect(self._do_start_activity)
+        self.activityObserved.connect(self._do_record_activity)
         self.activityClearRequested.connect(self._do_clear_activity)
 
         container.installEventFilter(self)
@@ -216,6 +218,11 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
 
         self.activityRequested.emit(activity)
 
+    def record_activity(self) -> None:
+        """Queue observed work without creating a console record."""
+
+        self.activityObserved.emit()
+
     def clear_activity(self) -> None:
         """Stop the current activity and remove its transient terminal row."""
 
@@ -226,6 +233,12 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         """Append one terminal record to the splash output stream."""
 
         self._feedback.append_log(line)
+
+    @Slot()
+    def _do_record_activity(self) -> None:
+        """Pulse the shared bar for a producer-confirmed unit of work."""
+
+        self._feedback.record_activity()
 
     @Slot(object)
     def _do_start_activity(self, activity: object) -> None:

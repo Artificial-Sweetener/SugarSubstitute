@@ -23,6 +23,7 @@ from pathlib import Path
 import sys
 
 import pytest
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 
 from substitute.app.bootstrap.startup_cli import (
     StartupCliArguments,
@@ -128,6 +129,7 @@ def test_parse_startup_cli_arguments_returns_immutable_bootstrap_inputs() -> Non
             "--install-root=E:\\Substitute",
             "--handoff-geometry=10,20,1260,800",
             "--locale=zh_CN",
+            "--launch-intent=setup",
         ]
     )
 
@@ -138,12 +140,14 @@ def test_parse_startup_cli_arguments_returns_immutable_bootstrap_inputs() -> Non
             "--install-root=E:\\Substitute",
             "--handoff-geometry=10,20,1260,800",
             "--locale=zh_CN",
+            "--launch-intent=setup",
         ),
         argv_provided=True,
         no_comfy=True,
         handoff_geometry=(10, 20, 1260, 800),
         install_root=Path("E:\\Substitute"),
         locale_override="zh-Hans",
+        launch_intent=ApplicationLaunchIntent.SETUP,
     )
 
 
@@ -162,6 +166,7 @@ def test_parse_startup_cli_arguments_uses_process_argv_when_not_provided(
     assert parsed.handoff_geometry is None
     assert parsed.install_root is None
     assert parsed.locale_override is None
+    assert parsed.launch_intent is ApplicationLaunchIntent.NORMAL
 
 
 def test_trace_startup_cli_arguments_emits_prompt_safe_fields(
@@ -188,6 +193,7 @@ def test_trace_startup_cli_arguments_emits_prompt_safe_fields(
             handoff_geometry=(1, 2, 3, 4),
             install_root=None,
             locale_override="ja",
+            launch_intent=ApplicationLaunchIntent.SETUP,
         )
     )
 
@@ -200,6 +206,7 @@ def test_trace_startup_cli_arguments_emits_prompt_safe_fields(
                 "arg_count": 2,
                 "handoff_geometry_present": True,
                 "locale_override_present": True,
+                "launch_intent": "setup",
             },
         ),
     ]

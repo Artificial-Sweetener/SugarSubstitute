@@ -73,6 +73,50 @@ def test_app_layout_falls_back_to_source_checkout(tmp_path: Path) -> None:
     assert layout.entrypoint_path.parent == layout.app_dir
 
 
+def test_app_layout_resolves_launcher_generation_payload(tmp_path: Path) -> None:
+    """Launcher generations remain installed payloads after app handoff."""
+
+    generation = "a" * 32
+    app_dir = tmp_path / "launcher" / "releases" / "generations" / generation / "app"
+    entrypoint_path = app_dir / "main.py"
+    _write_file(entrypoint_path, "print('generation')\n")
+    _write_file(app_dir / "requirements.txt", "PySide6\n")
+
+    layout = resolve_app_layout(tmp_path, entrypoint_path=entrypoint_path)
+
+    assert layout.installed_payload is True
+    assert layout.app_dir == app_dir.resolve()
+    assert layout.entrypoint_path == entrypoint_path.resolve()
+    assert (
+        initial_onboarding_page(install_root_locked=layout.installed_payload)
+        is OnboardingPageId.TARGET_MODE
+    )
+
+
+@pytest.mark.parametrize(
+    "relative_app_dir",
+    [
+        Path("launcher/releases/generations/not-a-generation/app"),
+        Path("launcher/releases/preparing") / ("a" * 32) / "app",
+        Path("elsewhere") / ("a" * 32) / "app",
+    ],
+)
+def test_app_layout_rejects_unmanaged_generation_shapes(
+    tmp_path: Path,
+    relative_app_dir: Path,
+) -> None:
+    """Only launcher-owned immutable generation paths lock installation setup."""
+
+    app_dir = tmp_path / relative_app_dir
+    entrypoint_path = app_dir / "main.py"
+    _write_file(entrypoint_path, "print('unmanaged')\n")
+    _write_file(app_dir / "requirements.txt", "PySide6\n")
+
+    layout = resolve_app_layout(tmp_path, entrypoint_path=entrypoint_path)
+
+    assert layout.installed_payload is False
+
+
 @pytest.mark.parametrize("platform_name", ["linux", "darwin"])
 def test_runtime_layout_uses_posix_python_on_posix_platforms(
     tmp_path: Path,
@@ -100,6 +144,33 @@ def test_onboarding_bundle_uses_launcher_runtime_for_installed_payload(
     assert provisioner.install_root == tmp_path.resolve()
     assert (
         provisioner.requirements_path == tmp_path.resolve() / "app" / "requirements.txt"
+    )
+
+
+def test_generation_payload_defaults_to_its_paired_launcher_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Fresh generation-backed setup validates the runtime the launcher provisioned."""
+
+    generation_root = tmp_path / "launcher" / "releases" / "generations" / ("a" * 32)
+    app_dir = generation_root / "app"
+    _write_file(app_dir / "main.py", "print('generation')\n")
+    _write_file(app_dir / "requirements.txt", "PySide6\n")
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.app_layout._repo_root",
+        lambda: app_dir,
+    )
+
+    bundle = build_onboarding_service_bundle(tmp_path)
+
+    runtime = bundle.runtime_service.create_default()
+    installation = bundle.installation_service.create_default()
+    assert installation.runtime_dir == (tmp_path / "runtime").resolve()
+    assert runtime.runtime_root == (generation_root / "runtime").resolve()
+    assert (
+        runtime.python_executable
+        == (generation_root / "runtime" / ".venv" / "Scripts" / "python.exe").resolve()
     )
 
 

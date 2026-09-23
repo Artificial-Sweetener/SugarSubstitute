@@ -36,6 +36,9 @@ from launcher.sugarsubstitute_launcher.update_activation import (
 from launcher.sugarsubstitute_launcher.update_activation_recovery import (
     recover_interrupted_update,
 )
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    update_journal_path,
+)
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.installation_mutation import installation_mutation
 
@@ -75,7 +78,7 @@ def test_payload_update_cannot_mutate_an_owned_installation(tmp_path: Path) -> N
             )
             assert child.returncode == 17, child.stderr
             assert layout.runtime_python.read_bytes() == b"old-runtime"
-            assert not (layout.launcher_dir / "pending-app-update.json").exists()
+            assert not update_journal_path(layout).exists()
     finally:
         recover_interrupted_update(layout)
 
@@ -130,7 +133,7 @@ def test_ordinary_startup_recovers_payload_update_without_update_check(
         candidate = recover_startup_candidate(LauncherStartupCandidate(layout, True))
         assert is_installed_app_launchable(candidate.layout)
         assert layout.runtime_python.read_bytes() == b"old-runtime"
-        assert not (layout.launcher_dir / "pending-app-update.json").exists()
+        assert not update_journal_path(layout).exists()
     finally:
         recover_interrupted_update(layout)
 

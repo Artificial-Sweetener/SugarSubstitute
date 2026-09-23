@@ -32,6 +32,9 @@ from launcher.sugarsubstitute_launcher.candidate_update_launch import (
 from launcher.sugarsubstitute_launcher.installed_application_supervisor import (
     InstalledApplicationSupervisor,
 )
+from launcher.sugarsubstitute_launcher.launcher_baseline_refresh import (
+    LauncherBaselineRefresh,
+)
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import build_app_launch_command
@@ -51,6 +54,7 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
 from sugarsubstitute_shared.application_broker_session import (
     ApplicationBrokerSession,
 )
+from sugarsubstitute_shared.application_launch_context import ApplicationLaunchIntent
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.process_identity import ProcessIdentityError
 
@@ -66,9 +70,14 @@ def complete_installed_app_handoff(
     no_update_check: bool,
     splash_session: StartupSplashSession | None,
     handoff_geometry: str | None,
+    launch_intent: ApplicationLaunchIntent = ApplicationLaunchIntent.NORMAL,
 ) -> None:
-    """Run update policy and start the installed app behind its visible splash."""
+    """Run update policy and start the app with the requested presentation policy."""
 
+    if LauncherBaselineRefresh().start_if_required(layout=layout):
+        if splash_session is not None:
+            splash_session.close()
+        return
     config = LauncherConfig.load(layout.config_path)
     update_result = LauncherUpdateOrchestrator().run(
         layout=layout,
@@ -105,7 +114,9 @@ def complete_installed_app_handoff(
         if handoff_geometry:
             extra_arguments.append(f"--handoff-geometry={handoff_geometry}")
         app_command = build_app_launch_command(
-            layout=layout, extra_args=extra_arguments
+            layout=layout,
+            extra_args=extra_arguments,
+            launch_intent=launch_intent,
         )
         supervisor = InstalledApplicationSupervisor(
             broker=broker,

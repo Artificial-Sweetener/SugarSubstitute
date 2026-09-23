@@ -80,6 +80,9 @@ class _Splash:
 
         self.lines.append(line)
 
+    def record_activity(self) -> None:
+        """Accept one observed work event."""
+
     def start_activity(self, _activity: SplashActivity) -> None:
         """Accept activity calls from protocol consumers."""
 
@@ -173,6 +176,16 @@ def test_early_launch_splash_skips_no_comfy_startup(tmp_path: Path) -> None:
 
     assert early_launch_splash.start_early_launch_splash(
         ["main.py", "--no-comfy"],
+        tmp_path,
+        "en",
+    ) == (None, None)
+
+
+def test_early_launch_splash_skips_setup_handoff(tmp_path: Path) -> None:
+    """Initial and resumed setup must enter onboarding without an app splash."""
+
+    assert early_launch_splash.start_early_launch_splash(
+        ["main.py", "--launch-intent=setup"],
         tmp_path,
         "en",
     ) == (None, None)

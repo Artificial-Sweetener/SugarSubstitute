@@ -22,9 +22,15 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 from substitute.application.direct_workflows import DirectWorkflowLoadService
+from substitute.application.workflows.portable_model_projection import (
+    PortableModelManifestService,
+)
+from substitute.application.recipes import RecipeModelDownloadResolutionError
 from substitute.application.workflows import WorkflowTabService
+from substitute.domain.common import JsonObject
 from substitute.domain.workflow import WorkflowState
 from substitute.infrastructure.comfy.workflow_document_repository import (
     ComfyWorkflowDocumentRepository,
@@ -32,6 +38,13 @@ from substitute.infrastructure.comfy.workflow_document_repository import (
 from substitute.presentation.shell.direct_workflow_file_actions import (
     DirectWorkflowFileActions,
 )
+from substitute.presentation.shell.direct_workflow_composition import (
+    compose_direct_workflow_file_actions,
+)
+from substitute.presentation.shell.direct_workflow_model_resolution import (
+    DirectWorkflowModelResolutionController,
+)
+from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowInvalidationReason,
     WorkflowSurface,
@@ -110,6 +123,27 @@ def _actions(
         add_workflow_tab=add_workflow_tab,
         refresh_active_workflow=refresh_active_workflow,
     )
+
+
+def test_direct_workflow_composition_defers_workspace_owned_model_controller() -> None:
+    """Dependency capture must not read editor-busy state before workspace build."""
+
+    shell = SimpleNamespace(
+        cube_graph_gateway=PassthroughCubeWorkflowAnalyzer(),
+        node_definition_gateway=None,
+        create_recipe_model_load_resolver=lambda: None,
+    )
+
+    composition = compose_direct_workflow_file_actions(
+        shell,
+        manifest=cast(PortableModelManifestService, SimpleNamespace()),
+        add_workflow_tab=lambda: None,
+        workflow_workspace=SimpleNamespace(),
+        error_presenter=cast(ErrorReportPresenterProtocol, SimpleNamespace()),
+    )
+
+    assert isinstance(composition.file_actions, DirectWorkflowFileActions)
+    assert not hasattr(shell, "editor_busy")
 
 
 def test_direct_workflow_file_action_loads_blank_tab_and_refreshes(
@@ -205,3 +239,153 @@ def test_invalid_direct_workflow_does_not_create_a_target_tab(
 
     assert actions.load_document(source) is None
     assert added_tabs == []
+
+
+def test_model_download_failure_uses_specific_recoverable_error_copy(
+    tmp_path: Path,
+) -> None:
+    """Explain model acquisition failure without misreporting malformed workflow JSON."""
+
+    source = tmp_path / "portable-workflow.json"
+    source.write_text('{"nodes": [], "links": []}', encoding="utf-8")
+    workflow = WorkflowState()
+    tab_item = _TabItem("wf-1", "Untitled Workflow")
+    presented: list[dict[str, object]] = []
+    failure = RecipeModelDownloadResolutionError("CivitAI API key was rejected.")
+    controller = _FailingModelResolutionController(failure)
+    actions = DirectWorkflowFileActions(
+        view=_view(workflow, tab_item),
+        load_service=DirectWorkflowLoadService(
+            ComfyWorkflowDocumentRepository(),
+            PassthroughCubeWorkflowAnalyzer(),
+        ),
+        add_workflow_tab=lambda: None,
+        refresh_active_workflow=lambda: None,
+        error_presenter=cast(
+            ErrorReportPresenterProtocol,
+            SimpleNamespace(
+                show_exception_report=lambda **kwargs: presented.append(kwargs)
+            ),
+        ),
+        model_resolution_controller_provider=lambda: cast(
+            DirectWorkflowModelResolutionController, controller
+        ),
+    )
+
+    assert actions.load_document(source) == "wf-1"
+    assert len(presented) == 1
+    assert presented[0]["title"] == "Model download failed"
+    assert presented[0]["message"] == (
+        "Substitute could not download and verify every model this workflow needs."
+    )
+    assert presented[0]["error"] is failure
+    assert workflow.direct_workflow is None
+
+
+def test_async_model_resolution_keeps_its_original_tab_target(tmp_path: Path) -> None:
+    """A tab switch during model work must not redirect workflow materialization."""
+
+    source = tmp_path / "portable-workflow.json"
+    source.write_text(
+        json.dumps(
+            {
+                "nodes": [
+                    {
+                        "id": 1,
+                        "type": "KSampler",
+                        "inputs": [],
+                        "outputs": [],
+                        "widgets_values": [],
+                    }
+                ],
+                "links": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    target_workflow = WorkflowState()
+    other_workflow = WorkflowState()
+    target_tab = _TabItem("wf-1", "Untitled Workflow")
+    other_tab = _TabItem("wf-2", "Other Workflow")
+    view = _view(target_workflow, target_tab)
+    view.workflow_session_service.workflows["wf-2"] = other_workflow
+    view.workflow_tabbar.itemMap["wf-2"] = other_tab
+    refreshes: list[str] = []
+    controller = _DeferredModelResolutionController()
+    actions = DirectWorkflowFileActions(
+        view=view,
+        load_service=DirectWorkflowLoadService(
+            ComfyWorkflowDocumentRepository(),
+            PassthroughCubeWorkflowAnalyzer(),
+        ),
+        add_workflow_tab=lambda: None,
+        refresh_active_workflow=lambda: refreshes.append("refresh"),
+        model_resolution_controller_provider=lambda: cast(
+            DirectWorkflowModelResolutionController, controller
+        ),
+    )
+
+    assert actions.load_document(source) == "wf-1"
+    view.workflow_session_service.active_workflow_id = "wf-2"
+    controller.complete()
+
+    assert target_workflow.direct_workflow is not None
+    assert other_workflow.direct_workflow is None
+    assert target_tab.text() == "portable-workflow"
+    assert other_tab.text() == "Other Workflow"
+    assert refreshes == []
+
+
+class _FailingModelResolutionController:
+    """Report one deferred model download failure."""
+
+    def __init__(self, error: BaseException) -> None:
+        """Store the error delivered after canonical workflow reading."""
+
+        self._error = error
+
+    def resolve(
+        self,
+        *,
+        workflow: object,
+        target_workflow_id: str,
+        completed: Callable[[object], None],
+        cancelled: Callable[[], None],
+        failed: Callable[[BaseException], None],
+    ) -> None:
+        """Deliver the configured failure through the production callback path."""
+
+        _ = (workflow, target_workflow_id, completed, cancelled)
+        failed(self._error)
+
+
+class _DeferredModelResolutionController:
+    """Retain one completion callback until the test changes active tabs."""
+
+    def __init__(self) -> None:
+        """Initialize without a pending callback."""
+
+        self._completed: Callable[[JsonObject], None] | None = None
+        self._workflow: JsonObject | None = None
+
+    def resolve(
+        self,
+        *,
+        workflow: JsonObject,
+        target_workflow_id: str,
+        completed: Callable[[JsonObject], None],
+        cancelled: Callable[[], None],
+        failed: Callable[[BaseException], None],
+    ) -> None:
+        """Retain the graph and production completion callback."""
+
+        _ = (target_workflow_id, cancelled, failed)
+        self._workflow = workflow
+        self._completed = completed
+
+    def complete(self) -> None:
+        """Deliver the retained graph after the simulated tab switch."""
+
+        assert self._completed is not None
+        assert self._workflow is not None
+        self._completed(self._workflow)

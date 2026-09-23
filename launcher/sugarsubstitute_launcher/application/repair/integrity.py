@@ -19,14 +19,19 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from pathlib import Path
+
+from sugarsubstitute_shared.asset_transfer import ObservedActivity
 
 
 class RepairArtifactIntegrityError(RuntimeError):
     """Report an unsafe or changed staged repair artifact."""
 
 
-def directory_tree_sha256(root: Path) -> str:
+def directory_tree_sha256(
+    root: Path, *, activity_observer: Callable[[], None] | None = None
+) -> str:
     """Hash a staged tree while accepting only non-escaping symbolic links."""
 
     if root.is_symlink() or _is_junction(root):
@@ -39,6 +44,7 @@ def directory_tree_sha256(root: Path) -> str:
             f"Repair artifact directory is missing: {resolved_root}"
         )
     digest = hashlib.sha256()
+    activity = ObservedActivity(activity_observer)
     for path in _tree_entries(root):
         if path.is_symlink():
             target = _safe_symbolic_link_target(
@@ -49,6 +55,7 @@ def directory_tree_sha256(root: Path) -> str:
             digest.update(
                 b"L\0" + relative + b"\0" + target.as_posix().encode("utf-8") + b"\0"
             )
+            activity.record()
             continue
         if _is_junction(path):
             raise RepairArtifactIntegrityError(
@@ -57,6 +64,7 @@ def directory_tree_sha256(root: Path) -> str:
         relative = path.relative_to(root).as_posix().encode("utf-8")
         if path.is_dir():
             digest.update(b"D\0" + relative + b"\0")
+            activity.record()
             continue
         if not path.is_file():
             raise RepairArtifactIntegrityError(
@@ -66,6 +74,7 @@ def directory_tree_sha256(root: Path) -> str:
         with path.open("rb") as source:
             for chunk in iter(lambda: source.read(1024 * 1024), b""):
                 digest.update(chunk)
+                activity.record()
         digest.update(b"\0")
     return digest.hexdigest()
 
@@ -118,10 +127,15 @@ def _is_junction(path: Path) -> bool:
     return bool(checker()) if callable(checker) else False
 
 
-def verify_directory_tree_sha256(root: Path, *, expected: str) -> None:
+def verify_directory_tree_sha256(
+    root: Path,
+    *,
+    expected: str,
+    activity_observer: Callable[[], None] | None = None,
+) -> None:
     """Reject a staged directory whose complete identity has changed."""
 
-    actual = directory_tree_sha256(root)
+    actual = directory_tree_sha256(root, activity_observer=activity_observer)
     if actual != expected.lower():
         raise RepairArtifactIntegrityError(
             f"Repair artifact integrity mismatch: {root}"

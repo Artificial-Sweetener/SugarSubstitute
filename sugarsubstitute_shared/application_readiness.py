@@ -24,17 +24,29 @@ import json
 import os
 from pathlib import Path
 import secrets
+from collections.abc import Mapping
 from typing import Final
 
 
 READINESS_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_PATH"
 READINESS_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_TOKEN"
+READINESS_SCHEMA_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_SCHEMA"
 READINESS_DELEGATION_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_PATH"
 READINESS_DELEGATION_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_TOKEN"
-READINESS_SCHEMA_VERSION: Final = 4
+READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: Final = (
+    "SUGAR_SUBSTITUTE_READINESS_ACCEPTED_SCHEMA_VERSIONS"
+)
+READINESS_DELEGATION_SCHEMA_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_SCHEMA"
+READINESS_SCHEMA_VERSION: Final = 5
+READINESS_COMPATIBILITY_SCHEMA_VERSION: Final = 4
+READINESS_LEGACY_DELEGATION_SCHEMA_VERSION: Final = 3
 _LEGACY_READINESS_SCHEMA_VERSION: Final = 1
 _SURFACE_READINESS_SCHEMA_VERSION: Final = 2
 _PARENT_READINESS_SCHEMA_VERSION: Final = 3
+_MILESTONE_READINESS_SCHEMA_VERSION: Final = READINESS_COMPATIBILITY_SCHEMA_VERSION
+WRITABLE_READINESS_SCHEMA_VERSIONS: Final = tuple(
+    range(_LEGACY_READINESS_SCHEMA_VERSION, READINESS_SCHEMA_VERSION + 1)
+)
 REQUIRED_READINESS_MILESTONES: Final = (
     "process_started",
     "surface_painted",
@@ -60,18 +72,31 @@ class ApplicationReadinessReceipt:
     surface: ApplicationReadinessSurface
     parent_pid: int | None
     milestones: tuple[str, ...] = REQUIRED_READINESS_MILESTONES
+    attester_pids: tuple[int, ...] = ()
 
-    def to_json(self) -> dict[str, object]:
-        """Return the stable receipt representation."""
+    def to_json(
+        self, *, schema_version: int = READINESS_SCHEMA_VERSION
+    ) -> dict[str, object]:
+        """Return a receipt compatible with the requested supervisor schema."""
 
-        return {
+        if schema_version not in WRITABLE_READINESS_SCHEMA_VERSIONS:
+            raise ValueError("Application readiness schema is unsupported.")
+        payload: dict[str, object] = {
             "parent_pid": self.parent_pid,
             "pid": self.pid,
-            "schema_version": READINESS_SCHEMA_VERSION,
+            "schema_version": schema_version,
             "surface": self.surface.value,
             "token": self.token,
-            "milestones": list(self.milestones),
         }
+        if schema_version < _PARENT_READINESS_SCHEMA_VERSION:
+            payload.pop("parent_pid")
+        if schema_version == _LEGACY_READINESS_SCHEMA_VERSION:
+            payload.pop("surface")
+        if schema_version >= _MILESTONE_READINESS_SCHEMA_VERSION:
+            payload["milestones"] = list(self.milestones)
+        if schema_version >= READINESS_SCHEMA_VERSION:
+            payload["attester_pids"] = list(self.attester_pids)
+        return payload
 
     @classmethod
     def from_json(cls, payload: object) -> ApplicationReadinessReceipt:
@@ -89,6 +114,7 @@ class ApplicationReadinessReceipt:
                 _LEGACY_READINESS_SCHEMA_VERSION,
                 _SURFACE_READINESS_SCHEMA_VERSION,
                 _PARENT_READINESS_SCHEMA_VERSION,
+                _MILESTONE_READINESS_SCHEMA_VERSION,
                 READINESS_SCHEMA_VERSION,
             }
             or not isinstance(pid, int)
@@ -116,12 +142,24 @@ class ApplicationReadinessReceipt:
             parent_pid = None
         raw_milestones = payload.get("milestones")
         milestones: tuple[str, ...]
-        if schema_version == READINESS_SCHEMA_VERSION:
+        if schema_version >= _MILESTONE_READINESS_SCHEMA_VERSION:
             if raw_milestones != list(REQUIRED_READINESS_MILESTONES):
                 raise ValueError("Application readiness milestones are incomplete.")
             milestones = REQUIRED_READINESS_MILESTONES
         else:
             milestones = ()
+        raw_attester_pids = payload.get("attester_pids")
+        if schema_version == READINESS_SCHEMA_VERSION:
+            if not isinstance(raw_attester_pids, list) or any(
+                not isinstance(process_id, int)
+                or isinstance(process_id, bool)
+                or process_id <= 0
+                for process_id in raw_attester_pids
+            ):
+                raise ValueError("Application readiness attestation chain is invalid.")
+            attester_pids = tuple(raw_attester_pids)
+        else:
+            attester_pids = ()
         try:
             surface = ApplicationReadinessSurface(raw_surface)
         except ValueError as error:
@@ -132,6 +170,7 @@ class ApplicationReadinessReceipt:
             surface=surface,
             parent_pid=parent_pid,
             milestones=milestones,
+            attester_pids=attester_pids,
         )
 
 
@@ -139,8 +178,9 @@ def publish_application_readiness_receipt(
     *,
     receipt_path: Path,
     receipt: ApplicationReadinessReceipt,
+    schema_version: int = READINESS_SCHEMA_VERSION,
 ) -> None:
-    """Atomically publish one authenticated visible-surface receipt."""
+    """Atomically publish one authenticated version-compatible receipt."""
 
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = receipt_path.with_name(
@@ -148,7 +188,8 @@ def publish_application_readiness_receipt(
     )
     try:
         temporary_path.write_text(
-            json.dumps(receipt.to_json(), sort_keys=True) + "\n",
+            json.dumps(receipt.to_json(schema_version=schema_version), sort_keys=True)
+            + "\n",
             encoding="utf-8",
         )
         os.replace(temporary_path, receipt_path)
@@ -156,14 +197,40 @@ def publish_application_readiness_receipt(
         temporary_path.unlink(missing_ok=True)
 
 
+def without_application_readiness_environment(
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Return an environment detached from every process-bound readiness contract."""
+
+    detached = dict(os.environ if environment is None else environment)
+    for name in (
+        READINESS_PATH_ENV,
+        READINESS_TOKEN_ENV,
+        READINESS_SCHEMA_ENV,
+        READINESS_DELEGATION_PATH_ENV,
+        READINESS_DELEGATION_TOKEN_ENV,
+        READINESS_DELEGATION_SCHEMA_ENV,
+        READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
+    ):
+        detached.pop(name, None)
+    return detached
+
+
 __all__ = [
     "ApplicationReadinessReceipt",
     "ApplicationReadinessSurface",
+    "READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV",
+    "READINESS_COMPATIBILITY_SCHEMA_VERSION",
     "READINESS_PATH_ENV",
+    "READINESS_SCHEMA_ENV",
     "READINESS_DELEGATION_PATH_ENV",
+    "READINESS_DELEGATION_SCHEMA_ENV",
     "READINESS_DELEGATION_TOKEN_ENV",
     "READINESS_SCHEMA_VERSION",
+    "READINESS_LEGACY_DELEGATION_SCHEMA_VERSION",
     "REQUIRED_READINESS_MILESTONES",
     "READINESS_TOKEN_ENV",
+    "WRITABLE_READINESS_SCHEMA_VERSIONS",
     "publish_application_readiness_receipt",
+    "without_application_readiness_environment",
 ]

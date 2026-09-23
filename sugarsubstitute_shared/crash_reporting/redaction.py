@@ -38,7 +38,13 @@ _MAX_TEXT_CHARACTERS = 131_072
 class CrashReportRedactor:
     """Sanitize diagnostic text while preserving actionable stack context."""
 
-    def __init__(self, *, home: Path | None, install_root: Path | None) -> None:
+    def __init__(
+        self,
+        *,
+        home: Path | None,
+        install_root: Path | None,
+        additional_roots: Sequence[Path] = (),
+    ) -> None:
         """Build deterministic replacements for known identifying roots."""
 
         replacements: list[tuple[str, str]] = []
@@ -46,6 +52,8 @@ class CrashReportRedactor:
             replacements.extend(_path_spellings(home, "<user-home>"))
         if install_root is not None:
             replacements.extend(_path_spellings(install_root, "<install-root>"))
+        for index, root in enumerate(additional_roots, start=1):
+            replacements.extend(_path_spellings(root, f"<diagnostic-root-{index}>"))
         self._path_replacements = tuple(
             sorted(set(replacements), key=lambda item: len(item[0]), reverse=True)
         )

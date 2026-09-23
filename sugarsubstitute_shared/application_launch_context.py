@@ -19,7 +19,40 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from enum import Enum
 from pathlib import Path
+
+
+_LAUNCH_INTENT_PREFIX = "--launch-intent="
+
+
+class ApplicationLaunchIntent(str, Enum):
+    """Identify presentation policy for one application launch."""
+
+    NORMAL = "normal"
+    SETUP = "setup"
+
+
+def application_launch_intent(argv: Sequence[str]) -> ApplicationLaunchIntent:
+    """Return the explicit launch intent, defaulting compatible callers to normal."""
+
+    for raw_argument in argv:
+        if not raw_argument.startswith(_LAUNCH_INTENT_PREFIX):
+            continue
+        raw_intent = raw_argument[len(_LAUNCH_INTENT_PREFIX) :].strip()
+        try:
+            return ApplicationLaunchIntent(raw_intent)
+        except ValueError as error:
+            raise ValueError(
+                f"Unsupported application launch intent: {raw_intent}"
+            ) from error
+    return ApplicationLaunchIntent.NORMAL
+
+
+def application_launch_intent_argument(intent: ApplicationLaunchIntent) -> str:
+    """Serialize one launch intent for a supervised process boundary."""
+
+    return f"{_LAUNCH_INTENT_PREFIX}{intent.value}"
 
 
 def explicit_application_launch_install_root(
@@ -47,6 +80,9 @@ def application_launch_install_root(
 
 
 __all__ = [
+    "ApplicationLaunchIntent",
+    "application_launch_intent",
+    "application_launch_intent_argument",
     "application_launch_install_root",
     "explicit_application_launch_install_root",
 ]

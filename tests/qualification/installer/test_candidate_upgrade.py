@@ -33,6 +33,7 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
 )
+from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
 from tools.ci.candidate_release_source import CandidateReleaseSource
@@ -49,6 +50,7 @@ from tools.ci.installer_ui_qualification import (
 from tools.ci.loopback_port_lease import LoopbackPortLease
 from tools.ci.verify_installer_lifecycle import (
     _parse_args,
+    require_default_comfy_port_available,
 )
 
 
@@ -88,6 +90,24 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     assert arguments.candidate_installer == Path("candidate-installer")
 
 
+def test_installer_qualification_rejects_an_occupied_default_comfy_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unattended qualification must not wait on an invisible conflict dialog."""
+
+    def reject_reservation(**_arguments: object) -> object:
+        """Model an existing listener owning the default ComfyUI port."""
+
+        from tools.ci.loopback_port_lease import LoopbackPortLeaseError
+
+        raise LoopbackPortLeaseError("occupied")
+
+    monkeypatch.setattr(LoopbackPortLease, "acquire", reject_reservation)
+
+    with pytest.raises(InstallerLifecycleError, match="127.0.0.1:8188"):
+        require_default_comfy_port_available()
+
+
 def test_candidate_update_uses_historical_launcher_before_verification(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -114,12 +134,49 @@ def test_candidate_update_uses_historical_launcher_before_verification(
             )
         )
         events.append(("launch", payload["release_source"]["manifest_url"]))
-        return object()
+        return SimpleNamespace(
+            progress_baselines=(
+                (
+                    InstallLayout.from_root(install_root).logs_dir / "launcher.log",
+                    (False, 0),
+                ),
+            )
+        )
 
     def verify_candidate(**arguments: object) -> None:
-        """Record that readiness follows the single candidate-bound launch."""
+        """Materialize the qualified shell and root state after that launch."""
 
-        del arguments
+        evidence = cast(
+            installer_ui_qualification.InstallerQualificationEvidence,
+            arguments["evidence"],
+        )
+        LauncherInstallationRecord(version="9999.0.109", target_key="windows_x64").save(
+            install_root / "launcher" / "installation.json"
+        )
+        evidence.readiness_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence.readiness_path.write_text(
+            json.dumps(
+                ApplicationReadinessReceipt(
+                    pid=321,
+                    token=evidence.token,
+                    surface=ApplicationReadinessSurface.MAIN_SHELL,
+                    parent_pid=300,
+                ).to_json()
+            ),
+            encoding="utf-8",
+        )
+        layout.logs_dir.mkdir(parents=True, exist_ok=True)
+        (layout.logs_dir / "launcher.log").write_text(
+            "INFO process=200 launcher.sugarsubstitute_launcher."
+            "application_readiness_supervisor Accepted painted application surface | "
+            "candidate_pid=300 | surface_pid=321 | surface=main_shell | "
+            "outer_contract=True\n"
+            "INFO process=400 launcher.sugarsubstitute_launcher."
+            "application_readiness_supervisor Accepted painted application surface | "
+            "candidate_pid=200 | surface_pid=321 | surface=main_shell | "
+            "outer_contract=False\n",
+            encoding="utf-8",
+        )
         events.append(("verify", "9999.0.109"))
 
     monkeypatch.setattr(
@@ -265,7 +322,7 @@ def test_managed_backend_is_verified_before_clean_live_shell_shutdown(
     monkeypatch.setattr(
         installer_ui_qualification,
         "assert_no_launch_splash_replacement",
-        lambda *_arguments: events.append("single-splash"),
+        lambda **_arguments: events.append("single-splash"),
     )
     monkeypatch.setattr(
         installer_ui_qualification,

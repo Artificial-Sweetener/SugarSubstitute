@@ -107,6 +107,7 @@ def test_new_client_adopts_022_host_without_starting_replacement(
     client.append_log("Checking for updates.")
     client.set_progress(SplashProgress(1, 2), status="Downloading update.")
     client.start_activity(activity)
+    client.record_activity()
     client.clear_activity()
     assert client.activate()
     client.fatal("Update failed.")
@@ -205,6 +206,7 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
             extended_wait_text="Still updating SugarCubes—network may be slow",
         )
         client.start_activity(activity)
+        client.record_activity()
         client.clear_activity()
         assert client.activate()
         assert client.close()
@@ -229,6 +231,7 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
             token="x" * 32,
             activity=activity,
         ),
+        SplashSessionMessage(message_type="activity_observed", token="x" * 32),
         SplashSessionMessage(message_type="clear_activity", token="x" * 32),
         SplashSessionMessage(message_type="activate", token="x" * 32),
         SplashSessionMessage(message_type="close", token="x" * 32),

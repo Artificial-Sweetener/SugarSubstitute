@@ -35,7 +35,10 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV,
     READINESS_PATH_ENV,
+    READINESS_SCHEMA_ENV,
+    READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
 )
 
@@ -184,7 +187,9 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
         layout=layout,
         command=["python", "main.py"],
         environment={
+            READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "5",
             READINESS_PATH_ENV: str(receipt_path),
+            READINESS_SCHEMA_ENV: str(READINESS_SCHEMA_VERSION),
             READINESS_TOKEN_ENV: "outer-token",
         },
     )
@@ -194,8 +199,90 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
     forwarded = ApplicationReadinessReceipt.from_json(
         json.loads(receipt_path.read_text())
     )
-    assert forwarded.pid == os.getpid()
-    assert forwarded.parent_pid == os.getppid()
+    assert forwarded.pid == process.pid
+    assert forwarded.parent_pid == 999
+    assert os.getpid() in forwarded.attester_pids
+    assert os.getppid() in forwarded.attester_pids
+
+
+def test_supervisor_projects_schema_three_identity_for_legacy_parent(
+    tmp_path: Path,
+) -> None:
+    """An unadvertised outer contract must work across historical launchers."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    process = _CandidateProcess()
+    receipt_path = tmp_path / "qualification" / "candidate.json"
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Publish a schema-five child proof behind the legacy outer contract."""
+
+        assert environment[READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV] == "1,2,3,4,5"
+        _publish_test_receipt(
+            receipt_path=Path(environment[READINESS_PATH_ENV]),
+            pid=process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.MAIN_SHELL,
+        )
+        return process, tmp_path / "startup.log"
+
+    result = ApplicationReadinessSupervisor(
+        timeout_seconds=5,
+        process_starter=start,
+        monotonic=_increasing_clock(),
+        wait=lambda _seconds: None,
+    ).launch_until_ready(
+        layout=layout,
+        command=["python", "main.py"],
+        environment={
+            READINESS_PATH_ENV: str(receipt_path),
+            READINESS_TOKEN_ENV: "v0.23-token",
+        },
+    )
+
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert result is process
+    assert payload == {
+        "parent_pid": os.getpid(),
+        "pid": process.pid,
+        "schema_version": 3,
+        "surface": "main_shell",
+        "token": "v0.23-token",
+    }
+
+
+def test_supervisor_rejects_incompatible_outer_schema_capability(
+    tmp_path: Path,
+) -> None:
+    """A future-only parent contract must fail before starting a child."""
+
+    started = False
+
+    def start(
+        _command: Sequence[str],
+        _environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Record any forbidden process start."""
+
+        nonlocal started
+        started = True
+        return _CandidateProcess(), tmp_path / "startup.log"
+
+    with pytest.raises(ApplicationReadinessError, match="incompatible"):
+        ApplicationReadinessSupervisor(process_starter=start).launch_until_ready(
+            layout=InstallLayout.from_root(tmp_path / "install"),
+            command=["python", "main.py"],
+            environment={
+                READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV: "6",
+                READINESS_PATH_ENV: str(tmp_path / "receipt.json"),
+                READINESS_TOKEN_ENV: "future-token",
+            },
+        )
+
+    assert started is False
 
 
 def test_supervisor_rejects_partial_outer_readiness_contract(tmp_path: Path) -> None:
@@ -435,7 +522,7 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
         wait=lambda _seconds: None,
     )
 
-    with pytest.raises(ApplicationReadinessError, match="did not reveal"):
+    with pytest.raises(ApplicationReadinessError, match="did not reveal") as captured:
         supervisor.launch_until_ready(
             layout=layout,
             command=["python", "main.py"],
@@ -444,6 +531,18 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
 
     assert process.terminated is True
     assert process.killed is False
+    assert captured.value.diagnostics == {
+        "readiness_failure_kind": "timeout",
+        "readiness_candidate_pid": str(process.pid),
+        "readiness_elapsed_seconds": "0.900",
+        "readiness_timeout_seconds": "0.500",
+        "readiness_poll_interval_seconds": "0.050",
+        "readiness_receipt_state": "missing",
+        "readiness_outer_contract": "False",
+        "readiness_child_schema": "5",
+        "readiness_outer_schema": "none",
+        "readiness_termination_action": "terminated",
+    }
 
 
 def test_default_supervisor_allows_long_candidate_repair(tmp_path: Path) -> None:
