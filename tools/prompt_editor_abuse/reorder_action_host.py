@@ -39,9 +39,14 @@ from substitute.domain.prompt.reorder.mutations import (
     apply_drop_target_to_state,
     apply_line_drop_target_to_state,
 )
+from substitute.presentation.editor.prompt_editor.projection.reorder_placement_geometry import (
+    PromptReorderPlacementGeometry,
+    PromptReorderPlacementSnapshot,
+)
 
 from .action_host import PromptAbuseActionHost
 from .models import PromptAbuseAction
+from .reorder_sweep_targeting import pointer_for_reorder_sweep_placement
 from tests.support.prompt_editor.runtime_owners import segment_overlay
 
 
@@ -144,12 +149,11 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
             raise RuntimeError("Reorder drag sweep has no prepared placements.")
         measured_steps: list[tuple[str, float]] = []
         for placement_index, placement in enumerate(placement_snapshot.placements):
-            started_at = perf_counter()
-            QTest.mouseMove(
-                source_chip.overlay,
-                _pointer_point_for_placement(overlay, placement.hit_rect.center()),
-                delay=0,
+            pointer = _pointer_point_for_placement(
+                overlay, placement_snapshot, placement
             )
+            started_at = perf_counter()
+            QTest.mouseMove(source_chip.overlay, pointer, delay=0)
             measured_steps.append(
                 (
                     f"reorder:sweep-forward:{placement_index}",
@@ -164,12 +168,11 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         for placement_index, placement in reversed(
             tuple(enumerate(placement_snapshot.placements))
         ):
-            started_at = perf_counter()
-            QTest.mouseMove(
-                source_chip.overlay,
-                _pointer_point_for_placement(overlay, placement.hit_rect.center()),
-                delay=0,
+            pointer = _pointer_point_for_placement(
+                overlay, placement_snapshot, placement
             )
+            started_at = perf_counter()
+            QTest.mouseMove(source_chip.overlay, pointer, delay=0)
             QApplication.processEvents(QEventLoop.ProcessEventsFlag.AllEvents)
             mismatches = tuple(
                 mismatch
@@ -411,23 +414,29 @@ def _semantic_drop_target(
     )
 
 
-def _pointer_point_for_placement(overlay: Any, center: QPointF) -> QPoint:
-    """Return the pointer position that centers the held chip on a placement."""
+def _pointer_point_for_placement(
+    overlay: Any,
+    snapshot: PromptReorderPlacementSnapshot,
+    placement: PromptReorderPlacementGeometry,
+) -> QPoint:
+    """Return a reachable pointer selecting one production drop placement."""
 
     drag_state = overlay._runtime.gesture.state
     size = drag_state.drag_intent_size
     grab_offset = drag_state.drag_grab_offset
     if size is None or size.isEmpty() or grab_offset is None:
         raise RuntimeError("Reorder drag sweep has no captured drag intent geometry.")
-    local_pointer = (
-        center
-        + grab_offset
-        - QPointF(
-            size.width() / 2.0,
-            size.height() / 2.0,
-        )
+    active_placement = overlay._runtime.geometry.state.active_placement
+    return pointer_for_reorder_sweep_placement(
+        snapshot,
+        placement,
+        drag_intent_size=size,
+        drag_grab_offset=grab_offset,
+        pointer_bounds=overlay.rect(),
+        active_placement_id=(
+            None if active_placement is None else active_placement.placement_id
+        ),
     )
-    return QPoint(round(local_pointer.x()), round(local_pointer.y()))
 
 
 def _resolved_segment_index(value: str, overlay: QWidget) -> int:
