@@ -259,22 +259,6 @@ responsibilities = [
 next_extraction = "Extract image and mask asset lifecycle from route projection and visual-state synchronization."
 
 [[debts]]
-id = "SS-ARCH-024"
-owner = "output preview lifecycle"
-paths = ["substitute/application/workflows/output_preview_lifecycle_service.py"]
-fingerprint = "sha256:9027f5708bfb5808703d45235140273b39a132e2d388da6989c0d008c15968af"
-issue = "chore:SS-ARCH-024"
-review_by = 2026-12-15
-responsibilities = [
-  "output revision caching",
-  "preview slot identity and matching",
-  "completed-output retirement planning",
-  "run transition mutation",
-  "registry snapshot projection",
-]
-next_extraction = "Extract revision-cache ownership from pure preview identity and retirement policy."
-
-[[debts]]
 id = "SS-ARCH-025"
 owner = "workflow assets"
 paths = ["substitute/application/workflows/workflow_asset_service.py"]
