@@ -69,8 +69,8 @@ class PromptExactWeightEditorHost(Protocol):
     def projection_document(self) -> PromptProjectionDocument:
         """Return the current prepared token projection."""
 
-    def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
-        """Return the authoritative viewport-local weight bounds."""
+    def token_weight_edit_rect(self, token: PromptProjectionToken) -> QRectF | None:
+        """Return the viewport-local painted glyph area for the native input."""
 
 
 class PromptExactWeightEditor(QLineEdit):
@@ -126,7 +126,7 @@ class PromptExactWeightEditor(QLineEdit):
         ):
             return
         self.setFont(inline_weight_font(self._host.font()))
-        rect = self._host.token_weight_text_rect(token)
+        rect = self._host.token_weight_edit_rect(token)
         slot_width = (
             rect.width()
             if rect is not None
@@ -208,7 +208,7 @@ class PromptExactWeightEditor(QLineEdit):
             self.hide()
             return
         token = self.token()
-        rect = self._host.token_weight_text_rect(token) if token is not None else None
+        rect = self._host.token_weight_edit_rect(token) if token is not None else None
         if rect is None:
             self.hide()
             return

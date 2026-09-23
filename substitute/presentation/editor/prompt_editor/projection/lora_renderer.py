@@ -291,6 +291,28 @@ class PromptLoraInlineObjectRenderer:
 
         return self._weight_text_rect(rect, token, run, base_font=base_font)
 
+    def weight_edit_rect(
+        self,
+        run: PromptProjectionRun,
+        token: PromptProjectionToken,
+        rect: QRectF,
+        *,
+        base_font: QFont,
+    ) -> QRectF | None:
+        """Return the painted glyph area inside the padded LoRA weight pill."""
+
+        weight_rect = self._weight_text_rect(rect, token, run, base_font=base_font)
+        if weight_rect is None:
+            return None
+        return self._weight_glyph_rect(weight_rect)
+
+    def _weight_glyph_rect(self, weight_rect: QRectF) -> QRectF:
+        """Keep display and edit text inside the same pill padding."""
+
+        return weight_rect.adjusted(
+            self._WEIGHT_PADDING_X, 0.0, -self._WEIGHT_PADDING_X, 0.0
+        )
+
     def hit_test_caret_state(
         self,
         run: PromptProjectionRun,
@@ -623,9 +645,7 @@ class PromptLoraInlineObjectRenderer:
         font = self._weight_font(base_font)
         metrics = QFontMetricsF(font)
         painter.setFont(font)
-        text_rect = rect.adjusted(
-            self._WEIGHT_PADDING_X, 0.0, -self._WEIGHT_PADDING_X, 0.0
-        )
+        text_rect = self._weight_glyph_rect(rect)
         if token.editing_value_text is None:
             self._banner_text_painter.paint_shadowed_text(
                 painter,
