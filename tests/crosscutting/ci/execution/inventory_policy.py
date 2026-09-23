@@ -45,6 +45,7 @@ EXECUTION_ADAPTER_FILES = frozenset(
         "substitute/application/execution/policies.py",
         "substitute/application/execution/task_scope.py",
         "substitute/presentation/editor/prompt_editor/async_work/task_executor.py",
+        "substitute/presentation/model_discovery/discovery_task_runner.py",
         "substitute/presentation/model_updates/version_thumbnail_loader.py",
         "substitute/presentation/qt/execution/thread_pool_dispatcher.py",
     }
