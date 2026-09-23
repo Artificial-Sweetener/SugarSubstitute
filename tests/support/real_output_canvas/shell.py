@@ -81,18 +81,6 @@ from substitute.presentation.shell.shell_resource_lifecycle import (
 from substitute.presentation.shell.main_window_workspace import (
     build_main_window_workspace,
 )
-from substitute.presentation.shell.workspace_canvas_actions import (
-    WorkspaceCanvasActions,
-)
-from substitute.presentation.shell.workspace_output_external_actions import (
-    WorkspaceOutputExternalActions,
-)
-from substitute.presentation.shell.workspace_output_navigation_actions import (
-    WorkspaceOutputNavigationActions,
-)
-from substitute.presentation.shell.workspace_output_preparation_actions import (
-    WorkspaceOutputPreparationActions,
-)
 from substitute.presentation.shell.workflow_workspace_coordinator import (
     WorkflowWorkspaceCoordinator,
     WorkflowWorkspaceView,
@@ -105,6 +93,10 @@ from substitute.presentation.ui_load_activity import (
 )
 from tests.support.real_output_canvas.output_preferences import (
     InMemoryOutputPreferences,
+)
+from tests.support.workspace_output_controller import (
+    compose_workspace_output_actions,
+    compose_workspace_output_controller,
 )
 
 
@@ -179,13 +171,16 @@ class _HarnessShell(QMainWindow):
         self.generationActionCluster = None
         self.error_reports: list[object] = []
 
-        self.workspace_canvas_actions = WorkspaceCanvasActions(cast(Any, self))
-        self.workspace_output_preparation_actions = WorkspaceOutputPreparationActions(
-            cast(Any, self),
+        workspace_output_actions = compose_workspace_output_actions(
+            self,
             error_presenter=_ErrorPresenter(self.error_reports),
         )
-        self.workspace_output_external_actions = WorkspaceOutputExternalActions(
-            cast(Any, self)
+        self.workspace_canvas_actions = workspace_output_actions.canvas_actions
+        self.workspace_output_preparation_actions = (
+            workspace_output_actions.preparation_actions
+        )
+        self.workspace_output_external_actions = (
+            workspace_output_actions.external_actions
         )
         self._menu_container = QWidget()
         self._menu_container.setLayout(QHBoxLayout())
@@ -249,14 +244,12 @@ class _HarnessShell(QMainWindow):
         self.output_floating_chrome_factory = (
             workspace_parts.output_floating_chrome_factory
         )
-        self.workspace_output_navigation_actions = WorkspaceOutputNavigationActions(
-            cast(Any, self)
+        output_actions = compose_workspace_output_controller(
+            self,
+            actions=workspace_output_actions,
         )
-        self.workspace_controller = SimpleNamespace(
-            output_navigation_actions=self.workspace_output_navigation_actions,
-            output_external_actions=self.workspace_output_external_actions,
-            output_preparation_actions=self.workspace_output_preparation_actions,
-        )
+        self.workspace_output_navigation_actions = output_actions.navigation_actions
+        self.workspace_controller = output_actions.controller
         self.output_canvas = self.canvas_host.canvas_for("Output")
         self.workflow_workspace = WorkflowWorkspaceCoordinator(
             cast(WorkflowWorkspaceView, self)
