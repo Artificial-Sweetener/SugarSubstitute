@@ -243,22 +243,6 @@ responsibilities = [
 next_extraction = "Extract model metadata enrichment from recipe persistence and document classification."
 
 [[debts]]
-id = "SS-ARCH-023"
-owner = "input canvas state"
-paths = ["substitute/application/workflows/input_canvas_state_service.py"]
-fingerprint = "sha256:e85ec5b12b2845659d0943593fef6b8591716e611fed5e0679353ae29fb84124"
-issue = "chore:SS-ARCH-023"
-review_by = 2026-12-15
-responsibilities = [
-  "input route projection and scope binding",
-  "input image loading, claiming, and restoration",
-  "mask creation, loading, update, and removal",
-  "asset ownership cleanup",
-  "mask opacity synchronization",
-]
-next_extraction = "Extract image and mask asset lifecycle from route projection and visual-state synchronization."
-
-[[debts]]
 id = "SS-ARCH-025"
 owner = "workflow assets"
 paths = ["substitute/application/workflows/workflow_asset_service.py"]
@@ -277,7 +261,7 @@ next_extraction = "Extract persisted asset-reference decoding and path resolutio
 id = "SS-ARCH-026"
 owner = "workflow input canvas"
 paths = ["substitute/application/workflows/workflow_input_canvas_service.py"]
-  fingerprint = "sha256:a0bae5d87ecb0ce5e94641beb2bb2c937f56021bc271f98c298714fdbbee3fb2"
+fingerprint = "sha256:416fc4ed4aeaa31a554aa021863c30dd78451c93f33a42d1838db5ecc12b915c"
 issue = "chore:SS-ARCH-026"
 review_by = 2026-12-15
 responsibilities = [
@@ -797,7 +781,7 @@ next_extraction = "Extract editor metadata and busy-controller composition behin
 id = "SS-ARCH-081"
 owner = "main window workspace scaffold"
 paths = ["substitute/presentation/shell/main_window_workspace.py"]
-fingerprint = "sha256:44e7eaec75a00d159828964b0a20344cb8fb6b70be45dd3eebbeb14554c9f3c7"
+fingerprint = "sha256:57c3a2c33075a55120362d956968aabbb5f59255e038134018498b47dd1f0d7b"
 issue = "chore:SS-ARCH-081"
 review_by = 2026-12-15
 responsibilities = [
@@ -846,7 +830,7 @@ next_extraction = "Separate the active feature refresh facade from dirty-surface
 id = "SS-ARCH-084"
 owner = "workflow workspace lifecycle"
 paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:2e46aea2cb4e848c6467d1865a646c0cf29351b890b44f498ea0ab7503c024c8"
+fingerprint = "sha256:deff5115fb8c23265748682f82e79c4efea6435587ba10ab27b83ca68519200b"
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
 responsibilities = [

@@ -89,12 +89,10 @@ def compose_input_presenters(
             projects_dir=projects_dir,
         ),
         refresh_ordered_mask=regional_masks.refresh,
-        activate_mask=lambda workflow, mask_id: (
-            shell.input_canvas_state_service.set_active_workflow_mask(
-                shell.workflow_session_service.active_workflow_id,
-                workflow,
-                mask_id,
-            )
+        activate_mask=lambda workflow, mask_id: shell.input_routes.set_active_mask(
+            shell.workflow_session_service.active_workflow_id,
+            workflow,
+            mask_id,
         ),
         preview_coordinator=preview_coordinator,
     )
@@ -104,7 +102,7 @@ def compose_input_presenters(
         active_panel=lambda: shell.active_editor_panel,
         workflow_session=shell.workflow_session_service,
         workflow_inputs=workflow_inputs,
-        input_state=shell.input_canvas_state_service,
+        input_state=shell.input_image_assets,
         workflow_name=shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),
         materialization=materialization,

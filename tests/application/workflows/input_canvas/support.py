@@ -19,7 +19,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
+from typing import Any, cast
+from substitute.application.workflows.input_canvas_state_composition import (
+    InputCanvasStateComposition,
+)
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
 )
@@ -119,8 +122,24 @@ def _workflow_input_service(
 
     return WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
+    )
+
+
+def _fake_input_state_composition(
+    state: _FakeInputCanvasStateService,
+) -> InputCanvasStateComposition:
+    """Expose one recording fake through every focused state capability."""
+
+    owner = cast(Any, state)
+    return InputCanvasStateComposition(
+        routes=owner,
+        images=owner,
+        masks=owner,
+        mask_restoration=owner,
+        mask_visuals=owner,
+        cleanup=owner,
     )
 
 

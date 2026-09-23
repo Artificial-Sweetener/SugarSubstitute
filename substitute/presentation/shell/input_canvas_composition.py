@@ -178,7 +178,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
 
     workflow_input_canvas_service = WorkflowInputCanvasService(
         input_canvas_plan_service=shell.input_canvas_plan_service,
-        input_canvas_state_service=shell.input_canvas_state_service,
+        input_state=shell.input_canvas_state,
         canvas_io_service=shell.canvas_io_service,
         workflow_asset_service=shell.workflow_asset_service,
         graph_section_service=shell.graph_section_service,
@@ -278,7 +278,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_name=input_canvas_shell_adapter.resolve_workflow_name,
         projects_dir=lambda: Path(shell.path_bundle.projects_dir),
         workflow_service=workflow_input_canvas_service,
-        state_service=shell.input_canvas_state_service,
+        input_routes=shell.input_routes,
         presenter=regional_mask_presenter,
         accept_canvas_selection=lambda: (
             getattr(
@@ -296,7 +296,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         active_workflow=shell.get_active_workflow,
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
         workflow_input_canvas_service=workflow_input_canvas_service,
-        input_canvas_state_service=shell.input_canvas_state_service,
+        input_routes=shell.input_routes,
         materialize_image_selection=(input_presentation.images.materialize_selection),
         apply_mask_selection=input_presentation.masks.apply_selection,
         handle_ordered_mask_action=regional_mask_actions.handle,
@@ -312,7 +312,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         active_workflow=shell.get_active_workflow,
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
         binding_service=workflow_input_canvas_service,
-        state_service=shell.input_canvas_state_service,
+        state_service=shell.input_mask_visuals,
         document=input_canvas.document,
         project_opacity=lambda workflow_id, association_key, opacity: (
             _project_mask_visual_opacity(
@@ -363,7 +363,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_canvas_authority_reconciliation_service = (
         InputCanvasAuthorityReconciliationService(
             select_generation_images=image_selection_service.select,
-            input_canvas_state_service=shell.input_canvas_state_service,
+            input_cleanup=shell.input_asset_cleanup,
         )
     )
     input_generation_image_materializer = InputGenerationImageMaterializer(

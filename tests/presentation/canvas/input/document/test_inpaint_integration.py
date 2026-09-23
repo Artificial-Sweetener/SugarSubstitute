@@ -31,12 +31,15 @@ from cutecanvas import CuteCanvas
 from substitute.application.workflows import (
     CanvasIoService,
     InputCanvasPlanService,
-    InputCanvasStateService,
     WorkflowAssetService,
     WorkflowInputCanvasService,
 )
+from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
+)
+from substitute.application.workflows.input_canvas_state_composition import (
+    compose_input_canvas_state,
 )
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
@@ -227,16 +230,17 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
     document = input_document_factory()
     boundary = create_canvas_session_boundary()
     route_projector = InputRouteProjector(document, session_boundary=boundary)
-    state_service = InputCanvasStateService(
-        input_document=document,
-        input_route_projector=route_projector,
-        canvas_session_boundary=boundary,
+    input_state = compose_input_canvas_state(
+        document=document,
+        route_projector=route_projector,
+        session_boundary=boundary,
+        image_registry=CanvasImageRegistry(),
     )
     graph_section_service = WorkflowGraphSectionService()
     asset_service = WorkflowAssetService(graph_section_service)
     workflow_service = WorkflowInputCanvasService(
         input_canvas_plan_service=_plan_service(),
-        input_canvas_state_service=state_service,
+        input_state=input_state,
         canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
         workflow_asset_service=asset_service,
         graph_section_service=graph_section_service,
@@ -277,7 +281,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         ),
         refresh_ordered_mask=regional_masks.refresh,
         activate_mask=lambda active_workflow, mask_id: (
-            state_service.set_active_workflow_mask(
+            input_state.routes.set_active_mask(
                 workflow_id,
                 active_workflow,
                 mask_id,
@@ -290,7 +294,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         active_panel=lambda: panel,
         workflow_session=session,
         workflow_inputs=workflow_service,
-        input_state=state_service,
+        input_state=input_state.images,
         workflow_name=lambda _workflow_id: workflow_name,
         projects_dir=lambda: tmp_path,
         materialization=materialization,
@@ -308,7 +312,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         active_workflow=lambda: workflow,
         active_workflow_id=lambda: workflow_id,
         workflow_input_canvas_service=workflow_service,
-        input_canvas_state_service=state_service,
+        input_routes=input_state.routes,
         materialize_image_selection=image_presenter.materialize_selection,
         apply_mask_selection=mask_presenter.apply_selection,
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),

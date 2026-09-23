@@ -38,11 +38,14 @@ from substitute.application.ports.cube_repository import (
 from substitute.application.workflows import (
     CanvasIoService,
     InputCanvasPlanService,
-    InputCanvasStateService,
     WorkflowInputCanvasService,
 )
+from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
+)
+from substitute.application.workflows.input_canvas_state_composition import (
+    compose_input_canvas_state,
 )
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
@@ -208,10 +211,11 @@ def test_prompt_by_region_load_author_restore_and_stage(
         route_session_boundary=route_boundary,
     )
     canvas.show()
-    state_service = InputCanvasStateService(
-        input_document=canvas.document,
-        input_route_projector=canvas.route_projector,
-        canvas_session_boundary=route_boundary,
+    input_state = compose_input_canvas_state(
+        document=canvas.document,
+        route_projector=canvas.route_projector,
+        session_boundary=route_boundary,
+        image_registry=CanvasImageRegistry(),
     )
     definition_service = WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
     graph_sections = WorkflowGraphSectionService()
@@ -222,7 +226,7 @@ def test_prompt_by_region_load_author_restore_and_stage(
     )
     workflow_service = WorkflowInputCanvasService(
         input_canvas_plan_service=plan_service,
-        input_canvas_state_service=state_service,
+        input_state=input_state,
         canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
         graph_section_service=graph_sections,
     )
@@ -241,7 +245,7 @@ def test_prompt_by_region_load_author_restore_and_stage(
     assert collection is not None
     assert len(collection.entries) == 1
     image_id = collection.entries[0].image_id
-    image_path = state_service.input_image_path(image_id)
+    image_path = input_state.images.path_for(image_id)
     assert image_path is not None
     assert QtImageStore().image_dimensions(image_path) == (960, 1344)
     assert canvas.document.image_has_masks(image_id)

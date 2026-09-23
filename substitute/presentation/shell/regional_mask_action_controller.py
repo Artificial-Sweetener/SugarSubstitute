@@ -25,8 +25,8 @@ from uuid import UUID
 from substitute.application.workflows.workflow_input_canvas_service import (
     WorkflowInputCanvasService,
 )
-from substitute.application.workflows.input_canvas_state_service import (
-    InputCanvasStateService,
+from substitute.application.workflows.input_route_projection_service import (
+    InputRouteProjectionService,
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.regional.mask_collection_presenter import (
@@ -49,7 +49,7 @@ class RegionalMaskActionController:
         workflow_name: Callable[[str], str],
         projects_dir: Callable[[], Path],
         workflow_service: WorkflowInputCanvasService,
-        state_service: InputCanvasStateService,
+        input_routes: InputRouteProjectionService,
         presenter: RegionalMaskCollectionPresenter,
         accept_canvas_selection: Callable[[], bool],
     ) -> None:
@@ -60,7 +60,7 @@ class RegionalMaskActionController:
         self._workflow_name = workflow_name
         self._projects_dir = projects_dir
         self._workflow_service = workflow_service
-        self._state_service = state_service
+        self._input_routes = input_routes
         self._presenter = presenter
         self._accept_canvas_selection = accept_canvas_selection
 
@@ -106,7 +106,7 @@ class RegionalMaskActionController:
         if entry.mask_id is None:
             return False
         collection.select(entry.region_id)
-        if not self._state_service.set_active_workflow_mask(
+        if not self._input_routes.set_active_mask(
             self._active_workflow_id(),
             workflow,
             entry.mask_id,
@@ -151,7 +151,7 @@ class RegionalMaskActionController:
             workflow.canvas.regional_mask_collections[selected_key].select(
                 selected_region_id
             )
-        if not self._state_service.set_active_workflow_mask(
+        if not self._input_routes.set_active_mask(
             self._active_workflow_id(),
             workflow,
             mask_id,

@@ -101,12 +101,12 @@ class _FakeInputCanvasStateService:
         self.input_path = Path("synthetic.png")
         self.activated_masks: list[UUID] = []
 
-    def input_image_path(self, image_id: UUID) -> Path | None:
+    def path_for(self, image_id: UUID) -> Path | None:
         """Return a deterministic path for an owned fake image."""
 
         return self.input_path if image_id == self._image_id else None
 
-    def set_active_workflow_mask(
+    def set_active_mask(
         self,
         workflow_id: str,
         workflow: WorkflowState,
@@ -119,7 +119,7 @@ class _FakeInputCanvasStateService:
         self.activated_masks.append(mask_id)
         return True
 
-    def apply_materialized_mask_visual_opacity(
+    def apply_materialized_opacity(
         self,
         workflow_id: str,
         workflow: WorkflowState,
@@ -131,7 +131,7 @@ class _FakeInputCanvasStateService:
         _ = workflow_id, workflow, association_key, mask_id
         return True
 
-    def set_mask_visual_opacity(
+    def set_opacity(
         self,
         workflow_id: str,
         workflow: WorkflowState,
@@ -143,7 +143,7 @@ class _FakeInputCanvasStateService:
         _ = workflow_id, workflow, association_key, opacity
         return True
 
-    def mask_ids_for_association(
+    def mask_ids(
         self,
         workflow: WorkflowState,
         association_key: tuple[str, str],
@@ -153,7 +153,7 @@ class _FakeInputCanvasStateService:
         _ = workflow, association_key
         return (self._mask_id,)
 
-    def synchronize_mask_visual_opacity_state(
+    def synchronize_restored_opacity(
         self,
         workflow_id: str,
         workflow: WorkflowState,
@@ -165,7 +165,7 @@ class _FakeInputCanvasStateService:
         _ = workflow_id, workflow, association_key, opacity
         return True
 
-    def load_input_image(
+    def load(
         self,
         workflows: object,
         active_workflow_id: str,
@@ -184,7 +184,7 @@ class _FakeInputCanvasStateService:
                 workflow.canvas.input_image_uuid = self._image_id
         return self._image_id
 
-    def set_active_input_image(
+    def set_active_image(
         self,
         workflow_id: str,
         workflow: WorkflowState,
@@ -196,7 +196,7 @@ class _FakeInputCanvasStateService:
         self.active_input_images.append(image_id)
         return True
 
-    def claim_loaded_input_image(
+    def claim_loaded(
         self,
         workflow_id: str,
         workflow: WorkflowState,
@@ -211,7 +211,7 @@ class _FakeInputCanvasStateService:
         workflow.canvas.input_image_uuid = image_id
         return True
 
-    def load_mask_from_file(
+    def load_from_file(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
@@ -230,7 +230,7 @@ class _FakeInputCanvasStateService:
         )
         return self._mask_id
 
-    def create_mask_for_image(
+    def create_for_image(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
@@ -249,7 +249,7 @@ class _FakeInputCanvasStateService:
         )
         return self._mask_id
 
-    def drop_mask_association(
+    def drop_association(
         self,
         active_workflow: WorkflowState,
         association_key: tuple[str, str],
@@ -259,7 +259,7 @@ class _FakeInputCanvasStateService:
         self.dropped_associations.append(association_key)
         active_workflow.canvas.remove_mask_entry(association_key)
 
-    def drop_input_surface(
+    def drop_surface(
         self,
         workflows: Mapping[str, WorkflowState],
         workflow_id: str,
@@ -276,10 +276,10 @@ class _FakeInputCanvasStateService:
         for association_key, mask_entry in tuple(workflow.canvas.mask_entries.items()):
             if mask_entry.image_id != image_entry.image_id:
                 continue
-            self.drop_mask_association(workflow, association_key)
+            self.drop_association(workflow, association_key)
         return True
 
-    def update_mask_from_file(
+    def update_from_file(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
@@ -296,7 +296,7 @@ class _FakeInputCanvasStateService:
         self.updated_masks.append((association_key, mask_id, path))
         return True
 
-    def authorize_workflow_mask_layer_removal(
+    def authorize_removal(
         self,
         workflow_id: str,
         active_workflow: WorkflowState,
@@ -310,7 +310,7 @@ class _FakeInputCanvasStateService:
             return None
         return MaskLayerRemovalAuthorization(workflow_id, image_id, mask_id)
 
-    def commit_workflow_mask_layer_removal(
+    def commit_removal(
         self,
         authorization: MaskLayerRemovalAuthorization,
     ) -> MaskLayerRemovalOutcome:

@@ -316,10 +316,10 @@ class OutputCanvasProjectionCoordinatorProtocol(Protocol):
         """Prune images that only belonged to a closed workflow."""
 
 
-class InputCanvasStateServiceProtocol(Protocol):
+class InputAssetCleanupProtocol(Protocol):
     """Describe Input catalog pruning behavior."""
 
-    def prune_closed_workflow_images(
+    def prune_closed_workflow(
         self,
         closed_workflow: object,
         remaining_workflows: object,
@@ -450,7 +450,7 @@ class WorkflowWorkspaceView(Protocol):
     generation_action_controller: GenerationProgressProjectionProtocol
     canvas_route_controller: CanvasRouteControllerProtocol
     output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol
-    input_canvas_state_service: InputCanvasStateServiceProtocol
+    input_asset_cleanup: InputAssetCleanupProtocol
     session_snapshot_capture_adapter: WorkflowSnapshotCaptureProtocol
     workspace_restore_controller: WorkspaceRestoreControllerProtocol
     cube_stacks: dict[str, WorkflowCubeStackProtocol]
@@ -1631,7 +1631,7 @@ class WorkflowWorkspaceCoordinator:
         """Prune canvas image records for a workflow no longer reopenable."""
 
         view = self._view
-        view.input_canvas_state_service.prune_closed_workflow_images(
+        view.input_asset_cleanup.prune_closed_workflow(
             workflow,
             view.workflow_session_service.workflows,
         )

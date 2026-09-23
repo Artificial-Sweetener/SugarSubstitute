@@ -32,6 +32,7 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
+    _fake_input_state_composition,
     _mask_buffer_path,
     _workflow_input_service,
     _input_canvas_plan_service,
@@ -63,7 +64,7 @@ def test_materialize_input_image_switching_back_reuses_compatible_bound_mask(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
 
@@ -111,7 +112,7 @@ def test_materialize_input_image_replaces_mismatched_expected_mask_with_blank(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
 
@@ -162,7 +163,7 @@ def test_materialize_input_image_reuses_compatible_variant_after_mismatch(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
     )
 
@@ -263,7 +264,7 @@ def test_materialize_input_image_preserves_explicit_manual_mask_asset(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
         workflow_asset_service=asset_service,
     )
@@ -319,7 +320,7 @@ def test_materialize_input_image_replaces_wrong_size_explicit_manual_mask(
     )
     service = WorkflowInputCanvasService(
         input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
+        input_state=_fake_input_state_composition(input_canvas_state_service),
         canvas_io_service=canvas_io_service,
         workflow_asset_service=asset_service,
     )

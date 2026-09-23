@@ -24,8 +24,16 @@ from uuid import UUID
 
 from substitute.application.workflows.input_canvas_ports import (
     CanvasIoServicePort,
-    InputCanvasStateServicePort,
     MaskLayerRemovalOutcome,
+)
+from substitute.application.workflows.input_image_asset_service import (
+    InputImageAssetService,
+)
+from substitute.application.workflows.input_mask_asset_service import (
+    InputMaskAssetService,
+)
+from substitute.application.workflows.input_route_projection_service import (
+    InputRouteProjectionService,
 )
 from substitute.application.workflows.ordered_mask_materialization_service import (
     OrderedMaskMaterializationService,
@@ -61,7 +69,9 @@ class OrderedMaskRegionAuthoringService:
         *,
         binding_resolver: OrderedMaskBindingResolver,
         ensure_section_materialized: EnsureInputSectionMaterialized,
-        input_canvas_state_service: InputCanvasStateServicePort,
+        input_routes: InputRouteProjectionService,
+        input_images: InputImageAssetService,
+        input_masks: InputMaskAssetService,
         canvas_io_service: CanvasIoServicePort,
         materialization_service: OrderedMaskMaterializationService,
         graph_values: OrderedMaskGraphValueService,
@@ -70,7 +80,9 @@ class OrderedMaskRegionAuthoringService:
 
         self._binding_resolver = binding_resolver
         self._ensure_section_materialized = ensure_section_materialized
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_routes = input_routes
+        self._input_images = input_images
+        self._input_masks = input_masks
         self._canvas_io_service = canvas_io_service
         self._materialization_service = materialization_service
         self._graph_values = graph_values
@@ -116,16 +128,14 @@ class OrderedMaskRegionAuthoringService:
             )
             if selected is None or selected.mask_id is None:
                 return None
-            self._input_canvas_state_service.set_active_workflow_mask(
+            self._input_routes.set_active_mask(
                 workflow_id,
                 workflow,
                 selected.mask_id,
             )
             return selected.mask_id
 
-        image_path = self._input_canvas_state_service.input_image_path(
-            image_entry.image_id
-        )
+        image_path = self._input_images.path_for(image_entry.image_id)
         if image_path is None:
             return None
         image = self._canvas_io_service.load_input_image(image_path)
@@ -149,7 +159,7 @@ class OrderedMaskRegionAuthoringService:
         if materialized is None or materialized.mask_id is None:
             collection.remove(region.region_id)
             return None
-        self._input_canvas_state_service.set_active_workflow_mask(
+        self._input_routes.set_active_mask(
             workflow_id,
             workflow,
             materialized.mask_id,
@@ -194,9 +204,7 @@ class OrderedMaskRegionAuthoringService:
             or not isinstance(entry.asset_ref, ProjectMaskAssetRef)
         ):
             return None
-        image_path = self._input_canvas_state_service.input_image_path(
-            image_entry.image_id
-        )
+        image_path = self._input_images.path_for(image_entry.image_id)
         dimensions = (
             None
             if image_path is None
@@ -222,7 +230,7 @@ class OrderedMaskRegionAuthoringService:
             width=dimensions[0],
             height=dimensions[1],
         )
-        updated = normalized and self._input_canvas_state_service.update_mask_from_file(
+        updated = normalized and self._input_masks.update_from_file(
             workflow_id,
             workflow,
             binding.association_key,
@@ -263,13 +271,11 @@ class OrderedMaskRegionAuthoringService:
         entry = collection.entries[region_index]
         authorization = None
         if entry.mask_id is not None:
-            authorization = (
-                self._input_canvas_state_service.authorize_workflow_mask_layer_removal(
-                    workflow_id,
-                    workflow,
-                    entry.image_id,
-                    entry.mask_id,
-                )
+            authorization = self._input_masks.authorize_removal(
+                workflow_id,
+                workflow,
+                entry.image_id,
+                entry.mask_id,
             )
             if authorization is None:
                 return False
@@ -313,11 +319,7 @@ class OrderedMaskRegionAuthoringService:
             return False
         if authorization is not None:
             try:
-                removal_outcome = (
-                    self._input_canvas_state_service.commit_workflow_mask_layer_removal(
-                        authorization
-                    )
-                )
+                removal_outcome = self._input_masks.commit_removal(authorization)
             except Exception as error:
                 log_warning_exception(
                     _LOGGER,
@@ -346,7 +348,7 @@ class OrderedMaskRegionAuthoringService:
             else None
         )
         if selected is not None and selected.mask_id is not None:
-            self._input_canvas_state_service.set_active_workflow_mask(
+            self._input_routes.set_active_mask(
                 workflow_id,
                 workflow,
                 selected.mask_id,

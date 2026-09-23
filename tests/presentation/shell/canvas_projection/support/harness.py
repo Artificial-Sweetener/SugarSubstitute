@@ -25,8 +25,9 @@ from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
-from substitute.application.workflows.input_canvas_state_service import (
-    InputCanvasStateService,
+from substitute.application.workflows.input_canvas_state_composition import (
+    InputCanvasStateComposition,
+    compose_input_canvas_state,
 )
 from substitute.application.workflows.output_canvas_projection_coordinator import (
     OutputCanvasProjectionCoordinator,
@@ -75,7 +76,7 @@ class _CanvasProjectionHarness:
         output_navigation_session_service: OutputNavigationSessionService,
         output_generated_result_service: OutputGeneratedResultService,
         output_canvas_timing_service: OutputCanvasTimingService,
-        input_canvas_state_service: InputCanvasStateService,
+        input_canvas_state: InputCanvasStateComposition,
         output_canvas_projection_coordinator: OutputCanvasProjectionCoordinator,
     ) -> None:
         self.image_registry = image_registry
@@ -85,7 +86,7 @@ class _CanvasProjectionHarness:
         self.output_navigation_session_service = output_navigation_session_service
         self.output_generated_result_service = output_generated_result_service
         self.output_canvas_timing_service = output_canvas_timing_service
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_routes = input_canvas_state.routes
         self._output_canvas_projection_coordinator = (
             output_canvas_projection_coordinator
         )
@@ -95,7 +96,7 @@ class _CanvasProjectionHarness:
         workflows: Mapping[str, WorkflowState],
         active_workflow_id: str,
     ) -> None:
-        self._input_canvas_state_service.project_workflow(
+        self._input_routes.project_workflow(
             workflows,
             active_workflow_id,
         )
@@ -142,7 +143,7 @@ class _CanvasProjectionHarness:
 
 def _build_services() -> tuple[
     _CanvasProjectionHarness,
-    InputCanvasStateService,
+    InputCanvasStateComposition,
     _FakeInputDocument,
     _FakeOutputDocument,
     _FakeOutputCanvas,
@@ -152,13 +153,13 @@ def _build_services() -> tuple[
     output_canvas = _FakeOutputCanvas(output_document)
     canvas_session_boundary = CanvasSessionBoundary()
     image_registry = CanvasImageRegistry()
-    input_canvas_state_service = InputCanvasStateService(
-        input_document=input_pane,
-        input_route_projector=InputRouteProjector(
+    input_canvas_state = compose_input_canvas_state(
+        document=input_pane,
+        route_projector=InputRouteProjector(
             input_pane,
             session_boundary=canvas_session_boundary,
         ),
-        canvas_session_boundary=canvas_session_boundary,
+        session_boundary=canvas_session_boundary,
         image_registry=image_registry,
     )
     output_canvas_state_service = OutputCanvasStateService(
@@ -196,12 +197,12 @@ def _build_services() -> tuple[
         output_navigation_session_service=output_navigation_session_service,
         output_generated_result_service=output_generated_result_service,
         output_canvas_timing_service=output_canvas_timing_service,
-        input_canvas_state_service=input_canvas_state_service,
+        input_canvas_state=input_canvas_state,
         output_canvas_projection_coordinator=output_canvas_projection_coordinator,
     )
     return (
         service,
-        input_canvas_state_service,
+        input_canvas_state,
         input_pane,
         output_document,
         output_canvas,

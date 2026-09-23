@@ -26,15 +26,16 @@ from uuid import UUID
 from substitute.application.workflows.input_canvas_plan_service import (
     InputCanvasPlanService,
 )
+from substitute.application.workflows.input_canvas_state_composition import (
+    InputCanvasStateComposition,
+)
 from substitute.application.workflows.input_canvas_models import (
     InputCanvasMaterializationResult,
     LoadedInputCanvasImageIdentityResolution,
-    MaskMaterializationResult,
     UserSelectedInputMaskResult,
 )
 from substitute.application.workflows.input_canvas_ports import (
     CanvasIoServicePort,
-    InputCanvasStateServicePort,
     WorkflowAssetServicePort,
 )
 from substitute.application.workflows.input_mask_materialization_service import (
@@ -87,7 +88,7 @@ class WorkflowInputCanvasService:
         self,
         *,
         input_canvas_plan_service: InputCanvasPlanService,
-        input_canvas_state_service: InputCanvasStateServicePort,
+        input_state: InputCanvasStateComposition,
         canvas_io_service: CanvasIoServicePort,
         workflow_asset_service: WorkflowAssetServicePort | None = None,
         graph_section_service: WorkflowGraphSectionService | None = None,
@@ -95,7 +96,8 @@ class WorkflowInputCanvasService:
         """Capture collaborators used for binding discovery, state, and IO."""
 
         self._input_canvas_plan_service = input_canvas_plan_service
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_images = input_state.images
+        self._input_masks = input_state.masks
         self._canvas_io_service = canvas_io_service
         self._graph_section_service = (
             graph_section_service or WorkflowGraphSectionService()
@@ -104,13 +106,14 @@ class WorkflowInputCanvasService:
             self._graph_section_service
         )
         self._mask_materialization_service = InputMaskMaterializationService(
-            input_canvas_state_service=input_canvas_state_service,
+            input_masks=input_state.masks,
             canvas_io_service=canvas_io_service,
             workflow_asset_service=self._workflow_asset_service,
             graph_section_service=self._graph_section_service,
         )
         self._ordered_mask_materialization_service = OrderedMaskMaterializationService(
-            input_canvas_state_service=input_canvas_state_service,
+            input_masks=input_state.masks,
+            mask_visuals=input_state.mask_visuals,
             canvas_io_service=canvas_io_service,
             graph_section_service=self._graph_section_service,
         )
@@ -124,7 +127,8 @@ class WorkflowInputCanvasService:
             )
         )
         self._synthetic_surface_service = SyntheticInputCanvasSurfaceService(
-            input_canvas_state_service=input_canvas_state_service,
+            input_images=input_state.images,
+            input_cleanup=input_state.cleanup,
             canvas_io_service=canvas_io_service,
         )
         self._ordered_mask_region_authoring_service = OrderedMaskRegionAuthoringService(
@@ -138,7 +142,9 @@ class WorkflowInputCanvasService:
                     projects_dir=projects_dir,
                 )
             ),
-            input_canvas_state_service=input_canvas_state_service,
+            input_routes=input_state.routes,
+            input_images=input_state.images,
+            input_masks=input_state.masks,
             canvas_io_service=canvas_io_service,
             materialization_service=self._ordered_mask_materialization_service,
             graph_values=self._ordered_mask_graph_values,
@@ -443,7 +449,7 @@ class WorkflowInputCanvasService:
         if mask_id is None:
             image = self._canvas_io_service.load_input_image(Path(image_path))
             if image is not None:
-                self._input_canvas_state_service.claim_loaded_input_image(
+                self._input_images.claim_loaded(
                     workflow_id,
                     workflow,
                     binding.surface.input_key,
@@ -482,7 +488,7 @@ class WorkflowInputCanvasService:
                 mask_path=mask_path,
             )
 
-        updated = self._input_canvas_state_service.update_mask_from_file(
+        updated = self._input_masks.update_from_file(
             workflow_id,
             workflow,
             association_key,
@@ -675,7 +681,7 @@ class WorkflowInputCanvasService:
 
         input_key = f"{cube_alias}:{image_node_name}"
         phase_started_at = perf_counter()
-        image_id = self._input_canvas_state_service.load_input_image(
+        image_id = self._input_images.load(
             dict(workflows),
             workflow_id,
             input_key,
@@ -754,7 +760,7 @@ class WorkflowInputCanvasService:
             image_path=resolved_image_path,
         )
         input_key = f"{cube_alias}:{image_node_name}"
-        claimed = self._input_canvas_state_service.claim_loaded_input_image(
+        claimed = self._input_images.claim_loaded(
             workflow_id,
             workflow,
             input_key,
@@ -1078,12 +1084,3 @@ def _looks_like_local_path(path: Path) -> bool:
 
     path_text = str(path)
     return path.is_absolute() or "\\" in path_text or "/" in path_text
-
-
-__all__ = [
-    "InputCanvasMaterializationResult",
-    "LoadedInputCanvasImageIdentityResolution",
-    "MaskMaterializationResult",
-    "UserSelectedInputMaskResult",
-    "WorkflowInputCanvasService",
-]

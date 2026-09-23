@@ -106,7 +106,7 @@ class WorkspaceRestoreImageAdapter:
             image_id=reference.image_id,
             path_suffix=reference.path.suffix,
         )
-        self._shell.input_canvas_state_service.restore_input_image(
+        self._shell.input_image_assets.restore(
             image_id=self._uuid_from_restore_text(reference.image_id),
             image=image,
             path=reference.path,
@@ -142,7 +142,7 @@ class WorkspaceRestoreImageAdapter:
                 reference=reference,
                 document_source_path=unsaved_state.source_path,
             )
-        live_mask_id = self._shell.input_canvas_state_service.restore_input_mask(
+        live_mask_id = self._shell.input_mask_restoration.restore(
             workflow_id,
             workflow,
             snapshot_mask_id=snapshot_mask_id,

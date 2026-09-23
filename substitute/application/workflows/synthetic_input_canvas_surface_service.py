@@ -25,7 +25,12 @@ from uuid import UUID
 
 from substitute.application.workflows.input_canvas_ports import (
     CanvasIoServicePort,
-    InputCanvasStateServicePort,
+)
+from substitute.application.workflows.input_asset_cleanup_service import (
+    InputAssetCleanupService,
+)
+from substitute.application.workflows.input_image_asset_service import (
+    InputImageAssetService,
 )
 from substitute.domain.workflow import (
     InputCanvasPlan,
@@ -54,12 +59,14 @@ class SyntheticInputCanvasSurfaceService:
     def __init__(
         self,
         *,
-        input_canvas_state_service: InputCanvasStateServicePort,
+        input_images: InputImageAssetService,
+        input_cleanup: InputAssetCleanupService,
         canvas_io_service: CanvasIoServicePort,
     ) -> None:
         """Capture the state and persistence owners used for backing surfaces."""
 
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_images = input_images
+        self._input_cleanup = input_cleanup
         self._canvas_io_service = canvas_io_service
 
     def materialize(
@@ -99,7 +106,7 @@ class SyntheticInputCanvasSurfaceService:
                 surface_path=str(surface_path),
             )
             return None
-        image_id = self._input_canvas_state_service.load_input_image(
+        image_id = self._input_images.load(
             workflows,
             workflow_id,
             surface.input_key,
@@ -152,7 +159,7 @@ class SyntheticInputCanvasSurfaceService:
             if input_key.startswith(prefix) and input_key not in current_keys
         )
         for input_key in stale_keys:
-            self._input_canvas_state_service.drop_input_surface(
+            self._input_cleanup.drop_surface(
                 workflows,
                 workflow_id,
                 input_key,

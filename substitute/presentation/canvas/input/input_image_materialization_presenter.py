@@ -194,9 +194,7 @@ class InputImageMaterializationPresenter:
 
         image_id = self._current_image_id()
         image_path = (
-            self._input_state.input_image_path(image_id)
-            if image_id is not None
-            else None
+            self._input_state.path_for(image_id) if image_id is not None else None
         )
         log_debug(
             _LOGGER,
