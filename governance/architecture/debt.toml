@@ -845,19 +845,19 @@ next_extraction = "Extract closed-workflow persistence/resource cleanup and tab 
 
 [[debts]]
 id = "SS-ARCH-085"
-owner = "workspace canvas actions"
+owner = "workspace output ingestion"
 paths = ["substitute/presentation/shell/workspace_canvas_actions.py"]
-fingerprint = "sha256:c98eb272c713bdde8f00fec1117d028f5308335da19cd967cc4c678e0040bcd0"
+fingerprint = "sha256:0aba47269f2de99ffdaeaef32d8dc353dbe3dd289f83c35e2ec979e0b7da71a2"
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
 responsibilities = [
-  "output focus and navigation mutation",
-  "external editor and asset reveal actions",
-  "generated and loaded output ingestion",
-  "output preparation and authorization",
-  "canvas host visibility and error presentation",
+  "generated and loaded output registration",
+  "prepared output authorization and metadata commit",
+  "preview-lane closure and projection scheduling",
+  "asynchronous preparation submission and failure presentation",
+  "workflow activity and surface invalidation",
 ]
-next_extraction = "Split external actions and output ingestion from output-navigation commands."
+next_extraction = "Extract asynchronous preparation submission and failure presentation from output registration and projection retirement."
 
 [[debts]]
 id = "SS-ARCH-087"

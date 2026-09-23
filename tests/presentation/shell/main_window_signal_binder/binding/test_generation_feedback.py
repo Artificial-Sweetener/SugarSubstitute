@@ -48,9 +48,13 @@ def test_generation_feedback_signals_route_to_view_and_workspace_controller() ->
             )
         ),
         workspace_canvas_actions=SimpleNamespace(
-            display_preview_image=preview_calls.append,
             handle_add_output_image=lambda workflow_id, image, metadata: (
                 output_calls.append((workflow_id, image, metadata))
+            ),
+        ),
+        workspace_controller=SimpleNamespace(
+            output_navigation_actions=SimpleNamespace(
+                display_preview_image=preview_calls.append,
             ),
         ),
     )

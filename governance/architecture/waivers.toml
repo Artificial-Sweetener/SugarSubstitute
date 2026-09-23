@@ -714,15 +714,15 @@ debt = "SS-ARCH-084"
 
 [[waivers]]
 id = "SS-WAIVER-R085"
-owner = "workspace canvas actions"
+owner = "workspace output ingestion"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workspace_canvas_actions.py"
 kind = "remediation"
-justification = "The assessed file mixes output focus and navigation mutation, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split external actions and output ingestion from output-navigation commands."
+justification = "The assessed file mixes generated and loaded output registration, prepared output authorization and metadata commit, preview-lane closure and projection scheduling, asynchronous preparation submission and failure presentation, workflow activity and surface invalidation. Extract asynchronous preparation submission and failure presentation from output registration and projection retirement."
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
-max_lines = 824
-next_limit = 732
+max_lines = 703
+next_limit = 560
 debt = "SS-ARCH-085"
 
 [[waivers]]

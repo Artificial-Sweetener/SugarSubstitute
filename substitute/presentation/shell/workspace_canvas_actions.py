@@ -65,9 +65,6 @@ from substitute.presentation.shell.output_image_commit_pipeline import (
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
 )
-from substitute.presentation.shell.workspace_preview_actions import (
-    WorkspacePreviewActions,
-)
 from substitute.presentation.shell.workflow_surface_invalidation import (
     CANVAS_AND_GENERATION_SURFACES,
     WorkflowInvalidationReason,
@@ -444,149 +441,11 @@ class WorkspaceCanvasActions:
         view: WorkspaceCanvasActionView,
         *,
         error_presenter: ErrorReportPresenterProtocol | None = None,
-        asset_reveal_service: AssetRevealServiceProtocol | None = None,
     ) -> None:
-        """Store shell dependencies for canvas-related user actions."""
+        """Store shell dependencies for Output ingestion actions."""
 
         self._view = view
         self._error_presenter = error_presenter
-        self._asset_reveal_service = asset_reveal_service
-        self._preview_actions = WorkspacePreviewActions(
-            view,
-            self._log_missing_output_canvas,
-        )
-
-    def on_active_output_changed(self, uuid_str: str) -> None:
-        """Persist the currently selected output image id into workflow state."""
-
-        view = self._view
-        active_workflow = view.get_active_workflow()
-        if active_workflow is not None:
-            view.output_navigation_session_service.mark_user_navigation(
-                view.workflow_session_service.active_workflow_id,
-                active_workflow,
-            )
-            view.output_canvas_focus_service.set_active_output_uuid(
-                active_workflow,
-                uuid_str,
-            )
-            self._project_user_selected_output()
-
-    def on_active_output_grid_changed(self, source_key: str) -> None:
-        """Persist the currently selected output grid source into workflow state."""
-
-        view = self._view
-        active_workflow = view.get_active_workflow()
-        if active_workflow is not None:
-            view.output_navigation_session_service.mark_user_navigation(
-                view.workflow_session_service.active_workflow_id,
-                active_workflow,
-            )
-            view.output_canvas_focus_service.set_active_output_grid(
-                active_workflow,
-                source_key,
-            )
-            self._project_user_selected_output()
-
-    def on_active_output_scene_changed(
-        self,
-        selection: OutputSceneNavigationSelection,
-    ) -> None:
-        """Persist one atomic scene-level Output route selection."""
-
-        view = self._view
-        active_workflow = view.get_active_workflow()
-        if active_workflow is not None:
-            view.output_navigation_session_service.mark_user_navigation(
-                view.workflow_session_service.active_workflow_id,
-                active_workflow,
-            )
-            view.output_canvas_focus_service.set_active_output_scene(
-                active_workflow,
-                selection,
-            )
-            self._project_user_selected_output()
-
-    def on_output_compare_changed(self, state: object) -> None:
-        """Persist output compare viewing state into workflow state."""
-
-        view = self._view
-        active_workflow = view.get_active_workflow()
-        if active_workflow is not None:
-            view.output_navigation_session_service.mark_user_navigation(
-                view.workflow_session_service.active_workflow_id,
-                active_workflow,
-            )
-            view.output_canvas_focus_service.set_output_compare_state(
-                active_workflow,
-                state,
-            )
-            self._project_user_selected_output()
-
-    def _project_user_selected_output(self) -> None:
-        """Request immediate projection after Output selection intent persists."""
-
-        view = self._view
-        session_service = getattr(view, "workflow_session_service", None)
-        workflow_id = str(getattr(session_service, "active_workflow_id", "") or "")
-        if not workflow_id:
-            return
-        output_pipeline = getattr(view, "output_image_pipeline", None)
-        schedule = getattr(
-            output_pipeline,
-            "schedule_user_selected_output_projection",
-            None,
-        )
-        if callable(schedule):
-            schedule(workflow_id)
-        return
-
-    def display_preview_image(
-        self,
-        preview: object,
-    ) -> None:
-        """Display preview image only after strict identity and session checks."""
-
-        self._preview_actions.display_preview_image(preview)
-
-    def clear_output_previews(self, workflow_id: str) -> None:
-        """Clear transient output previews for the active workflow only."""
-
-        self._preview_actions.clear_output_previews(workflow_id)
-
-    def open_image_in_external_editor(
-        self,
-        image: object,
-        image_meta: object,
-    ) -> bool:
-        """Open one output image in the configured external editor."""
-
-        return bool(
-            self._view.canvas_io_service.open_image_in_external_editor(
-                image=image,
-                image_meta=image_meta,
-            )
-        )
-
-    def open_images_in_external_editor(
-        self,
-        images: list[tuple[object, object]],
-    ) -> bool:
-        """Open all selected output images in the external editor."""
-
-        return bool(
-            self._view.canvas_io_service.open_images_in_external_editor(images=images)
-        )
-
-    def reveal_output_asset(self, image_meta: object) -> bool:
-        """Reveal one output asset through the application-owned file manager flow."""
-
-        if self._asset_reveal_service is None:
-            return False
-        asset_path = getattr(image_meta, "path", None)
-        if not isinstance(asset_path, str):
-            return False
-        return self._asset_reveal_service.reveal_asset(asset_path).succeeded
 
     def handle_add_output_image(
         self,

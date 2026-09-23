@@ -82,8 +82,12 @@ def test_generation_failure_appends_output_line_and_presents_report() -> None:
         generation_action_controller=SimpleNamespace(
             clear_generation_progress=lambda: progress_clears.append("progress")
         ),
-        workspace_canvas_actions=SimpleNamespace(
-            clear_output_previews=lambda workflow_id: preview_clears.append(workflow_id)
+        workspace_controller=SimpleNamespace(
+            output_navigation_actions=SimpleNamespace(
+                clear_output_previews=lambda workflow_id: preview_clears.append(
+                    workflow_id
+                )
+            )
         ),
         _comfy_output_stream=SimpleNamespace(
             append_line=lambda line: appended_lines.append(line)
@@ -125,8 +129,12 @@ def test_generation_completion_clears_nonvisual_progress_only() -> None:
                 clear_model_field_load_progress=lambda: model_clears.append("wf-1")
             )
         },
-        workspace_canvas_actions=SimpleNamespace(
-            clear_output_previews=lambda workflow_id: preview_clears.append(workflow_id)
+        workspace_controller=SimpleNamespace(
+            output_navigation_actions=SimpleNamespace(
+                clear_output_previews=lambda workflow_id: preview_clears.append(
+                    workflow_id
+                )
+            )
         ),
         _taskbar_progress_presenter=SimpleNamespace(
             clear_progress=lambda: taskbar_clears.append("taskbar")
