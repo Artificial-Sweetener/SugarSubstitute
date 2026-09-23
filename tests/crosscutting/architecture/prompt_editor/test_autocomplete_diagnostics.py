@@ -59,10 +59,10 @@ def test_prompt_editor_private_and_protocol_debt_does_not_grow() -> None:
         "test_private_exemptions": test_private_exemptions,
     }
     maximums = {
-        "protocols": 199,
-        "casts": 194,
+        "protocols": 197,
+        "casts": 139,
         "production_private_exemptions": 0,
-        "test_private_exemptions": 292,
+        "test_private_exemptions": 0,
     }
 
     assert {
@@ -110,6 +110,41 @@ def test_autocomplete_presentation_lifecycle_is_the_only_panel_and_preview_owner
     assert "PromptAutocompletePresentationLifecycle" in publication_source
 
 
+def test_autocomplete_preview_projection_has_one_authoritative_owner() -> None:
+    """Keep preview state, caret reconciliation, and repaint off surface shims."""
+
+    projection_root = PROMPT_PRESENTATION_ROOT / "projection"
+    owner_source = (
+        projection_root / "autocomplete_preview_projection_owner.py"
+    ).read_text(encoding="utf-8")
+    surface_source = (projection_root / "surface.py").read_text(encoding="utf-8")
+    autocomplete_factory_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "autocomplete_factory.py"
+    ).read_text(encoding="utf-8")
+
+    assert not (projection_root / "caret_autocomplete_preview_coordinator.py").exists()
+    assert "Protocol" not in owner_source
+    assert "def reconcile_after_caret_state_change(" in owner_source
+    assert "def _invalidate_paint(" in owner_source
+    assert "def autocomplete_preview(" in surface_source
+    obsolete_surface_methods = (
+        "def set_autocomplete_preview_state(",
+        "def clear_autocomplete_preview_state(",
+        "def current_autocomplete_preview_state(",
+        "def set_session_autocomplete_preview_state(",
+        "def flush_pending_projection_for_autocomplete_preview(",
+        "def base_projection_is_stale_for_autocomplete_preview(",
+        "def rebuild_base_projection_for_autocomplete_preview(",
+        "def rebuild_active_projection_for_autocomplete_preview(",
+        "def invalidate_autocomplete_preview_paint(",
+    )
+    assert not any(method in surface_source for method in obsolete_surface_methods)
+    assert (
+        "projection_collaborators.surface.autocomplete_preview.set_preview_state"
+        in autocomplete_factory_source
+    )
+
+
 def test_autocomplete_query_result_lifecycle_is_the_only_query_cache_owner() -> None:
     """Keep query freshness and result work below the Qt interaction coordinator."""
 
@@ -138,8 +173,8 @@ def test_autocomplete_query_result_lifecycle_is_the_only_query_cache_owner() -> 
     assert "class PromptAutocompleteQueryResultLifecycle" in lifecycle_source
     assert "PySide6" not in lifecycle_source
     assert "PromptAutocompletePresentationLifecycle" not in lifecycle_source
-    assert "publication=session_publication" in (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+    assert "publication=publication" in (
+        PROMPT_PRESENTATION_ROOT / "composition" / "autocomplete_factory.py"
     ).read_text(encoding="utf-8")
 
 
@@ -175,6 +210,28 @@ def test_autocomplete_input_adapter_stays_at_the_qt_boundary() -> None:
     assert "PromptAutocompleteResultController" not in adapter_source
     assert "PromptAutocompleteAcceptanceController" not in adapter_source
     assert "self._sessions" not in adapter_source
+
+
+def test_autocomplete_overlay_keeps_render_and_wall_owners_separate() -> None:
+    """Keep row painting and LoRA-wall adaptation outside popup lifecycle."""
+
+    overlays_root = PROMPT_PRESENTATION_ROOT / "overlays"
+    panel_source = (overlays_root / "autocomplete_panel.py").read_text(encoding="utf-8")
+    row_source = (overlays_root / "autocomplete_row.py").read_text(encoding="utf-8")
+    wall_host_source = (overlays_root / "autocomplete_lora_wall_host.py").read_text(
+        encoding="utf-8"
+    )
+    contracts_source = (overlays_root / "autocomplete_contracts.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "class PromptAutocompletePanel(" in panel_source
+    assert "class PromptAutocompleteRow(" not in panel_source
+    assert "class PromptAutocompleteLoraWallHost" not in panel_source
+    assert "class PromptAutocompleteRow(" in row_source
+    assert "class PromptAutocompleteLoraWallHost" in wall_host_source
+    assert "class PromptAutocompletePanelRenderState" in contracts_source
+    assert "class PromptAutocompleteOverlay(Protocol)" in contracts_source
 
 
 def test_autocomplete_test_stack_exposes_real_owners_without_proxy_routing() -> None:
@@ -224,6 +281,9 @@ def test_diagnostics_provider_and_refresh_owners_stay_outside_feature_controller
         PROMPT_PRESENTATION_ROOT / "features" / "context_menu_snapshot_assembly.py"
     ).read_text(encoding="utf-8")
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
+    menu_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
+    ).read_text(encoding="utf-8")
 
     assert "class PromptDiagnosticsProviderLifecycle" in provider_source
     assert "class PromptDiagnosticsRefreshLifecycle" in refresh_source
@@ -258,9 +318,8 @@ def test_diagnostics_provider_and_refresh_owners_stay_outside_feature_controller
     assert "PySide6" not in presentation_source
     assert "from .diagnostics_controller import" not in context_menu_snapshot_source
     assert "PromptContextMenuDiagnosticsPort" in context_menu_snapshot_source
-    assert (
-        "diagnostics=self._diagnostics_feature_controller.presentation" in widget_source
-    )
+    assert "diagnostics=features.diagnostics.presentation" in menu_runtime_source
+    assert "PromptContextMenuSnapshotAssembler(" not in widget_source
 
 
 def test_weight_interaction_stays_below_general_interaction_routing() -> None:
@@ -279,7 +338,7 @@ def test_weight_interaction_stays_below_general_interaction_routing() -> None:
         PROMPT_PRESENTATION_ROOT / "interactions" / "mouse_selection_controller.py"
     ).read_text(encoding="utf-8")
     factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+        PROMPT_PRESENTATION_ROOT / "composition" / "syntax_factory.py"
     ).read_text(encoding="utf-8")
     signal_source = (
         PROMPT_PRESENTATION_ROOT / "composition" / "signal_bindings.py"
@@ -330,8 +389,8 @@ def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
         PROMPT_PRESENTATION_ROOT / "features" / "lora_metadata_refresh_lifecycle.py"
     ).read_text(encoding="utf-8")
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
-    factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+    menu_factory_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_factory.py"
     ).read_text(encoding="utf-8")
 
     assert not deleted_controller.exists()
@@ -345,10 +404,10 @@ def test_lora_metadata_refresh_and_presentation_owners_stay_separate() -> None:
     assert "self._catchup_pending" in refresh_source
     assert "PromptLoraPickerSnapshotController" not in refresh_source
     assert "PySide6" not in refresh_source
-    assert "self._lora_metadata_presentation" in widget_source
-    assert "self._lora_metadata_refresh" in widget_source
+    assert "self._runtime.features.catalog_refresh" in widget_source
+    assert "self._catalog_refresh_facade" not in widget_source
     assert "_lora_metadata_feature_controller" not in widget_source
-    assert "lora_metadata: PromptLoraMetadataPresentation" in factory_source
+    assert "lora_metadata: PromptLoraMetadataPresentation" in menu_factory_source
 
 
 def test_wildcard_diagnostics_and_autocomplete_owners_stay_separate() -> None:
@@ -367,7 +426,7 @@ def test_wildcard_diagnostics_and_autocomplete_owners_stay_separate() -> None:
         PROMPT_PRESENTATION_ROOT / "features" / "wildcard_diagnostics.py"
     ).read_text(encoding="utf-8")
     factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+        PROMPT_PRESENTATION_ROOT / "composition" / "service_factory.py"
     ).read_text(encoding="utf-8")
     diagnostics_lifecycle_source = (
         PROMPT_PRESENTATION_ROOT / "features" / "diagnostics_provider_lifecycle.py"
@@ -411,8 +470,11 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
         PROMPT_PRESENTATION_ROOT / "interactions" / "prompt_menu_presenter.py"
     ).read_text(encoding="utf-8")
     widget_source = (PROMPT_PRESENTATION_ROOT / "widget.py").read_text(encoding="utf-8")
-    factory_source = (
-        PROMPT_PRESENTATION_ROOT / "composition" / "factory.py"
+    menu_factory_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_factory.py"
+    ).read_text(encoding="utf-8")
+    menu_runtime_source = (
+        PROMPT_PRESENTATION_ROOT / "composition" / "menu_runtime.py"
     ).read_text(encoding="utf-8")
     deleted_action_adapter = (
         PROMPT_PRESENTATION_ROOT / "features" / "context_menu_actions.py"
@@ -443,7 +505,9 @@ def test_context_menu_preparation_stays_out_of_snapshot_assembly() -> None:
     assert "self._preparation.prepare_selection(" in presenter_source
     assert "self._preparation.prepare_opening(" in presenter_source
     assert "self._snapshot_reader.snapshot_for_menu(" in presenter_source
-    assert "self._context_menu_snapshot_assembler" in widget_source
-    assert "self._context_menu_preparation" in widget_source
-    assert "snapshot_reader: PromptContextMenuSnapshotAssembler" in factory_source
-    assert "preparation: PromptContextMenuPreparationLifecycle" in factory_source
+    assert "PromptContextMenuSnapshotAssembler(" in menu_runtime_source
+    assert "build_context_menu_preparation(" in menu_runtime_source
+    assert "PromptContextMenuSnapshotAssembler(" not in widget_source
+    assert "build_context_menu_preparation(" not in widget_source
+    assert "snapshot_reader: PromptContextMenuSnapshotAssembler" in menu_factory_source
+    assert "preparation: PromptContextMenuPreparationLifecycle" in menu_factory_source

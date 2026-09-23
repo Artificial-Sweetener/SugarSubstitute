@@ -27,9 +27,9 @@ from dataclasses import dataclass
 from typing import Generic, Literal, TypeAlias, TypeVar, cast
 
 from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutation,
     PromptMutationService,
 )
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisAction,
     PromptAdjustEmphasisContentAction,
@@ -44,8 +44,10 @@ from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from ..core.editing.commands import PromptReplaceDocumentEdit
 from ..core.editing.session import PromptEditingSession

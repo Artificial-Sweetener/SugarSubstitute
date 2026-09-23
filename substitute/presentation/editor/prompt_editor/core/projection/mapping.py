@@ -21,6 +21,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from substitute.application.prompt_editor.document.visible_source import (
+    visible_indices_for_source_range,
+)
+
 from .runs import PromptProjectionRun
 
 
@@ -112,8 +116,9 @@ class PromptProjectionMapping:
             overlap_end = min(selection_end, run_source_end)
             if overlap_end <= overlap_start:
                 continue
-            start_index = run.source_positions.index(overlap_start)
-            end_index = run.source_positions.index(overlap_end)
+            start_index, end_index = visible_indices_for_source_range(
+                run.source_positions, overlap_start, overlap_end
+            )
             ranges.append(
                 (
                     run.projection_start + start_index,

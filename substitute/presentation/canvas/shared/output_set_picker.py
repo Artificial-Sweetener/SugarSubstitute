@@ -22,8 +22,8 @@ from collections.abc import Callable
 
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.widgets.anchored_row_picker import (
-    AnchoredRowPicker,
+from substitute.presentation.widgets.anchored_row_picker import AnchoredRowPicker
+from substitute.presentation.widgets.anchored_row_picker_row import (
     AnchoredRowPickerItem,
 )
 

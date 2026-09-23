@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from substitute.application.workflows.input_canvas_state_service import (
-    InputCanvasStateService,
+from substitute.application.workflows.input_route_projection_service import (
+    InputRouteProjectionService,
 )
 from substitute.application.workflows.output_canvas_projection_coordinator import (
     OutputCanvasProjectionCoordinator,
@@ -38,12 +38,12 @@ class WorkflowCanvasProjectionCoordinator:
     def __init__(
         self,
         *,
-        input_canvas_state_service: InputCanvasStateService,
+        input_routes: InputRouteProjectionService,
         output_canvas_projection_coordinator: OutputCanvasProjectionCoordinator,
     ) -> None:
         """Store the Input and Output canvas projection owners."""
 
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_routes = input_routes
         self._output_canvas_projection_coordinator = (
             output_canvas_projection_coordinator
         )
@@ -62,7 +62,7 @@ class WorkflowCanvasProjectionCoordinator:
             active_workflow_found=active_workflow_id in workflows,
             workflow_ids=tuple(workflows.keys()),
         )
-        self._input_canvas_state_service.project_workflow(
+        self._input_routes.project_workflow(
             workflows,
             active_workflow_id,
         )

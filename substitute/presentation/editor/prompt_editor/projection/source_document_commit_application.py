@@ -18,12 +18,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Generic, Protocol, TypeVar
 
-from PySide6.QtWidgets import QScrollBar
-
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.commands.contracts import (
@@ -35,19 +34,15 @@ from substitute.presentation.editor.prompt_editor.core.editing.commit import (
 
 from .semantic_remap import PromptProjectionOptimisticPromptState
 from .source_change_transaction import PromptProjectionSourceChangeTransaction
-from .source_commit_ports import PromptSourceChangeCaretSink
 
 TProjectionPayload = TypeVar("TProjectionPayload")
 
 
-class PromptSourceDocumentCommitEffectSink(Protocol):
-    """Expose document-wide viewport effects outside source state."""
+class PromptSourceDocumentScrollBar(Protocol):
+    """Apply document-wide vertical scroll intent."""
 
-    def verticalScrollBar(self) -> QScrollBar:  # noqa: N802
-        """Return the active vertical scrollbar."""
-
-    def _schedule_projection_geometry_reuse_warm(self, *, reason: str) -> None:
-        """Schedule geometry reuse warmup."""
+    def setValue(self, value: int) -> None:  # noqa: N802
+        """Set the vertical scroll position."""
 
 
 class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
@@ -55,15 +50,17 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
 
     def __init__(
         self,
-        effect_sink: PromptSourceDocumentCommitEffectSink,
-        caret_sink: PromptSourceChangeCaretSink,
+        scroll_bar: PromptSourceDocumentScrollBar,
         *,
+        set_cursor_positions: Callable[[int, int], object],
+        schedule_geometry_reuse_warm: Callable[[str], None],
         transaction: PromptProjectionSourceChangeTransaction[TProjectionPayload],
     ) -> None:
-        """Store explicit document-effect, caret, and transaction owners."""
+        """Store explicit scroll, caret, warmup, and transaction collaborators."""
 
-        self._effect_sink = effect_sink
-        self._caret_sink = caret_sink
+        self._scroll_bar = scroll_bar
+        self._set_cursor_positions = set_cursor_positions
+        self._schedule_geometry_reuse_warm = schedule_geometry_reuse_warm
         self._transaction = transaction
 
     def apply(self, commit: PromptEditCommit[TProjectionPayload]) -> None:
@@ -73,9 +70,9 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
         source_edit = commit.source_edit
         prepared_prompt_state = self._projection_prompt_state(application_state)
         if not commit.source_changed and prepared_prompt_state is None:
-            self._caret_sink.set_cursor_positions(
-                cursor_position=commit.cursor_state.cursor_position,
-                anchor_position=commit.cursor_state.anchor_position,
+            self._set_cursor_positions(
+                commit.cursor_state.cursor_position,
+                commit.cursor_state.anchor_position,
             )
         else:
             self._transaction.apply(
@@ -91,13 +88,13 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
                 origin=commit.origin,
             )
         if application_state is not None and application_state.reset_scroll_to_top:
-            self._effect_sink.verticalScrollBar().setValue(0)
+            self._scroll_bar.setValue(0)
         if (
             application_state is not None
             and application_state.schedule_geometry_reuse_warm_reason is not None
         ):
-            self._effect_sink._schedule_projection_geometry_reuse_warm(
-                reason=application_state.schedule_geometry_reuse_warm_reason
+            self._schedule_geometry_reuse_warm(
+                application_state.schedule_geometry_reuse_warm_reason
             )
 
     @staticmethod
@@ -127,5 +124,5 @@ class PromptSourceDocumentCommitApplication(Generic[TProjectionPayload]):
 
 __all__ = [
     "PromptSourceDocumentCommitApplication",
-    "PromptSourceDocumentCommitEffectSink",
+    "PromptSourceDocumentScrollBar",
 ]

@@ -30,6 +30,7 @@ from qfluentwidgets import LineEdit, RadioButton  # type: ignore[import-untyped]
 from substitute.application.onboarding.comfy_environment_service import (
     ComfyEnvironmentService,
 )
+from substitute.domain.model_recommendations import SUPPORTED_MODEL_FAMILIES
 from substitute.app.bootstrap.app_layout import resolve_app_layout
 from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_environment_submitter,
@@ -247,9 +248,9 @@ class OnboardingAutomationDriver:
                 self._click("OnboardingOwnModelChoice")
                 self._click("OnboardingPrimaryButton")
                 recommendation_page_count += 1
-                if recommendation_page_count > 2:
+                if recommendation_page_count > len(SUPPORTED_MODEL_FAMILIES.families()):
                     raise AssertionError(
-                        "Model recommendation flow exceeded two families."
+                        "Model recommendation flow exceeded supported families."
                     )
             self._wait_for_page("OnboardingIntegrationsPage")
             self._capture("integrations")

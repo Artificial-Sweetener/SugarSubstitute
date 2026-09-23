@@ -27,7 +27,8 @@ from substitute.application.workflows.editor_projection_service import (
     DIRECT_WORKFLOW_SECTION_KEY,
 )
 from substitute.presentation.shell.workspace_ports import (
-    InputCanvasPresenterProtocol,
+    InputImageMaterializationPresenterProtocol,
+    InputMaskPickerPresenterProtocol,
     InputNodeInteractionControllerProtocol,
 )
 from substitute.shared.logging.logger import (
@@ -71,15 +72,30 @@ MaterializeLoadedCubeInputCanvas = Callable[[str, str], None]
 RehydrateDuplicatedInputCanvas = Callable[[str, str], None]
 
 
-def input_canvas_presenter_for_view(
+def input_image_materialization_presenter_for_view(
     canvas_view: object,
-) -> InputCanvasPresenterProtocol:
-    """Return the required Input canvas presenter from a shell canvas view."""
+) -> InputImageMaterializationPresenterProtocol:
+    """Return the required Input image presenter from a shell canvas view."""
 
-    presenter = getattr(canvas_view, "input_canvas_presenter", None)
+    presenter = getattr(canvas_view, "input_image_materialization_presenter", None)
     if presenter is None:
-        raise RuntimeError("InputCanvasPresenter is required for Input canvas intent.")
-    return cast(InputCanvasPresenterProtocol, presenter)
+        raise RuntimeError(
+            "InputImageMaterializationPresenter is required for Input image intent."
+        )
+    return cast(InputImageMaterializationPresenterProtocol, presenter)
+
+
+def input_mask_picker_presenter_for_view(
+    canvas_view: object,
+) -> InputMaskPickerPresenterProtocol:
+    """Return the required Input mask-picker presenter from a shell view."""
+
+    presenter = getattr(canvas_view, "input_mask_picker_presenter", None)
+    if presenter is None:
+        raise RuntimeError(
+            "InputMaskPickerPresenter is required for Input mask projection."
+        )
+    return cast(InputMaskPickerPresenterProtocol, presenter)
 
 
 def input_node_interaction_controller_for_view(
@@ -132,7 +148,7 @@ def handle_input_canvas_image_loaded_for_view(
 ) -> None:
     """Route a confirmed Input canvas image load to the presenter."""
 
-    input_canvas_presenter_for_view(canvas_view).handle_input_canvas_image_loaded(
+    input_image_materialization_presenter_for_view(canvas_view).handle_loaded_image(
         image_id,
         image_path,
     )
@@ -141,7 +157,7 @@ def handle_input_canvas_image_loaded_for_view(
 def refresh_active_mask_pickers_for_view(canvas_view: object) -> None:
     """Route active mask-picker refresh to the presenter."""
 
-    input_canvas_presenter_for_view(canvas_view).refresh_active_mask_pickers()
+    input_mask_picker_presenter_for_view(canvas_view).refresh_active()
 
 
 def handle_input_mask_changed_for_view(
@@ -206,7 +222,7 @@ def reconcile_active_input_canvas_image_for_view(canvas_view: object) -> None:
     """Reconcile the active Input image before generation request capture."""
 
     reconcile_input_canvas_authority_for_view(canvas_view)
-    input_canvas_presenter_for_view(canvas_view).reconcile_active_input_canvas_image()
+    input_image_materialization_presenter_for_view(canvas_view).reconcile_active()
 
 
 def materialize_loaded_cube_input_canvas_for_view(
@@ -223,7 +239,7 @@ def materialize_loaded_cube_input_canvas_for_view(
         workflow_id=workflow_id,
         cube_alias=cube_alias,
     )
-    input_canvas_presenter_for_view(canvas_view).materialize_loaded_cube_input_canvas(
+    input_image_materialization_presenter_for_view(canvas_view).materialize_loaded_cube(
         workflow_id, cube_alias
     )
 
@@ -357,7 +373,7 @@ def duplicate_workflow_input_canvas_for_view(
         """Apply copied region presentation and refresh its mounted projection."""
 
         service.apply_presentation(target, plan)
-        input_canvas_presenter_for_view(canvas_view).refresh_active_mask_pickers()
+        input_mask_picker_presenter_for_view(canvas_view).refresh_active()
 
     rehydrate_duplicated_workflow_input_canvas(
         workflow_session_service=session,
@@ -404,7 +420,8 @@ __all__ = [
     "handle_input_image_clicked_for_view",
     "handle_input_mask_changed_for_view",
     "handle_input_mask_clicked_for_view",
-    "input_canvas_presenter_for_view",
+    "input_image_materialization_presenter_for_view",
+    "input_mask_picker_presenter_for_view",
     "input_node_interaction_controller_for_view",
     "duplicate_workflow_input_canvas_for_view",
     "materialize_loaded_cube_input_canvas_for_view",

@@ -40,6 +40,7 @@ class SemanticRefreshControllerDouble:
 
         self.queued_sources: list[tuple[str, str]] = []
         self.flush_reasons: list[str] = []
+        self.schedule_soon_reasons: list[str] = []
         self.cancel_reasons: list[str] = []
 
     def queue_source_changed(
@@ -59,6 +60,11 @@ class SemanticRefreshControllerDouble:
         """Record one semantic refresh flush request."""
 
         self.flush_reasons.append(reason)
+
+    def schedule_pending_soon(self, *, reason: str) -> None:
+        """Record one next-turn semantic refresh request."""
+
+        self.schedule_soon_reasons.append(reason)
 
     def cancel_pending(self, *, reason: str) -> None:
         """Record one semantic refresh cancellation request."""

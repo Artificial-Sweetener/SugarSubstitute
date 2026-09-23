@@ -36,6 +36,13 @@ from .wildcard_csv_document_parser import (
 class WildcardCsvDocumentSemantics:
     """Treat each valid CSV data cell as one source-mapped prompt value."""
 
+    def __init__(self) -> None:
+        """Initialize source-keyed process memoization for parsed cell mappings."""
+
+        self._cached_mapping_snapshot: (
+            tuple[str, tuple[PromptValueMapping, ...]] | None
+        ) = None
+
     @property
     def identity(self) -> Hashable:
         """Return the stable CSV wildcard semantics identity."""
@@ -74,9 +81,12 @@ class WildcardCsvDocumentSemantics:
     ) -> tuple[PromptValueMapping, ...]:
         """Return trimmed source mappings for valid CSV data cells."""
 
+        cached = self._cached_mapping_snapshot
+        if cached is not None and source_text == cached[0]:
+            return cached[1]
         document = parse_wildcard_csv_document(source_text)
         if not document.valid:
-            return ()
+            return self._remember_value_mappings(source_text, ())
         mappings: list[PromptValueMapping] = []
         for record in document.records[1:]:
             for cell in record:
@@ -107,7 +117,17 @@ class WildcardCsvDocumentSemantics:
                         logical_character_ranges=character_ranges,
                     )
                 )
-        return tuple(mappings)
+        return self._remember_value_mappings(source_text, tuple(mappings))
+
+    def _remember_value_mappings(
+        self,
+        source_text: str,
+        mappings: tuple[PromptValueMapping, ...],
+    ) -> tuple[PromptValueMapping, ...]:
+        """Cache mappings under the exact source text that produced them."""
+
+        self._cached_mapping_snapshot = (source_text, mappings)
+        return mappings
 
     def value_mapping_at_position(
         self,

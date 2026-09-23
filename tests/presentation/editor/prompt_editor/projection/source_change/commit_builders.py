@@ -25,7 +25,7 @@ from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.editing.source_normalization import (
@@ -59,6 +59,9 @@ from substitute.presentation.editor.prompt_editor.projection.source_commit_appli
 from substitute.presentation.editor.prompt_editor.projection.source_change_transaction import (
     PromptProjectionSourceChangeTransaction,
 )
+from substitute.presentation.editor.prompt_editor.projection.source_change_publication import (
+    PromptSourceChangePublicationOwner,
+)
 from substitute.presentation.editor.prompt_editor.projection.semantic_remap import (
     PromptProjectionSemanticRemapper,
 )
@@ -90,6 +93,21 @@ from .source_change_host import _SourceChangeHost
 _ProjectionPayload = PromptProjectionUndoPayload
 
 
+def _source_change_publication(
+    host: _SourceChangeHost,
+) -> PromptSourceChangePublicationOwner:
+    """Compose the production source-revision publication owner for tests."""
+
+    return PromptSourceChangePublicationOwner(
+        editor_state=cast(Any, host._editor_state),
+        freshness=cast(Any, host._projection_freshness_controller),
+        overlays=host._transient_edit_overlays,
+        input_method_source_changed=host.record_input_method_source_changed,
+        clear_reorder_for_source_change=host.record_reorder_source_changed,
+        invalidate_render_for_source_change=host.record_render_source_changed,
+    )
+
+
 def _source_change_applier(
     host: _SourceChangeHost,
 ) -> PromptProjectionSourceCommitApplication[_ProjectionPayload]:
@@ -97,6 +115,7 @@ def _source_change_applier(
 
     projection_facts = PromptSourceEditProjectionFactResolver(
         cast(PromptSourceEditProjectionFactContext, host),
+        caret_geometry=cast(Any, host),
         applicator=cast(Any, host._projection_applicator),
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
@@ -106,24 +125,34 @@ def _source_change_applier(
     semantic_remapper = PromptProjectionSemanticRemapper()
     projection_application = PromptSourceProjectionApplication(
         cast(Any, host),
-        cast(Any, host),
+        projection_freshness_blockers=host._projection_freshness_blockers,
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
         pipeline=cast(Any, host._edit_pipeline),
         overlays=host._transient_edit_overlays,
     )
+    source_change_publication = _source_change_publication(host)
     transaction = PromptProjectionSourceChangeTransaction[_ProjectionPayload](
         cast(Any, host),
         host._mouse_handler,
+        caret_publication=cast(Any, host),
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
+        source_change_publication=source_change_publication,
         projection_application=projection_application,
         semantic_remapper=semantic_remapper,
         session=cast(Any, host._session),
         source_document=cast(Any, host._source_document_adapter),
+        autocomplete_preview=cast(Any, host),
     )
     range_application = PromptSourceRangeCommitApplication[_ProjectionPayload](
-        cast(Any, host),
+        caret_publication=cast(Any, host),
+        set_cursor_positions=(
+            lambda cursor, anchor: host.set_cursor_positions(
+                cursor_position=cursor,
+                anchor_position=anchor,
+            )
+        ),
         editor_state=cast(Any, host._editor_state),
         projection_facts=projection_facts,
         semantic_remapper=semantic_remapper,
@@ -135,13 +164,20 @@ def _source_change_applier(
         cast(Any, host),
         editor_state=cast(Any, host._editor_state),
         freshness=cast(Any, host._projection_freshness_controller),
+        source_change_publication=source_change_publication,
         projection_application=projection_application,
         session=cast(Any, host._session),
         source_document=cast(Any, host._source_document_adapter),
     )
     document_application = PromptSourceDocumentCommitApplication[_ProjectionPayload](
-        cast(Any, host),
-        cast(Any, host),
+        cast(Any, host._scroll_bar),
+        set_cursor_positions=(
+            lambda cursor, anchor: host.set_cursor_positions(
+                cursor_position=cursor,
+                anchor_position=anchor,
+            )
+        ),
+        schedule_geometry_reuse_warm=lambda reason: host.schedule(reason=reason),
         transaction=transaction,
     )
     return PromptProjectionSourceCommitApplication[_ProjectionPayload](
@@ -247,6 +283,7 @@ def _range_commit(
     start: int,
     end: int,
     replacement_text: str,
+    origin: PromptSourceEditOrigin = PromptSourceEditOrigin.TYPED,
     exact_source: bool = True,
     record_undo: bool = True,
 ) -> PromptEditCommit[_ProjectionPayload]:
@@ -258,7 +295,7 @@ def _range_commit(
             end=end,
             replacement_text=replacement_text,
             normalizer=PromptSourceNormalizationService(),
-            origin=PromptSourceEditOrigin.TYPED,
+            origin=origin,
             exact_source=exact_source,
             record_undo=record_undo,
             undo_snapshot=_projection_undo_snapshot(session.source_text),

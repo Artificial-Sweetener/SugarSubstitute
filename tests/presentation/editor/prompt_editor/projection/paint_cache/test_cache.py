@@ -73,7 +73,7 @@ from substitute.presentation.editor.prompt_editor.projection.paint_input import 
     PromptProjectionPaintInput,
     PromptProjectionPaintStyleKey,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
 )
 from tests.support.prompt_editor.projection_engine_support import ensure_qapp

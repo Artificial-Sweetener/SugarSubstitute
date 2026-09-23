@@ -48,11 +48,17 @@ from .observability import (
 from .reorder_preview import PromptReorderProjectionSnapshot
 from .session import PromptProjectionSession
 from .prepared_frame import PromptProjectionPreparedFrame
-from .tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.lora_renderer import (
     PromptLoraInlineObjectRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 

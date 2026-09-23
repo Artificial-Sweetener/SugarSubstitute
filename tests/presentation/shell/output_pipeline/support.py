@@ -197,6 +197,8 @@ def build_pipeline_shell_dependencies() -> dict[str, Any]:
         ),
         "output_commit_handler": SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        "output_preparation_failure_handler": SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         "output_canvas_projection_coordinator": ProjectionCoordinatorSpy(),

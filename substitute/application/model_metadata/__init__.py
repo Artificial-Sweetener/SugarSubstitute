@@ -39,15 +39,22 @@ from substitute.application.model_metadata.ports import (
     RefreshCancellationToken,
     ThumbnailAssetRepository,
 )
-from substitute.application.model_metadata.model_catalog_service import (
+from substitute.application.model_metadata.model_catalog_models import (
     ModelCatalogItem,
     ModelCatalogLookup,
-    ModelCatalogService,
     ModelCatalogSnapshot,
     ModelThumbnailVariant,
 )
+from substitute.application.model_metadata.model_catalog_service import (
+    ModelCatalogService,
+)
 from substitute.application.model_metadata.model_catalog_snapshot_store import (
     ModelCatalogSnapshotStore,
+)
+from substitute.application.model_metadata.model_catalog_provider import (
+    ModelCatalogProvider,
+    ModelCatalogProviderMatch,
+    ModelProviderLink,
 )
 from substitute.application.model_metadata.model_choice_catalog_index import (
     DEFAULT_RICH_CHOICE_MODEL_KINDS,
@@ -114,6 +121,8 @@ __all__ = [
     "DEFAULT_SCOPED_METADATA_BATCH_SIZE",
     "ModelCatalogItem",
     "ModelCatalogLookup",
+    "ModelCatalogProvider",
+    "ModelCatalogProviderMatch",
     "ModelCatalogService",
     "ModelCatalogSnapshot",
     "ModelCatalogSnapshotStore",
@@ -131,6 +140,7 @@ __all__ = [
     "ModelMetadataRefreshService",
     "ModelMetadataRefreshSummary",
     "ModelMetadataUpdateSink",
+    "ModelProviderLink",
     "ModelThumbnailRepository",
     "ModelThumbnailVariant",
     "model_family_associations_for_catalog_item",

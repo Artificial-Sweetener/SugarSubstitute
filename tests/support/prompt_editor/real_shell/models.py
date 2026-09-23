@@ -332,6 +332,8 @@ class PromptEditorStateSnapshot:
     viewport_revision: int | None
     paint_revision: int | None
     semantic_is_current: bool
+    semantic_refresh_pending: bool
+    semantic_refresh_active: bool
     projection_is_current: bool
     layout_is_current: bool
     paint_is_current: bool

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from typing import cast
 
 from PySide6.QtCore import Qt
@@ -69,7 +73,7 @@ def test_prompt_editor_real_widget_consumes_matching_right_text_on_accept(
     QTest.keyClicks(editor, "h")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert gateway.calls[-1] == ("long h", 10)
     assert panel.is_panel_visible() is True
     assert editor_autocomplete_preview_text(editor) == "a"
@@ -107,7 +111,7 @@ def test_prompt_editor_real_widget_keeps_unrelated_right_text_on_accept(
     QTest.keyClicks(editor, "h")
     process_events(app)
 
-    panel = cast(PromptAutocompletePanel, getattr(editor, "_autocomplete_panel"))
+    panel = cast(PromptAutocompletePanel, autocomplete_panel(editor))
     assert gateway.calls[-1] == ("long h", 10)
     assert editor_autocomplete_preview_text(editor) == "air"
 

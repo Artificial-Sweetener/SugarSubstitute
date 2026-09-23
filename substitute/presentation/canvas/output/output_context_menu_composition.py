@@ -78,12 +78,26 @@ def compose_output_context_menu(
             image_is_authorized=route_projector.is_image_allowed_for_transfer,
             open_single_editor=host.single_external_editor,
             reveal_asset=host.output_asset_revealer,
+            compare_available=lambda: _document_compare_available(host),
+            compare_enabled=lambda: host.visible_compare_state.enabled,
+            set_compare_enabled=host.set_compare_mode_enabled,
             canvas_detached=lambda: host.canvas_detached,
             request_dock_action=host.dockActionRequested.emit,
         ),
     )
     host.install_transfer_context_handler(router.show)
     return router
+
+
+def _document_compare_available(host: OutputCanvas) -> bool:
+    """Return whether the active Output document owns two authorized images."""
+
+    authorized_image_ids = {
+        image_id
+        for image_id in host.document.image_ids()
+        if host.route_projector.is_image_allowed_for_transfer(image_id)
+    }
+    return len(authorized_image_ids) >= 2
 
 
 __all__ = ["compose_output_context_menu"]

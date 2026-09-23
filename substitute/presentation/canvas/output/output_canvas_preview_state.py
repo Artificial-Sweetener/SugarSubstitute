@@ -14,15 +14,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Provide Output canvas preview registry and revision-cache host adapters."""
+"""Provide the Output canvas preview-registry host adapter."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from substitute.application.workflows.output_preview_lifecycle_service import (
-    OutputCanvasRevisionCache,
-)
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
@@ -41,38 +38,6 @@ def output_preview_registry(host: object) -> OutputPreviewRegistry:
     raise RuntimeError("Output preview registry must be installed by the shell.")
 
 
-def output_revision_cache(host: object) -> OutputCanvasRevisionCache:
-    """Return the revision-scoped preview cache for an Output host."""
-
-    cache = getattr(host, "_revision_cache", None)
-    if isinstance(cache, OutputCanvasRevisionCache):
-        cache.session = getattr(host, "_output_session", None)
-        return cache
-    cache = OutputCanvasRevisionCache(
-        registry=output_preview_registry(host),
-        session=getattr(host, "_output_session", None),
-    )
-    setattr(host, "_revision_cache", cache)
-    return cache
-
-
-def install_output_preview_registry(
-    host: object,
-    registry: OutputPreviewRegistry,
-) -> None:
-    """Install the preview registry and reset revision-scoped preview state."""
-
-    setattr(host, "_preview_registry", registry)
-    setattr(
-        host,
-        "_revision_cache",
-        OutputCanvasRevisionCache(
-            registry=registry,
-            session=getattr(host, "_output_session", None),
-        ),
-    )
-
-
 def _is_real_output_canvas_host(host: object) -> bool:
     """Return whether host is the concrete widget without importing it."""
 
@@ -85,7 +50,5 @@ def _is_real_output_canvas_host(host: object) -> bool:
 
 
 __all__ = [
-    "install_output_preview_registry",
     "output_preview_registry",
-    "output_revision_cache",
 ]

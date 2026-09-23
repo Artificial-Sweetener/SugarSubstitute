@@ -150,12 +150,18 @@ class _Timer:
 class _LifecycleRequester:
     """Record lifecycle requests sent to the autocomplete owner."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, active_session: bool = True) -> None:
         """Initialize request storage."""
 
+        self.active_session = active_session
         self.retarget_snapshots: list[PromptAutocompleteSourceSnapshot] = []
         self.refresh_snapshots: list[PromptAutocompleteSourceSnapshot] = []
         self.dismiss_reasons: list[str] = []
+
+    def has_active_session(self) -> bool:
+        """Return whether timing should prepare immediate retarget work."""
+
+        return self.active_session
 
     def retarget_from_source_snapshot(
         self,
@@ -306,6 +312,52 @@ def test_edit_key_retargets_before_debounced_result_refresh() -> None:
     assert lifecycle.refresh_snapshots[0].query_reason == "edit_debounce"
 
 
+def test_dormant_edit_defers_full_snapshot_until_debounce_fires() -> None:
+    """Keep document construction off ordinary key dispatch without a session."""
+
+    editor = _Editor("ordinary prompt")
+    lifecycle = _LifecycleRequester(active_session=False)
+    timer = _Timer()
+    document_service = PromptDocumentService()
+    document_reads = 0
+
+    def document_view_provider() -> object:
+        """Record construction of the full query document view."""
+
+        nonlocal document_reads
+        document_reads += 1
+        return document_service.build_document_view(editor.text)
+
+    controller = PromptAutocompleteTimingController(
+        source_snapshots=PromptAutocompleteSourceSnapshotController(
+            cursor_state=lambda: (
+                (cursor := editor.textCursor()).position(),
+                cursor.hasSelection(),
+            ),
+            document_view_provider=cast(Any, document_view_provider),
+            feature_profile=_feature_profile(),
+            source_identity=editor.prompt_command_source_identity,
+            source_text=editor.toPlainText,
+        ),
+        lifecycle_requester=lifecycle,
+        lora_autocomplete_enabled=lambda: False,
+        timer_factory=lambda: cast(Any, timer),
+    )
+
+    controller.handle_post_key_press(_key_event(Qt.Key.Key_Backspace))
+
+    assert document_reads == 0
+    assert editor.text_reads == 0
+    assert editor.cursor_reads == 0
+    assert editor.identity_reads == 0
+    assert timer.started_delays == [controller.edit_settle_delay_ms]
+
+    timer.fire()
+
+    assert document_reads == 1
+    assert len(lifecycle.refresh_snapshots) == 1
+
+
 def test_clear_paths_cancel_pending_timers_without_query_refresh() -> None:
     """Focus, hide, and non-text clears should cancel timing without querying."""
 
@@ -351,6 +403,7 @@ def test_lora_prefix_immediate_refresh_uses_snapshot_and_selection_suppresses() 
 
     assert timer.started_delays == [0]
     assert editor.text_reads == 1
+    assert lifecycle.retarget_snapshots == []
 
     timer.fire()
 

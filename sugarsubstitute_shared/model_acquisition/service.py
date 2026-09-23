@@ -87,6 +87,7 @@ class ModelAcquisitionService:
         api_key_provider: Callable[[], str | None] | None = None,
         timeout_seconds: float = 60.0,
         download_url_validator: DownloadUrlValidator | None = None,
+        allowed_extensions: Collection[str] = (".safetensors",),
     ) -> None:
         """Store explicit model roots and a bounded secret-aware HTTPS boundary."""
 
@@ -95,11 +96,20 @@ class ModelAcquisitionService:
             raise ValueError("Model acquisition requires at least one allowed root.")
         if timeout_seconds <= 0:
             raise ValueError("Model acquisition timeout must be positive.")
+        normalized_extensions = frozenset(
+            extension.casefold() for extension in allowed_extensions
+        )
+        if not normalized_extensions or any(
+            not extension.startswith(".") or len(extension) < 2
+            for extension in normalized_extensions
+        ):
+            raise ValueError("Model acquisition extensions must be explicit suffixes.")
         self._allowed_roots = roots
         self._stream_opener = stream_opener or _open_stream
         self._api_key_provider = api_key_provider
         self._timeout_seconds = timeout_seconds
         self._download_url_validator = download_url_validator or _require_download_url
+        self._allowed_extensions = normalized_extensions
 
     def acquire(
         self,
@@ -115,13 +125,17 @@ class ModelAcquisitionService:
         if model.size_bytes <= 0:
             raise ModelAcquisitionError("Model download size must be positive.")
         self._download_url_validator(model.download_url)
-        file_name = _safe_file_name(model.file_name)
+        file_name = _safe_file_name(
+            model.file_name,
+            allowed_extensions=self._allowed_extensions,
+        )
         destination = self._require_destination(destination_dir)
         destination.mkdir(parents=True, exist_ok=True)
         existing = self._matching_existing(
             destination,
             expected_hash,
             expected_size=model.size_bytes,
+            allowed_extensions=self._allowed_extensions,
         )
         if existing is not None:
             return AcquisitionResult(
@@ -134,6 +148,7 @@ class ModelAcquisitionService:
             destination,
             file_name=file_name,
             version_id=model.version_id,
+            allowed_extensions=self._allowed_extensions,
         )
         partial = destination / f".{final_path.name}.{secrets.token_hex(8)}.part"
         headers = {
@@ -242,14 +257,16 @@ class ModelAcquisitionService:
         sha256: str,
         *,
         expected_size: int,
+        allowed_extensions: Collection[str],
     ) -> Path | None:
         """Return an existing SafeTensor with the requested size and hash."""
 
-        for candidate in destination.glob("*.safetensors"):
+        for candidate in destination.iterdir():
             try:
                 if (
                     candidate.is_file()
                     and not candidate.is_symlink()
+                    and candidate.suffix.casefold() in allowed_extensions
                     and candidate.stat().st_size == expected_size
                     and _file_sha256(candidate) == sha256
                 ):
@@ -386,7 +403,11 @@ def _origin(value: str) -> tuple[str, str, int]:
     return parsed.scheme.casefold(), hostname.casefold(), port
 
 
-def _safe_file_name(value: str) -> str:
+def _safe_file_name(
+    value: str,
+    *,
+    allowed_extensions: Collection[str],
+) -> str:
     """Return a portable provider file name without path or device semantics."""
 
     name = value.strip()
@@ -395,7 +416,7 @@ def _safe_file_name(value: str) -> str:
         not name
         or len(name) > 180
         or Path(name).name != name
-        or not name.casefold().endswith(".safetensors")
+        or Path(name).suffix.casefold() not in allowed_extensions
         or any(ord(character) < 32 or character in '<>:"/\\|?*' for character in name)
         or stem.upper() in _WINDOWS_RESERVED_STEMS
         or name.endswith((".", " "))
@@ -424,14 +445,17 @@ def _reserve_destination(
     *,
     file_name: str,
     version_id: int,
+    allowed_extensions: Collection[str],
 ) -> tuple[Path, bytes]:
     """Reserve a side-by-side final path across concurrent processes."""
 
     token = secrets.token_hex(16).encode("ascii")
     original = Path(file_name)
+    if original.suffix.casefold() not in allowed_extensions:
+        raise ModelAcquisitionError("Model file extension is outside policy.")
     candidates = [original.name]
     candidates.extend(
-        f"{original.stem} (v{version_id}{'' if index == 0 else f'-{index}'}).safetensors"
+        f"{original.stem} (v{version_id}{'' if index == 0 else f'-{index}'}){original.suffix}"
         for index in range(1000)
     )
     for candidate_name in candidates:

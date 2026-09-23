@@ -34,6 +34,7 @@ from substitute.presentation.widgets.civitai_page_action import (
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.widgets.media_wall import (
     MediaWallItem,
     ThumbnailVariantReference,
@@ -96,6 +97,7 @@ class PromptLoraWallView(ModelPickerWallView):
         thumbnail_cache: PromptLoraThumbnailCache,
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
     ) -> None:
         """Initialize the LoRA media wall with the shared picker profile."""
 
@@ -104,6 +106,7 @@ class PromptLoraWallView(ModelPickerWallView):
             asset_repository=thumbnail_cache.asset_repository,
             open_url=open_url,
             metadata_action_handler=metadata_action_handler,
+            model_updates=model_updates,
         )
         self._catalog_items: tuple[PromptLoraCatalogItem, ...] = ()
         self.modelActivated.connect(self._activate_lora)
@@ -145,6 +148,7 @@ class PromptLoraPickerPopup(ModelPickerPopup):
         thumbnail_cache: PromptLoraThumbnailCache,
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        model_updates: ModelUpdatePickerBridge | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Build a LoRA picker using the shared model picker popup."""
@@ -156,6 +160,7 @@ class PromptLoraPickerPopup(ModelPickerPopup):
             search_placeholder="Search LoRA",
             open_url=open_url,
             metadata_action_handler=metadata_action_handler,
+            model_updates=model_updates,
             parent=parent,
         )
         self.setObjectName("promptLoraPickerPopup")
@@ -182,6 +187,7 @@ def show_lora_picker_popup(
     global_position: QPoint,
     open_url: UrlOpener | None = None,
     metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+    model_updates: ModelUpdatePickerBridge | None = None,
 ) -> PromptLoraPickerPopup:
     """Create and show an editor-attached LoRA picker popup."""
 
@@ -190,6 +196,7 @@ def show_lora_picker_popup(
         thumbnail_cache=thumbnail_cache,
         open_url=open_url,
         metadata_action_handler=metadata_action_handler,
+        model_updates=model_updates,
         parent=editor,
     )
     popup.show_attached_to(QRect(global_position, QSize(1, 1)))
@@ -234,6 +241,7 @@ def model_picker_items_for_loras(
             model_page_url=item.model_page_url,
             payload=item,
             model_kind="loras",
+            sha256=item.sha256,
         )
         for item in items
     )

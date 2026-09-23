@@ -349,6 +349,7 @@ class MainWindowDependencies:
     control_binding_service: ControlBindingService | None = None
     model_update_model_root: Path | None = None
     model_update_acquisition_service: ModelUpdateAcquisitionService | None = None
+    model_update_thumbnail_fetcher: Callable[[str], bytes] | None = None
     empty_model_picker_discovery_service: ModelSuggestionService | None = None
 
 

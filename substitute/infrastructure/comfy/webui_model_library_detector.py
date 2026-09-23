@@ -67,10 +67,10 @@ class WebUiModelLibraryDetector:
         return library
 
     def model_family_scan_roots(self, selected_root: Path) -> tuple[Path, ...]:
-        """Return only roots capable of containing generation model families."""
+        """Return roots capable of satisfying onboarding model-family choices."""
 
         library = self.detect(selected_root)
-        return library.checkpoints + library.diffusion_models
+        return library.checkpoints + library.diffusion_models + library.upscale_models
 
     def install_destination(
         self,

@@ -79,8 +79,8 @@ from substitute.presentation.canvas.output.output_canvas_localization import (
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
 )
 from substitute.presentation.canvas.output.output_document_route_projector import (
     OutputDocumentRouteProjector,
@@ -218,7 +218,7 @@ class OutputCanvas(QWidget):
         self.comparison_source_selector_button = (
             navigation_widgets.comparison_source_selector_button
         )
-        self._navigation_controller = OutputCanvasNavigationController(
+        self._navigation_controller = OutputNavigationLayoutAdapter(
             canvas_width=self.width,
             tabbar=lambda: self.tabbar,
             cached_source_tabbar_width=lambda: self._source_tabbar_preferred_width,

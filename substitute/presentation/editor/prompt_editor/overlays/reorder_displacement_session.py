@@ -44,7 +44,7 @@ class ReorderDisplacementPendingTarget:
 
 @dataclass(frozen=True, slots=True)
 class ReorderDisplacementSessionState:
-    """Expose current display-only displacement state for tests and coordination."""
+    """Expose current display-only displacement state for coordination."""
 
     active: bool = False
     input_source: ReorderDisplacementInputSource | None = None

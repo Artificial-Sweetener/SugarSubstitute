@@ -126,7 +126,10 @@ def build_onboarding_style_sheet() -> str:
             border-radius: 12px;
         }
         QScrollArea#OnboardingModelLinkResultScroll,
-        QWidget#OnboardingModelLinkResultViewport {
+        QWidget#OnboardingModelLinkResultViewport,
+        QScrollArea#OnboardingDownloadCardsScroll,
+        QScrollArea#OnboardingDownloadCardsScroll > QWidget > QWidget,
+        QWidget#OnboardingDownloadCardsHost {
             background-color: transparent;
             border: none;
         }

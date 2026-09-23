@@ -80,6 +80,7 @@ from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
 from substitute.presentation.model_discovery import EmptyModelPickerAction
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.application.user_presets import UserPresetService
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from .context.active_model_context import PanelActiveModelContextController
@@ -140,6 +141,7 @@ class EditorPanel(QWidget):
         thumbnail_asset_repository: ThumbnailAssetRepository | None = ...,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = ...,
         empty_model_picker_action: EmptyModelPickerAction | None = ...,
+        model_updates: ModelUpdatePickerBridge | None = ...,
         user_preset_service: UserPresetService | None = ...,
         error_presenter: ErrorReportPresenterProtocol | None = ...,
         workflow_issue_state: WorkflowIssueState | None = ...,

@@ -106,7 +106,7 @@ class PromptTokenWeightWheelIntentController:
         return self._candidate_token
 
     def refresh_ready_token(self) -> None:
-        """Refresh token-wheel readiness for tests and host-triggered repaints."""
+        """Refresh token-wheel readiness for host-triggered repaints."""
 
         self._refresh_ready_token()
 

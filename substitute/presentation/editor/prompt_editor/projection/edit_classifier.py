@@ -76,7 +76,12 @@ def _strategy_plan(
     return PromptEditStrategyPlan(tuple(candidates))
 
 
-_FULL_REBUILD_PLAN = PromptEditStrategyPlan((PromptEditStrategy.FULL_REBUILD,))
+_CANONICAL_TOPOLOGY_PLAN = PromptEditStrategyPlan(
+    (
+        PromptEditStrategy.BUILD_CANONICAL_REFLOW,
+        PromptEditStrategy.FULL_REBUILD,
+    )
+)
 _PLAN_COUNT = 1 << 7
 _STRATEGY_PLANS = tuple(
     _strategy_plan(
@@ -104,7 +109,7 @@ class PromptEditClassifier:
             facts.region_structure_requires_rebuild
             or facts.projection_topology_requires_rebuild
         ):
-            return _FULL_REBUILD_PLAN
+            return _CANONICAL_TOPOLOGY_PLAN
         allow_trailing_insert = (
             not facts.typed_character_requires_immediate_projection
             or facts.syntax_sensitive_prefix_deferrable

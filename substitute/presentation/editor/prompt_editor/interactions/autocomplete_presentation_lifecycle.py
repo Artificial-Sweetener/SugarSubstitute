@@ -98,9 +98,9 @@ class PromptAutocompletePresentationLifecycle:
     def refresh_geometry(self) -> None:
         """Reposition active presentation without querying or reading editor source."""
 
-        if not self._sessions.has_active_session():
+        if not self._sessions.has_active_session() or self._presenter is None:
             return
-        self.present_active_surfaces()
+        self._presenter.refresh_geometry()
 
     def present_active_surfaces(self) -> None:
         """Present the panel and publish ghost text only for visible presentation."""

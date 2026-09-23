@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 
@@ -70,12 +70,6 @@ class PromptProjectionCanonicalEditReflow:
             + replacement_text
             + previous_source_text[end:]
             != next_source_text
-            or self._applicator.source_edit_requires_canonical_rebuild(
-                previous_source_text,
-                next_source_text,
-                start=start,
-                end=end,
-            )
         ):
             return None
         return self._applicator.build_projection(

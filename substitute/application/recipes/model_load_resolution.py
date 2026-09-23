@@ -22,7 +22,6 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass, replace
-from enum import Enum
 import time
 from typing import cast
 
@@ -54,77 +53,18 @@ from substitute.domain.workflow.override_keys import canonicalize_global_overrid
 
 from .model_download_candidate import (
     RecipeModelDownloadCandidate,
+    RecipeModelRecoveryGateway,
+    candidate_from_recovery_gateways,
     candidate_from_civitai_version,
     civitai_download_access,
 )
-
-
-class RecipeModelCivitaiState(str, Enum):
-    """Describe CivitAI missing-model lookup state for one recipe reference."""
-
-    DISABLED = "disabled"
-    UNAVAILABLE = "unavailable"
-    NOT_FOUND = "not-found"
-    FOUND = "found"
-    NO_SAFE_FILE = "no-safe-file"
-
-
-@dataclass(frozen=True, slots=True)
-class RecipeModelUnresolvedReference:
-    """Describe one recipe model reference that needs user action."""
-
-    alias: str
-    node_name: str
-    input_key: str
-    kind: str
-    value: str
-    sha256: str
-    civitai_state: RecipeModelCivitaiState
-    civitai_status: CivitaiLookupStatus | None = None
-    civitai_error: str | None = None
-    candidate: RecipeModelDownloadCandidate | None = None
-
-
-class RecipeModelResolutionRequired(ValueError):
-    """Raised when a recipe references missing hashed models requiring user action."""
-
-    def __init__(
-        self,
-        *,
-        references: tuple[RecipeModelUnresolvedReference, ...],
-        partial_script: ParsedSugarScript,
-        summary: RecipeModelResolutionSummary,
-    ) -> None:
-        """Store the structured unresolved state used by the resolver wizard."""
-
-        missing = ", ".join(
-            f"{reference.alias}.{reference.node_name}.{reference.input_key} "
-            f"({reference.sha256[:12]})"
-            for reference in references
-        )
-        super().__init__(
-            f"Recipe references model hashes that are not installed locally: {missing}"
-        )
-        self.references = references
-        self.partial_script = partial_script
-        self.summary = summary
-
-
-@dataclass(frozen=True, slots=True)
-class RecipeModelResolutionSummary:
-    """Summarize pre-materialization model resolution results."""
-
-    literal_matches: int = 0
-    hash_matches: int = 0
-    unresolved_hashes: int = 0
-
-
-@dataclass(frozen=True, slots=True)
-class ResolvedRecipeModelScript:
-    """Carry a parsed script plus model resolution summary."""
-
-    parsed_script: ParsedSugarScript
-    summary: RecipeModelResolutionSummary
+from .model_resolution_models import (
+    RecipeModelCivitaiState,
+    RecipeModelResolutionRequired,
+    RecipeModelResolutionSummary,
+    RecipeModelUnresolvedReference,
+    ResolvedRecipeModelScript,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +97,7 @@ class RecipeModelLoadResolver:
         civitai: CivitaiMetadataGateway | None = None,
         civitai_missing_model_lookup_enabled: Callable[[], bool] | None = None,
         thumbnail_policy_provider: Callable[[], CivitaiThumbnailPolicy] | None = None,
+        recovery_gateways: tuple[RecipeModelRecoveryGateway, ...] = (),
         sleep: Callable[[float], None] = time.sleep,
         fingerprint_poll_interval_seconds: float = 0.5,
         fingerprint_poll_timeout_seconds: float = 120.0,
@@ -171,6 +112,7 @@ class RecipeModelLoadResolver:
             civitai_missing_model_lookup_enabled
         )
         self._thumbnail_policy_provider = thumbnail_policy_provider
+        self._recovery_gateways = recovery_gateways
         self._sleep = sleep
         self._fingerprint_poll_interval_seconds = fingerprint_poll_interval_seconds
         self._fingerprint_poll_timeout_seconds = fingerprint_poll_timeout_seconds
@@ -265,6 +207,22 @@ class RecipeModelLoadResolver:
         """Build one unresolved reference with optional CivitAI by-hash state."""
 
         normalized_sha256 = sha256.upper()
+        recovery_candidate = candidate_from_recovery_gateways(
+            self._recovery_gateways,
+            kind=kind,
+            sha256=normalized_sha256,
+        )
+        if recovery_candidate is not None:
+            return RecipeModelUnresolvedReference(
+                alias=alias,
+                node_name=node_name,
+                input_key=input_key,
+                kind=kind,
+                value=value,
+                sha256=normalized_sha256,
+                civitai_state=RecipeModelCivitaiState.FOUND,
+                candidate=recovery_candidate,
+            )
         if not self._is_civitai_lookup_enabled():
             return RecipeModelUnresolvedReference(
                 alias=alias,

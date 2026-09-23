@@ -112,38 +112,6 @@ class _FakeInputCanvasShellAdapter:
         self.mark_input_canvas_presentation_changed = object()
 
 
-class _FakeInputCanvasPresenter:
-    """Capture presenter wiring and mask-picker refresh requests."""
-
-    def __init__(self, **kwargs: object) -> None:
-        """Store constructor keyword arguments for assertions."""
-
-        self.kwargs = kwargs
-        self.refreshed_masks: list[tuple[object, object]] = []
-
-    def materialize_image_selection(self, *_args: object) -> bool:
-        """Accept image materialization for interaction composition."""
-
-        return True
-
-    def apply_mask_selection(self, *_args: object) -> bool:
-        """Accept mask materialization for interaction composition."""
-
-        return True
-
-    def refresh_active_mask_pickers(self) -> None:
-        """Represent the presenter-owned picker refresh callback."""
-
-    def refresh_mask_picker_from_asset_state(
-        self,
-        cube_alias: object,
-        node_name: object,
-    ) -> None:
-        """Record a saved-mask refresh routed from the save controller."""
-
-        self.refreshed_masks.append((cube_alias, node_name))
-
-
 class _FakeInputDocumentChangeObserver:
     """Capture in-memory document change observer wiring."""
 
@@ -162,8 +130,17 @@ class _FakeInputNodeInteractionController:
         self.kwargs = kwargs
 
 
-class _FakeWorkflowInputCanvasService:
-    """Capture workflow input-canvas service dependencies."""
+class _FakeInputImageMaterializationService:
+    """Capture input-image materialization dependencies."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store constructor keyword arguments for assertions."""
+
+        self.kwargs = kwargs
+
+
+class _FakeInputSectionMaterializationService:
+    """Capture graph-section materialization dependencies."""
 
     def __init__(self, **kwargs: object) -> None:
         """Store constructor keyword arguments for assertions."""
@@ -390,7 +367,13 @@ class _InputCompositionShell:
         self.input_canvas_plan_service = object()
         self.input_asset_endpoint_service = object()
         self.graph_section_service = object()
-        self.input_canvas_state_service = object()
+        self.input_canvas_state = object()
+        self.input_routes = object()
+        self.input_image_assets = object()
+        self.input_mask_assets = object()
+        self.input_mask_restoration = object()
+        self.input_mask_visuals = object()
+        self.input_asset_cleanup = object()
         self.canvas_io_service = object()
         self.workflow_asset_service = object()
         self.workflow_session_service = _WorkflowSession()
@@ -399,9 +382,12 @@ class _InputCompositionShell:
         self.active_editor_panel = object()
         self._error_presenter = object()
         self.request_session_autosave = object()
-        self.workflow_input_canvas_service: object | None = None
+        self.input_image_materialization_service: object | None = None
+        self.input_section_materialization_service: object | None = None
         self.input_canvas_authority_reconciliation_service: object | None = None
-        self.input_canvas_presenter: object | None = None
+        self.input_image_materialization_presenter: object | None = None
+        self.input_mask_picker_presenter: object | None = None
+        self.input_mask_selection_presenter: object | None = None
         self.input_node_interaction_controller: object | None = None
         self.input_document_change_observer: object | None = None
         self.input_generation_snapshot_service: object | None = None

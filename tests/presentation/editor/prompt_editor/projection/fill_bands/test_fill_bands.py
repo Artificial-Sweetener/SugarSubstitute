@@ -142,7 +142,7 @@ def test_projection_surface_content_height_uses_committed_metric_during_pending_
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
     committed_height = surface.content_height()
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -152,7 +152,7 @@ def test_projection_surface_content_height_uses_committed_metric_during_pending_
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -249,7 +249,7 @@ def test_projection_surface_fill_bands_use_committed_layout_during_pending_updat
     surface = surface_for(box)
     delay_projection_update_scheduler(surface)
     committed_bands = surface.visible_prompt_fill_band_rects()
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -259,7 +259,7 @@ def test_projection_surface_fill_bands_use_committed_layout_during_pending_updat
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len(box.toPlainText())
     surface.set_cursor_positions(
         cursor_position=cursor_position,

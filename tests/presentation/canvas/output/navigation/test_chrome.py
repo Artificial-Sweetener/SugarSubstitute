@@ -34,8 +34,8 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
-    OutputCanvasNavigationController,
+from substitute.presentation.canvas.output.output_navigation_layout_adapter import (
+    OutputNavigationLayoutAdapter,
 )
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
 
@@ -69,7 +69,7 @@ def _install_navigation_controller(fake: Any) -> None:
     setattr(
         fake,
         "_navigation_controller",
-        OutputCanvasNavigationController(
+        OutputNavigationLayoutAdapter(
             canvas_width=lambda: (
                 int(fake.width()) if callable(getattr(fake, "width", None)) else None
             ),

@@ -26,10 +26,12 @@ from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.widgets.anchored_row_picker import (
-    AnchoredRowPickerItem,
-    AnchoredRowPickerRow,
     AnchoredRowPickerView,
     active_row_index_from_top,
+)
+from substitute.presentation.widgets.anchored_row_picker_row import (
+    AnchoredRowPickerItem,
+    AnchoredRowPickerRow,
 )
 from tests.support.qt.lifecycle import destroy_widget_roots
 

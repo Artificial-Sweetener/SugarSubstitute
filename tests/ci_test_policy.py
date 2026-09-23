@@ -65,6 +65,15 @@ ISOLATED_TEST_MODULES = frozenset(
         # worker. A fresh bounded process preserves the full modal contract and
         # leaves attributable timeout evidence if native construction stalls.
         "tests/presentation/shell/model_discovery/test_empty_picker_controller.py",
+        # Background recommendation preparation can abort inside Qt after
+        # unrelated onboarding tests reuse a Windows xdist worker. Its
+        # temporary inputs and widgets are module-local, so a fresh worker
+        # preserves the cancellation contract without global serialization.
+        "tests/presentation/onboarding/controller/test_background_preparation.py",
+        # This full-shell headless render constructs and captures the production
+        # Qt gallery. It can abort after prior native Qt work in a reused
+        # Windows worker; a fresh process preserves its screenshot contract.
+        "tests/tools/test_render_openmodeldb_upscaler_picker.py",
         # This production update-notification contract owns QWidget roots,
         # QThreads, and the real review modal in one application lifecycle. It
         # can crash after unrelated native Qt work in a reused Linux xdist
@@ -81,6 +90,10 @@ ISOLATED_TEST_MODULES = frozenset(
         # A fresh process bounds its native image and widget lifetime without
         # retaining those resources in a reused xdist worker.
         "tests/qualification/installer/test_experience_smoke_matrix.py",
+        # The interactive launcher-to-setup handoff timed out in Qt's terminal
+        # output view after a reused worker ran thousands of earlier tests.
+        # A fresh process retains the real-window handoff contract.
+        "tests/tools/test_installer_experience_smoke.py",
         # This real-shell restore qualification can abort after prior native Qt
         # work in one xdist process, while fresh concurrent processes are stable.
         "tests/qualification/prompt_editor/abuse/test_restored_mounts.py",

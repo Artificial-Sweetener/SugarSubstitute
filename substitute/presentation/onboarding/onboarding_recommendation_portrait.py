@@ -33,7 +33,8 @@ from PySide6.QtGui import (
     QPainterPath,
     QResizeEvent,
 )
-from PySide6.QtWidgets import QCheckBox, QWidget
+from PySide6.QtWidgets import QWidget
+from qfluentwidgets import CheckBox  # type: ignore[import-untyped]
 from sugarsubstitute_shared.localization import app_text
 
 from substitute.domain.model_metadata import ThumbnailAsset
@@ -64,7 +65,7 @@ class RecommendationPortrait(QWidget):
         selectable: bool = True,
         parent: QWidget,
     ) -> None:
-        """Store one decoded image and expose a native selectable control."""
+        """Store one decoded image and expose a Fluent selectable control."""
 
         super().__init__(parent)
         if image is not None and image.isNull():
@@ -110,7 +111,7 @@ class RecommendationPortrait(QWidget):
                 QColor(248, 249, 252, 210),
             )
             label.setPalette(label_palette)
-        self.checkbox = QCheckBox("", self)
+        self.checkbox = CheckBox("", self)
         self.checkbox.setObjectName("OnboardingRecommendationPortraitCheck")
         self.checkbox.setAccessibleName(accessible_name)
         self.checkbox.setChecked(selected)
@@ -171,14 +172,30 @@ class RecommendationPortrait(QWidget):
         self.update()
 
     def is_selected(self) -> bool:
-        """Return whether the portrait's native checkbox is selected."""
+        """Return whether the portrait's Fluent checkbox is selected."""
 
         return bool(self.checkbox.isChecked())
 
     def set_selected(self, selected: bool) -> None:
-        """Restore explicit selection without replacing the native control."""
+        """Restore explicit selection without replacing the Fluent control."""
 
         self.checkbox.setChecked(selected)
+
+    def set_selectable(self, selectable: bool) -> None:
+        """Update the portrait's pointer, keyboard, and checkbox affordances together."""
+
+        if not selectable:
+            self.checkbox.setChecked(False)
+        self._selectable = selectable
+        self.checkbox.setVisible(selectable)
+        self.setFocusPolicy(
+            Qt.FocusPolicy.StrongFocus if selectable else Qt.FocusPolicy.NoFocus
+        )
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor
+            if selectable
+            else Qt.CursorShape.ArrowCursor
+        )
 
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
         """Paint cropped media, the graduated wash, and title as one surface."""
@@ -283,7 +300,7 @@ class RecommendationPortrait(QWidget):
         self.selection_changed.emit(selected)
 
     def _position_checkbox(self) -> None:
-        """Place the native checkbox above the painted media and wash."""
+        """Place the Fluent checkbox above the painted media and wash."""
 
         self.checkbox.setGeometry(self.width() - 42, 12, 30, 30)
         self.checkbox.raise_()

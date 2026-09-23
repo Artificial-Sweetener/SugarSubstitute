@@ -27,15 +27,23 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
     PromptProjectionDocument,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.runs import (
+    PromptProjectionRun,
     PromptProjectionRunKind,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
+    PromptProjectionTokenKind,
 )
-from ..projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisSuffixRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.lora_renderer import (
     PromptLoraInlineObjectRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 from ..layout.models import (
@@ -129,6 +137,47 @@ class PromptTokenGeometry:
     ) -> QRectF | None:
         """Return the viewport-local slot rect of one emphasis token weight label."""
 
+        binding = self._weight_rendering(token, scroll_offset=scroll_offset)
+        if binding is None:
+            return None
+        renderer, run, rect = binding
+        return renderer.weight_text_rect(run, token, rect, base_font=self._base_font)
+
+    def token_weight_edit_rect(
+        self,
+        token: PromptProjectionToken,
+        *,
+        scroll_offset: float = 0.0,
+    ) -> QRectF | None:
+        """Return the renderer-owned painted glyph area for native exact editing."""
+
+        binding = self._weight_rendering(token, scroll_offset=scroll_offset)
+        if binding is None:
+            return None
+        renderer, run, rect = binding
+        if not isinstance(
+            renderer, PromptEmphasisSuffixRenderer | PromptLoraInlineObjectRenderer
+        ):
+            return None
+        return renderer.weight_edit_rect(run, token, rect, base_font=self._base_font)
+
+    def _weight_rendering(
+        self,
+        token: PromptProjectionToken,
+        *,
+        scroll_offset: float,
+    ) -> (
+        tuple[
+            PromptEmphasisSuffixRenderer
+            | PromptLoraInlineObjectRenderer
+            | PromptWildcardInlineObjectRenderer,
+            PromptProjectionRun,
+            QRectF,
+        ]
+        | None
+    ):
+        """Find the prepared renderer and fragment for one weighted token."""
+
         for run in self._projection_document.runs_for_token(token.token_id):
             if run.kind is not PromptProjectionRunKind.INLINE_OBJECT:
                 continue
@@ -145,14 +194,11 @@ class PromptTokenGeometry:
             )
             if not object_fragments:
                 continue
-            weight_rect = renderer.weight_text_rect(
+            return (
+                renderer,
                 run,
-                token,
                 object_fragments[-1].rect.translated(0.0, -scroll_offset),
-                base_font=self._base_font,
             )
-            if weight_rect is not None:
-                return weight_rect
         return None
 
     def token_fragments(
@@ -186,6 +232,42 @@ class PromptTokenGeometry:
             ):
                 return token
         return None
+
+    def enclosing_emphasis_at_viewport_position(
+        self,
+        position: QPointF,
+        *,
+        scroll_offset: float,
+    ) -> PromptProjectionToken | None:
+        """Find the innermost emphasis owning visible text without a token run."""
+
+        document_position = QPointF(position.x(), position.y() + scroll_offset)
+        fragment = self._snapshot.text_fragment_at(document_position)
+        if (
+            fragment is None
+            or fragment.token_id is not None
+            or not fragment.source_positions
+        ):
+            return None
+        source_start = min(fragment.source_positions)
+        source_end = max(fragment.source_positions)
+        nearest_token: PromptProjectionToken | None = None
+        nearest_span: int | None = None
+        for token in self._projection_document.tokens:
+            content_range = token.content_range
+            if (
+                token.kind is not PromptProjectionTokenKind.EMPHASIS
+                or content_range is None
+            ):
+                continue
+            content_start, content_end = content_range
+            if content_start > source_start or source_end > content_end:
+                continue
+            span = content_end - content_start
+            if nearest_span is None or span < nearest_span:
+                nearest_token = token
+                nearest_span = span
+        return nearest_token
 
     def fragments_for_token(
         self,

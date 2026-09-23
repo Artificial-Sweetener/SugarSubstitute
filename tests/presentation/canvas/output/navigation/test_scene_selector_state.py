@@ -22,14 +22,16 @@ from __future__ import annotations
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_selector_state import (
     SceneSelectorButtonState,
-    apply_compare_scene_button_state,
-    apply_scene_selector_button_state,
     compare_scene_button_state,
     compare_scene_full_text,
     scene_selector_button_state,
     scene_selector_full_text,
+)
+from substitute.presentation.canvas.output.output_navigation_widget_adapter import (
+    apply_compare_scene_button_state,
+    apply_scene_selector_button_state,
 )
 
 

@@ -48,6 +48,7 @@ from ..projection.reorder_interaction_geometry import (
 )
 from ..projection.reorder_geometry_owner import PromptReorderGeometryOwner
 from ..reorder_drag_proxy_state import PromptReorderDragProxyRenderStateBuilder
+from .reorder_overlay_runtime_factory import PromptReorderOverlayRuntimeComposer
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,12 +83,16 @@ class PromptSegmentReorderOverlayFactory:
             interaction_metrics=self.interaction_metrics,
             view_factory=PromptReorderView,
             gesture_controller=PromptReorderGestureController(),
-            drag_proxy_placement=PromptReorderDragProxyPlacementController(),
-            drag_proxy=PromptReorderDragProxyWidget(object_name="segmentChipDragProxy"),
-            drag_proxy_state_factory=PromptReorderDragProxyRenderStateBuilder(
-                document_service=self.document_service,
-                syntax_service=self.syntax_service,
-                syntax_profile=self.syntax_profile,
+            runtime_factory=PromptReorderOverlayRuntimeComposer(
+                drag_proxy_placement=PromptReorderDragProxyPlacementController(),
+                drag_proxy=PromptReorderDragProxyWidget(
+                    object_name="segmentChipDragProxy"
+                ),
+                drag_proxy_state_builder=PromptReorderDragProxyRenderStateBuilder(
+                    document_service=self.document_service,
+                    syntax_service=self.syntax_service,
+                    syntax_profile=self.syntax_profile,
+                ),
             ),
         )
         return PromptReorderOverlayAssembly(

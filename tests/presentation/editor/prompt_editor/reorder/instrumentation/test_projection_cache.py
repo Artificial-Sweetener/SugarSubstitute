@@ -50,13 +50,13 @@ def test_reorder_surface_projection_rebuild_counter_tracks_cache_misses(
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
 
-    surface.reset_reorder_geometry_cache_counters()
-    before = surface.reorder_geometry_cache_counters()
+    surface.reorder.reset_cache_counters()
+    before = surface.reorder.cache_counters()
 
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.set_preview_state(preview_state)
     _process_events(app)
 
-    after = surface.reorder_geometry_cache_counters()
+    after = surface.reorder.cache_counters()
 
     assert _counter_delta(before, after, "preview_projection_cache_miss_count") == 1
     assert _counter_delta(before, after, "projection_snapshot_rebuild_count") == 2
@@ -76,14 +76,14 @@ def test_reorder_surface_preview_projection_cache_hit_avoids_rebuild(
         drop_target=PromptLineDropTarget(row_index=0, insertion_index=0),
     )
 
-    surface.reset_reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state)
+    surface.reorder.reset_cache_counters()
+    surface.reorder.set_preview_state(preview_state)
     _process_events(app)
 
-    before_hit = surface.reorder_geometry_cache_counters()
-    surface.set_reorder_preview_state(preview_state)
+    before_hit = surface.reorder.cache_counters()
+    surface.reorder.set_preview_state(preview_state)
     _process_events(app)
-    after_hit = surface.reorder_geometry_cache_counters()
+    after_hit = surface.reorder.cache_counters()
 
     assert (
         _counter_delta(

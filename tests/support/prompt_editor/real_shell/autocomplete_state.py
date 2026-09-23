@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel as runtime_autocomplete_panel,
+)
+
 from typing import Any, cast
 
 from PySide6.QtWidgets import QWidget
@@ -31,7 +35,9 @@ from tests.support.prompt_editor.autocomplete_owner_state import (
 def autocomplete_preview_state(editor: PromptEditor) -> object | None:
     """Return projection-owned autocomplete preview state without popup state."""
 
-    surface = getattr(editor, "_surface", None)
+    runtime = getattr(editor, "_runtime", None)
+    projection = getattr(runtime, "projection_or_none", None)
+    surface = getattr(projection, "surface", None)
     session = getattr(surface, "_session", None)
     return getattr(session, "autocomplete_preview", None)
 
@@ -90,7 +96,7 @@ def short_repr(value: object) -> str:
 def autocomplete_panel(editor: PromptEditor) -> QWidget | None:
     """Return the composed autocomplete panel when normal construction created it."""
 
-    panel = getattr(editor, "_autocomplete_panel", None)
+    panel = runtime_autocomplete_panel(editor)
     return panel if isinstance(panel, QWidget) else None
 
 
@@ -100,7 +106,10 @@ def expected_ghost_suffix(editor: PromptEditor, preview: object | None) -> str:
     suffix = autocomplete_preview_suffix(preview)
     if suffix:
         return suffix
-    autocomplete = getattr(editor, "_autocomplete", None)
+    runtime = getattr(editor, "_runtime", None)
+    core = getattr(runtime, "core_or_none", None)
+    autocomplete_runtime = getattr(core, "autocomplete", None)
+    autocomplete = getattr(autocomplete_runtime, "autocomplete", None)
     session = getattr(autocomplete, "_session_controller", None)
     current = getattr(session, "current_suggestion", None)
     if callable(current):

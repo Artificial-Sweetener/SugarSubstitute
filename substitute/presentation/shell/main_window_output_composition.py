@@ -73,6 +73,9 @@ def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasCompo
         "workflow_session_service": shell.workflow_session_service,
         "canvas_io_service": shell.canvas_io_service,
         "output_commit_handler": shell.workspace_canvas_actions,
+        "output_preparation_failure_handler": (
+            shell.workspace_controller.output_preparation_actions
+        ),
         "output_canvas_projection_coordinator": cast(
             OutputCanvasProjectionCoordinatorProtocol,
             shell.output_canvas_projection_coordinator,

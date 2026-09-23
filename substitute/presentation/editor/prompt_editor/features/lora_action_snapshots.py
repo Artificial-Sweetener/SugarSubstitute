@@ -32,7 +32,7 @@ from ..async_work.scheduled_lora_dispatcher import (
     scheduled_lora_signature,
 )
 from ..commands.feature_commands import PromptFeatureSnapshotIdentity
-from .catalog_snapshots import (
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,

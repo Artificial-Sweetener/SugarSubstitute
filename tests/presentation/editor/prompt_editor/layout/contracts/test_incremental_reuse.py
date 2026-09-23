@@ -21,11 +21,30 @@ from __future__ import annotations
 
 from PySide6.QtGui import QColor, QFont
 
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.features.syntax_profile import (
+    PromptSyntaxProfileService,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.document import (
+    PromptProjectionDisplayMode,
+)
 from substitute.presentation.editor.prompt_editor.projection.edit_to_frame import (
     PromptLayoutEditToFrameCoordinator,
 )
+from substitute.presentation.editor.prompt_editor.projection.incremental_edit_contracts import (
+    PromptProjectionIncrementalEdit,
+)
 from substitute.presentation.editor.prompt_editor.projection.metrics import (
     PromptProjectionMetricsFactory,
+)
+from substitute.presentation.editor.prompt_editor.projection.plain_text_document_editor import (
+    PromptPlainTextDocumentEditor,
+)
+from substitute.presentation.editor.prompt_editor.projection.session import (
+    PromptProjectionSession,
 )
 from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionLineSnapshot,
@@ -34,16 +53,24 @@ from substitute.presentation.editor.prompt_editor.layout.models import (
 from substitute.presentation.editor.prompt_editor.layout.canonical_builder import (
     PromptProjectionLineLayoutBuilder,
 )
+from substitute.presentation.editor.prompt_editor.layout.reused_semantics import (
+    PromptReusedLineSemanticResolver,
+    earliest_reusable_suffix_line_index,
+    reusable_suffix_semantics_by_line,
+)
 from substitute.presentation.editor.prompt_editor.layout.checkpoints import (
     capture_layout_checkpoint,
     restore_layout_checkpoint,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
 )
 from tests.support.prompt_editor.projection_layout_support import (
     projection_document_for as _projection_for,
     projection_layout_for as _layout_for,
+)
+from tests.support.prompt_editor.projection_engine_support import (
+    StaticPromptWildcardCatalogGateway,
 )
 
 from .support import (
@@ -123,6 +150,99 @@ def test_projection_layout_reflows_before_changed_tag_keep_group() -> None:
     )
 
 
+def test_projection_layout_reflow_converges_after_scene_topology_formation() -> None:
+    """Canonical scene formation should preserve full-layout geometry exactly."""
+
+    previous_text = "prefix words\n**Landscape\nfield details"
+    marker_start = previous_text.index("**Landscape")
+    next_text = f"{previous_text[:marker_start]}**S\n{previous_text[marker_start:]}"
+    incremental_layout, _ = _layout_for(previous_text, text_width=180.0)
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=180.0)
+
+    result = incremental_layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=marker_start,
+        edit_end=marker_start,
+        replacement_text="**S\n",
+    )
+
+    assert result.reflowed_line_count < len(full_layout.frame.output.snapshot.lines)
+    assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
+        full_layout
+    )
+
+
+def test_canonical_reflow_rebinds_optimistic_prefix_without_rebuilding_it() -> None:
+    """Canonical IDs should not expand a later edit's geometry damage."""
+
+    previous_text = (
+        "prefix words, (decorated value:1.20), middle words, "
+        "(other value:1.30), suffix words"
+    )
+    first_edit_start = previous_text.index("words")
+    first_text = (
+        f"{previous_text[:first_edit_start]}X{previous_text[first_edit_start:]}"
+    )
+    layout, previous_projection = _layout_for(previous_text, text_width=110.0)
+    document_service = PromptDocumentService()
+    first_document_view = document_service.build_document_view(first_text)
+    syntax_service = PromptSyntaxService(StaticPromptWildcardCatalogGateway({}))
+    first_render_plan = syntax_service.build_render_plan(
+        first_document_view,
+        PromptSyntaxProfileService().default_profile(),
+    )
+    optimistic_result = PromptPlainTextDocumentEditor().try_build_plain_text_edit(
+        PromptProjectionIncrementalEdit(
+            start=first_edit_start,
+            end=first_edit_start,
+            replacement_text="X",
+            previous_source_text=previous_text,
+            next_source_text=first_text,
+        ),
+        previous_document=previous_projection,
+        document_view=first_document_view,
+        render_plan=first_render_plan,
+        display_mode=PromptProjectionDisplayMode.PROJECTED,
+        session=PromptProjectionSession(),
+        active_span_range=None,
+        decoration_accent_ranges=(),
+        scene_error_keys=frozenset(),
+    )
+    assert optimistic_result is not None
+    layout.set_projection_after_source_edit(
+        optimistic_result.projection_document,
+        prompt_document_view=first_document_view,
+        edit_start=first_edit_start,
+        edit_end=first_edit_start,
+        replacement_text="X",
+    )
+
+    second_edit_start = first_text.index("suffix") + len("suffix")
+    next_text = f"{first_text[:second_edit_start]}Y{first_text[second_edit_start:]}"
+    next_document_view, next_projection = _projection_for(next_text)
+    full_layout, _ = _layout_for(next_text, text_width=110.0)
+    result = layout.set_projection_after_source_edit(
+        next_projection,
+        prompt_document_view=next_document_view,
+        edit_start=second_edit_start,
+        edit_end=second_edit_start,
+        replacement_text="Y",
+    )
+
+    assert result.first_reflowed_line_index > 0
+    assert result.reflowed_line_count == 3
+    for line in layout.frame.output.snapshot.lines:
+        _assert_line_fragments_match_current_runs(layout, line)
+    assert _layout_geometry_signature(layout) == _layout_geometry_signature(
+        full_layout
+    ), (
+        f"incremental={' | '.join(_line_texts(layout))}; "
+        f"full={' | '.join(_line_texts(full_layout))}"
+    )
+
+
 def test_projection_layout_never_reuses_a_source_limited_terminal_line() -> None:
     """A probe boundary must not masquerade as deterministic suffix convergence."""
 
@@ -165,6 +285,58 @@ def test_projection_layout_never_reuses_a_source_limited_terminal_line() -> None
     assert result.source_limited is True
     assert result.reusable_previous_line_index is None
     assert probed_lines == []
+
+
+def test_reflow_probe_starts_at_first_semantically_reusable_suffix() -> None:
+    """Canonical recovery should skip windows whose suffix cannot be rebound."""
+
+    layout, _projection = _layout_for("alpha\nbeta\ngamma\ndelta", text_width=1000.0)
+    lines = layout.frame.output.snapshot.lines
+
+    line_index = earliest_reusable_suffix_line_index(
+        lines,
+        (False, False, False, True),
+        first_line_index=0,
+        edit_end=len("alpha"),
+    )
+
+    assert line_index == 3
+
+
+def test_suffix_semantic_validation_skips_ineligible_prefix_lines() -> None:
+    """Bounded convergence should not validate lines before its first candidate."""
+
+    layout, projection = _layout_for(
+        "alpha\nbeta\ngamma\ndelta",
+        text_width=1000.0,
+    )
+    lines = layout.frame.output.snapshot.lines
+
+    reusable = reusable_suffix_semantics_by_line(
+        lines,
+        PromptReusedLineSemanticResolver(projection),
+        source_delta=0,
+        projection_delta=0,
+        first_candidate_line_index=2,
+    )
+
+    assert reusable == (False, False, True, True)
+
+
+def test_reflow_probe_reports_no_semantically_reusable_suffix() -> None:
+    """Canonical recovery should request one full pass when no suffix is reusable."""
+
+    layout, _projection = _layout_for("alpha\nbeta\ngamma", text_width=1000.0)
+    lines = layout.frame.output.snapshot.lines
+
+    line_index = earliest_reusable_suffix_line_index(
+        lines,
+        (False, False, False),
+        first_line_index=0,
+        edit_end=len("alpha"),
+    )
+
+    assert line_index is None
 
 
 def test_projection_layout_fork_reflows_without_mutating_cached_source() -> None:

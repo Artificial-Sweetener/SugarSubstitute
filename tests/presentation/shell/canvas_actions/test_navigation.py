@@ -36,14 +36,14 @@ from substitute.domain.workflow import (
 
 
 from tests.presentation.shell.canvas_actions.support import (
-    _import_module,
+    _import_navigation_module,
 )
 
 
 def test_active_output_selection_records_manual_uuid() -> None:
     """Concrete output selection should delegate to OutputCanvasStateService."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     workflow = WorkflowState()
     calls: list[tuple[object, str]] = []
     view = SimpleNamespace(
@@ -57,7 +57,7 @@ def test_active_output_selection_records_manual_uuid() -> None:
         ),
     )
 
-    mod.WorkspaceCanvasActions(view).on_active_output_changed("out-1")
+    mod.WorkspaceOutputNavigationActions(view).on_active_output_changed("out-1")
 
     assert calls == [(workflow, "out-1")]
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
@@ -66,7 +66,7 @@ def test_active_output_selection_records_manual_uuid() -> None:
 def test_active_output_grid_selection_records_manual_grid() -> None:
     """Grid output selection should delegate to OutputCanvasStateService."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     workflow = WorkflowState()
     calls: list[tuple[object, str, object]] = []
     view = SimpleNamespace(
@@ -80,7 +80,7 @@ def test_active_output_grid_selection_records_manual_grid() -> None:
         ),
     )
 
-    mod.WorkspaceCanvasActions(view).on_active_output_grid_changed("wf:node")
+    mod.WorkspaceOutputNavigationActions(view).on_active_output_grid_changed("wf:node")
 
     assert calls == [(workflow, "wf:node", None)]
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
@@ -89,7 +89,7 @@ def test_active_output_grid_selection_records_manual_grid() -> None:
 def test_active_output_scene_selection_records_manual_scene() -> None:
     """Scene output selection should delegate to OutputCanvasStateService."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     workflow = WorkflowState()
     calls: list[tuple[object, OutputSceneNavigationSelection]] = []
     view = SimpleNamespace(
@@ -117,7 +117,7 @@ def test_active_output_scene_selection_records_manual_scene() -> None:
         set_index=1,
         image_id=None,
     )
-    actions = mod.WorkspaceCanvasActions(view)
+    actions = mod.WorkspaceOutputNavigationActions(view)
     actions.on_active_output_scene_changed(scene_selection)
     actions.on_active_output_scene_changed(overview_selection)
 
@@ -128,7 +128,7 @@ def test_active_output_scene_selection_records_manual_scene() -> None:
 def test_output_compare_selection_records_compare_state() -> None:
     """Output compare changes should delegate to OutputCanvasStateService."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     workflow = WorkflowState()
     calls: list[tuple[WorkflowState, OutputCompareState]] = []
     view = SimpleNamespace(
@@ -147,7 +147,7 @@ def test_output_compare_selection_records_compare_state() -> None:
         comparison=OutputCompareSelection(None, 1, "source-b"),
     )
 
-    mod.WorkspaceCanvasActions(view).on_output_compare_changed(state)
+    mod.WorkspaceOutputNavigationActions(view).on_output_compare_changed(state)
 
     assert calls == [(workflow, state)]
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
@@ -156,7 +156,7 @@ def test_output_compare_selection_records_compare_state() -> None:
 def test_output_selection_intents_schedule_active_projection() -> None:
     """Persisted Output selection intents should schedule active workflow projection."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     workflow = WorkflowState()
     scheduled: list[str] = []
     view = SimpleNamespace(
@@ -178,7 +178,7 @@ def test_output_selection_intents_schedule_active_projection() -> None:
         base=OutputCompareSelection(None, 1, "source-a"),
         comparison=OutputCompareSelection(None, 1, "source-b"),
     )
-    actions = mod.WorkspaceCanvasActions(view)
+    actions = mod.WorkspaceOutputNavigationActions(view)
 
     actions.on_active_output_changed("out-1")
     actions.on_active_output_grid_changed("wf:node")

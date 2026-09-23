@@ -57,6 +57,63 @@ def test_projection_builder_projects_escaped_weight_shape_as_literal_plain_text(
     assert projection.runs[0].display_text == "(painting:1.2)"
 
 
+def test_projected_emphasis_hides_nested_literal_escapes_with_source_mapping() -> None:
+    """Keep emphasis content readable without inventing caret stops for escapes."""
+
+    source = r"(casshern \(series\):1.25)"
+    projection = _build_projection(source)
+    content_run = next(
+        run for run in projection.runs if run.kind is PromptProjectionRunKind.TEXT
+    )
+
+    assert projection.source_text == source
+    assert content_run.display_text == "casshern (series)"
+    opening_escape = source.index(r"\(")
+    closing_escape = source.index(r"\)")
+    assert content_run.source_positions[9:11] == (
+        opening_escape,
+        opening_escape + 2,
+    )
+    assert content_run.source_positions[-2:] == (
+        closing_escape,
+        closing_escape + 2,
+    )
+    assert opening_escape + 1 not in content_run.source_positions
+    assert closing_escape + 1 not in content_run.source_positions
+
+
+def test_nested_emphasis_resolves_hidden_escape_to_inner_visible_caret() -> None:
+    """Keep a source position inside an escape on the innermost caret stream."""
+
+    source = r"((casshern \(series\):1.25) perspective:1.10)"
+    projection = _build_projection(source)
+    opening_escape = source.index(r"\(")
+
+    before = projection.caret_map.state_for_source_position(opening_escape + 1)
+    after = projection.caret_map.state_for_source_position(
+        opening_escape + 1, prefer_after=True
+    )
+
+    assert before.source_position == opening_escape
+    assert after.source_position == opening_escape + 2
+
+
+def test_nested_outer_plain_content_resolves_hidden_escape() -> None:
+    """Keep visible caret steps in plain content between nested decorations."""
+
+    source = r"((cat:1.05) perspective \(wide\):1.10)"
+    projection = _build_projection(source)
+    opening_escape = source.index(r"\(")
+
+    before = projection.caret_map.state_for_source_position(opening_escape + 1)
+    after = projection.caret_map.state_for_source_position(
+        opening_escape + 1, prefer_after=True
+    )
+
+    assert before.source_position == opening_escape
+    assert after.source_position == opening_escape + 2
+
+
 def test_projection_builder_raw_mode_preserves_literal_parenthesis_escapes_verbatim() -> (
     None
 ):

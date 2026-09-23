@@ -56,8 +56,12 @@ class PromptEditorObservability:
         if id(editor) in self._observed_editor_ids:
             return
         self._observed_editor_ids.add(id(editor))
-        surface = getattr(editor, "_surface", None)
-        interaction = getattr(editor, "_interaction_controller", None)
+        runtime = getattr(editor, "_runtime", None)
+        projection = getattr(runtime, "projection_or_none", None)
+        core = getattr(runtime, "core_or_none", None)
+        surface = getattr(projection, "surface", None)
+        syntax = getattr(core, "syntax", None)
+        interaction = getattr(syntax, "interaction_controller", None)
         autocomplete = getattr(interaction, "_autocomplete", None)
         autocomplete_timing = getattr(
             interaction,
@@ -69,17 +73,14 @@ class PromptEditorObservability:
             "_autocomplete_preview_projection_owner",
             None,
         )
-        caret_preview_coordinator = getattr(
-            surface,
-            "_caret_autocomplete_preview_coordinator",
-            None,
-        )
         caret_movement_controller = getattr(
             surface,
             "_caret_movement_controller",
             None,
         )
-        text_mutations = getattr(surface, "_text_mutations", None)
+        caret_publication = getattr(surface, "_caret_publication", None)
+        input_runtime = getattr(surface, "_input_runtime", None)
+        text_mutations = getattr(input_runtime, "text_mutations", None)
         observed_targets = (
             (
                 editor,
@@ -136,15 +137,12 @@ class PromptEditorObservability:
             (
                 surface,
                 "projection source and caret owner",
-                (
-                    "set_autocomplete_preview_state",
-                    "_backspace",
-                    "_delete",
-                    "_flush_pending_projection_update",
-                    "_mark_source_text_changed",
-                    "clear_autocomplete_preview_state",
-                    "invalidate_autocomplete_preview_paint",
-                ),
+                ("_backspace", "_delete", "_flush_pending_projection_update"),
+            ),
+            (
+                getattr(surface, "_source_change_publication", None),
+                "source change publication owner",
+                ("publish",),
             ),
             (
                 text_mutations,
@@ -154,17 +152,21 @@ class PromptEditorObservability:
             (
                 autocomplete_preview_projection,
                 "autocomplete preview projection owner",
-                ("set_preview_state",),
-            ),
-            (
-                caret_preview_coordinator,
-                "caret autocomplete preview coordinator",
-                ("reconcile_after_caret_state_change",),
+                (
+                    "set_preview_state",
+                    "reconcile_after_caret_state_change",
+                    "_invalidate_paint",
+                ),
             ),
             (
                 caret_movement_controller,
                 "projection caret movement owner",
                 ("move_horizontally", "move_vertically"),
+            ),
+            (
+                caret_publication,
+                "projection caret publication owner",
+                ("publish", "publish_deferred", "publish_direct_feedback"),
             ),
         )
         for target, owner, method_names in observed_targets:

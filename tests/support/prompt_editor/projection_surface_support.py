@@ -36,8 +36,10 @@ from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraThumbnailVariant,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.application.ports import PromptWildcardResolution
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE, ThumbnailAsset
@@ -340,6 +342,16 @@ def configure_trailing_word_wrap_boundary(
 def flush_semantic_refresh(box: PromptEditor) -> None:
     """Apply queued semantic prompt state without waiting for Qt timers."""
 
-    cast(Any, box)._interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
+    cast(
+        Any, box
+    )._runtime.core.syntax.interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
         reason="test"
     )
+
+
+def submit_scheduled_semantic_refresh(box: PromptEditor) -> None:
+    """Deliver queued semantics through the production debounce callback path."""
+
+    interaction = cast(Any, box)._runtime.core.syntax.interaction_controller  # noqa: SLF001
+    semantic_refresh = interaction._semantic_refresh  # noqa: SLF001
+    semantic_refresh._debouncer.flush(reason="test_scheduled")  # noqa: SLF001

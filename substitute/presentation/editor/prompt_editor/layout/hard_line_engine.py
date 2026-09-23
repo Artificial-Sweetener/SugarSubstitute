@@ -49,10 +49,12 @@ from .models import (
     PromptProjectionLayoutSnapshot,
     PromptProjectionLineSnapshot,
 )
-from .shifted_snapshot import (
+from .snapshot_indexes import (
     LineCaretRectMapping,
     LineInlineObjectFragmentSequence,
     LineTextFragmentSequence,
+)
+from .shifted_snapshot import (
     concrete_line_snapshot,
 )
 

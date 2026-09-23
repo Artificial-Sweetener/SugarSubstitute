@@ -6,6 +6,7 @@ source = "https://github.com/microsoft/fluentui-system-icons"
 revision = "a6931cf6ad3541975b132762c8cad67b2f54fd7a"
 source_paths = [
   "assets/Arrow Autofit Width/SVG/ic_fluent_arrow_autofit_width_20_regular.svg",
+  "assets/Arrow Circle Up Sparkle/SVG/ic_fluent_arrow_circle_up_sparkle_20_regular.svg",
   "assets/Arrow Move/SVG/ic_fluent_arrow_move_20_regular.svg",
   "assets/Arrow Undo/SVG/ic_fluent_arrow_undo_20_regular.svg",
   "assets/Arrow Redo/SVG/ic_fluent_arrow_redo_20_regular.svg",
@@ -29,6 +30,8 @@ source_paths = [
 vendored_files = [
   "substitute/presentation/resources/icons/ArrowAutofitWidth20Regular_black.svg",
   "substitute/presentation/resources/icons/ArrowAutofitWidth20Regular_white.svg",
+  "substitute/presentation/resources/icons/ArrowCircleUpSparkle20Regular_black.svg",
+  "substitute/presentation/resources/icons/ArrowCircleUpSparkle20Regular_white.svg",
   "substitute/presentation/resources/icons/RotateLeft20Regular_black.svg",
   "substitute/presentation/resources/icons/RotateLeft20Regular_white.svg",
   "substitute/presentation/resources/icons/RotateRight20Regular_black.svg",
@@ -217,6 +220,19 @@ source_paths = [
 ]
 vendored_files = [
   "substitute/presentation/resources/icons/CivitaiBadge.svg",
+]
+
+[[component]]
+name = "OpenModelDB Favicon"
+license = "GPL-3.0-only"
+license_file = "third_party/licenses/openmodeldb.LICENSE.txt"
+source = "https://github.com/OpenModelDB/open-model-database"
+revision = "782aac088bd83dd3fc438a42eb0c3868dc559110"
+source_paths = [
+  "public/favicon.ico",
+]
+vendored_files = [
+  "substitute/presentation/resources/icons/OpenModelDBBadge.ico",
 ]
 
 [[component]]

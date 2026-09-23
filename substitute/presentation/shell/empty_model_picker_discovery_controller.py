@@ -23,7 +23,7 @@ from dataclasses import dataclass
 import logging
 from typing import Protocol
 
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import QObject, Slot
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import InfoBar  # type: ignore[import-untyped]
 
@@ -38,6 +38,15 @@ from substitute.presentation.model_discovery import (
     InstalledModelReceiver,
     ModelDiscoveryModal,
     ModelSuggestionCredentialCoordinator,
+)
+from substitute.presentation.model_discovery.credential_prompt import (
+    CredentialPromptChoice,
+)
+from substitute.presentation.model_discovery.discovery_overlay import (
+    ModelDiscoveryOverlay,
+)
+from substitute.presentation.model_discovery.discovery_task_runner import (
+    DiscoveryTaskRunner,
 )
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.model_acquisition import AcquisitionResult
@@ -64,49 +73,6 @@ class ModelCatalogRefresher(Protocol):
         """Reload authoritative catalog rows from the active ComfyUI target."""
 
 
-class _ThreadCancellation:
-    """Expose QThread interruption through the acquisition cancellation port."""
-
-    def __init__(self, thread: QThread) -> None:
-        """Store the operation's owning thread."""
-
-        self._thread = thread
-
-    def is_cancelled(self) -> bool:
-        """Return whether shutdown or modal cancellation interrupted the task."""
-
-        return self._thread.isInterruptionRequested()
-
-
-class _SuggestionTask(QObject):
-    """Run one bounded provider operation away from the Qt owner thread."""
-
-    succeeded = Signal(object)
-    failed = Signal(str)
-    finished = Signal()
-
-    def __init__(self, work: Callable[[], object], *, operation: str) -> None:
-        """Store one blocking use case and its diagnostic identity."""
-
-        super().__init__()
-        self._work = work
-        self._operation = operation
-
-    @Slot()
-    def run(self) -> None:
-        """Execute the use case and always release its owning thread."""
-
-        try:
-            value = self._work()
-        except Exception as error:
-            _LOGGER.exception("Model suggestion operation failed: %s", self._operation)
-            self.failed.emit(str(error) or type(error).__name__)
-        else:
-            self.succeeded.emit(value)
-        finally:
-            self.finished.emit()
-
-
 class EmptyModelPickerDiscoveryController(QObject):
     """Own discovery, explicit credentials, verified transfer, and picker refresh."""
 
@@ -125,11 +91,16 @@ class EmptyModelPickerDiscoveryController(QObject):
         self._service = service
         self._catalog = catalog
         self._credentials = credentials
-        self._thread: QThread | None = None
-        self._task: _SuggestionTask | None = None
+        self._runner = DiscoveryTaskRunner(self)
+        self._runner.succeeded.connect(self._handle_operation_success)
+        self._runner.failed.connect(self._show_failure)
+        self._runner.finished.connect(self._release_task)
+        self._operation_succeeded: Callable[[object], None] | None = None
         self._modal: ModelDiscoveryModal | None = None
         self._reusable_modal: ModelDiscoveryModal | None = None
+        self._overlay: ModelDiscoveryOverlay | None = None
         self._plan: ModelSuggestionPlan | None = None
+        self._public_only = False
         self._installed_value_receiver: InstalledModelReceiver | None = None
         self._pending_operation: (
             tuple[Callable[[], object], Callable[[object], None], str] | None
@@ -139,7 +110,7 @@ class EmptyModelPickerDiscoveryController(QObject):
     def running(self) -> bool:
         """Return whether provider discovery, preview, or acquisition is active."""
 
-        return self._thread is not None
+        return self._runner.running
 
     def request_for_empty_picker(
         self,
@@ -165,12 +136,23 @@ class EmptyModelPickerDiscoveryController(QObject):
             return False
         modal = self._reusable_modal
         if modal is None:
-            modal = ModelDiscoveryModal(parent=self._parent_widget)
+            overlay = ModelDiscoveryOverlay(owner=self._parent_widget)
+            modal = ModelDiscoveryModal(parent=overlay)
+            overlay.attach(modal)
             modal.download_requested.connect(self._download_selected)
+            modal.credential_requested.connect(self._configure_provider_credential)
+            modal.show_all_requested.connect(self._show_all_models)
             modal.finished.connect(self._modal_closed)
+            self._overlay = overlay
             self._reusable_modal = modal
+        active_overlay = self._overlay
+        if active_overlay is None:
+            raise RuntimeError("Model discovery overlay is unavailable.")
         self._modal = modal
+        self._public_only = False
         self._installed_value_receiver = installed_value_receiver
+        modal.set_context(context)
+        active_overlay.present()
         modal.show_loading()
         return self._start(
             lambda: service.plan_empty_picker(context),
@@ -184,15 +166,14 @@ class EmptyModelPickerDiscoveryController(QObject):
         modal = self._reusable_modal
         if modal is not None:
             modal.close()
-            modal.deleteLater()
+        overlay = self._overlay
+        if overlay is not None:
+            overlay.hide()
+            overlay.deleteLater()
         self._modal = None
         self._reusable_modal = None
-        thread = self._thread
-        if thread is not None:
-            thread.requestInterruption()
-            thread.quit()
-            if not thread.wait(5000):
-                _LOGGER.warning("Model suggestion task did not stop before shutdown.")
+        self._overlay = None
+        self._runner.close()
 
     @Slot(object)
     def _handle_plan(self, value: object) -> None:
@@ -210,11 +191,18 @@ class EmptyModelPickerDiscoveryController(QObject):
             )
             return
         self._plan = value
-        modal.show_plan(value)
+        modal.show_plan(value, public_only=self._public_only)
+        for suggestion in value.suggestions:
+            for offer in suggestion.offers:
+                provider_id = offer.reference.provider_id
+                modal.set_provider_credential_available(
+                    provider_id,
+                    available=self._credentials.has_credential(provider_id),
+                )
         suggestions = tuple(
             suggestion
             for suggestion in value.suggestions
-            if suggestion.thumbnail_url is not None
+            if suggestion.primary_offer.thumbnail_url is not None
         )
         if suggestions:
             self._pending_operation = (
@@ -238,17 +226,17 @@ class EmptyModelPickerDiscoveryController(QObject):
             else:
                 modal.set_thumbnail(item.identity, item.thumbnail)
 
-    @staticmethod
     def _load_thumbnails(
+        self,
         service: ModelSuggestionService,
         suggestions: tuple[ModelSuggestion, ...],
     ) -> tuple[_ThumbnailLoadResult, ...]:
         """Settle each preview independently so one provider asset cannot fail all."""
 
         results: list[_ThumbnailLoadResult] = []
-        thread = QThread.currentThread()
+        cancellation = self._runner.current_cancellation()
         for suggestion in suggestions:
-            if thread.isInterruptionRequested():
+            if cancellation.is_cancelled():
                 break
             try:
                 thumbnail = service.fetch_thumbnail(suggestion)
@@ -262,8 +250,83 @@ class EmptyModelPickerDiscoveryController(QObject):
             results.append(_ThumbnailLoadResult(suggestion.identity, thumbnail))
         return tuple(results)
 
-    @Slot(str)
-    def _download_selected(self, identity: str) -> None:
+    @Slot(str, str)
+    def _configure_provider_credential(self, identity: str, provider_id: str) -> None:
+        """Continue with a key or discover models that need no key."""
+
+        modal = self._modal
+        plan = self._plan
+        if modal is None or plan is None:
+            return
+        suggestion = next(
+            (item for item in plan.suggestions if item.identity == identity), None
+        )
+        if suggestion is None or suggestion.offer_for_provider(provider_id) is None:
+            return
+        try:
+            choice = self._credentials.request_choice(
+                provider_id, modal, protected_model_count=1
+            )
+            if choice is CredentialPromptChoice.SAVED:
+                modal.set_provider_credential_available(provider_id)
+                self._download_selected(identity, provider_id)
+            elif choice is CredentialPromptChoice.PUBLIC_ONLY:
+                self._show_public_models()
+        except RuntimeError as error:
+            _LOGGER.warning(
+                "Model suggestion credential flow is unavailable",
+                extra={"provider_id": provider_id},
+                exc_info=error,
+            )
+            modal.show_failure(
+                render_application_text(
+                    app_text("Credentials are unavailable for %1.", provider_id)
+                )
+            )
+
+    def _show_public_models(self) -> None:
+        """Replace protected offers with a fresh credential-free provider plan."""
+
+        modal = self._modal
+        plan = self._plan
+        service = self._service
+        if modal is None or plan is None or service is None:
+            return
+        self._public_only = True
+        modal.show_loading()
+        operation = (
+            lambda: service.plan_public_picker(plan.context),
+            self._handle_plan,
+            "discover-public",
+        )
+        if self.running:
+            self._pending_operation = operation
+        else:
+            self._start(*operation)
+
+    @Slot()
+    def _show_all_models(self) -> None:
+        """Restore the complete provider offer list after public-only browsing."""
+
+        modal = self._modal
+        plan = self._plan
+        service = self._service
+        if modal is None or plan is None or service is None:
+            return
+        self._public_only = False
+        modal.show_loading()
+        operation = (
+            lambda: service.plan_empty_picker(plan.context),
+            self._handle_plan,
+            "discover-all",
+        )
+        if self.running:
+            self._pending_operation = operation
+        else:
+            self._start(*operation)
+
+    @Slot(str, str)
+    def _download_selected(self, identity: str, provider_id: str) -> None:
         """Prompt only when necessary, then queue the exact reviewed transfer."""
 
         plan = self._plan
@@ -281,19 +344,31 @@ class EmptyModelPickerDiscoveryController(QObject):
                 )
             )
             return
+        offer = suggestion.offer_for_provider(provider_id)
+        if offer is None:
+            modal.show_failure(
+                render_application_text(
+                    app_text("The selected model is no longer available.")
+                )
+            )
+            return
         try:
-            authorized = self._credentials.authorize(suggestion, modal)
+            authorized = self._credentials.authorize(
+                suggestion,
+                modal,
+                provider_id=provider_id,
+            )
         except RuntimeError as error:
             _LOGGER.warning(
                 "Model suggestion credential flow is unavailable",
-                extra={"provider_id": suggestion.reference.provider_id},
+                extra={"provider_id": offer.reference.provider_id},
                 exc_info=error,
             )
             modal.show_failure(
                 render_application_text(
                     app_text(
                         "Credentials are unavailable for %1.",
-                        suggestion.reference.provider_name,
+                        offer.reference.provider_name,
                     )
                 )
             )
@@ -305,9 +380,12 @@ class EmptyModelPickerDiscoveryController(QObject):
         def acquire() -> object:
             """Acquire and refresh the catalog before publishing the field value."""
 
-            thread = self._thread
-            cancellation = _ThreadCancellation(thread) if thread is not None else None
-            result = service.acquire(plan, identity, cancellation=cancellation)
+            result = service.acquire(
+                plan,
+                identity,
+                provider_id=provider_id,
+                cancellation=self._runner.current_cancellation(),
+            )
             model_kind = plan.context.artifact_kind.value
             self._catalog.invalidate(model_kind)
             self._catalog.refresh_models(model_kind)
@@ -362,22 +440,18 @@ class EmptyModelPickerDiscoveryController(QObject):
     ) -> bool:
         """Start one operation and preserve any next operation until release."""
 
-        if self._thread is not None:
+        if self._runner.running:
             return False
-        thread = QThread(self)
-        task = _SuggestionTask(work, operation=operation)
-        task.moveToThread(thread)
-        thread.started.connect(task.run)
-        task.succeeded.connect(on_succeeded)
-        task.failed.connect(self._show_failure)
-        task.finished.connect(thread.quit)
-        task.finished.connect(task.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        thread.destroyed.connect(self._release_task)
-        self._thread = thread
-        self._task = task
-        thread.start()
-        return True
+        self._operation_succeeded = on_succeeded
+        return self._runner.start(work, operation)
+
+    @Slot(object)
+    def _handle_operation_success(self, value: object) -> None:
+        """Deliver one task result to its current presentation callback."""
+
+        on_succeeded = self._operation_succeeded
+        if on_succeeded is not None:
+            on_succeeded(value)
 
     @Slot(str)
     def _show_failure(self, detail: str) -> None:
@@ -392,8 +466,7 @@ class EmptyModelPickerDiscoveryController(QObject):
     def _release_task(self) -> None:
         """Release one task and start a queued dependent operation."""
 
-        self._thread = None
-        self._task = None
+        self._operation_succeeded = None
         pending, self._pending_operation = self._pending_operation, None
         if pending is not None and self._modal is not None:
             self._start(*pending)
@@ -402,9 +475,9 @@ class EmptyModelPickerDiscoveryController(QObject):
     def _modal_closed(self, _result: int) -> None:
         """Release request state while retaining the bounded reusable surface."""
 
-        thread = self._thread
-        if thread is not None:
-            thread.requestInterruption()
+        if self._overlay is not None:
+            self._overlay.hide()
+        self._runner.cancel()
         self._modal = None
         self._plan = None
         self._installed_value_receiver = None

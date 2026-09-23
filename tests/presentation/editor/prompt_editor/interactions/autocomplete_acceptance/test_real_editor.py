@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    autocomplete_panel,
+)
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
@@ -49,7 +53,7 @@ from tests.presentation.editor.prompt_editor.autocomplete.surface_support import
 def _panel(box: QWidget) -> PromptAutocompletePanel:
     """Return the real editor's current autocomplete panel."""
 
-    panel = getattr(box, "_autocomplete_panel")
+    panel = autocomplete_panel(box)
     assert isinstance(panel, PromptAutocompletePanel)
     return panel
 
@@ -162,7 +166,7 @@ def test_prompt_editor_real_widget_suppresses_autocomplete_after_caret_navigatio
     process_events(app)
 
     assert gateway.calls == []
-    assert getattr(box, "_autocomplete_panel") is None
+    assert autocomplete_panel(box) is None
     assert has_pending_autocomplete_refresh(box) is False
 
 

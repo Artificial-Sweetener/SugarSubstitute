@@ -44,15 +44,9 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     record_prompt_editor_work_count,
 )
 
-from ..commands.diagnostic_commands import (
-    PromptDiagnosticAction,
-    PromptDiagnosticCommandResult,
-    PromptDuplicateEmphasisDiagnosticAction,
-    PromptDuplicateIgnoreDiagnosticAction,
-    PromptDuplicateRemovalDiagnosticAction,
-    PromptSpellingDictionaryAddDiagnosticAction,
-    PromptSpellingIgnoreDiagnosticAction,
-    PromptSpellingReplacementDiagnosticAction,
+from .diagnostic_action_dispatcher import (
+    PromptDiagnosticActionDispatcher,
+    PromptDiagnosticActionHost,
 )
 from ..commands.feature_commands import PromptFeatureSnapshotIdentity
 from .diagnostic_menu_actions import (
@@ -81,7 +75,7 @@ class PromptDiagnosticsCursor(Protocol):
         """Return the current source-backed cursor position."""
 
 
-class PromptDiagnosticsHost(Protocol):
+class PromptDiagnosticsHost(PromptDiagnosticActionHost, Protocol):
     """Describe editor commands and reads used by diagnostics presentation."""
 
     def toPlainText(self) -> str:
@@ -89,18 +83,6 @@ class PromptDiagnosticsHost(Protocol):
 
     def textCursor(self) -> PromptDiagnosticsCursor:
         """Return a source-backed cursor for visibility policy."""
-
-    def setFocus(self) -> None:
-        """Focus the prompt editor after accepted diagnostic actions."""
-
-    def prompt_command_source_identity(self) -> PromptSourceIdentity | None:
-        """Return the source identity for prepared diagnostic commands."""
-
-    def execute_diagnostic_action(
-        self,
-        action: PromptDiagnosticAction,
-    ) -> PromptDiagnosticCommandResult[object]:
-        """Execute one prepared diagnostic action through commands."""
 
 
 class PromptDiagnosticsSurface(Protocol):
@@ -116,13 +98,6 @@ class PromptDiagnosticsSurface(Protocol):
         """Clear painted diagnostics."""
 
 
-class PromptDiagnosticsRefreshRequester(Protocol):
-    """Describe the narrow refresh command needed after accepted actions."""
-
-    def refresh_now(self) -> None:
-        """Request a current diagnostics refresh."""
-
-
 @dataclass(frozen=True, slots=True)
 class PromptDiagnosticsSnapshot:
     """Publish prepared diagnostic state for foreground consumers."""
@@ -136,7 +111,7 @@ class PromptDiagnosticsSnapshot:
 
 
 class PromptDiagnosticsPresentation:
-    """Own diagnostics display state, prepared menu data, and action commands."""
+    """Own diagnostics display state and prepared menu data."""
 
     def __init__(
         self,
@@ -146,7 +121,7 @@ class PromptDiagnosticsPresentation:
         providers: PromptDiagnosticsProviderLifecycle,
         wildcard_feature: PromptWildcardActionSource,
         feature_profile_id: Hashable | None,
-        refresh_requester: PromptDiagnosticsRefreshRequester,
+        action_dispatcher: PromptDiagnosticActionDispatcher,
         display_policy: PromptDiagnosticDisplayPolicy | None = None,
     ) -> None:
         """Store bounded diagnostics presentation collaborators."""
@@ -156,7 +131,7 @@ class PromptDiagnosticsPresentation:
         self._providers = providers
         self._wildcard_feature = wildcard_feature
         self._feature_profile_id = feature_profile_id
-        self._refresh_requester = refresh_requester
+        self._action_dispatcher = action_dispatcher
         self._display_policy = display_policy or PromptDiagnosticDisplayPolicy()
         self._snapshot: ApplicationPromptDiagnosticSnapshot | None = None
         self._published_snapshot = PromptDiagnosticsSnapshot(
@@ -216,22 +191,28 @@ class PromptDiagnosticsPresentation:
             return ()
         return actions_for_prepared_diagnostic(
             diagnostic=diagnostic,
-            source_identity=self.source_identity_for_diagnostic_action(),
+            source_identity=self._action_dispatcher.source_identity_for_action(),
             spelling_suggestions=self._prepared_spelling_suggestions,
-            dictionary_add_supported=self.dictionary_add_supported(),
+            dictionary_add_supported=(
+                self._action_dispatcher.dictionary_add_supported()
+            ),
             wildcard_feature=self._wildcard_feature,
-            replace_spelling_diagnostic=self.replace_spelling_diagnostic,
+            replace_spelling_diagnostic=(
+                self._action_dispatcher.replace_spelling_diagnostic
+            ),
             ignore_spelling_diagnostic_for_session=(
-                self.ignore_spelling_diagnostic_for_session
+                self._action_dispatcher.ignore_spelling_diagnostic_for_session
             ),
             add_spelling_diagnostic_to_dictionary=(
-                self.add_spelling_diagnostic_to_dictionary
+                self._action_dispatcher.add_spelling_diagnostic_to_dictionary
             ),
-            remove_duplicate_diagnostic=self.remove_duplicate_diagnostic,
+            remove_duplicate_diagnostic=(
+                self._action_dispatcher.remove_duplicate_diagnostic
+            ),
             emphasize_first_duplicate_diagnostic=(
-                self.emphasize_first_duplicate_diagnostic
+                self._action_dispatcher.emphasize_first_duplicate_diagnostic
             ),
-            ignore_duplicate_diagnostic=self.ignore_duplicate_diagnostic,
+            ignore_duplicate_diagnostic=self._ignore_duplicate_diagnostic,
         )
 
     def prepared_menu_actions_for_source_position(
@@ -261,135 +242,6 @@ class PromptDiagnosticsPresentation:
         if diagnostic.kind is not PromptDiagnosticKind.SPELLING:
             return None
         return self._prepared_spelling_suggestions.get(diagnostic.diagnostic_id)
-
-    def source_identity_for_diagnostic_action(
-        self,
-    ) -> PromptSourceIdentity | None:
-        """Return the source identity for menu-built diagnostic actions."""
-
-        return self._host.prompt_command_source_identity()
-
-    def replace_spelling_diagnostic(
-        self,
-        diagnostic: PromptDiagnostic,
-        replacement: str,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-    ) -> None:
-        """Replace one spelling diagnostic range in the prompt editor."""
-
-        result = self._host.execute_diagnostic_action(
-            PromptSpellingReplacementDiagnosticAction(
-                diagnostic=diagnostic,
-                replacement_text=replacement,
-                source_identity=self._diagnostic_action_identity(source_identity),
-            )
-        )
-        if result.status != "rejected":
-            self._host.setFocus()
-
-    def ignore_spelling_diagnostic_for_session(
-        self,
-        diagnostic: PromptDiagnostic,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-    ) -> None:
-        """Ignore one spelling diagnostic word for the current session."""
-
-        provider = self._providers.spellcheck_provider
-        if provider is None:
-            return
-        result = self._host.execute_diagnostic_action(
-            PromptSpellingIgnoreDiagnosticAction(
-                diagnostic=diagnostic,
-                source_identity=self._diagnostic_action_identity(source_identity),
-            )
-        )
-        if result.status == "rejected" or result.spelling_word is None:
-            return
-        provider.ignore_word_for_session(result.spelling_word)
-        self._refresh_requester.refresh_now()
-
-    def add_spelling_diagnostic_to_dictionary(
-        self,
-        diagnostic: PromptDiagnostic,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-    ) -> None:
-        """Persist one spelling diagnostic word when supported by the backend."""
-
-        provider = self._providers.spellcheck_provider
-        if provider is None:
-            return
-        result = self._host.execute_diagnostic_action(
-            PromptSpellingDictionaryAddDiagnosticAction(
-                diagnostic=diagnostic,
-                source_identity=self._diagnostic_action_identity(source_identity),
-            )
-        )
-        if result.status == "rejected" or result.spelling_word is None:
-            return
-        if provider.add_word_to_dictionary(result.spelling_word):
-            self._refresh_requester.refresh_now()
-
-    def dictionary_add_supported(self) -> bool:
-        """Return whether persistent dictionary additions are supported."""
-
-        provider = self._providers.spellcheck_provider
-        return False if provider is None else provider.dictionary_add_supported()
-
-    def remove_duplicate_diagnostic(
-        self,
-        diagnostic: PromptDiagnostic,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-    ) -> None:
-        """Remove one duplicate-segment diagnostic occurrence from the prompt."""
-
-        result = self._host.execute_diagnostic_action(
-            PromptDuplicateRemovalDiagnosticAction(
-                diagnostic=diagnostic,
-                source_identity=self._diagnostic_action_identity(source_identity),
-            )
-        )
-        if result.status != "rejected":
-            self._host.setFocus()
-
-    def emphasize_first_duplicate_diagnostic(
-        self,
-        diagnostic: PromptDiagnostic,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-    ) -> None:
-        """Remove the duplicate occurrence and emphasize the first occurrence."""
-
-        result = self._host.execute_diagnostic_action(
-            PromptDuplicateEmphasisDiagnosticAction(
-                diagnostic=diagnostic,
-                source_identity=self._diagnostic_action_identity(source_identity),
-            )
-        )
-        if result.status != "rejected":
-            self._host.setFocus()
-
-    def ignore_duplicate_diagnostic(
-        self,
-        diagnostic: PromptDiagnostic,
-        *,
-        source_identity: PromptSourceIdentity | None = None,
-    ) -> None:
-        """Suppress one duplicate diagnostic for the current editor session."""
-
-        result = self._host.execute_diagnostic_action(
-            PromptDuplicateIgnoreDiagnosticAction(
-                diagnostic=diagnostic,
-                source_identity=self._diagnostic_action_identity(source_identity),
-            )
-        )
-        if result.status == "rejected" or result.ignored_diagnostic_id is None:
-            return
-        self._ignored_diagnostic_ids.add(result.ignored_diagnostic_id)
-        self.refresh_visible_diagnostics()
 
     def clear(self) -> None:
         """Clear current diagnostics presentation state."""
@@ -493,13 +345,22 @@ class PromptDiagnosticsPresentation:
             if diagnostic.diagnostic_id not in self._ignored_diagnostic_ids
         )
 
-    def _diagnostic_action_identity(
+    def _ignore_duplicate_diagnostic(
         self,
-        source_identity: PromptSourceIdentity | None,
-    ) -> PromptSourceIdentity | None:
-        """Return the supplied or current source identity for an action."""
+        diagnostic: PromptDiagnostic,
+        *,
+        source_identity: PromptSourceIdentity | None = None,
+    ) -> None:
+        """Apply a validated duplicate ignore to presentation filtering."""
 
-        return source_identity or self._host.prompt_command_source_identity()
+        ignored_id = self._action_dispatcher.ignore_duplicate_diagnostic(
+            diagnostic,
+            source_identity=source_identity,
+        )
+        if ignored_id is None:
+            return
+        self._ignored_diagnostic_ids.add(ignored_id)
+        self.refresh_visible_diagnostics()
 
     def _prepare_context_action_state(
         self,
@@ -530,20 +391,26 @@ class PromptDiagnosticsPresentation:
                 source_identity=source_identity,
                 base_identity=self._snapshot_identity(stale=False),
                 spelling_suggestions=self._prepared_spelling_suggestions,
-                dictionary_add_supported=self.dictionary_add_supported(),
+                dictionary_add_supported=(
+                    self._action_dispatcher.dictionary_add_supported()
+                ),
                 wildcard_feature=self._wildcard_feature,
-                replace_spelling_diagnostic=self.replace_spelling_diagnostic,
+                replace_spelling_diagnostic=(
+                    self._action_dispatcher.replace_spelling_diagnostic
+                ),
                 ignore_spelling_diagnostic_for_session=(
-                    self.ignore_spelling_diagnostic_for_session
+                    self._action_dispatcher.ignore_spelling_diagnostic_for_session
                 ),
                 add_spelling_diagnostic_to_dictionary=(
-                    self.add_spelling_diagnostic_to_dictionary
+                    self._action_dispatcher.add_spelling_diagnostic_to_dictionary
                 ),
-                remove_duplicate_diagnostic=self.remove_duplicate_diagnostic,
+                remove_duplicate_diagnostic=(
+                    self._action_dispatcher.remove_duplicate_diagnostic
+                ),
                 emphasize_first_duplicate_diagnostic=(
-                    self.emphasize_first_duplicate_diagnostic
+                    self._action_dispatcher.emphasize_first_duplicate_diagnostic
                 ),
-                ignore_duplicate_diagnostic=self.ignore_duplicate_diagnostic,
+                ignore_duplicate_diagnostic=self._ignore_duplicate_diagnostic,
             )
         )
 
@@ -617,7 +484,6 @@ __all__ = [
     "PromptDiagnosticsCursor",
     "PromptDiagnosticsHost",
     "PromptDiagnosticsPresentation",
-    "PromptDiagnosticsRefreshRequester",
     "PromptDiagnosticsSnapshot",
     "PromptDiagnosticsSurface",
 ]

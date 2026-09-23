@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from .models import PromptAbuseAction
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 
 
 def capture_action_checkpoint(
@@ -35,7 +36,7 @@ def capture_action_checkpoint(
         actual = "rich" if prompt_editor.richPromptRenderingEnabled() else "raw"
         _append_mismatch(mismatches, "display_mode", actual, action.value)
     if action.kind == "search_highlights":
-        session = prompt_editor._surface._session
+        session = prompt_editor._runtime.projection.surface._session
         expected_ranges = action.source_ranges if action.value == "set" else ()
         expected_index = action.active_index if action.value == "set" else None
         actual_search_state = (
@@ -51,7 +52,7 @@ def capture_action_checkpoint(
     if action.expected_scene_titles is not None:
         actual_scene_titles = tuple(
             token.display_text
-            for token in prompt_editor._surface.projection_document().tokens
+            for token in prompt_editor._runtime.projection.surface.projection_document().tokens
             if token.kind.value == "scene"
         )
         _append_mismatch(
@@ -63,7 +64,7 @@ def capture_action_checkpoint(
     if action.expected_diagnostics is not None:
         actual_diagnostics = tuple(
             (item.kind.value, item.source_start, item.source_end)
-            for item in prompt_editor._diagnostics_feature_controller.presentation.snapshot.diagnostics
+            for item in prompt_editor._runtime.core.diagnostics.presentation.snapshot.diagnostics
         )
         _append_mismatch(
             mismatches,
@@ -74,7 +75,7 @@ def capture_action_checkpoint(
     if action.expected_token_kinds is not None:
         actual_token_kinds = tuple(
             token.kind.value
-            for token in prompt_editor._surface.projection_document().tokens
+            for token in prompt_editor._runtime.projection.surface.projection_document().tokens
         )
         _append_mismatch(
             mismatches,
@@ -83,7 +84,7 @@ def capture_action_checkpoint(
             action.expected_token_kinds,
         )
     if action.expected_reorder_chip_texts is not None:
-        overlay = prompt_editor._segment_overlay
+        overlay = segment_overlay(prompt_editor)
         actual_chip_texts = (
             ()
             if overlay is None

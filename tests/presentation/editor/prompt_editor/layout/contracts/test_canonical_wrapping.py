@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 
 from PySide6.QtCore import QSizeF
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPalette
@@ -46,8 +47,13 @@ from substitute.presentation.editor.prompt_editor.projection.session import (
 from substitute.presentation.editor.prompt_editor.layout.models import (
     PromptProjectionTextFragment,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.layout.text_measurement import (
+    PromptTextMeasurementCache,
+)
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 from tests.support.prompt_editor.projection_layout_support import (
@@ -62,12 +68,38 @@ from .support import (
     _line_has_selection_rect,
     _CountingEmphasisPrefixRenderer,
     _CountingEmphasisSuffixRenderer,
+    _assert_all_projection_caret_rects_resolve,
     _assert_word_not_split_across_lines,
     _line_indices_for_source_range,
     _plain_text_wrap_width,
 )
 
 _REGION_TEXT_COLOR = QColor(222, 223, 224)
+
+
+def test_text_measurement_reuses_fonts_by_rendered_style() -> None:
+    """Canonical rebuilds should share fonts across equivalent semantic runs."""
+
+    _document_view, projection = _projection_for("alpha")
+    run = projection.runs[0]
+    equivalent_run = replace(run, run_id="replacement-run", active=not run.active)
+    base_font = QFont("Arial", 10)
+    base_font_key = base_font.toString()
+    cache = PromptTextMeasurementCache()
+
+    first_font = cache.font_for_run(
+        run,
+        base_font,
+        base_font_key=base_font_key,
+    )
+    equivalent_font = cache.font_for_run(
+        equivalent_run,
+        base_font,
+        base_font_key=base_font_key,
+    )
+
+    assert equivalent_font is first_font
+    assert len(cache.font_by_style_key) == 1
 
 
 def test_consecutive_paragraph_break_rows_own_newline_source_before_tokens() -> None:
@@ -112,6 +144,30 @@ def test_projection_layout_sets_projection_and_width_atomically() -> None:
 
     assert layout.frame.output.projection_document is projection
     assert layout.frame.output.configuration.text_width == 480.0
+
+
+def test_projection_layout_wraps_before_trailing_space_hides_caret() -> None:
+    """Trailing whitespace must wrap before its caret crosses the content edge."""
+
+    layout, _projection = _layout_for(
+        "**scene with a deliberately ",
+        text_width=_plain_text_wrap_width("scene with a deliberately"),
+    )
+    output = layout.frame.output
+    content_right = (
+        output.configuration.metrics.content_left
+        + output.configuration.metrics.content_width
+    )
+
+    assert len(output.snapshot.lines) == 2
+    assert (
+        max(
+            caret.rect.right()
+            for line in output.snapshot.lines
+            for caret in line.caret_stops
+        )
+        <= content_right + 0.01
+    )
 
 
 def test_projection_layout_paint_state_validation_skips_inline_measurements() -> None:
@@ -380,3 +436,19 @@ def test_projection_layout_does_not_apply_tag_keep_groups_in_raw_mode() -> None:
     )
 
     assert "best quality, " not in _line_texts(layout)
+
+
+def test_projection_layout_preserves_long_raw_unicode_geometry() -> None:
+    """Long raw prompts should retain every source character and caret boundary."""
+
+    prompt_text = "masterpiece, A👩‍🚀é日, detailed face, cinematic background, " * 48
+    layout, projection = _layout_for(
+        prompt_text,
+        display_mode=PromptProjectionDisplayMode.RAW,
+        text_width=180.0,
+    )
+    line_texts = _line_texts(layout)
+
+    assert len(line_texts) > 100
+    assert "".join(line_texts) == prompt_text
+    _assert_all_projection_caret_rects_resolve(layout, projection)

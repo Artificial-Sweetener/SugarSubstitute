@@ -50,7 +50,7 @@ class ModelFamilyScanner(Protocol):
 
 
 class FamilyRecommendationGateway(Protocol):
-    """Return safe exact-family CivitAI recommendations."""
+    """Return safe exact-family recommendations from supported providers."""
 
     def discover(
         self,
@@ -164,7 +164,10 @@ class ModelOnboardingApplicationService:
                 excluded_sha256=excluded_sha256,
             )
             cards = tuple(
-                RecommendationCardAsset(recommendation)
+                RecommendationCardAsset(
+                    recommendation,
+                    thumbnail_failed=recommendation.thumbnail_url is None,
+                )
                 for recommendation in recommendations[:_RECOMMENDATION_PAGE_SIZE]
             )
             pages.append(FamilyRecommendationPage(family_id, cards))
@@ -177,12 +180,14 @@ class ModelOnboardingApplicationService:
         *,
         cancellation: CancellationToken,
         excluded_version_ids: frozenset[int] = frozenset(),
+        excluded_sha256: frozenset[str] = frozenset(),
     ) -> tuple[RecommendationLinkResult, ...]:
-        """Resolve, validate, and preview explicit CivitAI links in input order."""
+        """Resolve and preview provider links in input order."""
 
         results: list[RecommendationLinkResult] = []
         seen_urls: set[str] = set()
         seen_versions = set(excluded_version_ids)
+        seen_hashes = {value.casefold() for value in excluded_sha256}
         for source_url in urls:
             if cancellation.is_cancelled:
                 break
@@ -219,7 +224,7 @@ class ModelOnboardingApplicationService:
                 continue
             except (OSError, RuntimeError) as error:
                 _LOGGER.warning(
-                    "CivitAI model-link resolution failed",
+                    "Model-link resolution failed",
                     extra={"model_family_id": family_id.value},
                     exc_info=error,
                 )
@@ -238,7 +243,11 @@ class ModelOnboardingApplicationService:
                     )
                 )
                 continue
-            if recommendation.version_id in seen_versions:
+            normalized_sha256 = recommendation.sha256.casefold()
+            if (
+                recommendation.version_id in seen_versions
+                or normalized_sha256 in seen_hashes
+            ):
                 results.append(
                     RecommendationLinkResult(
                         source_url,
@@ -247,6 +256,15 @@ class ModelOnboardingApplicationService:
                 )
                 continue
             seen_versions.add(recommendation.version_id)
+            seen_hashes.add(normalized_sha256)
+            if recommendation.thumbnail_url is None:
+                card = RecommendationCardAsset(recommendation, thumbnail_failed=True)
+                results.append(
+                    RecommendationLinkResult(
+                        source_url, RecommendationLinkStatus.READY, card
+                    )
+                )
+                continue
             try:
                 thumbnail = self.fetch_thumbnail(
                     recommendation,
@@ -257,7 +275,7 @@ class ModelOnboardingApplicationService:
                 if cancellation.is_cancelled:
                     break
                 _LOGGER.warning(
-                    "CivitAI model-link preview failed",
+                    "Model-link preview failed",
                     extra={
                         "model_family_id": family_id.value,
                         "model_version_id": recommendation.version_id,

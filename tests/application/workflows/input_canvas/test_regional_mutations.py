@@ -22,9 +22,6 @@ from pathlib import Path
 
 import pytest
 
-from substitute.application.workflows import (
-    WorkflowInputCanvasService,
-)
 from substitute.application.workflows.input_canvas_ports import (
     MaskLayerRemovalOutcome,
 )
@@ -40,7 +37,7 @@ from substitute.application.workflows.ordered_mask_region_authoring_service impo
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState
 from substitute.domain.workflow import WorkflowState
-from typing import cast
+from typing import Any, cast
 from uuid import uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
@@ -50,7 +47,8 @@ from tests.application.workflows.input_canvas.fakes import (
     _FakeCanvasIoService,
 )
 from tests.application.workflows.input_canvas.support import (
-    _input_canvas_plan_service,
+    _input_canvas_services,
+    _input_canvas_binding_service,
 )
 
 
@@ -114,16 +112,16 @@ def test_prompt_by_region_can_append_and_activate_another_blank_region(
         mask_id=first_mask_id,
     )
     expected_mask = tmp_path / "Region" / "masks" / "region.png"
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
-        canvas_io_service=_FakeCanvasIoService(
+    services = _input_canvas_services(
+        state_service,
+        _FakeCanvasIoService(
             image=_FakeImage(size_value=_FakeSize(960, 1344)),
             expected_mask_path=expected_mask,
             created_destinations=[],
         ),
+        definitions=definitions,
     )
-    service.materialize_loaded_section(
+    services.sections.materialize_loaded_section(
         workflows={"workflow": workflow},
         workflow_id="workflow",
         section_key="Region",
@@ -133,7 +131,7 @@ def test_prompt_by_region_can_append_and_activate_another_blank_region(
     prompt_bytes = _prompt_bytes(workflow)
     state_service._mask_id = second_mask_id
 
-    added_mask_id = service.add_ordered_mask_region(
+    added_mask_id = services.regions.add_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key="Region",
@@ -224,12 +222,12 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
         dimensions_by_path={Path("synthetic.png"): (960, 1344)},
         created_destinations=[],
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(definitions),
-        input_canvas_state_service=state_service,
-        canvas_io_service=io_service,
+    services = _input_canvas_services(
+        state_service,
+        io_service,
+        definitions=definitions,
     )
-    service.materialize_loaded_section(
+    services.sections.materialize_loaded_section(
         workflows={"workflow": workflow},
         workflow_id="workflow",
         section_key="Region",
@@ -241,7 +239,7 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
     source_path.write_bytes(b"source")
     state_service._mask_id = imported_mask_id
 
-    imported = service.import_ordered_mask_region(
+    imported = services.regions.import_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key="Region",
@@ -252,7 +250,7 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
     )
     assert _prompt_bytes(workflow) == prompt_bytes
     state_service.authorize_mask_removal = False
-    rejected = service.remove_ordered_mask_region(
+    rejected = services.regions.remove_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key="Region",
@@ -270,7 +268,7 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
 
     state_service.authorize_mask_removal = True
     state_service.remove_mask_result = MaskLayerRemovalOutcome.ALREADY_ABSENT
-    removed = service.remove_ordered_mask_region(
+    removed = services.regions.remove_region(
         workflow=workflow,
         workflow_id="workflow",
         section_key="Region",
@@ -292,9 +290,11 @@ def test_prompt_by_region_imports_normalized_mask_and_removes_exact_region(
     assert inputs["image"] == ["region.png"]
 
     failing_authoring = OrderedMaskRegionAuthoringService(
-        binding_resolver=service.binding_for_mask,
+        binding_resolver=_input_canvas_binding_service(definitions).binding_for_mask,
         ensure_section_materialized=lambda *_args: None,
-        input_canvas_state_service=state_service,
+        input_routes=cast(Any, state_service),
+        input_images=cast(Any, state_service),
+        input_masks=cast(Any, state_service),
         canvas_io_service=io_service,
         materialization_service=cast(OrderedMaskMaterializationService, object()),
         graph_values=cast(OrderedMaskGraphValueService, _FailingGraphValues()),

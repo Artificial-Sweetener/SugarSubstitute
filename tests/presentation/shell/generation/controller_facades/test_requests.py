@@ -68,7 +68,6 @@ def _base_generation_view(
         _log_interrupt_failure=lambda _result: None,
         canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
-        workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),
         path_bundle=SimpleNamespace(projects_dir=".", cubes_dir="."),
@@ -105,8 +104,8 @@ def _install_input_canvas_reconciliation(
 ) -> None:
     """Install active Input canvas reconciliation on a view."""
 
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=callback or (lambda: None),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=callback or (lambda: None),
     )
 
 

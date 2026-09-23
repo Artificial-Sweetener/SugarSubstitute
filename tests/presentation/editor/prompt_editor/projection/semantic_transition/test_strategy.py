@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from substitute.application.prompt_editor.document.views import PromptSyntaxSpanView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -86,10 +86,18 @@ class _BuildContext:
     ) -> None:
         """Store projected mode and optional blockers."""
 
-        self._display_mode = PromptProjectionDisplayMode.PROJECTED
         self._session = PromptProjectionSession()
-        self._scene_error_keys: frozenset[str] = frozenset()
         self._blockers = blockers or _blockers()
+
+    def display_mode(self) -> PromptProjectionDisplayMode:
+        """Return projected display mode for local semantic transitions."""
+
+        return PromptProjectionDisplayMode.PROJECTED
+
+    def scene_error_keys(self) -> frozenset[str]:
+        """Return no scene diagnostics for local semantic transitions."""
+
+        return frozenset()
 
     def _decoration_accent_ranges(self) -> tuple[tuple[int, int], ...]:
         """Return no extra decoration accents."""

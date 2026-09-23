@@ -48,8 +48,12 @@ class PromptFillPlaneSurface(Protocol):
 class PromptFillPlaneHost(Protocol):
     """Describe shell geometry needed by passive fill-plane chrome."""
 
-    def _shell_viewport(self) -> QWidget:
+    @property
+    def shell_viewport(self) -> QWidget:
         """Return the QFluent shell viewport."""
+
+    def resize_handle(self) -> QWidget | None:
+        """Return the mounted shell resize handle when available."""
 
 
 class PromptResizeHandleHost(Protocol):
@@ -235,7 +239,7 @@ class PromptFillPlane(QWidget):
     def _shell_viewport_rect(self) -> QRect:
         """Return the QFluent shell viewport geometry in this layer's coordinates."""
 
-        shell_viewport = self._editor._shell_viewport()
+        shell_viewport = self._editor.shell_viewport
         return QRect(
             self._map_widget_point_to_layer(shell_viewport, QPoint(0, 0)),
             shell_viewport.size(),
@@ -261,7 +265,7 @@ class PromptFillPlane(QWidget):
     def _visible_resize_handle_region(self) -> QRegion:
         """Return the visible prompt resize-handle geometry in layer coordinates."""
 
-        resize_handle = getattr(self._editor, "_resize_handle", None)
+        resize_handle = self._editor.resize_handle()
         if not isinstance(resize_handle, QWidget) or not resize_handle.isVisible():
             return QRegion()
         return QRegion(

@@ -69,6 +69,7 @@ class CubeItem(ReorderableTabItemBase):
     aliasEditRequested = Signal(object)
     aliasEditingFinished = Signal(str)
     duplicateRequested = Signal(object)
+    captureRequested = Signal(object)
     bypassToggleRequested = Signal(object)
     outputPersistenceToggleRequested = Signal(object)
 
@@ -92,6 +93,7 @@ class CubeItem(ReorderableTabItemBase):
         self._issue_severity: CubeCardIssueSeverity | None = None
         self._bypassed = False
         self._output_persistence_enabled = True
+        self._capture_available = False
         self._alias_editing_route_key: str | None = None
         self.alias_editor = CubeAliasEditor(self)
         self.alias_editor.accepted.connect(self._commitAliasRename)
@@ -160,6 +162,11 @@ class CubeItem(ReorderableTabItemBase):
         """Set whether the workflow cube instance saves generated outputs."""
 
         self._output_persistence_enabled = enabled
+
+    def setCaptureAvailable(self, available: bool) -> None:
+        """Set whether the exact workflow Cube can be captured."""
+
+        self._capture_available = available
 
     def isBypassed(self) -> bool:
         """Return whether this cube item is visually bypassed."""
@@ -277,49 +284,61 @@ class CubeItem(ReorderableTabItemBase):
     def _showContextMenu(self, global_pos: QPoint) -> None:
         """Show cube actions, including removal when the X is hidden."""
 
-        menu = QFluentMenuRenderer(parent=self).render(
-            MenuModel(
-                entries=(
-                    MenuItem(
-                        "cube_stack.output_persistence",
-                        (
-                            app_text("Don't save outputs")
-                            if self._output_persistence_enabled
-                            else app_text("Save outputs")
-                        ),
-                        callback=self._request_output_persistence_toggle,
-                        icon=FluentIcon.SAVE,
-                    ),
-                    MenuItem(
-                        "cube_stack.rename",
-                        app_text("Rename"),
-                        callback=self._request_alias_editing,
-                        icon=FluentIcon.EDIT,
-                    ),
-                    MenuItem(
-                        "cube_stack.duplicate",
-                        app_text("Duplicate"),
-                        callback=self._request_duplication,
-                        icon=FluentIcon.COPY,
-                    ),
-                    MenuItem(
-                        "cube_stack.bypass",
-                        (
-                            app_text("Remove bypass")
-                            if self._bypassed
-                            else app_text("Bypass")
-                        ),
-                        callback=self._request_bypass_toggle,
-                        icon=FluentIcon.PAUSE,
-                    ),
-                    MenuItem(
-                        "cube_stack.remove",
-                        app_text("Remove"),
-                        callback=self._request_removal,
-                        icon=FluentIcon.DELETE,
-                    ),
+        entries = [
+            MenuItem(
+                "cube_stack.output_persistence",
+                (
+                    app_text("Don't save outputs")
+                    if self._output_persistence_enabled
+                    else app_text("Save outputs")
+                ),
+                callback=self._request_output_persistence_toggle,
+                icon=FluentIcon.SAVE,
+            ),
+            MenuItem(
+                "cube_stack.rename",
+                app_text("Rename"),
+                callback=self._request_alias_editing,
+                icon=FluentIcon.EDIT,
+            ),
+            MenuItem(
+                "cube_stack.duplicate",
+                app_text("Duplicate"),
+                callback=self._request_duplication,
+                icon=FluentIcon.COPY,
+            ),
+        ]
+        if self._capture_available:
+            entries.append(
+                MenuItem(
+                    "cube_stack.capture",
+                    app_text("Capture Cube"),
+                    callback=self._request_capture,
+                    icon=FluentIcon.SAVE,
                 )
             )
+        entries.extend(
+            (
+                MenuItem(
+                    "cube_stack.bypass",
+                    (
+                        app_text("Remove bypass")
+                        if self._bypassed
+                        else app_text("Bypass")
+                    ),
+                    callback=self._request_bypass_toggle,
+                    icon=FluentIcon.PAUSE,
+                ),
+                MenuItem(
+                    "cube_stack.remove",
+                    app_text("Remove"),
+                    callback=self._request_removal,
+                    icon=FluentIcon.DELETE,
+                ),
+            )
+        )
+        menu = QFluentMenuRenderer(parent=self).render(
+            MenuModel(entries=tuple(entries))
         )
         menu.exec(global_pos, aniType=MenuAnimationType.DROP_DOWN)
 
@@ -342,6 +361,11 @@ class CubeItem(ReorderableTabItemBase):
         """Request duplication for this cube item."""
 
         self.duplicateRequested.emit(self)
+
+    def _request_capture(self) -> None:
+        """Request exact capture for this workflow Cube."""
+
+        self.captureRequested.emit(self)
 
     def _startRename(self) -> None:
         """Enter inline rename or request coordinated editing when compact."""

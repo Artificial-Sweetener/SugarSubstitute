@@ -64,6 +64,8 @@ def test_pipeline_builds_strict_live_request_without_retaining_payload() -> None
         ),
         output_commit_handler=SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=ProjectionCoordinatorSpy(),
@@ -146,6 +148,8 @@ def test_pipeline_preserves_backend_list_index_for_prepared_output_metadata() ->
         ),
         output_commit_handler=SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=ProjectionCoordinatorSpy(),
@@ -216,6 +220,8 @@ def test_pipeline_rejects_live_update_missing_required_identity() -> None:
         ),
         output_commit_handler=SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=ProjectionCoordinatorSpy(),
@@ -280,6 +286,8 @@ def test_pipeline_rejects_live_update_with_any_missing_visual_identity(
         ),
         output_commit_handler=SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=ProjectionCoordinatorSpy(),
@@ -329,6 +337,8 @@ def test_pipeline_rejects_live_update_with_negative_list_index() -> None:
         ),
         output_commit_handler=SimpleNamespace(
             commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
             handle_output_image_preparation_failed=lambda _failure: None,
         ),
         output_canvas_projection_coordinator=ProjectionCoordinatorSpy(),

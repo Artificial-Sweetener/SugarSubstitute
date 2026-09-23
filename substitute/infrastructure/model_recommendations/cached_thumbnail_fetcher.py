@@ -84,6 +84,8 @@ class CachedRecommendationThumbnailFetcher:
         cached = self._asset_store.read_thumbnail_asset(storage_key)
         if cached is not None:
             return cached
+        if recommendation.thumbnail_url is None:
+            raise ValueError("The recommendation has no preview image.")
         encoded_payload = self._fetcher.fetch(recommendation.thumbnail_url)
         prepared = self._preparer.cache_local_thumbnail(
             sha256=recommendation.sha256,

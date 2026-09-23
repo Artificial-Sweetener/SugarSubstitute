@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
     PromptLoraThumbnailCache,
 )
@@ -28,6 +30,7 @@ from substitute.presentation.editor.prompt_editor.overlays import (
 )
 
 from .support import _item, _item_with_basename, ensure_qapp
+from tests.presentation.model_updates.support import update_proposal
 
 
 def test_lora_picker_wall_uses_display_name_title_and_subtitle() -> None:
@@ -92,3 +95,25 @@ def test_lora_picker_popup_set_loras_updates_rows_without_resetting_search() -> 
     assert popup.search_text() == "mineru"
     assert current_item is not None
     assert current_item.title == "Mineru"
+
+
+def test_prompt_lora_picker_shows_and_opens_exact_update_family() -> None:
+    """Prompt LoRA tiles share the same exact-hash badge as node model pickers."""
+
+    ensure_qapp()
+    sha256 = "a" * 64
+    updates = ModelUpdatePickerBridge()
+    item = replace(_item("Mineru", "mineru"), sha256=sha256)
+    popup = PromptLoraPickerPopup(
+        (item,),
+        thumbnail_cache=PromptLoraThumbnailCache(),
+        model_updates=updates,
+    )
+    requested: list[str] = []
+    updates.familyRequested.connect(requested.append)
+
+    assert popup._view.items()[0].corner_badge_icon is None
+    updates.replace((update_proposal(sha256),))
+    assert popup._view.items()[0].corner_badge_icon is not None
+    popup._view.itemBadgeActivated.emit(popup._view.picker_items()[0])
+    assert requested == [sha256]

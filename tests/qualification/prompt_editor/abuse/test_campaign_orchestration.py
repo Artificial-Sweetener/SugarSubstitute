@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 
 from tools.prompt_editor_abuse.campaign import run_campaign
 from tools.prompt_editor_abuse.comparison import (
@@ -36,6 +37,45 @@ from tools.prompt_editor_abuse.models import (
 from tools.prompt_editor_abuse.reporting import format_summary, write_report
 from tools.prompt_editor_abuse.replay import load_report_scenarios, scenario_prefix
 from tools.prompt_editor_abuse.statistics import summarize_latencies
+
+
+def test_campaign_failure_identifies_scenario_and_repetition(tmp_path: Path) -> None:
+    """Campaign failures should identify the exact production replay boundary."""
+
+    scenario = PromptAbuseScenario(
+        "failing-scenario",
+        "",
+        (PromptAbuseAction("type", value="x", expected_source="x"),),
+        "x",
+    )
+
+    def failing_runner(
+        _scenario: PromptAbuseScenario,
+        *,
+        repetition: int,
+        artifact_root: Path,
+        deep_trace: bool,
+    ) -> PromptAbuseScenarioResult:
+        """Raise the same assertion shape as a failed structural settlement."""
+
+        del repetition, artifact_root, deep_trace
+        raise AssertionError("owner settlement failed")
+
+    with pytest.raises(AssertionError, match="owner settlement failed") as captured:
+        run_campaign(
+            (scenario,),
+            repetitions=1,
+            seed=7,
+            frame_budget_ms=16.667,
+            artifact_root=tmp_path,
+            revision="test",
+            scenario_runner=failing_runner,
+            platform_name=lambda: "offscreen-test",
+        )
+
+    assert captured.value.__notes__ == [
+        "Prompt abuse campaign scenario 'failing-scenario', repetition 0 failed."
+    ]
 
 
 def test_campaign_repeats_scenarios_and_writes_assistant_readable_report(
