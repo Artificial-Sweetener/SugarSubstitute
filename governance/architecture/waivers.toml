@@ -293,11 +293,11 @@ owner = "editor node-card construction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/node_card_builder.py"
 kind = "remediation"
-justification = "Localized title composition, icon mapping, link-endpoint resolution and registration, activation controls, title action menus, and prompt and standard field realization now have focused owners. The remaining file mixes node-card body assembly and field-row composition, field-action contribution collection and title-menu routing, collapsible card animation and layout registration, and build timing diagnostics. Extract collapsible card surface construction, animation, and mode registration from node-card body assembly."
+justification = "Localized title composition, icon mapping, link-endpoint resolution and registration, activation controls, title action menus, prompt and standard field realization, mounted surface composition, accordion attachment, mode registration, and build observability now have focused owners. The remaining file mixes node-card body assembly and field-row composition with field-action contribution collection and title-menu routing. Extract field-group realization and action-contribution accumulation from node-card orchestration."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 858
-next_limit = 650
+max_lines = 643
+next_limit = 350
 debt = "SS-ARCH-045"
 
 [[waivers]]

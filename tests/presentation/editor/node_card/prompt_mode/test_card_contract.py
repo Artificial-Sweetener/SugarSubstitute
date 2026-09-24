@@ -181,7 +181,7 @@ def test_prompt_cards_resolve_to_prompt_mode_and_skip_collapse_animation(
     )
     collapsible_calls: list[bool] = []
     monkeypatch.setattr(
-        NodeCardBuilder,
+        builder._surface_composer,
         "_setup_collapsible_animation",
         lambda *args, **kwargs: collapsible_calls.append(True),
     )
