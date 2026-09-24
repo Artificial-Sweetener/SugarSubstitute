@@ -282,7 +282,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     ).read_text(encoding="utf-8")
     assert 'target_mode="remote"' in lifecycle_text
     assert "require_governed_setup_record=False" in lifecycle_text
-    assert "assert_real_managed_comfy" in shell_evidence_text
+    assert "wait_for_real_managed_comfy" in shell_evidence_text
     assert 'evidence.plan.target_mode == "managed_local"' in shell_evidence_text
 
 

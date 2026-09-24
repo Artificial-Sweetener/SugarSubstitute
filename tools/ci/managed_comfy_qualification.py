@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import time
 import urllib.request
 
 from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
@@ -30,6 +31,7 @@ from substitute.domain.comfy_nodepacks import (
 from substitute.infrastructure.comfy.managed_process_registry import (
     ManagedProcessRegistry,
 )
+from substitute.infrastructure.comfy.managed_process_probe import is_process_running
 from substitute.infrastructure.comfy.managed_shutdown import kill_managed_comfy_metadata
 from substitute.infrastructure.comfy.managed_validation import (
     workspace_main_path,
@@ -48,6 +50,11 @@ _SIMPLE_SYRUP_NODE_CLASSES = frozenset(
 )
 _REQUIRED_NODE_CLASSES = _SIMPLE_SYRUP_NODE_CLASSES | {"UpscaleModelLoader"}
 _OPTIONAL_TRITON_IMPORT_FAILURE = "/custom_nodes/SimpleSyrup: No module named 'triton'"
+_READINESS_POLL_INTERVAL_SECONDS = 0.25
+
+
+class _LiveManagedComfyUnavailable(InstallerLifecycleError):
+    """Identify a transient live-endpoint failure during managed startup."""
 
 
 def assert_real_managed_comfy(
@@ -121,6 +128,46 @@ def assert_real_managed_comfy(
         )
 
 
+def wait_for_real_managed_comfy(
+    *,
+    install_root: Path,
+    plan: InstallerQualificationPlan,
+    timeout_seconds: float,
+    require_current_nodepack_versions: bool = True,
+    require_governed_setup_record: bool = True,
+) -> None:
+    """Wait for the asynchronously launched managed backend and verify its contract."""
+
+    deadline = time.monotonic() + max(0.0, timeout_seconds)
+    observed_managed_pid: int | None = None
+    while True:
+        try:
+            assert_real_managed_comfy(
+                install_root=install_root,
+                plan=plan,
+                require_current_nodepack_versions=require_current_nodepack_versions,
+                require_governed_setup_record=require_governed_setup_record,
+            )
+            return
+        except _LiveManagedComfyUnavailable as error:
+            metadata = ManagedProcessRegistry(
+                install_root / "appdata" / "runtime_state"
+            ).load()
+            if metadata is not None and is_process_running(metadata.pid):
+                observed_managed_pid = metadata.pid
+            elif metadata is not None and metadata.pid == observed_managed_pid:
+                raise InstallerLifecycleError(
+                    "Managed Comfy exited before its live API became ready."
+                ) from error
+            remaining_seconds = deadline - time.monotonic()
+            if remaining_seconds <= 0.0:
+                raise InstallerLifecycleError(
+                    "Managed Comfy did not expose its live API before the "
+                    f"{max(0.0, timeout_seconds):.1f}-second readiness timeout."
+                ) from error
+            time.sleep(min(_READINESS_POLL_INTERVAL_SECONDS, remaining_seconds))
+
+
 def _required_node_classes(
     *,
     install_root: Path,
@@ -180,7 +227,7 @@ def _get_json(url: str) -> dict[str, object]:
         with urllib.request.urlopen(url, timeout=30.0) as response:
             payload = json.loads(response.read().decode("utf-8", errors="replace"))
     except (OSError, json.JSONDecodeError) as error:
-        raise InstallerLifecycleError(
+        raise _LiveManagedComfyUnavailable(
             f"Live managed Comfy request failed: {url}."
         ) from error
     if not isinstance(payload, dict):
@@ -206,4 +253,8 @@ def _read_json(path: Path) -> dict[str, object]:
     return payload
 
 
-__all__ = ["assert_real_managed_comfy", "terminate_owned_managed_comfy"]
+__all__ = [
+    "assert_real_managed_comfy",
+    "terminate_owned_managed_comfy",
+    "wait_for_real_managed_comfy",
+]
