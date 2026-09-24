@@ -25,6 +25,9 @@ from typing import Any
 
 from _pytest.logging import LogCaptureFixture
 from _pytest.monkeypatch import MonkeyPatch
+from substitute.presentation.editor.panel.prompt.context import (
+    EditorPanelPromptContextController,
+)
 
 
 def _panel_module() -> ModuleType:
@@ -60,7 +63,7 @@ def test_behavior_refresh_transaction_reuses_matching_snapshot(
         _workflow_overrides=lambda: {"seed": {"value": 7}},
         current_behavior_snapshot=lambda: None,
     )
-    panel._prompt_context_controller = module.EditorPanelPromptContextController(panel)
+    panel._prompt_context_controller = EditorPanelPromptContextController(panel)
     caplog.set_level(
         logging.INFO,
         logger="sugarsubstitute.presentation.editor.panel.prompt.context",
@@ -123,7 +126,7 @@ def test_behavior_refresh_transaction_builds_fresh_after_link_change() -> None:
         current_behavior_snapshot=lambda: None,
         refresh_prompt_scene_diagnostics=lambda: None,
     )
-    panel._prompt_context_controller = module.EditorPanelPromptContextController(panel)
+    panel._prompt_context_controller = EditorPanelPromptContextController(panel)
 
     module.EditorPanel.begin_behavior_refresh_transaction(panel, reason="cube_added")
     module.EditorPanel._build_behavior_snapshot(panel)
