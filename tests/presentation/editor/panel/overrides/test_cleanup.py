@@ -89,7 +89,7 @@ def test_overrides_manager_dispose_removes_widgets_and_state() -> None:
     # Pre-populate with two override controls and corresponding state
     l1, w1 = DummyLabel("seed_label"), DummyWidget("seed_widget")
     l2, w2 = DummyLabel("sampler_label"), DummyWidget("sampler_widget")
-    mgr._global_override_controls = {
+    mgr._toolbar_registry.controls = {
         "seed": (l1, w1),
         "sampler_name": (l2, w2),
     }
@@ -102,7 +102,7 @@ def test_overrides_manager_dispose_removes_widgets_and_state() -> None:
     mgr.dispose()
 
     # Assert: controls cleared and state reset
-    assert mgr._global_override_controls == {}
+    assert mgr._toolbar_registry.controls == {}
     assert mgr._workflow_state.overrides == {}
 
     # Assert: layout removal was called for all widgets and labels

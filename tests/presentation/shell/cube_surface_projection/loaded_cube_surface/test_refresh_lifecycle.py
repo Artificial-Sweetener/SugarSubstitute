@@ -106,7 +106,7 @@ def test_deferred_incremental_override_rebuild_schedules_rebuild() -> None:
     scheduled: list[Callable[[], None]] = []
     manager_calls: list[str] = []
     manager = SimpleNamespace(
-        _global_override_controls={"a": object(), "b": object()},
+        mounted_control_count=lambda: 2,
         rebuild_override_menu=lambda: manager_calls.append("menu"),
         rebuild_active_override_controls=lambda: manager_calls.append("controls"),
     )

@@ -306,11 +306,11 @@ owner = "toolbar global overrides"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/overrides_controller.py"
 kind = "remediation"
-justification = "Workflow override state and commands now have a focused owner. The remaining file mixes override menu construction, toolbar snapshot and control reconciliation, override widget factory and sizing, seed-mode and model-picker behavior, autosave and restart-spacing integration. Extract override control creation and toolbar layout from menu and toolbar orchestration."
+justification = "Workflow override state and toolbar control identity, signatures, layout attachment, ordering, and disposal now have focused owners. The remaining file mixes override menu construction, toolbar snapshot orchestration, override widget factory and sizing, seed-mode and model-picker behavior, autosave and restart-spacing integration. Extract override widget realization from menu and toolbar orchestration."
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
-max_lines = 991
-next_limit = 790
+max_lines = 886
+next_limit = 690
 debt = "SS-ARCH-046"
 
 [[waivers]]
@@ -513,7 +513,7 @@ kind = "remediation"
 justification = "The assessed file mixes cube-load callback adaptation, cube stack tab presentation refresh, editor surface activation and reveal, incremental and full surface refresh, override and dependent-control refresh, workflow reconciliation after load. Extract override/dependent-control refresh and callback adaptation from loaded-surface activation and reconciliation."
 issue = "chore:SS-ARCH-079"
 review_by = 2026-12-15
-max_lines = 856
+max_lines = 852
 next_limit = 684
 debt = "SS-ARCH-079"
 

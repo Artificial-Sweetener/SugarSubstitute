@@ -104,6 +104,9 @@ from substitute.presentation.editor.panel.model_choice_snapshot_controller impor
 from substitute.presentation.editor.panel.override_model_picker_reconciler import (
     reconcile_model_override_picker,
 )
+from substitute.presentation.editor.panel.override_toolbar_registry import (
+    OverrideToolbarRegistry,
+)
 from substitute.presentation.editor.panel.override_workflow_state import (
     OverrideWorkflowState,
     compact_override_log_value,
@@ -173,14 +176,12 @@ class GlobalOverridesManager:
         self._workflow_state = OverrideWorkflowState(
             mainwindow, pinned_override_service
         )
-        self._global_override_controls: dict[str, tuple[Any, Any]] = {}
-        self._global_override_control_signatures: dict[
-            str,
-            tuple[object, ...],
-        ] = {}
-        self._active_controls_signature: tuple[tuple[object, ...], ...] | None = None
         self._global_override_menu: Any = None
         self.override_dropdown_btn: Any = None
+        self._toolbar_registry = OverrideToolbarRegistry(
+            mainwindow,
+            lambda: self.override_dropdown_btn,
+        )
         self._toolbar_snapshot: OverrideToolbarSnapshot | None = None
         self._workflow_projection_service = WorkflowEditorProjectionService()
 
@@ -254,7 +255,7 @@ class GlobalOverridesManager:
             _LOGGER,
             "rebuilding active override controls started",
             active_override_keys=toolbar_snapshot.active_override_keys,
-            existing_control_keys=tuple(sorted(self._global_override_controls)),
+            existing_control_keys=tuple(sorted(self._toolbar_registry.controls)),
             active_controls=tuple(
                 {
                     "override_key": control.override_key,
@@ -280,13 +281,13 @@ class GlobalOverridesManager:
             self._override_control_signature(control)
             for control in toolbar_snapshot.active_controls
         )
-        active_keys_unchanged = tuple(sorted(self._global_override_controls)) == tuple(
+        active_keys_unchanged = tuple(sorted(self._toolbar_registry.controls)) == tuple(
             sorted(active_by_key)
         )
         if (
-            self._active_controls_signature == active_signature
+            self._toolbar_registry.active_signature == active_signature
             and active_keys_unchanged
-            and self._active_override_controls_attached(active_by_key)
+            and self._toolbar_registry.all_attached(active_by_key)
         ):
             self._normalize_existing_override_controls(active_by_key)
             self._refresh_restart_toolbar_spacing()
@@ -296,15 +297,15 @@ class GlobalOverridesManager:
         removed_count = 0
         replaced_count = 0
 
-        for override_key in list(self._global_override_controls):
+        for override_key in list(self._toolbar_registry.controls):
             if override_key not in active_by_key:
-                if self._remove_override_widget(override_key):
+                if self._toolbar_registry.remove(override_key):
                     removed_count += 1
 
         for control in toolbar_snapshot.active_controls:
             signature = self._override_control_signature(control)
-            existing_control = self._global_override_controls.get(control.override_key)
-            existing_signature = self._global_override_control_signatures.get(
+            existing_control = self._toolbar_registry.control(control.override_key)
+            existing_signature = self._toolbar_registry.control_signature(
                 control.override_key
             )
             if existing_control is not None and existing_signature == signature:
@@ -314,15 +315,16 @@ class GlobalOverridesManager:
                     label_widget,
                     widget,
                 )
-                self._insert_override_widget(
+                self._toolbar_registry.insert(
                     override_key=control.override_key,
                     label_widget=label_widget,
                     widget=widget,
+                    active_keys=toolbar_snapshot.active_override_keys,
                 )
                 reused_count += 1
                 continue
             if existing_control is not None:
-                self._remove_override_widget(control.override_key)
+                self._toolbar_registry.remove(control.override_key)
                 replaced_count += 1
             if self._create_override_widget(control.override_key):
                 created_count += 1
@@ -335,7 +337,7 @@ class GlobalOverridesManager:
             replaced_count=replaced_count,
             active_control_count=len(toolbar_snapshot.active_controls),
         )
-        self._active_controls_signature = active_signature
+        self._toolbar_registry.active_signature = active_signature
         self._refresh_restart_toolbar_spacing()
 
     def apply_global_overrides(
@@ -449,7 +451,7 @@ class GlobalOverridesManager:
         """Project the authoritative override seed without emitting user intent."""
 
         self.sync_state_from_workflow()
-        control = self._global_override_controls.get("seed")
+        control = self._toolbar_registry.control("seed")
         if control is None:
             return
         _label, widget = control
@@ -466,7 +468,7 @@ class GlobalOverridesManager:
         """Tear down toolbar widgets and clear in-memory override state."""
 
         try:
-            self._clear_all_override_widgets()
+            self._toolbar_registry.clear()
         finally:
             self._workflow_state.clear()
             self._toolbar_snapshot = None
@@ -555,145 +557,20 @@ class GlobalOverridesManager:
         projection = self._current_editor_projection()
         return projection.order if projection is not None else ()
 
-    def _remove_override_widget(self, override_key: str) -> bool:
-        """Remove one toolbar label/widget pair when present."""
-
-        if override_key not in self._global_override_controls:
-            return False
-        label_widget, widget = self._global_override_controls.pop(override_key)
-        self._global_override_control_signatures.pop(override_key, None)
-        self._active_controls_signature = None
-        self.mainwindow.menu_bar_layout.removeWidget(label_widget)
-        self._hide_widget(label_widget)
-        label_widget.deleteLater()
-        self.mainwindow.menu_bar_layout.removeWidget(widget)
-        self._hide_widget(widget)
-        widget.deleteLater()
-        return True
-
     def detach_override_widgets(self) -> None:
         """Detach cached toolbar controls from the shared menu bar without disposal."""
 
-        layout = self.mainwindow.menu_bar_layout
-        for label_widget, widget in self._global_override_controls.values():
-            if layout.indexOf(label_widget) >= 0:
-                layout.removeWidget(label_widget)
-            self._hide_widget(label_widget)
-            if layout.indexOf(widget) >= 0:
-                layout.removeWidget(widget)
-            self._hide_widget(widget)
+        self._toolbar_registry.detach()
 
     def clear_toolbar_override_controls(self) -> None:
         """Detach all workflow override controls from the shared toolbar."""
 
-        self._clear_all_override_widgets()
+        self._toolbar_registry.clear()
 
-    def _clear_all_override_widgets(self) -> None:
-        """Remove all active toolbar controls from the menu bar."""
+    def mounted_control_count(self) -> int:
+        """Return the number of realized toolbar override controls."""
 
-        for override_key in list(self._global_override_controls.keys()):
-            self._remove_override_widget(override_key)
-        self._global_override_controls.clear()
-        self._global_override_control_signatures.clear()
-        self._active_controls_signature = None
-
-    def _insert_override_widget(
-        self,
-        *,
-        override_key: str,
-        label_widget: Any,
-        widget: Any,
-    ) -> None:
-        """Insert one toolbar label/widget pair using snapshot-defined active order."""
-
-        layout = self.mainwindow.menu_bar_layout
-        for existing_widget in (label_widget, widget):
-            if layout.indexOf(existing_widget) >= 0:
-                layout.removeWidget(existing_widget)
-
-        active_keys = (
-            list(self._toolbar_snapshot.active_override_keys)
-            if self._toolbar_snapshot
-            else []
-        )
-        base_index = self._override_toolbar_insert_base_index(layout)
-        preceding_keys = (
-            active_keys[: active_keys.index(override_key)]
-            if override_key in active_keys
-            else []
-        )
-        insert_index = base_index
-        for existing_key in preceding_keys:
-            existing_control = self._global_override_controls.get(existing_key)
-            if existing_control is None:
-                continue
-            _existing_label, existing_widget = existing_control
-            insert_index = max(insert_index, layout.indexOf(existing_widget) + 1)
-
-        log_debug(
-            _LOGGER,
-            "insert override widget",
-            override_key=override_key,
-            base_index=base_index,
-            insert_index=insert_index,
-            active_keys=tuple(active_keys),
-            preceding_keys=tuple(preceding_keys),
-            label_widget_type=type(label_widget).__name__,
-            widget_type=type(widget).__name__,
-        )
-        layout.insertWidget(insert_index, label_widget)
-        layout.insertWidget(insert_index + 1, widget)
-        self._show_widget(label_widget)
-        self._show_widget(widget)
-
-    def _override_toolbar_insert_base_index(self, layout: Any) -> int:
-        """Return the first layout index available for active override controls."""
-
-        anchor_widget = None
-        if self.override_dropdown_btn is not None:
-            property_getter = getattr(self.override_dropdown_btn, "property", None)
-            if callable(property_getter):
-                anchor_widget = property_getter("layoutAnchorWidget")
-
-        for candidate in (anchor_widget, self.override_dropdown_btn):
-            if candidate is None:
-                continue
-            index = int(layout.indexOf(candidate))
-            if index >= 0:
-                return index + 1
-        return 0
-
-    @staticmethod
-    def _hide_widget(widget: Any) -> None:
-        """Hide a detached toolbar widget when the Qt object supports it."""
-
-        hide = getattr(widget, "hide", None)
-        if callable(hide):
-            hide()
-
-    @staticmethod
-    def _show_widget(widget: Any) -> None:
-        """Show a mounted toolbar widget when the Qt object supports it."""
-
-        show = getattr(widget, "show", None)
-        if callable(show):
-            show()
-
-    def _active_override_controls_attached(
-        self,
-        active_by_key: dict[str, PinnedOverrideControl],
-    ) -> bool:
-        """Return whether all active cached controls are mounted in the menu bar."""
-
-        layout = self.mainwindow.menu_bar_layout
-        for override_key in active_by_key:
-            existing_control = self._global_override_controls.get(override_key)
-            if existing_control is None:
-                return False
-            label_widget, widget = existing_control
-            if layout.indexOf(label_widget) < 0 or layout.indexOf(widget) < 0:
-                return False
-        return True
+        return len(self._toolbar_registry.controls)
 
     def _normalize_existing_override_controls(
         self,
@@ -702,7 +579,7 @@ class GlobalOverridesManager:
         """Reapply toolbar sizing to cached controls before reuse shortcuts return."""
 
         for override_key, control in active_by_key.items():
-            existing_control = self._global_override_controls.get(override_key)
+            existing_control = self._toolbar_registry.control(override_key)
             if existing_control is None:
                 continue
             label_widget, widget = existing_control
@@ -878,14 +755,17 @@ class GlobalOverridesManager:
             show_delay_ms=600,
         )
 
-        self._insert_override_widget(
+        self._toolbar_registry.insert(
             override_key=control.override_key,
             label_widget=label_widget,
             widget=widget,
+            active_keys=toolbar_snapshot.active_override_keys,
         )
-        self._global_override_controls[control.override_key] = (label_widget, widget)
-        self._global_override_control_signatures[control.override_key] = (
-            self._override_control_signature(control)
+        self._toolbar_registry.register(
+            control.override_key,
+            label_widget,
+            widget,
+            self._override_control_signature(control),
         )
 
         self._restore_override_seed_mode(control.override_key, widget)

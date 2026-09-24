@@ -413,18 +413,14 @@ def schedule_deferred_incremental_override_presentation_rebuild(
             rebuild_menu()
         if callable(rebuild_controls):
             rebuild_controls()
-        override_controls = getattr(
-            active_manager,
-            "_global_override_controls",
-            {},
-        )
+        mounted_control_count = getattr(active_manager, "mounted_control_count", None)
         log_timing(
             _LOGGER,
             "Rebuilt incremental override presentation",
             started_at=phase_started_at,
             workflow_id=workflow_id,
             override_control_count=(
-                len(override_controls) if isinstance(override_controls, dict) else 0
+                int(mounted_control_count()) if callable(mounted_control_count) else 0
             ),
             level="debug",
         )
