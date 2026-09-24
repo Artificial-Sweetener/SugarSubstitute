@@ -91,11 +91,14 @@ def test_rebuild_active_override_controls_reuses_unchanged_controls(
     manager.sync_state_from_workflow()
 
     manager.rebuild_active_override_controls()
-    first_label, first_widget = manager._toolbar_registry.controls["seed"]
+    first_label, first_widget = manager._toolbar_controller.registry.controls["seed"]
     manager.rebuild_active_override_controls()
 
     assert build_calls == ["seed"]
-    assert manager._toolbar_registry.controls["seed"] == (first_label, first_widget)
+    assert manager._toolbar_controller.registry.controls["seed"] == (
+        first_label,
+        first_widget,
+    )
     assert layout.widgets == [override_button, first_label, first_widget]
     assert first_label.deleted is False
     assert first_widget.deleted is False
@@ -149,7 +152,7 @@ def test_rebuild_active_override_controls_remounts_detached_controls(
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
-    first_label, first_widget = manager._toolbar_registry.controls["seed"]
+    first_label, first_widget = manager._toolbar_controller.registry.controls["seed"]
 
     manager.detach_override_widgets()
     assert first_label.visible is False
@@ -158,7 +161,10 @@ def test_rebuild_active_override_controls_remounts_detached_controls(
     manager.rebuild_active_override_controls()
 
     assert build_calls == ["seed"]
-    assert manager._toolbar_registry.controls["seed"] == (first_label, first_widget)
+    assert manager._toolbar_controller.registry.controls["seed"] == (
+        first_label,
+        first_widget,
+    )
     assert layout.widgets == [override_button, first_label, first_widget]
     assert first_label.deleted is False
     assert first_widget.deleted is False
@@ -222,7 +228,7 @@ def test_rebuild_active_override_controls_replaces_choice_fallback_after_live_op
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
 
-    assert "sampler_name" not in manager._toolbar_registry.controls
+    assert "sampler_name" not in manager._toolbar_controller.registry.controls
     assert build_calls == []
 
     source.snapshot = _snapshot(
@@ -238,8 +244,8 @@ def test_rebuild_active_override_controls_replaces_choice_fallback_after_live_op
     manager.rebuild_active_override_controls()
 
     assert build_calls == ["sampler_name"]
-    assert "sampler_name" in manager._toolbar_registry.controls
-    label, widget = manager._toolbar_registry.controls["sampler_name"]
+    assert "sampler_name" in manager._toolbar_controller.registry.controls
+    label, widget = manager._toolbar_controller.registry.controls["sampler_name"]
     assert label.size_policy == ("fixed", "preferred")
     assert widget.size_policy == ("maximum", "fixed")
     assert widget.maximum_width == 180

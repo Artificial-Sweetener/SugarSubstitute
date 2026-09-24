@@ -95,15 +95,10 @@ def test_rebuild_active_override_controls_skips_failed_control_without_clearing_
     )
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
-    manager._toolbar_snapshot = manager._workflow_state.build_toolbar_snapshot(
-        behavior_snapshot=snapshot,
-        stack_order=("A",),
-    )
-
     manager.rebuild_active_override_controls()
 
     assert set(manager._workflow_state.overrides) == {"seed", "scheduler"}
-    assert set(manager._toolbar_registry.controls) == {"seed"}
+    assert set(manager._toolbar_controller.registry.controls) == {"seed"}
 
 
 def test_rebuild_active_override_controls_skips_raising_control_build(
@@ -161,12 +156,7 @@ def test_rebuild_active_override_controls_skips_raising_control_build(
     )
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
-    manager._toolbar_snapshot = manager._workflow_state.build_toolbar_snapshot(
-        behavior_snapshot=snapshot,
-        stack_order=("A",),
-    )
-
     manager.rebuild_active_override_controls()
 
     assert set(manager._workflow_state.overrides) == {"seed", "sampler_name"}
-    assert set(manager._toolbar_registry.controls) == {"seed"}
+    assert set(manager._toolbar_controller.registry.controls) == {"seed"}

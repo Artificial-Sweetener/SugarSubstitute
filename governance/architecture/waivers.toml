@@ -301,19 +301,6 @@ next_limit = 1137
 debt = "SS-ARCH-045"
 
 [[waivers]]
-id = "SS-WAIVER-R046"
-owner = "toolbar global overrides"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/overrides_controller.py"
-kind = "remediation"
-justification = "Workflow state, toolbar control identity and placement, widget realization, and committed value and seed-mode interactions now have focused owners. The remaining file mixes override menu construction, toolbar snapshot orchestration, autosave, restart-spacing integration, and the shell-facing facade. Extract override menu presentation and toolbar reconciliation from the facade."
-issue = "chore:SS-ARCH-046"
-review_by = 2026-12-15
-max_lines = 542
-next_limit = 430
-debt = "SS-ARCH-046"
-
-[[waivers]]
 id = "SS-WAIVER-R051"
 owner = "editor panel presentation"
 rule = "STRUCT003"

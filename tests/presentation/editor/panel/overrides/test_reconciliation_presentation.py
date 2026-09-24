@@ -187,14 +187,9 @@ def test_rebuild_active_override_controls_binds_fluent_tooltip_to_label_owner(
     )
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
-    manager._toolbar_snapshot = manager._workflow_state.build_toolbar_snapshot(
-        behavior_snapshot=snapshot,
-        stack_order=("A",),
-    )
-
     manager.rebuild_active_override_controls()
 
-    label, widget = manager._toolbar_registry.controls["steps"]
+    label, widget = manager._toolbar_controller.registry.controls["steps"]
     assert isinstance(label, _DummyLabel)
     assert isinstance(widget, _DummyWidget)
     assert label.size_policy == ("fixed", "preferred")
