@@ -66,7 +66,7 @@ class VideoRuntimeUnavailableError(RuntimeError):
 class VideoPlaybackDiagnostics:
     """Expose requested and observed native playback facts for support reports."""
 
-    requested_hardware_decoding: VideoHardwareDecoding = VideoHardwareDecoding.AUTO
+    requested_hardware_decoding: VideoHardwareDecoding = VideoHardwareDecoding.OFF
     requested_renderer: VideoRenderer = VideoRenderer.AUTO
     actual_video_output: str | None = None
     gpu_api: str | None = None
