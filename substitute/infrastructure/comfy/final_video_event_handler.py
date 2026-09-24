@@ -29,9 +29,9 @@ from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 from substitute.infrastructure.comfy.output_source_identity_resolver import (
     OutputSourceIdentity,
 )
+from substitute.application.ports.video import VideoProbeResult
 from substitute.infrastructure.comfy.output_video_persistence import (
     OutputVideoPersistence,
-    VideoProbeResult,
 )
 
 _VIDEO_SUFFIXES = frozenset({".avi", ".gif", ".mkv", ".mov", ".mp4", ".webm"})

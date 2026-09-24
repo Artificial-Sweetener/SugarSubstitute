@@ -40,9 +40,9 @@ from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 from substitute.infrastructure.comfy.output_destination_allocator import (
     OutputDestinationAllocator,
 )
+from substitute.application.ports.video import VideoProbeResult
 from substitute.infrastructure.comfy.output_video_persistence import (
     OutputVideoPersistence,
-    VideoProbeResult,
 )
 from substitute.infrastructure.comfy.session_video_artifact_store import (
     SessionVideoArtifactStore,

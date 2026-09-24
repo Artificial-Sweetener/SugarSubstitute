@@ -43,6 +43,7 @@ artifacts/prompt_editor_live_probe/
 artifacts/startup_harness/
 artifacts/source_setup_harness/
 /SugarSubstitute-source.zip
+/third_party/bin/mpv/
 
 .DS_Store
 Thumbs.db

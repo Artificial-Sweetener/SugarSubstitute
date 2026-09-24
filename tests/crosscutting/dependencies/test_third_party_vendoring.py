@@ -110,3 +110,20 @@ def test_platform_icons_record_font_awesome_provenance() -> None:
         "docs/release/platforms/apple.svg",
         "docs/release/platforms/linux.svg",
     ]
+
+
+def test_generated_video_runtime_records_reproducible_provenance() -> None:
+    """Keep generated libmpv payload files tied to checksums and preparation."""
+
+    manifest = tomllib.loads(
+        (REPO_ROOT / "third_party" / "manifest.toml").read_text(encoding="utf-8")
+    )
+    components = {component["name"]: component for component in manifest["component"]}
+
+    mpv = components["mpv generated-video playback runtime"]
+
+    assert len(mpv["archive_sha256"]) == 64
+    assert len(mpv["runtime_sha256"]) == 64
+    assert mpv["preparation_tool"] == "tools/prepare_mpv_runtime.py"
+    assert (REPO_ROOT / mpv["preparation_tool"]).is_file()
+    assert mpv["runtime_files"] == ["third_party/bin/mpv/windows-x64/libmpv-2.dll"]

@@ -297,3 +297,29 @@ vendored_files = [
   "third_party/bin/crashpad/windows-x64/crashpad_handler.exe",
   "third_party/bin/crashpad/windows-x64/sugarsubstitute_crashpad_client.dll",
 ]
+
+[[component]]
+name = "mpv generated-video playback runtime"
+license = "GPL-2.0-or-later"
+license_file = "third_party/licenses/mpv.GPL.txt"
+additional_license_files = [
+  "third_party/licenses/mpv.Copyright.txt",
+]
+source = "https://github.com/mpv-player/mpv"
+binary_source = "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/"
+revision = "062f4bf"
+archive = "mpv-dev-x86_64-20260412-git-062f4bf.7z"
+archive_sha256 = "f66f04075da0cbccd106513eab67b78b72ac00780423a9fe3c6e34ae93317806"
+runtime_sha256 = "9936e45ba4c5c8a93ce4e978634de369af0a1d61595447699b17393ba2dec417"
+source_paths = [
+  "Copyright",
+  "LICENSE.GPL",
+  "libmpv/client.h",
+  "libmpv/render.h",
+  "libmpv/render_gl.h",
+]
+vendored_files = []
+runtime_files = [
+  "third_party/bin/mpv/windows-x64/libmpv-2.dll",
+]
+preparation_tool = "tools/prepare_mpv_runtime.py"

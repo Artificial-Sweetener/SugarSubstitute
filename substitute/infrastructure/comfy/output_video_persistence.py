@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from substitute.application.ports.video import VideoProbeResult
 from substitute.infrastructure.comfy.output_destination_allocator import (
     OutputDestinationAllocator,
 )
@@ -31,17 +32,6 @@ from substitute.infrastructure.comfy.output_source_identity_resolver import (
 from substitute.infrastructure.comfy.session_video_artifact_store import (
     SessionVideoArtifactStore,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class VideoProbeResult:
-    """Describe a validated decodable video and its poster projection."""
-
-    width: int
-    height: int
-    duration_seconds: float | None
-    mime_type: str | None
-    poster_bytes: bytes
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,4 +101,4 @@ class OutputVideoPersistence:
             raise
 
 
-__all__ = ["OutputVideoPersistence", "PersistedOutputVideo", "VideoProbeResult"]
+__all__ = ["OutputVideoPersistence", "PersistedOutputVideo"]
