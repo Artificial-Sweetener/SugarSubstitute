@@ -248,7 +248,7 @@ def test_output_canvas_projection_session_binding_targets_the_document_boundary(
     method_source = source[start:end]
 
     assert "self._route_projector.bind" in method_source
-    assert "self._present_projection" in method_source
+    assert "self._projection_presenter.present" in method_source
     assert "self._runtime" not in method_source
     assert "QPane" not in method_source
 
