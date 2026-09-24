@@ -62,9 +62,6 @@ from substitute.presentation.editor.panel.projection_lifecycle import (
     EditorProjectionLifecyclePipeline,
     EditorProjectionRuntimeIssueIntegration,
 )
-from substitute.presentation.editor.panel.projection_ports import (
-    EditorRefreshPanelProtocol,
-)
 from substitute.presentation.editor.panel.projection_preparation import (
     EditorProjectionPreparationController,
 )
@@ -191,7 +188,7 @@ class _Coordinator:
 def test_compose_editor_projection_builds_projection_collaborators() -> None:
     """Projection construction should live in the composition owner."""
 
-    panel = cast(EditorRefreshPanelProtocol, _Panel())
+    panel = _Panel()
     coordinator = cast(EditorProjectionCoordinatorPort, _Coordinator())
 
     composition = compose_editor_projection(panel, coordinator)

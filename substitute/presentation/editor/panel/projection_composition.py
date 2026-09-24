@@ -21,19 +21,31 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from .clean_projection_refresh import EditorCleanProjectionRefreshController
+from .clean_projection_refresh import (
+    CleanProjectionRefreshPanelProtocol,
+    EditorCleanProjectionRefreshController,
+)
 from .cube_section_build_controller import CubeSectionBuildController
-from .cube_section_staleness_controller import CubeSectionStalenessController
+from .cube_section_build_ports import CubeSectionBuildPanelProtocol
+from .cube_section_staleness_controller import (
+    CubeSectionStalenessController,
+    CubeSectionStalenessPanelProtocol,
+)
 from .full_projection_load_pipeline import (
     EditorFullProjectionLoadPipeline,
     EditorFullProjectionLoadPorts,
+    FullProjectionLoadPanelPort,
 )
 from .hidden_build_scheduler import HiddenBuildScheduler, HiddenBuildSchedulerPorts
 from .incremental_insert_pipeline import (
     EditorIncrementalInsertPipeline,
     EditorIncrementalInsertPorts,
+    IncrementalInsertPanelPort,
 )
-from .projected_widget_builder import ProjectedWidgetBuilder
+from .projected_widget_builder import (
+    ProjectedWidgetBuilder,
+    ProjectedWidgetPanelProtocol,
+)
 from .projection_active_session_controller import (
     EditorActiveProjectionSessionController,
 )
@@ -45,10 +57,11 @@ from .projection_lifecycle import (
     EditorProjectionRuntimeIssueIntegration,
     ProjectionBuildRegistryPort,
     ProjectionLifecyclePanelPort,
+    RuntimeIssueIntegrationPanelPort,
 )
-from .projection_ports import EditorRefreshPanelProtocol
 from .projection_preparation import (
     EditorProjectionPreparationController,
+    ProjectionPreparationPanelPort,
     ProjectionPromptContextPort,
     begin_behavior_refresh_transaction,
     end_behavior_refresh_transaction,
@@ -58,10 +71,16 @@ from .projection_completion_registry import (
     ProjectionSessionCompletionController,
 )
 from .projection_session_registry import ActiveProjectionSessionRegistry
-from .projection_surface_state import ProjectionSurfaceStateController
+from .projection_surface_state import (
+    ProjectionSurfaceStateController,
+    ProjectionSurfaceStateHost,
+)
 from .projection_workflow_context import EditorProjectionWorkflowContext
 from .rendering.render_reconciler import EditorPanelRenderReconciler
-from .runtime_issue_projection_adapter import RuntimeIssueProjectionAdapter
+from .runtime_issue_projection_adapter import (
+    RuntimeIssueProjectionAdapter,
+    RuntimeIssueProjectionPanelPort,
+)
 from .visible_projection_commit import (
     EditorVisibleProjectionCommitPipeline,
     EditorVisibleProjectionCommitPorts,
@@ -104,7 +123,7 @@ class EditorProjectionComposition:
 
 
 def compose_editor_projection(
-    panel: EditorRefreshPanelProtocol,
+    panel: object,
     coordinator: EditorProjectionCoordinatorPort,
 ) -> EditorProjectionComposition:
     """Build projection collaborators and wire their narrow ports."""
@@ -113,15 +132,23 @@ def compose_editor_projection(
     projection_completions = ProjectionCompletionRegistry()
     session_completions = ProjectionSessionCompletionController(projection_completions)
     projection_sessions = ActiveProjectionSessionRegistry()
-    projection_state = ProjectionSurfaceStateController(panel)
-    runtime_issues = EditorProjectionRuntimeIssueIntegration(panel)
+    projection_state = ProjectionSurfaceStateController(
+        cast(ProjectionSurfaceStateHost, panel)
+    )
+    runtime_issues = EditorProjectionRuntimeIssueIntegration(
+        cast(RuntimeIssueIntegrationPanelPort, panel)
+    )
     render_reconciler = EditorPanelRenderReconciler(panel)
     workflow_context = EditorProjectionWorkflowContext(panel)
     projection_busy = EditorProjectionBusyAdapter(panel)
-    clean_projection_refresh = EditorCleanProjectionRefreshController(panel)
-    cube_section_builds = CubeSectionBuildController(panel)
+    clean_projection_refresh = EditorCleanProjectionRefreshController(
+        cast(CleanProjectionRefreshPanelProtocol, panel)
+    )
+    cube_section_builds = CubeSectionBuildController(
+        cast(CubeSectionBuildPanelProtocol, panel)
+    )
     runtime_issue_projection = RuntimeIssueProjectionAdapter(
-        panel=panel,
+        panel=cast(RuntimeIssueProjectionPanelPort, panel),
         runtime_issues=runtime_issues,
     )
     visible_commits = EditorVisibleProjectionCommitPipeline(
@@ -151,7 +178,7 @@ def compose_editor_projection(
         ),
     )
     projection_preparation = EditorProjectionPreparationController(
-        panel=panel,
+        panel=cast(ProjectionPreparationPanelPort, panel),
         prompt_context=cast(ProjectionPromptContextPort, panel),
         runtime_issues=runtime_issues,
         begin_behavior_transaction=(
@@ -173,7 +200,7 @@ def compose_editor_projection(
         ),
     )
     cube_section_staleness = CubeSectionStalenessController(
-        panel=panel,
+        panel=cast(CubeSectionStalenessPanelProtocol, panel),
         build_registry=build_registry,
         completion_registry=projection_completions,
         workflow_context=workflow_context,
@@ -213,7 +240,7 @@ def compose_editor_projection(
     )
     incremental_inserts = EditorIncrementalInsertPipeline(
         EditorIncrementalInsertPorts(
-            panel=panel,
+            panel=cast(IncrementalInsertPanelPort, panel),
             projection_sessions=projection_sessions,
             projection_completions=projection_completions,
             session_completions=session_completions,
@@ -225,7 +252,7 @@ def compose_editor_projection(
         )
     )
     projected_widget_builder = ProjectedWidgetBuilder(
-        panel=panel,
+        panel=cast(ProjectedWidgetPanelProtocol, panel),
         build_registry=build_registry,
         projection_completions=projection_completions,
         projection_lifecycle=projection_lifecycle,
@@ -233,7 +260,7 @@ def compose_editor_projection(
     )
     full_projection_loads = EditorFullProjectionLoadPipeline(
         EditorFullProjectionLoadPorts(
-            panel=panel,
+            panel=cast(FullProjectionLoadPanelPort, panel),
             active_sessions=active_sessions,
             projection_completions=projection_completions,
             session_completions=session_completions,
