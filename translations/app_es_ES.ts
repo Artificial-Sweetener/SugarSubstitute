@@ -539,7 +539,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Añadir</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="335"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="336"></location>
       <source>Add %1 key</source>
       <translation>Añadir clave de %1</translation>
     </message>
@@ -634,7 +634,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Cubos afectados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="616"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_picker_controller.py" line="247"></location>
       <source>All</source>
       <translation>Todo</translation>
     </message>
@@ -1624,7 +1624,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Cerrar ComfyUI por mí</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="74"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="84"></location>
       <source>Close Substitute Anyway</source>
       <translation>Cerrar Substitute de todos modos</translation>
     </message>
@@ -2014,7 +2014,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>ComfyUI se instaló, pero Substitute no pudo terminar de preparar los paquetes de nodos necesarios.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="200"></location>
+      <location filename="../substitute/presentation/canvas/output/output_compare_menu_item.py" line="40"></location>
       <source>Compare outputs</source>
       <translation>Comparar salidas</translation>
     </message>
@@ -2194,9 +2194,14 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Controles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="152"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="155"></location>
       <source>Copy</source>
       <translation>Copiar</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="79"></location>
+      <source>Copy Details</source>
+      <translation>Copiar detalles</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/comfy_output_panel.py" line="96"></location>
@@ -2219,7 +2224,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Copiar título de la etiqueta</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="54"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="61"></location>
       <source>Could Not Finish Closing</source>
       <translation>No se pudo completar el cierre</translation>
     </message>
@@ -2239,7 +2244,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudieron instalar los nodos necesarios de la biblioteca de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="954"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="195"></location>
       <source>Could not load image: %1</source>
       <translation>No se pudo cargar la imagen: %1</translation>
     </message>
@@ -2767,7 +2772,7 @@ Install these nodes now?</source>
       <translation>Descargando...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="51"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="57"></location>
       <source>Drag</source>
       <translation>Arrastrar</translation>
     </message>
@@ -3210,7 +3215,7 @@ Install these nodes now?</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="966"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="207"></location>
       <source>Generated image load failed</source>
       <translation>No se pudo cargar la imagen generada</translation>
     </message>
@@ -3390,7 +3395,7 @@ Install these nodes now?</source>
       <translation>Ocultar la salida de Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="178"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="194"></location>
       <source>Hide Details</source>
       <translation>Ocultar detalles</translation>
     </message>
@@ -3460,7 +3465,7 @@ Install these nodes now?</source>
       <translation>Si no estás seguro, usa Detectar desde ComfyUI en ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="64"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="71"></location>
       <source>If you close anyway, a background service may still be running.</source>
       <translation>Si cierras de todos modos, podría quedar un servicio ejecutándose en segundo plano.</translation>
     </message>
@@ -3855,7 +3860,7 @@ Install these nodes now?</source>
       <translation>Palabras de activación de LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="958"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="199"></location>
       <source>Load Error</source>
       <translation>Error de carga</translation>
     </message>
@@ -4070,6 +4075,36 @@ Install these nodes now?</source>
       <translation>Instalación local administrada</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="147"></location>
+      <source>Managed process exit was not confirmed</source>
+      <translation>No se confirmó la salida del proceso administrado</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="102"></location>
+      <source>Managed process native-exit verification timeout</source>
+      <translation>Se agotó el tiempo de espera al verificar la salida nativa del proceso administrado</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="159"></location>
+      <source>Managed process termination boundary</source>
+      <translation>Límite de finalización del proceso administrado</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="115"></location>
+      <source>Managed process termination command timeout</source>
+      <translation>Se agotó el tiempo de espera del comando de finalización del proceso administrado</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="158"></location>
+      <source>Managed process termination failed</source>
+      <translation>No se pudo finalizar el proceso administrado</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="103"></location>
+      <source>Managed runtime or operating-system process teardown</source>
+      <translation>Cierre del entorno administrado o de procesos del sistema operativo</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="310"></location>
       <source>Managed workspace: %1</source>
       <translation>Espacio de trabajo administrado: %1</translation>
@@ -4080,12 +4115,12 @@ Install these nodes now?</source>
       <translation>La actualización manual de metadatos necesita un tipo de modelo y un valor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="677"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="216"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>No se pudieron verificar las dimensiones de la máscara</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="614"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="170"></location>
       <source>Mask dimensions do not match</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
@@ -4682,7 +4717,7 @@ Usaré el mío.</translation>
       <translation>Abrir el repositorio de %1 en GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="167"></location>
       <source>Open All in Photoshop</source>
       <translation>Abrir todo en Photoshop</translation>
     </message>
@@ -4737,7 +4772,7 @@ Usaré el mío.</translation>
       <translation>Abrir la instalación guiada para este origen local de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="161"></location>
       <source>Open in Photoshop</source>
       <translation>Abrir en Photoshop</translation>
     </message>
@@ -4775,6 +4810,11 @@ Usaré el mío.</translation>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="213"></location>
       <source>Operating system</source>
       <translation>Sistema operativo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="116"></location>
+      <source>Operating-system process termination command</source>
+      <translation>Comando de finalización de procesos del sistema operativo</translation>
     </message>
     <message>
       <location filename="../substitute/application/error_report_builder.py" line="233"></location>
@@ -5806,7 +5846,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="173"></location>
       <source>Reveal in File Manager</source>
       <translation>Mostrar en el gestor de archivos</translation>
     </message>
@@ -6426,7 +6466,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar la salida de Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="187"></location>
       <source>Show Details</source>
       <translation>Mostrar detalles</translation>
     </message>
@@ -6838,7 +6878,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute se conecta a este servidor de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="107"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="122"></location>
       <source>Substitute could not confirm that shutdown finished.</source>
       <translation>Substitute no pudo confirmar que el cierre hubiera terminado.</translation>
     </message>
@@ -6848,7 +6888,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute no pudo descargar y verificar todos los modelos que necesita este flujo de trabajo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="120"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="135"></location>
       <source>Substitute could not finish closing completely.</source>
       <translation>Substitute no pudo cerrarse por completo.</translation>
     </message>
@@ -6953,6 +6993,11 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute no pudo guardar estas opciones de instalación</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="129"></location>
+      <source>Substitute encountered an internal cleanup error before it could request managed-process termination.</source>
+      <translation>Substitute encontró un error interno de limpieza antes de poder solicitar la finalización del proceso administrado.</translation>
+    </message>
+    <message>
       <location filename="../substitute/app/bootstrap/lifecycle.py" line="374"></location>
       <source>Substitute finished closing cleanly.</source>
       <translation>Substitute terminó de cerrarse correctamente.</translation>
@@ -7033,6 +7078,21 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute guarda aquí las imágenes terminadas. La opción predeterminada las mantiene junto a tus archivos de Substitute.</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="127"></location>
+      <source>Substitute shutdown cleanup error</source>
+      <translation>Error de limpieza al cerrar Substitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="137"></location>
+      <source>Substitute shutdown coordinator timeout</source>
+      <translation>Tiempo de espera agotado del coordinador de cierre de Substitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="128"></location>
+      <source>Substitute shutdown orchestration</source>
+      <translation>Orquestación del cierre de Substitute</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="106"></location>
       <source>Substitute still needs a ComfyUI connection</source>
       <translation>Substitute aún necesita una conexión con ComfyUI</translation>
@@ -7076,6 +7136,11 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="151"></location>
       <source>Substitute will not start over a different app that is already listening on the managed port.</source>
       <translation>Substitute no se iniciará sobre otra aplicación que ya esté escuchando en el puerto administrado.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="139"></location>
+      <source>Substitute's cleanup task did not return before the shutdown coordinator deadline, so process exit could not be verified.</source>
+      <translation>La tarea de limpieza de Substitute no finalizó antes del límite del coordinador de cierre, por lo que no se pudo verificar la salida del proceso.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="344"></location>
@@ -7242,9 +7307,24 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>SugarSubstitute ofrece un espacio de trabajo específico de PySide6 para ComfyUI, con composición de flujos de trabajo mediante cubos, metadatos administrados de modelos, herramientas para prompts y flujos integrados de lienzos de imágenes.</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="160"></location>
+      <source>SugarSubstitute reached the managed-process termination boundary, but the termination attempt did not complete successfully.</source>
+      <translation>SugarSubstitute alcanzó el límite de finalización del proceso administrado, pero el intento no se completó correctamente.</translation>
+    </message>
+    <message>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="200"></location>
       <source>SugarSubstitute recorded release version</source>
       <translation>Versión de lanzamiento registrada de SugarSubstitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="119"></location>
+      <source>SugarSubstitute requested managed-process termination, but the operating system command did not finish before its deadline.</source>
+      <translation>SugarSubstitute solicitó finalizar el proceso administrado, pero el comando del sistema operativo no terminó antes del límite.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="151"></location>
+      <source>SugarSubstitute requested termination but could not prove that the managed process family completed exit.</source>
+      <translation>SugarSubstitute solicitó la finalización, pero no pudo demostrar que la familia de procesos administrados completara la salida.</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_compatibility.py" line="67"></location>
@@ -7255,6 +7335,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/domain/comfy_compatibility.py" line="89"></location>
       <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
       <translation>SugarSubstitute necesita Python %1 o una versión posterior para los paquetes de nodos de ComfyUI. El entorno seleccionado usa Python %2.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="106"></location>
+      <source>SugarSubstitute sent the termination request, but the operating system did not confirm that every managed process exited before the verification deadline. This does not indicate a crash in the Substitute interface.</source>
+      <translation>SugarSubstitute envió la solicitud de finalización, pero el sistema operativo no confirmó que todos los procesos administrados hubieran salido antes del límite de verificación. Esto no indica un bloqueo de la interfaz de Substitute.</translation>
     </message>
     <message>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="109"></location>
@@ -7295,6 +7380,59 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="204"></location>
       <source>Supervising launcher version</source>
       <translation>Versión del iniciador supervisor</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="51"></location>
+      <source>Support code: %1
+Classification: %2
+Responsibility boundary: %3
+
+What happened:
+%4
+
+Observed shutdown facts:
+- Cleanup outcome: %5
+- Managed process detected before shutdown: %6
+- Ownership metadata available: %7
+- Persisted ownership metadata used: %8
+- Termination requested: %9
+- Native exit verification timed out: %10
+- Termination command timed out: %11
+- Managed process registry cleared: %12
+- Managed process ID: %13
+- Endpoint: %14
+- Cleanup elapsed: %15 milliseconds
+
+User-safe detail:
+%16
+
+Diagnostic evidence:
+%17</source>
+      <translation>Código de soporte: %1
+Clasificación: %2
+Límite de responsabilidad: %3
+
+Qué ocurrió:
+%4
+
+Hechos observados del cierre:
+- Resultado de la limpieza: %5
+- Proceso administrado detectado antes del cierre: %6
+- Metadatos de propiedad disponibles: %7
+- Se usaron metadatos de propiedad persistentes: %8
+- Finalización solicitada: %9
+- Se agotó el tiempo de verificación de salida nativa: %10
+- Se agotó el tiempo del comando de finalización: %11
+- Registro del proceso administrado borrado: %12
+- ID del proceso administrado: %13
+- Punto de conexión: %14
+- Tiempo de limpieza: %15 milisegundos
+
+Detalle seguro para el usuario:
+%16
+
+Evidencia de diagnóstico:
+%17</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1761"></location>
@@ -7669,12 +7807,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="679"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="217"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>No se pudieron comparar las dimensiones de la máscara seleccionada con la imagen de entrada cargada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="616"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="171"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>Las dimensiones de la máscara seleccionada no coinciden con las de la imagen de entrada cargada.</translation>
     </message>
@@ -7929,7 +8067,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudieron aplicar los cambios</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="42"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="46"></location>
       <source>Unable to copy output image.</source>
       <translation>No se puede copiar la imagen de salida.</translation>
     </message>
@@ -7974,7 +8112,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo guardar el recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="53"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="59"></location>
       <source>Unable to transfer output image.</source>
       <translation>No se puede transferir la imagen de salida.</translation>
     </message>
@@ -8599,7 +8737,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Puedes mantener la ubicación sugerida.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="110"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="125"></location>
       <source>You can retry shutdown or close Substitute anyway.</source>
       <translation>Puedes volver a intentar el cierre o cerrar Substitute de todos modos.</translation>
     </message>
