@@ -44,10 +44,8 @@ from .projection_observability import (
     log_panel_projection_timing,
 )
 from .projection_preparation import BehaviorRefreshReason, EditorProjectionPreparation
-from .projection_session import (
-    ActiveProjectionSession,
-    EditorSurfaceProjectionSignature,
-)
+from .projection_session_models import ActiveProjectionSession
+from .projection_surface_state import EditorSurfaceProjectionSignature
 
 _LOGGER = get_logger("presentation.editor.panel.full_projection_load_pipeline")
 
@@ -83,7 +81,7 @@ class FullProjectionActiveSessionPort(Protocol):
 
 
 class FullProjectionCompletionPort(Protocol):
-    """Describe completion callback ownership used by full loads."""
+    """Describe pending completion ownership used by full loads."""
 
     def register_projection_completion(
         self,
@@ -95,6 +93,10 @@ class FullProjectionCompletionPort(Protocol):
         reason: BehaviorRefreshReason,
     ) -> None:
         """Register a full-projection completion callback."""
+
+
+class FullProjectionSessionCompletionPort(Protocol):
+    """Describe session completion attachment used by full loads."""
 
     def claim_superseded_inserts(
         self,
@@ -290,6 +292,7 @@ class EditorFullProjectionLoadPorts:
     panel: FullProjectionLoadPanelPort
     active_sessions: FullProjectionActiveSessionPort
     projection_completions: FullProjectionCompletionPort
+    session_completions: FullProjectionSessionCompletionPort
     runtime_issues: FullProjectionRuntimeIssuePort
     projection_preparation: FullProjectionPreparationPort
     projection_lifecycle: FullProjectionLifecyclePort
@@ -338,7 +341,7 @@ class EditorFullProjectionLoadPipeline:
             on_complete=request.on_complete,
             reason="full_workflow_projection",
         )
-        ports.projection_completions.claim_superseded_inserts(
+        ports.session_completions.claim_superseded_inserts(
             workflow_id=request.workflow_id,
             cube_entries=request.cube_entries,
             projection_session=projection_session,

@@ -44,7 +44,7 @@ from .projection_preparation import (
     EditorProjectionPreparation,
     cube_definition_identity,
 )
-from .projection_session import ActiveProjectionSession, InsertCompletionPhase
+from .projection_session_models import ActiveProjectionSession, InsertCompletionPhase
 
 _LOGGER = get_logger("presentation.editor.panel.incremental_insert_pipeline")
 
@@ -80,19 +80,7 @@ class IncrementalInsertSessionRegistryPort(Protocol):
 
 
 class IncrementalInsertCompletionPort(Protocol):
-    """Describe insert completion registry operations."""
-
-    def attach_insert_to_active_projection(
-        self,
-        *,
-        session: ActiveProjectionSession,
-        workflow_id: str,
-        cube_alias: str,
-        completion_phase: InsertCompletionPhase,
-        on_complete: Callable[[], None] | None,
-        reason: str,
-    ) -> None:
-        """Attach an insert completion to an active full projection."""
+    """Describe pending insert completion registry operations."""
 
     def register_pending_insert(
         self,
@@ -125,6 +113,22 @@ class IncrementalInsertCompletionPort(Protocol):
         cancel_superseded: bool,
     ) -> None:
         """Cancel a pending insert completion callback."""
+
+
+class IncrementalInsertSessionCompletionPort(Protocol):
+    """Describe completion attachment to an active full projection."""
+
+    def attach_insert(
+        self,
+        *,
+        session: ActiveProjectionSession,
+        workflow_id: str,
+        cube_alias: str,
+        completion_phase: InsertCompletionPhase,
+        on_complete: Callable[[], None] | None,
+        reason: str,
+    ) -> None:
+        """Attach an insert completion to an active full projection."""
 
 
 class IncrementalInsertPreparationPort(Protocol):
@@ -246,6 +250,7 @@ class EditorIncrementalInsertPorts:
     panel: IncrementalInsertPanelPort
     projection_sessions: IncrementalInsertSessionRegistryPort
     projection_completions: IncrementalInsertCompletionPort
+    session_completions: IncrementalInsertSessionCompletionPort
     projection_preparation: IncrementalInsertPreparationPort
     hidden_build_scheduler: IncrementalInsertHiddenBuildSchedulerPort
     build_registry: IncrementalInsertBuildRegistryPort
@@ -272,7 +277,7 @@ class EditorIncrementalInsertPipeline:
             cube_alias=request.cube_alias,
         )
         if active_projection_session is not None:
-            ports.projection_completions.attach_insert_to_active_projection(
+            ports.session_completions.attach_insert(
                 session=active_projection_session,
                 workflow_id=request.workflow_id,
                 cube_alias=request.cube_alias,

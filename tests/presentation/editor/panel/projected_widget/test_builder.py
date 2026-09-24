@@ -29,7 +29,7 @@ from substitute.presentation.editor.panel.projection_build_registry import (
     CubeSectionBuildReuseDecision,
 )
 from substitute.presentation.editor.panel.projection_models import ProjectedCubeBuild
-from substitute.presentation.editor.panel.projection_session import (
+from substitute.presentation.editor.panel.projection_session_models import (
     ActiveProjectionSession,
     PendingInsertCompletion,
 )

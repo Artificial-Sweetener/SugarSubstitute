@@ -33,10 +33,8 @@ from .projection_models import (
 from .projection_ports import (
     EditorRefreshPanelProtocol,
 )
-from .projection_session import (
-    EditorSurfaceProjectionSignature,
-    InsertCompletionPhase,
-)
+from .projection_session_models import InsertCompletionPhase
+from .projection_surface_state import EditorSurfaceProjectionSignature
 
 
 class EditorPanelProjectionCoordinator:

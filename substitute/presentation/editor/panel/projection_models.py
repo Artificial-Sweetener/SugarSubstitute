@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from .projection_preparation import EditorProjectionPreparation
-from .projection_session import ActiveProjectionSession, InsertCompletionPhase
+from .projection_session_models import ActiveProjectionSession, InsertCompletionPhase
 
 
 @dataclass(frozen=True)

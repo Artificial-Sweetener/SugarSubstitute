@@ -33,7 +33,7 @@ from substitute.shared.logging.logger import (
 )
 
 from .projection_observability import log_panel_projection_event
-from .projection_session import ActiveProjectionSession
+from .projection_session_models import ActiveProjectionSession
 from .rendering.render_reconciler import ProjectedCubeBuildProtocol
 
 _LOGGER = get_logger("presentation.editor.panel.visible_projection_commit")

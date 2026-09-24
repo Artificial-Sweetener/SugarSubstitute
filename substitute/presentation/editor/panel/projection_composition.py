@@ -53,11 +53,12 @@ from .projection_preparation import (
     begin_behavior_refresh_transaction,
     end_behavior_refresh_transaction,
 )
-from .projection_session import (
-    ActiveProjectionSessionRegistry,
+from .projection_completion_registry import (
     ProjectionCompletionRegistry,
-    ProjectionSurfaceStateController,
+    ProjectionSessionCompletionController,
 )
+from .projection_session_registry import ActiveProjectionSessionRegistry
+from .projection_surface_state import ProjectionSurfaceStateController
 from .projection_workflow_context import EditorProjectionWorkflowContext
 from .rendering.render_reconciler import EditorPanelRenderReconciler
 from .runtime_issue_projection_adapter import RuntimeIssueProjectionAdapter
@@ -81,6 +82,7 @@ class EditorProjectionComposition:
 
     build_registry: CubeSectionBuildRegistry
     projection_completions: ProjectionCompletionRegistry
+    session_completions: ProjectionSessionCompletionController
     projection_sessions: ActiveProjectionSessionRegistry
     active_sessions: EditorActiveProjectionSessionController
     projection_state: ProjectionSurfaceStateController
@@ -109,6 +111,7 @@ def compose_editor_projection(
 
     build_registry = CubeSectionBuildRegistry()
     projection_completions = ProjectionCompletionRegistry()
+    session_completions = ProjectionSessionCompletionController(projection_completions)
     projection_sessions = ActiveProjectionSessionRegistry()
     projection_state = ProjectionSurfaceStateController(panel)
     runtime_issues = EditorProjectionRuntimeIssueIntegration(panel)
@@ -140,7 +143,7 @@ def compose_editor_projection(
     )
     active_sessions = EditorActiveProjectionSessionController(
         sessions=projection_sessions,
-        completions=projection_completions,
+        completions=session_completions,
         discard_pending_visible_commit=(
             lambda reason: visible_commits.discard_pending_visible_projection_commit(
                 reason=reason
@@ -213,6 +216,7 @@ def compose_editor_projection(
             panel=panel,
             projection_sessions=projection_sessions,
             projection_completions=projection_completions,
+            session_completions=session_completions,
             projection_preparation=projection_preparation,
             hidden_build_scheduler=hidden_build_scheduler,
             build_registry=build_registry,
@@ -232,6 +236,7 @@ def compose_editor_projection(
             panel=panel,
             active_sessions=active_sessions,
             projection_completions=projection_completions,
+            session_completions=session_completions,
             runtime_issues=runtime_issues,
             projection_preparation=projection_preparation,
             projection_lifecycle=projection_lifecycle,
@@ -248,6 +253,7 @@ def compose_editor_projection(
     return EditorProjectionComposition(
         build_registry=build_registry,
         projection_completions=projection_completions,
+        session_completions=session_completions,
         projection_sessions=projection_sessions,
         active_sessions=active_sessions,
         projection_state=projection_state,

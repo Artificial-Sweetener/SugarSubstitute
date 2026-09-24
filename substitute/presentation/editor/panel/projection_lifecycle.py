@@ -48,7 +48,7 @@ from .projection_preparation import (
     without_cube_aliases,
     without_stack_aliases,
 )
-from .projection_session import ActiveProjectionSession
+from .projection_session_models import ActiveProjectionSession
 
 _LOGGER = get_logger("presentation.editor.panel.projection_lifecycle")
 _T = TypeVar("_T")
