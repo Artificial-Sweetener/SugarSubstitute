@@ -339,22 +339,6 @@ responsibilities = [
 next_extraction = "Extract lookup execution and navigation history from modal presentation."
 
 [[debts]]
-id = "SS-ARCH-042"
-owner = "editor cube reveal"
-paths = ["substitute/presentation/editor/panel/cube_reveal_controller.py"]
-fingerprint = "sha256:bc0c6a3bf6381d292bdba49575113b40950f6df0fd14555019f8100c06a4766c"
-issue = "chore:SS-ARCH-042"
-review_by = 2026-12-15
-responsibilities = [
-  "cube visibility-menu construction and action routing",
-  "queued reveal lifecycle",
-  "scroll target geometry",
-  "scroll animation and user interruption",
-  "visible-cube synchronization",
-]
-next_extraction = "Extract visibility-menu ownership from reveal geometry and scroll-session coordination."
-
-[[debts]]
 id = "SS-ARCH-043"
 owner = "editor field state"
 paths = ["substitute/presentation/editor/panel/field_state_controller.py"]
@@ -470,7 +454,7 @@ next_extraction = "Extract corpus/match projection and refresh scheduling from r
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:b331adc79fea48d1602bdf80afab93355539194ec4dd16fec275fecb55d961d9"
+fingerprint = "sha256:02befe0dfec34fe0d57e8844bca0b44dea80f6a2d51bb7ab407f1ddb4867d14f"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [

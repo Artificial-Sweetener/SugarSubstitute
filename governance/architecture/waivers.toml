@@ -288,19 +288,6 @@ next_limit = 806
 debt = "SS-ARCH-041"
 
 [[waivers]]
-id = "SS-WAIVER-R042"
-owner = "editor cube reveal"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/cube_reveal_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes cube visibility-menu construction and action routing, queued reveal lifecycle, scroll target geometry, scroll animation and user interruption, visible-cube synchronization. Extract visibility-menu ownership from reveal geometry and scroll-session coordination."
-issue = "chore:SS-ARCH-042"
-review_by = 2026-12-15
-max_lines = 597
-next_limit = 500
-debt = "SS-ARCH-042"
-
-[[waivers]]
 id = "SS-WAIVER-R043"
 owner = "editor field state"
 rule = "STRUCT003"
@@ -400,7 +387,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1969
+max_lines = 1963
 next_limit = 1571
 debt = "SS-ARCH-051"
 
