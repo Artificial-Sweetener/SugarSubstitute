@@ -23,11 +23,19 @@ from collections.abc import Iterator
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QPlainTextEdit
 
+from substitute.app.bootstrap.lifecycle import (
+    ManagedComfyCleanupOutcome,
+    ManagedComfyCleanupResult,
+)
 from substitute.presentation.shell.shutdown_recovery_dialog import (
     ShutdownRecoveryDialog,
 )
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
+
+
+pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
 
 
 @pytest.fixture()
@@ -49,7 +57,7 @@ def test_shutdown_recovery_dialog_uncertain_copy_matches_specification(
     dialog = shutdown_recovery_dialog
 
     dialog.show_uncertain_outcome(
-        "Shutdown could not be confirmed before the verification timeout."
+        _cleanup_result(ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS)
     )
 
     assert dialog.windowTitle() == "Could Not Finish Closing"
@@ -70,7 +78,7 @@ def test_shutdown_recovery_dialog_failure_copy_matches_specification(
 
     dialog = shutdown_recovery_dialog
 
-    dialog.show_failed_outcome("The termination command timed out before completion.")
+    dialog.show_failed_outcome(_cleanup_result(ManagedComfyCleanupOutcome.FAILURE))
 
     assert (
         dialog.primary_label.text() == "Substitute could not finish closing completely."
@@ -97,7 +105,7 @@ def test_shutdown_recovery_dialog_blocks_close_button_and_escape(
     """The dialog should stay open until the coordinator handles an explicit action."""
 
     dialog = shutdown_recovery_dialog
-    dialog.show_failed_outcome("The termination command timed out before completion.")
+    dialog.show_failed_outcome(_cleanup_result(ManagedComfyCleanupOutcome.FAILURE))
     dialog.show()
 
     assert dialog.windowFlags() & Qt.WindowType.WindowCloseButtonHint == 0
@@ -121,33 +129,41 @@ def test_shutdown_recovery_dialog_hides_details_by_default(
 
     dialog = shutdown_recovery_dialog
     dialog.show_uncertain_outcome(
-        "Shutdown could not be confirmed before the verification timeout."
+        _cleanup_result(ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS)
     )
 
-    assert dialog.details_label.isHidden() is True
+    assert dialog.details_editor.isHidden() is True
     assert dialog.details_toggle_button.text() == "Show Details"
 
 
-def test_shutdown_recovery_dialog_details_show_sanitized_text_only(
+def test_shutdown_recovery_dialog_details_are_selectable_and_copyable(
     shutdown_recovery_dialog: ShutdownRecoveryDialog,
 ) -> None:
-    """The details region should show only the sanitized detail passed to the dialog."""
+    """The complete support report should be selectable and copied without alteration."""
 
     dialog = shutdown_recovery_dialog
-    detail_text = "Shutdown could not be confirmed before the verification timeout."
-    dialog.show_uncertain_outcome(detail_text)
+    dialog.show_uncertain_outcome(
+        _cleanup_result(ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS)
+    )
     dialog.show()
 
     dialog.details_toggle_button.click()
 
-    assert dialog.details_label.isVisible() is True
+    assert isinstance(dialog.details_editor, QPlainTextEdit)
+    assert dialog.details_editor.isReadOnly() is True
+    assert dialog.details_editor.isVisible() is True
+    assert dialog.details_editor.textCursor().position() == 0
     assert dialog.details_toggle_button.text() == "Hide Details"
-    assert dialog.details_label.text() == detail_text
-    assert "SUCCESS:" not in dialog.details_label.text()
-    assert "taskkill" not in dialog.details_label.text().lower()
+    detail_text = dialog.details_editor.toPlainText()
+    assert "Support code: SS-SHUTDOWN-NATIVE-EXIT-TIMEOUT" in detail_text
+    assert "Responsibility boundary: Managed runtime or operating-system" in detail_text
+    assert "Diagnostic evidence:\nnative wait timed out" in detail_text
+
+    dialog.copy_details_button.click()
+    assert ensure_qt_application().clipboard().text() == detail_text
 
     dialog.details_toggle_button.click()
-    assert dialog.details_label.isHidden() is True
+    assert dialog.details_editor.isHidden() is True
     assert dialog.details_toggle_button.text() == "Show Details"
 
 
@@ -165,3 +181,39 @@ def test_shutdown_recovery_dialog_actions_delegate_to_coordinator(
     dialog.force_close_button.click()
 
     assert calls == ["retry", "force_close"]
+
+
+def _cleanup_result(
+    outcome: ManagedComfyCleanupOutcome,
+) -> ManagedComfyCleanupResult:
+    """Build one shutdown result carrying support-relevant evidence."""
+
+    uncertain = outcome is ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS
+    return ManagedComfyCleanupResult(
+        cleanup_ran=True,
+        outcome=outcome,
+        managed_resource_present=True,
+        live_process_present=True,
+        metadata_present=True,
+        used_persisted_metadata=False,
+        termination_attempted=True,
+        registry_cleared=False,
+        pid=53792,
+        host="127.0.0.1",
+        port=8188,
+        workspace=None,
+        elapsed_ms=6734,
+        taskkill_timeout=not uncertain,
+        verification_timeout=uncertain,
+        user_detail=(
+            "Substitute could not confirm that shutdown finished."
+            if uncertain
+            else "Substitute could not finish closing completely."
+        ),
+        technical_detail=(
+            "Shutdown could not be confirmed before the verification timeout."
+            if uncertain
+            else "The termination command timed out before completion."
+        ),
+        diagnostic_detail="native wait timed out",
+    )
