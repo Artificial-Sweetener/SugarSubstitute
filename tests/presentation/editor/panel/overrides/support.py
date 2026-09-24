@@ -30,7 +30,7 @@ from substitute.application.node_behavior import (
     OverridePinPolicy,
     ResolvedFieldSpec,
 )
-from substitute.presentation.editor.panel import overrides_controller
+from substitute.presentation.editor.panel import override_control_realizer
 from substitute.presentation.widgets import tooltips
 
 
@@ -248,14 +248,14 @@ def _install_toolbar_view_stubs(
 ) -> None:
     """Replace only the manager's imported presentation collaborators."""
 
-    monkeypatch.setattr(overrides_controller, "CaptionLabel", _DummyLabel)
+    monkeypatch.setattr(override_control_realizer, "CaptionLabel", _DummyLabel)
     monkeypatch.setattr(
-        overrides_controller,
+        override_control_realizer,
         "build_widget_for_field_spec",
         build_widget_callback,
     )
     monkeypatch.setattr(
-        overrides_controller,
+        override_control_realizer,
         "resolve_choice_options_for_field",
         choice_options_callback
         if choice_options_callback is not None
