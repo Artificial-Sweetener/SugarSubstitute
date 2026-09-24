@@ -109,11 +109,15 @@ def test_cached_toolbar_seed_control_rebuilds_equally_across_alias_switches() ->
     try:
         _show_workflow_without_restart(harness)
         cube_geometry = _seed_override_geometry(harness)
-        _old_label, old_control = harness.manager._toolbar_registry.controls["seed"]
+        _old_label, old_control = harness.manager._toolbar_controller.registry.controls[
+            "seed"
+        ]
 
         harness.snapshot_source.set_snapshot(_override_snapshot("noise_seed"))
         direct_geometry = _seed_override_geometry(harness)
-        _new_label, direct_control = harness.manager._toolbar_registry.controls["seed"]
+        _new_label, direct_control = (
+            harness.manager._toolbar_controller.registry.controls["seed"]
+        )
 
         assert direct_control is not old_control
         assert direct_geometry == cube_geometry
