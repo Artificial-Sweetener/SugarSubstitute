@@ -30,7 +30,6 @@ from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_BODY_SPACING,
 )
 from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
-from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
 from tests.presentation.editor.node_card.builder_support import build_node_card_builder
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from tests.support.node_behavior import build_behavior_snapshot, cube_state
@@ -196,9 +195,9 @@ def test_prompt_cards_resolve_to_prompt_mode_and_skip_collapse_animation(
         lambda **_kwargs: QWidget(),
     )
     monkeypatch.setattr(
-        NodeCardBuilder,
-        "_add_input_row",
-        lambda self, *, content_layout, **_kwargs: _add_test_field_row(
+        builder._body_composer,
+        "add_input_row",
+        lambda *, content_layout, **_kwargs: _add_test_field_row(
             content_layout,
             panel,
         ),
