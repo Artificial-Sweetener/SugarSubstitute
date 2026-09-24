@@ -146,10 +146,13 @@ class PromptReusedLineSemanticResolver:
                 identity=identity,
                 fully_reusable=fully_reusable,
             )
-            if fully_reusable or _fragment_matches_run(
-                fragment,
-                run=run,
-                projection_delta=projection_delta,
+            if fully_reusable or (
+                isinstance(fragment, PromptProjectionTextFragment)
+                and _fragment_matches_run(
+                    fragment,
+                    run=run,
+                    projection_delta=projection_delta,
+                )
             ):
                 return identity
             return None
