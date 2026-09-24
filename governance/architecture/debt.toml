@@ -354,21 +354,6 @@ responsibilities = [
 next_extraction = "Extract widget-family binding adapters from authoritative field-value mutation."
 
 [[debts]]
-id = "SS-ARCH-044"
-owner = "dimension row actions"
-paths = ["substitute/presentation/editor/panel/menus/dimension_row_actions.py"]
-fingerprint = "sha256:996fc65587e1f0ba0a735afe28b2586756a60db440d7d46f57e666b7905cc0a2"
-issue = "chore:SS-ARCH-044"
-review_by = 2026-12-15
-responsibilities = [
-  "dimension-row widget discovery and binding",
-  "saved-dimension persistence actions",
-  "aspect-ratio and orientation calculation",
-  "semantic dimension-action tree projection",
-]
-next_extraction = "Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
-
-[[debts]]
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]

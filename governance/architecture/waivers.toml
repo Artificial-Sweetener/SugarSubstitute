@@ -301,19 +301,6 @@ next_limit = 863
 debt = "SS-ARCH-043"
 
 [[waivers]]
-id = "SS-WAIVER-R044"
-owner = "dimension row actions"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/menus/dimension_row_actions.py"
-kind = "remediation"
-justification = "The assessed file mixes dimension-row widget discovery and binding, saved-dimension persistence actions, aspect-ratio and orientation calculation, and semantic dimension-action tree projection. Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
-issue = "chore:SS-ARCH-044"
-review_by = 2026-12-15
-max_lines = 648
-next_limit = 533
-debt = "SS-ARCH-044"
-
-[[waivers]]
 id = "SS-WAIVER-R045"
 owner = "editor node-card construction"
 rule = "STRUCT003"
