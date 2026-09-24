@@ -432,10 +432,12 @@ class HarnessMaterializationPort:
 
         raise AssertionError(reference)
 
-    def load_restored_output_image(self, path: Path) -> object | None:
+    def load_restored_output_image(
+        self, reference: OutputImageReference
+    ) -> object | None:
         """Return no output payloads for the image-free fixture."""
 
-        _ = path
+        _ = reference
         return None
 
     def restore_output_image(

@@ -25,7 +25,9 @@ from uuid import UUID, uuid4
 
 from pytest import MonkeyPatch
 
+from substitute.application.ports.video import VideoProbeResult
 from substitute.application.workflows import ImageMeta
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot import (
     ImageMetaSnapshot,
@@ -51,6 +53,27 @@ class _DecodedImage:
         """Return whether decoding failed."""
 
         return self._is_null
+
+
+class _VideoProbe:
+    """Return one deterministic poster while recording validation paths."""
+
+    def __init__(self) -> None:
+        """Initialize an empty call record."""
+
+        self.calls: list[Path] = []
+
+    def probe(self, path: Path) -> VideoProbeResult:
+        """Return validated fake video metadata and poster bytes."""
+
+        self.calls.append(path)
+        return VideoProbeResult(
+            width=320,
+            height=180,
+            duration_seconds=2.0,
+            mime_type="video/webm",
+            poster_bytes=b"poster",
+        )
 
 
 def test_load_restored_input_image_prefers_preloaded_payload(
@@ -116,11 +139,44 @@ def test_load_restored_output_image_uses_canvas_io_without_preload() -> None:
     )
 
     image = WorkspaceRestoreImageAdapter(shell).load_restored_output_image(
-        Path("output.png")
+        _output_reference(Path("output.png"))
     )
 
     assert image is output_image
     assert calls == [Path("output.png")]
+
+
+def test_load_restored_video_revalidates_and_decodes_derived_poster(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Durable videos should restore through the packaged probe, not image IO."""
+
+    decoded = _DecodedImage()
+    video_path = Path("output.webm")
+    probe = _VideoProbe()
+    shell = SimpleNamespace(
+        canvas_io_service=SimpleNamespace(
+            load_output_image=lambda _path: (_ for _ in ()).throw(
+                AssertionError("video must not use image IO")
+            )
+        )
+    )
+    monkeypatch.setattr(
+        adapter_mod,
+        "QImage",
+        SimpleNamespace(
+            fromData=lambda payload: decoded if payload == b"poster" else None
+        ),
+    )
+    reference = _output_reference(video_path, media_kind=OutputMediaKind.VIDEO)
+
+    image = WorkspaceRestoreImageAdapter(
+        shell,
+        video_probe=probe,
+    ).load_restored_output_image(reference)
+
+    assert image is decoded
+    assert probe.calls == [video_path]
 
 
 def test_restore_input_image_preserves_snapshot_uuid() -> None:
@@ -366,3 +422,25 @@ def test_restore_output_image_preserves_snapshot_uuid_and_metadata() -> None:
             "image_meta": image_meta,
         }
     ]
+
+
+def _output_reference(
+    path: Path,
+    *,
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE,
+) -> OutputImageReference:
+    """Build one durable output-media restore reference."""
+
+    return OutputImageReference(
+        image_id=str(uuid4()),
+        path=path,
+        metadata=ImageMetaSnapshot(
+            "Workflow",
+            "Cube",
+            1,
+            "",
+            path,
+            media_kind=media_kind,
+        ),
+        sequence=0,
+    )
