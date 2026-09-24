@@ -1,3 +1,46 @@
+# [0.26.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.25.0...v0.26.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* **canvas:** align picker scrollbars with the flyout edge ([38a81cf](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/38a81cfa69fe5e23d13673d01c6bd38d161e1464))
+* **canvas:** keep oversized navigation pickers usable ([b02ddcb](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b02ddcb84102a410fe1551fc8fee23c8dea020a6))
+* **canvas:** restore comparison and prevent stale output drag crashes ([8bb4ca1](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/8bb4ca161bdcdb037265704203138e4a2d93aad6))
+* **model-picker:** keep SimpleSyrup model choices visual ([e6bf8d5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e6bf8d51ca9505681300d13028d67e73b64ce26d))
+* **models:** keep discovery responsive across repeated openings ([b3bfeaf](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b3bfeaf7e7d07e8e65e1baed40400e13b43ded7e))
+* **models:** keep model discovery stable through repeated sessions ([c952be7](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c952be73c7bc558930d1a7dac840f8ce2c4f2baa))
+* **prompt-editor:** align editable LoRA weights with displayed chips ([1283fe0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1283fe0a354c048f5166414239f8b695c99313df))
+* **prompt-editor:** keep caret and nested syntax stable during rapid typing ([c75a013](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c75a013bfb08bd241ee04df9ffcca8528ecf1e37))
+* **prompt-editor:** keep decorated editing geometry predictable ([13cb145](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/13cb145164a22727b579d205fe6f6ffd82574b24))
+* **prompt-editor:** keep escaped parentheses stable during emphasis adjustments ([a658b31](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a658b3183692fe8998d81f08a5a179bcf338dffd))
+* **prompt-editor:** keep nested emphasis controls stable at neutral weight ([f380e16](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f380e16fd4ee9264ad29cc07364c0333768f6062))
+* **prompt-editor:** keep rapid weight controls and nested wheel targets responsive ([124054f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/124054fbc0f87f3d9055b846d813eede5390002d))
+* **prompt-editor:** keep repeated wildcard tags aligned while typing ([ed48390](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ed48390eeb6f67f3cd88831016f3a3c4663015d2))
+* **prompt-editor:** keep transient editing layers synchronized ([5aec286](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5aec2869d9e72e3ae65b4657bba58c2ffed5fc74))
+* **prompt-editor:** keep wheel adjustment continuous across neutral weight ([383fe3f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/383fe3f1e11139252c3189fae17d99194c148b96))
+* **prompt-editor:** move the caret predictably across decorations ([ab46e08](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ab46e088f3b83093f4ccf225dd3afb0c61b519f5))
+* **prompt-editor:** show both weights for nested emphasis ([bba6187](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bba6187a1aec3ae8096ac4ee1ea21d0d83c407a6))
+* **release:** wait deterministically for managed Comfy readiness ([49bd7cb](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/49bd7cbef8a38135d922225c37d354416dbe3d8f))
+* **release:** wait deterministically for managed Comfy readiness ([48a8c78](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/48a8c78f25c118118e52462abefeb47cecd4822a))
+* **setup:** render the upscaler link action as a complete card ([c7beff2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c7beff27117aebdb932b0402fa48af9685b8f978))
+* **shutdown:** make failed-close reports clear and copyable ([f65a181](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f65a18106fa1dfefca5216dc863c0005050a8cf7))
+* **startup:** keep launches alive through brief readiness receipt locks ([e1ff3d0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e1ff3d0f96406bf2f89bc76213ecfe983540b7df))
+
+
+### Features
+
+* **cubes:** capture wild workflow Cubes in SugarCubes ([e824cd5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e824cd59b54abf14d9dbf01a409d7cdb0431652b))
+* **models:** add provider-aware acquisition and model version updates ([daaf5bb](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/daaf5bb665a9a1a126232d2211edc61d1aaf85c4))
+* **models:** add upscaler discovery and model version updates ([994e697](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/994e6976f9c94ecb4dfa358e381c91273a6c4182))
+* **prompt-editor:** repeat emphasis adjustments while holding arrows ([6b4f4f6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6b4f4f64922525dc7374e6743928e0ecc8613ab2))
+* **splash:** add new guest appearances ([03e0ed8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/03e0ed84d74a4adbec4834fb79900b3ebe1afc44))
+
+
+### Performance Improvements
+
+* **prompt-editor:** keep decorated edits responsive as prompts grow ([5deedcb](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5deedcbdf1218a0f367a3d72497a1a0b9cd55de9))
+* **prompt-editor:** keep long prompt editing responsive and predictable ([7ba1508](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/7ba150831baa05990fe33ae75ec58f241847c0d4))
+
 # [0.25.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.24.2...v0.25.0) (2026-09-23)
 
 
