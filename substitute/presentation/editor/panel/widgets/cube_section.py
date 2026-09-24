@@ -65,7 +65,7 @@ from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
 from substitute.presentation.editor.panel.cube_identity_header import (
     build_cube_identity_header,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_BODY_SPACING,
     EDITOR_ROW_HEIGHT,
     EDITOR_ROW_HORIZONTAL_MARGINS,

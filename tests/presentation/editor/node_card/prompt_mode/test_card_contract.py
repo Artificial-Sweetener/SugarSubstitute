@@ -25,11 +25,11 @@ import pytest
 
 from substitute.application.node_behavior import CardMode, CollapseMode
 import substitute.presentation.editor.panel.node_card_builder as node_card_view
-from substitute.presentation.editor.panel.widgets.field_row import (
-    BuiltFieldRow,
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FULL_WIDTH_ROW_MARGINS,
     EDITOR_ROW_BODY_SPACING,
 )
+from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
 from tests.presentation.editor.node_card.builder_support import build_node_card_builder
 from substitute.presentation.editor.prompt_editor import PromptEditor

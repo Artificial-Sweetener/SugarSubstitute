@@ -388,7 +388,7 @@ next_extraction = "Extract pure dimension transforms and saved-dimension command
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:01e03c67de1d959303259f8054ba1c496973408443f4803748915a1c6b70fe5f"
+fingerprint = "sha256:4a7de5b5e81230da4982c73c958a0c3e1212a9c0a8329933a98f156c379fbc23"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
@@ -487,7 +487,7 @@ next_extraction = "Move registry access and feature coordination behind focused 
 id = "SS-ARCH-052"
 owner = "editor cube section"
 paths = ["substitute/presentation/editor/panel/widgets/cube_section.py"]
-fingerprint = "sha256:ca48ac38bf4ecd42e7413228647f80196bd0129e58b20f2dfa13823ce517edcc"
+fingerprint = "sha256:c99da19b18cf211d475ce2c9c3b7ccb4a7e7452efe697322c10657ee038ed7d5"
 issue = "chore:SS-ARCH-052"
 review_by = 2026-12-15
 responsibilities = [
@@ -498,22 +498,6 @@ responsibilities = [
   "runtime issue card composition and painting",
 ]
 next_extraction = "Extract runtime-issue cards and update/issue overlays from the passive cube-section container and builder."
-
-[[debts]]
-id = "SS-ARCH-053"
-owner = "editor field rows"
-paths = ["substitute/presentation/editor/panel/widgets/field_row.py"]
-fingerprint = "sha256:00be9b760126437698b9fda61244498380bdad3eb51ad5510c9f5778f977d37e"
-issue = "chore:SS-ARCH-053"
-review_by = 2026-12-15
-responsibilities = [
-  "scalar and grouped row construction",
-  "field label/control sizing policy",
-  "field visibility application",
-  "divider styling",
-  "semantic field-action source discovery",
-]
-next_extraction = "Extract field sizing policy and visibility registration from row construction."
 
 [[debts]]
 id = "SS-ARCH-065"

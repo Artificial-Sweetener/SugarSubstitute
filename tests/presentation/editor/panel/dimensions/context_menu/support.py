@@ -33,10 +33,8 @@ from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalog,
     DimensionPresetCatalogSource,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
-    BuiltFieldRow,
-    FieldRowBuilder,
-)
+from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 from substitute.presentation.widgets.menu_model import (
     MenuEntry,
     MenuItem,

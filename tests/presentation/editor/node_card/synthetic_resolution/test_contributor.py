@@ -48,11 +48,11 @@ from substitute.presentation.editor.panel.node_card.synthetic_resolution_contrib
 from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     DimensionRowActions,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_HEIGHT,
     EDITOR_ROW_ICON_SIZE,
     GROUPED_FIELD_DIVIDER_WIDTH,
-    FieldRowBuilder,
 )
 from substitute.presentation.widgets.spin_box import SpinBox
 from tests.support.qt.lifecycle import activate_widget_layouts

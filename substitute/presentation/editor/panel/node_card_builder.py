@@ -122,13 +122,13 @@ from substitute.presentation.editor.panel.projection_observability import (
     panel_projection_observability_started_at,
 )
 from substitute.presentation.editor.panel.service_bundle import EditorPanelServiceBundle
-from substitute.presentation.editor.panel.widgets.field_row import (
-    BuiltFieldRow,
+from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_HORIZONTAL_MARGINS,
     EDITOR_ROW_ICON_SIZE,
     EDITOR_ROW_SPACING,
-    FieldRowBuilder,
 )
+from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 from substitute.presentation.editor.panel.widgets.field_relayout import (
     bind_field_widget_card_relayout,
 )
