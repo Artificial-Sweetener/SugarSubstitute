@@ -190,7 +190,7 @@ def test_rebuild_active_override_controls_binds_fluent_tooltip_to_label_owner(
     manager._toolbar_snapshot = manager._service.build_toolbar_snapshot(
         behavior_snapshot=snapshot,
         stack_order=["A"],
-        overrides=manager._global_overrides,
+        overrides=manager._workflow_state.overrides,
     )
 
     manager.rebuild_active_override_controls()

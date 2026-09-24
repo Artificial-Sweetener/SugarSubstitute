@@ -43,9 +43,7 @@ from substitute.application.node_behavior import (
     is_choice_field_type,
 )
 from substitute.application.overrides import (
-    OverrideMap,
     OverrideParticipationSnapshot,
-    OverrideSelectionMap,
     PinnedOverrideControl,
     OverrideToolbarSnapshot,
     PinnedOverrideService,
@@ -106,6 +104,10 @@ from substitute.presentation.editor.panel.model_choice_snapshot_controller impor
 from substitute.presentation.editor.panel.override_model_picker_reconciler import (
     reconcile_model_override_picker,
 )
+from substitute.presentation.editor.panel.override_workflow_state import (
+    OverrideWorkflowState,
+    compact_override_log_value,
+)
 from substitute.shared.logging.logger import (
     log_debug,
     get_logger,
@@ -116,15 +118,6 @@ from substitute.shared.logging.logger import (
 _LOGGER = get_logger("presentation.editor.panel.overrides_controller")
 _TOOLBAR_MAX_WIDGET_WIDTH = 180
 _TOOLBAR_CONTROL_HEIGHT = 32
-
-
-def _compact_log_value(value: Any) -> str:
-    """Return a compact representation for structured override logging."""
-
-    rendered = repr(value)
-    if len(rendered) > 240:
-        return f"{rendered[:237]}..."
-    return rendered
 
 
 def _accepts_named_parameter(callable_obj: Any, parameter_name: str) -> bool:
@@ -177,8 +170,9 @@ class GlobalOverridesManager:
         self._model_metadata_action_handler = model_metadata_action_handler
         self._empty_model_picker_action = empty_model_picker_action
         self._model_updates = model_updates
-        self._global_overrides: OverrideMap = {}
-        self._global_override_selections: OverrideSelectionMap = {}
+        self._workflow_state = OverrideWorkflowState(
+            mainwindow, pinned_override_service
+        )
         self._global_override_controls: dict[str, tuple[Any, Any]] = {}
         self._global_override_control_signatures: dict[
             str,
@@ -193,100 +187,30 @@ class GlobalOverridesManager:
     def sync_state_from_workflow(self) -> None:
         """Load canonicalized override state from the active workflow."""
 
-        workflow = self.mainwindow.get_active_workflow()
-        workflow_id = getattr(
-            getattr(self.mainwindow, "workflow_session_service", None),
-            "active_workflow_id",
-            None,
-        )
-        log_debug(
-            _LOGGER,
-            "global overrides sync from workflow started",
-            workflow_id=workflow_id,
-            workflow_present=workflow is not None,
-            raw_override_keys=tuple(
-                sorted(str(key) for key in getattr(workflow, "global_overrides", {}))
-            )
-            if workflow is not None
-            else (),
-        )
-        if workflow is None:
-            self._global_overrides = {}
-            self._global_override_selections = {}
-            return
-        self._global_overrides = self._service.normalize_workflow_overrides(
-            getattr(workflow, "global_overrides", None)
-        )
-        self._global_override_selections = self._service.normalize_workflow_selections(
-            getattr(workflow, "global_override_selections", None)
-        )
-        log_debug(
-            _LOGGER,
-            "global overrides sync from workflow completed",
-            workflow_id=workflow_id,
-            normalized_overrides=tuple(
-                {
-                    "override_key": key,
-                    "value": _compact_log_value(value.get("value")),
-                    "mode": value.get("mode"),
-                }
-                for key, value in sorted(self._global_overrides.items())
-            ),
-            normalized_selections=tuple(
-                {
-                    "override_key": key,
-                    "selected": selected,
-                }
-                for key, selected in sorted(self._global_override_selections.items())
-            ),
-        )
-        self._sync_overrides_to_workflow()
+        self._workflow_state.sync_from_workflow()
 
     def materialize_default_overrides(self) -> bool:
         """Ensure default-pinned override values exist for the current workflow snapshot."""
 
-        workflow = self.mainwindow.get_active_workflow()
         behavior_snapshot = self._current_behavior_snapshot()
-        workflow_id = getattr(
-            getattr(self.mainwindow, "workflow_session_service", None),
-            "active_workflow_id",
-            None,
-        )
-        log_debug(
-            _LOGGER,
-            "global overrides materialize defaults requested",
-            workflow_id=workflow_id,
-            workflow_present=workflow is not None,
-            behavior_snapshot_present=behavior_snapshot is not None,
-            existing_override_keys=tuple(sorted(self._global_overrides)),
-            stack_order=self._current_projection_order(),
-        )
-        if workflow is None or behavior_snapshot is None:
-            return False
-        if self._service.materialize_default_overrides(
-            overrides=self._global_overrides,
-            selections=self._global_override_selections,
+        return self._workflow_state.materialize_defaults(
             behavior_snapshot=behavior_snapshot,
             stack_order=self._current_projection_order(),
-        ):
-            self._sync_overrides_to_workflow()
-            return True
-        return False
+        )
 
     def apply_global_overrides_without_snapshot_fallback(self) -> bool:
         """Apply persisted overrides before a behavior snapshot can be trusted."""
 
-        workflow = self.mainwindow.get_active_workflow()
-        changed = self._service.apply_overrides_to_projection(
-            overrides=self._global_overrides,
+        workflow_present = self.mainwindow.get_active_workflow() is not None
+        changed = self._workflow_state.apply_to_projection(
             projection=self._current_editor_projection(),
             behavior_snapshot=None,
         )
         log_debug(
             _LOGGER,
             "Applied global overrides without behavior snapshot",
-            workflow_present=workflow is not None,
-            override_keys=tuple(sorted(self._global_overrides)),
+            workflow_present=workflow_present,
+            override_keys=tuple(sorted(self._workflow_state.overrides)),
             changed=changed,
         )
         return changed
@@ -334,13 +258,15 @@ class GlobalOverridesManager:
             active_controls=tuple(
                 {
                     "override_key": control.override_key,
-                    "value": _compact_log_value(control.value),
+                    "value": compact_override_log_value(control.value),
                     "representative_cube": control.spec.cube_alias,
                     "representative_node": control.spec.node_name,
                     "representative_class": control.spec.class_type,
                     "representative_field": control.spec.field_key,
-                    "spec_value": _compact_log_value(control.spec.value),
-                    "spec_raw_value": _compact_log_value(control.spec.raw_value),
+                    "spec_value": compact_override_log_value(control.spec.value),
+                    "spec_raw_value": compact_override_log_value(
+                        control.spec.raw_value
+                    ),
                     "spec_value_source": control.spec.value_source.value,
                 }
                 for control in toolbar_snapshot.active_controls
@@ -432,18 +358,17 @@ class GlobalOverridesManager:
             workflow_id=workflow_id,
             workflow_present=workflow is not None,
             behavior_snapshot_present=behavior_snapshot is not None,
-            override_keys=tuple(sorted(self._global_overrides)),
+            override_keys=tuple(sorted(self._workflow_state.overrides)),
             overrides=tuple(
                 {
                     "override_key": key,
-                    "value": _compact_log_value(value.get("value")),
+                    "value": compact_override_log_value(value.get("value")),
                     "mode": value.get("mode"),
                 }
-                for key, value in sorted(self._global_overrides.items())
+                for key, value in sorted(self._workflow_state.overrides.items())
             ),
         )
-        overrides_changed = self._service.apply_overrides_to_projection(
-            overrides=self._global_overrides,
+        overrides_changed = self._workflow_state.apply_to_projection(
             projection=self._current_editor_projection(),
             behavior_snapshot=behavior_snapshot,
         )
@@ -486,8 +411,7 @@ class GlobalOverridesManager:
         behavior_snapshot = self._current_behavior_snapshot()
         if workflow is None or behavior_snapshot is None:
             return None
-        return self._service.build_participation_snapshot(
-            overrides=self._global_overrides,
+        return self._workflow_state.build_participation(
             behavior_snapshot=behavior_snapshot,
             stack_order=self._current_projection_order(),
         )
@@ -501,8 +425,7 @@ class GlobalOverridesManager:
         behavior_snapshot = self._current_behavior_snapshot()
         if workflow is None or behavior_snapshot is None:
             return None
-        return self._service.build_serialization_scopes(
-            overrides=self._global_overrides,
+        return self._workflow_state.build_serialization_scopes(
             behavior_snapshot=behavior_snapshot,
             stack_order=self._current_projection_order(),
         )
@@ -516,8 +439,7 @@ class GlobalOverridesManager:
         workflow = self.mainwindow.get_active_workflow()
         if workflow is None or behavior_snapshot is None:
             return set()
-        participation = self._service.build_participation_snapshot(
-            overrides=self._global_overrides,
+        participation = self._workflow_state.build_participation(
             behavior_snapshot=behavior_snapshot,
             stack_order=self._current_projection_order(),
         )
@@ -546,49 +468,19 @@ class GlobalOverridesManager:
         try:
             self._clear_all_override_widgets()
         finally:
-            self._global_overrides.clear()
-            self._global_override_selections.clear()
+            self._workflow_state.clear()
             self._toolbar_snapshot = None
 
     def _on_override_menu_toggled(self, action: Any) -> None:
         """Handle checked and unchecked actions from the overrides drop-down menu."""
 
-        workflow = self.mainwindow.get_active_workflow()
         behavior_snapshot = self._current_behavior_snapshot()
-        if workflow is None or behavior_snapshot is None:
-            return
-        data = action.data() or {}
-        override_key = data.get("override_key")
-        if not isinstance(override_key, str):
-            return
-
-        workflow_overrides = self._service.normalize_workflow_overrides(
-            getattr(workflow, "global_overrides", None)
-        )
-        workflow_selections = self._service.normalize_workflow_selections(
-            getattr(workflow, "global_override_selections", None)
-        )
-        changed = False
-        if bool(action.isChecked()):
-            workflow_selections[override_key] = True
-            changed = self._service.pin_override(
-                overrides=workflow_overrides,
-                behavior_snapshot=behavior_snapshot,
-                stack_order=self._current_projection_order(),
-                override_key=override_key,
-            )
-        else:
-            workflow_selections[override_key] = False
-            changed = self._service.unpin_override(workflow_overrides, override_key)
-
-        if not changed and getattr(workflow, "global_override_selections", {}) == dict(
-            workflow_selections
+        if self._workflow_state.toggle_from_action(
+            action,
+            behavior_snapshot=behavior_snapshot,
+            stack_order=self._current_projection_order(),
         ):
-            return
-        workflow.global_overrides = dict(workflow_overrides)
-        workflow.global_override_selections = dict(workflow_selections)
-        self.sync_state_from_workflow()
-        self._refresh_toolbar_after_toggle()
+            self._refresh_toolbar_after_toggle()
         self._request_session_autosave()
 
     def _refresh_toolbar_after_toggle(self) -> None:
@@ -601,27 +493,7 @@ class GlobalOverridesManager:
     def _sync_overrides_to_workflow(self) -> None:
         """Persist current manager override state to the active workflow."""
 
-        workflow = self.mainwindow.get_active_workflow()
-        if workflow is not None:
-            log_debug(
-                _LOGGER,
-                "syncing overrides to workflow",
-                workflow_override_keys_before=tuple(
-                    sorted(
-                        str(key) for key in getattr(workflow, "global_overrides", {})
-                    )
-                ),
-                manager_overrides=tuple(
-                    {
-                        "override_key": key,
-                        "value": _compact_log_value(value.get("value")),
-                        "mode": value.get("mode"),
-                    }
-                    for key, value in sorted(self._global_overrides.items())
-                ),
-            )
-            workflow.global_overrides = dict(self._global_overrides)
-            workflow.global_override_selections = dict(self._global_override_selections)
+        self._workflow_state.sync_to_workflow()
 
     def _refresh_toolbar_snapshot(self) -> OverrideToolbarSnapshot:
         """Build and cache the latest toolbar snapshot from the editor behavior snapshot."""
@@ -634,15 +506,14 @@ class GlobalOverridesManager:
             workflow_present=workflow is not None,
             behavior_snapshot_present=behavior_snapshot is not None,
             stack_order=self._current_projection_order(),
-            override_keys=tuple(sorted(self._global_overrides)),
+            override_keys=tuple(sorted(self._workflow_state.overrides)),
         )
         if workflow is None or behavior_snapshot is None:
             self._toolbar_snapshot = OverrideToolbarSnapshot([], [], ())
             return self._toolbar_snapshot
-        self._toolbar_snapshot = self._service.build_toolbar_snapshot(
+        self._toolbar_snapshot = self._workflow_state.build_toolbar_snapshot(
             behavior_snapshot=behavior_snapshot,
             stack_order=self._current_projection_order(),
-            overrides=self._global_overrides,
         )
         log_debug(
             _LOGGER,
@@ -656,12 +527,7 @@ class GlobalOverridesManager:
     def _is_override_selected(self, override_key: str) -> bool:
         """Return the effective authored menu selection for one override key."""
 
-        if override_key in self._global_override_selections:
-            return self._global_override_selections[override_key]
-        toolbar_snapshot = self._toolbar_snapshot
-        if toolbar_snapshot is None:
-            return override_key in self._global_overrides
-        return override_key in toolbar_snapshot.active_override_keys
+        return self._workflow_state.is_selected(override_key, self._toolbar_snapshot)
 
     def _current_behavior_snapshot(self) -> EditorBehaviorSnapshot | None:
         """Return the latest application-owned editor behavior snapshot when available."""
@@ -907,13 +773,13 @@ class GlobalOverridesManager:
             _LOGGER,
             "create override widget started",
             override_key=control.override_key,
-            value=_compact_log_value(control.value),
+            value=compact_override_log_value(control.value),
             representative_cube=control.spec.cube_alias,
             representative_node=control.spec.node_name,
             representative_class=control.spec.class_type,
             representative_field=control.spec.field_key,
-            spec_value=_compact_log_value(control.spec.value),
-            spec_raw_value=_compact_log_value(control.spec.raw_value),
+            spec_value=compact_override_log_value(control.spec.value),
+            spec_raw_value=compact_override_log_value(control.spec.raw_value),
             spec_value_source=control.spec.value_source.value,
         )
         widget_spec = self._toolbar_field_spec(control.spec, control.value)
@@ -1034,7 +900,7 @@ class GlobalOverridesManager:
             override_key=control.override_key,
             widget_type=type(widget).__name__,
             label_type=type(label_widget).__name__,
-            widget_metadata=_compact_log_value(
+            widget_metadata=compact_override_log_value(
                 widget.property("input_metadata")
                 if hasattr(widget, "property")
                 else None
@@ -1109,8 +975,8 @@ class GlobalOverridesManager:
             _LOGGER,
             "sync override from toolbar buffer",
             override_key=override_key,
-            value=_compact_log_value(value),
-            previous_value=_compact_log_value(
+            value=compact_override_log_value(value),
+            previous_value=compact_override_log_value(
                 workflow_overrides.get(override_key, {}).get("value")
             ),
         )

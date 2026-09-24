@@ -93,7 +93,7 @@ def test_overrides_manager_dispose_removes_widgets_and_state() -> None:
         "seed": (l1, w1),
         "sampler_name": (l2, w2),
     }
-    mgr._global_overrides = {
+    mgr._workflow_state.overrides = {
         "seed": {"value": 42, "mode": "global"},
         "sampler_name": {"value": "Euler", "mode": "global"},
     }
@@ -103,7 +103,7 @@ def test_overrides_manager_dispose_removes_widgets_and_state() -> None:
 
     # Assert: controls cleared and state reset
     assert mgr._global_override_controls == {}
-    assert mgr._global_overrides == {}
+    assert mgr._workflow_state.overrides == {}
 
     # Assert: layout removal was called for all widgets and labels
     removed_names = {getattr(w, "name", None) for w in mw.menu_bar_layout.removed}

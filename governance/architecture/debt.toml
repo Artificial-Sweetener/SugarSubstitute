@@ -359,18 +359,17 @@ next_extraction = "Extract title, icon, and link-endpoint composition from node-
 id = "SS-ARCH-046"
 owner = "toolbar global overrides"
 paths = ["substitute/presentation/editor/panel/overrides_controller.py"]
-fingerprint = "sha256:e98336a2c397553fd4e2c9903129b83b5544795d408d7c768e470896d66f4f03"
+fingerprint = "sha256:c0c1ecf4616b7c2ec2b9db395d5fbd1baee411de8bf66c4fc0bc1d1817f81714"
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
 responsibilities = [
-  "workflow override synchronization and application",
   "override menu construction",
   "toolbar snapshot and control reconciliation",
   "override widget factory and sizing",
   "seed-mode and model-picker behavior",
   "autosave and restart-spacing integration",
 ]
-next_extraction = "Extract override control creation and toolbar layout from workflow synchronization and override commands."
+next_extraction = "Extract override control creation and toolbar layout from menu and toolbar orchestration."
 
 [[debts]]
 id = "SS-ARCH-051"
