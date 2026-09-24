@@ -18,10 +18,43 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QTimer
+
 from tools.editor_projection_rig.production_trace import (
+    _TraceOverrideManager,
+    _TraceShell,
     _budget_summary,
+    _drain_until_complete,
     _partial_orphan_field_card_refs,
 )
+from tools.editor_projection_rig.production_instrumentation import (
+    instrument_projection,
+)
+from tools.editor_projection_rig.qt_harness import ensure_qapplication
+from tools.editor_projection_rig.trace_events import ProjectionTraceRecorder
+
+
+def test_production_trace_instrumentation_matches_current_projection_owners() -> None:
+    """Instrumentation must enter cleanly as projection ownership evolves."""
+
+    with instrument_projection(ProjectionTraceRecorder()):
+        pass
+
+
+def test_production_trace_waits_for_timer_driven_projection_completion() -> None:
+    """The rig must allow production staged-build timers to publish completion."""
+
+    ensure_qapplication()
+    recorder = ProjectionTraceRecorder()
+    trace = _TraceShell(
+        shell=None,
+        override_manager=_TraceOverrideManager(recorder=recorder),
+    )
+    QTimer.singleShot(5, lambda: setattr(trace, "projection_complete", True))
+
+    _drain_until_complete(trace, max_turns=10)
+
+    assert trace.projection_complete is True
 
 
 def test_production_trace_flags_orphaned_field_widgets_as_correctness_failure() -> None:

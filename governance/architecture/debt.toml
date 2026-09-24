@@ -898,17 +898,16 @@ next_extraction = "Extract process/configuration control and trace interpretatio
 id = "SS-ARCH-093"
 owner = "production editor projection trace"
 paths = ["tools/editor_projection_rig/production_trace.py"]
-fingerprint = "sha256:2cbed8ac95d00442326eff8620adcd0ce1e40c15f62033b55b8f0e6be0e3fc66"
+fingerprint = "sha256:a71c61fa0eec25401c4ecf64d07e1b3cf253e44cbfff3340964f89ce6eacbd27"
 issue = "chore:SS-ARCH-093"
 review_by = 2026-12-15
 responsibilities = [
   "scenario and workflow fixture orchestration",
   "production editor-panel and shell construction",
-  "runtime projection instrumentation",
   "widget and field invariant analysis",
   "trace aggregation and budget summaries",
 ]
-next_extraction = "Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
+next_extraction = "Extract production mounting and invariant/report analysis from scenario execution."
 
 [[debts]]
 id = "SS-ARCH-095"

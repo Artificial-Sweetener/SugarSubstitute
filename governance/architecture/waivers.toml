@@ -1472,11 +1472,11 @@ owner = "production editor projection trace"
 rule = "STRUCT003"
 path = "tools/editor_projection_rig/production_trace.py"
 kind = "remediation"
-justification = "The assessed file mixes scenario and workflow fixture orchestration, production editor-panel and shell construction, runtime projection instrumentation, widget and field invariant analysis, trace aggregation and budget summaries. Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
+justification = "The assessed file mixes scenario and workflow fixture orchestration, production editor-panel and shell construction, widget and field invariant analysis, trace aggregation and budget summaries. Extract production mounting and invariant/report analysis from scenario execution."
 issue = "chore:SS-ARCH-093"
 review_by = 2026-12-15
-max_lines = 1215
-next_limit = 973
+max_lines = 957
+next_limit = 700
 debt = "SS-ARCH-093"
 
 [[waivers]]
