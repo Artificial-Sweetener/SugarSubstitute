@@ -37,6 +37,9 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingFlowMode,
     OnboardingTargetMode,
 )
+from substitute.presentation.onboarding.onboarding_style_sheet import (
+    build_onboarding_style_sheet,
+)
 from sugarsubstitute_shared.presentation.setup_page_stage import (
     SetupPageStage,
 )
@@ -70,6 +73,19 @@ class _HeightNegotiationPage(QWidget):
         """Return the smallest height that preserves the page's content."""
 
         return QSize(800, self._minimum_height)
+
+
+def test_model_import_actions_share_card_body_style() -> None:
+    """Paint both provider import actions as complete recommendation cards."""
+
+    style_sheet = build_onboarding_style_sheet()
+
+    import_card_selector = (
+        "QFrame#OnboardingCivitaiImportCard,\n"
+        "        QFrame#OnboardingOpenModelDbImportCard,\n"
+        "        QFrame#OnboardingOwnModelChoice"
+    )
+    assert import_card_selector in style_sheet
 
 
 @pytest.mark.parametrize(
