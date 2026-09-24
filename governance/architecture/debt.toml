@@ -339,19 +339,6 @@ responsibilities = [
 next_extraction = "Extract lookup execution and navigation history from modal presentation."
 
 [[debts]]
-id = "SS-ARCH-045"
-owner = "editor node-card construction"
-paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:709c21c3b647a2bad8848d09002f5c52bd161cd31e551b9485b0b8584ee1a035"
-issue = "chore:SS-ARCH-045"
-review_by = 2026-12-15
-responsibilities = [
-  "node-card body assembly and field-row composition",
-  "field-action contribution collection and title-menu routing",
-]
-next_extraction = "Extract field-group realization and action-contribution accumulation from node-card orchestration."
-
-[[debts]]
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]

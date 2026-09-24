@@ -95,8 +95,32 @@ def log_wrapper_field_trace(
     )
 
 
+def log_subgraph_card_build_started(
+    *,
+    alias: str | None,
+    node_name: str,
+    node_type: str,
+    field_spec_keys: tuple[str, ...],
+    visible_groups: tuple[tuple[str, ...], ...],
+    show_enabled_switch: bool,
+) -> None:
+    """Report the resolved field projection for a subgraph-wrapper card."""
+
+    log_debug(
+        _LOGGER,
+        "Building subgraph wrapper node card",
+        cube_alias=alias or "",
+        node_name=node_name,
+        node_class=node_type,
+        field_spec_keys=",".join(field_spec_keys),
+        visible_groups=";".join(",".join(group) for group in visible_groups),
+        title_switch=show_enabled_switch,
+    )
+
+
 __all__ = [
     "NodeCardBuildLogContext",
     "log_node_card_build_timing",
+    "log_subgraph_card_build_started",
     "log_wrapper_field_trace",
 ]
