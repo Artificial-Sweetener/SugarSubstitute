@@ -40,6 +40,7 @@ from substitute.presentation.canvas.output.output_compare_menu_item import (
     output_compare_menu_item,
 )
 from substitute.presentation.canvas.shared.types import OutputImageMeta
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import (
     MenuEntry,
@@ -145,29 +146,35 @@ class OutputCanvasContextMenu:
         """Build one complete Output menu without changing route state."""
 
         entries: list[MenuEntry] = []
-        compare = self._compare_item(compare_enabled)
+        is_video = self._current_is_video()
+        compare = None if is_video else self._compare_item(compare_enabled)
         if compare is not None:
             entries.extend((compare, MenuSeparator()))
+        if not is_video:
+            entries.extend(
+                (
+                    MenuItem(
+                        "output_canvas.copy",
+                        app_text("Copy"),
+                        callback=self.copy_current_image,
+                        icon=FIF.COPY,
+                    ),
+                    MenuItem(
+                        "output_canvas.open_current_external",
+                        app_text("Open in Photoshop"),
+                        callback=self.open_current_external,
+                        icon=FIF.PHOTO,
+                    ),
+                    MenuItem(
+                        "output_canvas.open_all_external",
+                        app_text("Open All in Photoshop"),
+                        callback=self.open_all_external,
+                        icon=AppIcon.IMAGE_MULTIPLE_20_REGULAR,
+                    ),
+                )
+            )
         entries.extend(
             (
-                MenuItem(
-                    "output_canvas.copy",
-                    app_text("Copy"),
-                    callback=self.copy_current_image,
-                    icon=FIF.COPY,
-                ),
-                MenuItem(
-                    "output_canvas.open_current_external",
-                    app_text("Open in Photoshop"),
-                    callback=self.open_current_external,
-                    icon=FIF.PHOTO,
-                ),
-                MenuItem(
-                    "output_canvas.open_all_external",
-                    app_text("Open All in Photoshop"),
-                    callback=self.open_all_external,
-                    icon=AppIcon.IMAGE_MULTIPLE_20_REGULAR,
-                ),
                 MenuItem(
                     "output_canvas.reveal_current_asset",
                     app_text("Reveal in File Manager"),
@@ -191,6 +198,19 @@ class OutputCanvasContextMenu:
             )
         )
         return tuple(entries)
+
+    def _current_is_video(self) -> bool:
+        """Return whether the active authorized output is a video artifact."""
+
+        image_id = self.current_image_id()
+        if image_id is None or not self.image_is_authorized(image_id):
+            return False
+        metadata = self.image_metadata(image_id)
+        return (
+            metadata is not None
+            and getattr(metadata, "media_kind", OutputMediaKind.IMAGE)
+            is OutputMediaKind.VIDEO
+        )
 
     def _compare_item(self, compare_enabled: bool) -> MenuItem | None:
         """Return the established compare toggle when the projection supports it."""

@@ -3150,6 +3150,10 @@ Install these nodes now?</source>
       <translation>⟦Lööküp fàïlëd ···⟧</translation>
     </message>
     <message>
+      <source>Loop video</source>
+      <translation>⟦Lööp vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>⟦Màkë sürë CömfyÜÏ ïs rünnïng àt %1. ···⟧</translation>
     </message>
@@ -3434,6 +3438,10 @@ Install these nodes now?</source>
       <translation>⟦Mövë üp ···⟧</translation>
     </message>
     <message>
+      <source>Mute video</source>
+      <translation>⟦Mütë vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Name</source>
       <translation>⟦Nàmë ···⟧</translation>
     </message>
@@ -3476,6 +3484,10 @@ Install these nodes now?</source>
     <message>
       <source>Next</source>
       <translation>⟦Nëxt ···⟧</translation>
+    </message>
+    <message>
+      <source>Next frame</source>
+      <translation>⟦Nëxt fràmë ···⟧</translation>
     </message>
     <message>
       <source>Next match (Enter)</source>
@@ -3992,6 +4004,10 @@ I’ll bring my own</source>
       <translation>⟦Plànnëd chàngës üpdàtëd. ···⟧</translation>
     </message>
     <message>
+      <source>Play or pause</source>
+      <translation>⟦Plày ör pàüsë ···⟧</translation>
+    </message>
+    <message>
       <source>Please wait a moment.</source>
       <translation>⟦Plëàsë wàït à mömënt. ···⟧</translation>
     </message>
@@ -4130,6 +4146,10 @@ I’ll bring my own</source>
     <message>
       <source>Preview unavailable</source>
       <translation>⟦Prëvïëw ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>Previous frame</source>
+      <translation>⟦Prëvïöüs fràmë ···⟧</translation>
     </message>
     <message>
       <source>Previous match (Shift+Enter)</source>
@@ -4626,6 +4646,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Retry</source>
       <translation>⟦Rëtry ···⟧</translation>
+    </message>
+    <message>
+      <source>Retry video</source>
+      <translation>⟦Rëtry vïdëö ···⟧</translation>
     </message>
     <message>
       <source>Return to setup and try again.</source>
@@ -6770,6 +6794,18 @@ Dïàgnöstïc ëvïdëncë:
     <message>
       <source>Versions of %1</source>
       <translation>⟦Vërsïöns öf %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Video playback is unavailable (%1).</source>
+      <translation>⟦Vïdëö plàybàck ïs ünàvàïlàblë (%1). ···⟧</translation>
+    </message>
+    <message>
+      <source>Video position</source>
+      <translation>⟦Vïdëö pösïtïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Video volume</source>
+      <translation>⟦Vïdëö völümë ···⟧</translation>
     </message>
     <message>
       <source>View %1 on %2</source>

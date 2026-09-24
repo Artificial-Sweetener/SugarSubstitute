@@ -1624,7 +1624,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="861"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="865"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy를 사용할 수 없습니다</translation>
     </message>
@@ -2104,12 +2104,12 @@ This is taking much longer than expected</source>
       <translation>연속</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="498"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="501"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>연속 생성에서 준비된 작업이 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="485"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="488"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>연속 생성에는 생성 대기열이 필요합니다.</translation>
     </message>
@@ -2139,7 +2139,7 @@ This is taking much longer than expected</source>
       <translation>컨트롤</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="155"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
       <source>Copy</source>
       <translation>복사</translation>
     </message>
@@ -2942,7 +2942,7 @@ Install these nodes now?</source>
       <translation>실패 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="875"></location>
       <source>Failed to allocate output run number.</source>
       <translation>출력 실행 번호를 할당하지 못했습니다.</translation>
     </message>
@@ -3013,13 +3013,13 @@ Install these nodes now?</source>
       <translation>큐브를 증분 삽입한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>워크플로 자산 %1.%2 준비 실패: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="402"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="403"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>생성 리스너를 시작하지 못했습니다</translation>
@@ -3155,7 +3155,7 @@ Install these nodes now?</source>
       <translation>생성</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="487"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="490"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>장면 생성에서 실행 가능한 장면을 찾지 못했습니다: %1</translation>
     </message>
@@ -3185,7 +3185,7 @@ Install these nodes now?</source>
       <translation>모든 큐브에 런타임 오류가 있어 생성을 실행할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1058"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1059"></location>
       <source>Generation dispatch failed.</source>
       <translation>생성 전송에 실패했습니다.</translation>
     </message>
@@ -3205,12 +3205,12 @@ Install these nodes now?</source>
       <translation>%1 중 생성에 실패했습니다: %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="898"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="902"></location>
       <source>Generation preflight failed</source>
       <translation>생성 사전 점검 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="716"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="719"></location>
       <source>Generation preparation failed</source>
       <translation>생성 준비 실패</translation>
     </message>
@@ -3240,12 +3240,12 @@ Install these nodes now?</source>
       <translation>생성 대기열</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="546"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="549"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>생성 대기열 준비 바인딩을 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="540"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>생성 대기열 스냅샷 바인딩을 사용할 수 없습니다.</translation>
     </message>
@@ -3935,6 +3935,11 @@ Install these nodes now?</source>
       <translation>검색 실패</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <source>Loop video</source>
+      <translation>동영상 반복</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="418"></location>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>ComfyUI가 %1에서 실행 중인지 확인하세요.</translation>
@@ -4290,6 +4295,11 @@ Install these nodes now?</source>
       <translation>위로 이동</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <source>Mute video</source>
+      <translation>동영상 음소거</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
       <source>Name</source>
       <translation>이름</translation>
@@ -4343,6 +4353,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="340"></location>
       <source>Next</source>
       <translation>다음</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="59"></location>
+      <source>Next frame</source>
+      <translation>다음 프레임</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/search_view.py" line="66"></location>
@@ -4662,7 +4677,7 @@ I’ll bring my own</source>
       <translation>GitHub에서 %1 저장소 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="167"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
       <source>Open All in Photoshop</source>
       <translation>Photoshop에서 모두 열기</translation>
     </message>
@@ -4717,7 +4732,7 @@ I’ll bring my own</source>
       <translation>이 로컬 ComfyUI 소스에 대한 설정 마법사를 엽니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="161"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
       <source>Open in Photoshop</source>
       <translation>Photoshop에서 열기</translation>
     </message>
@@ -4987,6 +5002,11 @@ I’ll bring my own</source>
       <translation>예정된 변경 사항을 업데이트했습니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="57"></location>
+      <source>Play or pause</source>
+      <translation>재생 또는 일시 정지</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/shutdown_progress_dialog.py" line="48"></location>
       <source>Please wait a moment.</source>
       <translation>잠시 기다려 주세요.</translation>
@@ -5162,6 +5182,11 @@ I’ll bring my own</source>
       <translation>미리 보기를 사용할 수 없음</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="58"></location>
+      <source>Previous frame</source>
+      <translation>이전 프레임</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/search_view.py" line="72"></location>
       <source>Previous match (Shift+Enter)</source>
       <translation>이전 일치 항목(Shift+Enter)</translation>
@@ -5317,7 +5342,7 @@ I’ll bring my own</source>
       <translation>이 장면을 대기열에 추가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="390"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>이 장면을 대기열에 추가하려면 생성 대기열이 필요합니다.</translation>
     </message>
@@ -5781,6 +5806,11 @@ No known extension claimant.</source>
       <translation>다시 시도</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <source>Retry video</source>
+      <translation>동영상 다시 시도</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="127"></location>
       <source>Return to setup and try again.</source>
       <translation>설정으로 돌아가 다시 시도하세요.</translation>
@@ -5791,7 +5821,7 @@ No known extension claimant.</source>
       <translation>숨겨진 카드 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="173"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="180"></location>
       <source>Reveal in File Manager</source>
       <translation>파일 관리자에서 보기</translation>
     </message>
@@ -6141,12 +6171,12 @@ No known extension claimant.</source>
       <translation>장면</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="446"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="449"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>장면 생성에는 활성 워크플로 프롬프트 인덱스가 필요합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="459"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="462"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>장면 생성에는 첫 번째 긍정 프롬프트에 **장면 마커가 하나 이상 필요합니다.</translation>
     </message>
@@ -8445,6 +8475,21 @@ Diagnostic evidence:
       <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="349"></location>
       <source>Versions of %1</source>
       <translation>%1 버전</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="264"></location>
+      <source>Video playback is unavailable (%1).</source>
+      <translation>동영상 재생을 사용할 수 없습니다(%1).</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <source>Video position</source>
+      <translation>동영상 위치</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <source>Video volume</source>
+      <translation>동영상 볼륨</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="219"></location>

@@ -25,6 +25,7 @@ import pytest
 from substitute.application.generation import GenerationRunStarted
 from substitute.application.ports import (
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
 )
 from substitute.presentation.shell.generation_feedback_coalescer import (
@@ -115,6 +116,36 @@ def test_output_images_are_not_coalesced(tmp_path: Path) -> None:
         _live_output(first),
         _live_output(second),
     )
+
+
+def test_output_video_is_lossless_and_closes_preview_lane(tmp_path: Path) -> None:
+    """A validated video should replace its preview and survive the flush."""
+
+    coalescer = GenerationFeedbackCoalescer()
+    coalescer.submit_run_started(_run_started())
+    update = OutputVideoUpdate(
+        workflow_id="wf",
+        workflow_payload={"N1": {"class_type": "SaveVideo"}},
+        file_path=tmp_path / "result.webm",
+        node_id="N1",
+        poster_bytes=b"poster",
+        temporary=False,
+        generation_run_id="run-1",
+        prompt_id="pid-1",
+        client_id="client-1",
+        source_key="wf:N1",
+        source_label="Cube",
+        list_index=0,
+        artifact_width=320,
+        artifact_height=180,
+    )
+
+    coalescer.submit_preview(_preview_update(image="preview"))
+    coalescer.submit_output_video(update)
+
+    batch = coalescer.drain_all()
+    assert batch.preview_updates == ()
+    assert batch.output_video_updates == (update,)
 
 
 def test_final_output_without_list_index_is_dropped(tmp_path: Path) -> None:

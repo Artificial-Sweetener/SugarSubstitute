@@ -1679,7 +1679,7 @@ This is taking much longer than expected</source>
       <translation>Comfy 运行失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="861"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="865"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy 不可用</translation>
     </message>
@@ -2159,12 +2159,12 @@ This is taking much longer than expected</source>
       <translation>连续生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="498"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="501"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>连续生成未准备任何任务。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="485"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="488"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>连续生成需要生成队列。</translation>
     </message>
@@ -2194,7 +2194,7 @@ This is taking much longer than expected</source>
       <translation>控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="155"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
       <source>Copy</source>
       <translation>复制</translation>
     </message>
@@ -2997,7 +2997,7 @@ Install these nodes now?</source>
       <translation>失败 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="875"></location>
       <source>Failed to allocate output run number.</source>
       <translation>无法分配输出运行编号。</translation>
     </message>
@@ -3068,13 +3068,13 @@ Install these nodes now?</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>无法暂存工作流资源 %1.%2：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="402"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="403"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>无法启动生成监听</translation>
@@ -3210,7 +3210,7 @@ Install these nodes now?</source>
       <translation>生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="487"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="490"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>生成场景时找不到可运行的场景：%1</translation>
     </message>
@@ -3240,7 +3240,7 @@ Install these nodes now?</source>
       <translation>无法生成，因为每个立方体都有运行时错误。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1058"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1059"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成任务派发失败。</translation>
     </message>
@@ -3260,12 +3260,12 @@ Install these nodes now?</source>
       <translation>在 %1 阶段生成失败：%2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="898"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="902"></location>
       <source>Generation preflight failed</source>
       <translation>生成预检失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="716"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="719"></location>
       <source>Generation preparation failed</source>
       <translation>生成准备失败</translation>
     </message>
@@ -3295,12 +3295,12 @@ Install these nodes now?</source>
       <translation>生成队列</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="546"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="549"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>生成队列准备绑定不可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="540"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>生成队列快照绑定不可用。</translation>
     </message>
@@ -3990,6 +3990,11 @@ Install these nodes now?</source>
       <translation>查找失败</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <source>Loop video</source>
+      <translation>循环播放视频</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="418"></location>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>请确保 ComfyUI 正在 %1 上运行。</translation>
@@ -4345,6 +4350,11 @@ Install these nodes now?</source>
       <translation>上移</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <source>Mute video</source>
+      <translation>视频静音</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
       <source>Name</source>
       <translation>名称</translation>
@@ -4398,6 +4408,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="340"></location>
       <source>Next</source>
       <translation>下一步</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="59"></location>
+      <source>Next frame</source>
+      <translation>下一帧</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/search_view.py" line="66"></location>
@@ -4717,7 +4732,7 @@ I’ll bring my own</source>
       <translation>在 GitHub 上打开 %1 仓库</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="167"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
       <source>Open All in Photoshop</source>
       <translation>在 Photoshop 中打开全部</translation>
     </message>
@@ -4772,7 +4787,7 @@ I’ll bring my own</source>
       <translation>打开此本地 ComfyUI 来源的引导式设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="161"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
       <source>Open in Photoshop</source>
       <translation>在 Photoshop 中打开</translation>
     </message>
@@ -5042,6 +5057,11 @@ I’ll bring my own</source>
       <translation>计划更改已更新。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="57"></location>
+      <source>Play or pause</source>
+      <translation>播放或暂停</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/shutdown_progress_dialog.py" line="48"></location>
       <source>Please wait a moment.</source>
       <translation>请稍候。</translation>
@@ -5217,6 +5237,11 @@ I’ll bring my own</source>
       <translation>预览不可用</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="58"></location>
+      <source>Previous frame</source>
+      <translation>上一帧</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/search_view.py" line="72"></location>
       <source>Previous match (Shift+Enter)</source>
       <translation>上一个匹配项（Shift+Enter）</translation>
@@ -5372,7 +5397,7 @@ I’ll bring my own</source>
       <translation>将此场景加入队列</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="390"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>将此场景加入队列需要生成队列。</translation>
     </message>
@@ -5836,6 +5861,11 @@ No known extension claimant.</source>
       <translation>重试</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <source>Retry video</source>
+      <translation>重试视频</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="127"></location>
       <source>Return to setup and try again.</source>
       <translation>返回设置并重试。</translation>
@@ -5846,7 +5876,7 @@ No known extension claimant.</source>
       <translation>显示隐藏的卡片</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="173"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="180"></location>
       <source>Reveal in File Manager</source>
       <translation>在文件管理器中显示</translation>
     </message>
@@ -6196,12 +6226,12 @@ No known extension claimant.</source>
       <translation>场景</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="446"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="449"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>生成场景需要活动的工作流提示词索引。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="459"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="462"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>生成场景要求第一个正向提示词中至少包含一个 **scene 标记。</translation>
     </message>
@@ -8500,6 +8530,21 @@ Diagnostic evidence:
       <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="349"></location>
       <source>Versions of %1</source>
       <translation>%1 的版本</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="264"></location>
+      <source>Video playback is unavailable (%1).</source>
+      <translation>视频播放不可用（%1）。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <source>Video position</source>
+      <translation>视频位置</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <source>Video volume</source>
+      <translation>视频音量</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="219"></location>

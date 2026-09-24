@@ -139,7 +139,7 @@ next_extraction = "Extract output save-plan preparation from payload projection 
 id = "SS-ARCH-013"
 owner = "generation job queue"
 paths = ["substitute/application/generation/job_queue_service.py"]
-fingerprint = "sha256:9263087ae4ec0706477fdb89b09db291a9d56206f431761d4ed1f46ddff5df0d"
+fingerprint = "sha256:2da0ccb67b8b3a5e5ca6df47e87ce4322c50d3e645f0817b7c71759c5a87bf1a"
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
 responsibilities = [
@@ -149,7 +149,7 @@ responsibilities = [
   "live progress and output projection",
   "observer publication and terminal history",
 ]
-next_extraction = "Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
+next_extraction = "Extract output-run allocation and callback event projection from queue ordering and dispatch lifecycle."
 
 [[debts]]
 id = "SS-ARCH-014"
