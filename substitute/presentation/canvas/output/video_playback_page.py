@@ -43,10 +43,12 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
+    VideoPlaybackFallback,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPlayerPort,
 )
+from substitute.domain.generation import VideoPlaybackSettings
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
 from substitute.infrastructure.video.mpv_video_player import MpvVideoPlayer
 from substitute.presentation.canvas.output.video_playback_controller import (
@@ -66,6 +68,14 @@ _VIDEO_VOLUME = app_text("Video volume")
 _VIDEO_POSITION = app_text("Video position")
 _RETRY_VIDEO = app_text("Retry video")
 _RESET_VIDEO_VIEW = app_text("Reset video view")
+_VIDEO_DIAGNOSTICS = app_text("Video playback diagnostics")
+_SOFTWARE_FALLBACK = app_text(
+    "Hardware video decoding was unavailable. Software decoding is active."
+)
+_RENDERER_FALLBACK = app_text(
+    "The requested video renderer was unavailable. A safe fallback is active."
+)
+_UNKNOWN_DIAGNOSTIC = app_text("unknown")
 
 
 class VideoPlaybackPage(QWidget):
@@ -79,6 +89,7 @@ class VideoPlaybackPage(QWidget):
             [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
         ]
         | None = None,
+        video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
     ) -> None:
         """Create the render surface, playback controller, and control bar."""
 
@@ -110,7 +121,9 @@ class VideoPlaybackPage(QWidget):
         self._retry = QPushButton(self)
         self._retry.hide()
         self._reset_view = QPushButton("⛶", self)
+        self._diagnostics = QPushButton("ⓘ", self)
 
+        self._video_settings_provider = video_settings_provider or VideoPlaybackSettings
         factory = player_factory or self._create_bundled_player
         self.controller = VideoPlaybackController(
             player_factory=factory,
@@ -173,6 +186,7 @@ class VideoPlaybackPage(QWidget):
         video_position = render_application_text(_VIDEO_POSITION)
         retry_video = render_application_text(_RETRY_VIDEO)
         reset_video_view = render_application_text(_RESET_VIDEO_VIEW)
+        video_diagnostics = render_application_text(_VIDEO_DIAGNOSTICS)
         set_fluent_tooltip_text(self._play, play_or_pause)
         self._play.setAccessibleName(play_or_pause)
         set_fluent_tooltip_text(self._previous_frame, previous_frame)
@@ -191,6 +205,11 @@ class VideoPlaybackPage(QWidget):
         self._retry.setAccessibleName(retry_video)
         set_fluent_tooltip_text(self._reset_view, reset_video_view)
         self._reset_view.setAccessibleName(reset_video_view)
+        set_fluent_tooltip_text(
+            self._diagnostics,
+            _diagnostics_text(self.controller.snapshot),
+        )
+        self._diagnostics.setAccessibleName(video_diagnostics)
 
     def changeEvent(self, event: QEvent) -> None:  # noqa: N802
         """Retranslate the playback page when application language changes."""
@@ -218,6 +237,7 @@ class VideoPlaybackPage(QWidget):
         controls.addWidget(self._mute)
         controls.addWidget(self._volume)
         controls.addWidget(self._reset_view)
+        controls.addWidget(self._diagnostics)
         controls.addWidget(self._retry)
         root.addLayout(controls)
 
@@ -259,6 +279,7 @@ class VideoPlaybackPage(QWidget):
             player_generation=1,
             event_callback=callback,
             native_window_id=int(self._surface.winId()),
+            settings=self._video_settings_provider(),
         )
 
     @Slot()
@@ -314,9 +335,11 @@ class VideoPlaybackPage(QWidget):
             f"{_format_time(value.time_seconds)} / {_format_time(value.duration_seconds)}"
         )
         error = value.error if value.state is VideoPlaybackState.ERROR else None
-        self._status.setText(error or "")
-        self._status.setVisible(bool(error))
+        fallback = _fallback_text(value.diagnostics.fallback)
+        self._status.setText(error or fallback)
+        self._status.setVisible(bool(error or fallback))
         self._retry.setVisible(bool(error))
+        set_fluent_tooltip_text(self._diagnostics, _diagnostics_text(value))
 
 
 def _normalized_seek(snapshot: VideoPlaybackSnapshot) -> int:
@@ -343,6 +366,35 @@ def _format_time(value: float | None) -> str:
     if hours:
         return f"{hours:d}:{minutes:02d}:{seconds:02d}"
     return f"{minutes:02d}:{seconds:02d}"
+
+
+def _fallback_text(fallback: VideoPlaybackFallback | None) -> str:
+    """Return localized visibility text for one active native fallback."""
+
+    if fallback is VideoPlaybackFallback.SOFTWARE_DECODING:
+        return render_application_text(_SOFTWARE_FALLBACK)
+    if fallback is VideoPlaybackFallback.RENDERER:
+        return render_application_text(_RENDERER_FALLBACK)
+    return ""
+
+
+def _diagnostics_text(snapshot: VideoPlaybackSnapshot) -> str:
+    """Render sanitized requested and observed playback facts."""
+
+    diagnostics = snapshot.diagnostics
+    unknown = render_application_text(_UNKNOWN_DIAGNOSTIC)
+    return render_application_text(
+        app_text(
+            "Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7",
+            diagnostics.requested_renderer.value,
+            diagnostics.actual_video_output or unknown,
+            diagnostics.gpu_api or unknown,
+            diagnostics.gpu_context or unknown,
+            diagnostics.hardware_decoder or unknown,
+            diagnostics.codec or unknown,
+            diagnostics.pixel_format or unknown,
+        )
+    )
 
 
 __all__ = ["VideoPlaybackPage"]

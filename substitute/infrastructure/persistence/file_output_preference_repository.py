@@ -36,6 +36,9 @@ from substitute.domain.generation.output_preferences import (
     OutputPreferences,
     OutputTransferFormat,
     OutputTransferSettings,
+    VideoHardwareDecoding,
+    VideoPlaybackSettings,
+    VideoRenderer,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -77,6 +80,8 @@ class FileOutputPreferenceRepository(OutputPreferenceRepository):
         jpeg = jpeg_payload if isinstance(jpeg_payload, dict) else {}
         transfer_payload = payload.get("transfer")
         transfer = transfer_payload if isinstance(transfer_payload, dict) else {}
+        video_payload = payload.get("video")
+        video = video_payload if isinstance(video_payload, dict) else {}
         return OutputPreferences(
             schema_version=str(
                 payload.get("schema_version", OUTPUT_PREFERENCES_SCHEMA_VERSION)
@@ -105,6 +110,18 @@ class FileOutputPreferenceRepository(OutputPreferenceRepository):
                     OutputTransferFormat,
                     transfer.get("preferred_format"),
                     defaults.transfer.preferred_format,
+                ),
+            ),
+            video=VideoPlaybackSettings(
+                hardware_decoding=_enum_or_default(
+                    VideoHardwareDecoding,
+                    video.get("hardware_decoding"),
+                    defaults.video.hardware_decoding,
+                ),
+                renderer=_enum_or_default(
+                    VideoRenderer,
+                    video.get("renderer"),
+                    defaults.video.renderer,
                 ),
             ),
             persistence_mode=_enum_or_default(
@@ -136,6 +153,10 @@ class FileOutputPreferenceRepository(OutputPreferenceRepository):
             },
             "transfer": {
                 "preferred_format": preferences.transfer.preferred_format.value,
+            },
+            "video": {
+                "hardware_decoding": preferences.video.hardware_decoding.value,
+                "renderer": preferences.video.renderer.value,
             },
             "persistence_mode": preferences.persistence_mode.value,
         }

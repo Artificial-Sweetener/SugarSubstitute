@@ -22,49 +22,29 @@ from collections.abc import Callable
 from math import log2
 from pathlib import Path
 from threading import RLock
-from types import ModuleType
-from typing import Protocol, cast
 from uuid import UUID
 
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
+    VideoPlaybackDiagnostics,
+    VideoPlaybackFallback,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
 )
-from substitute.infrastructure.video.mpv_options import local_video_options
+from substitute.domain.generation import (
+    VideoHardwareDecoding,
+    VideoPlaybackSettings,
+    VideoRenderer,
+)
+from substitute.infrastructure.video.mpv_player_factory import (
+    MpvPlayerProtocol,
+    create_mpv_player,
+)
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
-
-
-_ObservedCallback = Callable[[str, object], None]
 
 
 class VideoPlayerError(RuntimeError):
     """Report a safe actionable playback failure."""
-
-
-class _MpvPlayer(Protocol):
-    """Describe the python-mpv surface used by the playback adapter."""
-
-    pause: object
-    loop_file: object
-    mute: object
-    volume: object
-    video_zoom: object
-    video_pan_x: object
-    video_pan_y: object
-    path: object
-
-    def command(self, name: str, *arguments: object) -> object:
-        """Execute one libmpv client command."""
-
-    def observe_property(self, name: str, callback: _ObservedCallback) -> None:
-        """Observe one player property on the native event thread."""
-
-    def unobserve_property(self, name: str, callback: _ObservedCallback) -> None:
-        """Remove one registered property observation."""
-
-    def terminate(self) -> None:
-        """Release native player resources."""
 
 
 class MpvVideoPlayer:
@@ -78,6 +58,12 @@ class MpvVideoPlayer:
         "height",
         "eof-reached",
         "core-idle",
+        "current-vo",
+        "gpu-api",
+        "gpu-context",
+        "hwdec-current",
+        "video-format",
+        "video-codec",
     )
 
     def __init__(
@@ -87,6 +73,7 @@ class MpvVideoPlayer:
         player_generation: int,
         event_callback: Callable[[VideoPlaybackEvent], None],
         native_window_id: int | None = None,
+        settings: VideoPlaybackSettings = VideoPlaybackSettings(),
     ) -> None:
         """Create a closed player bound to an optional native render surface."""
 
@@ -107,11 +94,20 @@ class MpvVideoPlayer:
         self._width: int | None = None
         self._height: int | None = None
         self._error: str | None = None
+        self._settings = settings
+        self._actual_video_output: str | None = None
+        self._gpu_api: str | None = None
+        self._gpu_context: str | None = None
+        self._hardware_decoder: str | None = None
+        self._hardware_decoder_observed = False
+        self._pixel_format: str | None = None
+        self._codec: str | None = None
         self._closed = False
         self._observer = self._property_observed
-        self._player = self._create_player(
+        self._player: MpvPlayerProtocol = create_mpv_player(
             runtime.load_module(),
             native_window_id=native_window_id,
+            settings=settings,
         )
         for name in self._OBSERVED_PROPERTIES:
             self._player.observe_property(name, self._observer)
@@ -147,6 +143,10 @@ class MpvVideoPlayer:
             self._duration_seconds = None
             self._width = None
             self._height = None
+            self._hardware_decoder = None
+            self._hardware_decoder_observed = False
+            self._pixel_format = None
+            self._codec = None
             self._error = None
             self._apply_audio_state()
             self._player.loop_file = "inf"
@@ -329,33 +329,6 @@ class MpvVideoPlayer:
             self._media_path = None
             self._state = VideoPlaybackState.EMPTY
 
-    @staticmethod
-    def _create_player(
-        module: ModuleType,
-        *,
-        native_window_id: int | None,
-    ) -> _MpvPlayer:
-        """Create the isolated native player with native embedding when supplied."""
-
-        options = local_video_options(
-            video_output="gpu-next" if native_window_id is not None else "null",
-            audio_output="auto" if native_window_id is not None else "null",
-        )
-        options.update(
-            {
-                "idle": "yes",
-                "keep_open": "always",
-                "pause": True,
-                "loop_file": "inf",
-                "volume": 100,
-                "mute": True,
-            }
-        )
-        if native_window_id is not None:
-            options["wid"] = str(native_window_id)
-        constructor = cast(Callable[..., _MpvPlayer], getattr(module, "MPV"))
-        return constructor(**options)
-
     def _step_frame(self, command: str, failure_message: str) -> None:
         """Execute one exact decoded-frame command while remaining paused."""
 
@@ -411,6 +384,19 @@ class MpvVideoPlayer:
                     if self._paused
                     else VideoPlaybackState.PLAYING
                 )
+            elif name == "current-vo":
+                self._actual_video_output = _optional_string(value)
+            elif name == "gpu-api":
+                self._gpu_api = _optional_string(value)
+            elif name == "gpu-context":
+                self._gpu_context = _optional_string(value)
+            elif name == "hwdec-current":
+                self._hardware_decoder_observed = True
+                self._hardware_decoder = _optional_string(value)
+            elif name == "video-format":
+                self._pixel_format = _optional_string(value)
+            elif name == "video-codec":
+                self._codec = _optional_string(value)
             event = self._event()
         self._event_callback(event)
 
@@ -480,7 +466,39 @@ class MpvVideoPlayer:
             width=self._width,
             height=self._height,
             error=self._error,
+            diagnostics=VideoPlaybackDiagnostics(
+                requested_hardware_decoding=self._settings.hardware_decoding,
+                requested_renderer=self._settings.renderer,
+                actual_video_output=self._actual_video_output,
+                gpu_api=self._gpu_api,
+                gpu_context=self._gpu_context,
+                hardware_decoder=self._hardware_decoder,
+                pixel_format=self._pixel_format,
+                codec=self._codec,
+                fallback=self._fallback_reason(),
+            ),
         )
+
+    def _fallback_reason(self) -> VideoPlaybackFallback | None:
+        """Return the observed safe fallback from requested playback settings."""
+
+        if (
+            self._settings.hardware_decoding is VideoHardwareDecoding.AUTO
+            and self._hardware_decoder_observed
+            and self._hardware_decoder in {None, "no"}
+        ):
+            return VideoPlaybackFallback.SOFTWARE_DECODING
+        requested_output = {
+            VideoRenderer.GPU_NEXT: "gpu-next",
+            VideoRenderer.GPU: "gpu",
+        }.get(self._settings.renderer)
+        if (
+            requested_output is not None
+            and self._actual_video_output is not None
+            and self._actual_video_output != requested_output
+        ):
+            return VideoPlaybackFallback.RENDERER
+        return None
 
 
 def _optional_nonnegative_float(value: object) -> float | None:
@@ -499,6 +517,12 @@ def _optional_positive_integer(value: object) -> int | None:
         return None
     converted = int(value)
     return converted if converted > 0 else None
+
+
+def _optional_string(value: object) -> str | None:
+    """Return one non-empty native property string."""
+
+    return value if isinstance(value, str) and value else None
 
 
 __all__ = ["MpvVideoPlayer", "VideoPlayerError"]

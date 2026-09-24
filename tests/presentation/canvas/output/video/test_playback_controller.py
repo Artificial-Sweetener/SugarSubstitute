@@ -26,6 +26,7 @@ from substitute.application.ports.video import (
     VideoPlaybackEvent,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
+    VideoRuntimeUnavailableError,
 )
 from substitute.presentation.canvas.output.video_playback_controller import (
     VideoPlaybackController,
@@ -229,6 +230,26 @@ def test_controller_unloads_active_media_before_retirement(tmp_path: Path) -> No
     assert controller.snapshot.state is VideoPlaybackState.EMPTY
     assert controller.retire(media_id)
     assert player_box[0].commands.count(("unload",)) == 1
+    controller.close()
+
+
+def test_controller_reports_missing_bundled_runtime_without_local_path(
+    tmp_path: Path,
+) -> None:
+    """Runtime startup failure should provide a stable actionable UI message."""
+
+    def unavailable(_callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        raise VideoRuntimeUnavailableError("missing C:/private/libmpv-2.dll")
+
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=unavailable)
+
+    controller.activate(uuid4(), path)
+
+    assert controller.snapshot.state is VideoPlaybackState.ERROR
+    assert controller.snapshot.error == "The bundled video runtime is unavailable."
+    assert "private" not in (controller.snapshot.error or "")
     controller.close()
 
 

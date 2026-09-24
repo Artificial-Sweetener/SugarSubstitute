@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .output_organization import DEFAULT_OUTPUT_PATH_PATTERN
 
-OUTPUT_PREFERENCES_SCHEMA_VERSION = "3"
+OUTPUT_PREFERENCES_SCHEMA_VERSION = "4"
 
 
 class OutputPersistenceMode(StrEnum):
@@ -46,6 +46,21 @@ class OutputTransferFormat(StrEnum):
 
     CANONICAL_PNG = "canonical_png"
     COMPANION_JPEG = "companion_jpeg"
+
+
+class VideoHardwareDecoding(StrEnum):
+    """Choose whether libmpv may use safe hardware video decoding."""
+
+    OFF = "off"
+    AUTO = "auto"
+
+
+class VideoRenderer(StrEnum):
+    """Choose a supported libmpv video-output renderer policy."""
+
+    AUTO = "auto"
+    GPU_NEXT = "gpu_next"
+    GPU = "gpu"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +89,14 @@ class OutputTransferSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class VideoPlaybackSettings:
+    """Configure safe generated-video decode and rendering preferences."""
+
+    hardware_decoding: VideoHardwareDecoding = VideoHardwareDecoding.AUTO
+    renderer: VideoRenderer = VideoRenderer.AUTO
+
+
+@dataclass(frozen=True, slots=True)
 class OutputPreferences:
     """Own every user-configurable durable output policy."""
 
@@ -81,6 +104,7 @@ class OutputPreferences:
     organization: OutputOrganizationSettings = OutputOrganizationSettings()
     jpeg: JpegOutputSettings = JpegOutputSettings()
     transfer: OutputTransferSettings = OutputTransferSettings()
+    video: VideoPlaybackSettings = VideoPlaybackSettings()
     persistence_mode: OutputPersistenceMode = OutputPersistenceMode.ALL
 
 
@@ -114,4 +138,7 @@ __all__ = [
     "OutputPreferences",
     "OutputTransferFormat",
     "OutputTransferSettings",
+    "VideoHardwareDecoding",
+    "VideoPlaybackSettings",
+    "VideoRenderer",
 ]

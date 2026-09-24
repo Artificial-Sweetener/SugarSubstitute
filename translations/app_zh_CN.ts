@@ -1214,6 +1214,16 @@ This is taking much longer than expected</source>
       <translation>选择音频</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="70"></location>
+      <source>Choose automatic fallback or a specific supported GPU renderer.</source>
+      <translation>选择自动回退或指定受支持的 GPU 渲染器。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="103"></location>
+      <source>Choose automatic hardware decoding or software decoding.</source>
+      <translation>选择自动硬件解码或软件解码。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
       <source>Choose color</source>
       <translation>选择颜色</translation>
@@ -1374,6 +1384,11 @@ This is taking much longer than expected</source>
       <translation>选择画布变化时保持固定的点。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="111"></location>
+      <source>Choose the renderer used for generated video playback.</source>
+      <translation>选择用于播放生成视频的渲染器。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="120"></location>
       <source>Choose the way you use ComfyUI.</source>
       <translation>选择你的 ComfyUI 使用方式。</translation>
@@ -1429,7 +1444,7 @@ This is taking much longer than expected</source>
       <translation>选择此 ComfyUI 安装使用的 Python</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="91"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="95"></location>
       <source>Choose which representation drag and Copy export.</source>
       <translation>选择拖放和复制导出的表示格式。</translation>
     </message>
@@ -2777,7 +2792,7 @@ Install these nodes now?</source>
       <translation>拖放</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="90"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="94"></location>
       <source>Drag and Copy format</source>
       <translation>拖放和复制格式</translation>
     </message>
@@ -3195,9 +3210,14 @@ Install these nodes now?</source>
       <translation>GNU 通用公共许可证 v3</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="223"></location>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="76"></location>
       <source>GPU</source>
       <translation>图形处理器 (GPU)</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="75"></location>
+      <source>GPU Next</source>
+      <translation>新一代 GPU</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
@@ -3353,6 +3373,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="87"></location>
       <source>Hardness</source>
       <translation>硬度</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="72"></location>
+      <source>Hardware video decoding was unavailable. Software decoding is active.</source>
+      <translation>硬件视频解码不可用。已启用软件解码。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="216"></location>
@@ -3540,7 +3565,7 @@ Install these nodes now?</source>
       <translation>信息</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="139"></location>
       <source>Input</source>
       <translation>输入</translation>
     </message>
@@ -3990,7 +4015,7 @@ Install these nodes now?</source>
       <translation>查找失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
       <source>Loop video</source>
       <translation>循环播放视频</translation>
     </message>
@@ -4350,7 +4375,7 @@ Install these nodes now?</source>
       <translation>上移</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
       <source>Mute video</source>
       <translation>视频静音</translation>
     </message>
@@ -4410,7 +4435,7 @@ Install these nodes now?</source>
       <translation>下一步</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
       <source>Next frame</source>
       <translation>下一帧</translation>
     </message>
@@ -4697,6 +4722,11 @@ I’ll bring my own</source>
       <translation>操作系统：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="53"></location>
+      <source>Off</source>
+      <translation>关闭</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="115"></location>
       <source>Offer model downloads</source>
       <translation>提供模型下载</translation>
@@ -4872,7 +4902,7 @@ I’ll bring my own</source>
       <translation>内存不足</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="142"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="145"></location>
       <source>Output</source>
       <translation>输出</translation>
     </message>
@@ -4892,7 +4922,7 @@ I’ll bring my own</source>
       <translation>输出预览</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/output_preference_service.py" line="130"></location>
+      <location filename="../substitute/application/generation/output_preference_service.py" line="131"></location>
       <source>Output settings saved.</source>
       <translation>输出设置已保存。</translation>
     </message>
@@ -5057,7 +5087,7 @@ I’ll bring my own</source>
       <translation>计划更改已更新。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
       <source>Play or pause</source>
       <translation>播放或暂停</translation>
     </message>
@@ -5237,7 +5267,7 @@ I’ll bring my own</source>
       <translation>预览不可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
       <source>Previous frame</source>
       <translation>上一帧</translation>
     </message>
@@ -5647,6 +5677,11 @@ I’ll bring my own</source>
       <translation>在原生百科查看器中显示缓存的 Danbooru 预览图像。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="387"></location>
+      <source>Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7</source>
+      <translation>渲染器：请求 %1，当前 %2；GPU：%3/%4；解码器：%5；编解码器：%6；像素格式：%7</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/workflows/workflow_tabs_view.py" line="132"></location>
       <source>Reopen Closed Workflow</source>
       <translation>重新打开已关闭的工作流</translation>
@@ -5766,7 +5801,7 @@ No known extension claimant.</source>
       <translation>重置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="70"></location>
       <source>Reset video view</source>
       <translation>重置视频视图</translation>
     </message>
@@ -5866,7 +5901,7 @@ No known extension claimant.</source>
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="69"></location>
       <source>Retry video</source>
       <translation>重试视频</translation>
     </message>
@@ -7647,6 +7682,11 @@ Diagnostic evidence:
       <translation>已连接的 ComfyUI 环境不满足更新后的要求。请先修复该环境再继续。%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="339"></location>
+      <source>The bundled video runtime is unavailable.</source>
+      <translation>随附的视频运行时不可用。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="394"></location>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>此对话框打开期间画布已发生变化。请检查当前尺寸后重试。</translation>
@@ -7795,6 +7835,11 @@ Diagnostic evidence:
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
       <source>The requested definition is not available.</source>
       <translation>请求的定义不可用。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="75"></location>
+      <source>The requested video renderer was unavailable. A safe fallback is active.</source>
+      <translation>请求的视频渲染器不可用。已启用安全的回退渲染器。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="219"></location>
@@ -8437,6 +8482,11 @@ Diagnostic evidence:
       <translation>使用远程 ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="48"></location>
+      <source>Use safe automatic hardware decoding or always decode in software.</source>
+      <translation>使用安全的自动硬件解码，或始终使用软件解码。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="697"></location>
       <source>Use the ComfyUI page package filter to inspect installed packages and maintenance actions.</source>
       <translation>使用 ComfyUI 页面中的软件包筛选器查看已安装的软件包和维护操作。</translation>
@@ -8537,17 +8587,32 @@ Diagnostic evidence:
       <translation>%1 的版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="306"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="102"></location>
+      <source>Video hardware decoding</source>
+      <translation>视频硬件解码</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="71"></location>
+      <source>Video playback diagnostics</source>
+      <translation>视频播放诊断</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="343"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>视频播放不可用（%1）。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
       <source>Video position</source>
       <translation>视频位置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="110"></location>
+      <source>Video renderer</source>
+      <translation>视频渲染器</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
       <source>Video volume</source>
       <translation>视频音量</translation>
     </message>
@@ -8918,7 +8983,7 @@ Diagnostic evidence:
       <translation>源代码检出版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_presentation.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="78"></location>
       <source>unknown</source>
       <translation>未知</translation>
     </message>

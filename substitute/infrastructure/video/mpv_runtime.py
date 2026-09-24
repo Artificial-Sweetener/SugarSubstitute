@@ -27,8 +27,10 @@ import sys
 from types import ModuleType
 from unittest.mock import patch
 
+from substitute.application.ports.video import VideoRuntimeUnavailableError
 
-class MpvRuntimeError(RuntimeError):
+
+class MpvRuntimeError(VideoRuntimeUnavailableError):
     """Report an unavailable or invalid project-owned libmpv runtime."""
 
 

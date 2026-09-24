@@ -52,6 +52,7 @@ from substitute.application.workflows.output_navigation_session_service import (
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
+from substitute.domain.generation import VideoPlaybackSettings
 from substitute.infrastructure.comfy.session_video_artifact_store import (
     release_temporary_video_artifact,
 )
@@ -106,6 +107,7 @@ def build_main_window_canvas_scaffold(
     open_single_external_editor: OutputSingleExternalEditor | None,
     open_all_external_editor: OutputAllExternalEditor | None,
     reveal_output_asset: OutputAssetReveal | None = None,
+    video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
 ) -> MainWindowCanvasScaffold:
     """Build the canvas host, state owners, and its container widget."""
 
@@ -141,6 +143,7 @@ def build_main_window_canvas_scaffold(
             final_output_metadata_lookup=canvas_image_registry.metadata_for,
             output_floating_chrome_factory=output_floating_chrome_factory,
             route_session_boundary=canvas_session_boundary,
+            video_settings_provider=video_settings_provider,
         )
     with trace_span("mainwindow.build_workspace.canvas.validate_host"):
         output_canvas = cast(Any, canvas_host.canvas_for("Output"))
