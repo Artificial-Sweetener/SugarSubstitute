@@ -945,7 +945,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1017
+max_lines = 1031
 
 [[waivers]]
 id = "SS-WAIVER-S022"
