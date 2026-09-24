@@ -91,7 +91,7 @@ from .dimension_presets import EditorDimensionPresetCatalogSource
 from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
 from .choice_field_surface_reconciler import ChoiceFieldSurfaceReconciliationResult
 from .projection_preparation import BehaviorRefreshReason
-from .projection_session import EditorSurfaceProjectionSignature
+from .projection_surface_state import EditorSurfaceProjectionSignature
 from .prompt.context import EditorPanelPromptContextController
 from .prompt.profile_policy import PanelPromptFieldProfileDecision
 from .prompt.scene_diagnostics import EditorPanelPromptSceneDiagnosticsController

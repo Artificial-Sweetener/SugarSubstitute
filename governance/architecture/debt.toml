@@ -422,7 +422,7 @@ next_extraction = "Extract override control creation and toolbar layout from wor
 id = "SS-ARCH-047"
 owner = "editor projection lifecycle"
 paths = ["substitute/presentation/editor/panel/projection_lifecycle.py"]
-fingerprint = "sha256:fca5aea3504cee3a6aad5bd0a2df5adf37129eccb516e81b99ba4e1a1354a515"
+fingerprint = "sha256:36cf7d2595528cef4781bebdab3c95c120ffc1e990711c867a01f80cf3daa726"
 issue = "chore:SS-ARCH-047"
 review_by = 2026-12-15
 responsibilities = [
@@ -432,22 +432,6 @@ responsibilities = [
   "runtime issue integration and metadata hydration",
 ]
 next_extraction = "Extract runtime-issue integration from projection cleanup and commit lifecycle."
-
-[[debts]]
-id = "SS-ARCH-048"
-owner = "editor projection sessions"
-paths = ["substitute/presentation/editor/panel/projection_session.py"]
-fingerprint = "sha256:13e44ab0135c6af9110d3674bdb408fd12a436a396c60895664906f29f036850"
-issue = "chore:SS-ARCH-048"
-review_by = 2026-12-15
-responsibilities = [
-  "clean-surface signature state",
-  "active projection session ownership",
-  "pending insert completion registry",
-  "projection completion registry",
-  "superseded-session transfer and cancellation",
-]
-next_extraction = "Separate clean-surface state and completion transfer from active projection-session ownership."
 
 [[debts]]
 id = "SS-ARCH-049"
@@ -486,7 +470,7 @@ next_extraction = "Extract corpus/match projection and refresh scheduling from r
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:511e452dc992e61589fd440bcfd25075b2bf20070b5db6ba98dc52d7d8ce60fa"
+fingerprint = "sha256:86ef021e359073643e9fe7eac823b746de76bba6750477e4b1c79f766f710b33"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [

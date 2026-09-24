@@ -68,9 +68,14 @@ from substitute.presentation.editor.panel.projection_ports import (
 from substitute.presentation.editor.panel.projection_preparation import (
     EditorProjectionPreparationController,
 )
-from substitute.presentation.editor.panel.projection_session import (
-    ActiveProjectionSessionRegistry,
+from substitute.presentation.editor.panel.projection_completion_registry import (
     ProjectionCompletionRegistry,
+    ProjectionSessionCompletionController,
+)
+from substitute.presentation.editor.panel.projection_session_registry import (
+    ActiveProjectionSessionRegistry,
+)
+from substitute.presentation.editor.panel.projection_surface_state import (
     ProjectionSurfaceStateController,
 )
 from substitute.presentation.editor.panel.projection_workflow_context import (
@@ -193,6 +198,10 @@ def test_compose_editor_projection_builds_projection_collaborators() -> None:
 
     assert isinstance(composition.build_registry, CubeSectionBuildRegistry)
     assert isinstance(composition.projection_completions, ProjectionCompletionRegistry)
+    assert isinstance(
+        composition.session_completions,
+        ProjectionSessionCompletionController,
+    )
     assert isinstance(composition.projection_sessions, ActiveProjectionSessionRegistry)
     assert isinstance(
         composition.active_sessions,

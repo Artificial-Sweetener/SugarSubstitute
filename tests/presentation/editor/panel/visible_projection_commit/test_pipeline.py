@@ -21,7 +21,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import cast
 
-from substitute.presentation.editor.panel.projection_session import (
+from substitute.presentation.editor.panel.projection_session_models import (
     ActiveProjectionSession,
 )
 from substitute.presentation.editor.panel.rendering.render_reconciler import (

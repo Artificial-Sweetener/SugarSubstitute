@@ -177,7 +177,7 @@ from .behavior.panel_ports import behavior_applier_for_panel
 from .projection_coordinator import EditorPanelProjectionCoordinator
 from .projection_ports import EditorRefreshPanelProtocol
 from .projection_preparation import BehaviorRefreshReason
-from .projection_session import EditorSurfaceProjectionSignature
+from .projection_surface_state import EditorSurfaceProjectionSignature
 from .widgets.scroll_surface import EditorPanelScrollSurface
 from .factories.meta_factories import (
     sanitize_sampler_link_selection,

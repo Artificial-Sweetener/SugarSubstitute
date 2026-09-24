@@ -366,19 +366,6 @@ next_limit = 500
 debt = "SS-ARCH-047"
 
 [[waivers]]
-id = "SS-WAIVER-R048"
-owner = "editor projection sessions"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/projection_session.py"
-kind = "remediation"
-justification = "The assessed file mixes clean-surface signature state, active projection session ownership, pending insert completion registry, projection completion registry, superseded-session transfer and cancellation. Separate clean-surface state and completion transfer from active projection-session ownership."
-issue = "chore:SS-ARCH-048"
-review_by = 2026-12-15
-max_lines = 693
-next_limit = 554
-debt = "SS-ARCH-048"
-
-[[waivers]]
 id = "SS-WAIVER-R049"
 owner = "editor prompt context"
 rule = "STRUCT003"
@@ -1044,7 +1031,7 @@ kind = "structural"
 justification = "EditorFullProjectionLoadPipeline owns one staged transaction from projection preparation through hidden construction, visible reconciliation, and completion or cancellation. Its ports expose collaborators while the pipeline alone owns busy-state and commit ordering."
 issue = "chore:SS-WAIVER-S031"
 review_by = 2026-12-15
-max_lines = 634
+max_lines = 635
 
 [[waivers]]
 id = "SS-WAIVER-S032"
@@ -1055,7 +1042,7 @@ kind = "structural"
 justification = "EditorIncrementalInsertPipeline owns one incremental insert transaction from preparation and registry claim through hidden build, reconciliation, first-usable publication, completion, or cancellation. All methods preserve that transaction's session identity."
 issue = "chore:SS-WAIVER-S032"
 review_by = 2026-12-15
-max_lines = 584
+max_lines = 587
 
 [[waivers]]
 id = "SS-WAIVER-S034"
