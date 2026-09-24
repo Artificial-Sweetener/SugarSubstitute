@@ -24,6 +24,7 @@ from tools.editor_projection_rig.production_mount import (
     TraceOverrideManager,
     TraceShell,
 )
+from tools.editor_projection_rig.production_mutations import mutation_budget_summary
 from tools.editor_projection_rig.production_signatures import (
     partial_orphan_field_card_refs,
 )
@@ -94,3 +95,26 @@ def test_production_trace_flags_orphaned_field_widgets_as_correctness_failure() 
     assert refs == ["Cube 3: SDXL/Automask Detailer:detailer"]
     assert budgets["partial_orphan_field_cards"]["actual"] == 1
     assert budgets["partial_orphan_field_cards"]["passed"] is False
+
+
+def test_mutation_budgets_reject_incomplete_or_rebuilt_clean_operations() -> None:
+    """Mutation qualification must fail completion and construction regressions."""
+
+    budgets = mutation_budget_summary(
+        (
+            {
+                "operations": (
+                    {
+                        "completion_count": 0,
+                        "parent_chain_violations": (),
+                        "partial_orphan_field_cards": (),
+                        "expected_identity_preserved": True,
+                        "construction_budget_passed": False,
+                    },
+                )
+            },
+        )
+    )
+
+    assert budgets["incomplete_operations"]["actual"] == 1
+    assert budgets["unexpected_construction"]["actual"] == 1
