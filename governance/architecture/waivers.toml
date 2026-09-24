@@ -340,19 +340,6 @@ next_limit = 500
 debt = "SS-ARCH-047"
 
 [[waivers]]
-id = "SS-WAIVER-R049"
-owner = "editor prompt context"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/prompt/context.py"
-kind = "remediation"
-justification = "The assessed file mixes behavior snapshot refresh transactions, workflow and cube prompt context snapshots, projection prompt-context lifecycle, feature-profile cache and diagnostics, scheduled LoRA resolver construction. Extract feature-profile caching and scheduled-LoRA adaptation from prompt-context and behavior transaction ownership."
-issue = "chore:SS-ARCH-049"
-review_by = 2026-12-15
-max_lines = 638
-next_limit = 510
-debt = "SS-ARCH-049"
-
-[[waivers]]
 id = "SS-WAIVER-R050"
 owner = "editor panel search"
 rule = "STRUCT003"
@@ -374,7 +361,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1963
+max_lines = 1959
 next_limit = 1571
 debt = "SS-ARCH-051"
 
