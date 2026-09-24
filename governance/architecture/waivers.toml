@@ -1020,7 +1020,7 @@ kind = "structural"
 justification = "CubeSectionBuildSession is one incremental state machine over a single cube-section build. Step, node outcome, first-usable, cancellation/liveness, deferred count, and finish state jointly enforce exactly-once construction and completion for that session."
 issue = "chore:SS-WAIVER-S030"
 review_by = 2026-12-15
-max_lines = 582
+max_lines = 580
 
 [[waivers]]
 id = "SS-WAIVER-S031"

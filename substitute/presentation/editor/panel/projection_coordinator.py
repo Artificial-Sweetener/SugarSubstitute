@@ -30,9 +30,7 @@ from .projection_models import (
     EditorFullProjectionLoadRequest,
     EditorIncrementalInsertRequest,
 )
-from .projection_ports import (
-    EditorRefreshPanelProtocol,
-)
+from .projection_ports import ProjectionCoordinatorPanelPort
 from .projection_session_models import InsertCompletionPhase
 from .projection_surface_state import EditorSurfaceProjectionSignature
 
@@ -40,7 +38,7 @@ from .projection_surface_state import EditorSurfaceProjectionSignature
 class EditorPanelProjectionCoordinator:
     """Own panel projection sessions, layout commits, and deferred refresh scheduling."""
 
-    def __init__(self, panel: EditorRefreshPanelProtocol) -> None:
+    def __init__(self, panel: ProjectionCoordinatorPanelPort) -> None:
         """Store the live editor panel used for widget refresh operations."""
 
         self._panel = panel

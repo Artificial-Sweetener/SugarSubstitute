@@ -175,7 +175,7 @@ from .service_bundle import (
 from .behavior.behavior_applier import EditorBehaviorState
 from .behavior.panel_ports import behavior_applier_for_panel
 from .projection_coordinator import EditorPanelProjectionCoordinator
-from .projection_ports import EditorRefreshPanelProtocol
+from .projection_ports import ProjectionCoordinatorPanelPort
 from .projection_preparation import BehaviorRefreshReason
 from .projection_surface_state import EditorSurfaceProjectionSignature
 from .widgets.scroll_surface import EditorPanelScrollSurface
@@ -355,7 +355,7 @@ def _projection_coordinator_for_panel(
     coordinator = getattr(panel, "_projection_coordinator", None)
     if coordinator is None:
         coordinator = EditorPanelProjectionCoordinator(
-            cast(EditorRefreshPanelProtocol, panel)
+            cast(ProjectionCoordinatorPanelPort, panel)
         )
         setattr(panel, "_projection_coordinator", coordinator)
     return cast(EditorPanelProjectionCoordinator, coordinator)
@@ -884,7 +884,7 @@ class EditorPanel(QWidget):
             )
         )
         self._node_card_mode_controller = NodeCardModeController()
-        self._projection_coordinator = EditorPanelProjectionCoordinator(self)
+        self._projection_coordinator = _projection_coordinator_for_panel(self)
         self._behavior_applier = behavior_applier_for_panel(self)
         self._prompt_context_controller = EditorPanelPromptContextController(self)
         self._prompt_scene_diagnostics_controller = (
