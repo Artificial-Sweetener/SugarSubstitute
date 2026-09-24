@@ -123,6 +123,10 @@ from .cube_reveal_controller import (
     EditorPanelCubeRevealController,
     EditorPanelCubeRevealHost,
 )
+from .cube_visibility_menu_controller import (
+    CubeVisibilityMenuController,
+    CubeVisibilityMenuHost,
+)
 from .content_gutter_controller import EditorPanelContentGutterController
 from .cube_registry import EditorCubeRegistry, EditorCubeRegistryHost
 from .field_sync_controller import (
@@ -242,6 +246,18 @@ def _cube_reveal_controller_for_panel(
         )
         setattr(panel, "_cube_reveal_controller", controller)
     return cast(EditorPanelCubeRevealController, controller)
+
+
+def _cube_visibility_menu_controller_for_panel(
+    panel: object,
+) -> CubeVisibilityMenuController:
+    """Return the cube visibility-menu owner for a panel-like host."""
+
+    controller = getattr(panel, "_cube_visibility_menu_controller", None)
+    if controller is None:
+        controller = CubeVisibilityMenuController(cast(CubeVisibilityMenuHost, panel))
+        setattr(panel, "_cube_visibility_menu_controller", controller)
+    return cast(CubeVisibilityMenuController, controller)
 
 
 def _search_controller_for_panel(panel: object) -> EditorPanelSearchController:
@@ -806,6 +822,9 @@ class EditorPanel(QWidget):
         self.scroll.setObjectName("EditorScroll")
         self._cube_reveal_controller = EditorPanelCubeRevealController(
             cast(EditorPanelCubeRevealHost, self)
+        )
+        self._cube_visibility_menu_controller = CubeVisibilityMenuController(
+            cast(CubeVisibilityMenuHost, self)
         )
         self.scroll.metrics_refreshed.connect(self._complete_pending_cube_reveal)
         self.scroll.setStyleSheet(
@@ -1985,28 +2004,25 @@ class EditorPanel(QWidget):
 
     # === Policy reveal menu logic ===
     def _rebuild_all_cube_visibility_menus(self):
-        """Delegate reveal-menu rebuilds to the cube reveal controller."""
+        """Delegate reveal-menu rebuilds to the visibility-menu owner."""
 
-        _cube_reveal_controller_for_panel(self).rebuild_all_cube_visibility_menus()
+        _cube_visibility_menu_controller_for_panel(self).rebuild_all()
 
     def _on_cube_visibility_menu_triggered(self, action):
-        """Delegate reveal-menu action routing to the cube reveal controller."""
+        """Delegate reveal-menu action routing to the visibility-menu owner."""
 
-        _cube_reveal_controller_for_panel(self).on_cube_visibility_menu_triggered(
-            action
-        )
+        _cube_visibility_menu_controller_for_panel(self).route_triggered_action(action)
 
     def _rebuild_cube_visibility_menu(self, alias: str):
-        """Delegate one reveal-menu rebuild to the cube reveal controller."""
+        """Delegate one reveal-menu rebuild to the visibility-menu owner."""
 
-        _cube_reveal_controller_for_panel(self).rebuild_cube_visibility_menu(alias)
+        _cube_visibility_menu_controller_for_panel(self).rebuild(alias)
 
     def _on_cube_visibility_menu_toggled(self, alias: str, action):
-        """Delegate reveal-menu toggle persistence to the cube reveal controller."""
+        """Delegate reveal-menu toggle persistence to the visibility-menu owner."""
 
-        _cube_reveal_controller_for_panel(self).on_cube_visibility_menu_toggled(
-            alias,
-            action,
+        _cube_visibility_menu_controller_for_panel(self).route_toggled_action(
+            alias, action
         )
 
     def refresh_node_behavior_state(
@@ -2157,7 +2173,7 @@ class EditorPanel(QWidget):
     ) -> bool:
         """Return whether the requested cube section is already mostly visible."""
 
-        return _cube_reveal_controller_for_panel(self).cube_widget_is_mostly_visible(
+        return _cube_reveal_controller_for_panel(self).geometry.is_mostly_visible(
             route_key,
             visibility_threshold=visibility_threshold,
         )
@@ -2165,26 +2181,28 @@ class EditorPanel(QWidget):
     def _cube_reveal_anchor_content_y(self, route_key: str) -> int | None:
         """Return the content-space title/header anchor for one cube section."""
 
-        return _cube_reveal_controller_for_panel(self).cube_reveal_anchor_content_y(
+        return _cube_reveal_controller_for_panel(self).geometry.anchor_content_y(
             route_key
         )
 
     def _cube_header_viewport_anchor_y(self) -> int:
         """Return where cube title/header centers should land in the viewport."""
 
-        return _cube_reveal_controller_for_panel(self).cube_header_viewport_anchor_y()
+        return _cube_reveal_controller_for_panel(
+            self
+        ).geometry.header_viewport_anchor_y()
 
     def _cube_scroll_target_value(self, route_key: str) -> int | None:
         """Return the scroll value that aligns a cube's title/header anchor."""
 
-        return _cube_reveal_controller_for_panel(self).cube_scroll_target_value(
+        return _cube_reveal_controller_for_panel(self).geometry.scroll_target_value(
             route_key
         )
 
     def _cube_scroll_target_content_y(self, route_key: str) -> int | None:
         """Return the unclamped content-space target for cube header alignment."""
 
-        return _cube_reveal_controller_for_panel(self).cube_scroll_target_content_y(
+        return _cube_reveal_controller_for_panel(self).geometry.scroll_target_content_y(
             route_key
         )
 
@@ -2192,29 +2210,6 @@ class EditorPanel(QWidget):
         """Emit the visible-cube signal when the target signal is available."""
 
         _cube_reveal_controller_for_panel(self).emit_current_cube_visible(route_key)
-
-    def _animate_scrollbar_value(
-        self,
-        *,
-        scrollbar: object,
-        target_value: int,
-        animated: bool,
-        duration_ms: int,
-        animation_attr_name: str,
-        suppress_tab_sync: bool,
-        on_finished: Callable[[], None] | None = None,
-    ) -> None:
-        """Move one scrollbar either immediately or through shared Fluent motion."""
-
-        _cube_reveal_controller_for_panel(self)._animate_scrollbar_value(
-            scrollbar=scrollbar,
-            target_value=target_value,
-            animated=animated,
-            duration_ms=duration_ms,
-            animation_attr_name=animation_attr_name,
-            suppress_tab_sync=suppress_tab_sync,
-            on_finished=on_finished,
-        )
 
     def scroll_to_cube(
         self,
@@ -2286,7 +2281,7 @@ class EditorPanel(QWidget):
     def _cube_reveal_geometry_signature(self, route_key: str) -> tuple[int, ...] | None:
         """Return reveal metrics that must be stable before loaded-cube navigation."""
 
-        return _cube_reveal_controller_for_panel(self).cube_reveal_geometry_signature(
+        return _cube_reveal_controller_for_panel(self).geometry.readiness_signature(
             route_key
         )
 
