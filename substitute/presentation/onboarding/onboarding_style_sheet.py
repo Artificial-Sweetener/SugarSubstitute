@@ -101,6 +101,7 @@ def build_onboarding_style_sheet() -> str:
             border-radius: 18px;
         }
         QFrame#OnboardingCivitaiImportCard,
+        QFrame#OnboardingOpenModelDbImportCard,
         QFrame#OnboardingOwnModelChoice,
         QFrame#OnboardingUnavailableRecommendationCard {
             background-color: rgba(__WASH_RGB__, 0.028);
