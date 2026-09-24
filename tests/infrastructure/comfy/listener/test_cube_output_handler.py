@@ -32,6 +32,7 @@ from substitute.infrastructure.comfy.cube_output_event_handler import (
 from substitute.infrastructure.comfy.final_image_event_handler import (
     FinalImageEventHandler,
 )
+from substitute.infrastructure.comfy.final_image_event import FinalImageEvent
 from substitute.infrastructure.comfy.cube_output_event_router import (
     CubeOutputDiagnostic,
     CubeOutputRouteContext,
@@ -127,12 +128,35 @@ class _OutputPersistence:
         )
 
 
+@dataclass
+class _DiscardSink:
+    """Discard final-output events outside the behavior under test."""
+
+    def handle(self, event: object) -> None:
+        """Accept one event without side effects."""
+
+        del event
+
+
+@dataclass
+class _RecordingSink:
+    """Record typed final-output events."""
+
+    events: list[FinalImageEvent]
+
+    def handle(self, event: FinalImageEvent) -> None:
+        """Record one routed event."""
+
+        self.events.append(event)
+
+
 def _handler(
     *,
     fetcher: _ArtifactFetcher | None = None,
     persistence: _OutputPersistence | None = None,
     output_events: list[OutputImageUpdate] | None = None,
     diagnostics: list[CubeOutputDiagnostic] | None = None,
+    video_events: list[FinalImageEvent] | None = None,
     identity_accepted: bool = True,
     source_identity_resolver: (Callable[[str], OutputSourceIdentity] | None) = None,
 ) -> CubeOutputEventHandler:
@@ -151,6 +175,9 @@ def _handler(
             artifact_fetcher=fetcher or _ArtifactFetcher([]),
             output_persistence=persistence or _OutputPersistence([]),
             on_output_image=captured_output_events.append,
+        ),
+        final_video_handler=(
+            _RecordingSink(video_events) if video_events is not None else _DiscardSink()
         ),
         identity_acceptor=lambda _identity, _prompt_id, _node_id: identity_accepted,
         on_diagnostic=captured_diagnostics.append,
@@ -281,6 +308,34 @@ def test_handler_uses_persisted_dimensions_when_artifact_dimensions_are_missing(
 
     assert output_events[0].artifact_width == 640
     assert output_events[0].artifact_height == 480
+
+
+def test_handler_routes_video_cube_outputs_to_video_owner() -> None:
+    """Admit video media and keep it away from image fetch and persistence."""
+
+    video_events: list[FinalImageEvent] = []
+    image_events: list[OutputImageUpdate] = []
+    handler = _handler(video_events=video_events, output_events=image_events)
+
+    handler.handle(
+        _payload(
+            media_kind="video",
+            value_type="video",
+            artifacts=[
+                {
+                    "filename": "motion.webm",
+                    "subfolder": "generated",
+                    "type": "output",
+                    "media_kind": "video",
+                }
+            ],
+        )
+    )
+
+    assert image_events == []
+    assert len(video_events) == 1
+    assert video_events[0].artifacts[0].filename == "motion.webm"
+    assert video_events[0].artifacts[0].media_kind == "video"
 
 
 def test_handler_skips_non_image_artifacts_inside_image_events() -> None:
