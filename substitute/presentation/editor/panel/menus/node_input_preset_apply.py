@@ -23,9 +23,11 @@ from dataclasses import dataclass
 from typing import TypeAlias
 
 from substitute.application.node_behavior import ResolvedFieldSpec
+from substitute.presentation.editor.panel.field_state_binding import EditorFieldBinding
 from substitute.presentation.editor.panel.field_state_controller import (
-    EditorFieldBinding,
     EditorPanelFieldStateController,
+)
+from substitute.presentation.editor.panel.live_field_value_writer import (
     write_live_widget_value,
 )
 from substitute.shared.logging.logger import get_logger, log_warning

@@ -339,21 +339,6 @@ responsibilities = [
 next_extraction = "Extract lookup execution and navigation history from modal presentation."
 
 [[debts]]
-id = "SS-ARCH-043"
-owner = "editor field state"
-paths = ["substitute/presentation/editor/panel/field_state_controller.py"]
-fingerprint = "sha256:ed1ff7bae1ca1ffc8fcc6b435ccd0a734b8989b5a6ddbc0fb84862e7918e6ba2"
-issue = "chore:SS-ARCH-043"
-review_by = 2026-12-15
-responsibilities = [
-  "field metadata and widget binding discovery",
-  "buffer value mutation and dirty marking",
-  "widget-family signal wiring",
-  "prompt editor value synchronization",
-]
-next_extraction = "Extract widget-family binding adapters from authoritative field-value mutation."
-
-[[debts]]
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
@@ -391,7 +376,7 @@ next_extraction = "Extract override control creation and toolbar layout from wor
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:1e780af2f2e4d79b80de236ac44c7ebb1aebe86f1dbcdc8b0666c5f591bc867f"
+fingerprint = "sha256:a32afa21640120468e9f48f69f67d1fe20379b16ee31752cfc4b503a8cefbe8f"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
