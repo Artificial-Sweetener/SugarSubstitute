@@ -60,6 +60,8 @@ from substitute.presentation.editor.panel.projection_composition import (
 )
 from substitute.presentation.editor.panel.projection_lifecycle import (
     EditorProjectionLifecyclePipeline,
+)
+from substitute.presentation.editor.panel.projection_runtime_issue_integration import (
     EditorProjectionRuntimeIssueIntegration,
 )
 from substitute.presentation.editor.panel.projection_preparation import (
