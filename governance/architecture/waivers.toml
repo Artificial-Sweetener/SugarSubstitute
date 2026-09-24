@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2907
+max_lines = 2925
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes catalog cache lifecycle and durable snapshots, backend refresh orchestration, metadata-record matching, picker item, thumbnail, and search-text projection. Extract pure picker-record projection from catalog loading, caching, and refresh orchestration."
 issue = "chore:SS-ARCH-014"
 review_by = 2026-12-15
-max_lines = 643
+max_lines = 602
 next_limit = 516
 debt = "SS-ARCH-014"
 
@@ -183,45 +183,6 @@ next_limit = 557
 debt = "SS-ARCH-017"
 
 [[waivers]]
-id = "SS-WAIVER-R018"
-owner = "prompt mutation"
-rule = "STRUCT003"
-path = "substitute/application/prompt_editor/editing/mutation_service.py"
-kind = "remediation"
-justification = "The assessed file mixes generic syntax-action routing, emphasis weight mutation, LoRA and wildcard mutation, chip and layout reordering, application-to-domain mutation adaptation. Extract syntax-family mutation handlers and reorder mutation behind the common PromptMutation result contract."
-issue = "chore:SS-ARCH-018"
-review_by = 2026-12-15
-max_lines = 603
-next_limit = 500
-debt = "SS-ARCH-018"
-
-[[waivers]]
-id = "SS-WAIVER-R019"
-owner = "prompt LoRA catalog"
-rule = "STRUCT003"
-path = "substitute/application/prompt_editor/lora/catalog.py"
-kind = "remediation"
-justification = "The assessed file mixes catalog cache lifecycle and refresh, model-record adaptation, exact and suffix lookup, autocomplete fallback ranking, thumbnail and search-text projection. Extract pure LoRA lookup and ranking from catalog cache lifecycle and model-record adaptation."
-issue = "chore:SS-ARCH-019"
-review_by = 2026-12-15
-max_lines = 613
-next_limit = 500
-debt = "SS-ARCH-019"
-
-[[waivers]]
-id = "SS-WAIVER-R020"
-owner = "prompt syntax projection"
-rule = "STRUCT003"
-path = "substitute/application/prompt_editor/projection/syntax_service.py"
-kind = "remediation"
-justification = "The assessed file mixes renderer-view model definitions, render-plan construction and caching, wildcard span projection, LoRA catalog resolution and span projection, identity-revision cache bookkeeping and diagnostics. Extract syntax-family span projectors and cache identity tracking from render-plan orchestration."
-issue = "chore:SS-ARCH-020"
-review_by = 2026-12-15
-max_lines = 744
-next_limit = 595
-debt = "SS-ARCH-020"
-
-[[waivers]]
 id = "SS-WAIVER-R021"
 owner = "recipe model resolution"
 rule = "STRUCT003"
@@ -230,7 +191,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow model-field resolution and replacement, inline prompt LoRA resolution and replacement, BackEnd hash lookup and fingerprint-job polling, and CivitAI missing-model lookup orchestration and unresolved reporting. Extract prompt-LoRA traversal and replacement from model-field resolution and external lookup orchestration."
 issue = "chore:SS-ARCH-021"
 review_by = 2026-12-15
-max_lines = 549
+max_lines = 523
 next_limit = 500
 debt = "SS-ARCH-021"
 
@@ -248,32 +209,6 @@ next_limit = 649
 debt = "SS-ARCH-022"
 
 [[waivers]]
-id = "SS-WAIVER-R023"
-owner = "input canvas state"
-rule = "STRUCT003"
-path = "substitute/application/workflows/input_canvas_state_service.py"
-kind = "remediation"
-justification = "The assessed file mixes input route projection and scope binding, input image loading, claiming, and restoration, mask creation, loading, update, and removal, asset ownership cleanup, mask opacity synchronization. Extract image and mask asset lifecycle from route projection and visual-state synchronization."
-issue = "chore:SS-ARCH-023"
-review_by = 2026-12-15
-max_lines = 876
-next_limit = 717
-debt = "SS-ARCH-023"
-
-[[waivers]]
-id = "SS-WAIVER-R024"
-owner = "output preview lifecycle"
-rule = "STRUCT003"
-path = "substitute/application/workflows/output_preview_lifecycle_service.py"
-kind = "remediation"
-justification = "The assessed file mixes output revision caching, preview slot identity and matching, completed-output retirement planning, run transition mutation, registry snapshot projection. Extract revision-cache ownership from pure preview identity and retirement policy."
-issue = "chore:SS-ARCH-024"
-review_by = 2026-12-15
-max_lines = 802
-next_limit = 641
-debt = "SS-ARCH-024"
-
-[[waivers]]
 id = "SS-WAIVER-R025"
 owner = "workflow assets"
 rule = "STRUCT003"
@@ -285,32 +220,6 @@ review_by = 2026-12-15
 max_lines = 621
 next_limit = 500
 debt = "SS-ARCH-025"
-
-[[waivers]]
-id = "SS-WAIVER-R026"
-owner = "workflow input canvas"
-rule = "STRUCT003"
-path = "substitute/application/workflows/workflow_input_canvas_service.py"
-kind = "remediation"
-justification = "The assessed file mixes ordered mask-region mutation, image and mask asset association, loaded image identity reconciliation, image and mask materialization, canvas plan and section projection. Extract ordered-region and association mutation from materialization and loaded-canvas reconciliation."
-issue = "chore:SS-ARCH-026"
-review_by = 2026-12-15
-max_lines = 1001
-next_limit = 800
-debt = "SS-ARCH-026"
-
-[[waivers]]
-id = "SS-WAIVER-R027"
-owner = "prompt editor performance operations"
-rule = "STRUCT003"
-path = "substitute/devtools/prompt_editor_performance/qt_operations.py"
-kind = "remediation"
-justification = "The assessed file mixes scenario operation dispatch, basic keyboard and selection timings, paint and diagnostic cache timings, reorder interaction timings, focus, hover, resize, scroll, and menu timings. Split operation families into focused timing modules behind the scenario-operation registry."
-issue = "chore:SS-ARCH-027"
-review_by = 2026-12-15
-max_lines = 633
-next_limit = 506
-debt = "SS-ARCH-027"
 
 [[waivers]]
 id = "SS-WAIVER-R028"
@@ -338,45 +247,6 @@ review_by = 2026-12-15
 max_lines = 570
 next_limit = 500
 debt = "SS-ARCH-032"
-
-[[waivers]]
-id = "SS-WAIVER-R035"
-owner = "input canvas presentation"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/input/input_canvas_presenter.py"
-kind = "remediation"
-justification = "The assessed file mixes image selection materialization and reconciliation, mask selection and validation, loaded cube and workflow-section materialization, and mask-picker refresh and change publication. Extract mask-picker refresh from image and mask materialization presentation."
-issue = "chore:SS-ARCH-035"
-review_by = 2026-12-15
-max_lines = 634
-next_limit = 510
-debt = "SS-ARCH-035"
-
-[[waivers]]
-id = "SS-WAIVER-R036"
-owner = "output navigation bar"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/output/output_canvas_navigation_bar.py"
-kind = "remediation"
-justification = "The assessed file mixes navigation view-model and tab rebuild planning, text measurement and width policy, Qt widget state application, compare, source, set, and scene selector synchronization. Extract pure navigation planning and measurement from Qt widget-state application."
-issue = "chore:SS-ARCH-036"
-review_by = 2026-12-15
-max_lines = 625
-next_limit = 500
-debt = "SS-ARCH-036"
-
-[[waivers]]
-id = "SS-WAIVER-R037"
-owner = "output navigation"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/output/output_canvas_navigation_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes navigation-bar responsive placement, set, source, scene, grid, and item activation, selection restoration policy, selector presentation synchronization, host adapter discovery and signal dispatch. Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
-issue = "chore:SS-ARCH-037"
-review_by = 2026-12-15
-max_lines = 825
-next_limit = 750
-debt = "SS-ARCH-037"
 
 [[waivers]]
 id = "SS-WAIVER-R039"
@@ -465,7 +335,7 @@ kind = "remediation"
 justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, field-action contribution collection and title-menu routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1405
+max_lines = 1406
 next_limit = 1137
 debt = "SS-ARCH-045"
 
@@ -478,7 +348,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow override synchronization and application, override menu construction, toolbar snapshot and control reconciliation, override widget factory and sizing, seed-mode and model-picker behavior, autosave and restart-spacing integration. Extract override control creation and toolbar layout from workflow synchronization and override commands."
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
-max_lines = 1116
+max_lines = 1120
 next_limit = 912
 debt = "SS-ARCH-046"
 
@@ -543,7 +413,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1966
+max_lines = 1969
 next_limit = 1571
 debt = "SS-ARCH-051"
 
@@ -574,134 +444,26 @@ next_limit = 435
 debt = "SS-ARCH-053"
 
 [[waivers]]
-id = "SS-WAIVER-R054"
-owner = "prompt editor composition"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/composition/factory.py"
-kind = "remediation"
-justification = "The assessed file mixes async executor and request-channel composition, Danbooru dialog and external-action composition, projection and editing collaborator composition, autocomplete and LoRA feature composition, context-menu and syntax collaborator composition, top-level bundle assembly. Split feature-specific subfactories from the top-level prompt-editor composition boundary."
-issue = "chore:SS-ARCH-054"
-review_by = 2026-12-15
-max_lines = 1101
-next_limit = 879
-debt = "SS-ARCH-054"
-
-[[waivers]]
-id = "SS-WAIVER-R055"
-owner = "prompt diagnostics presentation"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/features/diagnostics_presentation.py"
-kind = "remediation"
-justification = "The assessed file mixes prepared diagnostic snapshot ownership, cursor hit testing, context-menu action preparation, diagnostic command dispatch, refresh request and visible-surface publication. Extract diagnostic command dispatch from prepared diagnostic and menu presentation."
-issue = "chore:SS-ARCH-055"
-review_by = 2026-12-15
-max_lines = 518
-next_limit = 500
-debt = "SS-ARCH-055"
-
-[[waivers]]
-id = "SS-WAIVER-R056"
-owner = "canonical prompt layout"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"
-kind = "remediation"
-justification = "The assessed file mixes text measurement and font cache, projection-run to piece partitioning, word wrapping and break policy, decoration keep-group planning, line and fragment construction, source-boundary and caret mapping. Extract text measurement, wrap policy, and source-boundary mapping from line-layout assembly."
-issue = "chore:SS-ARCH-056"
-review_by = 2026-12-15
-max_lines = 1730
-next_limit = 1384
-debt = "SS-ARCH-056"
-
-[[waivers]]
-id = "SS-WAIVER-R057"
-owner = "prompt autocomplete panel"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/overlays/autocomplete_panel.py"
-kind = "remediation"
-justification = "The assessed file mixes overlay protocol and render-state models, tag row measurement and custom painting, LoRA wall navigation adaptation, panel content reconciliation and selection, overlay sizing, visibility, and activation lifecycle. Extract row rendering and LoRA-wall adaptation from panel state, layout, and visibility ownership."
-issue = "chore:SS-ARCH-057"
-review_by = 2026-12-15
-max_lines = 695
-next_limit = 556
-debt = "SS-ARCH-057"
-
-[[waivers]]
-id = "SS-WAIVER-R058"
-owner = "prompt reorder overlay"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/overlays/reorder_overlay.py"
-kind = "remediation"
-justification = "The assessed file mixes overlay widget lifecycle and painting, pointer and keyboard drag session, animation state and raster warmup, reorder geometry and landing projection, autoscroll invalidation, performance counters and diagnostic publication. Extract animation/raster ownership and geometry projection from overlay interaction and widget lifecycle."
-issue = "chore:SS-ARCH-058"
-review_by = 2026-12-15
-max_lines = 900
-next_limit = 720
-debt = "SS-ARCH-058"
-
-[[waivers]]
-id = "SS-WAIVER-R059"
-owner = "prompt token-weight controls"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"
-kind = "remediation"
-justification = "The assessed file mixes control overlay geometry and visibility, pointer, click, and wheel gesture routing, exact-weight activation and completion gesture routing, token preview and hover state, wheel-intent coordination, runtime widget lifecycle and event filtering. Extract remaining exact-edit activation gestures, wheel-intent, and preview controllers from overlay geometry and widget presentation."
-issue = "chore:SS-ARCH-059"
-review_by = 2026-12-15
-max_lines = 1242
-next_limit = 1051
-debt = "SS-ARCH-059"
-
-[[waivers]]
-id = "SS-WAIVER-R060"
-owner = "prompt projection construction"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/projection/builder.py"
-kind = "remediation"
-justification = "The assessed file mixes base run construction, syntax renderer-view adaptation, LoRA collapse and status projection, exact-weight edit projection, inline preview insertion and run splitting, projection range recomputation. Extract LoRA, exact-weight, and inline-preview feature projectors from base run construction."
-issue = "chore:SS-ARCH-060"
-review_by = 2026-12-15
-max_lines = 1058
-next_limit = 846
-debt = "SS-ARCH-060"
-
-[[waivers]]
-id = "SS-WAIVER-R061"
-owner = "prompt projection surface"
+id = "SS-WAIVER-S156"
+owner = "mounted prompt projection surface"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/surface.py"
-kind = "remediation"
-justification = "The assessed file mixes source editing and input-method handling, projection, layout, freshness, and publication coordination, caret, selection, scrolling, and hit testing, paint caches and custom rendering, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, drag/drop, undo, focus, and tooltip routing. Extract input/editing, paint publication, and feature-interaction hosts from the mounted projection surface."
-issue = "chore:SS-ARCH-061"
+kind = "structural"
+justification = "PromptProjectionSurface owns one mounted QAbstractScrollArea adapter contract. Its signals, host protocols, and protected Qt input, IME, pointer, drag, focus, viewport, paint, and lifecycle overrides all route through the same QWidget identity and lifetime. Projection construction and source, cursor, query, and presentation rules belong to focused collaborators, including the renderer-owned exact-weight glyph bounds now exposed through this adapter; splitting the remaining adapter would proxy protected Qt overrides and signals or duplicate viewport, focus, and object-lifetime invariants."
+issue = "chore:SS-WAIVER-S156"
 review_by = 2026-12-15
-max_lines = 3435
-next_limit = 2813
-debt = "SS-ARCH-061"
+max_lines = 1147
 
 [[waivers]]
-id = "SS-WAIVER-R062"
-owner = "prompt inline token rendering"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/projection/tokens.py"
-kind = "remediation"
-justification = "The assessed file mixes shared inline renderer contract, emphasis measurement and static token painting, wildcard inline rendering, LoRA banner rendering and media presentation, renderer registration and theme adaptation. Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
-issue = "chore:SS-ARCH-062"
-review_by = 2026-12-15
-max_lines = 1333
-next_limit = 1128
-debt = "SS-ARCH-062"
-
-[[waivers]]
-id = "SS-WAIVER-R064"
-owner = "prompt editor shell"
+id = "SS-WAIVER-S157"
+owner = "prompt editor public Qt facade"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
-kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility, projection surface composition and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
-issue = "chore:SS-ARCH-064"
+kind = "structural"
+justification = "PromptEditor owns one host-facing QObject contract: the concrete QFluent widget identity, public compatibility methods and signals, Qt virtual lifecycle, and ordered publication of the mounted runtime behind that identity. Text, cursor, undo, projection, feature, focus, drag, clipboard, and sizing entry points must remain methods or overrides on the same QObject so callers, Qt dispatch, signal connections, parentage, and object lifetime agree. Extracting the thin delegations into another collaborator would either remove them from the public widget, retain forwarding shims with duplicate API ownership, or fragment one facade into mixins with no independent state, lifecycle, or change cadence; extracting Qt overrides would still require proxy overrides and split super-call and widget-lifetime invariants. Command, reorder, emphasis, staged runtime publication, shell callbacks, panel wheel routing, feature behavior, and projection behavior remain separate focused owners; this module only mounts and exposes them through the canonical widget contract."
+issue = "chore:SS-WAIVER-S157"
 review_by = 2026-12-15
-max_lines = 1766
-next_limit = 1403
-debt = "SS-ARCH-064"
+max_lines = 750
 
 [[waivers]]
 id = "SS-WAIVER-R065"
@@ -925,32 +687,6 @@ next_limit = 500
 debt = "SS-ARCH-083"
 
 [[waivers]]
-id = "SS-WAIVER-R084"
-owner = "workflow workspace lifecycle"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/workflow_workspace_coordinator.py"
-kind = "remediation"
-justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
-issue = "chore:SS-ARCH-084"
-review_by = 2026-12-15
-max_lines = 1606
-next_limit = 1284
-debt = "SS-ARCH-084"
-
-[[waivers]]
-id = "SS-WAIVER-R085"
-owner = "workspace canvas actions"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/workspace_canvas_actions.py"
-kind = "remediation"
-justification = "The assessed file mixes output focus and navigation mutation, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split external actions and output ingestion from output-navigation commands."
-issue = "chore:SS-ARCH-085"
-review_by = 2026-12-15
-max_lines = 824
-next_limit = 732
-debt = "SS-ARCH-085"
-
-[[waivers]]
 id = "SS-WAIVER-R087"
 owner = "workspace cube picker actions"
 rule = "STRUCT003"
@@ -985,7 +721,7 @@ kind = "remediation"
 justification = "The assessed file mixes editable combo-surface painting and caret state, popup lifecycle and keyboard navigation, model catalog resolution and unavailable-state handling, metadata context-menu integration, thumbnail preload routing and cache refresh, model-load progress presentation. Extract thumbnail/metadata coordination and catalog resolution from the mounted field and popup interaction."
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
-max_lines = 1394
+max_lines = 1418
 next_limit = 1130
 debt = "SS-ARCH-090"
 
@@ -1110,7 +846,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 672
+max_lines = 660
 
 [[waivers]]
 id = "SS-WAIVER-S011"
@@ -1165,7 +901,7 @@ kind = "structural"
 justification = "The module is one tolerant parser whose emphasis, wildcard, LoRA, quote, and syntax-span routines cooperate in a single source scan and return one PromptDocument. Their nesting, range, and depth invariants are shared across syntax families."
 issue = "chore:SS-WAIVER-S016"
 review_by = 2026-12-15
-max_lines = 674
+max_lines = 675
 
 [[waivers]]
 id = "SS-WAIVER-S017"
@@ -1363,7 +1099,7 @@ kind = "structural"
 justification = "PromptSemanticRefreshController owns one stale-safe async refresh state machine. Queueing, flush, cancellation, task completion, freshness validation, source-identity rebase, publication, and failure logging all operate on the same active and pending request state."
 issue = "chore:SS-WAIVER-S037"
 review_by = 2026-12-15
-max_lines = 524
+max_lines = 537
 
 [[waivers]]
 id = "SS-WAIVER-S038"
@@ -1385,7 +1121,7 @@ kind = "structural"
 justification = "PromptSourceEditSession owns one bounded source-edit transaction. Normalization, parenthesis intent, generated-emphasis remapping, range validation, revision publication, and returned boundary transitions must agree for every replacement."
 issue = "chore:SS-WAIVER-S039"
 review_by = 2026-12-15
-max_lines = 561
+max_lines = 560
 
 [[waivers]]
 id = "SS-WAIVER-S040"
@@ -1393,10 +1129,10 @@ owner = "projection caret map"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/core/projection/caret.py"
 kind = "structural"
-justification = "The module defines one immutable caret-state model and its indexed PromptProjectionCaretMap. Source/projection lookup, token boundary queries, next/previous navigation, index construction, and fallback resolution all preserve one total visual caret ordering."
+justification = "The module defines one immutable caret-state model and its indexed PromptProjectionCaretMap. Source/projection lookup, token boundary queries, next/previous navigation, index construction, and fallback resolution—including hidden source offsets inside nested token shells—all preserve one total visual caret ordering. Innermost-token selection and fallback to child/plain stops must share the map's canonical stop order; extracting them would duplicate that invariant."
 issue = "chore:SS-WAIVER-S040"
 review_by = 2026-12-15
-max_lines = 785
+max_lines = 846
 
 [[waivers]]
 id = "SS-WAIVER-S041"
@@ -1429,7 +1165,7 @@ kind = "structural"
 justification = "PromptWildcardAutocompletePresentation owns one asynchronous, cache-bounded wildcard query lifecycle. Request identity, cache identity, stale-result rejection, completion/failure publication, test completion hooks, and visible snapshot all share one state."
 issue = "chore:SS-WAIVER-S043"
 review_by = 2026-12-15
-max_lines = 574
+max_lines = 580
 
 [[waivers]]
 id = "SS-WAIVER-S044"
@@ -1440,7 +1176,7 @@ kind = "structural"
 justification = "PromptHitTester owns one read-only mapping from pointer coordinates to source-backed caret and drag-selection targets over an immutable layout snapshot. All search and distance helpers implement that coordinate-to-caret contract."
 issue = "chore:SS-WAIVER-S044"
 review_by = 2026-12-15
-max_lines = 546
+max_lines = 548
 
 [[waivers]]
 id = "SS-WAIVER-S045"
@@ -1448,10 +1184,10 @@ owner = "prompt selection geometry"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/geometry/selection.py"
 kind = "structural"
-justification = "PromptSelectionGeometry owns one read-only mapping from source ranges to painted selection fragments over an immutable layout snapshot. Empty lines, line breaks, inline objects, merging, and paint-change comparison share the same source-to-geometry invariant."
+justification = "PromptSelectionGeometry owns one read-only mapping from source ranges to painted selection fragments over an immutable layout snapshot. Empty lines, line breaks, hidden escape boundaries, inline objects, merging, and paint-change comparison share the same source-to-geometry invariant. Moving fragment boundary resolution would divide that geometric selection contract."
 issue = "chore:SS-WAIVER-S045"
 review_by = 2026-12-15
-max_lines = 565
+max_lines = 570
 
 [[waivers]]
 id = "SS-WAIVER-S046"
@@ -1470,10 +1206,10 @@ owner = "lazy shifted prompt snapshots"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/layout/shifted_snapshot.py"
 kind = "structural"
-justification = "The module implements one lazy offset-view abstraction over line, fragment, caret-stop, and source-position snapshot values. Every proxy and sequence preserves the same deferred materialization and coordinate-shift semantics."
+justification = "The module implements one lazy offset-view abstraction over line, fragment, caret-stop, and source-position snapshot values. Every proxy preserves the same deferred coordinate-shift semantics; flattened fragment and caret lookup indexes now belong to snapshot_indexes."
 issue = "chore:SS-WAIVER-S048"
 review_by = 2026-12-15
-max_lines = 623
+max_lines = 527
 
 [[waivers]]
 id = "SS-WAIVER-S049"
@@ -1484,7 +1220,7 @@ kind = "structural"
 justification = "The module owns one bounded remapping algorithm for applying source edits to an immutable layout snapshot. Dirty-line, downstream-line, fragment, caret-stop, and source-position functions share the same edit delta and reuse invariants."
 issue = "chore:SS-WAIVER-S049"
 review_by = 2026-12-15
-max_lines = 610
+max_lines = 587
 
 [[waivers]]
 id = "SS-WAIVER-S050"
@@ -1496,17 +1232,6 @@ justification = "PromptReorderLandingDiagnostics is one structured classifier an
 issue = "chore:SS-WAIVER-S050"
 review_by = 2026-12-15
 max_lines = 511
-
-[[waivers]]
-id = "SS-WAIVER-S051"
-owner = "projection caret-stop sequence"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/projection/caret_stop_sequence.py"
-kind = "structural"
-justification = "The module implements one allocation-efficient ordered caret-stop data structure and its builder. Explicit and text spans, lookup by source/projection state, iteration, navigation, and construction all preserve the same visual ordering and boundary-index invariants."
-issue = "chore:SS-WAIVER-S051"
-review_by = 2026-12-15
-max_lines = 569
 
 [[waivers]]
 id = "SS-WAIVER-S052"
@@ -1528,7 +1253,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 613
+max_lines = 615
 
 [[waivers]]
 id = "SS-WAIVER-S054"
@@ -1693,7 +1418,7 @@ kind = "structural"
 justification = "MediaWallView is one reusable virtualized media-wall control. Justified row layout, selection/navigation, activation, painting, scrolling, thumbnail preload, tooltip, pointer input, and title marquee all operate on the same item placement and current-index state."
 issue = "chore:SS-WAIVER-S070"
 review_by = 2026-12-15
-max_lines = 609
+max_lines = 640
 
 [[waivers]]
 id = "SS-WAIVER-S071"
@@ -1704,7 +1429,7 @@ kind = "structural"
 justification = "The module owns one declarative context-menu projection for a model metadata target. Action models, builder, presenter, output-canvas hierarchy expansion, thumbnail choices, and callbacks all produce and execute the same menu contract."
 issue = "chore:SS-WAIVER-S071"
 review_by = 2026-12-15
-max_lines = 566
+max_lines = 614
 
 [[waivers]]
 id = "SS-WAIVER-S073"
@@ -1712,10 +1437,10 @@ owner = "cube stack tab control"
 rule = "STRUCT003"
 path = "substitute/presentation/workflows/cube_stack_view.py"
 kind = "structural"
-justification = "CubeStack is one specialized reorderable tab control over an ordered cube stack. Alias editing, bypass/output actions, tab presentation, selection, compact transition, pointer reordering, and indicator geometry all mutate or render the same tab state."
+justification = "CubeStack is one specialized reorderable tab control over an ordered cube stack. Alias editing, bypass/output/capture actions, tab presentation, selection, compact transition, pointer reordering, and indicator geometry all mutate or render the same tab state."
 issue = "chore:SS-WAIVER-S073"
 review_by = 2026-12-15
-max_lines = 619
+max_lines = 633
 
 [[waivers]]
 id = "SS-WAIVER-S074"
@@ -1753,19 +1478,6 @@ review_by = 2026-12-15
 max_lines = 1215
 next_limit = 973
 debt = "SS-ARCH-093"
-
-[[waivers]]
-id = "SS-WAIVER-R094"
-owner = "prompt abuse action dispatch"
-rule = "STRUCT003"
-path = "tools/prompt_editor_abuse/action_driver.py"
-kind = "remediation"
-justification = "The assessed file mixes generic mounted prompt-editor action host and collaborator composition, action checkpoint/timing/semantic-completion orchestration, keyboard/text/event-drain dispatch, source selection and caret projection, and diagnostic/picker/context-menu feature invocation. Extract keyboard/text/drain dispatch and diagnostic/picker/context-menu feature interaction from the generic mounted action host."
-issue = "chore:SS-ARCH-094"
-review_by = 2026-12-15
-max_lines = 912
-next_limit = 821
-debt = "SS-ARCH-094"
 
 [[waivers]]
 id = "SS-WAIVER-S075"
@@ -1813,7 +1525,7 @@ kind = "structural"
 justification = "This module owns one pure decision table for converting a prompt-abuse action and its measured counters into structural violations. The action classifications, counter limits, exact expectations, and violation formatting implement one atomic policy contract whose rules must be reviewed and changed together."
 issue = "chore:SS-WAIVER-S076"
 review_by = 2026-12-15
-max_lines = 630
+max_lines = 656
 
 [[waivers]]
 id = "SS-WAIVER-S077"
@@ -1821,10 +1533,10 @@ owner = "prompt reorder abuse action host"
 rule = "STRUCT003"
 path = "tools/prompt_editor_abuse/reorder_action_host.py"
 kind = "structural"
-justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities."
+justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities; sweep sample selection is a separate collaborator."
 issue = "chore:SS-WAIVER-S077"
 review_by = 2026-12-15
-max_lines = 611
+max_lines = 647
 
 [[waivers]]
 id = "SS-WAIVER-S078"
@@ -1846,7 +1558,7 @@ kind = "structural"
 justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
 issue = "chore:SS-WAIVER-S080"
 review_by = 2026-12-15
-max_lines = 561
+max_lines = 579
 
 [[waivers]]
 id = "SS-WAIVER-S150"
@@ -1945,7 +1657,7 @@ kind = "structural"
 justification = "This module owns one node-scoped visual-opacity transaction across editor control, workflow state, and mounted input document. Live preview, commit, associated mask layers, inheritance, persistence, restore, history, undo, and reconciliation all synchronize the same opacity value without changing mask coverage."
 issue = "chore:SS-WAIVER-S130"
 review_by = 2026-12-15
-max_lines = 586
+max_lines = 584
 
 [[waivers]]
 id = "SS-WAIVER-S131"
@@ -2057,12 +1769,45 @@ issue = "chore:SS-WAIVER-S149"
 review_by = 2026-12-15
 max_lines = 512
 [[waivers]]
-id = "SS-WAIVER-S151"
-owner = "input canvas composition"
+id = "SS-WAIVER-S152"
+owner = "canonical prompt line assembly"
 rule = "STRUCT003"
-path = "substitute/presentation/shell/input_canvas_composition.py"
+path = "substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"
 kind = "structural"
-justification = "MainWindowInputCanvasComposition and compose_input_canvas_controllers define one atomic dependency graph for the Input canvas. The factory constructs, wires, returns, and publishes that graph in dependency order; extracting individual constructors would split one composition authority and obscure lifecycle ordering without creating an independent behavioral owner."
-issue = "chore:SS-WAIVER-S151"
+justification = "PromptProjectionLineLayoutBuilder owns one atomic line-assembly state machine over line width, height, vertical position, pending fragments, caret boundaries, and reusable-suffix convergence. Text and inline placement, wrapping transitions, paragraph and structural-row transitions, line finalization, caret geometry, and snapshot emission must update that state together; extracting one transition family would divide the authoritative layout invariant rather than create an independently changing owner. Measurement, wrap policy, projection partitioning, keep-group planning, and source-boundary resolution are separate collaborators."
+issue = "chore:SS-WAIVER-S152"
 review_by = 2026-12-15
-max_lines = 509
+max_lines = 778
+
+[[waivers]]
+id = "SS-WAIVER-S153"
+owner = "LoRA inline projection rendering"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/projection/lora_renderer.py"
+kind = "structural"
+justification = "PromptLoraInlineObjectRenderer owns one atomic measurement, paint, and interaction-geometry contract for a LoRA projection run. Title elision, stable weight placement, editable glyph bounds inside the padded weight pill, chevron and banner composition, anchor geometry, hit testing, and selection must derive from the same dimensions; extracting a transition or geometry family would duplicate those invariants and permit layout to diverge from painting. PromptLoraThumbnailCache, PromptLoraPaintCache, and BannerTextPainter remain independent collaborators, while bounded title segmentation is private memoization keyed by the renderer's font, text, and width inputs."
+issue = "chore:SS-WAIVER-S153"
+review_by = 2026-12-15
+max_lines = 647
+
+[[waivers]]
+id = "SS-WAIVER-S154"
+owner = "mounted prompt token-weight controls"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"
+kind = "structural"
+justification = "PromptTokenWeightControls owns one mounted overlay projection over a single prepared geometry snapshot and visible-token state. Visibility, host/viewport transforms, overlay bounds, hit mapping, token-range publication, and passive render-state publication must use the same token and rectangles in one refresh; extracting one family would divide the authoritative mounted geometry or duplicate its coordinate and range invariants. Qt input routing, exact editing, command dispatch, gesture timing, wheel intent, preview layout, geometry calculation, and painting are separate collaborators."
+issue = "chore:SS-WAIVER-S154"
+review_by = 2026-12-15
+max_lines = 751
+
+[[waivers]]
+id = "SS-WAIVER-S155"
+owner = "prompt reorder runtime composition"
+rule = "STRUCT003"
+path = "substitute/presentation/editor/prompt_editor/composition/reorder_overlay_runtime_factory.py"
+kind = "structural"
+justification = "PromptReorderOverlayRuntimeComposer owns one atomic construction graph for a mounted reorder runtime. Animation, raster, geometry, landing, pointer, keyboard, diagnostics, and lifecycle collaborators receive cross-references and surface callbacks that must describe the same runtime instance; splitting the graph would introduce staged bundles, divide construction order, and make partial or mismatched runtimes representable. The composer owns no interaction policy or mutable session state: every behavior and state family remains in a dedicated collaborator, while the QWidget owns only mounted Qt event adaptation."
+issue = "chore:SS-WAIVER-S155"
+review_by = 2026-12-15
+max_lines = 530

@@ -21,8 +21,9 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import UUID
 
-from PySide6.QtCore import QPoint, QPointF
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
@@ -134,12 +135,17 @@ def test_projection_surface_requests_lora_context_menu_for_token_with_url(
     )
     cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
-    handled = surface._request_lora_context_menu(  # noqa: SLF001
+    event = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
         QPointF(4.0, 6.0),
-        QPoint(40, 60),
+        QPointF(40.0, 60.0),
+        Qt.MouseButton.RightButton,
+        Qt.MouseButton.RightButton,
+        Qt.KeyboardModifier.NoModifier,
     )
+    QApplication.sendEvent(surface.viewport(), event)
 
-    assert handled is True
+    assert event.isAccepted() is True
     assert emitted == [(token, QPoint(40, 60))]
 
 
@@ -165,7 +171,7 @@ def test_projection_surface_lora_context_menu_requires_url(
     )
     cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
-    handled = surface._request_lora_context_menu(  # noqa: SLF001
+    handled = cast(Any, surface)._lora_feature_delegate.request_context_menu(
         QPointF(4.0, 6.0),
         QPoint(40, 60),
     )
@@ -192,7 +198,7 @@ def test_projection_surface_lora_tooltip_uses_full_page_and_version_text(
     )
     cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
-    tooltip = surface._lora_tooltip_for_hover_event(  # noqa: SLF001
+    tooltip = cast(Any, surface)._lora_feature_delegate.tooltip_for_hover_event(
         surface.viewport(),
         PositionEvent(QPointF(4.0, 6.0)),
     )
@@ -222,7 +228,7 @@ def test_projection_surface_lora_tooltip_reports_missing_lora(
     )
     cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
-    tooltip = surface._lora_tooltip_for_hover_event(  # noqa: SLF001
+    tooltip = cast(Any, surface)._lora_feature_delegate.tooltip_for_hover_event(
         surface.viewport(),
         PositionEvent(QPointF(4.0, 6.0)),
     )
@@ -247,7 +253,7 @@ def test_projection_surface_lora_tooltip_ignores_non_lora_tokens(
     )
     cast(Any, surface).token_at_viewport_position = lambda _pos: token
 
-    tooltip = surface._lora_tooltip_for_hover_event(  # noqa: SLF001
+    tooltip = cast(Any, surface)._lora_feature_delegate.tooltip_for_hover_event(
         surface.viewport(),
         PositionEvent(QPointF(4.0, 6.0)),
     )
@@ -287,7 +293,7 @@ def test_prompt_editor_lora_civitai_action_opens_token_url(
         model_page_url=model_page_url,
     )
 
-    presenter = cast(Any, editor)._inline_lora_menu_presenter
+    presenter = cast(Any, editor)._runtime.host.menu.inline_lora
     action = presenter.page_action_for_token_context(presenter.token_context(token))
 
     assert action is not None
@@ -323,7 +329,7 @@ def test_prompt_editor_lora_banner_menu_includes_refresh_action(
         model_page_url=model_page_url,
     )
 
-    presenter = cast(Any, editor)._inline_lora_menu_presenter
+    presenter = cast(Any, editor)._runtime.host.menu.inline_lora
     menu_items = presenter.metadata_actions_for_token_context(
         presenter.token_context(token)
     )

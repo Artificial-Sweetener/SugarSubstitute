@@ -33,6 +33,8 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
 
+from .token_weight_preview import token_weight_preview_font
+
 
 @dataclass(frozen=True, slots=True)
 class PromptTokenWeightControlPaintState:
@@ -198,12 +200,7 @@ class PromptTokenWeightView(QWidget):
     def _weight_preview_font(self) -> QFont:
         """Return the font used by the floating weight preview label."""
 
-        font = QFont(self.font())
-        if font.pointSizeF() > 0:
-            font.setPointSizeF(max(8.0, font.pointSizeF() - 1.0))
-        else:
-            font.setPixelSize(max(12, font.pixelSize() - 1))
-        return font
+        return token_weight_preview_font(self.font())
 
 
 def triangle_vertical_inset(control_height: float) -> float:

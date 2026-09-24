@@ -22,8 +22,14 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from substitute.presentation.canvas.input.input_canvas_presenter import (
-        InputCanvasPresenter,
+    from substitute.presentation.canvas.input.input_image_materialization_presenter import (
+        InputImageMaterializationPresenter,
+    )
+    from substitute.presentation.canvas.input.input_mask_picker_presenter import (
+        InputMaskPickerPresenter,
+    )
+    from substitute.presentation.canvas.input.input_mask_selection_presenter import (
+        InputMaskSelectionPresenter,
     )
     from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
     from substitute.presentation.canvas.input.input_canvas_tool_controller import (
@@ -35,8 +41,14 @@ if TYPE_CHECKING:
 
 _EXPORT_MODULES = {
     "InputCanvas": "substitute.presentation.canvas.input.input_canvas_view",
-    "InputCanvasPresenter": (
-        "substitute.presentation.canvas.input.input_canvas_presenter"
+    "InputImageMaterializationPresenter": (
+        "substitute.presentation.canvas.input.input_image_materialization_presenter"
+    ),
+    "InputMaskPickerPresenter": (
+        "substitute.presentation.canvas.input.input_mask_picker_presenter"
+    ),
+    "InputMaskSelectionPresenter": (
+        "substitute.presentation.canvas.input.input_mask_selection_presenter"
     ),
     "InputCanvasToolController": (
         "substitute.presentation.canvas.input.input_canvas_tool_controller"
@@ -48,7 +60,9 @@ _EXPORT_MODULES = {
 
 __all__ = [
     "InputCanvas",
-    "InputCanvasPresenter",
+    "InputImageMaterializationPresenter",
+    "InputMaskPickerPresenter",
+    "InputMaskSelectionPresenter",
     "InputCanvasToolController",
     "InputCanvasToolProfileController",
 ]

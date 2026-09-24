@@ -197,9 +197,27 @@ class WorkspaceController:
 
     @property
     def canvas_actions(self) -> WorkspaceCanvasActions:
-        """Return canvas command actions composed for shell signal wiring."""
+        """Return Output ingestion actions composed for shell wiring."""
 
         return self._collaborators.canvas_actions
+
+    @property
+    def output_navigation_actions(self) -> Any:
+        """Return Output navigation actions composed for shell signal wiring."""
+
+        return self._collaborators.output_navigation_actions
+
+    @property
+    def output_external_actions(self) -> Any:
+        """Return external Output asset actions composed for shell wiring."""
+
+        return self._collaborators.output_external_actions
+
+    @property
+    def output_preparation_actions(self) -> Any:
+        """Return asynchronous Output preparation actions for shell wiring."""
+
+        return self._collaborators.output_preparation_actions
 
     @property
     def workflow_duplicate_service(self) -> WorkflowDuplicateService:

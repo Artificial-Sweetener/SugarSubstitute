@@ -18,66 +18,45 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QAbstractAnimation
+from PySide6.QtCore import QAbstractAnimation, QThread
 from PySide6.QtWidgets import QWidget
 
 from substitute.domain.model_suggestions import (
+    ModelAcquisitionOffer,
     ModelSuggestion,
     ModelSuggestionAccess,
     ModelSuggestionContext,
     ModelSuggestionPlan,
     ModelSuggestionReference,
 )
-from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.presentation.model_discovery import (
     ModelDiscoveryModal,
     ModelSuggestionCredentialCoordinator,
 )
-from substitute.presentation.model_discovery.discovery_modal import ModelSuggestionCard
+from substitute.presentation.model_discovery.credential_prompt import (
+    CredentialPromptChoice,
+)
+from substitute.presentation.model_discovery.discovery_card import ModelSuggestionCard
+from substitute.presentation.model_discovery.discovery_overlay import (
+    ModelDiscoveryOverlay,
+)
 from substitute.presentation.shell.empty_model_picker_discovery_controller import (
     EmptyModelPickerDiscoveryController,
 )
-from sugarsubstitute_shared.model_acquisition import AcquisitionResult
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 from substitute.domain.model_recommendations import ModelFamilyId
 from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition
-
-
-class _Catalog:
-    """Record targeted catalog invalidation."""
-
-    def __init__(self) -> None:
-        """Initialize no invalidations."""
-
-        self.invalidated: list[str | None] = []
-        self.refreshed: list[str] = []
-
-    def invalidate(self, kind: str | None = None) -> None:
-        """Record one invalidation."""
-
-        self.invalidated.append(kind)
-
-    def refresh_models(self, kind: str) -> object:
-        """Record one authoritative catalog refresh."""
-
-        self.refreshed.append(kind)
-        return ()
-
-
-class _FailingCatalog(_Catalog):
-    """Reject one post-download authoritative refresh."""
-
-    def refresh_models(self, kind: str) -> object:
-        """Record and fail a synthetic backend refresh."""
-
-        super().refresh_models(kind)
-        raise OSError("synthetic catalog refresh failure")
+from tests.presentation.shell.model_discovery.support import (
+    CatalogFixture as _Catalog,
+    DiscoveryServiceFixture,
+    FailingCatalogFixture as _FailingCatalog,
+    FailingThumbnailServiceFixture,
+)
 
 
 class _Credentials:
@@ -90,12 +69,14 @@ class _Credentials:
         *,
         configured: bool = False,
         approved: bool = True,
+        public_only: bool = False,
         prompts: list[QWidget] | None = None,
     ) -> None:
         """Store initial key state."""
 
         self.configured = configured
         self.approved = approved
+        self.public_only = public_only
         self.prompts = prompts if prompts is not None else []
 
     def has_credential(self) -> bool:
@@ -107,7 +88,23 @@ class _Credentials:
         """Record an explicit protected selection and return configured consent."""
 
         self.prompts.append(parent)
+        if self.approved:
+            self.configured = True
         return self.approved
+
+    def request_choice(
+        self, parent: QWidget, *, protected_model_count: int
+    ) -> CredentialPromptChoice:
+        """Choose a stored key, key-free results, or cancellation."""
+
+        assert protected_model_count == 1
+        self.prompts.append(parent)
+        if self.public_only:
+            return CredentialPromptChoice.PUBLIC_ONLY
+        if self.approved:
+            self.configured = True
+            return CredentialPromptChoice.SAVED
+        return CredentialPromptChoice.CANCELLED
 
 
 def _credential_coordinator(
@@ -116,71 +113,6 @@ def _credential_coordinator(
     """Return the provider-neutral coordinator with one CivitAI handler."""
 
     return ModelSuggestionCredentialCoordinator((handler or _Credentials(),))
-
-
-class _Service:
-    """Return one suggestion and materialize its exact backend value."""
-
-    def __init__(self, plan: ModelSuggestionPlan, destination_file: Path) -> None:
-        """Store deterministic discovery and acquisition results."""
-
-        self.plan = plan
-        self.destination_file = destination_file
-        self.contexts: list[ModelSuggestionContext] = []
-        self.acquired: list[str] = []
-
-    def plan_empty_picker(self, context: ModelSuggestionContext) -> ModelSuggestionPlan:
-        """Return the prepared plan."""
-
-        self.contexts.append(context)
-        return self.plan
-
-    def fetch_thumbnail(self, suggestion: ModelSuggestion) -> object:
-        """Reject unexpected preview requests in this no-thumbnail fixture."""
-
-        raise AssertionError(suggestion)
-
-    def acquire(
-        self,
-        plan: ModelSuggestionPlan,
-        suggestion_identity: str,
-        *,
-        cancellation: object | None = None,
-    ) -> tuple[ModelSuggestion, AcquisitionResult]:
-        """Create the reviewed file and return its verified result."""
-
-        _ = cancellation
-        self.acquired.append(suggestion_identity)
-        self.destination_file.parent.mkdir(parents=True, exist_ok=True)
-        payload = b"verified"
-        self.destination_file.write_bytes(payload)
-        return (
-            plan.suggestions[0],
-            AcquisitionResult(
-                path=self.destination_file,
-                sha256=hashlib.sha256(payload).hexdigest(),
-                size_bytes=len(payload),
-                reused_existing=False,
-            ),
-        )
-
-
-class _ThumbnailService(_Service):
-    """Fail one thumbnail while settling every remaining card."""
-
-    def __init__(self, plan: ModelSuggestionPlan, destination_file: Path) -> None:
-        """Store deterministic work and preview calls."""
-
-        super().__init__(plan, destination_file)
-        self.thumbnail_calls: list[str] = []
-
-    def fetch_thumbnail(self, suggestion: ModelSuggestion) -> object:
-        """Fail the first card and return a deliberately undecodable second asset."""
-
-        self.thumbnail_calls.append(suggestion.identity)
-        if len(self.thumbnail_calls) == 1:
-            raise OSError("synthetic thumbnail failure")
-        return ThumbnailAsset("synthetic", 1, 1, 0, 4, "png", b"invalid")
 
 
 def _suggestion(
@@ -195,19 +127,23 @@ def _suggestion(
         ModelFamilyId.ANIMA,
     )
     suggestion = ModelSuggestion(
-        reference=ModelSuggestionReference("civitai", "CivitAI", "11", "12"),
         context=context,
         model_name="Popular model",
         version_name="v12",
         creator="Creator",
-        file_name="popular.safetensors",
-        size_bytes=8,
         sha256="a" * 64,
-        download_url="https://civitai.com/api/download/models/12",
-        model_page_url="https://civitai.com/models/11",
-        thumbnail_url=None,
-        provider_rank=1,
-        access=access,
+        offers=(
+            ModelAcquisitionOffer(
+                reference=ModelSuggestionReference("civitai", "CivitAI", "11", "12"),
+                file_name="popular.safetensors",
+                size_bytes=8,
+                download_url="https://civitai.com/api/download/models/12",
+                model_page_url="https://civitai.com/models/11",
+                thumbnail_url=None,
+                provider_rank=1,
+                access=access,
+            ),
+        ),
     )
     return context, ModelSuggestionPlan(
         context=context,
@@ -254,7 +190,7 @@ def test_discovery_lifecycle_remains_animation_graph_free(tmp_path: Path) -> Non
 
     destination = tmp_path / "models" / "diffusion_models"
     context, plan = _suggestion(destination)
-    service = _Service(plan, destination / "popular.safetensors")
+    service = DiscoveryServiceFixture(plan, destination / "popular.safetensors")
     parent = QWidget()
     controller = EmptyModelPickerDiscoveryController(
         parent_widget=parent,
@@ -281,7 +217,7 @@ def test_repeated_discovery_lifecycles_remain_animation_graph_free(
 
     destination = tmp_path / "models" / "diffusion_models"
     context, plan = _suggestion(destination)
-    service = _Service(plan, destination / "popular.safetensors")
+    service = DiscoveryServiceFixture(plan, destination / "popular.safetensors")
     parent = QWidget()
     controller = EmptyModelPickerDiscoveryController(
         parent_widget=parent,
@@ -292,12 +228,15 @@ def test_repeated_discovery_lifecycles_remain_animation_graph_free(
 
     retained_modal: ModelDiscoveryModal | None = None
     retained_card: ModelSuggestionCard | None = None
+    task_threads = tuple(parent.findChildren(QThread))
+    assert len(task_threads) == 1
     for _cycle in range(128):
         assert controller.request_for_empty_picker(context, lambda _value: None)
         modal = parent.findChild(ModelDiscoveryModal)
         assert modal is not None
         wait_for_qt_condition(lambda: not controller.running)
         assert modal.findChildren(QAbstractAnimation) == []
+        assert tuple(parent.findChildren(QThread)) == task_threads
         card = modal.findChild(ModelSuggestionCard)
         assert card is not None
         if retained_modal is None:
@@ -320,10 +259,13 @@ def test_public_selection_downloads_refreshes_and_selects_exact_value(
 
     destination = tmp_path / "models" / "diffusion_models"
     context, plan = _suggestion(destination)
-    service = _Service(plan, destination / "Anima" / "popular.safetensors")
+    service = DiscoveryServiceFixture(
+        plan, destination / "Anima" / "popular.safetensors"
+    )
     catalog = _Catalog()
     selected_values: list[str] = []
     parent = QWidget()
+    parent.show()
     controller = EmptyModelPickerDiscoveryController(
         parent_widget=parent,
         service=service,  # type: ignore[arg-type]
@@ -334,18 +276,25 @@ def test_public_selection_downloads_refreshes_and_selects_exact_value(
     assert controller.request_for_empty_picker(context, selected_values.append)
     modal = parent.findChild(ModelDiscoveryModal)
     assert modal is not None and modal.isVisible()
+    assert modal.title_label.text() == "Download an image model?"
+    overlay = parent.findChild(ModelDiscoveryOverlay)
+    assert overlay is not None and overlay.isVisible()
+    assert not modal.isWindow()
+    assert not overlay.isWindow()
+    assert overlay.geometry() == parent.rect()
     wait_for_qt_condition(
         lambda: modal.selected_identity is None and bool(service.contexts)
     )
     wait_for_qt_condition(lambda: bool(plan.suggestions) and not controller.running)
     assert modal.findChildren(QAbstractAnimation) == []
-    modal.download_requested.emit(plan.suggestions[0].identity)
+    modal.download_requested.emit(plan.suggestions[0].identity, "civitai")
     wait_for_qt_condition(lambda: selected_values == ["Anima/popular.safetensors"])
 
     assert service.acquired == [plan.suggestions[0].identity]
     assert catalog.invalidated == ["diffusion_models"]
     assert catalog.refreshed == ["diffusion_models"]
     wait_for_qt_condition(lambda: not modal.isVisible())
+    assert not overlay.isVisible()
     _dispose_controller(controller, parent)
 
 
@@ -359,7 +308,7 @@ def test_protected_selection_prompts_only_when_no_key_is_configured(
         destination,
         access=ModelSuggestionAccess.API_KEY_REQUIRED,
     )
-    service = _Service(plan, destination / "protected.safetensors")
+    service = DiscoveryServiceFixture(plan, destination / "protected.safetensors")
     prompts: list[QWidget] = []
     parent = QWidget()
     controller = EmptyModelPickerDiscoveryController(
@@ -374,10 +323,112 @@ def test_protected_selection_prompts_only_when_no_key_is_configured(
     assert modal is not None
     wait_for_qt_condition(lambda: not controller.running)
     assert prompts == []
-    modal.download_requested.emit(plan.suggestions[0].identity)
+    modal.download_requested.emit(plan.suggestions[0].identity, "civitai")
     wait_for_qt_condition(lambda: bool(service.acquired))
 
     assert prompts == [modal]
+    _dispose_controller(controller, parent)
+
+
+def test_footer_key_action_configures_provider_and_continues_download(
+    tmp_path: Path,
+) -> None:
+    """Keep credential entry in the footer and continue the reviewed transfer."""
+
+    destination = tmp_path / "models" / "diffusion_models"
+    context, plan = _suggestion(
+        destination,
+        access=ModelSuggestionAccess.API_KEY_REQUIRED,
+    )
+    service = DiscoveryServiceFixture(plan, destination / "protected.safetensors")
+    prompts: list[QWidget] = []
+    parent = QWidget()
+    controller = EmptyModelPickerDiscoveryController(
+        parent_widget=parent,
+        service=service,  # type: ignore[arg-type]
+        catalog=_Catalog(),
+        credentials=_credential_coordinator(_Credentials(prompts=prompts)),
+    )
+
+    assert controller.request_for_empty_picker(context, lambda _value: None)
+    modal = parent.findChild(ModelDiscoveryModal)
+    assert modal is not None
+    wait_for_qt_condition(lambda: not controller.running)
+    card = modal.findChild(ModelSuggestionCard)
+    assert card is not None
+    assert not card.key_indicator.isHidden()
+    card.portrait.checkbox.click()
+    assert modal.download_button.text() == "Add CivitAI key"
+    modal.download_button.click()
+
+    assert prompts == [modal]
+    wait_for_qt_condition(lambda: bool(service.acquired))
+    assert service.acquired == [plan.suggestions[0].identity]
+    _dispose_controller(controller, parent)
+
+
+def test_key_layer_can_switch_to_models_without_a_key(tmp_path: Path) -> None:
+    """A key-free choice refreshes suggestions and can return to all models."""
+
+    destination = tmp_path / "models" / "diffusion_models"
+    context, plan = _suggestion(
+        destination,
+        access=ModelSuggestionAccess.API_KEY_REQUIRED,
+    )
+    public_model = replace(
+        plan.suggestions[0],
+        sha256="b" * 64,
+        offers=(
+            replace(
+                plan.suggestions[0].primary_offer,
+                access=ModelSuggestionAccess.PUBLIC,
+            ),
+        ),
+    )
+    service = DiscoveryServiceFixture(plan, destination / "public.safetensors")
+    service.public_plan = replace(plan, suggestions=(public_model,))
+    prompts: list[QWidget] = []
+    parent = QWidget()
+    controller = EmptyModelPickerDiscoveryController(
+        parent_widget=parent,
+        service=service,  # type: ignore[arg-type]
+        catalog=_Catalog(),
+        credentials=_credential_coordinator(
+            _Credentials(public_only=True, prompts=prompts)
+        ),
+    )
+
+    assert controller.request_for_empty_picker(context, lambda _value: None)
+    modal = parent.findChild(ModelDiscoveryModal)
+    assert modal is not None
+    wait_for_qt_condition(lambda: not controller.running)
+    protected_card = modal.findChild(ModelSuggestionCard)
+    assert protected_card is not None
+    protected_card.portrait.checkbox.click()
+    modal.download_button.click()
+    wait_for_qt_condition(
+        lambda: (
+            not controller.running
+            and (card := modal.findChild(ModelSuggestionCard)) is not None
+            and card.identity == public_model.identity
+        )
+    )
+
+    assert prompts == [modal]
+    public_card = modal.findChild(ModelSuggestionCard)
+    assert public_card is not None
+    assert public_card.key_indicator.isHidden()
+    assert not modal.show_all_button.isHidden()
+    public_card.portrait.checkbox.click()
+    assert modal.download_button.text() == "Download and use"
+    modal.show_all_button.click()
+    wait_for_qt_condition(
+        lambda: (
+            not controller.running
+            and (card := modal.findChild(ModelSuggestionCard)) is not None
+            and card.identity == plan.suggestions[0].identity
+        )
+    )
     _dispose_controller(controller, parent)
 
 
@@ -391,7 +442,7 @@ def test_protected_selection_uses_existing_key_without_prompt(
         destination,
         access=ModelSuggestionAccess.API_KEY_REQUIRED,
     )
-    service = _Service(plan, destination / "protected.safetensors")
+    service = DiscoveryServiceFixture(plan, destination / "protected.safetensors")
     prompts: list[QWidget] = []
     parent = QWidget()
     controller = EmptyModelPickerDiscoveryController(
@@ -409,8 +460,9 @@ def test_protected_selection_uses_existing_key_without_prompt(
     wait_for_qt_condition(lambda: not controller.running)
     card = modal.findChild(ModelSuggestionCard)
     assert card is not None
+    assert not card.key_indicator.isHidden()
     card.portrait.checkbox.click()
-    modal.download_requested.emit(plan.suggestions[0].identity)
+    modal.download_requested.emit(plan.suggestions[0].identity, "civitai")
     wait_for_qt_condition(lambda: bool(service.acquired))
 
     assert prompts == []
@@ -425,8 +477,9 @@ def test_cancelled_credential_prompt_never_starts_download(tmp_path: Path) -> No
         destination,
         access=ModelSuggestionAccess.API_KEY_REQUIRED,
     )
-    service = _Service(plan, destination / "protected.safetensors")
+    service = DiscoveryServiceFixture(plan, destination / "protected.safetensors")
     parent = QWidget()
+    parent.show()
     controller = EmptyModelPickerDiscoveryController(
         parent_widget=parent,
         service=service,  # type: ignore[arg-type]
@@ -438,7 +491,7 @@ def test_cancelled_credential_prompt_never_starts_download(tmp_path: Path) -> No
     modal = parent.findChild(ModelDiscoveryModal)
     assert modal is not None
     wait_for_qt_condition(lambda: not controller.running)
-    modal.download_requested.emit(plan.suggestions[0].identity)
+    modal.download_requested.emit(plan.suggestions[0].identity, "civitai")
 
     assert service.acquired == []
     assert modal.isVisible()
@@ -452,15 +505,24 @@ def test_one_thumbnail_failure_does_not_abort_remaining_gallery_work(
 
     destination = tmp_path / "models" / "diffusion_models"
     context, initial_plan = _suggestion(destination)
-    first = replace(initial_plan.suggestions[0], thumbnail_url="https://example/1")
+    original = initial_plan.suggestions[0]
+    first = replace(
+        original,
+        offers=(replace(original.primary_offer, thumbnail_url="https://example/1"),),
+    )
     second = replace(
-        initial_plan.suggestions[0],
-        reference=ModelSuggestionReference("civitai", "CivitAI", "21", "22"),
+        original,
+        offers=(
+            replace(
+                original.primary_offer,
+                reference=ModelSuggestionReference("civitai", "CivitAI", "21", "22"),
+                thumbnail_url="https://example/2",
+            ),
+        ),
         sha256="b" * 64,
-        thumbnail_url="https://example/2",
     )
     plan = replace(initial_plan, suggestions=(first, second))
-    service = _ThumbnailService(plan, destination / "popular.safetensors")
+    service = FailingThumbnailServiceFixture(plan, destination / "popular.safetensors")
     parent = QWidget()
     controller = EmptyModelPickerDiscoveryController(
         parent_widget=parent,
@@ -473,11 +535,15 @@ def test_one_thumbnail_failure_does_not_abort_remaining_gallery_work(
     modal = parent.findChild(ModelDiscoveryModal)
     assert modal is not None
     wait_for_qt_condition(
-        lambda: not controller.running and len(service.thumbnail_calls) == 2
+        lambda: (
+            not controller.running
+            and len(service.thumbnail_calls) == 2
+            and modal.status_label.isHidden()
+        )
     )
 
     assert service.thumbnail_calls == [first.identity, second.identity]
-    assert "Choose a model" in modal.status_label.text()
+    assert len(modal.findChildren(ModelSuggestionCard)) == 2
     _dispose_controller(controller, parent)
 
 
@@ -489,7 +555,7 @@ def test_catalog_refresh_failure_never_publishes_unconfirmed_picker_value(
     destination = tmp_path / "models" / "diffusion_models"
     context, plan = _suggestion(destination)
     downloaded = destination / "popular.safetensors"
-    service = _Service(plan, downloaded)
+    service = DiscoveryServiceFixture(plan, downloaded)
     selected_values: list[str] = []
     parent = QWidget()
     controller = EmptyModelPickerDiscoveryController(
@@ -506,7 +572,7 @@ def test_catalog_refresh_failure_never_publishes_unconfirmed_picker_value(
     card = modal.findChild(ModelSuggestionCard)
     assert card is not None
     card.portrait.checkbox.click()
-    modal.download_requested.emit(plan.suggestions[0].identity)
+    modal.download_requested.emit(plan.suggestions[0].identity, "civitai")
     wait_for_qt_condition(lambda: not controller.running)
 
     assert downloaded.read_bytes() == b"verified"

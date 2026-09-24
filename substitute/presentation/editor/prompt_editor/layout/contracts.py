@@ -30,7 +30,9 @@ from ..projection.metrics import PromptProjectionMetrics
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDocument,
 )
-from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 from .models import PromptProjectionLayoutSnapshot
 
 

@@ -48,12 +48,12 @@ except ImportError:  # pragma: no cover - lightweight test stubs
 
 
 from substitute.application.workflows import (
-    InputCanvasStateService,
     OutputCanvasProjectionCoordinator,
     WorkflowCanvasProjectionCoordinator,
     WorkflowSessionService,
     WorkflowTabService,
 )
+from substitute.application.workflows import input_canvas_state_composition
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.output_canvas_state_service import (
     OutputCanvasStateService,
@@ -134,7 +134,7 @@ class MainWindowWorkspaceWidgets:
     editor_busy_overlay: EditorBusyOverlay
     comfy_output_panel: ComfyOutputPanel
     canvas_host: Any
-    input_canvas_state_service: InputCanvasStateService
+    input_canvas_state: input_canvas_state_composition.InputCanvasStateComposition
     output_canvas_state_service: OutputCanvasStateService
     output_canvas_focus_service: OutputCanvasFocusService
     output_navigation_session_service: OutputNavigationSessionService
@@ -237,7 +237,7 @@ def _build_canvas_scaffold(
     reveal_output_asset: OutputAssetReveal | None = None,
 ) -> tuple[
     Any,
-    InputCanvasStateService,
+    input_canvas_state_composition.InputCanvasStateComposition,
     OutputCanvasStateService,
     OutputCanvasFocusService,
     OutputNavigationSessionService,
@@ -273,10 +273,10 @@ def _build_canvas_scaffold(
             raise RuntimeError("Canvas host must include Input and Output canvases.")
 
     with trace_span("mainwindow.build_workspace.canvas.state_service"):
-        input_canvas_state_service = InputCanvasStateService(
-            input_document=input_canvas.document,
-            input_route_projector=input_canvas.route_projector,
-            canvas_session_boundary=canvas_session_boundary,
+        input_canvas_state = input_canvas_state_composition.compose_input_canvas_state(
+            document=input_canvas.document,
+            route_projector=input_canvas.route_projector,
+            session_boundary=canvas_session_boundary,
             image_registry=canvas_image_registry,
         )
         output_canvas_state_service = OutputCanvasStateService(
@@ -307,7 +307,7 @@ def _build_canvas_scaffold(
             projection_sink=output_canvas,
         )
         workflow_canvas_projection_coordinator = WorkflowCanvasProjectionCoordinator(
-            input_canvas_state_service=input_canvas_state_service,
+            input_routes=input_canvas_state.routes,
             output_canvas_projection_coordinator=output_canvas_projection_coordinator,
         )
 
@@ -319,7 +319,7 @@ def _build_canvas_scaffold(
         container_layout.addWidget(cast(QWidget, canvas_host))
     return (
         canvas_host,
-        input_canvas_state_service,
+        input_canvas_state,
         output_canvas_state_service,
         output_canvas_focus_service,
         output_navigation_session_service,
@@ -435,7 +435,7 @@ def build_main_window_workspace(
     with trace_span("mainwindow.build_workspace.canvas_scaffold"):
         (
             canvas_host,
-            input_canvas_state_service,
+            input_canvas_state,
             output_canvas_state_service,
             output_canvas_focus_service,
             output_navigation_session_service,
@@ -587,7 +587,7 @@ def build_main_window_workspace(
         editor_busy_overlay=editor_busy_overlay,
         comfy_output_panel=comfy_output_panel,
         canvas_host=canvas_host,
-        input_canvas_state_service=input_canvas_state_service,
+        input_canvas_state=input_canvas_state,
         output_canvas_state_service=output_canvas_state_service,
         output_canvas_focus_service=output_canvas_focus_service,
         output_navigation_session_service=output_navigation_session_service,

@@ -22,7 +22,90 @@ from PySide6.QtCore import QPoint, QRect, QSize
 
 from substitute.presentation.widgets.anchored_row_flyout_placement import (
     anchored_row_flyout_placement,
+    anchored_row_flyout_viewport,
 )
+
+
+def test_anchored_row_flyout_viewport_preserves_anchor_slot_on_roomy_screen() -> None:
+    """The scroll window should expose whole rows above and below the anchor."""
+
+    viewport = anchored_row_flyout_viewport(
+        anchor_global_rect=QRect(100, 300, 170, 28),
+        screen_available_geometry=QRect(0, 0, 800, 600),
+        row_height=28,
+        row_spacing=2,
+        view_margin=7,
+    )
+
+    assert viewport.active_row_slot_from_top == 9
+    assert viewport.maximum_view_height == 552
+
+
+def test_anchored_row_flyout_viewport_opens_upward_near_screen_bottom() -> None:
+    """A bottom anchor should keep the active row in the last visible slot."""
+
+    viewport = anchored_row_flyout_viewport(
+        anchor_global_rect=QRect(100, 560, 170, 28),
+        screen_available_geometry=QRect(0, 0, 800, 600),
+        row_height=28,
+        row_spacing=2,
+        view_margin=7,
+    )
+
+    assert viewport.active_row_slot_from_top == 18
+    assert viewport.maximum_view_height == 582
+
+
+def test_anchored_row_flyout_viewport_opens_downward_near_screen_top() -> None:
+    """A top anchor should retain room below while keeping its row first."""
+
+    viewport = anchored_row_flyout_viewport(
+        anchor_global_rect=QRect(100, 20, 170, 28),
+        screen_available_geometry=QRect(0, 0, 800, 600),
+        row_height=28,
+        row_spacing=2,
+        view_margin=7,
+    )
+
+    assert viewport.active_row_slot_from_top == 0
+    assert viewport.maximum_view_height == 582
+
+
+def test_scroll_viewport_keeps_selected_row_over_anchor() -> None:
+    """Scrollable placement should preserve the picker's defining overlap contract."""
+
+    anchor = QRect(100, 300, 170, 28)
+    screen = QRect(0, 0, 800, 600)
+    viewport = anchored_row_flyout_viewport(
+        anchor_global_rect=anchor,
+        screen_available_geometry=screen,
+        row_height=28,
+        row_spacing=2,
+        view_margin=7,
+    )
+    visible_row_count = 18
+    placement = anchored_row_flyout_placement(
+        anchor_global_rect=anchor,
+        popup_size=QSize(230, viewport.maximum_view_height + 28),
+        row_width=170,
+        row_height=28,
+        row_count=visible_row_count,
+        active_row_index_from_top=viewport.active_row_slot_from_top,
+        row_left_offset=22,
+        row_top_offset=15,
+        row_spacing=2,
+        screen_available_geometry=screen.adjusted(0, -8, 0, 20),
+    )
+
+    assert placement.align_selected_row_to_anchor is True
+    assert (
+        _row_rect_with_width(
+            placement.position,
+            active_row_index_from_top=viewport.active_row_slot_from_top,
+            row_width=170,
+        )
+        == anchor
+    )
 
 
 def test_anchored_row_flyout_placement_overlaps_active_row_when_room_allows() -> None:
@@ -192,7 +275,21 @@ def _row_rect(
 ) -> QRect:
     """Return a row slot rect for the standard picker geometry."""
 
-    row_width = 34
+    return _row_rect_with_width(
+        position,
+        active_row_index_from_top=active_row_index_from_top,
+        row_width=34,
+    )
+
+
+def _row_rect_with_width(
+    position: QPoint,
+    *,
+    active_row_index_from_top: int,
+    row_width: int,
+) -> QRect:
+    """Return a row slot rect for one explicit picker width."""
+
     row_height = 28
     row_spacing = 2
     row_left_offset = 22

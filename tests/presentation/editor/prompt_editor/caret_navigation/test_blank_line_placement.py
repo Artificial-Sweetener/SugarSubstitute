@@ -53,7 +53,7 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
     )
     surface = surface_for(box)
     surface.set_source_line_content_left_inset(24.0)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -63,7 +63,7 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len("alpha\n")
     surface.set_cursor_positions(
         cursor_position=cursor_position,
@@ -132,7 +132,7 @@ def test_projection_surface_vertical_navigation_reaches_incremental_blank_line(
     surface = surface_for(box)
     surface.set_source_line_content_left_inset(24.0)
     process_events(app)
-    original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
+    original_rebuild_projection = surface._presentation_runtime.rebuild.rebuild  # noqa: SLF001
     rebuild_count = 0
 
     def count_rebuild() -> None:
@@ -142,7 +142,7 @@ def test_projection_surface_vertical_navigation_reaches_incremental_blank_line(
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
+    monkeypatch.setattr(surface._presentation_runtime.rebuild, "rebuild", count_rebuild)
     cursor_position = len("alpha\n")
     surface.set_cursor_positions(
         cursor_position=cursor_position,

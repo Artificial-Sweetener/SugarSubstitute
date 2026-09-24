@@ -49,6 +49,7 @@ def test_usage_round_trips_under_authoritative_user_settings(
         base_model="SDXL",
         usage_count=3,
         last_used_at=datetime(2026, 8, 31, tzinfo=UTC),
+        dismissed_version_id=7,
     )
 
     usage.save((record,))
@@ -67,7 +68,7 @@ def test_corrupt_usage_is_not_silently_replaced_with_empty_state(
         FileModelUsageRepository(tmp_path).load()
 
 
-def test_version_one_category_state_loads_and_saves_as_version_two(
+def test_version_one_category_state_loads_and_saves_as_version_three(
     tmp_path: Path,
 ) -> None:
     """Preserve authoritative usage while migrating its technical field name."""
@@ -100,6 +101,6 @@ def test_version_one_category_state_loads_and_saves_as_version_two(
 
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert records[0].artifact_kind is ModelArtifactKind.CHECKPOINTS
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["records"][0]["artifact_kind"] == "checkpoints"
     assert "category" not in payload["records"][0]

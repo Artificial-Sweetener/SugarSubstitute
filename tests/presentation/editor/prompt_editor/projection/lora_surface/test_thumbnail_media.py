@@ -123,7 +123,7 @@ def test_projection_surface_reorder_preview_suppresses_lora_banner_reads(
         preview_document_view,
         syntax_profile,
     )
-    surface.set_reorder_preview_state(
+    surface.reorder.set_preview_state(
         PromptReorderPreviewState(
             preview_snapshot=PromptReorderProjectionSnapshot(
                 document_view=preview_document_view,
@@ -142,7 +142,7 @@ def test_projection_surface_reorder_preview_suppresses_lora_banner_reads(
         )
     )
     lora_preview_range = preview_snapshot.chip_rendered_ranges_by_index[0]
-    preview_fragments = surface.reorder_preview_fragments(
+    preview_fragments = surface.reorder.preview_fragments(
         start=lora_preview_range[0],
         end=lora_preview_range[1],
     )
@@ -164,7 +164,8 @@ def test_projection_surface_prewarms_lora_banners_after_layout_sync(
     surface = new_projection_surface()
     widgets.append(surface)
     surface.resize(420, 120)
-    original_sync_layout_state = surface._sync_layout_state  # noqa: SLF001
+    layout_publication = surface._presentation_runtime.layout_publication  # noqa: SLF001
+    original_sync_layout_state = layout_publication.sync
     events: list[str] = []
 
     def record_sync_layout_state(*, commit_projection: bool = False) -> None:
@@ -183,14 +184,14 @@ def test_projection_surface_prewarms_lora_banners_after_layout_sync(
         events.append("prewarm")
         return 0
 
-    monkeypatch.setattr(surface, "_sync_layout_state", record_sync_layout_state)
+    monkeypatch.setattr(layout_publication, "sync", record_sync_layout_state)
     monkeypatch.setattr(
         PromptSurfaceLoraFeatureDelegate,
         "prewarm_visible_banners",
         record_prewarm,
     )
     install_lora_wildcard_prompt_state(surface, "<lora:midna:1>")
-    surface._rebuild_projection()  # noqa: SLF001
+    surface._presentation_runtime.rebuild.rebuild()  # noqa: SLF001
 
     assert events[-2:] == ["layout", "prewarm"]
 
@@ -213,7 +214,7 @@ def test_lora_thumbnail_publication_advances_only_relevant_content_media(
     assert token.thumbnail_variants
     storage_key = token.thumbnail_variants[0].storage_key
     owner = surface._content_media_owner  # noqa: SLF001
-    render_owner = surface._render_frame_owner  # noqa: SLF001
+    render_owner = surface._presentation_runtime.render_frame  # noqa: SLF001
     initial_identity = owner.identity
     initial_frame = render_owner.frame
 

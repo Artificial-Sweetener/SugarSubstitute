@@ -19,11 +19,13 @@
 from __future__ import annotations
 
 from collections.abc import Collection
+from dataclasses import replace
 from pathlib import Path
 from typing import Protocol
 
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_suggestions import (
+    ModelAcquisitionOffer,
     ModelSuggestion,
     ModelSuggestionAccessPolicy,
     ModelSuggestionContext,
@@ -65,6 +67,7 @@ class ModelSuggestionProvider(Protocol):
     def acquire(
         self,
         suggestion: ModelSuggestion,
+        offer: ModelAcquisitionOffer,
         *,
         destination: Path,
         cancellation: CancellationProbe | None,
@@ -106,28 +109,43 @@ class ModelSuggestionEngine:
 
         if limit < 1:
             raise ValueError("Model suggestion limit must be positive.")
-        seen_hashes = {value.casefold() for value in excluded_sha256}
+        excluded_hashes = {value.casefold() for value in excluded_sha256}
         suggestions: list[ModelSuggestion] = []
+        suggestion_indexes: dict[str, int] = {}
         for provider in self._providers:
             if not provider.supports(context):
                 continue
             for suggestion in provider.suggest(
                 context,
                 access_policy=access_policy,
-                limit=limit - len(suggestions),
-                excluded_sha256=frozenset(seen_hashes),
+                limit=limit,
+                excluded_sha256=frozenset(excluded_hashes),
             ):
-                if suggestion.reference.provider_id != provider.provider_id:
+                if len(suggestion.offers) != 1:
+                    raise ValueError(
+                        "Model suggestion providers must return one owned offer."
+                    )
+                offer = suggestion.primary_offer
+                if offer.reference.provider_id != provider.provider_id:
                     raise ValueError(
                         "Model suggestion provider returned another provider's identity."
                     )
                 normalized_hash = suggestion.sha256.casefold()
-                if suggestion.context != context or normalized_hash in seen_hashes:
+                if suggestion.context != context or normalized_hash in excluded_hashes:
                     continue
-                suggestions.append(suggestion)
-                seen_hashes.add(normalized_hash)
+                existing_index = suggestion_indexes.get(normalized_hash)
+                if existing_index is not None:
+                    existing = suggestions[existing_index]
+                    if existing.offer_for_provider(provider.provider_id) is None:
+                        suggestions[existing_index] = replace(
+                            existing,
+                            offers=(*existing.offers, offer),
+                        )
+                    continue
                 if len(suggestions) == limit:
-                    return tuple(suggestions)
+                    continue
+                suggestion_indexes[normalized_hash] = len(suggestions)
+                suggestions.append(suggestion)
         return tuple(suggestions)
 
     def browse_urls(
@@ -144,31 +162,38 @@ class ModelSuggestionEngine:
     def fetch_thumbnail(self, suggestion: ModelSuggestion) -> ThumbnailAsset:
         """Fetch a thumbnail through the suggestion's owning provider."""
 
-        return self._provider(suggestion).fetch_thumbnail(suggestion)
+        return self._provider(suggestion.primary_offer).fetch_thumbnail(suggestion)
 
     def acquire(
         self,
         suggestion: ModelSuggestion,
         *,
+        provider_id: str | None = None,
         destination: Path,
         cancellation: CancellationProbe | None = None,
     ) -> AcquisitionResult:
         """Acquire a suggestion through its owning provider."""
 
-        return self._provider(suggestion).acquire(
+        offer = (
+            suggestion.primary_offer
+            if provider_id is None
+            else suggestion.offer_for_provider(provider_id)
+        )
+        if offer is None:
+            raise ValueError(f"Provider has no offer for suggestion: {provider_id}")
+        return self._provider(offer).acquire(
             suggestion,
+            offer,
             destination=destination,
             cancellation=cancellation,
         )
 
-    def _provider(self, suggestion: ModelSuggestion) -> ModelSuggestionProvider:
-        """Return the exact registered provider for one suggestion."""
+    def _provider(self, offer: ModelAcquisitionOffer) -> ModelSuggestionProvider:
+        """Return the exact registered provider for one acquisition offer."""
 
-        provider_id = suggestion.reference.provider_id
+        provider_id = offer.reference.provider_id
         for provider in self._providers:
-            if provider.provider_id == provider_id and provider.supports(
-                suggestion.context
-            ):
+            if provider.provider_id == provider_id:
                 return provider
         raise ValueError(f"No provider owns model suggestion: {provider_id}")
 
@@ -194,9 +219,25 @@ class ModelSuggestionService:
     def plan_empty_picker(self, context: ModelSuggestionContext) -> ModelSuggestionPlan:
         """Return compatible suggestions only while the picker remains empty."""
 
+        return self._plan(context, ModelSuggestionAccessPolicy.CURRENT_USER)
+
+    def plan_public_picker(
+        self, context: ModelSuggestionContext
+    ) -> ModelSuggestionPlan:
+        """Return compatible choices downloadable without provider credentials."""
+
+        return self._plan(context, ModelSuggestionAccessPolicy.PUBLIC_ONLY)
+
+    def _plan(
+        self,
+        context: ModelSuggestionContext,
+        access_policy: ModelSuggestionAccessPolicy,
+    ) -> ModelSuggestionPlan:
+        """Build one destination-safe plan under the requested access policy."""
+
         suggestions = self._engine.suggest(
             context,
-            access_policy=ModelSuggestionAccessPolicy.CURRENT_USER,
+            access_policy=access_policy,
             limit=self._suggestion_limit,
         )
         return ModelSuggestionPlan(
@@ -216,6 +257,7 @@ class ModelSuggestionService:
         plan: ModelSuggestionPlan,
         suggestion_identity: str,
         *,
+        provider_id: str | None = None,
         cancellation: CancellationProbe | None = None,
     ) -> tuple[ModelSuggestion, AcquisitionResult]:
         """Acquire exactly one explicitly selected suggestion from the plan."""
@@ -232,6 +274,7 @@ class ModelSuggestionService:
             raise ValueError("Selected model suggestion is not in the reviewed plan.")
         result = self._engine.acquire(
             suggestion,
+            provider_id=provider_id,
             destination=plan.destination,
             cancellation=cancellation,
         )

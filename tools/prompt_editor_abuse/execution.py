@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import gc
 from time import perf_counter
 
 from PySide6.QtWidgets import QWidget
 
 from .action_counter_probe import PromptAbuseActionCounterProbe
-from .action_driver import PromptAbuseActionHost, dispatch_action
+from .action_driver import dispatch_action
+from .action_host import PromptAbuseActionHost
 from .models import (
     PromptAbuseAction,
     PromptAbuseActionOwnerDelta,
@@ -41,6 +43,7 @@ from .structural_instrumentation import structural_instrumentation_active
 type PromptAbuseSettler = Callable[[str], tuple[float, bool]]
 type PromptAbuseCorrectnessCapture = Callable[[], PromptAbuseCorrectnessSnapshot]
 type PromptAbuseActionObserver = Callable[[int, PromptAbuseAction], None]
+type PromptAbuseActionCompletion = Callable[[str | None], None]
 
 
 def execute_mounted_scenario(
@@ -62,6 +65,7 @@ def execute_mounted_scenario(
     counter_probe = PromptAbuseActionCounterProbe(editor)
     action_owner_deltas: list[PromptAbuseActionOwnerDelta] = []
     complete_structural_actions = structural_instrumentation_active()
+    _collect_setup_garbage()
     burst_started_at = perf_counter()
     for action_index, action in enumerate(scenario.actions):
         dispatch_samples.extend(
@@ -75,10 +79,7 @@ def execute_mounted_scenario(
                 counter_probe=counter_probe,
                 counter_deltas=action_owner_deltas,
                 complete_action=(
-                    _structural_action_completion(
-                        settle,
-                        action.expected_source,
-                    )
+                    _structural_action_completion(settle)
                     if complete_structural_actions
                     else None
                 ),
@@ -143,6 +144,12 @@ def execute_mounted_scenario(
     )
 
 
+def _collect_setup_garbage() -> None:
+    """Exclude mount and fixture garbage from the measured interaction burst."""
+
+    gc.collect()
+
+
 def _complete_structural_action(
     settle: PromptAbuseSettler,
     expected_source: str | None,
@@ -161,11 +168,10 @@ def _complete_structural_action(
 
 def _structural_action_completion(
     settle: PromptAbuseSettler,
-    expected_source: str | None,
-) -> Callable[[], None]:
+) -> PromptAbuseActionCompletion:
     """Return one typed completion boundary for an instrumented action."""
 
-    def complete() -> None:
+    def complete(expected_source: str | None) -> None:
         """Settle the action's authoritative owners before counter capture."""
 
         _complete_structural_action(settle, expected_source)

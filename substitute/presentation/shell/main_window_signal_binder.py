@@ -62,7 +62,7 @@ class MainWindowSignalBinder:
             self._shell.generation_action_controller.update_progress_labels
         )
         self._shell.preview_image_signal.connect(
-            self._shell.workspace_canvas_actions.display_preview_image
+            self._shell.workspace_controller.output_navigation_actions.display_preview_image
         )
         self._shell.add_output_image_signal.connect(
             self._shell.workspace_canvas_actions.handle_add_output_image
@@ -189,7 +189,7 @@ class MainWindowSignalBinder:
     ) -> None:
         """Connect canvas signals to workspace handlers and autosave requests."""
 
-        canvas_actions = self._shell.workspace_canvas_actions
+        canvas_actions = self._shell.workspace_controller.output_navigation_actions
         output_canvas.activeOutputChanged.connect(
             canvas_actions.on_active_output_changed
         )
@@ -284,6 +284,9 @@ class MainWindowSignalBinder:
         cube_stack.cubeDuplicateRequested.connect(
             cube_stack_actions.on_cube_duplicate_requested
         )
+        capture_requested = getattr(cube_stack, "cubeCaptureRequested", None)
+        if capture_requested is not None and hasattr(capture_requested, "connect"):
+            capture_requested.connect(cube_stack_actions.on_cube_capture_requested)
         bypass_toggle_requested = getattr(
             cube_stack,
             "cubeBypassToggleRequested",

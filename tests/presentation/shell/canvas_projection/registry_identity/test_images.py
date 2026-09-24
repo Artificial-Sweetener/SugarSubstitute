@@ -44,7 +44,7 @@ def test_restore_input_image_preserves_snapshot_uuid() -> None:
     image_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
     path = Path("input.png")
 
-    input_service.restore_input_image(image_id=image_id, image="input-image", path=path)
+    input_service.images.restore(image_id=image_id, image="input-image", path=path)
 
     assert input_pane.images == {image_id: ("input-image", path)}
 
@@ -59,8 +59,8 @@ def test_restore_input_image_skips_existing_identical_payload() -> None:
     path = Path("input.png")
     image = object()
 
-    input_service.restore_input_image(image_id=image_id, image=image, path=path)
-    input_service.restore_input_image(image_id=image_id, image=image, path=path)
+    input_service.images.restore(image_id=image_id, image=image, path=path)
+    input_service.images.restore(image_id=image_id, image=image, path=path)
 
     assert input_pane.add_calls == [(image_id, image, path)]
 
@@ -143,7 +143,7 @@ def test_load_input_image_replaces_pixels_without_replacing_entry_identity() -> 
     _store_image_record(service, old_id, ImageMeta("wf", "Cube", 1, "", ""))
 
     new_image = object()
-    image_id = input_service.load_input_image(
+    image_id = input_service.images.load(
         {"wf": workflow},
         "wf",
         "A:node",
@@ -173,7 +173,7 @@ def test_load_input_image_keeps_entry_identity_when_also_referenced_as_output() 
     input_pane.images[old_id] = ("old", Path("old.png"))
     _store_image_record(service, old_id, ImageMeta("wf", "Cube", 1, "", ""))
 
-    _ = input_service.load_input_image(
+    _ = input_service.images.load(
         {"A": workflow_a, "B": workflow_b},
         "A",
         "A:node",

@@ -141,7 +141,6 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
         output_scene_run_service=SimpleNamespace(
             start_scene_run=lambda **kwargs: registered_scene_runs.append(kwargs)
         ),
-        workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),
         path_bundle=SimpleNamespace(projects_dir=".", cubes_dir="."),
@@ -174,8 +173,8 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshots = controller.build_queued_generation_snapshots()

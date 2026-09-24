@@ -62,8 +62,10 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLoraService,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptSyntaxRenderPlan,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.commit import (
     PromptReorderLayoutCommitRequest,
@@ -75,6 +77,7 @@ from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.application.ports import PromptAutocompleteGateway
 from substitute.application.ports import PromptWildcardCatalogGateway
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
@@ -102,23 +105,6 @@ from .commands.weight_commands import (
     PromptWeightActionRequest,
     PromptWeightCommandResult,
 )
-from .overlays import (
-    PromptAutocompletePanel,
-    PromptTokenWeightControls,
-)
-from .features import (
-    PromptContextMenuPreparationLifecycle,
-    PromptContextMenuSnapshotAssembler,
-    PromptDiagnosticsFeatureController,
-    PromptFeatureProfileController,
-    PromptLoraMetadataPresentation,
-    PromptLoraMetadataRefreshLifecycle,
-)
-from .interactions import (
-    PromptReorderOverlayPort,
-    PromptWeightInteraction,
-    PromptWheelScrollResult,
-)
 from .core.projection.document import PromptProjectionDisplayMode
 from .core.projection.tokens import (
     PromptProjectionToken,
@@ -132,6 +118,7 @@ from .projection.session import (
     PromptTransientNeutralEmphasisOwner,
 )
 from .projection.reorder_preview import PromptReorderPreviewState
+from .runtime_mount import PromptEditorRuntimeMount
 
 class PromptEditor(QWidget):
     textChanged: Any
@@ -144,15 +131,7 @@ class PromptEditor(QWidget):
     sceneQueueRequested: Any
     regionHovered: Any
     scrollDelegate: Any
-    _surface: Any
-    _feature_profile_controller: PromptFeatureProfileController
-    _diagnostics_feature_controller: PromptDiagnosticsFeatureController
-    _context_menu_snapshot_assembler: PromptContextMenuSnapshotAssembler
-    _context_menu_preparation: PromptContextMenuPreparationLifecycle
-    _syntax_profile: PromptSyntaxProfile
-    _weight_interaction: PromptWeightInteraction
-    _lora_metadata_presentation: PromptLoraMetadataPresentation
-    _lora_metadata_refresh: PromptLoraMetadataRefreshLifecycle
+    _runtime: PromptEditorRuntimeMount
 
     def __init__(
         self,
@@ -178,17 +157,12 @@ class PromptEditor(QWidget):
         prompt_spellcheck_service: PromptSpellcheckService | None = ...,
         open_url: Callable[[str], bool] | None = ...,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = ...,
+        model_updates: ModelUpdatePickerBridge | None = ...,
         prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = ...,
         danbooru_lookup_dispatcher_factory: (
             DanbooruWikiLookupDispatcherFactory | None
         ) = ...,
     ) -> None: ...
-    @property
-    def _autocomplete_panel(self) -> PromptAutocompletePanel | None: ...
-    @property
-    def _segment_overlay(self) -> PromptReorderOverlayPort | None: ...
-    @property
-    def _token_weight_control_overlay(self) -> PromptTokenWeightControls: ...
     def viewport(self) -> QWidget: ...
     def viewportMargins(self) -> QMargins: ...
     def setViewportMargins(
@@ -316,6 +290,8 @@ class PromptEditor(QWidget):
     ) -> bool: ...
     def cursorRect(self) -> Any: ...
     def has_pending_projection_update(self) -> bool: ...
+    def requires_immediate_semantic_refresh(self) -> bool: ...
+    def requires_semantic_refresh_before_boundary(self) -> bool: ...
     def flush_pending_projection_update(self, *, reason: str) -> None: ...
     def commit_lora_autocomplete_replacement(self) -> None: ...
     def set_autocomplete_preview_state(
@@ -434,11 +410,3 @@ class PromptEditor(QWidget):
     def undo(self) -> None: ...
     def redo(self) -> None: ...
     def modify_emphasis(self, delta: float) -> None: ...
-    def prompt_surface_handle_wheel_scroll(
-        self,
-        event: QWheelEvent,
-    ) -> PromptWheelScrollResult: ...
-    def prompt_surface_wheel_event_is_allowed(self, event: QWheelEvent) -> bool: ...
-    def forward_wheel_event_to_editor_panel(self, event: QWheelEvent) -> None: ...
-    def refresh_lora_render_metadata_now(self, *, reason: str) -> bool: ...
-    def has_lora_spans_for_metadata(self) -> bool: ...

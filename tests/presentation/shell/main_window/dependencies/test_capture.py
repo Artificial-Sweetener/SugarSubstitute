@@ -131,6 +131,9 @@ class _FakeWorkspaceController:
         self.cube_picker_actions = object()
         self.cube_stack_actions = object()
         self.canvas_actions = object()
+        self.output_navigation_actions = object()
+        self.output_external_actions = object()
+        self.output_preparation_actions = object()
 
 
 class _FakeGenerationFeedbackCoalescer:

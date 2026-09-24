@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from ..projection.emphasis_projection_owner import PromptProjectionEmphasisOwner
 from ..projection.exact_weight_editor import PromptExactWeightEditor
 
 from collections.abc import Callable
@@ -55,7 +56,6 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
 from ..projection.session import (
     PromptEmphasisAdjustmentOwner,
     PromptEmphasisAdjustmentSession,
-    PromptTransientNeutralEmphasisOwner,
 )
 from .emphasis_controller import (
     PromptEmphasisSyntaxAction,
@@ -121,16 +121,8 @@ class PromptExactWeightHost(Protocol):
     def emphasis_adjustment_session(self) -> PromptEmphasisAdjustmentSession | None:
         """Return the active emphasis-adjustment session when one exists."""
 
-    def transient_neutral_emphasis_range(self) -> tuple[int, int] | None:
-        """Return the active transient neutral-emphasis content range, if any."""
-
-    def transient_neutral_emphasis_owner(
-        self,
-    ) -> PromptTransientNeutralEmphasisOwner | None:
-        """Return the active transient neutral-emphasis owner, if any."""
-
     def clear_overlay_emphasis_session_for_exact_weight(self) -> None:
-        """Clear overlay-owned emphasis state after overlay visibility changes."""
+        """Clear overlay-owned emphasis state after its gesture ends."""
 
     def preserve_surface_scroll_position_for_exact_weight(
         self,
@@ -140,15 +132,13 @@ class PromptExactWeightHost(Protocol):
 
 
 class PromptExactWeightProjectionHost(Protocol):
-    """Expose projection-owned exact edit and accent state to interactions."""
+    """Expose focused projection owners used by exact-weight interactions."""
 
     exact_weight_editor: PromptExactWeightEditor
 
-    def set_overlay_emphasis_accent_range(
-        self,
-        outer_range: tuple[int, int] | None,
-    ) -> None:
-        """Apply overlay-owned emphasis accent range to projection paint state."""
+    @property
+    def emphasis(self) -> PromptProjectionEmphasisOwner:
+        """Return the focused emphasis projection owner."""
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the painted weight-text rect for one token."""
@@ -231,14 +221,16 @@ class PromptExactWeightController:
 
         if self._projection_host is None:
             return
-        self._projection_host.set_overlay_emphasis_accent_range(outer_range)
+        self._projection_host.emphasis.set_overlay_accent_range(outer_range)
 
     def handle_visible_token_content_range_changed(
         self,
         content_range: tuple[int, int] | None,
     ) -> None:
-        """Clear overlay-owned emphasis state when overlay visibility changes."""
+        """Clear overlay-owned emphasis state when another token takes focus."""
 
+        if content_range is None:
+            return
         session = self._host.emphasis_adjustment_session()
         if (
             session is None
@@ -246,18 +238,8 @@ class PromptExactWeightController:
         ):
             return
         if (
-            content_range is not None
-            and session.content_start == content_range[0]
+            session.content_start == content_range[0]
             and session.content_end == content_range[1]
-        ):
-            return
-        transient_range = self._host.transient_neutral_emphasis_range()
-        if (
-            content_range is None
-            and self.exact_weight_edit_active()
-            and transient_range == (session.content_start, session.content_end)
-            and self._host.transient_neutral_emphasis_owner()
-            is PromptTransientNeutralEmphasisOwner.OVERLAY
         ):
             return
         self._host.clear_overlay_emphasis_session_for_exact_weight()

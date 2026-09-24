@@ -30,6 +30,9 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 )
 from sugarsubstitute_shared.presentation.localization import app_text
 
+from substitute.presentation.canvas.output.output_compare_menu_item import (
+    output_compare_menu_item,
+)
 from substitute.presentation.canvas.shared.types import OutputImageMeta
 from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import (
@@ -52,6 +55,9 @@ class OutputGridContextMenu:
     image_is_authorized: Callable[[UUID], bool]
     open_single_editor: Callable[[object, OutputImageMeta], bool] | None
     reveal_asset: Callable[[OutputImageMeta], bool] | None
+    compare_available: Callable[[], bool]
+    compare_enabled: Callable[[], bool]
+    set_compare_enabled: Callable[[bool], None]
     canvas_detached: Callable[[], bool]
     request_dock_action: Callable[[], None]
 
@@ -69,8 +75,16 @@ class OutputGridContextMenu:
     def menu_model(self, reference: CanvasContentReference) -> MenuModel:
         """Build actions whose callbacks retain the clicked grid target."""
 
-        return MenuModel(
-            entries=(
+        entries: list[MenuItem | MenuSeparator] = []
+        compare = output_compare_menu_item(
+            available=self.compare_available(),
+            enabled=self.compare_enabled(),
+            set_enabled=self.set_compare_enabled,
+        )
+        if compare is not None:
+            entries.extend((compare, MenuSeparator()))
+        entries.extend(
+            (
                 MenuItem(
                     "output_canvas.copy",
                     app_text("Copy"),
@@ -105,6 +119,7 @@ class OutputGridContextMenu:
                 ),
             )
         )
+        return MenuModel(entries=tuple(entries))
 
     def open_external(self, reference: CanvasContentReference) -> None:
         """Open exactly the authorized grid target in the configured editor."""

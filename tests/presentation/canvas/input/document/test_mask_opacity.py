@@ -28,11 +28,20 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QSpinBox, QWidget
 import pytest
 
-from substitute.application.workflows.input_canvas_state_service import (
-    InputCanvasStateService,
+from substitute.application.workflows.canvas_route_projector_port import (
+    create_canvas_session_boundary,
 )
 from substitute.application.workflows.input_canvas_document_port import (
     CanvasDocumentMutation,
+)
+from substitute.application.workflows.input_mask_asset_service import (
+    InputMaskAssetService,
+)
+from substitute.application.workflows.input_mask_visual_state_service import (
+    InputMaskVisualStateService,
+)
+from substitute.application.workflows.input_route_projection_service import (
+    InputRouteProjectionService,
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot.codecs import (
@@ -200,12 +209,9 @@ def test_input_canvas_state_applies_node_opacity_to_every_associated_mask() -> N
     document = SimpleNamespace(
         set_mask_visual_opacity=apply_opacity,
     )
-    service = InputCanvasStateService(
-        input_document=cast(Any, document),
-        input_route_projector=cast(Any, SimpleNamespace()),
-    )
+    service = InputMaskVisualStateService(cast(Any, document))
 
-    assert service.set_mask_visual_opacity(
+    assert service.set_opacity(
         "workflow-a",
         workflow,
         _ASSOCIATION_KEY,
@@ -242,13 +248,10 @@ def test_node_opacity_updates_real_cutecanvas_layers_without_changing_coverage(
         mask_id: document.export_mask_image(mask_id)
         for mask_id in (first_mask_id, second_mask_id)
     }
-    service = InputCanvasStateService(
-        input_document=document,
-        input_route_projector=cast(Any, SimpleNamespace()),
-    )
+    service = InputMaskVisualStateService(document)
 
     try:
-        assert service.set_mask_visual_opacity(
+        assert service.set_opacity(
             "workflow-a",
             workflow,
             _ASSOCIATION_KEY,
@@ -344,12 +347,17 @@ def test_new_mask_inherits_its_node_visual_opacity() -> None:
         bind=lambda _scope: None,
         show_image=lambda _image_id: True,
     )
-    service = InputCanvasStateService(
-        input_document=cast(Any, document),
-        input_route_projector=cast(Any, route),
+    visuals = InputMaskVisualStateService(cast(Any, document))
+    service = InputMaskAssetService(
+        document=cast(Any, document),
+        routes=InputRouteProjectionService(
+            projector=cast(Any, route),
+            session_boundary=create_canvas_session_boundary(),
+        ),
+        visuals=visuals,
     )
 
-    created = service.create_mask_for_image(
+    created = service.create_for_image(
         "workflow-a",
         workflow,
         _ASSOCIATION_KEY,
@@ -379,15 +387,11 @@ def test_mask_opacity_failure_rolls_back_layers_and_workflow_state() -> None:
         calls.append((mask_id, opacity))
         return mask_id != second_mask_id
 
-    service = InputCanvasStateService(
-        input_document=cast(
-            Any,
-            SimpleNamespace(set_mask_visual_opacity=apply),
-        ),
-        input_route_projector=cast(Any, SimpleNamespace()),
+    service = InputMaskVisualStateService(
+        cast(Any, SimpleNamespace(set_mask_visual_opacity=apply))
     )
 
-    assert not service.set_mask_visual_opacity(
+    assert not service.set_opacity(
         "workflow-a",
         workflow,
         _ASSOCIATION_KEY,
@@ -434,7 +438,7 @@ def test_node_opacity_controller_routes_binding_and_persistence_once() -> None:
         ),
         state_service=cast(
             Any,
-            SimpleNamespace(set_mask_visual_opacity=apply_opacity),
+            SimpleNamespace(set_opacity=apply_opacity),
         ),
         document=cast(Any, SimpleNamespace()),
         project_opacity=lambda *_args: None,
@@ -497,10 +501,7 @@ def test_node_opacity_undo_reconciles_document_workflow_and_card_state(
     collection = workflow.canvas.ensure_regional_mask_collection(_ASSOCIATION_KEY)
     collection.add_region(image_id, mask_id=first_mask_id)
     collection.add_region(image_id, mask_id=second_mask_id)
-    state_service = InputCanvasStateService(
-        input_document=document,
-        input_route_projector=cast(Any, SimpleNamespace()),
-    )
+    state_service = InputMaskVisualStateService(document)
     projected: list[float] = []
     invalidations: list[str] = []
     autosaves: list[None] = []
@@ -565,10 +566,7 @@ def test_real_groove_drag_undoes_once_and_resynchronizes_complete_control(
         image_id,
         mask_id=mask_id,
     )
-    state_service = InputCanvasStateService(
-        input_document=document,
-        input_route_projector=cast(Any, SimpleNamespace()),
-    )
+    state_service = InputMaskVisualStateService(document)
     control = MaskVisualOpacityControl()
     control.show()
     app.processEvents()

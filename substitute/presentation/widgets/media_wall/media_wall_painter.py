@@ -26,6 +26,9 @@ from substitute.presentation.widgets.media_wall.media_wall_marquee import (
     TitleMarqueeState,
 )
 from substitute.presentation.widgets.media_wall.media_wall_item import MediaWallItem
+from substitute.presentation.widgets.media_wall.media_wall_badge import (
+    media_wall_badge_rect,
+)
 from substitute.presentation.widgets.media_wall.media_wall_style import (
     media_wall_current_border,
     media_wall_hover_border,
@@ -82,6 +85,12 @@ def paint_media_wall_tile(
         emphasized=hovered or current,
         title_marquee_state=title_marquee_state,
     )
+    if item.corner_badge_icon is not None:
+        badge = media_wall_badge_rect(rect)
+        painter.setBrush(QColor(18, 22, 27, 224))
+        painter.setPen(QPen(QColor(255, 255, 255, 125), 1))
+        painter.drawEllipse(badge)
+        item.corner_badge_icon.paint(painter, badge.adjusted(5, 5, -5, -5))
     if current:
         pen = QPen(media_wall_current_border())
         pen.setWidth(2)

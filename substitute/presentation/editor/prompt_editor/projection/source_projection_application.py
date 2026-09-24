@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
@@ -41,13 +43,11 @@ from .edit_pipeline_contracts import PromptProjectionSourceChangeApplyRequest
 from .edit_strategy import source_edit_kind
 from .freshness_controller import (
     ProjectionFreshness,
+    PromptProjectionFreshnessBlockers,
     PromptProjectionFreshnessController,
 )
 from .observability import log_projection_timing, projection_observability_started_at
-from .source_commit_ports import (
-    PromptSourceChangeCaretSink,
-    PromptSourceChangeEffectSink,
-)
+from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .source_edit_projection_policy import PromptSourceEditProjectionDecision
 from .transient_edit_overlays import (
     PromptProjectionTransientDeletionOverlay,
@@ -66,9 +66,9 @@ class PromptSourceProjectionApplication:
 
     def __init__(
         self,
-        effect_sink: PromptSourceChangeEffectSink,
-        caret_sink: PromptSourceChangeCaretSink,
+        caret_publication: PromptProjectionCaretPublicationOwner,
         *,
+        projection_freshness_blockers: Callable[[], PromptProjectionFreshnessBlockers],
         editor_state: PromptSourceProjectionEditorState,
         freshness: PromptProjectionFreshnessController,
         pipeline: PromptEditPipeline,
@@ -76,8 +76,8 @@ class PromptSourceProjectionApplication:
     ) -> None:
         """Store explicit projection state, pipeline, and caret owners."""
 
-        self._effect_sink = effect_sink
-        self._caret_sink = caret_sink
+        self._caret_publication = caret_publication
+        self._projection_freshness_blockers = projection_freshness_blockers
         self._editor_state = editor_state
         self._freshness = freshness
         self._pipeline = pipeline
@@ -174,7 +174,7 @@ class PromptSourceProjectionApplication:
                     restore_checkpoint_blockers=(
                         None
                         if restore_checkpoint is None
-                        else self._effect_sink._projection_freshness_blockers()
+                        else self._projection_freshness_blockers()
                     ),
                 )
             )
@@ -200,12 +200,12 @@ class PromptSourceProjectionApplication:
                 anchor_state=next_anchor_state,
             )
         elif outcome.wrap_reflow_deferred:
-            self._caret_sink._set_deferred_source_caret_states(
+            self._caret_publication.publish_deferred(
                 cursor_state=next_cursor_state,
                 anchor_state=next_anchor_state,
             )
         else:
-            self._caret_sink._set_caret_states(
+            self._caret_publication.publish(
                 cursor_state=next_cursor_state,
                 anchor_state=next_anchor_state,
                 collapse_expanded_token=not outcome.fast_projection_applied,
@@ -235,12 +235,10 @@ class PromptSourceProjectionApplication:
     ) -> None:
         """Publish caret state paired with direct transient edit feedback."""
 
-        self._caret_sink._cursor_state = cursor_state
-        self._caret_sink._anchor_state = anchor_state
-        self._caret_sink._sync_editing_session_to_caret_states()
-        self._caret_sink._caret_rect_override = None
-        self._caret_sink._ensure_caret_visible()
-        self._caret_sink._restart_caret_blink_cycle()
+        self._caret_publication.publish_direct_feedback(
+            cursor_state=cursor_state,
+            anchor_state=anchor_state,
+        )
 
 
 __all__ = ["PromptSourceProjectionApplication"]

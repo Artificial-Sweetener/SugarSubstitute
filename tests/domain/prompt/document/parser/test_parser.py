@@ -495,6 +495,19 @@ def test_parse_prompt_document_preserves_empty_region_partitions() -> None:
     ) == ("", "", "regional\n", "")
 
 
+def test_parse_prompt_document_recovers_separator_after_unclosed_bracket_text() -> None:
+    """A malformed earlier tag must not hide a later structural separator."""
+
+    text = "alpha\n[SEP]\nbra[SEvo\n[SEP]\ncharlie"
+
+    document = parse_prompt_document(text)
+
+    assert tuple(
+        separator.token_range.slice(text)
+        for separator in document.region_structure.separators
+    ) == ("[SEP]", "[SEP]")
+
+
 @pytest.mark.parametrize("line_ending", ["\n", "\r\n", "\r"])
 def test_parse_prompt_document_preserves_named_region_separator_source(
     line_ending: str,

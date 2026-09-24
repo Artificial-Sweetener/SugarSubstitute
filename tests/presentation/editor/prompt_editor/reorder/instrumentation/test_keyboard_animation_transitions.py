@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -105,13 +109,10 @@ def test_reorder_keyboard_suppression_clips_settled_projection(
     _process_events(app)
 
     surface = surface_for(box)
-    visible_region = cast(Any, surface)._preview_visible_region()
+    visible_region = surface.reorder.presentation.preview_visible_region()
 
     assert set(
-        cast(
-            Any,
-            surface,
-        )._reorder_surface_visual_state.state.suppression_snapshots_by_index
+        surface.reorder.presentation.visual_state.state.suppression_snapshots_by_index
     ) == {0, 1}
     assert visible_region is not None
     hidden_region = QRegion(surface.viewport().rect()).subtracted(visible_region)
@@ -137,8 +138,8 @@ def test_reorder_keyboard_blank_line_animation_survives_overlay_resize(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    animation_owner = cast(Any, overlay)._animation_presentation
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
     animation_revision = animation_owner.publication.revision
@@ -185,8 +186,8 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
-    animation_owner = cast(Any, overlay)._animation_presentation
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
+    animation_owner = cast(Any, overlay)._runtime.animation
     animation_owner.set_duration_ms(1000)
 
     outbound_revision = animation_owner.publication.revision
@@ -208,7 +209,7 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
             blank_line_index=0,
         )
     )
-    visual_mode = cast(Any, overlay)._visual_mode
+    visual_mode = cast(Any, overlay)._runtime.visual_mode
     monkeypatch.setattr(visual_mode, "has_reordered", lambda: False)
     before_return = _performance_counters(overlay)
     return_revision = animation_owner.publication.revision

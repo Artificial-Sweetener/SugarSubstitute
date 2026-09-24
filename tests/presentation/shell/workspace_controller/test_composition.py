@@ -115,6 +115,7 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
     )
     monkeypatch.setattr(mod, "WorkflowDuplicateService", lambda: "duplicate-service")
     monkeypatch.setattr(mod, "WorkspaceCanvasActions", _FakeAction)
+    monkeypatch.setattr(mod, "WorkspaceOutputPreparationActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceCubePickerActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceCubeStackActions", _FakeAction)
     monkeypatch.setattr(mod, "DeferredWorkflowLinkReconciler", _FakeAction)
@@ -198,6 +199,7 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
         _FakeWorkflowWorkspaceCoordinator, bundle.workflow_workspace
     )
     canvas_actions = cast(_FakeAction, bundle.canvas_actions)
+    output_preparation_actions = cast(_FakeAction, bundle.output_preparation_actions)
     cube_picker_actions = cast(_FakeAction, bundle.cube_picker_actions)
     cube_stack_actions = cast(_FakeAction, bundle.cube_stack_actions)
     file_actions = cast(_FakeAction, bundle.file_actions)
@@ -210,7 +212,9 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
     assert workflow_workspace.view is views.workflow_workspace
     assert cast(object, bundle.workflow_duplicate_service) == "duplicate-service"
     assert canvas_actions.args == (views.canvas,)
-    assert canvas_actions.kwargs["error_presenter"] == "errors"
+    assert canvas_actions.kwargs == {}
+    assert output_preparation_actions.args == (views.canvas,)
+    assert output_preparation_actions.kwargs["error_presenter"] == "errors"
     assert cube_picker_actions.args == (views.cube,)
     assert cube_picker_actions.kwargs["build_cube_load_ui_callbacks"] is (
         build_cube_load_ui_callbacks

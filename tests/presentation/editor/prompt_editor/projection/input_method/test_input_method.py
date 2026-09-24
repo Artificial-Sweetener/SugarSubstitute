@@ -22,8 +22,8 @@ from typing import Any, cast
 
 
 import pytest
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QInputMethodEvent, QTextCharFormat
+from PySide6.QtCore import QEvent, QRectF, Qt
+from PySide6.QtGui import QFocusEvent, QInputMethodEvent, QTextCharFormat
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.editor.prompt_editor.projection.input_method_layer_preparer import (
@@ -99,9 +99,14 @@ def test_prompt_preedit_paint_consumes_the_published_shaped_layer(
     QApplication.processEvents()
     _set_source(surface, "prefix suffix")
     surface.set_cursor_positions(cursor_position=7, anchor_position=7)
-    QApplication.sendEvent(surface, QInputMethodEvent("にほん", []))
-    controller = cast(Any, surface)._input_method_controller
+    event = QInputMethodEvent("にほん", [])
+    event.setAccepted(False)
+    QApplication.sendEvent(surface, event)
+    controller = cast(Any, surface)._input_runtime.input_method
+    frame = cast(Any, surface)._presentation_runtime.render_frame.frame
+    assert event.isAccepted()
     assert controller.render_layer.layout is not None
+    assert frame.input_method_layer is controller.render_layer
 
     def reject_preparation(*args: object, **kwargs: object) -> None:
         """Reject input-method shaping reached from the paint stack."""
@@ -139,3 +144,31 @@ def test_prompt_ime_commit_replaces_selection_once_and_round_trips_undo(
     assert surface.toPlainText() == "中文 日本語 한국어 👩‍💻"
     assert surface_edit_execution(surface).undo() is not None
     assert surface.toPlainText() == "replace me"
+
+
+def test_focus_out_clears_preedit_and_publishes_an_empty_input_layer(
+    widgets: list[QWidget],
+) -> None:
+    """Close transient composition before the surface loses caret ownership."""
+
+    ensure_qapp()
+    surface = new_projection_surface()
+    widgets.append(surface)
+    surface.resize(400, 120)
+    surface.show()
+    QApplication.processEvents()
+    _set_source(surface, "prefix suffix")
+    surface.set_cursor_positions(cursor_position=7, anchor_position=7)
+    QApplication.sendEvent(surface, QInputMethodEvent("にほん", []))
+    controller = cast(Any, surface)._input_runtime.input_method
+    assert controller.is_composing
+
+    QApplication.sendEvent(
+        surface,
+        QFocusEvent(QEvent.Type.FocusOut, Qt.FocusReason.OtherFocusReason),
+    )
+
+    frame = cast(Any, surface)._presentation_runtime.render_frame.frame
+    assert not controller.is_composing
+    assert controller.render_layer.key is None
+    assert frame.input_method_layer is controller.render_layer

@@ -255,8 +255,8 @@ class _SmokeView:
         self.workflow_tabbar = _TabBar(["wf-a", "wf-b", "wf-c"])
         self.workflow_canvas_projection_coordinator = _WorkflowCanvasProjection()
         self.output_canvas_projection_coordinator = _OutputCanvasProjection()
-        self.input_canvas_state_service = SimpleNamespace(
-            prune_closed_workflow_images=lambda *_args: None
+        self.input_asset_cleanup = SimpleNamespace(
+            prune_closed_workflow=lambda *_args: None
         )
         self.cube_stack_container = QStackedWidget()
         self.editor_panel_container = QStackedWidget()

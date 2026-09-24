@@ -101,6 +101,7 @@ def build_onboarding_style_sheet() -> str:
             border-radius: 18px;
         }
         QFrame#OnboardingCivitaiImportCard,
+        QFrame#OnboardingOpenModelDbImportCard,
         QFrame#OnboardingOwnModelChoice,
         QFrame#OnboardingUnavailableRecommendationCard {
             background-color: rgba(__WASH_RGB__, 0.028);
@@ -126,7 +127,10 @@ def build_onboarding_style_sheet() -> str:
             border-radius: 12px;
         }
         QScrollArea#OnboardingModelLinkResultScroll,
-        QWidget#OnboardingModelLinkResultViewport {
+        QWidget#OnboardingModelLinkResultViewport,
+        QScrollArea#OnboardingDownloadCardsScroll,
+        QScrollArea#OnboardingDownloadCardsScroll > QWidget > QWidget,
+        QWidget#OnboardingDownloadCardsHost {
             background-color: transparent;
             border: none;
         }

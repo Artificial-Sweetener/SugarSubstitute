@@ -132,6 +132,9 @@ class CubeStackProtocol(Protocol):
     def setTabBypassed(self, index: int, bypassed: bool) -> None:
         """Set bypass presentation for one cube card."""
 
+    def setTabCaptureAvailable(self, index: int, available: bool) -> None:
+        """Set exact-capture availability for one cube card."""
+
 
 class EditorPanelProtocol(Protocol):
     """Describe editor-panel operations used by cube-card commands."""
@@ -206,6 +209,13 @@ class ActiveWorkflowSurfaceRefresherProtocol(Protocol):
         """Refresh active workflow surfaces after a cube mutation."""
 
 
+class WorkflowCubeLibraryServiceProtocol(Protocol):
+    """Describe exact workflow Cube capture orchestration."""
+
+    def capture_cube(self, workflow: WorkflowState, alias: str) -> object:
+        """Capture one embedded Cube definition through SugarCubes."""
+
+
 class WorkspaceCubeStackActionView(Protocol):
     """Describe the shell surface consumed by cube-card commands."""
 
@@ -215,6 +225,7 @@ class WorkspaceCubeStackActionView(Protocol):
     active_editor_panel: EditorPanelProtocol | None
     cube_stack_presentation_controller: CubeStackPresentationControllerProtocol
     active_workflow_surface_refresher: ActiveWorkflowSurfaceRefresherProtocol
+    workflow_cube_library_service: WorkflowCubeLibraryServiceProtocol
 
     def get_active_workflow(self) -> WorkflowState:
         """Return the active workflow state."""
@@ -399,6 +410,34 @@ class WorkspaceCubeStackActions:
             workflow_id,
             result.duplicate_alias,
         )
+
+    def on_cube_capture_requested(self, alias_name: str) -> None:
+        """Capture one exact wild Cube and remove its capture affordance."""
+
+        view = self._view
+        active_stack = view.active_cube_stack
+        workflow = view.get_active_workflow()
+        if active_stack is None or alias_name not in workflow.cubes:
+            return
+        try:
+            view.workflow_cube_library_service.capture_cube(workflow, alias_name)
+        except (RuntimeError, ValueError) as error:
+            log_warning(
+                _LOGGER,
+                "Could not capture workflow Cube",
+                cube_alias=alias_name,
+                error_type=type(error).__name__,
+                error_message=str(error),
+            )
+            return
+        for index in range(active_stack.count()):
+            route_key = active_stack.tabItem(index).routeKey()
+            cube = workflow.cubes.get(route_key)
+            classification = cube.library_classification if cube is not None else None
+            active_stack.setTabCaptureAvailable(
+                index,
+                bool(getattr(classification, "can_capture", False)),
+            )
 
     def on_cube_move_finished(self) -> None:
         """Persist cube drag order from the active stack into workflow state."""

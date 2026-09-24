@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import RadioButton  # type: ignore[import-untyped]
 
 from substitute.domain.model_recommendations import ModelFamilyId
+from substitute.domain.model_recommendations import SUPPORTED_MODEL_FAMILIES
 from substitute.presentation.onboarding import OnboardingWindow
 from substitute.presentation.onboarding.onboarding_models import OnboardingTargetMode
 from tools.install_experience_scenarios import (
@@ -41,6 +42,10 @@ from tools.install_experience_capture import (
 )
 from tools.install_experience_setup import SetupSideEffectAudit
 from tools.install_experience_model_evidence import recommendation_identity
+from tools.install_experience_recommendation_checks import (
+    assert_recommendation_page,
+    require_current_page_to_fit,
+)
 from tools.install_experience_navigation import (
     click_installer_control as _click,
     installer_widget as _widget,
@@ -149,7 +154,7 @@ def _drive_onboarding_scenario(
     if scenario.slug == "managed-sdxl-and-anima":
         _click(window, "OnboardingAdvancedButton")
         QTest.qWait(20)
-        _require_current_page_to_fit(window, "expanded managed settings")
+        require_current_page_to_fit(window, "expanded managed settings")
         _capture(
             window,
             artifact_root,
@@ -212,9 +217,9 @@ def _drive_onboarding_scenario(
         _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
         _click(window, "OnboardingNoExistingModelsButton")
     missing_families = tuple(
-        family
-        for family in (ModelFamilyId.SDXL, ModelFamilyId.ANIMA)
-        if family not in frozenset(scenario.detected_families)
+        definition.family_id
+        for definition in SUPPORTED_MODEL_FAMILIES.families()
+        if definition.family_id not in frozenset(scenario.detected_families)
     )
     if scenario.target != "remote" and missing_families:
         _drive_model_recommendations(
@@ -304,7 +309,7 @@ def _drive_model_recommendations(
     selected_any = False
     for family in missing_families:
         _wait_for_page(window, "OnboardingModelRecommendationPage")
-        _assert_recommendation_page(
+        assert_recommendation_page(
             window,
             family,
             allow_unavailable=scenario.thumbnail_failure,
@@ -316,7 +321,7 @@ def _drive_model_recommendations(
             f"recommendations-{family.value}",
             evidence,
         )
-        _require_current_page_to_fit(
+        require_current_page_to_fit(
             window,
             f"recommendations-{family.value}",
         )
@@ -353,7 +358,7 @@ def _drive_model_recommendations(
                 f"recommendations-{family.value}-civitai-import",
                 evidence,
             )
-            _require_current_page_to_fit(
+            require_current_page_to_fit(
                 window,
                 f"recommendations-{family.value}-civitai-import",
             )
@@ -365,7 +370,7 @@ def _drive_model_recommendations(
                 f"recommendations-{family.value}-civitai-imported",
                 evidence,
             )
-            _require_current_page_to_fit(
+            require_current_page_to_fit(
                 window,
                 f"recommendations-{family.value}-civitai-imported",
             )
@@ -376,7 +381,7 @@ def _drive_model_recommendations(
             _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
             _click(window, "OnboardingNoExistingModelsButton")
             _wait_for_page(window, "OnboardingModelRecommendationPage")
-            _assert_recommendation_page(window, family)
+            assert_recommendation_page(window, family)
             if (
                 window._controller.model_session.state.recommendation_pages
                 is not settled_pages
@@ -438,85 +443,6 @@ def _drive_model_recommendations(
                 evidence,
             )
         _click(window, "OnboardingPrimaryButton")
-
-
-def _assert_recommendation_page(
-    window: OnboardingWindow,
-    family: object,
-    *,
-    allow_unavailable: bool = False,
-) -> None:
-    """Require the centered eight-model grid and two coherent special choices."""
-
-    from PySide6.QtWidgets import QCheckBox
-
-    from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
-        RecommendationPortrait,
-    )
-
-    card_widgets: list[QWidget] = []
-    for index in range(window.model_recommendation_page.card_grid.count()):
-        item = window.model_recommendation_page.card_grid.itemAt(index)
-        widget = item.widget() if item is not None else None
-        if widget is not None:
-            card_widgets.append(widget)
-    selectable = [
-        checkbox
-        for card in card_widgets
-        for checkbox in card.findChildren(QCheckBox)
-        if checkbox.objectName().startswith("OnboardingRecommendationSelect_")
-    ]
-    if len(selectable) != 8 or any(card.isChecked() for card in selectable):
-        raise RuntimeError(
-            f"{family} recommendation cards are not eight unchecked choices."
-        )
-    portraits = [
-        portrait
-        for card in card_widgets
-        for portrait in card.findChildren(RecommendationPortrait)
-    ]
-    if len(portraits) != 8 or any(
-        portrait.source_size().height() < 960
-        and not (allow_unavailable and portrait.thumbnail_is_unavailable())
-        for portrait in portraits
-    ):
-        raise RuntimeError(f"{family} recommendations lack real prepared thumbnails.")
-    if len(card_widgets) != 10:
-        raise RuntimeError(
-            f"{family} recommendation grid does not contain ten choices."
-        )
-    row_tops = sorted({card.y() for card in card_widgets})
-    for index, widget in enumerate(card_widgets):
-        row = row_tops.index(widget.y())
-        row_lefts = sorted(card.x() for card in card_widgets if card.y() == widget.y())
-        column = row_lefts.index(widget.x())
-        if (row, column) != (index // 5, index % 5):
-            raise RuntimeError(f"{family} recommendation grid is not 5 by 2.")
-    for card, portrait in zip(card_widgets[:8], portraits, strict=True):
-        card_center = card.mapToGlobal(card.rect().center()).x()
-        portrait_center = portrait.mapToGlobal(portrait.rect().center()).x()
-        if abs(card_center - portrait_center) > 1:
-            raise RuntimeError(f"{family} recommendation thumbnail is not centered.")
-    left = min(card.geometry().left() for card in card_widgets)
-    right = max(card.geometry().right() for card in card_widgets)
-    grid_center = (left + right) // 2
-    host_center = window.model_recommendation_page.card_host.rect().center().x()
-    if abs(grid_center - host_center) > 1:
-        raise RuntimeError(f"{family} recommendation grid is not centered.")
-
-
-def _require_current_page_to_fit(
-    window: OnboardingWindow,
-    checkpoint: str,
-) -> None:
-    """Reject qualification states that spill beneath the fixed installer footer."""
-
-    QApplication.processEvents()
-    overflow = window.page_stage.verticalScrollBar().maximum()
-    if overflow > 0:
-        raise RuntimeError(
-            f"{checkpoint} exceeds the installer viewport by {overflow} pixels."
-        )
 
 
 def _merge_audit(target: SetupSideEffectAudit, source: SetupSideEffectAudit) -> None:

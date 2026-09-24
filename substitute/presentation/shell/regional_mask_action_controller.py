@@ -22,11 +22,11 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
-from substitute.application.workflows.workflow_input_canvas_service import (
-    WorkflowInputCanvasService,
+from substitute.application.workflows.ordered_mask_region_authoring_service import (
+    OrderedMaskRegionAuthoringService,
 )
-from substitute.application.workflows.input_canvas_state_service import (
-    InputCanvasStateService,
+from substitute.application.workflows.input_route_projection_service import (
+    InputRouteProjectionService,
 )
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.regional.mask_collection_presenter import (
@@ -48,8 +48,8 @@ class RegionalMaskActionController:
         active_workflow_id: Callable[[], str],
         workflow_name: Callable[[str], str],
         projects_dir: Callable[[], Path],
-        workflow_service: WorkflowInputCanvasService,
-        state_service: InputCanvasStateService,
+        region_authoring: OrderedMaskRegionAuthoringService,
+        input_routes: InputRouteProjectionService,
         presenter: RegionalMaskCollectionPresenter,
         accept_canvas_selection: Callable[[], bool],
     ) -> None:
@@ -59,8 +59,8 @@ class RegionalMaskActionController:
         self._active_workflow_id = active_workflow_id
         self._workflow_name = workflow_name
         self._projects_dir = projects_dir
-        self._workflow_service = workflow_service
-        self._state_service = state_service
+        self._region_authoring = region_authoring
+        self._input_routes = input_routes
         self._presenter = presenter
         self._accept_canvas_selection = accept_canvas_selection
 
@@ -106,7 +106,7 @@ class RegionalMaskActionController:
         if entry.mask_id is None:
             return False
         collection.select(entry.region_id)
-        if not self._state_service.set_active_workflow_mask(
+        if not self._input_routes.set_active_mask(
             self._active_workflow_id(),
             workflow,
             entry.mask_id,
@@ -151,7 +151,7 @@ class RegionalMaskActionController:
             workflow.canvas.regional_mask_collections[selected_key].select(
                 selected_region_id
             )
-        if not self._state_service.set_active_workflow_mask(
+        if not self._input_routes.set_active_mask(
             self._active_workflow_id(),
             workflow,
             mask_id,
@@ -168,7 +168,7 @@ class RegionalMaskActionController:
         if workflow is None:
             return None
         workflow_id = self._active_workflow_id()
-        mask_id = self._workflow_service.add_ordered_mask_region(
+        mask_id = self._region_authoring.add_region(
             workflow=workflow,
             workflow_id=workflow_id,
             section_key=cube_alias,
@@ -192,7 +192,7 @@ class RegionalMaskActionController:
         if workflow is None:
             return None
         workflow_id = self._active_workflow_id()
-        mask_id = self._workflow_service.import_ordered_mask_region(
+        mask_id = self._region_authoring.import_region(
             workflow=workflow,
             workflow_id=workflow_id,
             section_key=cube_alias,
@@ -211,7 +211,7 @@ class RegionalMaskActionController:
         workflow = self._active_workflow()
         if workflow is None:
             return False
-        removed = self._workflow_service.remove_ordered_mask_region(
+        removed = self._region_authoring.remove_region(
             workflow=workflow,
             workflow_id=self._active_workflow_id(),
             section_key=cube_alias,

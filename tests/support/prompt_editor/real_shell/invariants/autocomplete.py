@@ -144,14 +144,14 @@ def dismissal_owner_violations(
     if not preview_owner_clear:
         violations.append(f"{action_name}_dismissal_without_preview_owner_clear")
     paint_invalidation = any(
-        event.owner == "projection source and caret owner"
-        and event.method == "invalidate_autocomplete_preview_paint"
+        event.owner == "autocomplete preview projection owner"
+        and event.method == "_invalidate_paint"
         for event in transition_events
     )
     if not paint_invalidation:
         violations.append(f"{action_name}_dismissal_without_preview_paint_invalidation")
     if action_name == "caret" and not any(
-        event.owner == "caret autocomplete preview coordinator"
+        event.owner == "autocomplete preview projection owner"
         and event.method == "reconcile_after_caret_state_change"
         for event in transition_events
     ):

@@ -89,7 +89,7 @@ def _reveal_first_emphasis_controls(box: PromptEditor) -> None:
     QTest.mouseMove(box.viewport(), anchor_rect.center().toPoint())
     process_events(app)
     controls = token_weight_controls_for(box)
-    controls._set_pointer_from_viewport(anchor_rect.center())  # noqa: SLF001
+    controls.set_pointer_from_viewport(anchor_rect.center())
     controls.refresh_geometry()
     process_events(app)
 
@@ -175,7 +175,7 @@ def test_prompt_editor_raw_toggle_does_not_leave_cleared_transient_projection(
     box.setDisplayMode(PromptProjectionDisplayMode.RAW)
     process_events(app)
 
-    assert surface._active_projection_requires_layout() is False
+    assert surface._presentation_runtime.active_projection.requires_layout() is False
     assert surface.active_projection_document() is surface.projection_document()
     assert (
         surface._layout.frame.output.projection_document

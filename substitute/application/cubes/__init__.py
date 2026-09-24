@@ -96,6 +96,9 @@ from substitute.application.cubes.cube_workflow_add_service import (
     CubeAddResult,
     CubeWorkflowAddService,
 )
+from substitute.application.cubes.workflow_cube_library_service import (
+    WorkflowCubeLibraryService,
+)
 
 __all__ = [
     "CubeAddResult",
@@ -128,6 +131,7 @@ __all__ = [
     "CubeStackTooltipMetadata",
     "CubeTabPresentation",
     "CubeWorkflowAddService",
+    "WorkflowCubeLibraryService",
     "LoadedCubeDefinition",
     "LoadedCubeRuntime",
     "PersistedInputOverlayResult",

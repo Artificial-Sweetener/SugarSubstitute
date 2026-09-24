@@ -170,7 +170,7 @@ def test_mouse_expanded_wildcard_uses_exact_source_caret_for_autocomplete(
     try:
         source = _SCENE_PROMPT.replace(", ,", ", {hair},")
         field = scenario.workflows.add_prompt_workflow(initial_text=source)
-        surface = field.editor._surface  # noqa: SLF001
+        surface = field.editor._runtime.projection.surface  # noqa: SLF001
         token = next(
             token
             for token in surface.projection_document().tokens

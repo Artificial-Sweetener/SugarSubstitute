@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import cProfile
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from .action_driver import dispatch_action
 from .models import (
@@ -30,6 +30,7 @@ from .models import (
 )
 from .profile_summary import summarize_combined_hotspots, summarize_hotspots
 from .reorder_action_host import PromptReorderAbuseActionHost
+from tests.support.prompt_editor.runtime_owners import segment_overlay
 from .wildcard_mount import mount_wildcard_editor
 
 
@@ -67,7 +68,7 @@ def capture_wildcard_scenario_diagnostics(
                     hotspots=summarize_hotspots(profiler),
                 )
             )
-            active_overlay = cast(Any, mounted.editor)._segment_overlay
+            active_overlay = segment_overlay(mounted.editor)
             if active_overlay is not None:
                 reorder_overlay = active_overlay
         counters = (

@@ -59,6 +59,7 @@ class PromptLoraCatalogItem:
     collision_count: int
     has_collision: bool
     search_text: str
+    sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

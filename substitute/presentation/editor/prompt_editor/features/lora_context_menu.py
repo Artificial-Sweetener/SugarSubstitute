@@ -32,7 +32,7 @@ from ..commands.feature_commands import (
     PromptFeatureCommandRequest,
     PromptFeatureSnapshotIdentity,
 )
-from .catalog_snapshots import CatalogSnapshotIdentity
+from substitute.presentation.editor.catalog.snapshots import CatalogSnapshotIdentity
 from .feature_profile_controller import (
     PromptFeatureActionState,
 )

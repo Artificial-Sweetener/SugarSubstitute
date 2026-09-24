@@ -38,6 +38,7 @@ class PromptProjectionPlainEditRunSequence(Sequence[PromptProjectionRun]):
         "_edited_run_index",
         "_index_by_id",
         "_projection_delta",
+        "_run_ids",
         "_source_delta",
     )
     _base_runs: Sequence[PromptProjectionRun]
@@ -75,7 +76,16 @@ class PromptProjectionPlainEditRunSequence(Sequence[PromptProjectionRun]):
         self._edited_run_index = edited_run_index
         self._edited_run = edited_run
         self._cache: dict[int, PromptProjectionRun] = {edited_run_index: edited_run}
-        self._index_by_id: dict[str, int] | None = None
+        self._index_by_id: dict[str, int] | None = (
+            base_runs._index_by_id
+            if isinstance(base_runs, PromptProjectionPlainEditRunSequence)
+            else None
+        )
+        self._run_ids: frozenset[str] | None = (
+            base_runs._run_ids
+            if isinstance(base_runs, PromptProjectionPlainEditRunSequence)
+            else None
+        )
 
     def __len__(self) -> int:
         """Return the stable run count."""
@@ -120,13 +130,9 @@ class PromptProjectionPlainEditRunSequence(Sequence[PromptProjectionRun]):
 
         if run_id == self._edited_run.run_id:
             return self._edited_run
-        index_by_id = self._index_by_id
-        if index_by_id is None:
-            index_by_id = {
-                run.run_id: index for index, run in enumerate(self._base_runs)
-            }
-            self._index_by_id = index_by_id
-        index = index_by_id.get(run_id)
+        self._ensure_identifier_index()
+        assert self._index_by_id is not None
+        index = self._index_by_id.get(run_id)
         return None if index is None else self._run_at(index)
 
     def run_at_projection_position(
@@ -141,7 +147,7 @@ class PromptProjectionPlainEditRunSequence(Sequence[PromptProjectionRun]):
         upper_bound = len(self)
         while lower_bound < upper_bound:
             middle = (lower_bound + upper_bound) // 2
-            middle_start = self._run_at(middle).projection_start
+            middle_start = self._projection_start_at(middle)
             starts_before_boundary = (
                 middle_start < projection_position
                 if prefer_previous
@@ -169,6 +175,49 @@ class PromptProjectionPlainEditRunSequence(Sequence[PromptProjectionRun]):
             <= projection_position
             < candidate.projection_end
             else None
+        )
+
+    def run_ids(self) -> frozenset[str]:
+        """Return stable run identifiers without shifting run coordinates."""
+
+        run_ids = self._run_ids
+        if run_ids is None:
+            self._ensure_identifier_index()
+            assert self._run_ids is not None
+            run_ids = self._run_ids
+        return run_ids
+
+    def preserves_run_identity(self, run_id: str) -> bool:
+        """Return whether a non-edited base run retains its semantic identity."""
+
+        if run_id == self._edited_run.run_id:
+            return False
+        self._ensure_identifier_index()
+        assert self._index_by_id is not None
+        return run_id in self._index_by_id
+
+    def _ensure_identifier_index(self) -> None:
+        """Build stable run identifiers once without shifting coordinates."""
+
+        if self._index_by_id is not None:
+            return
+        index_by_id = {
+            self._base_runs[index].run_id: index
+            for index in range(len(self._base_runs))
+        }
+        self._index_by_id = index_by_id
+        self._run_ids = frozenset(index_by_id)
+
+    def _projection_start_at(self, index: int) -> int:
+        """Return one run start without allocating its shifted representation."""
+
+        if index == self._edited_run_index:
+            return self._edited_run.projection_start
+        base_start = self._base_runs[index].projection_start
+        return (
+            base_start
+            if index < self._edited_run_index
+            else base_start + self._projection_delta
         )
 
     def _run_at(self, index: int) -> PromptProjectionRun:

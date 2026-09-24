@@ -44,10 +44,14 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptProjectionSession,
 )
-from substitute.presentation.editor.prompt_editor.projection.tokens import (
+from substitute.presentation.editor.prompt_editor.projection.emphasis_renderer import (
     PromptEmphasisPrefixRenderer,
     PromptEmphasisSuffixRenderer,
+)
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
     PromptProjectionInlineObjectRendererRegistry,
+)
+from substitute.presentation.editor.prompt_editor.projection.wildcard_renderer import (
     PromptWildcardInlineObjectRenderer,
 )
 from tests.support.prompt_editor.projection_engine_support import (

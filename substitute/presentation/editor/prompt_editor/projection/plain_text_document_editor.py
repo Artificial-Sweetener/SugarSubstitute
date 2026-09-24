@@ -22,12 +22,16 @@ from substitute.application.prompt_editor.document.views import PromptDocumentVi
 from substitute.application.prompt_editor.editing.region_structure_edits import (
     region_structure_edit_requires_rebuild,
 )
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
     PromptProjectionDocument,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+    PromptProjectionTokenKind,
 )
 
 from .incremental_edit_contracts import (
@@ -36,10 +40,12 @@ from .incremental_edit_contracts import (
 )
 from .plain_text_document_remapper import apply_plain_text_document_edit
 from .plain_text_edit_policy import (
+    edit_may_change_literal_escape_visibility,
     edit_intersects_syntax_span,
     edit_intersects_token,
     plain_text_edit_is_supported,
     projection_position_for_source_boundary,
+    source_backed_editable_token_text_run_for_edit,
     source_backed_plain_text_run_for_edit,
 )
 from .scene_incremental_editor import PromptSceneProjectionIncrementalEditor
@@ -95,6 +101,8 @@ class PromptPlainTextDocumentEditor:
             return self._reject("region_structure_topology_changed")
         if not plain_text_edit_is_supported(edit):
             return self._reject("unsupported_plain_text_incremental_edit")
+        if edit_may_change_literal_escape_visibility(edit):
+            return self._reject("literal_escape_visibility_may_change")
 
         edited_run = source_backed_plain_text_run_for_edit(
             edit,
@@ -108,8 +116,19 @@ class PromptPlainTextDocumentEditor:
         )
         if edited_scene_run is not None:
             edited_run = edited_scene_run
+        edited_token_run = source_backed_editable_token_text_run_for_edit(
+            edit,
+            previous_document.runs,
+            previous_document.tokens,
+        )
+        if edited_run is None and edited_token_run is not None:
+            edited_run = edited_token_run
         editable_token_id = (
-            None if edited_scene_run is None else edited_scene_run.token_id
+            edited_scene_run.token_id
+            if edited_scene_run is not None
+            else None
+            if edited_token_run is None
+            else edited_token_run.token_id
         )
         if edit_intersects_token(
             edit,
@@ -117,7 +136,19 @@ class PromptPlainTextDocumentEditor:
             editable_token_id=editable_token_id,
         ):
             return self._reject("edit_intersects_token")
-        if edit_intersects_syntax_span(edit, render_plan.syntax_spans):
+        editable_token = (
+            None
+            if editable_token_id is None
+            else previous_document.token_by_id(editable_token_id)
+        )
+        if edit_intersects_syntax_span(
+            edit,
+            render_plan.syntax_spans,
+        ) and not _preserves_emphasis_semantics(
+            edit,
+            token=editable_token,
+            document_view=document_view,
+        ):
             return self._reject("edit_intersects_syntax_span")
         if edited_run is None:
             return self._reject("no_source_backed_plain_text_run")
@@ -151,8 +182,8 @@ class PromptPlainTextDocumentEditor:
             )
         except ValueError:
             return self._reject("invalid_incremental_projection_document")
-        if editable_token_id is not None:
-            assert edited_scene_run is not None
+        if edited_scene_run is not None:
+            assert editable_token_id is not None
             scene_result = self._scene_editor.reconcile_document(
                 projection_document,
                 edited_token_id=editable_token_id,
@@ -190,6 +221,31 @@ class PromptPlainTextDocumentEditor:
 
         self.last_rejection_reason = reason
         return None
+
+
+def _preserves_emphasis_semantics(
+    edit: PromptProjectionIncrementalEdit,
+    *,
+    token: PromptProjectionToken | None,
+    document_view: PromptDocumentView,
+) -> bool:
+    """Return whether an edit changes only one emphasis token's text content."""
+
+    if (
+        token is None
+        or token.kind is not PromptProjectionTokenKind.EMPHASIS
+        or token.content_start is None
+        or token.content_end is None
+    ):
+        return False
+    delta = len(edit.replacement_text) - (edit.end - edit.start)
+    return any(
+        span.outer_start == token.source_start
+        and span.outer_end == token.source_end + delta
+        and span.content_start == token.content_start
+        and span.content_end == token.content_end + delta
+        for span in document_view.emphasis_spans
+    )
 
 
 __all__ = ["PromptPlainTextDocumentEditor"]

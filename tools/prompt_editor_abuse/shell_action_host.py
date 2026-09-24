@@ -49,6 +49,17 @@ class RealShellPromptAbuseActionHost(PromptReorderAbuseActionHost):
         if any(action.kind == "workflow_round_trip" for action in scenario.actions):
             self._harness.workflows.prepare_workflow_round_trip(self._field)
 
+    def resize_editor(self, editor: object, width: int, height: int) -> None:
+        """Resize the production shell that authoritatively lays out the editor."""
+
+        del editor
+        resize_real_shell_prompt_editor(
+            self._harness,
+            requested_width=width,
+            requested_height=height,
+        )
+        self._field.editor.setManualScrollHeight(height)
+
     def workflow_round_trip(self) -> tuple[tuple[str, float], ...]:
         """Switch away and back while timing each visible workflow transition."""
 
@@ -82,4 +93,37 @@ class RealShellPromptAbuseActionHost(PromptReorderAbuseActionHost):
         return (("canvas:switch-away", away_ms), ("canvas:return", return_ms))
 
 
-__all__ = ["RealShellPromptAbuseActionHost"]
+def resize_real_shell_prompt_editor(
+    harness: PromptEditorRealShellScenario,
+    *,
+    requested_width: int,
+    requested_height: int,
+) -> None:
+    """Resize the shell and splitter that own mounted prompt-editor geometry."""
+
+    harness.shell.resize(
+        max(1040, requested_width * 2 + 100),
+        max(760, requested_height + 240),
+    )
+    splitter = harness.shell.splitter
+    sizes = list(splitter.sizes())
+    details_index = splitter.indexOf(harness.shell.editor_output_container)
+    canvas_index = splitter.indexOf(harness.shell.canvas_host_container)
+    if details_index < 0 or canvas_index < 0:
+        return
+    fixed_total = sum(
+        size
+        for index, size in enumerate(sizes)
+        if index not in {details_index, canvas_index}
+    )
+    transferable_total = max(0, sum(sizes) - fixed_total)
+    details_width = min(
+        max(1, requested_width + 300),
+        max(1, transferable_total - 100),
+    )
+    sizes[details_index] = details_width
+    sizes[canvas_index] = max(100, transferable_total - details_width)
+    splitter.setSizes(sizes)
+
+
+__all__ = ["RealShellPromptAbuseActionHost", "resize_real_shell_prompt_editor"]

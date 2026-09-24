@@ -31,6 +31,7 @@ from substitute.domain.model_recommendations import (
     ModelFamilyEvidenceKind,
     ModelFamilyId,
     ModelFamilyScanStatus,
+    SUPPORTED_MODEL_FAMILIES,
 )
 
 
@@ -146,6 +147,47 @@ def test_scan_reports_unknown_and_unreadable_without_filename_guessing(
     assert result.confidently_empty
     assert result.unknown_count == 1
     assert result.unreadable_count == 1
+
+
+@pytest.mark.parametrize("extension", (".pth", ".pt", ".safetensors"))
+def test_scan_detects_installed_upscalers_in_standard_folder(
+    tmp_path: Path,
+    extension: str,
+) -> None:
+    """One standard upscaler artifact should satisfy onboarding coverage."""
+
+    artifact = tmp_path / "upscale_models" / f"restoration{extension}"
+    artifact.parent.mkdir()
+    artifact.write_bytes(b"installed upscaler")
+
+    result = ExistingModelFamilyScanner().scan(tmp_path)
+
+    assert result.status is ModelFamilyScanStatus.COMPLETED
+    assert result.detected_families == {ModelFamilyId.UPSCALERS}
+    assert result.detected[0].path == artifact
+    assert (
+        result.detected[0].evidence_kind is ModelFamilyEvidenceKind.INSTALLED_ARTIFACT
+    )
+
+
+def test_existing_models_folder_with_empty_upscalers_requests_recommendations(
+    tmp_path: Path,
+) -> None:
+    """An existing checkpoint never suppresses an empty upscaler offer."""
+
+    (tmp_path / "upscale_models").mkdir()
+    _write_safetensor(
+        tmp_path / "checkpoints" / "existing.safetensors",
+        _sdxl_architecture_header(),
+    )
+
+    scan = ExistingModelFamilyScanner().scan(tmp_path)
+
+    assert scan.status is ModelFamilyScanStatus.COMPLETED
+    assert scan.detected_families == {ModelFamilyId.SDXL}
+    assert ModelFamilyId.UPSCALERS in SUPPORTED_MODEL_FAMILIES.missing_from(
+        scan.detected_families
+    )
 
 
 def test_scan_distinguishes_missing_root_limit_and_cancellation(tmp_path: Path) -> None:

@@ -22,9 +22,9 @@ from typing import Any, cast
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.editing.mutation_service import (
-    PromptMutation,
     PromptMutationService,
 )
+from substitute.application.prompt_editor.editing.mutation_result import PromptMutation
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )

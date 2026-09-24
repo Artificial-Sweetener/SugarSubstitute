@@ -34,9 +34,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptProjectionTokenKind,
     PromptProjectionTokenNavigationMode,
 )
-from substitute.presentation.editor.prompt_editor.projection.builder import (
-    _lora_projection_collapse_summary,
-    _lora_renderer_view_for_plan,
+from substitute.presentation.editor.prompt_editor.projection.lora_projection import (
+    lora_projection_collapse_summary,
+    lora_renderer_view_for_plan,
 )
 from substitute.presentation.editor.prompt_editor.projection.session import (
     PromptProjectionSession,
@@ -124,10 +124,10 @@ def test_lora_projection_collapse_summary_counts_expanded_skips() -> None:
         document_view,
         prompt_syntax_profile("lora"),
     )
-    lora_view = _lora_renderer_view_for_plan(render_plan)
+    lora_view = lora_renderer_view_for_plan(render_plan)
     expanded_range = (7, len(text))
 
-    summary = _lora_projection_collapse_summary(
+    summary = lora_projection_collapse_summary(
         document_view=document_view,
         render_plan=render_plan,
         all_supported_ranges=tuple(

@@ -30,7 +30,7 @@ from substitute.domain.workflow import (
 
 
 from tests.presentation.shell.canvas_actions.support import (
-    _import_module,
+    _import_navigation_module,
     _live_preview,
     _output_session,
     _record_and_return,
@@ -40,7 +40,7 @@ from tests.presentation.shell.canvas_actions.support import (
 def test_display_preview_image_updates_only_active_workflow() -> None:
     """Strict previews should display only after registry/session acceptance."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     previews: list[OutputPreviewAcceptance] = []
     registry_calls: list[str] = []
     focused: list[str] = []
@@ -80,7 +80,7 @@ def test_display_preview_image_updates_only_active_workflow() -> None:
         ),
         _log_missing_output_canvas=lambda _workflow_id: None,
     )
-    actions = mod.WorkspaceCanvasActions(view)
+    actions = mod.WorkspaceOutputNavigationActions(view)
 
     actions.display_preview_image(_live_preview(workflow_id="wf-2"))
     actions.display_preview_image(_live_preview(workflow_id="wf-1"))
@@ -93,7 +93,7 @@ def test_display_preview_image_updates_only_active_workflow() -> None:
 def test_display_preview_image_rebinds_stale_active_workflow_session() -> None:
     """An active preview should replace a mounted session from another workflow."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     stale_session = _output_session("wf-old")
     active_session = _output_session("wf-1")
     accepted = OutputPreviewAcceptance(accepted=True)
@@ -145,7 +145,7 @@ def test_display_preview_image_rebinds_stale_active_workflow_session() -> None:
         _log_missing_output_canvas=lambda _workflow_id: None,
     )
 
-    mod.WorkspaceCanvasActions(view).display_preview_image(_live_preview())
+    mod.WorkspaceOutputNavigationActions(view).display_preview_image(_live_preview())
 
     assert projection_calls == [(workflows, "wf-1")]
     assert accepted_sessions == [active_session]
@@ -155,7 +155,7 @@ def test_display_preview_image_rebinds_stale_active_workflow_session() -> None:
 def test_clear_output_previews_updates_only_active_workflow() -> None:
     """Preview cleanup should only reach the output canvas for the active workflow."""
 
-    mod = _import_module()
+    mod = _import_navigation_module()
     clear_calls: list[bool] = []
     view = SimpleNamespace(
         workflow_session_service=SimpleNamespace(active_workflow_id="wf-1"),
@@ -168,7 +168,7 @@ def test_clear_output_previews_updates_only_active_workflow() -> None:
         ),
         _log_missing_output_canvas=lambda _workflow_id: None,
     )
-    actions = mod.WorkspaceCanvasActions(view)
+    actions = mod.WorkspaceOutputNavigationActions(view)
 
     actions.clear_output_previews("wf-2")
     actions.clear_output_previews("wf-1")

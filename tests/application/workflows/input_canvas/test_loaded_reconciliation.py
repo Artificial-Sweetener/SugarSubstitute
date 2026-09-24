@@ -19,9 +19,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from substitute.application.workflows import (
-    WorkflowInputCanvasService,
-)
 from uuid import uuid4
 
 from tests.application.workflows.input_canvas.fakes import (
@@ -31,15 +28,14 @@ from tests.application.workflows.input_canvas.fakes import (
 )
 from tests.application.workflows.input_canvas.support import (
     _build_workflow,
-    _workflow_input_service,
-    _input_canvas_plan_service,
+    _image_materialization_service,
 )
 
 
 def test_reconcile_loaded_input_canvas_image_preserves_existing_image_uuid(
     tmp_path: Path,
 ) -> None:
-    """Input-canvas loads should reuse the QPane image UUID and only add masks."""
+    """Input-canvas loads should reuse the document image UUID and only add masks."""
 
     image_id = uuid4()
     mask_id = uuid4()
@@ -54,10 +50,8 @@ def test_reconcile_loaded_input_canvas_image_preserves_existing_image_uuid(
         expected_mask_path=expected_mask,
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.reconcile_loaded_input_canvas_image(
@@ -105,10 +99,8 @@ def test_reconcile_loaded_input_canvas_image_reuses_existing_canvas_mask(
         expected_mask_path=expected_mask,
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     first_result = service.reconcile_loaded_input_canvas_image(
@@ -174,10 +166,8 @@ def test_reconcile_loaded_input_canvas_image_drops_stale_mask_association(
         expected_mask_path=expected_mask,
         created_destinations=created_destinations,
     )
-    service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_input_canvas_plan_service(),
-        input_canvas_state_service=input_canvas_state_service,
-        canvas_io_service=canvas_io_service,
+    service = _image_materialization_service(
+        input_canvas_state_service, canvas_io_service
     )
 
     result = service.reconcile_loaded_input_canvas_image(
@@ -205,7 +195,7 @@ def test_reconcile_loaded_input_canvas_image_drops_stale_mask_association(
 def test_reconcile_loaded_input_canvas_image_rejects_stale_workflow(
     tmp_path: Path,
 ) -> None:
-    """Stale direct QPane load reconciliation should preserve the QPane UUID."""
+    """Stale document-image reconciliation should preserve the image UUID."""
 
     workflow = _build_workflow("")
     image_id = uuid4()
@@ -219,7 +209,7 @@ def test_reconcile_loaded_input_canvas_image_rejects_stale_workflow(
         created_destinations=[],
     )
 
-    result = _workflow_input_service(
+    result = _image_materialization_service(
         input_canvas_state_service,
         canvas_io_service,
     ).reconcile_loaded_input_canvas_image(

@@ -47,7 +47,7 @@ def test_set_active_input_image_rejects_uuid_not_owned_by_active_workflow() -> N
     workflow.canvas.bind_image("Cube:Image", owned_image)
     workflow.canvas.input_image_uuid = owned_image
 
-    input_service.set_active_input_image("wf", workflow, foreign_image)
+    input_service.routes.set_active_image("wf", workflow, foreign_image)
 
     assert input_pane.selection_calls == []
     assert input_pane.current_id == owned_image
@@ -92,7 +92,7 @@ def test_set_active_workflow_mask_rejects_mask_for_different_input_image() -> No
     workflow.canvas.input_image_uuid = active_image
     workflow.canvas.bind_mask(("Cube", "Mask"), foreign_mask, foreign_image)
 
-    input_service.set_active_workflow_mask("wf", workflow, foreign_mask)
+    input_service.routes.set_active_mask("wf", workflow, foreign_mask)
 
     assert workflow.canvas.active_input_mask_uuid is None
     assert input_pane.active_mask is None
@@ -111,7 +111,7 @@ def test_load_mask_from_file_links_mask_to_explicit_image() -> None:
     workflow.canvas.bind_image("AliasA:ImageNode", image_id)
     workflow.canvas.input_image_uuid = image_id
 
-    loaded = input_service.load_mask_from_file(
+    loaded = input_service.masks.load_from_file(
         "wf",
         workflow,
         association_key,
@@ -143,7 +143,7 @@ def test_restore_input_mask_remaps_snapshot_id_and_records_active_mask() -> None
     workflow.canvas.bind_mask(association_key, snapshot_mask_id, image_id)
     workflow.canvas.active_input_mask_uuid = snapshot_mask_id
 
-    restored = input_service.restore_input_mask(
+    restored = input_service.mask_restoration.restore(
         "wf",
         workflow,
         snapshot_mask_id=snapshot_mask_id,
@@ -178,7 +178,7 @@ def test_restore_input_mask_adopts_exact_editable_archive_identity() -> None:
     workflow.canvas.bind_mask(association_key, mask_id, image_id)
     workflow.canvas.active_input_mask_uuid = mask_id
 
-    restored = input_service.restore_input_mask(
+    restored = input_service.mask_restoration.restore(
         "wf",
         workflow,
         snapshot_mask_id=mask_id,
@@ -212,7 +212,7 @@ def test_restore_archived_mask_routes_its_composition_before_applying_opacity() 
     workflow.canvas.bind_mask(association_key, mask_id, image_id)
     workflow.canvas.mask_visual_opacities[association_key] = 0.8
 
-    restored = input_service.restore_input_mask(
+    restored = input_service.mask_restoration.restore(
         "wf",
         workflow,
         snapshot_mask_id=mask_id,
@@ -246,7 +246,7 @@ def test_restore_input_mask_remaps_ordered_region_without_creating_scalar_entry(
     second = collection.add_region(image_id, mask_id=snapshot_mask_ids[1])
     workflow.canvas.active_input_mask_uuid = snapshot_mask_ids[0]
 
-    restored = input_service.restore_input_mask(
+    restored = input_service.mask_restoration.restore(
         "wf",
         workflow,
         snapshot_mask_id=snapshot_mask_ids[0],
@@ -296,7 +296,7 @@ def test_drop_mask_association_removes_workflow_state_and_pane_layer() -> None:
     mask_id = uuid.uuid4()
     workflow.canvas.bind_mask(association_key, mask_id, image_id)
 
-    input_service.drop_mask_association(workflow, association_key)
+    input_service.masks.drop_association(workflow, association_key)
 
     assert workflow.canvas.mask_entry(association_key) is None
     assert workflow.canvas.mask_entry_for_id(mask_id) is None
@@ -314,7 +314,7 @@ def test_drop_mask_association_preserves_shared_pane_layer() -> None:
     workflow.canvas.bind_mask(("AliasA", "MaskNodeA"), mask_id, image_id)
     workflow.canvas.bind_mask(("AliasA", "MaskNodeB"), mask_id, image_id)
 
-    input_service.drop_mask_association(workflow, ("AliasA", "MaskNodeA"))
+    input_service.masks.drop_association(workflow, ("AliasA", "MaskNodeA"))
 
     assert workflow.canvas.mask_entry(("AliasA", "MaskNodeA")) is None
     remaining_entry = workflow.canvas.mask_entry(("AliasA", "MaskNodeB"))
@@ -337,7 +337,7 @@ def test_update_mask_from_file_rejects_mask_for_different_input_image() -> None:
     workflow.canvas.bind_image("Cube:Image", image_id)
     workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, foreign_image)
 
-    updated = input_service.update_mask_from_file(
+    updated = input_service.masks.update_from_file(
         "wf",
         workflow,
         ("Cube", "Mask"),
@@ -364,7 +364,7 @@ def test_update_mask_from_file_updates_authorized_associated_mask() -> None:
     workflow.canvas.bind_image("Cube:Image", image_id)
     workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
 
-    updated = input_service.update_mask_from_file(
+    updated = input_service.masks.update_from_file(
         "wf",
         workflow,
         ("Cube", "Mask"),
@@ -392,7 +392,7 @@ def test_update_mask_from_file_rejects_unverified_dimensions() -> None:
     workflow.canvas.bind_image("Cube:Image", image_id)
     workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
 
-    updated = input_service.update_mask_from_file(
+    updated = input_service.masks.update_from_file(
         "wf",
         workflow,
         ("Cube", "Mask"),
@@ -420,7 +420,7 @@ def test_update_mask_from_file_rejects_dimension_mismatch() -> None:
     workflow.canvas.bind_image("Cube:Image", image_id)
     workflow.canvas.bind_mask(("Cube", "Mask"), mask_id, image_id)
 
-    updated = input_service.update_mask_from_file(
+    updated = input_service.masks.update_from_file(
         "wf",
         workflow,
         ("Cube", "Mask"),
@@ -449,7 +449,7 @@ def test_create_mask_for_image_tracks_explicit_image_association() -> None:
     workflow.canvas.bind_image("AliasB:ImageNode", image_id)
     workflow.canvas.input_image_uuid = image_id
 
-    created = input_service.create_mask_for_image(
+    created = input_service.masks.create_for_image(
         "wf",
         workflow,
         association_key,
@@ -482,7 +482,7 @@ def test_drop_input_surface_prunes_owned_image_and_mask_state() -> None:
     workflow.canvas.bind_mask(association_key, mask_id, image_id)
     input_pane.images[image_id] = (object(), Path("synthetic.png"))
 
-    dropped = input_service.drop_input_surface(
+    dropped = input_service.cleanup.drop_surface(
         {"wf": workflow},
         "wf",
         input_key,

@@ -29,7 +29,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.runs import (
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
 )
-from .tokens import PromptRichInlineObjectRenderer
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer import (
+    PromptRichInlineObjectRenderer,
+)
 
 
 @dataclass(frozen=True, slots=True)
