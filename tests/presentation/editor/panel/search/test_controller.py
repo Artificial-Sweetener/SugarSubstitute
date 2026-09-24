@@ -33,6 +33,8 @@ from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.presentation.editor.panel.search_controller import (
     EditorPanelSearchController,
     EditorPanelSearchHost,
+)
+from substitute.presentation.editor.panel.search_refresh_scheduler import (
     SearchPromptEditorProtocol,
     SignalConnectorProtocol,
 )

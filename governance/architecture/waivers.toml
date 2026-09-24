@@ -340,19 +340,6 @@ next_limit = 500
 debt = "SS-ARCH-047"
 
 [[waivers]]
-id = "SS-WAIVER-R050"
-owner = "editor panel search"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/search_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes search refresh scheduling, search corpus and behavior snapshot construction, field and prompt match highlighting, card visibility filtering, result navigation and widget selection, search-state publication. Extract corpus/match projection and refresh scheduling from result navigation and widget presentation."
-issue = "chore:SS-ARCH-050"
-review_by = 2026-12-15
-max_lines = 551
-next_limit = 500
-debt = "SS-ARCH-050"
-
-[[waivers]]
 id = "SS-WAIVER-R051"
 owner = "editor panel presentation"
 rule = "STRUCT003"
@@ -361,7 +348,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1959
+max_lines = 1956
 next_limit = 1571
 debt = "SS-ARCH-051"
 
