@@ -80,7 +80,7 @@ def test_node_card_title_row_uses_shared_editor_row_geometry(
     )
 
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
 

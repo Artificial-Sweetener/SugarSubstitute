@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 import pytest
 
 from substitute.application.node_behavior import CardMode, CollapseMode
-import substitute.presentation.editor.panel.node_card_builder as node_card_view
+import substitute.presentation.editor.panel.node_card.field_factory_adapter as node_card_view
 from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FULL_WIDTH_ROW_MARGINS,
     EDITOR_ROW_BODY_SPACING,

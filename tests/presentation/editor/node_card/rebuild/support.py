@@ -114,7 +114,7 @@ def create_rebuild_scenario(
     builder = build_node_card_builder(panel, Gateway())
     factory = widget_factory or (lambda **_kwargs: QWidget(panel))
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         factory,
     )
     return RebuildScenario(

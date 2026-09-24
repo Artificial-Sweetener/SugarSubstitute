@@ -342,17 +342,16 @@ next_extraction = "Extract lookup execution and navigation history from modal pr
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:ccdb3625da7f4578466c7cae5402989887b1b03a25d7ff6bb0bbed4ccaa07c68"
+fingerprint = "sha256:ce3e8247c3ef33d71ece9056ae4d52dcd07bb4281518aebf940c48de6023ba1c"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
-  "node-card and field-row construction",
-  "prompt and standard input-field routing",
+  "node-card body assembly and field-row composition",
   "field-action contribution collection and title-menu routing",
   "collapsible card animation and layout registration",
   "build timing and trace diagnostics",
 ]
-next_extraction = "Extract prompt and standard input-field realization from node-card assembly."
+next_extraction = "Extract collapsible card surface construction, animation, and mode registration from node-card body assembly."
 
 [[debts]]
 id = "SS-ARCH-051"
