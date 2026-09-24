@@ -29,7 +29,7 @@ import substitute.presentation.editor.panel.widgets.node_card as node_card_view
 from substitute.presentation.editor.panel.node_card.accordion_motion import (
     AccordionChevronWidget,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FIELD_ROW_HEIGHT,
     EDITOR_ROW_BODY_SPACING,
 )

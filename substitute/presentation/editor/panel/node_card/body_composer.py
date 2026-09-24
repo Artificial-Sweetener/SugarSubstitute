@@ -27,10 +27,8 @@ from substitute.application.node_behavior import FieldBehavior
 from substitute.presentation.editor.panel.node_card.body_contribution import (
     NodeCardBodyContribution,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
-    BuiltFieldRow,
-    FieldRowBuilder,
-)
+from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 from substitute.presentation.editor.panel.widgets.node_card import (
     reconcile_node_card_body_separators,
 )

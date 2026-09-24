@@ -418,19 +418,6 @@ next_limit = 852
 debt = "SS-ARCH-052"
 
 [[waivers]]
-id = "SS-WAIVER-R053"
-owner = "editor field rows"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/widgets/field_row.py"
-kind = "remediation"
-justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, field visibility application, divider styling, and semantic field-action source discovery. Extract field sizing policy and visibility registration from row construction."
-issue = "chore:SS-ARCH-053"
-review_by = 2026-12-15
-max_lines = 545
-next_limit = 435
-debt = "SS-ARCH-053"
-
-[[waivers]]
 id = "SS-WAIVER-S156"
 owner = "mounted prompt projection surface"
 rule = "STRUCT003"

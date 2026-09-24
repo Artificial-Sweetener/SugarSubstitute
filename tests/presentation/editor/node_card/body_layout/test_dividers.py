@@ -28,7 +28,7 @@ from substitute.presentation.editor.panel.field_sync_controller import (
     EditorPanelFieldSyncController,
     EditorPanelFieldSyncHost,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FIELD_ROW_HEIGHT,
 )
 from tests.presentation.editor.node_card.body_layout.support import mount_body_card

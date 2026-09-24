@@ -39,7 +39,7 @@ from substitute.application.overrides.control_registry_service import (
     register_editor_control_builders,
 )
 from substitute.domain.node_behavior import FieldPresentation
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     apply_editor_control_height,
 )
 from substitute.presentation.widgets import (

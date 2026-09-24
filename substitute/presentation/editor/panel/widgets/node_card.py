@@ -72,7 +72,7 @@ from substitute.shared.logging.logger import (
     get_logger,
 )
 
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_BODY_SPACING,
     EDITOR_ROW_HEIGHT,
 )
