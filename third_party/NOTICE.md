@@ -57,3 +57,13 @@ Crashpad is bundled as SugarSubstitute's native out-of-process crash capture
 runtime. Crashpad is Copyright The Crashpad Authors and distributed under the
 Apache License 2.0. Its linked mini_chromium, zlib, and getopt components retain
 their accompanying BSD, zlib, and public-domain notices.
+
+## mpv
+
+mpv and its libmpv client library are bundled as SugarSubstitute's generated-video
+decode and playback runtime. mpv is a fork of mplayer2 and MPlayer and is
+distributed under the GNU General Public License version 2 or later in the
+selected build. The complete upstream copyright inventory and GPL text accompany
+the application. The Windows binary is a checksum-pinned shinchiro build of mpv
+revision `062f4bf`; its preparation script records and verifies both the source
+archive and staged DLL digests.
