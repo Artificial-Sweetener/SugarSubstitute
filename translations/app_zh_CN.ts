@@ -2997,7 +2997,7 @@ Install these nodes now?</source>
       <translation>失败 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="875"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
       <source>Failed to allocate output run number.</source>
       <translation>无法分配输出运行编号。</translation>
     </message>
@@ -3240,7 +3240,7 @@ Install these nodes now?</source>
       <translation>无法生成，因为每个立方体都有运行时错误。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1059"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成任务派发失败。</translation>
     </message>
@@ -3990,7 +3990,7 @@ Install these nodes now?</source>
       <translation>查找失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
       <source>Loop video</source>
       <translation>循环播放视频</translation>
     </message>
@@ -4350,7 +4350,7 @@ Install these nodes now?</source>
       <translation>上移</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
       <source>Mute video</source>
       <translation>视频静音</translation>
     </message>
@@ -4410,7 +4410,7 @@ Install these nodes now?</source>
       <translation>下一步</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
       <source>Next frame</source>
       <translation>下一帧</translation>
     </message>
@@ -5057,7 +5057,7 @@ I’ll bring my own</source>
       <translation>计划更改已更新。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
       <source>Play or pause</source>
       <translation>播放或暂停</translation>
     </message>
@@ -5237,7 +5237,7 @@ I’ll bring my own</source>
       <translation>预览不可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
       <source>Previous frame</source>
       <translation>上一帧</translation>
     </message>
@@ -5766,6 +5766,11 @@ No known extension claimant.</source>
       <translation>重置</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <source>Reset video view</source>
+      <translation>重置视频视图</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>调整画布尺寸</translation>
@@ -5861,7 +5866,7 @@ No known extension claimant.</source>
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
       <source>Retry video</source>
       <translation>重试视频</translation>
     </message>
@@ -8532,17 +8537,17 @@ Diagnostic evidence:
       <translation>%1 的版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="306"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>视频播放不可用（%1）。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
       <source>Video position</source>
       <translation>视频位置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
       <source>Video volume</source>
       <translation>视频音量</translation>
     </message>

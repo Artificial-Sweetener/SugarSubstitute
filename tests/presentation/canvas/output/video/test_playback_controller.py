@@ -29,6 +29,7 @@ from substitute.application.ports.video import (
 )
 from substitute.presentation.canvas.output.video_playback_controller import (
     VideoPlaybackController,
+    VideoViewportState,
 )
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -95,6 +96,11 @@ class _FakePlayer:
 
         self.commands.append(("mute", muted))
 
+    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
+        """Record normalized video viewport geometry."""
+
+        self.commands.append(("viewport", zoom, pan_x, pan_y))
+
     def set_output_active(self, active: bool) -> None:
         """Record visibility policy."""
 
@@ -148,6 +154,7 @@ def test_controller_restores_loop_time_and_audio_without_auto_resume(
     controller.set_loop_enabled(False)
     controller.set_volume(37)
     controller.set_user_muted(True)
+    controller.set_viewport(VideoViewportState(zoom=2.0, pan_x=0.25, pan_y=-0.1))
     players[0].emit(
         _snapshot(
             first,
@@ -161,16 +168,18 @@ def test_controller_restores_loop_time_and_audio_without_auto_resume(
     controller.activate(second, second_path)
     controller.activate(first, first_path)
 
-    restored_commands = players[0].commands[-7:]
+    restored_commands = players[0].commands[-8:]
     assert restored_commands == [
         ("load", first, first_path.resolve()),
         ("volume", 37),
         ("mute", True),
         ("loop", False),
+        ("viewport", 2.0, 0.25, -0.1),
         ("seek", 1.25),
         ("active", True),
         ("playing", False),
     ]
+    assert controller.session_for(first).zoom == 2.0
     controller.close()
 
 

@@ -4572,6 +4572,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rësët ···⟧</translation>
     </message>
     <message>
+      <source>Reset video view</source>
+      <translation>⟦Rësët vïdëö vïëw ···⟧</translation>
+    </message>
+    <message>
       <source>Resize canvas</source>
       <translation>⟦Rësïzë cànvàs ···⟧</translation>
     </message>

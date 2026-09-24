@@ -48,12 +48,25 @@ class VideoMediaSession:
     loop_enabled: bool = True
     volume: int = 100
     user_muted: bool = False
+    zoom: float = 1.0
+    pan_x: float = 0.0
+    pan_y: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class VideoViewportState:
+    """Describe one normalized video viewport transform."""
+
+    zoom: float = 1.0
+    pan_x: float = 0.0
+    pan_y: float = 0.0
 
 
 class VideoPlaybackController(QObject):
     """Coordinate one long-lived player without exposing native callbacks to Qt UI."""
 
     snapshotChanged = Signal(object)
+    viewportChanged = Signal(object)
     _eventSubmitted = Signal(object)
 
     def __init__(
@@ -111,8 +124,10 @@ class VideoPlaybackController(QObject):
                 player.set_volume(session.volume)
                 player.set_user_muted(session.user_muted)
                 player.set_loop_enabled(session.loop_enabled)
+                player.set_viewport(session.zoom, session.pan_x, session.pan_y)
                 if session.time_seconds > 0:
                     player.seek(session.time_seconds)
+                self.viewportChanged.emit(_viewport_for_session(session))
             player.set_output_active(True)
             player.set_playing(False)
         except Exception as error:
@@ -177,6 +192,30 @@ class VideoPlaybackController(QObject):
             ).user_muted = muted
         self._apply(lambda player: player.set_user_muted(muted))
 
+    def set_viewport(self, state: VideoViewportState) -> None:
+        """Set and retain the active video's normalized viewport transform."""
+
+        media_id = self._current_media_id
+        if media_id is None:
+            return
+        session = self._sessions.setdefault(media_id, VideoMediaSession())
+        session.zoom = state.zoom
+        session.pan_x = state.pan_x
+        session.pan_y = state.pan_y
+        self._apply(
+            lambda player: player.set_viewport(
+                state.zoom,
+                state.pan_x,
+                state.pan_y,
+            )
+        )
+        self.viewportChanged.emit(state)
+
+    def reset_viewport(self) -> None:
+        """Restore fit geometry for the active video."""
+
+        self.set_viewport(VideoViewportState())
+
     def retry(self) -> None:
         """Reload the current local artifact after a recoverable player failure."""
 
@@ -207,6 +246,9 @@ class VideoPlaybackController(QObject):
             loop_enabled=session.loop_enabled,
             volume=session.volume,
             user_muted=session.user_muted,
+            zoom=session.zoom,
+            pan_x=session.pan_x,
+            pan_y=session.pan_y,
         )
 
     def _ensure_player(self) -> VideoPlayerPort:
@@ -286,4 +328,14 @@ class VideoPlaybackController(QObject):
         self.snapshotChanged.emit(self._snapshot)
 
 
-__all__ = ["VideoMediaSession", "VideoPlaybackController"]
+def _viewport_for_session(session: VideoMediaSession) -> VideoViewportState:
+    """Project mutable session geometry as an immutable viewport state."""
+
+    return VideoViewportState(
+        zoom=session.zoom,
+        pan_x=session.pan_x,
+        pan_y=session.pan_y,
+    )
+
+
+__all__ = ["VideoMediaSession", "VideoPlaybackController", "VideoViewportState"]

@@ -51,6 +51,9 @@ class FakePlayer:
         self.loop_file: object = options["loop_file"]
         self.mute: object = options["mute"]
         self.volume: object = options["volume"]
+        self.video_zoom: object = 0.0
+        self.video_pan_x: object = 0.0
+        self.video_pan_y: object = 0.0
         self.path: object = None
         self.commands: list[tuple[str, tuple[object, ...]]] = []
         self.observers: dict[str, ObservedCallback] = {}
@@ -233,6 +236,20 @@ def test_inactive_output_forces_pause_and_effective_mute(tmp_path: Path) -> None
     assert shown.paused
     assert not shown.effectively_muted
     assert native.mute is False
+    adapter.close()
+
+
+def test_viewport_maps_scale_to_native_zoom_and_pan(tmp_path: Path) -> None:
+    """Viewport control should apply bounded logarithmic zoom and normalized pan."""
+
+    adapter, native, _events, video = _player(tmp_path)
+    adapter.load(uuid4(), video)
+
+    adapter.set_viewport(4.0, 0.25, -0.5)
+
+    assert native.video_zoom == 2.0
+    assert native.video_pan_x == 0.25
+    assert native.video_pan_y == -0.5
     adapter.close()
 
 

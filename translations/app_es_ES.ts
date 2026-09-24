@@ -2997,7 +2997,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="875"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -3240,7 +3240,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1059"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -3990,7 +3990,7 @@ Install these nodes now?</source>
       <translation>La búsqueda ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
       <source>Loop video</source>
       <translation>Repetir vídeo</translation>
     </message>
@@ -4350,7 +4350,7 @@ Install these nodes now?</source>
       <translation>Subir</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
       <source>Mute video</source>
       <translation>Silenciar vídeo</translation>
     </message>
@@ -4410,7 +4410,7 @@ Install these nodes now?</source>
       <translation>Siguiente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
       <source>Next frame</source>
       <translation>Fotograma siguiente</translation>
     </message>
@@ -5057,7 +5057,7 @@ Usaré el mío.</translation>
       <translation>Se actualizaron los cambios previstos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
       <source>Play or pause</source>
       <translation>Reproducir o pausar</translation>
     </message>
@@ -5237,7 +5237,7 @@ Usaré el mío.</translation>
       <translation>Vista previa no disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
       <source>Previous frame</source>
       <translation>Fotograma anterior</translation>
     </message>
@@ -5766,6 +5766,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Restablecer</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <source>Reset video view</source>
+      <translation>Restablecer vista de vídeo</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>Cambiar tamaño del lienzo</translation>
@@ -5861,7 +5866,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
       <source>Retry video</source>
       <translation>Reintentar vídeo</translation>
     </message>
@@ -8532,17 +8537,17 @@ Evidencia de diagnóstico:
       <translation>Versiones de %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="306"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>La reproducción de vídeo no está disponible (%1).</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
       <source>Video position</source>
       <translation>Posición del vídeo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
       <source>Video volume</source>
       <translation>Volumen del vídeo</translation>
     </message>

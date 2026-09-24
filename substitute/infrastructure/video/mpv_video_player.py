@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from math import log2
 from pathlib import Path
 from threading import RLock
 from types import ModuleType
@@ -48,6 +49,9 @@ class _MpvPlayer(Protocol):
     loop_file: object
     mute: object
     volume: object
+    video_zoom: object
+    video_pan_x: object
+    video_pan_y: object
     path: object
 
     def command(self, name: str, *arguments: object) -> object:
@@ -147,6 +151,9 @@ class MpvVideoPlayer:
             self._apply_audio_state()
             self._player.loop_file = "inf"
             self._player.pause = True
+            self._player.video_zoom = 0.0
+            self._player.video_pan_x = 0.0
+            self._player.video_pan_y = 0.0
             event = self._event()
         self._event_callback(event)
         try:
@@ -264,6 +271,21 @@ class MpvVideoPlayer:
                 return
             event = self._event()
         self._event_callback(event)
+
+    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
+        """Apply bounded viewport transforms through native video properties."""
+
+        with self._lock:
+            self._require_media()
+            bounded_zoom = min(max(float(zoom), 1.0), 8.0)
+            bounded_pan_x = min(max(float(pan_x), -1.0), 1.0)
+            bounded_pan_y = min(max(float(pan_y), -1.0), 1.0)
+            try:
+                self._player.video_zoom = log2(bounded_zoom)
+                self._player.video_pan_x = bounded_pan_x
+                self._player.video_pan_y = bounded_pan_y
+            except Exception as error:
+                self._record_failure("Video viewport could not be changed.", error)
 
     def set_output_active(self, active: bool) -> None:
         """Force pause and mute whenever this output is not visible and active."""

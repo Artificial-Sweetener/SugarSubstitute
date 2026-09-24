@@ -2942,7 +2942,7 @@ Install these nodes now?</source>
       <translation>실패 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="875"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
       <source>Failed to allocate output run number.</source>
       <translation>출력 실행 번호를 할당하지 못했습니다.</translation>
     </message>
@@ -3185,7 +3185,7 @@ Install these nodes now?</source>
       <translation>모든 큐브에 런타임 오류가 있어 생성을 실행할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1059"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
       <source>Generation dispatch failed.</source>
       <translation>생성 전송에 실패했습니다.</translation>
     </message>
@@ -3935,7 +3935,7 @@ Install these nodes now?</source>
       <translation>검색 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
       <source>Loop video</source>
       <translation>동영상 반복</translation>
     </message>
@@ -4295,7 +4295,7 @@ Install these nodes now?</source>
       <translation>위로 이동</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
       <source>Mute video</source>
       <translation>동영상 음소거</translation>
     </message>
@@ -4355,7 +4355,7 @@ Install these nodes now?</source>
       <translation>다음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
       <source>Next frame</source>
       <translation>다음 프레임</translation>
     </message>
@@ -5002,7 +5002,7 @@ I’ll bring my own</source>
       <translation>예정된 변경 사항을 업데이트했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
       <source>Play or pause</source>
       <translation>재생 또는 일시 정지</translation>
     </message>
@@ -5182,7 +5182,7 @@ I’ll bring my own</source>
       <translation>미리 보기를 사용할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
       <source>Previous frame</source>
       <translation>이전 프레임</translation>
     </message>
@@ -5711,6 +5711,11 @@ No known extension claimant.</source>
       <translation>초기화</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <source>Reset video view</source>
+      <translation>비디오 보기 초기화</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>캔버스 크기 변경</translation>
@@ -5806,7 +5811,7 @@ No known extension claimant.</source>
       <translation>다시 시도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
       <source>Retry video</source>
       <translation>동영상 다시 시도</translation>
     </message>
@@ -8477,17 +8482,17 @@ Diagnostic evidence:
       <translation>%1 버전</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="306"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>동영상 재생을 사용할 수 없습니다(%1).</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
       <source>Video position</source>
       <translation>동영상 위치</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
       <source>Video volume</source>
       <translation>동영상 볼륨</translation>
     </message>

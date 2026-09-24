@@ -52,6 +52,9 @@ from substitute.infrastructure.video.mpv_video_player import MpvVideoPlayer
 from substitute.presentation.canvas.output.video_playback_controller import (
     VideoPlaybackController,
 )
+from substitute.presentation.canvas.output.video_viewport_interaction import (
+    VideoViewportInteraction,
+)
 
 _SEEK_STEPS = 10_000
 _PLAY_OR_PAUSE = app_text("Play or pause")
@@ -62,6 +65,7 @@ _MUTE_VIDEO = app_text("Mute video")
 _VIDEO_VOLUME = app_text("Video volume")
 _VIDEO_POSITION = app_text("Video position")
 _RETRY_VIDEO = app_text("Retry video")
+_RESET_VIDEO_VIEW = app_text("Reset video view")
 
 
 class VideoPlaybackPage(QWidget):
@@ -105,6 +109,7 @@ class VideoPlaybackPage(QWidget):
         self._time = QLabel("00:00 / 00:00", self)
         self._retry = QPushButton(self)
         self._retry.hide()
+        self._reset_view = QPushButton("⛶", self)
 
         factory = player_factory or self._create_bundled_player
         self.controller = VideoPlaybackController(
@@ -112,6 +117,11 @@ class VideoPlaybackPage(QWidget):
             parent=self,
         )
         self.controller.snapshotChanged.connect(self._apply_snapshot)
+        self._viewport = VideoViewportInteraction(
+            surface=self._surface,
+            apply_viewport=self.controller.set_viewport,
+        )
+        self.controller.viewportChanged.connect(self._viewport.set_state)
         self.destroyed.connect(lambda _object=None: self.controller.close())
         self._compose_layout()
         self._connect_controls()
@@ -157,6 +167,7 @@ class VideoPlaybackPage(QWidget):
         video_volume = render_application_text(_VIDEO_VOLUME)
         video_position = render_application_text(_VIDEO_POSITION)
         retry_video = render_application_text(_RETRY_VIDEO)
+        reset_video_view = render_application_text(_RESET_VIDEO_VIEW)
         set_fluent_tooltip_text(self._play, play_or_pause)
         self._play.setAccessibleName(play_or_pause)
         set_fluent_tooltip_text(self._previous_frame, previous_frame)
@@ -173,6 +184,8 @@ class VideoPlaybackPage(QWidget):
         self._seek.setAccessibleName(video_position)
         self._retry.setText(retry_video)
         self._retry.setAccessibleName(retry_video)
+        set_fluent_tooltip_text(self._reset_view, reset_video_view)
+        self._reset_view.setAccessibleName(reset_video_view)
 
     def changeEvent(self, event: QEvent) -> None:  # noqa: N802
         """Retranslate the playback page when application language changes."""
@@ -199,6 +212,7 @@ class VideoPlaybackPage(QWidget):
         controls.addWidget(self._loop)
         controls.addWidget(self._mute)
         controls.addWidget(self._volume)
+        controls.addWidget(self._reset_view)
         controls.addWidget(self._retry)
         root.addLayout(controls)
 
@@ -213,6 +227,7 @@ class VideoPlaybackPage(QWidget):
         self._volume.valueChanged.connect(self.controller.set_volume)
         self._seek.sliderReleased.connect(self._seek_released)
         self._retry.clicked.connect(self.controller.retry)
+        self._reset_view.clicked.connect(self._viewport.reset)
 
     def _install_shortcuts(self) -> None:
         """Install keyboard equivalents scoped to the visible playback page."""
@@ -222,6 +237,7 @@ class VideoPlaybackPage(QWidget):
             (",", self.controller.step_previous_frame),
             (".", self.controller.step_next_frame),
             ("L", lambda: self._loop.setChecked(not self._loop.isChecked())),
+            ("0", self._viewport.reset),
         ):
             shortcut = QShortcut(QKeySequence(sequence), self)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -274,6 +290,7 @@ class VideoPlaybackPage(QWidget):
             self._next_frame,
             self._seek,
             self._loop,
+            self._reset_view,
         ):
             control.setEnabled(ready)
         self._loop.blockSignals(True)

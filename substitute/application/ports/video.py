@@ -121,6 +121,9 @@ class VideoPlayerPort(Protocol):
     def set_user_muted(self, muted: bool) -> None:
         """Set the user's persistent-in-session mute choice."""
 
+    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
+        """Apply normalized zoom and pan to the rendered video."""
+
     def set_output_active(self, active: bool) -> None:
         """Pause and effectively mute playback while the output is inactive."""
 
