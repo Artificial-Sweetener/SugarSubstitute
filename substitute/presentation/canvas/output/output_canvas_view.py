@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
-from cutecanvas import ExecutionRuntime, OutboundMimeProvider
+from cutecanvas import CanvasPresentation, ExecutionRuntime, OutboundMimeProvider
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -95,6 +95,10 @@ from substitute.presentation.canvas.output.output_preview_navigation_presenter i
 from substitute.presentation.canvas.output.output_canvas_zoom_indicators import (
     OutputCanvasZoomIndicators,
 )
+from substitute.application.ports.video import VideoPlaybackEvent, VideoPlayerPort
+from substitute.presentation.canvas.output.output_video_presentation_coordinator import (
+    OutputVideoPresentationCoordinator,
+)
 from substitute.presentation.canvas.output.output_compare_material_gap import (
     OutputCompareMaterialGapCoordinator,
 )
@@ -134,6 +138,10 @@ class OutputCanvas(QWidget):
             Callable[[UUID], OutputImageMeta | None] | None
         ) = None,
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
+        video_player_factory: Callable[
+            [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
+        ]
+        | None = None,
     ) -> None:
         """Create the one Output document workspace and host-owned chrome."""
 
@@ -189,7 +197,14 @@ class OutputCanvas(QWidget):
         workspace_layout = QVBoxLayout(self)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
         workspace_layout.setSpacing(0)
-        workspace_layout.addWidget(self.workspace)
+        self.video_presentation = OutputVideoPresentationCoordinator(
+            parent=self,
+            workspace=self.workspace,
+            document=self.document,
+            metadata_for=self._asset_lookup.final_output_metadata,
+            player_factory=video_player_factory,
+        )
+        workspace_layout.addWidget(self.video_presentation.widget)
         self._compare_material_gap = OutputCompareMaterialGapCoordinator(self.workspace)
         self._zoom_indicators = OutputCanvasZoomIndicators(self.workspace)
 
@@ -307,6 +322,7 @@ class OutputCanvas(QWidget):
             payload_lookup=payload_lookup,
             metadata_lookup=metadata_lookup,
         )
+        self.video_presentation.refresh_badges()
 
     def install_transfer_drag_provider(self, provider: OutboundMimeProvider) -> None:
         """Install one composed outbound MIME provider on every workspace target."""
@@ -563,10 +579,9 @@ class OutputCanvas(QWidget):
     def _handle_workspace_presentation_change(self, presentation: object) -> None:
         """Forward public CuteCanvas divider changes to persisted compare state."""
 
-        from cutecanvas import CanvasPresentation
-
         if isinstance(presentation, CanvasPresentation):
             self._document_navigation.handle_workspace_presentation(presentation)
+            self.video_presentation.synchronize(presentation)
 
 
 def _source_image_ids(source: OutputCanvasSourceGroup) -> tuple[UUID, ...]:

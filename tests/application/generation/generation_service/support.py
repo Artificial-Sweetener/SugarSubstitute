@@ -280,6 +280,7 @@ def _build_generation_callbacks(recorder: _CallbackRecorder) -> GenerationCallba
         on_model_load_progress=lambda _event: None,
         on_preview=lambda event: recorder.previews.append(event),
         on_output_image=lambda event: recorder.outputs.append(event),
+        on_output_video=lambda _event: None,
         on_failure=lambda failure: recorder.failures.append(failure),
         on_timing=lambda _event: None,
     )

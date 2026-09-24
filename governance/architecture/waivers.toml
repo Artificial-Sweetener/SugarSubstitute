@@ -126,7 +126,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1557
+max_lines = 1534
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -1374,7 +1374,7 @@ kind = "structural"
 justification = "GenerationFeedbackCoalescer is the single pending-state owner between high-frequency generation callbacks and UI rendering. Submission, authorization, keying, replacement, retirement, terminal ordering, and draining all enforce one coalesced batch contract."
 issue = "chore:SS-WAIVER-S066"
 review_by = 2026-12-15
-max_lines = 618
+max_lines = 651
 
 [[waivers]]
 id = "SS-WAIVER-S067"
@@ -1396,7 +1396,7 @@ kind = "structural"
 justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, post-admission seed rearming, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 823
+max_lines = 827
 
 [[waivers]]
 id = "SS-WAIVER-S069"
