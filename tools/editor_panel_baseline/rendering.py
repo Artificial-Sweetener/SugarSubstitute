@@ -50,17 +50,21 @@ from tools.editor_projection_rig.fixtures import (  # noqa: E402
     workflow_fixture_path,
     write_json,
 )
-from tools.editor_projection_rig.production_trace import (  # noqa: E402
-    _build_editor_panel,
-    _build_trace_shell,
-    _drain_qt_events,
-    _drain_until_complete,
-    _parent_chain_violations,
-    _signature_from_panel,
-    _workflow_from_fixture,
+from tools.editor_projection_rig.production_mount import (  # noqa: E402
+    build_editor_panel,
+    build_trace_shell,
+)
+from tools.editor_projection_rig.production_signatures import (  # noqa: E402
+    parent_chain_violations,
+    signature_from_panel,
+)
+from tools.editor_projection_rig.production_fixture import (  # noqa: E402
+    workflow_from_fixture,
 )
 from tools.editor_projection_rig.qt_harness import (  # noqa: E402
     create_hidden_host,
+    drain_qt_events,
+    drain_until,
     ensure_qapplication,
 )
 from tools.editor_projection_rig.scenarios import WorkflowScenario  # noqa: E402
@@ -139,8 +143,8 @@ def _render_scenario_theme(
     if theme is None:
         raise ValueError(f"Unknown editor baseline theme {theme_name!r}.")
     setTheme(theme)
-    _drain_qt_events(5)
-    workflow, definitions = _workflow_from_fixture(fixture)
+    drain_qt_events(5)
+    workflow, definitions = workflow_from_fixture(fixture)
     recorder = ProjectionTraceRecorder()
     host = create_hidden_host(show_window=True)
     host.resize(*HOST_SIZE)
@@ -149,12 +153,12 @@ def _render_scenario_theme(
         f"QWidget#EditorPanelBaselineHost {{ background-color: "
         f"{BACKGROUNDS[theme_name].name()}; }}"
     )
-    panel = _build_editor_panel(
+    panel = build_editor_panel(
         host=host,
         workflow_id=scenario.workflow_id,
         definitions=definitions,
     )
-    trace_shell = _build_trace_shell(
+    trace_shell = build_trace_shell(
         workflow_id=scenario.workflow_id,
         workflow=workflow,
         panel=panel,
@@ -178,7 +182,7 @@ def _render_scenario_theme(
                 f"Editor baseline projection failed for {scenario.workflow_id}: "
                 f"{result.error}"
             )
-        _drain_until_complete(trace_shell, max_turns=1_000)
+        drain_until(lambda: trace_shell.projection_complete, max_turns=1_000)
         _settle_layout(host, panel)
         scroll_surface = cast(
             EditorPanelScrollSurface,
@@ -190,7 +194,7 @@ def _render_scenario_theme(
             position_names=position_names,
         )
         geometry = _surface_geometry(panel)
-        signature = _signature_from_panel(
+        signature = signature_from_panel(
             workflow_id=scenario.workflow_id,
             workflow=workflow,
             panel=panel,
@@ -198,7 +202,7 @@ def _render_scenario_theme(
         renders: list[dict[str, Any]] = []
         for position_name, scroll_value in scroll_values:
             scrollbar.setValue(scroll_value)
-            _drain_qt_events(20)
+            drain_qt_events(20)
             path = output_dir / (
                 f"{scenario.workflow_id}-{theme_name}-{position_name}.png"
             )
@@ -216,7 +220,7 @@ def _render_scenario_theme(
                     "height": HOST_SIZE[1],
                     "fixture_hash": stable_json_hash(fixture),
                     "settled_signature_hash": stable_json_hash(signature),
-                    "parent_chain_violations": _parent_chain_violations(panel),
+                    "parent_chain_violations": parent_chain_violations(panel),
                     "geometry": geometry,
                 }
             )
@@ -224,7 +228,7 @@ def _render_scenario_theme(
     finally:
         host.close()
         host.deleteLater()
-        _drain_qt_events(25)
+        drain_qt_events(25)
 
 
 def scroll_capture_values(
@@ -265,7 +269,7 @@ def _settle_layout(host: QWidget, panel: EditorPanel) -> None:
         if content_layout is not None:
             content_layout.activate()
     scroll_surface.schedule_metrics_refresh()
-    _drain_qt_events(50)
+    drain_qt_events(50)
 
 
 def _surface_geometry(panel: EditorPanel) -> dict[str, Any]:

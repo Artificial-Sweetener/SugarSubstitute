@@ -1467,19 +1467,6 @@ next_limit = 1619
 debt = "SS-ARCH-092"
 
 [[waivers]]
-id = "SS-WAIVER-R093"
-owner = "production editor projection trace"
-rule = "STRUCT003"
-path = "tools/editor_projection_rig/production_trace.py"
-kind = "remediation"
-justification = "The assessed file mixes scenario and workflow fixture orchestration, production editor-panel and shell construction, widget and field invariant analysis, trace aggregation and budget summaries. Extract production mounting and invariant/report analysis from scenario execution."
-issue = "chore:SS-ARCH-093"
-review_by = 2026-12-15
-max_lines = 957
-next_limit = 700
-debt = "SS-ARCH-093"
-
-[[waivers]]
 id = "SS-WAIVER-S075"
 owner = "regional separator abuse workloads"
 rule = "STRUCT003"

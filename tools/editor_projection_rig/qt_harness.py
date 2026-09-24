@@ -19,9 +19,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from typing import cast
 
+from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QWidget
+
+_SETTLE_TURN_TIMEOUT_MS = 20
 
 
 def ensure_qapplication() -> QApplication:
@@ -43,3 +47,45 @@ def create_hidden_host(*, show_window: bool = False) -> QWidget:
     if show_window:
         host.show()
     return host
+
+
+def drain_until(predicate: Callable[[], bool], *, max_turns: int) -> None:
+    """Run a bounded Qt event loop until the supplied condition is observable."""
+
+    app = QApplication.instance()
+    if app is None or predicate():
+        return
+    loop = QEventLoop()
+    completion_poll = QTimer()
+    completion_poll.setInterval(1)
+    completion_poll.timeout.connect(lambda: loop.quit() if predicate() else None)
+    timeout = QTimer()
+    timeout.setSingleShot(True)
+    timeout.timeout.connect(loop.quit)
+    completion_poll.start()
+    timeout.start(max(1, max_turns) * _SETTLE_TURN_TIMEOUT_MS)
+    loop.exec()
+    completion_poll.stop()
+    timeout.stop()
+    if not predicate():
+        raise TimeoutError("Production editor projection did not complete in the rig.")
+
+
+def drain_qt_events(turns: int) -> None:
+    """Process a fixed number of Qt events, including deferred deletion."""
+
+    app = QApplication.instance()
+    if app is None:
+        return
+    for _turn in range(turns):
+        app.processEvents()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def widget_count() -> int:
+    """Return the current QApplication widget count."""
+
+    app = QApplication.instance()
+    if app is None:
+        return 0
+    return len(cast(QApplication, app).allWidgets())
