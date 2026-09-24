@@ -26,8 +26,7 @@ from inspect import signature
 from typing import Any, cast
 
 from PySide6.QtCore import QSignalBlocker
-from PySide6.QtWidgets import QSizePolicy, QWidget
-from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
+from PySide6.QtWidgets import QWidget
 
 from substitute.application.danbooru import (
     DanbooruImagePreviewService,
@@ -36,12 +35,7 @@ from substitute.application.danbooru import (
     DanbooruWikiContentService,
 )
 from substitute.application.display_labels import beautify_label
-from substitute.application.node_behavior import (
-    EditorBehaviorSnapshot,
-    FieldPresentation,
-    ResolvedFieldSpec,
-    is_choice_field_type,
-)
+from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.application.overrides import (
     OverrideParticipationSnapshot,
     PinnedOverrideControl,
@@ -65,10 +59,7 @@ from substitute.domain.generation.seed_control import (
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogLookup,
 )
-from substitute.application.model_metadata import (
-    ThumbnailAssetRepository,
-    model_kind_for_field,
-)
+from substitute.application.model_metadata import ThumbnailAssetRepository
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -79,30 +70,14 @@ from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRen
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
 )
-from substitute.presentation.editor.panel.factories.choice_factory import (
-    resolve_choice_options_for_field,
-)
-from substitute.presentation.editor.panel.factories.field_pipeline import (
-    LAYOUT_HANDLED,
-    build_widget_for_field_spec,
-)
-from substitute.presentation.editor.panel.factories.field_build_outcome import (
-    EditorFieldBuildKind,
-)
-from substitute.presentation.editor.panel.factories.field_build_resolver import (
-    resolve_editor_field_build,
-)
 from substitute.presentation.editor.panel.override_control_binding import (
     bind_override_control,
 )
-from substitute.presentation.editor.panel.override_control_identity import (
-    identify_override_surface,
+from substitute.presentation.editor.panel.override_control_realizer import (
+    OverrideControlRealizer,
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
-)
-from substitute.presentation.editor.panel.override_model_picker_reconciler import (
-    reconcile_model_override_picker,
 )
 from substitute.presentation.editor.panel.override_toolbar_registry import (
     OverrideToolbarRegistry,
@@ -115,12 +90,9 @@ from substitute.shared.logging.logger import (
     log_debug,
     get_logger,
     log_warning,
-    log_warning_exception,
 )
 
 _LOGGER = get_logger("presentation.editor.panel.overrides_controller")
-_TOOLBAR_MAX_WIDGET_WIDTH = 180
-_TOOLBAR_CONTROL_HEIGHT = 32
 
 
 def _accepts_named_parameter(callable_obj: Any, parameter_name: str) -> bool:
@@ -160,19 +132,6 @@ class GlobalOverridesManager:
 
         self.mainwindow = mainwindow
         self._service = pinned_override_service
-        self._node_definition_gateway = node_definition_gateway
-        self._prompt_autocomplete_gateway = prompt_autocomplete_gateway
-        self._prompt_wildcard_catalog_gateway = prompt_wildcard_catalog_gateway
-        self._danbooru_url_import_service = danbooru_url_import_service
-        self._danbooru_wiki_service = danbooru_wiki_service
-        self._danbooru_image_preview_service = danbooru_image_preview_service
-        self._danbooru_recent_posts_service = danbooru_recent_posts_service
-        self._prompt_lora_catalog_service = prompt_lora_catalog_service
-        self._model_choice_snapshot_controller = model_choice_snapshot_controller
-        self._thumbnail_asset_repository = thumbnail_asset_repository
-        self._model_metadata_action_handler = model_metadata_action_handler
-        self._empty_model_picker_action = empty_model_picker_action
-        self._model_updates = model_updates
         self._workflow_state = OverrideWorkflowState(
             mainwindow, pinned_override_service
         )
@@ -181,6 +140,27 @@ class GlobalOverridesManager:
         self._toolbar_registry = OverrideToolbarRegistry(
             mainwindow,
             lambda: self.override_dropdown_btn,
+        )
+        self._control_realizer = OverrideControlRealizer(
+            parent=lambda: self.mainwindow.menu_bar,
+            node_definition_gateway=node_definition_gateway,
+            prompt_autocomplete_gateway=prompt_autocomplete_gateway,
+            prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+            danbooru_url_import_service=danbooru_url_import_service,
+            danbooru_wiki_service=danbooru_wiki_service,
+            danbooru_image_preview_service=danbooru_image_preview_service,
+            danbooru_recent_posts_service=danbooru_recent_posts_service,
+            prompt_lora_catalog_service=prompt_lora_catalog_service,
+            prompt_spellcheck_service=getattr(
+                mainwindow,
+                "prompt_spellcheck_service",
+                None,
+            ),
+            model_choice_snapshot_controller=model_choice_snapshot_controller,
+            thumbnail_asset_repository=thumbnail_asset_repository,
+            model_metadata_action_handler=model_metadata_action_handler,
+            empty_model_picker_action=empty_model_picker_action,
+            model_updates=model_updates,
         )
         self._toolbar_snapshot: OverrideToolbarSnapshot | None = None
         self._workflow_projection_service = WorkflowEditorProjectionService()
@@ -278,7 +258,7 @@ class GlobalOverridesManager:
             for control in toolbar_snapshot.active_controls
         }
         active_signature = tuple(
-            self._override_control_signature(control)
+            self._control_realizer.signature(control)
             for control in toolbar_snapshot.active_controls
         )
         active_keys_unchanged = tuple(sorted(self._toolbar_registry.controls)) == tuple(
@@ -303,14 +283,14 @@ class GlobalOverridesManager:
                     removed_count += 1
 
         for control in toolbar_snapshot.active_controls:
-            signature = self._override_control_signature(control)
+            signature = self._control_realizer.signature(control)
             existing_control = self._toolbar_registry.control(control.override_key)
             existing_signature = self._toolbar_registry.control_signature(
                 control.override_key
             )
             if existing_control is not None and existing_signature == signature:
                 label_widget, widget = existing_control
-                self._normalize_override_control(
+                self._control_realizer.normalize(
                     active_by_key[control.override_key],
                     label_widget,
                     widget,
@@ -583,34 +563,7 @@ class GlobalOverridesManager:
             if existing_control is None:
                 continue
             label_widget, widget = existing_control
-            self._normalize_override_control(control, label_widget, widget)
-
-    def _normalize_override_control(
-        self,
-        control: PinnedOverrideControl,
-        label_widget: Any,
-        widget: Any,
-    ) -> None:
-        """Apply compact toolbar sizing to one active override label/control pair."""
-
-        self._apply_toolbar_label_size(label_widget)
-        self._apply_toolbar_widget_size(control.spec, widget)
-        self._reconcile_model_override_picker(control, widget)
-
-    def _reconcile_model_override_picker(
-        self,
-        control: PinnedOverrideControl,
-        widget: object,
-    ) -> None:
-        """Refresh a model-backed override picker without replacing its widget."""
-
-        reconcile_model_override_picker(
-            control=control,
-            widget=widget,
-            snapshots=self._model_choice_snapshot_controller,
-            node_definitions=self._node_definition_gateway,
-            thumbnail_repository_available=self._thumbnail_asset_repository is not None,
-        )
+            self._control_realizer.normalize(control, label_widget, widget)
 
     def _refresh_restart_toolbar_spacing(self) -> None:
         """Ask the restart toolbar control to absorb slack after override changes."""
@@ -645,115 +598,11 @@ class GlobalOverridesManager:
         )
         if control is None:
             return False
-
-        log_debug(
-            _LOGGER,
-            "create override widget started",
-            override_key=control.override_key,
-            value=compact_override_log_value(control.value),
-            representative_cube=control.spec.cube_alias,
-            representative_node=control.spec.node_name,
-            representative_class=control.spec.class_type,
-            representative_field=control.spec.field_key,
-            spec_value=compact_override_log_value(control.spec.value),
-            spec_raw_value=compact_override_log_value(control.spec.raw_value),
-            spec_value_source=control.spec.value_source.value,
-        )
-        widget_spec = self._toolbar_field_spec(control.spec, control.value)
-
-        def build_override_surface() -> object | None:
-            """Invoke the raw factory inside the shared typed outcome boundary."""
-
-            return cast(
-                object | None,
-                build_widget_for_field_spec(
-                    parent=self.mainwindow.menu_bar,
-                    field_spec=widget_spec,
-                    prompt_autocomplete_gateway=self._prompt_autocomplete_gateway,
-                    prompt_wildcard_catalog_gateway=(
-                        self._prompt_wildcard_catalog_gateway
-                    ),
-                    danbooru_url_import_service=self._danbooru_url_import_service,
-                    danbooru_wiki_service=self._danbooru_wiki_service,
-                    danbooru_image_preview_service=(
-                        self._danbooru_image_preview_service
-                    ),
-                    danbooru_recent_posts_service=(self._danbooru_recent_posts_service),
-                    prompt_lora_catalog_service=self._prompt_lora_catalog_service,
-                    prompt_spellcheck_service=getattr(
-                        self.mainwindow,
-                        "prompt_spellcheck_service",
-                        None,
-                    ),
-                    model_choice_snapshot_controller=(
-                        self._model_choice_snapshot_controller
-                    ),
-                    thumbnail_asset_repository=self._thumbnail_asset_repository,
-                    model_metadata_action_handler=self._model_metadata_action_handler,
-                    empty_model_picker_action=self._empty_model_picker_action,
-                    model_updates=self._model_updates,
-                    node_definition_gateway=self._node_definition_gateway,
-                ),
-            )
-
-        outcome = resolve_editor_field_build(
-            field_spec=widget_spec,
-            build=build_override_surface,
-            layout_handled_sentinel=LAYOUT_HANDLED,
-        )
-        if outcome.kind is EditorFieldBuildKind.ERROR:
-            error = outcome.error
-            if error is None:
-                return False
-            log_warning_exception(
-                _LOGGER,
-                "Failed to build pinned override control",
-                error=error,
-                override_key=control.override_key,
-                class_type=control.spec.class_type,
-                field_key=control.spec.field_key,
-            )
+        realization = self._control_realizer.realize(control)
+        if realization is None:
             return False
-        if not outcome.rendered:
-            log_warning(
-                _LOGGER,
-                "Skipped unavailable pinned override control",
-                override_key=control.override_key,
-                class_type=control.spec.class_type,
-                field_key=control.spec.field_key,
-                outcome=outcome.kind.value,
-                reason=outcome.reason,
-            )
-            return False
-
-        result = outcome.surface
-        if result is None:
-            return False
-        widget = result[0] if isinstance(result, tuple) else result
-        label_widget = CaptionLabel(
-            beautify_label(control.label),
-            self.mainwindow.menu_bar,
-        )
-        label_widget.setContentsMargins(4, 0, 4, 0)
-        self._apply_toolbar_label_size(label_widget)
-        self._apply_toolbar_widget_size(control.spec, widget)
-        identify_override_surface(
-            override_key=control.override_key,
-            label_widget=label_widget,
-            control_widget=widget,
-        )
-        from substitute.presentation.widgets.tooltips import (
-            bind_fluent_tooltip,
-            tooltip_from_field_meta,
-        )
-
-        bind_fluent_tooltip(
-            label_widget,
-            tooltip_from_field_meta(widget_spec.meta_info),
-            label_widget,
-            cast(QWidget, widget),
-            show_delay_ms=600,
-        )
+        label_widget = realization.label_widget
+        widget = realization.widget
 
         self._toolbar_registry.insert(
             override_key=control.override_key,
@@ -765,7 +614,7 @@ class GlobalOverridesManager:
             control.override_key,
             label_widget,
             widget,
-            self._override_control_signature(control),
+            realization.signature,
         )
 
         self._restore_override_seed_mode(control.override_key, widget)
@@ -774,70 +623,7 @@ class GlobalOverridesManager:
             widget,
             partial(self._commit_override_value, control.override_key),
         )
-        log_debug(
-            _LOGGER,
-            "create override widget completed",
-            override_key=control.override_key,
-            widget_type=type(widget).__name__,
-            label_type=type(label_widget).__name__,
-            widget_metadata=compact_override_log_value(
-                widget.property("input_metadata")
-                if hasattr(widget, "property")
-                else None
-            ),
-        )
         return True
-
-    def _override_control_signature(
-        self,
-        control: PinnedOverrideControl,
-    ) -> tuple[object, ...]:
-        """Return the render contract used to decide toolbar control reuse."""
-
-        spec = control.spec
-        behavior = spec.field_behavior
-        model_options_are_dynamic = (
-            model_kind_for_field(
-                class_type=spec.class_type,
-                input_key=spec.field_key,
-            )
-            is not None
-        )
-        return (
-            control.override_key,
-            control.label,
-            repr(control.value),
-            spec.class_type,
-            spec.field_key,
-            spec.field_type,
-            repr(sorted(spec.constraints.items())),
-            "dynamic_model_options"
-            if model_options_are_dynamic
-            else repr(spec.field_info),
-            ()
-            if model_options_are_dynamic
-            else self._choice_inventory_signature(control),
-            behavior.presentation.value,
-            behavior.control_name,
-            repr(sorted(behavior.style.items())),
-        )
-
-    def _choice_inventory_signature(
-        self,
-        control: PinnedOverrideControl,
-    ) -> tuple[str, ...]:
-        """Return choice options that affect rendering and control reuse."""
-
-        spec = control.spec
-        if not is_choice_field_type(spec.field_type):
-            return ()
-        return resolve_choice_options_for_field(
-            key=spec.field_key,
-            node_type=spec.class_type,
-            node_definition_gateway=self._node_definition_gateway,
-            field_info=spec.field_info,
-            value=control.value,
-        )
 
     def _commit_override_value(
         self,
@@ -937,65 +723,12 @@ class GlobalOverridesManager:
             and hasattr(widget, "modeChanged")
         )
 
-    @staticmethod
-    def _toolbar_field_spec(spec: ResolvedFieldSpec, value: Any) -> ResolvedFieldSpec:
-        """Return the toolbar render spec derived from one representative field spec."""
-
-        toolbar_meta = dict(spec.meta_info)
-        toolbar_meta["node_data"] = None
-        return ResolvedFieldSpec(
-            cube_alias=spec.cube_alias,
-            node_name=spec.node_name,
-            class_type=spec.class_type,
-            field_key=spec.field_key,
-            field_type=spec.field_type,
-            constraints=dict(spec.constraints),
-            meta_info=toolbar_meta,
-            field_info=list(spec.field_info) if spec.field_info is not None else None,
-            value=value,
-            field_behavior=spec.field_behavior,
-            label_source=spec.label_source,
-            raw_value=spec.raw_value,
-            value_source=spec.value_source,
-        )
-
     def _request_session_autosave(self) -> None:
         """Request persistence after one user-owned override mutation."""
 
         request_autosave = getattr(self.mainwindow, "request_session_autosave", None)
         if callable(request_autosave):
             request_autosave()
-
-    @staticmethod
-    def _apply_toolbar_label_size(label_widget: Any) -> None:
-        """Keep override toolbar labels from absorbing horizontal toolbar slack."""
-
-        if hasattr(label_widget, "setSizePolicy"):
-            label_widget.setSizePolicy(
-                QSizePolicy.Policy.Fixed,
-                QSizePolicy.Policy.Preferred,
-            )
-
-    @staticmethod
-    def _apply_toolbar_widget_size(spec: ResolvedFieldSpec, widget: Any) -> None:
-        """Keep override controls compact while allowing width-pressure shrinkage."""
-
-        if spec.field_behavior.presentation is FieldPresentation.SEED_BOX:
-            restore_size_contract = getattr(widget, "restore_size_contract", None)
-            if callable(restore_size_contract):
-                restore_size_contract()
-            return
-        if hasattr(widget, "setSizePolicy"):
-            widget.setSizePolicy(
-                QSizePolicy.Policy.Maximum,
-                QSizePolicy.Policy.Fixed,
-            )
-        if spec.field_type in {"INT", "FLOAT"}:
-            if hasattr(widget, "setFixedHeight"):
-                widget.setFixedHeight(_TOOLBAR_CONTROL_HEIGHT)
-            return
-        if hasattr(widget, "setMaximumWidth"):
-            widget.setMaximumWidth(_TOOLBAR_MAX_WIDGET_WIDTH)
 
     def _fallback_hidden_field_keys(
         self,

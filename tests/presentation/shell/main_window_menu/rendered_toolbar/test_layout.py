@@ -24,8 +24,8 @@ import pytest
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from substitute.application.node_behavior import FieldPresentation
-from substitute.presentation.editor.panel.overrides_controller import (
-    GlobalOverridesManager,
+from substitute.presentation.editor.panel.override_control_realizer import (
+    OverrideControlRealizer,
 )
 from substitute.presentation.widgets import SeedBox
 from tests.presentation.shell.main_window_menu.rendered_toolbar.support import (
@@ -66,8 +66,8 @@ def test_seed_aliases_preserve_seedbox_owned_toolbar_geometry() -> None:
     )
 
     try:
-        GlobalOverridesManager._apply_toolbar_widget_size(seed_spec, seed)
-        GlobalOverridesManager._apply_toolbar_widget_size(noise_seed_spec, noise_seed)
+        OverrideControlRealizer.apply_toolbar_widget_size(seed_spec, seed)
+        OverrideControlRealizer.apply_toolbar_widget_size(noise_seed_spec, noise_seed)
 
         assert seed.height() == 33
         assert noise_seed.height() == seed.height()
