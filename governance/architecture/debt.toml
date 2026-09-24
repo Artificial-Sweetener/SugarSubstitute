@@ -376,7 +376,7 @@ next_extraction = "Extract override control creation and toolbar layout from wor
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:a32afa21640120468e9f48f69f67d1fe20379b16ee31752cfc4b503a8cefbe8f"
+fingerprint = "sha256:60babdd7ffb405348e4f9fa385d99ce731b6dcccfe06a02c5033939d992948ae"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
@@ -388,22 +388,6 @@ responsibilities = [
   "behavior and prompt-context caching",
 ]
 next_extraction = "Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
-
-[[debts]]
-id = "SS-ARCH-052"
-owner = "editor cube section"
-paths = ["substitute/presentation/editor/panel/widgets/cube_section.py"]
-fingerprint = "sha256:c99da19b18cf211d475ce2c9c3b7ccb4a7e7452efe697322c10657ee038ed7d5"
-issue = "chore:SS-ARCH-052"
-review_by = 2026-12-15
-responsibilities = [
-  "cube-section sizing and child relayout",
-  "field width-group synchronization",
-  "issue and update overlays",
-  "section and header construction",
-  "runtime issue card composition and painting",
-]
-next_extraction = "Extract runtime-issue cards and update/issue overlays from the passive cube-section container and builder."
 
 [[debts]]
 id = "SS-ARCH-065"

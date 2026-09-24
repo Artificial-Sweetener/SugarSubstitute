@@ -21,13 +21,6 @@ from typing import Any
 from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QWidget
 
-class CubeSectionWidgetParts:
-    widget: CubeSectionView
-    grid_layout: Any
-    header_label: Any
-    reveal_button: Any
-    reveal_menu: Any
-
 class CubeSectionView(QWidget):
     cube_height_changed: Any
 
@@ -48,15 +41,3 @@ class CubeSectionView(QWidget):
     def issueSeverity(self) -> str | None: ...
     def setIssueMessages(self, messages: tuple[str, ...]) -> None: ...
     def issueMessages(self) -> tuple[str, ...]: ...
-
-class CubeSectionBuilder:
-    def __init__(self, *args: Any, **kwargs: Any) -> None: ...
-    def build_cube_section(self, route_key: str) -> CubeSectionWidgetParts: ...
-    def build_error_cube_widget(
-        self,
-        route_key: str,
-        *,
-        issue_lines: tuple[str, ...],
-    ) -> CubeSectionView: ...
-
-def cube_section_builder_for_panel(panel: QWidget) -> CubeSectionBuilder: ...

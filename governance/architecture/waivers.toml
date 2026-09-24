@@ -327,19 +327,6 @@ next_limit = 1571
 debt = "SS-ARCH-051"
 
 [[waivers]]
-id = "SS-WAIVER-R052"
-owner = "editor cube section"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/widgets/cube_section.py"
-kind = "remediation"
-justification = "The assessed file mixes cube-section sizing and child relayout, field width-group synchronization, issue and update overlays, section and header construction, runtime issue card composition and painting. Extract runtime-issue cards and update/issue overlays from the passive cube-section container and builder."
-issue = "chore:SS-ARCH-052"
-review_by = 2026-12-15
-max_lines = 1063
-next_limit = 852
-debt = "SS-ARCH-052"
-
-[[waivers]]
 id = "SS-WAIVER-S156"
 owner = "mounted prompt projection surface"
 rule = "STRUCT003"

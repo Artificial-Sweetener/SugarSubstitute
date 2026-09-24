@@ -195,7 +195,7 @@ from .prompt.preset_adapter import (
 )
 from .node_card_builder import NodeCardBuilder
 from .prompt.field_inputs import build_node_card_prompt_field_inputs
-from .widgets.cube_section import cube_section_builder_for_panel
+from .widgets.cube_section_builder import cube_section_builder_for_panel
 
 _LOGGER = get_logger("presentation.editor.panel.view")
 
