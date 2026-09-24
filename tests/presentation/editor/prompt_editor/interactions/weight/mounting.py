@@ -21,8 +21,8 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any, cast
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, QTimer, Qt
-from PySide6.QtGui import QTextCursor, QWheelEvent
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, QTimer, Qt
+from PySide6.QtGui import QCursor, QMouseEvent, QTextCursor, QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -194,16 +194,50 @@ def reveal_emphasis_controls(
     reset_point = QPoint(
         max(1, box.viewport().width() - 3), max(1, box.viewport().height() - 3)
     )
-    QTest.mouseMove(box.viewport(), reset_point)
-    QTest.mouseMove(box.viewport(), anchor_rect_for(box, token).center().toPoint())
+    send_viewport_mouse_move(box.viewport(), reset_point)
+    send_viewport_mouse_move(
+        box.viewport(), anchor_rect_for(box, token).center().toPoint()
+    )
     controls.refresh_geometry()
     wait_for_qt_condition(
         lambda: (
             (visible_token := controls.visible_token) is not None
             and visible_token.token_id == token.token_id
-        )
+        ),
+        description="emphasis controls at hovered token",
+        state=lambda: {
+            "target": token.token_id,
+            "visible": None
+            if controls.visible_token is None
+            else controls.visible_token.token_id,
+            "pointer_host": controls._gestures.pointer_host_position,  # noqa: SLF001
+            "interaction_geometry": controls.interaction_geometry_at_pointer(),
+            "anchor": anchor_rect_for(box, token),
+            "viewport": box.viewport().rect(),
+            "cursor_viewport": box.viewport().mapFromGlobal(QCursor.pos()),
+            "widget_at_cursor": QApplication.widgetAt(QCursor.pos()),
+            "viewport_mouse_tracking": box.viewport().hasMouseTracking(),
+            "viewport_visible": box.viewport().isVisible(),
+            "active_window": QApplication.activeWindow(),
+        },
     )
     return controls
+
+
+def send_viewport_mouse_move(viewport: QWidget, point: QPoint) -> None:
+    """Deliver a viewport move independent of other Qt workers' desktop cursor."""
+
+    QApplication.sendEvent(
+        viewport,
+        QMouseEvent(
+            QEvent.Type.MouseMove,
+            QPointF(point),
+            QPointF(viewport.mapToGlobal(point)),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+        ),
+    )
 
 
 def click_control_rect(overlay: QWidget, host_rect: QRectF) -> None:
@@ -291,4 +325,4 @@ def point_outside_token(box: PromptEditor, token: PromptProjectionToken) -> QPoi
 def shell_viewport_for(box: PromptEditor) -> QWidget:
     """Return the outer prompt viewport that can receive first wheel events."""
 
-    return cast(QWidget, getattr(box, "_shell_viewport")())
+    return box._runtime.shell.shell.shell_viewport

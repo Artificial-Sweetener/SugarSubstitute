@@ -76,16 +76,24 @@ def run_campaign(
         platform_name = platform_name or qt_platform_name
     system_load_probe = PromptAbuseSystemLoadProbe()
     with prompt_abuse_structural_instrumentation(enabled=structural_probe):
-        results = tuple(
-            scenario_runner(
-                scenario,
-                repetition=repetition,
-                artifact_root=artifact_root,
-                deep_trace=deep_trace,
-            )
-            for scenario in scenarios
-            for repetition in range(repetitions)
-        )
+        results_list: list[PromptAbuseScenarioResult] = []
+        for scenario in scenarios:
+            for repetition in range(repetitions):
+                try:
+                    result = scenario_runner(
+                        scenario,
+                        repetition=repetition,
+                        artifact_root=artifact_root,
+                        deep_trace=deep_trace,
+                    )
+                except AssertionError as error:
+                    error.add_note(
+                        "Prompt abuse campaign scenario "
+                        f"{scenario.name!r}, repetition {repetition} failed."
+                    )
+                    raise
+                results_list.append(result)
+        results = tuple(results_list)
     coverage = capture_operation_coverage(tuple(scenarios))
     return PromptAbuseCampaignReport(
         revision=revision,

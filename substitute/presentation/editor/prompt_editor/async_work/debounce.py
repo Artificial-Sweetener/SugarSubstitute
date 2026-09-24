@@ -34,6 +34,9 @@ class PromptEditorDebouncer(Protocol):
     def request(self, callback: Callable[[], None], *, reason: str) -> None:
         """Schedule the latest callback for debounced delivery."""
 
+    def request_soon(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Schedule the latest callback for the next Qt event-loop turn."""
+
     def flush(self, *, reason: str) -> bool:
         """Run the pending callback immediately when one exists."""
 

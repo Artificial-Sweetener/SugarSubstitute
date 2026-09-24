@@ -40,34 +40,34 @@ def test_real_shell_same_source_semantics_switch_rebuilds_scene_state(
     real_shell_scenario.wait_until(
         lambda: any(
             token.kind.value == "scene"
-            for token in editor._surface.projection_document().tokens
+            for token in editor._runtime.projection.surface.projection_document().tokens
         )
     )
 
     editor.replaceBaselineSourceDocument(source, WildcardTextDocumentSemantics())
-    editor._diagnostics_feature_controller.refresh_now()
+    editor._runtime.core.diagnostics.refresh_now()
     real_shell_scenario.wait_until(
         lambda: all(
             token.kind.value != "scene"
-            for token in editor._surface.projection_document().tokens
+            for token in editor._runtime.projection.surface.projection_document().tokens
         )
     )
     real_shell_scenario.wait_until(
         lambda: any(
             diagnostic.kind is PromptDiagnosticKind.UNSUPPORTED_SCENE_MARKER
-            for diagnostic in editor._diagnostics_feature_controller.presentation.snapshot.diagnostics
+            for diagnostic in editor._runtime.core.diagnostics.presentation.snapshot.diagnostics
         )
     )
 
     assert editor.toPlainText() == source
-    prepared_scene = editor._scene_position_preparation.prepare_position_context(
+    prepared_scene = editor._runtime.core.services.scene_position_preparation.prepare_position_context(
         0,
         reason="unsupported_scene_marker_assertion",
     )
     assert prepared_scene.context is not None
     assert prepared_scene.context.scene_key is None
     assert (
-        editor._document_service.scene_autocomplete_query_at_cursor(
+        editor._runtime.core.syntax.document_service.scene_autocomplete_query_at_cursor(
             text=source,
             cursor_position=2,
             has_selection=False,

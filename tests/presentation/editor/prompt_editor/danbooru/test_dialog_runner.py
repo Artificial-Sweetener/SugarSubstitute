@@ -21,6 +21,9 @@ from __future__ import annotations
 from substitute.presentation.editor.prompt_editor.core.state.revisions import (
     PromptSourceIdentity,
 )
+from substitute.presentation.editor.prompt_editor.shell.fill_plane import (
+    PromptFillPlaneHost,
+)
 
 from collections.abc import Callable
 from collections.abc import Iterator
@@ -41,7 +44,7 @@ from substitute.domain.prompt.features.models import (
 )
 from substitute.presentation.editor.prompt_editor.composition import (
     PromptEditorCompositionContext,
-    PromptEditorCompositionFactory,
+    PromptEditorDanbooruFactory,
 )
 from substitute.presentation.editor.prompt_editor.features import (
     PromptDanbooruActionController,
@@ -186,8 +189,9 @@ def test_dialog_host_adapter_selects_window_parent_and_url_opener(
         return True
 
     source_identity = PromptSourceIdentity(source_revision=7, source_length=11)
-    adapter = PromptEditorCompositionFactory().build_danbooru_dialog_host_adapter(
-        _composition_context(editor),
+    adapter = PromptEditorDanbooruFactory(
+        _composition_context(editor)
+    ).build_host_adapter(
         source_identity_provider=lambda: source_identity,
         external_url_actions=PromptExternalUrlActionRunner(open_url),
     )
@@ -209,8 +213,9 @@ def test_dialog_host_adapter_falls_back_to_parent_then_editor(
     prompt_widgets.extend([parent, editor])
     parent.show()
     editor.show()
-    adapter = PromptEditorCompositionFactory().build_danbooru_dialog_host_adapter(
-        _composition_context(editor),
+    adapter = PromptEditorDanbooruFactory(
+        _composition_context(editor)
+    ).build_host_adapter(
         source_identity_provider=lambda: None,
         external_url_actions=PromptExternalUrlActionRunner(lambda _url: False),
     )
@@ -218,12 +223,11 @@ def test_dialog_host_adapter_falls_back_to_parent_then_editor(
 
     orphan = QWidget()
     prompt_widgets.append(orphan)
-    orphan_adapter = (
-        PromptEditorCompositionFactory().build_danbooru_dialog_host_adapter(
-            _composition_context(orphan),
-            source_identity_provider=lambda: None,
-            external_url_actions=PromptExternalUrlActionRunner(lambda _url: False),
-        )
+    orphan_adapter = PromptEditorDanbooruFactory(
+        _composition_context(orphan)
+    ).build_host_adapter(
+        source_identity_provider=lambda: None,
+        external_url_actions=PromptExternalUrlActionRunner(lambda _url: False),
     )
     assert orphan_adapter.danbooru_wiki_dialog_parent() is orphan
 
@@ -257,6 +261,7 @@ def _composition_context(editor: QWidget) -> PromptEditorCompositionContext:
 
     return PromptEditorCompositionContext(
         editor=editor,
+        fill_plane_host=cast(PromptFillPlaneHost, editor),
         shell_viewport=editor,
         autocomplete_limit=10,
         autocomplete_minimum_prefix_length=2,

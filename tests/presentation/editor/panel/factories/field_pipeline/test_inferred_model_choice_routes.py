@@ -472,12 +472,13 @@ def test_model_picker_eligibility_follows_supported_comfy_catalog_membership(
     assert fields["diffusion_model"].resolution.matched_kinds == ("diffusion_models",)
     assert isinstance(fields["vae"], _FakeModelPickerField)
     assert fields["vae"].resolution.matched_kinds == ("vae",)
+    assert isinstance(fields["upscale_model_name"], _FakeModelPickerField)
+    assert fields["upscale_model_name"].resolution.matched_kinds == ("upscale_models",)
     for field_key in (
         "diffusion_weight_dtype",
         "text_encoder",
         "text_encoder_device",
         "control_net_name",
-        "upscale_model_name",
         "mixed_allowed_models",
     ):
         assert isinstance(fields[field_key], _FakeComboBox), field_key

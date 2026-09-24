@@ -34,8 +34,10 @@ from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
 from substitute.application.prompt_editor.projection.syntax_service import (
-    PromptLoraRendererView,
     PromptSyntaxService,
+)
+from substitute.application.prompt_editor.projection.syntax_models import (
+    PromptLoraRendererView,
 )
 
 

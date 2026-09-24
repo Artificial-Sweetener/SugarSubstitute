@@ -51,8 +51,13 @@ class PromptSurfaceKeyHost(Protocol):
     """Expose the bounded surface operations needed by key routing."""
 
     emphasisShortcutTriggered: _PromptSurfaceEmphasisShortcutSignal
-    _editing_enabled: bool
-    _pointer_interactions: PromptSurfacePointerInteractions
+
+    def editing_enabled(self) -> bool:
+        """Return whether source mutations are currently permitted."""
+
+    @property
+    def pointer_interactions(self) -> PromptSurfacePointerInteractions:
+        """Return pointer and regional interaction ports."""
 
     @property
     def anchor_position(self) -> int:
@@ -122,7 +127,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
 
         if event.key() == Qt.Key.Key_F2:
             undo_coalescing.finish_typing_group(reason="rename_prompt_region")
-            if host._pointer_interactions.handle_region_keyboard_rename():
+            if host.pointer_interactions.handle_region_keyboard_rename():
                 event.accept()
                 return True
 
@@ -167,7 +172,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.matches(QKeySequence.StandardKey.Undo):
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             actions = self._clipboard_history_actions()
@@ -177,7 +182,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.matches(QKeySequence.StandardKey.Redo):
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             actions = self._clipboard_history_actions()
@@ -226,7 +231,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Backspace:
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="backspace")
@@ -238,7 +243,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Delete:
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="delete")
@@ -250,7 +255,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             event.accept()
             return True
         if event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="newline")
@@ -272,7 +277,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
             and _is_plain_text_insertion_event(event)
             and (not text.isspace() or text in {" ", "\t"})
         ):
-            if not host._editing_enabled:
+            if not host.editing_enabled():
                 event.accept()
                 return True
             if undo_coalescing.can_group_typed_text(text):
@@ -342,6 +347,12 @@ class PromptKeymapHost(Protocol):
     def flush_semantic_refresh_from_keymap(self, *, reason: str) -> None:
         """Flush pending semantic refresh for key-owned syntax reasons."""
 
+    def schedule_semantic_refresh_from_keymap(self, *, reason: str) -> None:
+        """Schedule pending semantics after a syntax-closing key."""
+
+    def flush_semantic_boundary_from_keymap(self, *, reason: str) -> None:
+        """Flush only syntax-relevant pending edits before a boundary key."""
+
 
 class PromptKeymapWeightPort(Protocol):
     """Describe weight interactions consumed by the keyboard router."""
@@ -379,6 +390,14 @@ class PromptKeymapController:
         if event.key() == Qt.Key.Key_Alt:
             self._host.enter_segment_reorder_mode_from_keymap()
             return True
+        if self._should_flush_semantic_refresh_before_navigation(event):
+            self._host.flush_semantic_refresh_from_keymap(
+                reason="semantic_navigation_key"
+            )
+        elif self._is_semantic_boundary_key(event):
+            self._host.flush_semantic_boundary_from_keymap(
+                reason="semantic_boundary_key"
+            )
         if self._weights.handle_exact_weight_key_press(event):
             return True
         return self._host.handle_autocomplete_key_press_from_keymap(event)
@@ -395,8 +414,8 @@ class PromptKeymapController:
             return
 
         if self._host.interaction_mode is PromptEditorInteractionMode.TEXT_EDITING:
-            if self._should_flush_semantic_refresh_for_key(event):
-                self._host.flush_semantic_refresh_from_keymap(
+            if self._should_schedule_semantic_refresh_for_key(event):
+                self._host.schedule_semantic_refresh_from_keymap(
                     reason="syntax_closing_key"
                 )
             self._host.handle_autocomplete_post_key_press_from_keymap(event)
@@ -442,8 +461,8 @@ class PromptKeymapController:
         return False
 
     @staticmethod
-    def _should_flush_semantic_refresh_for_key(event: QKeyEvent) -> bool:
-        """Return whether a key should immediately publish completed syntax."""
+    def _should_schedule_semantic_refresh_for_key(event: QKeyEvent) -> bool:
+        """Return whether completed syntax should publish on the next event turn."""
 
         if bool(
             event.modifiers()
@@ -455,13 +474,43 @@ class PromptKeymapController:
         ):
             return False
         if event.key() in {
+            Qt.Key.Key_Backspace,
+            Qt.Key.Key_Delete,
+            Qt.Key.Key_Space,
             Qt.Key.Key_ParenRight,
             Qt.Key.Key_BracketRight,
             Qt.Key.Key_BraceRight,
             Qt.Key.Key_Greater,
         }:
             return True
-        return event.text() in {")", "]", "}", ">"}
+        return event.text() in {" ", ")", "]", "}", ">"}
+
+    @staticmethod
+    def _should_flush_semantic_refresh_before_navigation(event: QKeyEvent) -> bool:
+        """Return whether one navigation key requires current semantics."""
+
+        if event.key() in {
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Home,
+            Qt.Key.Key_End,
+            Qt.Key.Key_PageUp,
+            Qt.Key.Key_PageDown,
+        }:
+            return True
+        return False
+
+    @staticmethod
+    def _is_semantic_boundary_key(event: QKeyEvent) -> bool:
+        """Return whether one edit boundary may need pending syntax resolved."""
+
+        return event.key() in {
+            Qt.Key.Key_Space,
+            Qt.Key.Key_Return,
+            Qt.Key.Key_Enter,
+        }
 
 
 def _has_plain_control_modifier(modifiers: Qt.KeyboardModifier) -> bool:

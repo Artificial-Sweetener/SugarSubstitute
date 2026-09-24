@@ -85,8 +85,9 @@ class ModelOnboardingServiceLike(Protocol):
         *,
         cancellation: CancellationToken,
         excluded_version_ids: frozenset[int] = frozenset(),
+        excluded_sha256: frozenset[str] = frozenset(),
     ) -> tuple[RecommendationLinkResult, ...]:
-        """Resolve explicit CivitAI links for one family."""
+        """Resolve explicit provider links for one family."""
 
 
 class ModelOnboardingCoordinator(QObject):
@@ -96,8 +97,8 @@ class ModelOnboardingCoordinator(QObject):
     scan_finished = Signal(int, object)
     recommendation_started = Signal(int)
     recommendation_finished = Signal(int, object)
-    thumbnail_finished = Signal(int, int, object)
-    thumbnail_failed = Signal(int, int)
+    thumbnail_finished = Signal(int, object, object)
+    thumbnail_failed = Signal(int, object)
     link_import_finished = Signal(int, object)
     task_failed = Signal(int, str, object)
 
@@ -224,8 +225,9 @@ class ModelOnboardingCoordinator(QObject):
         urls: tuple[str, ...],
         *,
         excluded_version_ids: frozenset[int] = frozenset(),
+        excluded_sha256: frozenset[str] = frozenset(),
     ) -> int:
-        """Start latest-wins validation for explicit CivitAI model links."""
+        """Start latest-wins validation for explicit provider model links."""
 
         self._link_import_generation += 1
         generation = self._link_import_generation
@@ -237,7 +239,7 @@ class ModelOnboardingCoordinator(QObject):
             ),
             context=ExecutionContext(
                 operation="onboarding_model_link_import",
-                reason="civitai_links_submitted",
+                reason="provider_links_submitted",
                 lane="onboarding_models",
                 owner_id="onboarding_model_coordinator",
                 safe_fields=(("generation", generation), ("batch_count", len(urls))),
@@ -247,6 +249,7 @@ class ModelOnboardingCoordinator(QObject):
                 urls,
                 cancellation=cancellation,
                 excluded_version_ids=excluded_version_ids,
+                excluded_sha256=excluded_sha256,
             ),
         )
         handle = self._link_import_channel.submit_latest(request)
@@ -310,6 +313,8 @@ class ModelOnboardingCoordinator(QObject):
         for page in pages:
             for card in page.cards:
                 recommendation = card.recommendation
+                if recommendation.thumbnail_url is None:
+                    continue
                 request = TaskRequest(
                     identity=TaskIdentity(
                         next(self._thumbnail_request_ids),

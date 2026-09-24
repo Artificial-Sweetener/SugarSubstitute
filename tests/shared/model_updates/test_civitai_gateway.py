@@ -41,11 +41,15 @@ class _Client:
         return self.versions
 
 
-def _version(identifier: int, base_model: str) -> DiscoveredModel:
+def _version(
+    identifier: int,
+    base_model: str,
+    artifact_kind: ModelArtifactKind = ModelArtifactKind.CHECKPOINTS,
+) -> DiscoveredModel:
     """Build one safe version candidate."""
 
     return DiscoveredModel(
-        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        artifact_kind=artifact_kind,
         model_id=1,
         version_id=identifier,
         model_name="Model",
@@ -96,3 +100,76 @@ def test_gateway_returns_none_when_current_version_is_not_observed() -> None:
         )
         is None
     )
+
+
+def test_gateway_keeps_separate_base_model_chronologies() -> None:
+    """One provider page must not mix Anima and SDXL version families."""
+
+    gateway = CivitaiCompatibleUpdateGateway(
+        _Client(
+            (
+                _version(6, "Anima"),
+                _version(5, "SDXL"),
+                _version(4, "Anima"),
+                _version(3, "SDXL"),
+                _version(2, "SDXL"),
+            )
+        )  # type: ignore[arg-type]
+    )
+
+    sdxl = gateway.compatible_family(
+        model_id=1,
+        current_version_id=3,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        base_model="sdxl",
+    )
+    anima = gateway.compatible_family(
+        model_id=1,
+        current_version_id=4,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        base_model="Anima",
+    )
+
+    assert tuple(version.version_id for version in sdxl) == (2, 3, 5)
+    assert tuple(version.version_id for version in anima) == (4, 6)
+
+
+def test_gateway_rejects_missing_current_version_family() -> None:
+    """A stale local identity must not attach to an unverified provider history."""
+
+    gateway = CivitaiCompatibleUpdateGateway(
+        _Client((_version(5, "SDXL"), _version(4, "SDXL")))  # type: ignore[arg-type]
+    )
+
+    assert (
+        gateway.compatible_family(
+            model_id=1,
+            current_version_id=3,
+            artifact_kind=ModelArtifactKind.CHECKPOINTS,
+            base_model="SDXL",
+        )
+        == ()
+    )
+
+
+def test_gateway_excludes_other_artifact_types_on_one_page() -> None:
+    """A newer diffusion model must not update a checkpoint from the same page."""
+
+    gateway = CivitaiCompatibleUpdateGateway(
+        _Client(
+            (
+                _version(5, "SDXL", ModelArtifactKind.DIFFUSION_MODELS),
+                _version(4, "SDXL", ModelArtifactKind.CHECKPOINTS),
+                _version(3, "SDXL", ModelArtifactKind.CHECKPOINTS),
+            )
+        )  # type: ignore[arg-type]
+    )
+
+    family = gateway.compatible_family(
+        model_id=1,
+        current_version_id=3,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        base_model="SDXL",
+    )
+
+    assert tuple(version.version_id for version in family) == (3, 4)

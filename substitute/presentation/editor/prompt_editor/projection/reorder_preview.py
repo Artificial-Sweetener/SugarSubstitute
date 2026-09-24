@@ -22,7 +22,7 @@ from collections.abc import Hashable
 from dataclasses import dataclass
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.application.prompt_editor.reorder.views import (

@@ -41,6 +41,11 @@ class FakeSemanticDebouncer:
         _ = reason
         self.pending_callback = callback
 
+    def request_soon(self, callback: Callable[[], None], *, reason: str) -> None:
+        """Store the latest next-turn semantic refresh callback."""
+
+        self.request(callback, reason=reason)
+
     def flush(self, *, reason: str) -> bool:
         """Run the latest callback immediately."""
 

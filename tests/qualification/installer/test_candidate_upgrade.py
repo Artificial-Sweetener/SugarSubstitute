@@ -343,7 +343,7 @@ def test_managed_backend_is_verified_before_clean_live_shell_shutdown(
 
     monkeypatch.setattr(
         installer_ui_qualification,
-        "assert_real_managed_comfy",
+        "wait_for_real_managed_comfy",
         require_managed,
     )
     monkeypatch.setattr(

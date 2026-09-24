@@ -75,7 +75,7 @@ class PromptReorderPreviewSyncController:
 
     @property
     def state(self) -> PromptReorderPreviewSyncState:
-        """Return immutable preview-sync bookkeeping for tests."""
+        """Return immutable preview-sync bookkeeping for observability."""
 
         return self._policy.snapshot(
             scheduler_active=self._timer.is_active(),

@@ -19,5 +19,35 @@
 from substitute.infrastructure.model_suggestions.civitai_provider import (
     CivitaiModelSuggestionProvider,
 )
+from substitute.infrastructure.model_suggestions.openmodeldb_catalog import (
+    OpenModelDbCatalogClient,
+)
+from substitute.infrastructure.model_suggestions.openmodeldb_model_catalog import (
+    OpenModelDbModelCatalogProvider,
+    OpenModelDbThumbnailMetadataStore,
+)
+from substitute.infrastructure.model_suggestions.openmodeldb_recipe_recovery import (
+    OpenModelDbRecipeRecoveryGateway,
+)
+from substitute.infrastructure.model_suggestions.openmodeldb_recipe_acquisition import (
+    OpenModelDbRecipeAcquirer,
+)
+from substitute.infrastructure.model_suggestions.openmodeldb_provider import (
+    CachedOpenModelDbThumbnailFetcher,
+    OpenModelDbSuggestionProvider,
+    OpenModelDbThumbnailFetcher,
+    require_openmodeldb_download_url,
+)
 
-__all__ = ["CivitaiModelSuggestionProvider"]
+__all__ = [
+    "CachedOpenModelDbThumbnailFetcher",
+    "CivitaiModelSuggestionProvider",
+    "OpenModelDbCatalogClient",
+    "OpenModelDbModelCatalogProvider",
+    "OpenModelDbThumbnailMetadataStore",
+    "OpenModelDbRecipeRecoveryGateway",
+    "OpenModelDbRecipeAcquirer",
+    "OpenModelDbSuggestionProvider",
+    "OpenModelDbThumbnailFetcher",
+    "require_openmodeldb_download_url",
+]

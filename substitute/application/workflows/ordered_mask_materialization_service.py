@@ -26,7 +26,12 @@ from substitute.application.workflows.input_canvas_models import (
 )
 from substitute.application.workflows.input_canvas_ports import (
     CanvasIoServicePort,
-    InputCanvasStateServicePort,
+)
+from substitute.application.workflows.input_mask_asset_service import (
+    InputMaskAssetService,
+)
+from substitute.application.workflows.input_mask_visual_state_service import (
+    InputMaskVisualStateService,
 )
 from substitute.application.workflows.ordered_mask_graph_value_service import (
     OrderedMaskGraphValueService,
@@ -52,13 +57,15 @@ class OrderedMaskMaterializationService:
     def __init__(
         self,
         *,
-        input_canvas_state_service: InputCanvasStateServicePort,
+        input_masks: InputMaskAssetService,
+        mask_visuals: InputMaskVisualStateService,
         canvas_io_service: CanvasIoServicePort,
         graph_section_service: WorkflowGraphSectionService,
     ) -> None:
         """Capture focused canvas, filesystem, and graph collaborators."""
 
-        self._input_canvas_state_service = input_canvas_state_service
+        self._input_masks = input_masks
+        self._mask_visuals = mask_visuals
         self._canvas_io_service = canvas_io_service
         self._graph_section_service = graph_section_service
         self._graph_values = OrderedMaskGraphValueService(graph_section_service)
@@ -325,7 +332,7 @@ class OrderedMaskMaterializationService:
         """Load one layer through the scalar canvas port, then adopt it regionally."""
 
         temporary_key = _temporary_association_key(binding, entry)
-        mask_id = self._input_canvas_state_service.load_mask_from_file(
+        mask_id = self._input_masks.load_from_file(
             workflow_id,
             workflow,
             temporary_key,
@@ -340,7 +347,7 @@ class OrderedMaskMaterializationService:
             mask_id=mask_id,
         )
         if adopted_mask_id is not None:
-            self._input_canvas_state_service.apply_materialized_mask_visual_opacity(
+            self._mask_visuals.apply_materialized_opacity(
                 workflow_id,
                 workflow,
                 binding.association_key,
@@ -362,7 +369,7 @@ class OrderedMaskMaterializationService:
         """Create one blank layer through the scalar port, then adopt it regionally."""
 
         temporary_key = _temporary_association_key(binding, entry)
-        mask_id = self._input_canvas_state_service.create_mask_for_image(
+        mask_id = self._input_masks.create_for_image(
             workflow_id,
             workflow,
             temporary_key,
@@ -377,7 +384,7 @@ class OrderedMaskMaterializationService:
             mask_id=mask_id,
         )
         if adopted_mask_id is not None:
-            self._input_canvas_state_service.apply_materialized_mask_visual_opacity(
+            self._mask_visuals.apply_materialized_opacity(
                 workflow_id,
                 workflow,
                 binding.association_key,

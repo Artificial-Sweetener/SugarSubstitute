@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 
 from PySide6.QtGui import QAction, QTextCursor
 from PySide6.QtWidgets import QWidget
@@ -93,7 +93,7 @@ class PromptTextMenu(ActionMenu):
         parent: QWidget,
         *,
         schedule_lora: Callable[[], None],
-        clipboard_actions: PromptShellClipboardActions | None = None,
+        clipboard_actions: PromptShellClipboardActions,
         schedule_lora_enabled: bool = True,
         trigger_word_actions: tuple[QAction, ...] = (),
         prompt_segment_model: PromptSegmentPresetMenuModel | None = None,
@@ -111,13 +111,10 @@ class PromptTextMenu(ActionMenu):
         """Create a QFluent text menu that can schedule LoRAs."""
 
         super().__init__("", parent)
-        self._clipboard_actions = (
-            clipboard_actions
-            if clipboard_actions is not None
-            else cast(Any, parent)._clipboard_history_controller
-        )
+        menu_parent = cast(PromptShellTextMenuParent, parent)
+        self._clipboard_actions = clipboard_actions
         self._semantic_catalog = PromptSemanticMenuCatalog(
-            cast(PromptShellTextMenuParent, parent),
+            menu_parent,
             schedule_lora=schedule_lora,
             schedule_lora_enabled=schedule_lora_enabled,
             trigger_word_actions=trigger_word_actions,

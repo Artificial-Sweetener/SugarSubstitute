@@ -90,7 +90,7 @@ class ReorderRasterCacheCounters:
     build_failed_count: int = 0
 
     def as_dict(self) -> dict[str, int | float]:
-        """Return JSON-safe counters for tests and diagnostics."""
+        """Return JSON-safe counters for diagnostics."""
 
         return {
             "raster_cache_hit_count": self.hit_count,

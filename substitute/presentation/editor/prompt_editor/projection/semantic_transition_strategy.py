@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -104,11 +104,11 @@ class PromptSemanticTransitionStrategy:
         projection_document = self._applicator.build_projection(
             document_view,
             render_plan,
-            display_mode=context._display_mode,
+            display_mode=context.display_mode(),
             session=context._session,
             active_span_range=None,
             decoration_accent_ranges=context._decoration_accent_ranges(),
-            scene_error_keys=context._scene_error_keys,
+            scene_error_keys=context.scene_error_keys(),
         )
         layout_damage = self._layout.set_projection_after_source_edit(
             projection_document,

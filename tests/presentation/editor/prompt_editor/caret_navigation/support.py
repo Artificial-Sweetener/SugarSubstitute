@@ -216,7 +216,7 @@ class _CaretPlacementHarness:
         """Fail when live caret geometry lands before editable content."""
 
         process_events(self._app)
-        caret_rect = cast(Any, self._surface)._current_caret_document_rect()
+        caret_rect = cast(Any, self._surface)._caret_geometry.current_document_rect()
         assert caret_rect.left() >= self.content_left - 1.0, self._describe_failure(
             label,
             caret_rect,
@@ -280,10 +280,12 @@ class _CaretPlacementHarness:
 
         caret_rect = self.assert_caret_valid(label)
         layout_rect = cast(Any, self._surface)._layout.frame.geometry.caret.cursor_rect(
-            cast(Any, self._surface)._cursor_state,
+            cast(Any, self._surface)._caret_state_owner.cursor_state,
             scroll_offset=0.0,
         )
-        assert cast(Any, self._surface)._caret_rect_override is None, (
+        assert (
+            cast(Any, self._surface)._caret_state_owner.caret_rect_override is None
+        ), (
             f"{label}: stale caret rect override remains; "
             f"cursor_position={self._surface.cursor_position} "
             f"text={self._box.toPlainText()!r}"
@@ -345,11 +347,14 @@ class _CaretPlacementHarness:
 def _surface_should_paint_caret(box: PromptEditor) -> bool:
     """Return whether the live projection surface currently wants to paint the caret."""
 
-    return surface_for(box)._should_paint_caret()  # noqa: SLF001
+    return surface_for(box)._caret_visual_controller.should_paint_caret()  # noqa: SLF001
 
 
 def _restart_surface_caret_blink_cycle(box: PromptEditor) -> None:
     """Restart the custom caret blink timer for deterministic timer assertions."""
 
-    surface_for(box)._restart_caret_blink_cycle()  # noqa: SLF001
+    controller = surface_for(box)._caret_visual_controller  # noqa: SLF001
+    controller.restart_caret_blink_cycle(
+        cursor_flash_time_ms=controller.cursor_flash_time_ms()
+    )
     process_events(ensure_qapp())

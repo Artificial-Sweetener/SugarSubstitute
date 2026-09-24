@@ -17,8 +17,6 @@
 """Verify LoRA scheduling and trigger-word context-menu contracts."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from typing import Any, cast
 import pytest
 from PySide6.QtGui import QFontMetrics, QTextCursor
@@ -49,6 +47,7 @@ from tests.presentation.editor.prompt_editor.context_menu.menu_rows import (
 from tests.presentation.editor.prompt_editor.context_menu.trigger_actions import (
     trigger_words_action_for_lora,
 )
+from tests.support.prompt_editor.runtime_owners import set_context_menu_insert_state
 
 
 def test_prompt_editor_lora_context_menu_preserves_qfluent_text_actions(
@@ -68,7 +67,11 @@ def test_prompt_editor_lora_context_menu_preserves_qfluent_text_actions(
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
     menu_type = PromptTextMenu
-    menu = menu_type(editor, schedule_lora=lambda: None)
+    menu = menu_type(
+        editor,
+        schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
+    )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
 
     assert "Cancel" not in action_texts
@@ -114,6 +117,7 @@ def test_prompt_editor_general_context_menu_nests_single_trigger_action(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         trigger_word_actions=(
             trigger_words_action_for_lora(
                 editor,
@@ -173,6 +177,7 @@ def test_phase24_1_context_menu_groups_multiple_trigger_actions(
     menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         trigger_word_actions=(first_action, second_action),
     )
     menu.exec(editor.mapToGlobal(editor.rect().center()))
@@ -212,7 +217,7 @@ def test_prompt_editor_trigger_action_label_elides_to_total_menu_budget(
 
     label = PromptTriggerWordActionAdapter(
         action_parent=editor,
-        text_insertion_executor=cast(Any, editor)._context_insertion,
+        text_insertion_executor=cast(Any, editor)._runtime.core.context_insertion,
         identity_validator=lambda _identity: True,
     ).trigger_words_action_label(long_name)
 
@@ -268,7 +273,7 @@ def test_prompt_editor_trigger_action_uses_context_position_without_deleting_bla
     stale_cursor = editor.textCursor()
     stale_cursor.setPosition(7)
     editor.setTextCursor(stale_cursor)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=6)
+    set_context_menu_insert_state(editor, insert_position=6)
 
     action = trigger_words_action_for_lora(
         editor,
@@ -301,7 +306,8 @@ def test_prompt_editor_trigger_action_ignores_selection_created_by_context_click
     incidental_cursor.setPosition(7)
     incidental_cursor.setPosition(8, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(incidental_cursor)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(
+    set_context_menu_insert_state(
+        editor,
         insert_position=6,
         should_replace_selection=False,
     )
@@ -337,7 +343,7 @@ def test_prompt_editor_trigger_action_replaces_selection_like_paste(
     cursor.setPosition(7)
     cursor.setPosition(8, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
-    cast(Any, editor)._set_context_menu_insert_state_for_tests(insert_position=6)
+    set_context_menu_insert_state(editor, insert_position=6)
 
     action = trigger_words_action_for_lora(
         editor,
@@ -367,7 +373,7 @@ def test_prompt_editor_lora_picker_insertion_uses_shared_schedule_text(
     editor.setPlainText("")
     process_events(app)
 
-    cast(Any, editor)._lora_picker_popup_presenter.insert_lora_schedule(
+    cast(Any, editor)._runtime.host.menu.lora_picker.insert_lora_schedule(
         _lora_item(
             display_name="Friendly Midna",
             basename="raw_midna",

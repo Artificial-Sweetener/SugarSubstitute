@@ -282,8 +282,30 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     ).read_text(encoding="utf-8")
     assert 'target_mode="remote"' in lifecycle_text
     assert "require_governed_setup_record=False" in lifecycle_text
-    assert "assert_real_managed_comfy" in shell_evidence_text
+    assert "wait_for_real_managed_comfy" in shell_evidence_text
     assert 'evidence.plan.target_mode == "managed_local"' in shell_evidence_text
+
+
+def test_canary_dry_run_on_a_feature_branch_uses_canary_release_inputs() -> None:
+    """Allow a private Canary rehearsal without changing release-branch behavior."""
+
+    release = yaml.safe_load(workflow_text("release.yml"))
+    rehearsal_input = release[True]["workflow_dispatch"]["inputs"]["rehearsal_channel"]
+    preparation = release["jobs"]["prepare-release"]["with"]
+    publication = release["jobs"]["publish-release"]
+
+    assert rehearsal_input["default"] == "auto"
+    assert rehearsal_input["options"] == ["auto", "canary"]
+    for key in ("channel", "canary_run_number"):
+        selection = preparation[key]
+        assert "github.ref_name == 'canary'" in selection
+        assert "github.event_name == 'workflow_dispatch'" in selection
+        assert "inputs.dry_run == 'true'" in selection
+        assert "inputs.rehearsal_channel == 'canary'" in selection
+    assert (
+        "inputs.rehearsal_channel != 'canary'" in preparation["qualification_version"]
+    )
+    assert "github.event.inputs.dry_run != 'true'" in publication["if"]
 
 
 def test_focused_release_qualification_reuses_only_exact_canary_evidence() -> None:

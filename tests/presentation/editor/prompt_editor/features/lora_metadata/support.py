@@ -45,6 +45,7 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from substitute.presentation.editor.prompt_editor.features import (
     PromptFeatureProfileController,
     PromptLoraMetadataPresentation,
+    PromptLoraMetadataRefreshBindings,
     PromptLoraMetadataRefreshLifecycle,
     PromptLoraTriggerWordController,
 )
@@ -229,7 +230,13 @@ def _metadata_owners(
         thumbnail_repository_available=False,
     )
     refresh = PromptLoraMetadataRefreshLifecycle(
-        host=host,
+        bindings=PromptLoraMetadataRefreshBindings(
+            is_visible=host.isVisible,
+            has_lora_spans=host.has_lora_spans_for_metadata,
+            refresh_render_metadata=(
+                lambda reason: host.refresh_lora_render_metadata_now(reason=reason)
+            ),
+        ),
         presentation=presentation,
         dispatcher=cast(PromptEditorMainThreadDispatcher, dispatcher),
     )

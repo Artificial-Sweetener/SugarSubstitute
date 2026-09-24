@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_widget_adapter import (
     sync_comparison_navigation_buttons,
 )
 

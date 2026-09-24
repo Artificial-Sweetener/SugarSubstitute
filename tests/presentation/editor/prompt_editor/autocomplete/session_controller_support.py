@@ -41,6 +41,7 @@ class _VisibilityRecordingPresenter:
         self.visible = visible
         self.visibility_handler: Callable[[bool], None] | None = None
         self.presented_sessions: list[AutocompleteSession] = []
+        self.geometry_refreshes = 0
 
     @property
     def panel(self) -> None:
@@ -94,6 +95,11 @@ class _VisibilityRecordingPresenter:
         """Return the configured panel visibility state."""
 
         return self.visible
+
+    def refresh_geometry(self) -> None:
+        """Record one geometry-only refresh without presenting content."""
+
+        self.geometry_refreshes += 1
 
     def hide(self) -> None:
         """Hide the panel and publish the visibility transition."""

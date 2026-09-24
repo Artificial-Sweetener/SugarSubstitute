@@ -26,6 +26,13 @@ from types import SimpleNamespace
 from tools.prompt_editor_abuse.action_counter_probe import (
     PromptAbuseActionCounterProbe,
 )
+from tools.prompt_editor_abuse.structural_instrumentation import (
+    prompt_abuse_structural_instrumentation,
+)
+from substitute.shared.diagnostics.prompt_editor_work import (
+    PromptEditorWorkEvent,
+    prompt_editor_work_event,
+)
 from tools.prompt_editor_abuse.runtime_probe import PromptAbuseRuntimeProbe
 from tools.prompt_editor_abuse.qt_exception_capture import (
     PromptAbuseQtExceptionCapture,
@@ -75,18 +82,28 @@ def test_action_counter_probe_attributes_created_and_closed_overlay_work() -> No
 
             return dict(self.counters)
 
-    editor = SimpleNamespace(_segment_overlay=None)
+    interaction_controller = SimpleNamespace(segment_overlay=None)
+    editor = SimpleNamespace(
+        _runtime=SimpleNamespace(
+            core=SimpleNamespace(
+                syntax=SimpleNamespace(
+                    interaction_controller=interaction_controller,
+                )
+            ),
+            projection_or_none=None,
+        )
+    )
     probe = PromptAbuseActionCounterProbe(editor)
     overlay = _Overlay()
 
     probe.begin_unit()
-    editor._segment_overlay = overlay
+    interaction_controller.segment_overlay = overlay
     overlay.counters["raster_build_count"] = 8
     opened = probe.finish_unit(action_index=2, unit_index=0, label="key_press:alt")
 
     probe.begin_unit()
     overlay.counters["drag_move_count"] = 3
-    editor._segment_overlay = None
+    interaction_controller.segment_overlay = None
     closed = probe.finish_unit(action_index=3, unit_index=0, label="key_release:alt")
 
     assert dict(opened.counter_deltas) == {"raster_build_count": 8.0}
@@ -94,10 +111,43 @@ def test_action_counter_probe_attributes_created_and_closed_overlay_work() -> No
     assert opened.reset_counter_names == ()
     assert closed.reset_counter_names == ()
 
-    editor._segment_overlay = overlay
+    interaction_controller.segment_overlay = overlay
     overlay.counters["drag_move_count"] = 9
     probe.begin_unit()
     overlay.counters["drag_move_count"] = 1
     reset = probe.finish_unit(action_index=4, unit_index=0, label="owner_reset")
     assert reset.counter_deltas == ()
     assert reset.reset_counter_names == ("drag_move_count",)
+
+
+def test_action_counter_probe_scopes_resize_work_to_mounted_surface() -> None:
+    """Exclude resize events emitted by another prepared workflow editor."""
+
+    class _Surface:
+        """Expose one instrumented surface resize boundary."""
+
+        @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_RESIZE_EVENT)
+        def resize(self) -> None:
+            """Represent one resize event."""
+
+    measured_surface = _Surface()
+    unrelated_surface = _Surface()
+    editor = SimpleNamespace(
+        _runtime=SimpleNamespace(
+            core=SimpleNamespace(
+                syntax=SimpleNamespace(
+                    interaction_controller=SimpleNamespace(segment_overlay=None)
+                )
+            ),
+            projection_or_none=SimpleNamespace(surface=measured_surface),
+        )
+    )
+    probe = PromptAbuseActionCounterProbe(editor)
+
+    with prompt_abuse_structural_instrumentation(enabled=True):
+        probe.begin_unit()
+        measured_surface.resize()
+        unrelated_surface.resize()
+        delta = probe.finish_unit(action_index=0, unit_index=0, label="resize")
+
+    assert dict(delta.counter_deltas)["instrumented_surface_resize_event_count"] == 1

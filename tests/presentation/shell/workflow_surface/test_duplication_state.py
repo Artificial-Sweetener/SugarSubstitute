@@ -71,7 +71,11 @@ def test_duplicate_workflow_registers_cloned_state_and_projects_unique_tab(
     view.workflow_ui_factory = SimpleNamespace(create_workflow_ui=_create_workflow_ui)
     caplog.set_level(
         logging.INFO,
-        logger="sugarsubstitute.presentation.shell.workflow_workspace_coordinator",
+        logger="sugarsubstitute.presentation.shell.workflow_workspace_materializer",
+    )
+    caplog.set_level(
+        logging.INFO,
+        logger="sugarsubstitute.presentation.shell.workflow_cube_stack_materializer",
     )
 
     duplicated_id = mod.WorkflowWorkspaceCoordinator(view).duplicate_workflow(
@@ -96,7 +100,7 @@ def test_duplicate_workflow_registers_cloned_state_and_projects_unique_tab(
     assert "Workflow duplicate tab planned" in caplog.text
     assert "Workflow duplicate existing workflow registered" in caplog.text
     assert "Workflow duplicate UI created" in caplog.text
-    assert "Workflow duplicate cube-stack materialization started" in caplog.text
+    assert "Workflow cube-stack materialization started" in caplog.text
     assert "Workflow duplicate projection started" in caplog.text
     assert "Workflow duplicate projection completed" in caplog.text
     assert "Workflow duplicate coordinator completed" in caplog.text
@@ -111,7 +115,7 @@ def test_duplicate_workflow_missing_source_is_noop(
     view = _build_view(active_workflow_id="wf-a")
     caplog.set_level(
         logging.INFO,
-        logger="sugarsubstitute.presentation.shell.workflow_workspace_coordinator",
+        logger="sugarsubstitute.presentation.shell.workflow_workspace_materializer",
     )
 
     duplicated_id = mod.WorkflowWorkspaceCoordinator(view).duplicate_workflow(

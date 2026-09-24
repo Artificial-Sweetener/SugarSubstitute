@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from PySide6.QtGui import QTextCursor
+
 from substitute.presentation.editor.prompt_editor.autocomplete_preview_state import (
     PromptAutocompletePreviewState,
 )
@@ -39,8 +41,8 @@ def test_real_shell_reports_stale_visible_ghost_owner_state(
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="backpack")
     real_shell_scenario.input.move_cursor_to_end(field)
     editor = field.editor
-    surface = cast(Any, getattr(editor, "_surface"))
-    surface.set_autocomplete_preview_state(
+    surface = cast(Any, editor._runtime.projection.surface)
+    surface.autocomplete_preview.set_preview_state(
         PromptAutocompletePreviewState(
             source_position=len("backpack"),
             suffix_text=" basket",
@@ -48,7 +50,7 @@ def test_real_shell_reports_stale_visible_ghost_owner_state(
     )
     stale_preview_document = cast(Any, surface)._layout.frame.output.projection_document
 
-    surface.set_autocomplete_preview_state(None)
+    surface.autocomplete_preview.set_preview_state(None)
     cast(Any, surface)._layout.set_projection(
         stale_preview_document,
         prompt_document_view=surface.prompt_document_view(),
@@ -66,3 +68,57 @@ def test_real_shell_reports_stale_visible_ghost_owner_state(
     assert "autocomplete_ghost_paint_visible_without_preview_state" in violations
     assert "layout_projection_preview_leaked_without_preview_state" in violations
     assert "layout_not_restored_to_base_projection_document" in violations
+
+
+def test_selection_replacement_autocomplete_preview_owns_immediate_layout(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Autocomplete preview after replacement typing must own mounted geometry."""
+
+    decorated_unit = (
+        "masterpiece, (detailed face:1.20), {lighting/day}, "
+        "<lora:detail_booster:0.80>, cinematic background, "
+    )
+    source = decorated_unit * 90
+    start = len(source) // 2
+    end = start + len("masterpiece, (detailed face:1.20)")
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text=source)
+    editor = field.editor
+    cursor = editor.textCursor()
+    cursor.setPosition(start, QTextCursor.MoveMode.MoveAnchor)
+    cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+    editor.setTextCursor(cursor)
+
+    runtime = cast(Any, editor)._runtime
+    surface = runtime.projection.surface
+    semantic_refresh = runtime.core.syntax.interaction_controller._semantic_refresh
+
+    def owners_are_current(expected_source: str) -> bool:
+        """Return whether source, semantics, and projection finished publication."""
+
+        return bool(
+            editor.toPlainText() == expected_source
+            and surface.projection_document().source_text == expected_source
+            and surface.editor_state.semantic.document.source_text == expected_source
+            and not surface._projection_freshness_controller.has_pending_update()
+            and not surface.has_stale_projection_geometry()
+            and semantic_refresh._pending_request is None
+            and semantic_refresh._active_task_identity is None
+        )
+
+    expected_source = source[:start] + "r" + source[end:]
+    real_shell_scenario.input.type_text(field, "r")
+    real_shell_scenario.wait_until(lambda: owners_are_current(expected_source))
+
+    expected_source = source[:start] + "re" + source[end:]
+    real_shell_scenario.input.type_text(field, "e")
+    real_shell_scenario.wait_until(lambda: owners_are_current(expected_source))
+    immediate = real_shell_scenario.snapshots.capture(
+        field,
+        label="selection-replacement-autocomplete-preview-published",
+        settle=False,
+    )
+
+    assert immediate.autocomplete_preview_active
+    assert immediate.active_projection_layout_required
+    assert immediate.layout_uses_active_projection_document

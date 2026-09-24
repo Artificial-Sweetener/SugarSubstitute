@@ -151,10 +151,8 @@ def test_handle_key_release_clears_keyboard_owned_transient_neutral_emphasis() -
     assert editor.emphasis_adjustment_session() is None
 
 
-def test_handle_overlay_visible_token_changed_clears_overlay_owned_session_and_shell() -> (
-    None
-):
-    """Losing overlay token ownership clears overlay-owned session state."""
+def test_hidden_overlay_does_not_end_active_wheel_session() -> None:
+    """Control visibility is independent of wheel adjustment ownership."""
 
     editor = build_editor("cat", position=3)
     controller = build_controller(
@@ -174,6 +172,11 @@ def test_handle_overlay_visible_token_changed_clears_overlay_owned_session_and_s
     )
 
     controller.weight_interaction.handle_visible_token_content_range_changed(None)
+
+    assert editor.emphasis_adjustment_session() is not None
+    assert editor.transient_neutral_emphasis_range() == (0, 3)
+
+    controller.weight_interaction.handle_visible_token_content_range_changed((4, 7))
 
     assert editor.emphasis_adjustment_session() is None
     assert editor.transient_neutral_emphasis_range() is None

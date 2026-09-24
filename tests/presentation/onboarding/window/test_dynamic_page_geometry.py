@@ -32,6 +32,35 @@ from substitute.presentation.onboarding.onboarding_folder_setup_page import (
 )
 from sugarsubstitute_shared.presentation.setup_page_stage import SetupPageStage
 from sugarsubstitute_shared.localization import app_text
+from tests.support.qt.lifecycle import ensure_qt_application
+
+
+def test_switching_model_pages_resets_the_shared_stage_to_the_heading() -> None:
+    """A second tall offer must open at its heading after Qt settles layout."""
+
+    ensure_qt_application()
+    host = QWidget()
+    layout = QVBoxLayout(host)
+    stage = SetupPageStage(host)
+    layout.addWidget(stage)
+    pages = (QWidget(), QWidget())
+    for page in pages:
+        page_layout = QVBoxLayout(page)
+        content = QWidget(page)
+        content.setFixedHeight(1200)
+        page_layout.addWidget(content)
+        stage.add_page(page)
+    host.resize(800, 500)
+    host.show()
+    stage.show_page(pages[0])
+    wait_for_qt_condition(lambda: stage.verticalScrollBar().maximum() > 0)
+    stage.verticalScrollBar().setValue(stage.verticalScrollBar().maximum())
+
+    stage.show_page(pages[1])
+    wait_for_queued_qt_turn()
+
+    assert stage.verticalScrollBar().value() == 0
+    host.close()
 
 
 def test_scan_feedback_resizes_the_page_without_overlapping_fields() -> None:

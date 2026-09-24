@@ -30,6 +30,7 @@ class ModelFamilyEvidenceKind(str, Enum):
 
     SAFETENSOR_METADATA = "safetensor_metadata"
     TENSOR_SIGNATURE = "tensor_signature"
+    INSTALLED_ARTIFACT = "installed_artifact"
 
 
 class ModelFamilyConfidence(str, Enum):

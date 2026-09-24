@@ -18,8 +18,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
 
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
 from tests.support.prompt_editor.projection_engine_support import (
@@ -196,6 +199,61 @@ def test_inline_decrease_click_can_continue_below_transient_neutral_emphasis(
     process_events(ensure_qapp())
 
     assert box.toPlainText() == "(cat:0.95)"
+
+
+@pytest.mark.parametrize(
+    ("initial_weight", "control", "final_weight"),
+    (("1.05", "decrease", "0.95"), ("0.95", "increase", "1.05")),
+)
+def test_rapid_arrow_double_click_continues_across_neutral(
+    widgets: list[QWidget],
+    initial_weight: str,
+    control: Literal["increase", "decrease"],
+    final_weight: str,
+) -> None:
+    """A rapid second arrow press still steps when Qt labels it a double-click."""
+
+    box = show_prompt_editor(widgets, text=f"(cat:{initial_weight})", width=180)
+    controls = reveal_emphasis_controls(box, emphasis_token_for(box))
+    control_rect = (
+        controls.increase_rect if control == "increase" else controls.decrease_rect
+    )
+    assert control_rect is not None
+    control_parent = controls.parentWidget()
+    assert control_parent is not None
+    fixed_global_point = control_parent.mapToGlobal(control_rect.center().toPoint())
+
+    QTest.mouseClick(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    process_events(ensure_qapp())
+    assert box.toPlainText() == "cat"
+    assert controls.visible_token is not None
+    assert controls.visible_token.value_text == "1.00"
+    control_rect = (
+        controls.increase_rect if control == "increase" else controls.decrease_rect
+    )
+    assert control_rect is not None
+    assert (
+        control_parent.mapToGlobal(control_rect.center().toPoint())
+        == fixed_global_point
+    )
+
+    QTest.mouseDClick(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    QTest.mouseRelease(
+        controls,
+        Qt.MouseButton.LeftButton,
+        pos=controls.mapFromGlobal(fixed_global_point),
+    )
+    process_events(ensure_qapp())
+
+    assert box.toPlainText() == f"(cat:{final_weight})"
 
 
 def test_inline_decrease_click_crosses_zero_into_negative_emphasis(

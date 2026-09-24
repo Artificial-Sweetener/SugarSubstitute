@@ -63,6 +63,9 @@ def test_create_editor_panel_passes_shell_dependencies_and_wires_panel(
     assert fake_panel.kwargs["editor_panel_execution_factories"] is (
         shell.editor_panel_execution_factories
     )
+    assert fake_panel.kwargs["model_updates"] is (
+        shell.model_update_notification_controller.picker_bridge
+    )
     contributors = cast(
         tuple[object, ...],
         fake_panel.kwargs["node_card_body_contributors"],

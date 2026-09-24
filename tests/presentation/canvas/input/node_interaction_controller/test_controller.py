@@ -51,7 +51,7 @@ def test_mask_click_activates_its_owning_image_and_mask() -> None:
         active_images.append(value)
         return True
 
-    def set_active_workflow_mask(
+    def set_active_mask(
         _workflow_id: str,
         _workflow: object,
         value: UUID,
@@ -71,7 +71,7 @@ def test_mask_click_activates_its_owning_image_and_mask() -> None:
     controller = InputNodeInteractionController(
         active_workflow=lambda: cast(Any, workflow),
         active_workflow_id=lambda: "wf-a",
-        workflow_input_canvas_service=cast(
+        input_bindings=cast(
             Any,
             SimpleNamespace(
                 binding_for_mask=lambda *_args: SimpleNamespace(
@@ -82,11 +82,11 @@ def test_mask_click_activates_its_owning_image_and_mask() -> None:
                 bindings_for_image=lambda *_args: (),
             ),
         ),
-        input_canvas_state_service=cast(
+        input_routes=cast(
             Any,
             SimpleNamespace(
-                set_active_input_image=set_active_input_image,
-                set_active_workflow_mask=set_active_workflow_mask,
+                set_active_image=set_active_input_image,
+                set_active_mask=set_active_mask,
             ),
         ),
         materialize_image_selection=lambda *_args: True,

@@ -55,7 +55,7 @@ def test_prompt_editor_context_menu_adds_queue_scene_for_queueable_scene(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         prepared_context_event_for_source_text(editor, "portrait text")
     )
 
@@ -81,7 +81,7 @@ def test_prompt_editor_context_menu_omits_queue_scene_for_universal_text(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         context_event_for_source_text(editor, "quality")
     )
 
@@ -107,7 +107,7 @@ def test_prompt_editor_context_menu_omits_queue_scene_for_nonqueueable_scene(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         prepared_context_event_for_source_text(editor, "portrait text")
     )
 
@@ -139,7 +139,7 @@ def test_prompt_editor_queue_scene_action_emits_normalized_scene_key(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         prepared_context_event_for_source_text(editor, "portrait text")
     )
 

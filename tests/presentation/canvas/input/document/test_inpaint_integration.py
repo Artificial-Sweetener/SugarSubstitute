@@ -31,15 +31,47 @@ from cutecanvas import CuteCanvas
 from substitute.application.workflows import (
     CanvasIoService,
     InputCanvasPlanService,
-    InputCanvasStateService,
     WorkflowAssetService,
-    WorkflowInputCanvasService,
 )
+from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
 )
+from substitute.application.workflows.input_canvas_state_composition import (
+    compose_input_canvas_state,
+)
+from substitute.application.workflows.input_canvas_binding_service import (
+    InputCanvasBindingService,
+)
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
+)
+from substitute.application.workflows.input_asset_association_service import (
+    InputAssetAssociationService,
+)
+from substitute.application.workflows.input_image_materialization_service import (
+    InputImageMaterializationService,
+)
+from substitute.application.workflows.input_mask_binding_materialization_service import (
+    InputMaskBindingMaterializationService,
+)
+from substitute.application.workflows.input_mask_materialization_service import (
+    InputMaskMaterializationService,
+)
+from substitute.application.workflows.input_mask_selection_service import (
+    InputMaskSelectionService,
+)
+from substitute.application.workflows.input_section_materialization_service import (
+    InputSectionMaterializationService,
+)
+from substitute.application.workflows.ordered_mask_graph_value_service import (
+    OrderedMaskGraphValueService,
+)
+from substitute.application.workflows.ordered_mask_materialization_service import (
+    OrderedMaskMaterializationService,
+)
+from substitute.application.workflows.synthetic_input_canvas_surface_service import (
+    SyntheticInputCanvasSurfaceService,
 )
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
@@ -50,8 +82,17 @@ from substitute.application.workflows.workflow_node_definition_service import (
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.infrastructure.persistence import QtImageStore
-from substitute.presentation.canvas.input.input_canvas_presenter import (
-    InputCanvasPresenter,
+from substitute.presentation.canvas.input.input_image_materialization_presenter import (
+    InputImageMaterializationPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_picker_presenter import (
+    InputMaskPickerPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_selection_presenter import (
+    InputMaskSelectionPresenter,
+)
+from substitute.presentation.canvas.input.input_materialization_presenter import (
+    InputMaterializationPresenter,
 )
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
@@ -218,55 +259,146 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
     document = input_document_factory()
     boundary = create_canvas_session_boundary()
     route_projector = InputRouteProjector(document, session_boundary=boundary)
-    state_service = InputCanvasStateService(
-        input_document=document,
-        input_route_projector=route_projector,
-        canvas_session_boundary=boundary,
+    input_state = compose_input_canvas_state(
+        document=document,
+        route_projector=route_projector,
+        session_boundary=boundary,
+        image_registry=CanvasImageRegistry(),
     )
     graph_section_service = WorkflowGraphSectionService()
+    input_bindings = InputCanvasBindingService(
+        plans=_plan_service(),
+        graph_sections=graph_section_service,
+    )
+    canvas_io = CanvasIoService(image_repository=QtImageStore())
     asset_service = WorkflowAssetService(graph_section_service)
-    workflow_service = WorkflowInputCanvasService(
-        input_canvas_plan_service=_plan_service(),
-        input_canvas_state_service=state_service,
-        canvas_io_service=CanvasIoService(image_repository=QtImageStore()),
+    scalar_masks = InputMaskMaterializationService(
+        input_masks=input_state.masks,
+        canvas_io_service=canvas_io,
         workflow_asset_service=asset_service,
         graph_section_service=graph_section_service,
     )
+    ordered_masks = OrderedMaskMaterializationService(
+        input_masks=input_state.masks,
+        mask_visuals=input_state.mask_visuals,
+        canvas_io_service=canvas_io,
+        graph_section_service=graph_section_service,
+    )
+    mask_materialization = InputMaskBindingMaterializationService(
+        scalar_service=scalar_masks,
+        ordered_service=ordered_masks,
+    )
+    synthetic_surfaces = SyntheticInputCanvasSurfaceService(
+        input_images=input_state.images,
+        input_cleanup=input_state.cleanup,
+        canvas_io_service=canvas_io,
+    )
+    image_materialization = InputImageMaterializationService(
+        bindings=input_bindings,
+        images=input_state.images,
+        canvas_io=canvas_io,
+        mask_materialization=mask_materialization,
+        workflow_assets=asset_service,
+        graph_sections=graph_section_service,
+    )
+    section_materialization = InputSectionMaterializationService(
+        bindings=input_bindings,
+        images=image_materialization,
+        mask_materialization=mask_materialization,
+        synthetic_surfaces=synthetic_surfaces,
+        graph_sections=graph_section_service,
+    )
+    mask_selection = InputMaskSelectionService(
+        bindings=input_bindings,
+        images=input_state.images,
+        masks=input_state.masks,
+        canvas_io=canvas_io,
+        workflow_assets=asset_service,
+        graph_sections=graph_section_service,
+        synthetic_surfaces=synthetic_surfaces,
+        mask_materialization=mask_materialization,
+    )
+    asset_associations = InputAssetAssociationService(
+        bindings=input_bindings,
+        assets=asset_service,
+        ordered_graph_values=OrderedMaskGraphValueService(graph_section_service),
+    )
     panel = _EditorPanel()
     canvas_host = _CanvasHost(document.canvas)
-    presenter = InputCanvasPresenter(
+    session = cast(
+        Any,
+        SimpleNamespace(
+            active_workflow_id=workflow_id,
+            workflows={workflow_id: workflow},
+        ),
+    )
+    mask_pickers = InputMaskPickerPresenter(
+        active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
+        workflow_session=session,
+        input_bindings=input_bindings,
+        workflow_inputs=asset_associations,
+        workflow_name=lambda _workflow_id: workflow_name,
+        projects_dir=lambda: tmp_path,
+    )
+    regional_masks = RegionalMaskCollectionPresenter(
         input_document=document,
-        current_image_id_provider=route_projector.current_image_id_for_event,
-        active_workflow_provider=lambda: workflow,
-        active_editor_panel_provider=lambda: panel,
-        workflow_session_service=cast(
-            Any,
-            SimpleNamespace(
-                active_workflow_id=workflow_id,
-                workflows={workflow_id: workflow},
+        active_panel=lambda: panel,
+        mask_color=lambda _index, _total: QColor("red"),
+    )
+    materialization = InputMaterializationPresenter(
+        input_document=document,
+        active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
+        mask_color=lambda _index, _total: QColor("red"),
+        refresh_scalar_mask=lambda cube_alias, node_name, projects_dir: (
+            mask_pickers.refresh(
+                cube_alias,
+                node_name,
+                projects_dir=projects_dir,
             ),
         ),
-        workflow_input_canvas_service=workflow_service,
-        input_canvas_state_service=state_service,
-        workflow_name_provider=lambda _workflow_id: workflow_name,
-        projects_dir_provider=lambda: tmp_path,
-        mask_color_provider=lambda _index, _total: QColor("red"),
-        regional_mask_presenter=RegionalMaskCollectionPresenter(
-            input_document=document,
-            active_panel=lambda: panel,
-            mask_color=lambda _index, _total: QColor("red"),
+        refresh_ordered_mask=regional_masks.refresh,
+        activate_mask=lambda active_workflow, mask_id: (
+            input_state.routes.set_active_mask(
+                workflow_id,
+                active_workflow,
+                mask_id,
+            )
         ),
+    )
+    image_presenter = InputImageMaterializationPresenter(
+        current_image_id=route_projector.current_image_id_for_event,
+        active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
+        workflow_session=session,
+        workflow_inputs=image_materialization,
+        section_materialization=section_materialization,
+        input_bindings=input_bindings,
+        input_state=input_state.images,
+        workflow_name=lambda _workflow_id: workflow_name,
+        projects_dir=lambda: tmp_path,
+        materialization=materialization,
+    )
+    mask_presenter = InputMaskSelectionPresenter(
+        active_workflow=lambda: workflow,
+        workflow_session=session,
+        workflow_inputs=mask_selection,
+        workflow_name=lambda _workflow_id: workflow_name,
+        projects_dir=lambda: tmp_path,
+        materialization=materialization,
+        mask_pickers=mask_pickers,
     )
     interaction_controller = InputNodeInteractionController(
         active_workflow=lambda: workflow,
         active_workflow_id=lambda: workflow_id,
-        workflow_input_canvas_service=workflow_service,
-        input_canvas_state_service=state_service,
-        materialize_image_selection=presenter.materialize_image_selection,
-        apply_mask_selection=presenter.apply_mask_selection,
+        input_bindings=input_bindings,
+        input_routes=input_state.routes,
+        materialize_image_selection=image_presenter.materialize_selection,
+        apply_mask_selection=mask_presenter.apply_selection,
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=lambda: canvas_host.activate_canvas("Input"),
-        refresh_mask_pickers=presenter.refresh_active_mask_pickers,
+        refresh_mask_pickers=mask_pickers.refresh_active,
     )
 
     interaction_controller.handle_image_changed(

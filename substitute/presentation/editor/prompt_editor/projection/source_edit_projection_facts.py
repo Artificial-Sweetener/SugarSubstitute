@@ -20,11 +20,10 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from PySide6.QtCore import QRectF
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.prompt_editor.document.views import PromptDocumentView
-from substitute.application.prompt_editor.projection.syntax_service import (
+from substitute.application.prompt_editor.projection.syntax_models import (
     PromptSyntaxRenderPlan,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
@@ -39,6 +38,7 @@ from substitute.presentation.editor.prompt_editor.core.state.editor_state import
 
 from ..core.editing.source_commands import PromptSourceEditOrigin
 from .applicator import PromptProjectionApplicator
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 from .edit_fact_resolver import PromptEditFactResolver
 from .edit_to_frame import PromptLayoutEditToFrameCoordinator
 from .freshness_controller import PromptProjectionFreshnessController
@@ -62,9 +62,6 @@ class PromptSourceEditProjectionFactContext(Protocol):
     def viewport(self) -> QWidget:
         """Return the active editor viewport."""
 
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the committed document-local caret rectangle."""
-
     def _projection_freshness_blockers(self) -> PromptProjectionFreshnessBlockers:
         """Return current modes that can block deferred projection work."""
 
@@ -76,6 +73,7 @@ class PromptSourceEditProjectionFactResolver:
         self,
         context: PromptSourceEditProjectionFactContext,
         *,
+        caret_geometry: PromptProjectionCaretGeometryOwner,
         applicator: PromptProjectionApplicator,
         editor_state: PromptSourceEditFactEditorState,
         freshness: PromptProjectionFreshnessController,
@@ -86,6 +84,7 @@ class PromptSourceEditProjectionFactResolver:
         """Store immutable-state, freshness, geometry, and overlay owners."""
 
         self._context = context
+        self._caret_geometry = caret_geometry
         self._applicator = applicator
         self._editor_state = editor_state
         self._freshness = freshness
@@ -158,6 +157,12 @@ class PromptSourceEditProjectionFactResolver:
             start,
             document=document,
         )
+        insertion_inside_text_content = (
+            self._facts.source_insertion_is_inside_text_content(
+                start,
+                document=document,
+            )
+        )
         deletion_intersects_projected_token = (
             self._facts.source_range_intersects_tokens(
                 start=start,
@@ -174,7 +179,9 @@ class PromptSourceEditProjectionFactResolver:
             origin=origin,
             updated_text=updated_text,
             normalized_text=normalized_text,
-            edit_inside_projected_token=insertion_inside_projected_token,
+            edit_inside_projected_token=(
+                insertion_inside_projected_token and not insertion_inside_text_content
+            ),
             delete_intersects_projected_token=(deletion_intersects_projected_token),
             typed_character_requires_immediate_projection=(
                 typed_character_requires_projection
@@ -201,6 +208,7 @@ class PromptSourceEditProjectionFactResolver:
             syntax_sensitive_prefix_deferrable=(syntax_sensitive_prefix_deferrable),
             insertion_inside_projected_token=insertion_inside_projected_token,
             deletion_intersects_projected_token=(deletion_intersects_projected_token),
+            insertion_inside_text_content=insertion_inside_text_content,
         )
 
     def _insertion_overlay_can_defer(
@@ -227,7 +235,7 @@ class PromptSourceEditProjectionFactResolver:
             committed_source_length=len(
                 self._editor_state.projection.document.source_text
             ),
-            caret_rect=self._context._current_caret_document_rect(),
+            caret_rect=self._caret_geometry.current_document_rect(),
             content_right=content_right,
             metrics=self._layout.frame.output.configuration.metrics,
             freshness_is_stale_safe=self._freshness.has_stale_projection_geometry(),

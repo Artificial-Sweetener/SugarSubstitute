@@ -41,6 +41,7 @@ _CIVITAI_TYPES = {
     ModelArtifactKind.UPSCALE_MODELS: "Upscaler",
 }
 JsonFetcher = Callable[..., object]
+ThumbnailSelector = Callable[[object], str | None]
 
 
 class CivitaiDiscoveryError(RuntimeError):
@@ -56,12 +57,14 @@ class CivitaiDiscoveryClient:
         fetch_json: JsonFetcher | None = None,
         timeout_seconds: float = 20.0,
         api_key_provider: Callable[[], str | None] | None = None,
+        thumbnail_selector: ThumbnailSelector | None = None,
     ) -> None:
         """Store the bounded transport and optional secret provider."""
 
         self._fetch_json = fetch_json or _fetch_json
         self._timeout_seconds = timeout_seconds
         self._api_key_provider = api_key_provider
+        self._thumbnail_selector = thumbnail_selector or _safe_thumbnail
 
     def discover_monthly_popular(
         self,
@@ -110,6 +113,7 @@ class CivitaiDiscoveryClient:
                 artifact_kind=artifact_kind,
                 expected_type=_CIVITAI_TYPES[artifact_kind],
                 provider_rank=provider_rank,
+                thumbnail_selector=self._thumbnail_selector,
             )
             if candidate is not None:
                 candidates.append(candidate)
@@ -146,6 +150,7 @@ class CivitaiDiscoveryClient:
             payload,
             artifact_kind=artifact_kind,
             expected_type=_CIVITAI_TYPES[artifact_kind],
+            thumbnail_selector=self._thumbnail_selector,
         )
         if payload is not None and not isinstance(payload, dict):
             raise CivitaiDiscoveryError(
@@ -178,6 +183,7 @@ def _parse_candidate(
     artifact_kind: ModelArtifactKind,
     expected_type: str,
     provider_rank: int,
+    thumbnail_selector: ThumbnailSelector | None = None,
 ) -> DiscoveredModel | None:
     """Parse the first safe downloadable version of one provider model."""
 
@@ -186,6 +192,7 @@ def _parse_candidate(
         artifact_kind=artifact_kind,
         expected_type=expected_type,
         provider_rank=provider_rank,
+        thumbnail_selector=thumbnail_selector,
     )
     return candidates[0] if candidates else None
 
@@ -196,6 +203,7 @@ def _parse_candidates(
     artifact_kind: ModelArtifactKind,
     expected_type: str,
     provider_rank: int = 1,
+    thumbnail_selector: ThumbnailSelector | None = None,
 ) -> tuple[DiscoveredModel, ...]:
     """Parse every safe version of one public SFW provider model."""
 
@@ -221,7 +229,9 @@ def _parse_candidates(
     )
     candidates: list[DiscoveredModel] = []
     for version_rank, version in enumerate(versions, start=provider_rank):
-        parsed = _parse_version_file(version)
+        parsed = _parse_version_file(
+            version, thumbnail_selector=thumbnail_selector or _safe_thumbnail
+        )
         if parsed is None:
             continue
         (
@@ -259,6 +269,8 @@ def _parse_candidates(
 
 def _parse_version_file(
     value: object,
+    *,
+    thumbnail_selector: ThumbnailSelector | None = None,
 ) -> tuple[int, str, str | None, str, int, str, str, str | None] | None:
     """Return one exact safe primary file from a published model version."""
 
@@ -293,7 +305,7 @@ def _parse_version_file(
             size_bytes,
             sha256,
             download_url,
-            _safe_thumbnail(value.get("images")),
+            (thumbnail_selector or _safe_thumbnail)(value.get("images")),
         )
     return None
 

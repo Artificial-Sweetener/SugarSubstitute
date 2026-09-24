@@ -37,6 +37,7 @@ def test_model_session_keeps_download_and_provide_my_own_choices_exclusive() -> 
     pages = (
         FamilyRecommendationPage(ModelFamilyId.SDXL, (_card(ModelFamilyId.SDXL),)),
         FamilyRecommendationPage(ModelFamilyId.ANIMA, (_card(ModelFamilyId.ANIMA),)),
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, ()),
     )
     assert session.accept_recommendations(pages)
 
@@ -65,6 +66,48 @@ def test_model_session_rejects_stale_family_page_order() -> None:
 
     assert not accepted
     assert session.state.recommendation_pages == ()
+
+
+def test_missing_upscalers_select_curated_cards_only_on_initial_load() -> None:
+    """Offer eight downloads by default without undoing later manual choices."""
+
+    session = _session()
+    upscalers = tuple(
+        RecommendationCardAsset(
+            recommendation=ModelRecommendation(
+                family_id=ModelFamilyId.UPSCALERS,
+                model_id=1000 + index,
+                version_id=1000 + index,
+                model_name=f"Upscaler {index}",
+                version_name="v1",
+                creator=None,
+                file_name=f"model{index}.pth",
+                size_bytes=100,
+                sha256=f"{index:064x}",
+                download_url="https://example.com/model.pth",
+                model_page_url="https://openmodeldb.info/models/example",
+                thumbnail_image_id=1000 + index,
+                thumbnail_url=None,
+                popularity_rank=index + 1,
+                provider_id="openmodeldb",
+                provider_name="OpenModelDB",
+            )
+        )
+        for index in range(8)
+    )
+    pages = (
+        FamilyRecommendationPage(ModelFamilyId.SDXL, ()),
+        FamilyRecommendationPage(ModelFamilyId.ANIMA, ()),
+        FamilyRecommendationPage(ModelFamilyId.UPSCALERS, upscalers),
+    )
+
+    assert session.accept_recommendations(pages)
+    assert session.state.selected_version_ids == frozenset(range(1000, 1008))
+    assert session.set_version_selected(1003, False)
+    assert session.accept_recommendations(pages)
+    assert session.state.selected_version_ids == frozenset(
+        set(range(1000, 1008)) - {1003}
+    )
 
 
 def _session() -> ModelOnboardingSession:

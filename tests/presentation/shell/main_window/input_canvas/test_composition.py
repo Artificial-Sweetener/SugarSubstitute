@@ -23,11 +23,20 @@ import pytest
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     InputCanvasToolId,
 )
+from substitute.presentation.canvas.input.input_image_materialization_presenter import (
+    InputImageMaterializationPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_picker_presenter import (
+    InputMaskPickerPresenter,
+)
+from substitute.presentation.canvas.input.input_mask_selection_presenter import (
+    InputMaskSelectionPresenter,
+)
 from substitute.presentation.shell import input_canvas_composition
+from substitute.presentation.shell import input_workflow_composition
 from tests.presentation.shell.main_window.input_canvas.support import (
     _FakeInputCanvasCapabilityService,
     _FakeInputCanvasInteractionProfileService,
-    _FakeInputCanvasPresenter,
     _FakeInputCanvasShellAdapter,
     _FakeInputCanvasToolController,
     _FakeInputCanvasToolProfileController,
@@ -35,7 +44,8 @@ from tests.presentation.shell.main_window.input_canvas.support import (
     _FakeInputNodeInteractionController,
     _FakeSyntheticCanvasGeometryAdapter,
     _FakeSyntheticCanvasResolutionController,
-    _FakeWorkflowInputCanvasService,
+    _FakeInputImageMaterializationService,
+    _FakeInputSectionMaterializationService,
     _InputCompositionShell,
     _ParentedValue,
     _SceneMappingChanges,
@@ -49,9 +59,14 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     """Ensure Input canvas presenter composition stays outside MainWindow.__init__."""
 
     monkeypatch.setattr(
-        input_canvas_composition,
-        "WorkflowInputCanvasService",
-        _FakeWorkflowInputCanvasService,
+        input_workflow_composition,
+        "InputImageMaterializationService",
+        _FakeInputImageMaterializationService,
+    )
+    monkeypatch.setattr(
+        input_workflow_composition,
+        "InputSectionMaterializationService",
+        _FakeInputSectionMaterializationService,
     )
     monkeypatch.setattr(
         input_canvas_composition,
@@ -82,11 +97,6 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         input_canvas_composition,
         "InputCanvasShellAdapter",
         _FakeInputCanvasShellAdapter,
-    )
-    monkeypatch.setattr(
-        input_canvas_composition,
-        "InputCanvasPresenter",
-        _FakeInputCanvasPresenter,
     )
     monkeypatch.setattr(
         input_canvas_composition,
@@ -127,8 +137,12 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     composition = input_canvas_composition.compose_input_canvas_controllers(shell)
 
     assert isinstance(
-        composition.workflow_input_canvas_service,
-        _FakeWorkflowInputCanvasService,
+        composition.input_image_materialization_service,
+        _FakeInputImageMaterializationService,
+    )
+    assert isinstance(
+        composition.input_section_materialization_service,
+        _FakeInputSectionMaterializationService,
     )
     assert isinstance(
         composition.input_canvas_tool_controller,
@@ -141,7 +155,18 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     assert isinstance(
         composition.input_canvas_shell_adapter, _FakeInputCanvasShellAdapter
     )
-    assert isinstance(composition.input_canvas_presenter, _FakeInputCanvasPresenter)
+    assert isinstance(
+        composition.input_presentation.images,
+        InputImageMaterializationPresenter,
+    )
+    assert isinstance(
+        composition.input_presentation.pickers,
+        InputMaskPickerPresenter,
+    )
+    assert isinstance(
+        composition.input_presentation.masks,
+        InputMaskSelectionPresenter,
+    )
     assert isinstance(
         composition.input_document_change_observer,
         _FakeInputDocumentChangeObserver,
@@ -159,13 +184,23 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         _FakeSyntheticCanvasResolutionController,
     )
     assert (
-        composition.workflow_input_canvas_service is shell.workflow_input_canvas_service
+        composition.input_image_materialization_service
+        is shell.input_image_materialization_service
+    )
+    assert (
+        composition.input_section_materialization_service
+        is shell.input_section_materialization_service
     )
     assert (
         composition.input_canvas_authority_reconciliation_service
         is shell.input_canvas_authority_reconciliation_service
     )
-    assert composition.input_canvas_presenter is shell.input_canvas_presenter
+    assert (
+        composition.input_presentation.images
+        is shell.input_image_materialization_presenter
+    )
+    assert composition.input_presentation.pickers is shell.input_mask_picker_presenter
+    assert composition.input_presentation.masks is shell.input_mask_selection_presenter
     assert (
         composition.input_node_interaction_controller
         is shell.input_node_interaction_controller
@@ -178,12 +213,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         composition.input_generation_snapshot_service
         is shell.input_generation_snapshot_service
     )
-    assert composition.workflow_input_canvas_service.kwargs == {
-        "input_canvas_plan_service": shell.input_canvas_plan_service,
-        "input_canvas_state_service": shell.input_canvas_state_service,
-        "canvas_io_service": shell.canvas_io_service,
-        "workflow_asset_service": shell.workflow_asset_service,
-        "graph_section_service": shell.graph_section_service,
+    assert composition.input_image_materialization_service.kwargs == {
+        "bindings": composition.input_canvas_bindings,
+        "images": shell.input_image_assets,
+        "canvas_io": shell.canvas_io_service,
+        "mask_materialization": composition.input_section_materialization_service.kwargs[
+            "mask_materialization"
+        ],
+        "workflow_assets": shell.workflow_asset_service,
+        "graph_sections": shell.graph_section_service,
     }
     assert composition.input_canvas_tool_controller.kwargs == {
         "transform_activator": tool_context.activate_transform,
@@ -233,19 +271,6 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     ]
     assert composition.input_canvas_tool_profile_controller.refresh_calls == 1
     assert composition.input_canvas_shell_adapter.shell is shell
-    assert composition.input_canvas_presenter.kwargs["input_document"] is document
-    assert (
-        composition.input_canvas_presenter.kwargs["workflow_input_canvas_service"]
-        is composition.workflow_input_canvas_service
-    )
-    assert (
-        composition.input_canvas_presenter.kwargs["workflow_name_provider"]
-        is composition.input_canvas_shell_adapter.resolve_workflow_name
-    )
-    assert (
-        composition.input_canvas_presenter.kwargs["mark_canvas_changed"]
-        is composition.input_canvas_shell_adapter.mark_input_canvas_changed
-    )
     assert composition.input_document_change_observer.kwargs == {
         "changes": (
             document.maskContentChanged,

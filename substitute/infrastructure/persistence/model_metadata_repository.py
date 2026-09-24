@@ -118,6 +118,11 @@ class ComposedModelMetadataRepository:
 
         self._thumbnails.replace(sha256, thumbnail)
 
+    def result_for_sha256(self, sha256: str) -> ThumbnailStoreResult | None:
+        """Return prepared thumbnail metadata without loading image payloads."""
+
+        return self._thumbnails.result_for_sha256(sha256)
+
     def cache_summary(self) -> CivitaiCacheSummary:
         """Return combined provider metadata and thumbnail cache usage."""
 

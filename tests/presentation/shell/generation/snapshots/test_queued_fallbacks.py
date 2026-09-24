@@ -69,7 +69,6 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
         _log_interrupt_failure=lambda _result: None,
         canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
-        workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),
         path_bundle=SimpleNamespace(projects_dir=".", cubes_dir="."),
@@ -98,8 +97,8 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_without_scenes(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshots = controller.build_queued_generation_snapshots()
@@ -186,7 +185,6 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
         _log_interrupt_failure=lambda _result: None,
         canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
-        workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
         add_output_image_signal=SimpleNamespace(emit=lambda *_args: None),
         path_bundle=SimpleNamespace(projects_dir=".", cubes_dir="."),
@@ -219,8 +217,8 @@ def test_build_queued_generation_snapshots_uses_single_snapshot_for_one_scene(
     view.input_generation_snapshot_service = SimpleNamespace(
         prepare_workflow=_prepare_workflow,
     )
-    view.input_canvas_presenter = SimpleNamespace(
-        reconcile_active_input_canvas_image=lambda: order.append("reconcile"),
+    view.input_image_materialization_presenter = SimpleNamespace(
+        reconcile_active=lambda: order.append("reconcile"),
     )
 
     snapshots = controller.build_queued_generation_snapshots()

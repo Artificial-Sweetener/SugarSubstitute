@@ -63,7 +63,8 @@ def test_lora_feature_prewarm_delegates_to_context_coordinator(
             calls.append(prompt_text)
             return True
 
-    controller = cast(Any, editor)._lora_trigger_word_controller
+    runtime = cast(Any, editor)._runtime
+    controller = runtime.features.lora_trigger_words
     controller._scheduled_lora_context = _ContextCoordinator()
 
     assert controller.prewarm_current_source() is True
@@ -96,8 +97,9 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
         prompt_widgets,
         scheduled_lora_resolver=resolve_no_loras,
     )
+    runtime = cast(Any, editor)._runtime
     prompt_text = editor.toPlainText()
-    lifecycle = cast(Any, editor)._autocomplete_refresh_controller._lifecycle_requester
+    lifecycle = runtime.core.syntax.autocomplete_timing_controller._lifecycle_requester
     provider = lifecycle._result_controller._trigger_word_provider._context_provider
     assert provider is not None
     cache_key = provider.cache_key_for_prompt(prompt_text)
@@ -109,7 +111,7 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
     cast(
         Any,
         editor,
-    )._lora_trigger_word_controller.snapshot_for_prompt(
+    )._runtime.features.lora_trigger_words.snapshot_for_prompt(
         prompt_text=prompt_text,
     )
     resolver_calls.clear()
@@ -126,7 +128,7 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(
         prepared_context_event_for_source_text(editor, "alpha")
     )
 
@@ -158,6 +160,7 @@ def test_prompt_editor_context_menu_omits_uncached_scheduled_lora_resolver(
         prompt_widgets,
         scheduled_lora_resolver=resolve_scheduled_loras,
     )
+    runtime = cast(Any, editor)._runtime
     resolver_calls.clear()
     prewarm_calls: list[str] = []
 
@@ -175,7 +178,8 @@ def test_prompt_editor_context_menu_omits_uncached_scheduled_lora_resolver(
             prewarm_calls.append(prompt_text)
             return True
 
-    controller = cast(Any, editor)._lora_trigger_word_controller
+    runtime = cast(Any, editor)._runtime
+    controller = runtime.features.lora_trigger_words
     controller._scheduled_lora_context = _ColdScheduledLoraContext()
 
     assert (
@@ -225,6 +229,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
         prompt_widgets,
         scheduled_lora_resolver=resolve_scheduled_loras,
     )
+    runtime = cast(Any, editor)._runtime
     editor.setPlainText(
         "<lora:global:1>\n**portrait\n<lora:portrait:1>\nportrait text\n**cafe\ncafe text"
     )
@@ -232,18 +237,20 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     context_event = context_event_for_source_text(editor, "cafe text")
     source_position = cast(
         Any, editor
-    )._shell_context_menu._source_position_for_global_pos(context_event.globalPos())
+    )._runtime.host.menu.shell._source_position_for_global_pos(
+        context_event.globalPos()
+    )
     assert source_position is not None
     context_prompt_snapshot = cast(
         Any,
         editor,
-    )._scene_position_preparation.prepare_position_context(
+    )._runtime.core.services.scene_position_preparation.prepare_position_context(
         source_position,
         reason="test_context_menu_scene_position",
     )
     assert context_prompt_snapshot.context is not None
     context_prompt_text = context_prompt_snapshot.context.effective_prompt_text
-    lifecycle = cast(Any, editor)._autocomplete_refresh_controller._lifecycle_requester
+    lifecycle = runtime.core.syntax.autocomplete_timing_controller._lifecycle_requester
     provider = lifecycle._result_controller._trigger_word_provider._context_provider
     assert provider is not None
     cache_key = provider.cache_key_for_prompt(context_prompt_text)
@@ -255,7 +262,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     cast(
         Any,
         editor,
-    )._lora_trigger_word_controller.snapshot_for_prompt(
+    )._runtime.features.lora_trigger_words.snapshot_for_prompt(
         prompt_text=context_prompt_text,
     )
     resolver_calls.clear()
@@ -272,7 +279,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    cast(Any, editor)._shell_context_menu.show_prompt_context_menu(context_event)
+    cast(Any, editor)._runtime.host.menu.shell.show_prompt_context_menu(context_event)
 
     assert "Trigger words: Global LoRA" in trigger_full_labels
     assert "Trigger words: Portrait LoRA" not in trigger_full_labels
@@ -314,6 +321,7 @@ def test_prompt_editor_lora_context_menu_hides_schedule_action_when_disabled(
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
+        clipboard_actions=editor._runtime.projection.clipboard_history_controller,
         schedule_lora_enabled=False,
     )
     menu.exec(editor.mapToGlobal(editor.rect().center()))

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QPointF
 from PySide6.QtGui import QTextCursor
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
 from tests.support.prompt_editor.projection_engine_support import (
@@ -140,6 +141,133 @@ def test_wheel_over_emphasis_token_adjusts_by_pointer(
     assert box.toPlainText() == "prefix (cat:1.10)"
 
 
+def test_wheel_over_outer_text_of_nested_emphasis_adjusts_outer_weight(
+    widgets: list[QWidget],
+) -> None:
+    """Visible outer text remains wheel-targetable when its run has no token id."""
+
+    source = "(ths (and then this:1.20):1.40)"
+    box = show_prompt_editor(widgets, text=source, width=460)
+    set_cursor_position(box, source.index("ths") + 1)
+    point = box.cursorRect().center()
+    set_cursor_position(box, len(source))
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "(ths (and then this:1.20):1.45)"
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == source
+
+
+def test_wheel_over_inner_text_of_nested_emphasis_adjusts_inner_weight(
+    widgets: list[QWidget],
+) -> None:
+    """Nested hit-testing prefers the inner token over its enclosing emphasis."""
+
+    source = "(ths (and then this:1.20):1.40)"
+    box = show_prompt_editor(widgets, text=source, width=460)
+    set_cursor_position(box, source.index("then") + 1)
+    point = box.cursorRect().center()
+    set_cursor_position(box, len(source))
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "(ths (and then this:1.25):1.40)"
+
+
+def test_wheel_over_plain_text_next_to_nested_emphasis_leaves_weights_unchanged(
+    widgets: list[QWidget],
+) -> None:
+    """Enclosing hit-testing must not claim plain text outside both tokens."""
+
+    source = "plain (ths (and then this:1.20):1.40)"
+    box = show_prompt_editor(widgets, text=source, width=520)
+    set_cursor_position(box, source.index("plain") + 1)
+    point = box.cursorRect().center()
+    set_cursor_position(box, source.index("ths") + 1)
+
+    assert not wheel_widget_at_point(
+        box.viewport(), local_point=point, angle_delta_y=120
+    )
+    assert box.toPlainText() == source
+
+
+def test_same_viewport_wheel_point_crosses_neutral_emphasis(
+    widgets: list[QWidget],
+) -> None:
+    """Keep the same pointer target usable from positive through neutral to sub-one."""
+
+    box = show_prompt_editor(widgets, text="(1girl:1.05), portrait", width=280)
+    token = emphasis_token_for(box)
+    point = anchor_rect_for(box, token).center().toPoint()
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    controls = token_weight_controls_for(box)
+    assert controls.visible_token is not None
+    assert controls.visible_token.value_text == "1.00"
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == "(1girl:0.95), portrait"
+
+
+def test_wheel_over_emphasis_text_crosses_neutral_without_moving_pointer(
+    widgets: list[QWidget],
+) -> None:
+    """A wheel target on token text retains neutral ownership for the next tick."""
+
+    box = show_prompt_editor(widgets, text="(cat:1.05), portrait", width=420)
+    token = emphasis_token_for(box)
+    controls = reveal_emphasis_controls(box, token)
+    point = token_rect_for(box, token).center().toPoint()
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == "cat, portrait"
+    assert emphasis_token_for(box).value_text == "1.00"
+    assert controls.visible_token is None
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert box.toPlainText() == "(cat:0.95), portrait"
+
+
+def test_wheel_over_emphasis_text_crosses_neutral_upward(
+    widgets: list[QWidget],
+) -> None:
+    """The same viewport target can pass from sub-one through neutral to above one."""
+
+    box = show_prompt_editor(widgets, text="(cat:0.95), portrait", width=420)
+    token = emphasis_token_for(box)
+    reveal_emphasis_controls(box, token)
+    point = token_rect_for(box, token).center().toPoint()
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "cat, portrait"
+    assert emphasis_token_for(box).value_text == "1.00"
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=120)
+    assert box.toPlainText() == "(cat:1.05), portrait"
+
+
+def test_neutral_wheel_session_over_text_settles_when_pointer_leaves(
+    widgets: list[QWidget],
+) -> None:
+    """A hidden control overlay does not retain neutral emphasis after pointer exit."""
+
+    box = show_prompt_editor(widgets, text="(cat:1.05), portrait", width=420)
+    token = emphasis_token_for(box)
+    reveal_emphasis_controls(box, token)
+    point = token_rect_for(box, token).center().toPoint()
+    QTest.mouseMove(box.viewport(), point)
+
+    assert wheel_widget_at_point(box.viewport(), local_point=point, angle_delta_y=-120)
+    assert emphasis_token_for(box).value_text == "1.00"
+    QTest.mouseMove(box.viewport(), QPoint(box.viewport().width() - 5, point.y()))
+
+    assert box.toPlainText() == "cat, portrait"
+    assert not surface_for(box).projection_document().tokens
+
+
 def test_host_viewport_wheel_over_emphasis_token_adjusts_on_first_tick(
     widgets: list[QWidget],
 ) -> None:
@@ -220,7 +348,7 @@ def test_overlay_wheel_to_neutral_keeps_caret_at_plain_text_content_end(
     assert box.textCursor().position() == 3
     assert box.textCursor().selectionStart() == 3
     assert box.textCursor().selectionEnd() == 3
-    assert surface._cursor_state.source_position == 3
+    assert surface._caret_state_owner.cursor_state.source_position == 3
 
 
 def test_down_control_does_not_show_pointer_weight_preview(

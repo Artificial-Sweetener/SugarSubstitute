@@ -35,6 +35,9 @@ from substitute.application.prompt_editor.diagnostics.spellcheck import (
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogLookup,
 )
+from substitute.presentation.editor.prompt_editor.async_work.scheduled_lora_dispatcher import (
+    PromptScheduledLoraContextCoordinator,
+)
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.devtools.prompt_editor_performance.fakes import (
     autocomplete_gateway,
@@ -60,10 +63,12 @@ from substitute.devtools.prompt_editor_performance.metrics import (
 from substitute.devtools.prompt_editor_performance.observability import (
     scenario_log_fields,
 )
-from substitute.devtools.prompt_editor_performance.qt_operations import (
-    process_events,
-    run_scenario_operations,
+from substitute.devtools.prompt_editor_performance.editing_operations import (
     set_cursor_position,
+)
+from substitute.devtools.prompt_editor_performance.event_loop import process_events
+from substitute.devtools.prompt_editor_performance.operation_registry import (
+    run_scenario_operations,
 )
 from substitute.devtools.prompt_editor_performance.reorder_measurements import (
     reorder_cache_counts,
@@ -83,17 +88,8 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.danbooru_paste_import import (
     DanbooruUrlImportDispatcher,
 )
-from substitute.presentation.editor.prompt_editor.features.diagnostics_controller import (
-    PromptDiagnosticsFeatureController,
-)
-from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_controller import (
-    PromptSegmentPresetController,
-)
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetSource,
-)
-from substitute.presentation.editor.prompt_editor.interactions.controller import (
-    PromptInteractionController,
 )
 
 logger = logging.getLogger(__name__)
@@ -230,7 +226,9 @@ def run_scenario(
 def configure_danbooru_import(editor: PromptEditor) -> None:
     """Configure deterministic Danbooru URL import for paste measurements."""
 
-    paste_import_controller = getattr(editor, "_danbooru_paste_import_controller")
+    paste_import_controller = (
+        editor._runtime.projection.danbooru_paste_import_controller
+    )
     paste_import_controller.configure_danbooru_url_import(
         danbooru_url_import_service(),
         enabled=True,
@@ -248,10 +246,7 @@ def settle_prompt_editor_for_measurement(
     """Publish setup source through semantic and projection owners before timing."""
 
     editor.flush_pending_projection_update(reason="performance_setup")
-    interaction_controller = cast(
-        PromptInteractionController,
-        getattr(editor, "_interaction_controller"),
-    )
+    interaction_controller = editor._runtime.core.syntax.interaction_controller
     interaction_controller.flush_pending_semantic_refresh(reason="performance_setup")
     process_events(app)
 
@@ -264,20 +259,14 @@ def prepare_context_menu_scenario(
     """Prepare menu supplier state before measured context-menu opening."""
 
     if scenario.spellcheck_enabled or scenario.wildcard_gateway == "static":
-        diagnostics = cast(
-            PromptDiagnosticsFeatureController,
-            getattr(editor, "_diagnostics_feature_controller"),
-        )
+        diagnostics = editor._runtime.core.diagnostics
         diagnostics.activate()
         diagnostics.refresh_now()
         process_events(app)
     if scenario.scheduled_lora_context_enabled:
         prime_scheduled_lora_context(editor)
     if scenario.segment_presets_enabled:
-        segment_controller = cast(
-            PromptSegmentPresetController,
-            getattr(editor, "_segment_preset_controller"),
-        )
+        segment_controller = editor._runtime.core.services.segment_preset_controller
         segment_controller.refresh_menu_model(reason="measure_context_menu_setup")
     process_events(app)
 
@@ -285,11 +274,10 @@ def prepare_context_menu_scenario(
 def prime_scheduled_lora_context(editor: PromptEditor) -> None:
     """Populate cached scheduled-LoRA context without resolving during menu open."""
 
-    autocomplete = getattr(editor, "_autocomplete")
-    context_controller = getattr(autocomplete, "_scheduled_lora_context", None)
-    provider = getattr(context_controller, "_context_provider", None)
-    if provider is None:
-        return
+    provider = cast(
+        PromptScheduledLoraContextCoordinator,
+        editor._runtime.core.services.scheduled_lora_context_provider,
+    )
     prompt_text = editor.toPlainText()
     cache_key = provider.cache_key_for_prompt(prompt_text)
     provider.complete_for_tests(

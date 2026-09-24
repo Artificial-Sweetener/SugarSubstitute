@@ -52,6 +52,34 @@ def line_index_for_plain_edit(
     return None
 
 
+def earliest_line_index_for_touched_tag_keep_range(
+    prompt_document_view: PromptDocumentView,
+    lines: Sequence[PromptProjectionLineSnapshot],
+    *,
+    current_line_index: int,
+    edit_start: int,
+    edit_end: int,
+    replacement_text: str,
+) -> int:
+    """Back up a reflow window to the visual line owning a touched keep group."""
+
+    touched_range = tag_keep_range_for_plain_edit(
+        prompt_document_view,
+        edit_start=edit_start,
+        edit_end=edit_end,
+        replacement_text=replacement_text,
+    )
+    if touched_range is None:
+        return current_line_index
+    range_start, _range_end = touched_range
+    for line_index, line in enumerate(lines[: current_line_index + 1]):
+        if line.source_start <= range_start < line.source_end:
+            return line_index
+        if range_start == line.source_start:
+            return line_index
+    return current_line_index
+
+
 def line_index_for_hard_line_insert(
     lines: Sequence[PromptProjectionLineSnapshot],
     *,
@@ -459,6 +487,7 @@ def is_incremental_word_character(character: str) -> bool:
 
 __all__ = [
     "changed_tag_keep_ranges_are_local_to_line",
+    "earliest_line_index_for_touched_tag_keep_range",
     "edit_touches_source_range",
     "hard_line_bounds_for_source_edit",
     "is_incremental_word_character",

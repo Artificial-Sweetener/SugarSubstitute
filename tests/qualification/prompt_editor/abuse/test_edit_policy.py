@@ -130,6 +130,59 @@ def test_structural_policy_distinguishes_canonical_and_active_edit_projections()
     )
 
 
+def test_structural_policy_allows_one_autocomplete_preview_layout_per_edit() -> None:
+    """One edit may add one inline preview to immediate and semantic projections."""
+
+    accepted = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="type:'x'",
+            counter_deltas=(
+                ("instrumented_autocomplete_preview_update_count", 1.0),
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 2.0),
+                ("instrumented_projection_document_build_count", 3.0),
+            ),
+        ),
+    )
+    duplicate_projection = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="type:'x'",
+            counter_deltas=(
+                ("instrumented_autocomplete_preview_update_count", 1.0),
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 2.0),
+                ("instrumented_projection_document_build_count", 4.0),
+            ),
+        ),
+    )
+    duplicate_preview = (
+        PromptAbuseActionOwnerDelta(
+            action_index=0,
+            unit_index=0,
+            label="type:'x'",
+            counter_deltas=(
+                ("instrumented_autocomplete_preview_update_count", 2.0),
+                ("instrumented_document_view_build_count", 1.0),
+                ("instrumented_layout_snapshot_count", 3.0),
+            ),
+        ),
+    )
+
+    assert prompt_abuse_structural_violations(accepted) == ()
+    assert any(
+        "instrumented_projection_document_build_count" in item
+        for item in prompt_abuse_structural_violations(duplicate_projection)
+    )
+    violations = prompt_abuse_structural_violations(duplicate_preview)
+    assert any(
+        "instrumented_autocomplete_preview_update_count" in item for item in violations
+    )
+
+
 def test_structural_policy_models_one_immediate_danbooru_import_completion() -> None:
     """Literal URL paste and its immediate import may commit two revisions."""
 

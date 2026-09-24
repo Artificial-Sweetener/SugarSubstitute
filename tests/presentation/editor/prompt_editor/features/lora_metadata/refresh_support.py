@@ -20,10 +20,15 @@ from __future__ import annotations
 
 
 import importlib
+from types import SimpleNamespace
 from typing import Any, cast
 
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogItem,
+)
+from substitute.presentation.editor.prompt_editor.catalog_refresh_facade import (
+    PromptEditorCatalogRefreshBindings,
+    PromptEditorCatalogRefreshFacade,
 )
 
 from .support import (
@@ -139,6 +144,24 @@ class _PromptEditorLoraMetadataRefreshDouble:
         )
         self._lora_metadata_presentation = owners.presentation
         self._lora_metadata_refresh = owners.refresh
+        self._catalog_refresh_facade = PromptEditorCatalogRefreshFacade(
+            bindings=PromptEditorCatalogRefreshBindings(
+                mark_lora_metadata_dirty=self._lora_metadata_refresh.mark_dirty,
+                refresh_lora_metadata_if_visible=(
+                    self._lora_metadata_refresh.refresh_if_visible
+                ),
+                schedule_lora_metadata_catchup=(
+                    self._lora_metadata_refresh.schedule_catchup_if_needed
+                ),
+                clear_thumbnail_cache=self._lora_thumbnail_cache.clear,
+                refresh_thumbnail_paint=lambda _reason: None,
+                update_host=lambda: None,
+                refresh_segment_presets=lambda _reason: None,
+            ),
+        )
+        self._runtime = SimpleNamespace(
+            features=SimpleNamespace(catalog_refresh=self._catalog_refresh_facade)
+        )
         if dirty:
             self._lora_metadata_refresh.mark_dirty()
 
@@ -158,12 +181,12 @@ class _PromptEditorLoraMetadataRefreshDouble:
         return None
 
     def has_lora_spans_for_metadata(self) -> bool:
-        """Return whether the fake editor currently has LoRA spans."""
+        """Return whether the interaction double exposes LoRA spans."""
 
         return self._interaction_controller.has_lora_spans()
 
     def refresh_lora_render_metadata_now(self, *, reason: str) -> bool:
-        """Delegate render metadata refresh to the interaction double."""
+        """Route render refresh through the interaction double."""
 
         return self._interaction_controller.refresh_lora_render_metadata(reason=reason)
 

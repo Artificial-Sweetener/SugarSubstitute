@@ -25,11 +25,12 @@ from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 
 
 class ModelFamilyId(str, Enum):
-    """Identify a supported generation-model family independently of storage."""
+    """Identify a supported onboarding model family independently of storage."""
 
     SDXL = "sdxl"
     ANIMA = "anima"
     FLUX_2 = "flux.2"
+    UPSCALERS = "upscalers"
 
 
 class ModelStylePreference(str, Enum):
@@ -87,7 +88,7 @@ class ModelFamilyDefinition:
 
     family_id: ModelFamilyId
     catalog_order: int
-    civitai: CivitaiFamilyMapping
+    civitai: CivitaiFamilyMapping | None
     detection: FamilyDetectionPolicy
     primary_artifact_kind: ModelArtifactKind
 
@@ -105,7 +106,7 @@ class ModelRecommendationQuery:
 
 @dataclass(frozen=True, slots=True)
 class ModelRecommendation:
-    """Describe one safe exact-family CivitAI model file in provider order."""
+    """Describe one safe exact-family model file in provider order."""
 
     family_id: ModelFamilyId
     model_id: int
@@ -119,9 +120,11 @@ class ModelRecommendation:
     download_url: str
     model_page_url: str
     thumbnail_image_id: int
-    thumbnail_url: str
+    thumbnail_url: str | None
     popularity_rank: int
     access: ModelRecommendationAccess = ModelRecommendationAccess.PUBLIC
+    provider_id: str = "civitai"
+    provider_name: str = "CivitAI"
 
 
 __all__ = [

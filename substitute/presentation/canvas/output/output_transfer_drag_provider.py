@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from itertools import count
 
 from cutecanvas import CanvasContentReference, DragSubject, OutboundMimeProvider
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
 from substitute.application.execution import (
     ExecutionContext,
@@ -40,16 +43,23 @@ from substitute.presentation.canvas.output.output_transfer_resolver import (
     ResolvedOutputTransfer,
 )
 
+OUTPUT_DRAG_GESTURE_ENDED_MESSAGE = "output_drag_gesture_ended"
+
 
 class OutputTransferDragProvider(OutboundMimeProvider):
     """Adapt authorized Output transfer resolution to CuteCanvas's drag API."""
 
     def __init__(
-        self, *, resolver: OutputTransferResolver, submitter: TaskSubmitter
+        self,
+        *,
+        resolver: OutputTransferResolver,
+        submitter: TaskSubmitter,
+        drag_is_active: Callable[[], bool] | None = None,
     ) -> None:
-        """Bind one resolver to the app-owned image execution lane."""
+        """Bind resolution and native-drag gesture validity to one execution lane."""
 
         self._resolver = resolver
+        self._drag_is_active = drag_is_active or _primary_button_held
         self._request_ids = count(1)
         self._scope = TaskScope(
             submitter=submitter,
@@ -112,6 +122,10 @@ class OutputTransferDragProvider(OutboundMimeProvider):
         if resolved is None:
             complete(None, RuntimeError("Output image is no longer available."))
             return
+        if not self._drag_is_active():
+            resolved.artifact.release()
+            complete(None, RuntimeError(OUTPUT_DRAG_GESTURE_ENDED_MESSAGE))
+            return
         self._release_active_transfer()
         self._active_transfer = resolved
         complete(drag_payload_for_transfer(resolved), None)
@@ -139,4 +153,13 @@ class _DragTaskCancellation:
         self._handle.cancel(reason="outbound_drag_superseded")
 
 
-__all__ = ["OutputTransferDragProvider"]
+def _primary_button_held() -> bool:
+    """Return whether the native drag's originating pointer gesture remains active."""
+
+    return bool(QApplication.mouseButtons() & Qt.MouseButton.LeftButton)
+
+
+__all__ = [
+    "OUTPUT_DRAG_GESTURE_ENDED_MESSAGE",
+    "OutputTransferDragProvider",
+]

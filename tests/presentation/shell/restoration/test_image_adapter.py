@@ -129,8 +129,8 @@ def test_restore_input_image_preserves_snapshot_uuid() -> None:
     image_id = uuid4()
     calls: list[dict[str, object]] = []
     shell = SimpleNamespace(
-        input_canvas_state_service=SimpleNamespace(
-            restore_input_image=lambda **kwargs: calls.append(kwargs)
+        input_image_assets=SimpleNamespace(
+            restore=lambda **kwargs: calls.append(kwargs)
         ),
     )
     reference = InputImageReference(
@@ -152,13 +152,8 @@ def test_restore_input_image_does_not_bind_preview_during_prehydration() -> None
     calls: list[dict[str, object]] = []
     shell = SimpleNamespace(
         _shell_restore_lifecycle="prehydrating",
-        input_canvas_state_service=SimpleNamespace(
-            restore_input_image=lambda **kwargs: calls.append(kwargs)
-        ),
-        input_canvas_presenter=SimpleNamespace(
-            bind_active_node_previews=lambda: (_ for _ in ()).throw(
-                AssertionError("preview binding requires an installed active workflow")
-            )
+        input_image_assets=SimpleNamespace(
+            restore=lambda **kwargs: calls.append(kwargs)
         ),
     )
     reference = InputImageReference(
@@ -194,9 +189,7 @@ def test_restore_input_mask_remaps_reference_through_workflow_canvas_state() -> 
     shell = SimpleNamespace(
         _shell_restore_lifecycle="running",
         workflow_session_service=SimpleNamespace(workflows={"wf-a": workflow}),
-        input_canvas_state_service=SimpleNamespace(
-            restore_input_mask=restore_input_mask
-        ),
+        input_mask_restoration=SimpleNamespace(restore=restore_input_mask),
     )
     reference = InputMaskReference(
         mask_id=str(snapshot_mask_id),
@@ -262,8 +255,8 @@ def test_restore_input_mask_uses_recovered_reference_before_canvas_replay() -> N
                 source_path=Path("project.sugar")
             )
         ),
-        input_canvas_state_service=SimpleNamespace(
-            restore_input_mask=restore_input_mask,
+        input_mask_restoration=SimpleNamespace(
+            restore=restore_input_mask,
         ),
     )
 
@@ -330,9 +323,7 @@ def test_restore_deferred_prehydrated_input_masks_replays_and_clears() -> None:
         _shell_restore_lifecycle="running",
         _deferred_prehydrated_input_masks=[reference],
         workflow_session_service=SimpleNamespace(workflows={"wf-a": workflow}),
-        input_canvas_state_service=SimpleNamespace(
-            restore_input_mask=restore_input_mask
-        ),
+        input_mask_restoration=SimpleNamespace(restore=restore_input_mask),
     )
 
     WorkspaceRestoreImageAdapter(shell).restore_deferred_prehydrated_input_masks()

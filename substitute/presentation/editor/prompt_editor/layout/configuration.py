@@ -23,7 +23,9 @@ from dataclasses import dataclass, field
 from PySide6.QtGui import QFont
 
 from ..projection.metrics import PromptProjectionMetricsFactory
-from ..projection.tokens import PromptProjectionInlineObjectRendererRegistry
+from substitute.presentation.editor.prompt_editor.projection.inline_renderer_registry import (
+    PromptProjectionInlineObjectRendererRegistry,
+)
 from .contracts import PromptLayoutConfiguration
 
 

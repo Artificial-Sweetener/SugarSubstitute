@@ -30,7 +30,7 @@ PURE_LAYER_ROOTS = (
 APPLICATION_WORKFLOW_ROOT = PROJECT_ROOT / "substitute" / "application" / "workflows"
 OUTPUT_CANVAS_APPLICATION_MODULES = (
     APPLICATION_WORKFLOW_ROOT / "output_canvas_route_scope.py",
-    APPLICATION_WORKFLOW_ROOT / "output_preview_lifecycle_service.py",
+    APPLICATION_WORKFLOW_ROOT / "output_preview_registry.py",
 )
 FORBIDDEN_IMPORT_PREFIXES = (
     "PySide6",

@@ -18,8 +18,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from io import BytesIO
 import json
 from pathlib import Path
+import time
+import urllib.request
 
 import pytest
 
@@ -36,7 +41,10 @@ from substitute.infrastructure.comfy.managed_validation import (
 )
 from tools.ci import managed_comfy_qualification
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
+from tools.ci.managed_comfy_qualification import (
+    assert_real_managed_comfy,
+    wait_for_real_managed_comfy,
+)
 
 
 def test_historical_update_accepts_retained_setup_evidence_generations(
@@ -129,6 +137,104 @@ def test_qualification_rejects_other_missing_simple_syrup_nodes(
 
     with pytest.raises(InstallerLifecycleError, match="SimpleSyrup"):
         assert_real_managed_comfy(install_root=plan.install_root, plan=plan)
+
+
+def test_wait_retries_transient_api_startup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Managed qualification should wait for the asynchronous API listener."""
+
+    plan = _managed_plan(tmp_path)
+    _write_managed_runtime(plan)
+    _write_setup_records(plan, "candidate")
+    requested_urls: list[str] = []
+
+    @contextmanager
+    def urlopen(url: str, *, timeout: float) -> Iterator[BytesIO]:
+        """Refuse the first connection, then serve complete endpoint evidence."""
+
+        assert timeout == 30.0
+        requested_urls.append(url)
+        if len(requested_urls) == 1:
+            raise ConnectionRefusedError("listener is still starting")
+        yield BytesIO(json.dumps(_managed_response(url, plan)).encode("utf-8"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+
+    wait_for_real_managed_comfy(
+        install_root=plan.install_root,
+        plan=plan,
+        timeout_seconds=1.0,
+    )
+
+    assert [url.rsplit("/", 1)[-1] for url in requested_urls] == [
+        "system_stats",
+        "system_stats",
+        "object_info",
+        "capabilities",
+        "model-root",
+    ]
+
+
+def test_wait_does_not_retry_a_live_contract_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A responsive but invalid backend should fail instead of becoming flaky."""
+
+    plan = _managed_plan(tmp_path)
+    _write_managed_runtime(plan)
+    _write_setup_records(plan, "candidate")
+    monkeypatch.setattr(
+        managed_comfy_qualification,
+        "_get_json",
+        lambda url: _managed_response(url, plan, include_simple_syrup=False),
+    )
+    monkeypatch.setattr(
+        time,
+        "sleep",
+        lambda _seconds: pytest.fail("contract failures must not be retried"),
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="SimpleSyrup"):
+        wait_for_real_managed_comfy(
+            install_root=plan.install_root,
+            plan=plan,
+            timeout_seconds=1.0,
+        )
+
+
+def test_wait_reports_a_bounded_startup_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unavailable backend should fail at the declared readiness boundary."""
+
+    plan = _managed_plan(tmp_path)
+    _write_managed_runtime(plan)
+    _write_setup_records(plan, "candidate")
+
+    @contextmanager
+    def unavailable_urlopen(_url: str, *, timeout: float) -> Iterator[BytesIO]:
+        """Model a listener that never accepts the first bounded request."""
+
+        assert timeout == 30.0
+        raise ConnectionRefusedError("listener unavailable")
+        yield BytesIO()  # pragma: no cover - required by the contextmanager type
+
+    monkeypatch.setattr(
+        urllib.request,
+        "urlopen",
+        unavailable_urlopen,
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="0.0-second readiness timeout"):
+        wait_for_real_managed_comfy(
+            install_root=plan.install_root,
+            plan=plan,
+            timeout_seconds=0.0,
+        )
 
 
 def _managed_plan(

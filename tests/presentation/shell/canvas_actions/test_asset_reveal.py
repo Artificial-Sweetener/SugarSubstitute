@@ -28,6 +28,7 @@ from substitute.application.ports.file_manager_gateway import (
 
 
 from tests.presentation.shell.canvas_actions.support import (
+    _import_external_module,
     _import_module,
     _record_and_return,
 )
@@ -36,7 +37,7 @@ from tests.presentation.shell.canvas_actions.support import (
 def test_reveal_output_asset_delegates_metadata_path_to_application_service() -> None:
     """Output-context intent should remain a thin adapter over the reveal use case."""
 
-    mod = _import_module()
+    mod = _import_external_module()
     paths: list[str] = []
     reveal_service = SimpleNamespace(
         reveal_asset=lambda path: _record_and_return(
@@ -45,7 +46,7 @@ def test_reveal_output_asset_delegates_metadata_path_to_application_service() ->
             FileRevealResult(FileRevealStatus.REVEALED),
         )
     )
-    actions = mod.WorkspaceCanvasActions(
+    actions = mod.WorkspaceOutputExternalActions(
         SimpleNamespace(),
         asset_reveal_service=reveal_service,
     )
@@ -59,13 +60,13 @@ def test_reveal_output_asset_delegates_metadata_path_to_application_service() ->
 def test_reveal_output_asset_rejects_metadata_without_path() -> None:
     """Malformed metadata should not invoke the application reveal service."""
 
-    mod = _import_module()
+    mod = _import_external_module()
     reveal_service = SimpleNamespace(
         reveal_asset=lambda _path: (_ for _ in ()).throw(
             AssertionError("missing paths must not be revealed")
         )
     )
-    actions = mod.WorkspaceCanvasActions(
+    actions = mod.WorkspaceOutputExternalActions(
         SimpleNamespace(),
         asset_reveal_service=reveal_service,
     )

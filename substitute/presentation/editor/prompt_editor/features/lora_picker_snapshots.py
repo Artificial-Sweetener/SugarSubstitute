@@ -32,7 +32,7 @@ from substitute.presentation.widgets.media_wall import (
     unavailable_thumbnail_readiness,
 )
 
-from .catalog_snapshots import (
+from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,

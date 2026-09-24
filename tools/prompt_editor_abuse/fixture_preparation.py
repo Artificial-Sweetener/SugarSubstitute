@@ -37,7 +37,7 @@ def prepare_prompt_abuse_fixture_state(
 
     if "scheduled_lora" not in scenario.fixture_features:
         return
-    controller = cast(Any, field.editor)._lora_trigger_word_controller
+    controller = cast(Any, field.editor)._runtime.features.lora_trigger_words
     harness.wait_until(
         lambda: (
             controller.cached_scheduled_loras(field.editor.toPlainText()) is not None

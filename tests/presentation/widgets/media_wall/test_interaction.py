@@ -22,8 +22,13 @@ from collections.abc import Generator
 
 import pytest
 from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QIcon
 
 from substitute.presentation.widgets.media_wall import PickerJustifiedWallProfile
+from substitute.presentation.widgets.media_wall.media_wall_badge import (
+    media_wall_badge_rect,
+)
+from substitute.presentation.widgets.media_wall.media_wall_item import MediaWallItem
 from tests.presentation.widgets.media_wall.support import (
     MediaWallOwner,
     mouse_press_event,
@@ -150,6 +155,57 @@ def test_left_click_activation_emits_payload(
 
     assert activated == ["one"]
     assert event.isAccepted()
+
+
+def test_corner_badge_opens_detail_without_activating_tile(
+    media_wall_owner: MediaWallOwner,
+) -> None:
+    """A badge click must not silently switch the selected backend model."""
+
+    view = media_wall_owner.create()
+    view.resize(400, 260)
+    view.show()
+    item = wall_item("one")
+    view.set_items(
+        (
+            MediaWallItem(
+                item_id=item.item_id,
+                title=item.title,
+                subtitle=item.subtitle,
+                aspect_ratio=item.aspect_ratio,
+                thumbnail_variants=item.thumbnail_variants,
+                payload=item.payload,
+                corner_badge_icon=QIcon(),
+                corner_badge_tooltip="View versions",
+            ),
+        )
+    )
+    activated: list[object] = []
+    badges: list[object] = []
+    badge_menus: list[object] = []
+    model_menus: list[object] = []
+    view.itemActivated.connect(activated.append)
+    view.itemBadgeActivated.connect(badges.append)
+    view.itemBadgeContextMenuRequested.connect(
+        lambda payload, _pos: badge_menus.append(payload)
+    )
+    view.itemContextMenuRequested.connect(
+        lambda payload, _pos: model_menus.append(payload)
+    )
+    point = media_wall_badge_rect(view._placed_items[0].rect).center()
+
+    assert view.tooltip_text_at(point) == "View versions"
+    view.mousePressEvent(
+        mouse_press_event(view, point, button=Qt.MouseButton.LeftButton)
+    )
+
+    assert badges == ["one"]
+    assert activated == []
+    view.mousePressEvent(
+        mouse_press_event(view, point, button=Qt.MouseButton.RightButton)
+    )
+    assert badge_menus == ["one"]
+    assert model_menus == []
 
 
 def test_directional_navigation_follows_visual_rows(

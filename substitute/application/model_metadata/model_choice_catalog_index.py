@@ -36,6 +36,7 @@ DEFAULT_RICH_CHOICE_MODEL_KINDS = (
     "loras",
     "vae",
     "diffusion_models",
+    "upscale_models",
 )
 
 

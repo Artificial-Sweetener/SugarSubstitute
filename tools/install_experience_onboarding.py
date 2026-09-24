@@ -19,11 +19,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_provisioning_submitter_factory,
+)
+from substitute.app.bootstrap.persistent_cache_runtime import (
+    PersistentCacheRuntime,
+    prepare_persistent_cache_runtime,
 )
 from substitute.application.model_recommendations import ModelInstallRecipePlanner
 from substitute.domain.onboarding import BootstrapRoute, ReadinessAssessment
@@ -67,6 +72,8 @@ class OnboardingCheckSession:
         self.audit = SetupSideEffectAudit()
         self.error_presenter = CapturedErrorPresenter()
         self._runtime = ExecutionRuntime()
+        self._cache_runtime: PersistentCacheRuntime | None = None
+        self._cache_directory: TemporaryDirectory[str] | None = None
         self._preparation = SyntheticBackgroundPreparationService(
             hold_until_released=(
                 scenario.background_finishes_after_choices if scenario else False
@@ -97,8 +104,15 @@ class OnboardingCheckSession:
             ModelOnboardingCoordinator | SyntheticModelOnboardingCoordinator
         )
         if live_model_discovery:
+            self._cache_directory = TemporaryDirectory(
+                prefix="sugarsubstitute-qualification-cache-"
+            )
+            self._cache_runtime = prepare_persistent_cache_runtime(
+                Path(self._cache_directory.name)
+            )
             model_coordinator = create_live_model_onboarding_coordinator(
                 runtime=self._runtime,
+                cache_runtime=self._cache_runtime,
                 parent=self.controller,
             )
         else:
@@ -147,6 +161,10 @@ class OnboardingCheckSession:
         self.window.close()
         self.controller.shutdown()
         self._runtime.shutdown()
+        if self._cache_runtime is not None:
+            self._cache_runtime.close()
+        if self._cache_directory is not None:
+            self._cache_directory.cleanup()
         self.window.deleteLater()
         self.controller.deleteLater()
 

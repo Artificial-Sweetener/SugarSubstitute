@@ -123,7 +123,7 @@ def test_prompt_weight_dwell_accents_emphasis_parentheses() -> None:
     _install_token_wheel_handlers(box, arbiter, lambda: timestamp_ms)
     token = _first_weighted_token(box)
     token_point = _reveal_weight_controls_without_dwell(box, token)
-    surface.set_overlay_emphasis_accent_range(None)
+    surface.emphasis.set_overlay_accent_range(None)
     process_events(app)
     assert _first_weighted_token(box).decoration_accented is False
 
@@ -189,7 +189,7 @@ def test_prompt_weight_dwell_accent_recovers_after_idle_wheel_latch() -> None:
     token = _first_weighted_token(box)
     token_point = _reveal_weight_controls_without_dwell(box, token)
     target = _token_target(box, token)
-    surface.set_overlay_emphasis_accent_range(None)
+    surface.emphasis.set_overlay_accent_range(None)
     process_events(app)
     assert _first_weighted_token(box).decoration_accented is False
 
@@ -227,7 +227,7 @@ def test_prompt_weight_dwell_accents_when_pointer_is_over_control_activation() -
     token = _first_weighted_token(box)
     _reveal_weight_controls_without_dwell(box, token)
     assert controls.increase_rect is not None
-    surface.set_overlay_emphasis_accent_range(None)
+    surface.emphasis.set_overlay_accent_range(None)
     process_events(app)
     assert _first_weighted_token(box).decoration_accented is False
 

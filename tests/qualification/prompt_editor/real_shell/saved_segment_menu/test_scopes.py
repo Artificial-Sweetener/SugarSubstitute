@@ -78,7 +78,9 @@ def test_real_shell_saved_segment_menu_refreshes_after_diffusion_model_projectio
             field,
             clicked_text="portrait",
         )
-        segment_snapshot = cast(Any, field.editor)._segment_preset_controller.snapshot
+        segment_snapshot = cast(
+            Any, field.editor
+        )._runtime.core.services.segment_preset_controller.snapshot
 
         assert "Save segment as..." in trace.menu_rows
         assert segment_snapshot.save_state.ready
@@ -203,7 +205,9 @@ def test_real_shell_saved_segment_menu_allows_global_save_without_model(
             field,
             clicked_text="portrait",
         )
-        segment_snapshot = cast(Any, field.editor)._segment_preset_controller.snapshot
+        segment_snapshot = cast(
+            Any, field.editor
+        )._runtime.core.services.segment_preset_controller.snapshot
 
         assert "Save segment as..." in trace.menu_rows
         assert segment_snapshot.save_state.ready

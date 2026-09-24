@@ -101,12 +101,9 @@ def test_refresh_lora_metadata_clears_dirty_flag_after_successful_queue() -> Non
 def test_catalog_update_lora_metadata_refresh_preserves_thumbnail_cache() -> None:
     """Catalog metadata refresh does not drop existing LoRA thumbnail pixmaps."""
 
-    mod = _import_prompt_editor_module()
     editor = _PromptEditorLoraMetadataRefreshDouble()
 
-    refreshed = mod.PromptEditor._refresh_lora_render_metadata_after_catalog_update(
-        editor
-    )
+    refreshed = editor._lora_metadata_refresh.refresh_after_catalog_update()
 
     assert refreshed is True
     assert editor._lora_metadata_refresh.dirty is False

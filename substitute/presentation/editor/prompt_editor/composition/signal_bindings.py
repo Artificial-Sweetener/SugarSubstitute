@@ -24,11 +24,11 @@ from PySide6.QtCore import QObject
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
-from ..shell import (
-    PromptShellQFluentChrome,
-    PromptShellScrollDelegate,
-    PromptShellSizingController,
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptSyntaxAction,
 )
+
+from ..shell import PromptEditorShellRuntime
 from .collaborator_bundle import PromptEditorCollaborators
 
 
@@ -37,9 +37,6 @@ class PromptEditorSignalHost(Protocol):
 
     textChanged: Any
     cursorPositionChanged: Any
-    _qfluent_chrome: PromptShellQFluentChrome
-    _scroll_delegate: PromptShellScrollDelegate
-    _sizing: PromptShellSizingController
 
     def installEventFilter(self, event_filter: QObject) -> None:  # noqa: N802
         """Install one event filter on the host editor."""
@@ -50,19 +47,20 @@ class PromptEditorSignalHost(Protocol):
     def viewport(self) -> QWidget:
         """Return the projection viewport exposed by the editor."""
 
-    def _shell_viewport(self) -> QWidget:
-        """Return the QFluent shell viewport."""
 
-    def _allow_surface_wheel_scroll(self, event: QWheelEvent) -> bool:
+class PromptEditorSignalCallbacks(Protocol):
+    """Describe mounted-host callbacks consumed by surface signal wiring."""
+
+    def allow_surface_wheel_scroll(self, event: QWheelEvent) -> bool:
         """Return whether surface wheel scrolling may consume a wheel event."""
 
-    def _handle_surface_text_changed(self) -> None:
+    def handle_surface_text_changed(self) -> None:
         """Handle a source text change emitted by the projection surface."""
 
-    def _handle_surface_syntax_action(self, action: object) -> None:
+    def handle_surface_syntax_action(self, action: PromptSyntaxAction) -> None:
         """Handle a syntax action emitted by the projection surface."""
 
-    def _handle_surface_mouse_release(self) -> None:
+    def handle_surface_mouse_release(self) -> None:
         """Handle completion of a mouse interaction on the surface."""
 
 
@@ -87,6 +85,9 @@ def bind_prompt_editor_signals(
     editor: PromptEditorSignalHost,
     collaborators: PromptEditorCollaborators,
     *,
+    callbacks: PromptEditorSignalCallbacks,
+    shell_viewport: QWidget,
+    shell: PromptEditorShellRuntime,
     lora_source_changes: PromptLoraSourceChangeController,
 ) -> None:
     """Connect constructor-time prompt-editor signals to existing owners."""
@@ -97,23 +98,23 @@ def bind_prompt_editor_signals(
     weight_interaction = collaborators.weight_interaction
 
     surface.attach_focus_host(surface)
-    surface.set_wheel_scroll_permission(editor._allow_surface_wheel_scroll)
+    surface.set_wheel_scroll_permission(callbacks.allow_surface_wheel_scroll)
     surface.installEventFilter(cast(QObject, editor))
-    editor._scroll_delegate.bind_host_scroll_delegate_to_surface(surface)
+    shell.scrolling.bind_host_scroll_delegate_to_surface(surface)
     surface.contentHeightChanged.connect(
-        editor._sizing.handle_surface_content_height_changed
+        shell.sizing.handle_surface_content_height_changed
     )
-    surface.textChanged.connect(editor._handle_surface_text_changed)
+    surface.textChanged.connect(callbacks.handle_surface_text_changed)
     surface.cursorPositionChanged.connect(editor.cursorPositionChanged)
     surface.undoAvailableChanged.connect(cast(Any, editor).undoAvailableChanged)
     surface.redoAvailableChanged.connect(cast(Any, editor).redoAvailableChanged)
-    surface.syntaxActionTriggered.connect(editor._handle_surface_syntax_action)
-    surface.mouseInteractionFinished.connect(editor._handle_surface_mouse_release)
+    surface.syntaxActionTriggered.connect(callbacks.handle_surface_syntax_action)
+    surface.mouseInteractionFinished.connect(callbacks.handle_surface_mouse_release)
     surface.loraContextMenuRequested.connect(
         collaborators.inline_lora_menu_presenter.show_lora_context_menu
     )
     surface.backingFillInvalidated.connect(
-        editor._qfluent_chrome.handle_surface_backing_fill_invalidated
+        shell.chrome.handle_surface_backing_fill_invalidated
     )
 
     editor.installEventFilter(token_weight_controls)
@@ -142,9 +143,9 @@ def bind_prompt_editor_signals(
         weight_interaction.handle_visible_token_content_range_changed
     )
     editor.verticalScrollBar().valueChanged.connect(
-        editor._scroll_delegate.handle_viewport_scroll_value_changed
+        shell.scrolling.handle_viewport_scroll_value_changed
     )
-    editor._shell_viewport().installEventFilter(cast(QObject, editor))
+    shell_viewport.installEventFilter(cast(QObject, editor))
     editor.viewport().installEventFilter(cast(QObject, editor))
 
 
@@ -160,6 +161,7 @@ def bind_prompt_editor_diagnostics_signals(
 
 __all__ = [
     "PromptEditorDiagnosticsControllerBinding",
+    "PromptEditorSignalCallbacks",
     "PromptEditorSignalHost",
     "PromptLoraSourceChangeController",
     "bind_prompt_editor_diagnostics_signals",

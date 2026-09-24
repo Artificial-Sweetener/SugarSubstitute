@@ -68,12 +68,22 @@ class ModelUpdateAcquisitionService:
             results.append(
                 self._acquisition.acquire(
                     proposal.candidate,
-                    destination_dir=(
-                        self._model_root / proposal.candidate.artifact_kind.value
-                    ),
+                    destination_dir=self._destination_beside_current(proposal),
                 )
             )
         return tuple(results)
+
+    def _destination_beside_current(self, proposal: ModelUpdateProposal) -> Path:
+        """Resolve the installed model's directory inside the active model root."""
+
+        current_path = proposal.current.path
+        if current_path.is_absolute():
+            return current_path.parent
+        return (
+            self._model_root
+            / proposal.current.artifact_kind.value
+            / current_path.parent
+        )
 
 
 __all__ = ["ModelUpdateAcquisitionService", "model_update_identity"]

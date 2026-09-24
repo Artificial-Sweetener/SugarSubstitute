@@ -25,7 +25,9 @@ from PySide6.QtGui import QPixmap
 
 SPLASH_POSE_RESOURCE_PREFIX = ":/substitute/splash/poses"
 NUMBERED_POSE_WEIGHT = 1.0
-NAMED_POSE_WEIGHT = 0.25
+GUEST_POSE_WEIGHT = 0.25
+RARE_GUEST_POSE_WEIGHT = GUEST_POSE_WEIGHT / 2
+RARE_GUEST_POSE_NAMES = frozenset({"married.png"})
 PACKAGED_SPLASH_POSE_SIZE_PX = 386
 _RESOURCES_REGISTERED = False
 
@@ -88,7 +90,9 @@ def pose_base_weight(name: str) -> float:
     stem = name.removesuffix(".png")
     if stem.isdigit():
         return NUMBERED_POSE_WEIGHT
-    return NAMED_POSE_WEIGHT
+    if name in RARE_GUEST_POSE_NAMES:
+        return RARE_GUEST_POSE_WEIGHT
+    return GUEST_POSE_WEIGHT
 
 
 def _load_pose(*, resource_prefix: str, name: str) -> SplashPose:
@@ -130,9 +134,11 @@ def _pose_sort_key(name: str) -> tuple[int, int | str]:
 
 
 __all__ = [
-    "NAMED_POSE_WEIGHT",
+    "GUEST_POSE_WEIGHT",
     "NUMBERED_POSE_WEIGHT",
     "PACKAGED_SPLASH_POSE_SIZE_PX",
+    "RARE_GUEST_POSE_NAMES",
+    "RARE_GUEST_POSE_WEIGHT",
     "SPLASH_POSE_RESOURCE_PREFIX",
     "SplashPose",
     "SplashPoseLibraryError",

@@ -24,10 +24,10 @@ from typing import Any
 def autocomplete_owner_state(editor: object) -> dict[str, Any]:
     """Return session and presentation facts from their production owners."""
 
-    autocomplete = getattr(editor, "_autocomplete", None)
-    if autocomplete is None:
-        interaction = getattr(editor, "_interaction_controller", None)
-        autocomplete = getattr(interaction, "_autocomplete", None)
+    runtime = getattr(editor, "_runtime", None)
+    core = getattr(runtime, "core_or_none", None)
+    autocomplete_runtime = getattr(core, "autocomplete", None)
+    autocomplete = getattr(autocomplete_runtime, "autocomplete", None)
     publication = getattr(autocomplete, "_session_publication", None)
     state = getattr(publication, "state", None)
     session = getattr(state, "session", None)

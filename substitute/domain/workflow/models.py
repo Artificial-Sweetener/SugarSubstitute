@@ -28,7 +28,7 @@ from substitute.domain.common import (
     GlobalOverrideMap,
     JsonObject,
 )
-from substitute.domain.cube_library import CubeUpdatePolicy
+from substitute.domain.cube_library import CubeUpdatePolicy, WorkflowCubeClassification
 from substitute.domain.generation.seed_control import SeedControlState
 from substitute.domain.comfy_workflow.models import DirectWorkflowState
 from substitute.domain.workflow.canvas_models import WorkflowCanvasState
@@ -82,6 +82,7 @@ class CubeState:
     update_policy: CubeUpdatePolicy = CubeUpdatePolicy.PINNED
     bypassed: bool = False
     output_persistence_enabled: bool = True
+    library_classification: WorkflowCubeClassification | None = None
 
     def __post_init__(self) -> None:
         """Default display name to the canonical cube id when absent."""
@@ -222,6 +223,14 @@ class WorkflowState:
         existing_by_alias = dict(sources)
         cubes: dict[str, CubeState] = {}
         order: list[str] = []
+        classifications = {
+            classification.definition_id: classification
+            for classification in (
+                direct.cube_analysis.cube_classifications
+                if direct.cube_analysis is not None
+                else ()
+            )
+        }
         for projected in direct.projected_cube_documents():
             if projected.alias in cubes:
                 raise ValueError(
@@ -275,6 +284,7 @@ class WorkflowState:
                     if existing is not None
                     else True
                 ),
+                library_classification=classifications.get(projected.definition_id),
             )
             cubes[projected.alias] = cube
             order.append(projected.alias)
@@ -320,6 +330,7 @@ class WorkflowState:
             existing.update_policy = candidate.update_policy
             existing.bypassed = candidate.bypassed
             existing.output_persistence_enabled = candidate.output_persistence_enabled
+            existing.library_classification = candidate.library_classification
             result[alias] = existing
         return result
 

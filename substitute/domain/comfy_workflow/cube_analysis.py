@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from substitute.domain.common import JsonObject
+from substitute.domain.cube_library import WorkflowCubeClassification
 
 
 class CubeGraphEdgeOrigin(StrEnum):
@@ -74,6 +75,7 @@ class CanonicalCubeGraphAnalysis:
     proximity_edges: tuple[AnalyzedCubeEdge, ...]
     segments: tuple[AnalyzedCubeSegment, ...]
     workflow: JsonObject
+    cube_classifications: tuple[WorkflowCubeClassification, ...] = ()
 
 
 __all__ = [

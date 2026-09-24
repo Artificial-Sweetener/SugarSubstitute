@@ -109,9 +109,9 @@ def test_render_compositor_owns_one_deterministic_live_layer_order(
     pixmap = QPixmap(surface.viewport().size())
     painter = QPainter(pixmap)
     try:
-        result = cast(Any, surface)._render_compositor.draw(
+        result = cast(Any, surface)._presentation_runtime.render_compositor.draw(
             painter,
-            cast(Any, surface)._render_frame_owner.frame,
+            cast(Any, surface)._presentation_runtime.render_frame.frame,
             event_clip=QRectF(surface.viewport().rect()),
         )
     finally:

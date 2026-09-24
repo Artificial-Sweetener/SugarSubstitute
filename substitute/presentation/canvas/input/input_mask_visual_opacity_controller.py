@@ -22,6 +22,9 @@ from collections.abc import Callable
 from typing import Protocol, TypeGuard
 from uuid import UUID
 
+from substitute.application.workflows.input_mask_visual_state_service import (
+    InputMaskVisualStateService,
+)
 from substitute.domain.workflow import WorkflowState
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -38,35 +41,6 @@ class _MaskBindingService(Protocol):
         mask_node_name: str,
     ) -> object | None:
         """Return the authoritative binding for one mask node."""
-
-
-class _MaskOpacityStateService(Protocol):
-    """Expose the application mutation for node-level mask opacity."""
-
-    def set_mask_visual_opacity(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-        opacity: float,
-    ) -> bool:
-        """Apply one node value to all associated materialized masks."""
-
-    def mask_ids_for_association(
-        self,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-    ) -> tuple[UUID, ...]:
-        """Return every materialized mask owned by one graph mask node."""
-
-    def synchronize_mask_visual_opacity_state(
-        self,
-        workflow_id: str,
-        workflow: WorkflowState,
-        association_key: tuple[str, str],
-        opacity: float,
-    ) -> bool:
-        """Adopt one opacity already restored by document history."""
 
 
 class _MaskOpacityDocument(Protocol):
@@ -94,7 +68,7 @@ class InputMaskVisualOpacityController:
         active_workflow: Callable[[], WorkflowState | None],
         active_workflow_id: Callable[[], str],
         binding_service: _MaskBindingService,
-        state_service: _MaskOpacityStateService,
+        state_service: InputMaskVisualStateService,
         document: _MaskOpacityDocument,
         project_opacity: Callable[[str, tuple[str, str], float], None],
         mark_changed: Callable[[str], None],
@@ -129,7 +103,7 @@ class InputMaskVisualOpacityController:
             return False
         self._applying_document_change = True
         try:
-            applied = self._state_service.set_mask_visual_opacity(
+            applied = self._state_service.set_opacity(
                 workflow_id,
                 workflow,
                 association_key,
@@ -164,7 +138,7 @@ class InputMaskVisualOpacityController:
         )
         if association_key is None:
             return False
-        mask_ids = self._state_service.mask_ids_for_association(
+        mask_ids = self._state_service.mask_ids(
             workflow,
             association_key,
         )
@@ -198,7 +172,7 @@ class InputMaskVisualOpacityController:
         workflow_id, workflow = active_context
         synchronized: list[tuple[tuple[str, str], float]] = []
         for association_key in workflow.canvas.mask_association_keys():
-            mask_ids = self._state_service.mask_ids_for_association(
+            mask_ids = self._state_service.mask_ids(
                 workflow,
                 association_key,
             )
@@ -212,14 +186,11 @@ class InputMaskVisualOpacityController:
             ):
                 continue
             opacity = opacities[0]
-            if (
-                opacity is None
-                or not self._state_service.synchronize_mask_visual_opacity_state(
-                    workflow_id,
-                    workflow,
-                    association_key,
-                    opacity,
-                )
+            if opacity is None or not self._state_service.synchronize_restored_opacity(
+                workflow_id,
+                workflow,
+                association_key,
+                opacity,
             ):
                 continue
             synchronized.append((association_key, opacity))

@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Protocol, cast
 
 from PySide6.QtCore import QObject, QRectF, Qt, QTimer
 from PySide6.QtWidgets import QApplication, QScrollBar, QWidget
@@ -32,43 +31,7 @@ from substitute.presentation.widgets.text_caret import (
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionSelection,
 )
-
-
-class PromptSurfaceCaretVisualHost(Protocol):
-    """Expose cheap viewport-local state needed by caret visual timing."""
-
-    def viewport(self) -> QWidget:
-        """Return the viewport that paints the custom caret."""
-
-    def isVisible(self) -> bool:  # noqa: N802
-        """Return whether the surface is currently visible."""
-
-    def _caret_focus_owner_has_focus(self) -> bool:
-        """Return whether the widget that owns caret focus is active."""
-
-    def _caret_visual_state_changed(self) -> None:
-        """Publish changed caret eligibility or blink state before repaint."""
-
-    def _current_caret_rect(self) -> QRectF:
-        """Return the current viewport-local caret rectangle."""
-
-    def _current_caret_document_rect(self) -> QRectF:
-        """Return the current document-local caret rectangle."""
-
-    def _log_transient_caret_used(self, *, operation: str) -> None:
-        """Record that transient caret geometry was consumed."""
-
-    def _reorder_preview_is_active(self) -> bool:
-        """Return whether a reorder preview currently suppresses the live caret."""
-
-    def _selection(self) -> PromptProjectionSelection:
-        """Return the current source-backed selection."""
-
-    def _valid_transient_caret_document_rect(self) -> QRectF | None:
-        """Return valid transient document-local caret geometry, if present."""
-
-    def _visible_scroll_bar(self) -> QScrollBar:
-        """Return the scrollbar that owns the visible vertical offset."""
+from .caret_geometry_owner import PromptProjectionCaretGeometryOwner
 
 
 class PromptSurfaceCaretVisualController:
@@ -76,15 +39,33 @@ class PromptSurfaceCaretVisualController:
 
     def __init__(
         self,
-        host: PromptSurfaceCaretVisualHost,
         *,
+        surface: QWidget,
+        viewport: QWidget,
+        geometry: PromptProjectionCaretGeometryOwner,
         is_alive: Callable[[QObject], bool],
+        reorder_preview_active: Callable[[], bool],
+        surface_is_visible: Callable[[], bool],
+        caret_focus_active: Callable[[], bool],
+        publish_visual_state: Callable[[], None],
+        selection: Callable[[], PromptProjectionSelection],
+        caret_suppressed: Callable[[], bool],
+        visible_scroll_bar: Callable[[], QScrollBar],
         parent: QObject,
     ) -> None:
         """Bind caret visuals to a surface host and Qt lifecycle owner."""
 
-        self._host = host
+        self._surface = surface
+        self._viewport = viewport
+        self._geometry = geometry
         self._is_alive = is_alive
+        self._reorder_preview_active = reorder_preview_active
+        self._surface_is_visible = surface_is_visible
+        self._caret_focus_active = caret_focus_active
+        self._publish_visual_state = publish_visual_state
+        self._selection = selection
+        self._caret_suppressed = caret_suppressed
+        self._visible_scroll_bar = visible_scroll_bar
         self._blink_timer = QTimer(parent)
         self._blink_timer.setTimerType(Qt.TimerType.PreciseTimer)
         self._blink_timer.timeout.connect(self.toggle_caret_blink_visibility)
@@ -140,10 +121,9 @@ class PromptSurfaceCaretVisualController:
         """Persist one caret blink phase and repaint only when it changes."""
 
         if self._blink_visible == visible:
-            self._host._caret_visual_state_changed()
+            self._publish_visual_state()
             return
         self._blink_visible = visible
-        self._host._caret_visual_state_changed()
         self.update_caret_paint()
 
     def restart_caret_blink_cycle(
@@ -233,41 +213,44 @@ class PromptSurfaceCaretVisualController:
 
         if not self._host_is_alive():
             return False
-        viewport = self._host.viewport()
+        viewport = self._viewport
         if not self._is_alive(viewport):
             return False
         if (
-            not self._host.isVisible()
+            not self._surface_is_visible()
             or not viewport.isVisible()
-            or self._host._reorder_preview_is_active()
-            or not self._host._selection().is_empty
+            or self._reorder_preview_active()
+            or not self._selection().is_empty
         ):
             return False
-        return self._host._caret_focus_owner_has_focus()
+        return self._caret_focus_active()
 
     def should_paint_caret(self) -> bool:
         """Return whether the custom caret should be painted in the current frame."""
 
-        return self.caret_can_paint() and self._blink_visible
+        return (
+            not self._caret_suppressed()
+            and self.caret_can_paint()
+            and self._blink_visible
+        )
 
     def update_caret_paint(self, previous_caret_rect: QRectF | None = None) -> None:
         """Repaint the current and previous caret bounds after a visibility change."""
 
-        repaint_rect = text_caret_repaint_rect(self._host._current_caret_rect())
+        self._publish_visual_state()
+        repaint_rect = text_caret_repaint_rect(self._geometry.current_viewport_rect())
         if previous_caret_rect is not None:
             repaint_rect = repaint_rect.united(
                 text_caret_repaint_rect(previous_caret_rect)
             )
-        self._host.viewport().update(repaint_rect)
+        self._viewport.update(repaint_rect)
 
     def ensure_caret_visible(self) -> None:
         """Scroll the viewport vertically until the caret is visible."""
 
-        if self._host._valid_transient_caret_document_rect() is not None:
-            self._host._log_transient_caret_used(operation="ensure_visible")
-        caret_rect = self._host._current_caret_document_rect()
-        viewport_height = self._host.viewport().height()
-        scroll_bar = self._host._visible_scroll_bar()
+        caret_rect = self._geometry.current_document_rect()
+        viewport_height = self._viewport.height()
+        scroll_bar = self._visible_scroll_bar()
         next_value = scroll_bar.value()
         if caret_rect.top() < next_value:
             next_value = int(caret_rect.top())
@@ -281,10 +264,9 @@ class PromptSurfaceCaretVisualController:
     def _host_is_alive(self) -> bool:
         """Return whether the host Qt wrapper can still be touched."""
 
-        return self._is_alive(cast(QObject, self._host))
+        return self._is_alive(self._surface)
 
 
 __all__ = [
     "PromptSurfaceCaretVisualController",
-    "PromptSurfaceCaretVisualHost",
 ]

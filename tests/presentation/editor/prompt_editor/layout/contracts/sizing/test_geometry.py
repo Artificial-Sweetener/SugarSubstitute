@@ -31,7 +31,7 @@ def test_shell_geometry_sync_ignores_deleted_qt_wrappers(
 
     box = support.show_prompt_editor(prompt_editors, text="prompt", width=320)
     editor = support.cast(support.Any, box)
-    scroll_delegate = support.cast(support.Any, editor._scroll_delegate)
+    scroll_delegate = support.cast(support.Any, editor._runtime.shell.scrolling)
     scroll_delegate.geometry_sync_pending = True
     scroll_delegate.geometry_follow_up_pending = True
     monkeypatch.setattr(
@@ -40,7 +40,7 @@ def test_shell_geometry_sync_ignores_deleted_qt_wrappers(
         lambda _obj: False,
     )
 
-    editor._scroll_delegate.sync_shell_geometry()
+    editor._runtime.shell.scrolling.sync_shell_geometry()
 
     assert scroll_delegate.geometry_sync_pending is False
     assert scroll_delegate.geometry_follow_up_pending is False
@@ -54,7 +54,7 @@ def test_manual_height_reapply_ignores_deleted_qt_wrappers(
 
     box = support.show_prompt_editor(prompt_editors, text="prompt", width=320)
     editor = support.cast(support.Any, box)
-    sizing = support.cast(support.Any, editor._sizing)
+    sizing = support.cast(support.Any, editor._runtime.shell.sizing)
     sizing._manual_height_layout_reapply_pending = True
     sizing._manual_scroll_height = box.height()
     assert sizing.layout_work_pending is True
@@ -64,7 +64,7 @@ def test_manual_height_reapply_ignores_deleted_qt_wrappers(
         lambda _obj: False,
     )
 
-    editor._sizing.reapply_manual_height_for_current_layout()
+    editor._runtime.shell.sizing.reapply_manual_height_for_current_layout()
 
     assert sizing._manual_height_layout_reapply_pending is False
     assert sizing._manual_scroll_height == box.height()
@@ -88,11 +88,11 @@ def test_unchanged_manual_height_bounds_do_not_requeue_shell_layout(
     support.wait_for_prompt_sizing_idle(box)
     editor = support.cast(support.Any, box)
 
-    editor._sizing.schedule_manual_height_layout_reapply()
+    editor._runtime.shell.sizing.schedule_manual_height_layout_reapply()
 
-    assert editor._sizing.layout_work_pending is False
-    assert editor._scroll_delegate.geometry_sync_pending is False
-    assert editor._scroll_delegate.geometry_follow_up_pending is False
+    assert editor._runtime.shell.sizing.layout_work_pending is False
+    assert editor._runtime.shell.scrolling.geometry_sync_pending is False
+    assert editor._runtime.shell.scrolling.geometry_follow_up_pending is False
 
 
 def test_prompt_editor_recomputes_height_when_width_increases_without_typing(
@@ -132,16 +132,16 @@ def test_prompt_editor_shell_geometry_waits_for_pending_projection_height(
     support.QTest.keyClicks(box, "x")
     support.flush_semantic_refresh(box)
 
-    surface = support.cast(support.Any, getattr(box, "_surface"))
+    surface = support.cast(support.Any, box._runtime.projection.surface)
     assert surface.has_pending_projection_update() is True
     applied_heights: list[float] = []
     monkeypatch.setattr(
-        support.cast(support.Any, box)._scroll_delegate,
+        support.cast(support.Any, box)._runtime.shell.scrolling,
         "_handle_content_height_changed",
         lambda content_height: applied_heights.append(float(content_height)),
     )
 
-    support.cast(support.Any, box)._scroll_delegate.sync_shell_geometry()
+    support.cast(support.Any, box)._runtime.shell.scrolling.sync_shell_geometry()
 
     assert applied_heights == []
     assert surface.has_pending_projection_update() is True
@@ -163,7 +163,7 @@ def test_prompt_editor_same_line_backspace_does_not_commit_height(
     box.setTextCursor(cursor)
     initial_height = box.height()
     applied_heights: list[int] = []
-    sizing = support.cast(support.Any, getattr(box, "_sizing"))
+    sizing = support.cast(support.Any, box._runtime.shell.sizing)
     apply_preferred_height = support.cast(
         support.Callable[[int], None],
         getattr(sizing, "apply_preferred_height"),
@@ -205,7 +205,7 @@ def test_prompt_editor_line_break_backspace_height_commit_is_single(
     box.setTextCursor(cursor)
     initial_height = box.height()
     applied_heights: list[int] = []
-    sizing = support.cast(support.Any, getattr(box, "_sizing"))
+    sizing = support.cast(support.Any, box._runtime.shell.sizing)
     apply_preferred_height = support.cast(
         support.Callable[[int], None],
         getattr(sizing, "apply_preferred_height"),
@@ -267,7 +267,7 @@ def test_prompt_editor_one_line_shell_metrics_match_qfluent_reference(
     assert box.document().documentMargin() == reference.document().documentMargin()
     assert abs(box.lineHeight() - reference.fontMetrics().lineSpacing()) <= 1
     assert box.lineHeight() == support.math.ceil(
-        support.cast(support.Any, box)._surface.text_line_height()
+        support.cast(support.Any, box)._runtime.projection.surface.text_line_height()
     )
     assert box.viewport().width() == reference.viewport().width()
     assert box.viewport().height() == reference.viewport().height()
@@ -319,11 +319,9 @@ def test_prompt_editor_fill_plane_preserves_qfluent_shell_geometry(
         is True
     )
     assert layer.focusPolicy() == support.Qt.FocusPolicy.NoFocus
-    shell_viewport = support.cast(
-        support.Callable[[], support.QWidget], getattr(box, "_shell_viewport")
-    )
+    shell_viewport = box._runtime.shell.shell.shell_viewport
 
-    assert layer.geometry() == shell_viewport().rect()
+    assert layer.geometry() == shell_viewport.rect()
     assert clip_region.contains(left_padding_point) is True
     assert clip_region.contains(projection_rect.center()) is True
 
@@ -339,7 +337,7 @@ def test_prompt_editor_fill_plane_maps_sibling_widgets_without_qt_warning(
         width=600,
     )
     layer = support.fill_plane_for(box)
-    surface = support.cast(support.Any, getattr(box, "_surface"))
+    surface = support.cast(support.Any, box._runtime.projection.surface)
     projection_viewport = support.cast(support.QWidget, surface.viewport())
     messages: list[str] = []
 

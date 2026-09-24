@@ -48,6 +48,9 @@ from tools.prompt_editor_abuse.decoration_boundary_workloads import (
     prompt_decoration_boundary_scenarios,
 )
 from tools.prompt_editor_abuse.real_shell_driver import run_real_shell_scenario
+from tools.prompt_editor_abuse.structural_instrumentation import (
+    prompt_abuse_structural_instrumentation,
+)
 
 
 @pytest.fixture
@@ -135,6 +138,100 @@ def test_space_insertion_stays_at_each_decoration_boundary(
     assert after.cursor_position == insertion_position + 1
     assert after.caret_state_source_position == insertion_position + 1
     assert not snapshot_invariant_violations(after)
+
+
+def test_horizontal_navigation_exposes_each_emphasis_boundary_once(
+    harness: PromptEditorRealShellScenario,
+) -> None:
+    """Move once for each visible boundary around an emphasis decoration."""
+
+    source_text = "ornaments, (red:1.10) heart"
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, PromptProjectionTokenKind.EMPHASIS)
+    content_start = probe.place_caret(field, token, "content_start")
+
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    leading = harness.snapshots.capture(field, label="emphasis-leading-after-left")
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    preceding_text = harness.snapshots.capture(
+        field,
+        label="emphasis-preceding-text-after-left",
+    )
+
+    assert token.content_start is not None
+    assert content_start.cursor_position == token.content_start
+    assert leading.cursor_position == token.source_start
+    assert leading.caret_state_placement == "token_leading_edge"
+    assert preceding_text.cursor_position == token.source_start - 1
+    assert preceding_text.caret_state_placement == "plain_text"
+    assert content_start.caret_rect is not None
+    assert leading.caret_rect is not None
+    assert preceding_text.caret_rect is not None
+    assert preceding_text.caret_rect[0] < leading.caret_rect[0]
+    assert leading.caret_rect[0] < content_start.caret_rect[0]
+
+    harness.input.press_key(field, Qt.Key.Key_Right)
+    returned_leading = harness.snapshots.capture(
+        field,
+        label="emphasis-leading-after-right",
+    )
+    harness.input.press_key(field, Qt.Key.Key_Right)
+    returned_content = harness.snapshots.capture(
+        field,
+        label="emphasis-content-after-right",
+    )
+
+    assert returned_leading.cursor_position == token.source_start
+    assert returned_leading.caret_rect == leading.caret_rect
+    assert returned_content.cursor_position == token.content_start
+    assert returned_content.caret_rect == content_start.caret_rect
+    assert not snapshot_invariant_violations(returned_content)
+
+
+def test_left_from_emphasis_leading_edge_moves_before_adjacent_comma(
+    harness: PromptEditorRealShellScenario,
+) -> None:
+    """Move once from a decorated entry to the source position before its comma."""
+
+    field = harness.workflows.add_prompt_workflow(
+        initial_text="ornaments,(red:1.10) heart"
+    )
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, PromptProjectionTokenKind.EMPHASIS)
+    leading = probe.place_caret(field, token, "leading")
+
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    before_comma = harness.snapshots.capture(
+        field,
+        label="emphasis-before-adjacent-comma-after-left",
+    )
+
+    assert leading.cursor_position == token.source_start
+    assert leading.caret_state_placement == "token_leading_edge"
+    assert before_comma.cursor_position == token.source_start - 1
+    assert before_comma.caret_state_source_position == token.source_start - 1
+    assert before_comma.caret_state_placement == "plain_text"
+    assert leading.caret_rect is not None
+    assert before_comma.caret_rect is not None
+    assert before_comma.caret_rect[0] < leading.caret_rect[0]
+    assert not snapshot_invariant_violations(before_comma)
+
+    harness.input.press_key(field, Qt.Key.Key_Right)
+    returned_leading = harness.snapshots.capture(
+        field,
+        label="emphasis-leading-after-adjacent-comma-right",
+    )
+
+    assert returned_leading.cursor_position == token.source_start
+    assert returned_leading.caret_rect == leading.caret_rect
+    assert not snapshot_invariant_violations(returned_leading)
 
 
 def test_additional_tag_remains_inside_weighted_emphasis(
@@ -265,13 +362,21 @@ def test_abuse_workload_checks_each_settled_boundary_edit(
     """Keep the reproduced failure class in exact per-character abuse checkpoints."""
 
     scenario = prompt_decoration_boundary_scenarios()[0]
-    result = run_real_shell_scenario(
-        scenario,
-        repetition=0,
-        artifact_root=tmp_path,
+    with prompt_abuse_structural_instrumentation(enabled=True):
+        result = run_real_shell_scenario(
+            scenario,
+            repetition=0,
+            artifact_root=tmp_path,
+        )
+    autocomplete_start = next(
+        delta
+        for delta in result.action_owner_deltas
+        if delta.action_index == 2 and delta.unit_index == 2
     )
+    autocomplete_start_counters = dict(autocomplete_start.counter_deltas)
 
     assert scenario.expected_text == "(1girl, blue hair, red eyes:1.2)"
     assert result.correct
+    assert autocomplete_start_counters["instrumented_layout_snapshot_count"] == 2
     assert all(sample.source_exact for sample in result.dispatch_samples)
     assert all(sample.caret_exact for sample in result.dispatch_samples)

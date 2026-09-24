@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.runtime_owners import (
+    segment_overlay,
+)
+
 from typing import Any, cast
 
 import pytest
@@ -61,13 +65,13 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     surface = surface_for(box)
 
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
+    current_surface_state = surface.reorder.presentation.visual_state.state  # noqa: SLF001
     box.set_reorder_surface_visual_publication(
         PromptReorderSurfaceVisualPublication(
             mode=current_surface_state.mode,
@@ -77,22 +81,22 @@ def test_reorder_animation_frame_syncs_suppression_without_raster_churn(
     )
     before = _performance_counters(overlay)
     before_surface_revision = (
-        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.revision  # noqa: SLF001
     )
     cast(Any, overlay)._handle_reorder_animation_frame()
     after = _performance_counters(overlay)
     after_first_surface_revision = (
-        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.revision  # noqa: SLF001
     )
     cast(Any, overlay)._handle_reorder_animation_frame()
     after_second_surface_revision = (
-        surface._reorder_surface_visual_state.state.revision  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.revision  # noqa: SLF001
     )
 
     assert after["raster_build_count"] == before["raster_build_count"]
     assert after_first_surface_revision == before_surface_revision + 1
     assert set(
-        surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
     ) == {0, 1}
     assert after_second_surface_revision == after_first_surface_revision
 
@@ -114,9 +118,9 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
 
     QTest.keyPress(box, Qt.Key.Key_Alt)
     _process_events(app)
-    overlay = cast(SegmentReorderOverlay, getattr(box, "_segment_overlay"))
+    overlay = cast(SegmentReorderOverlay, segment_overlay(box))
     monkeypatch.setattr(
-        cast(Any, overlay)._raster_publication_owner,
+        cast(Any, overlay)._runtime.raster,
         "entries_for",
         lambda _lane, **_kwargs: {},
     )
@@ -124,9 +128,9 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
     QTest.keyClick(box, Qt.Key.Key_Left)
     _process_events(app)
 
-    cast(Any, overlay)._preview_paint_snapshots.clear()
+    cast(Any, overlay)._runtime.preview_paint_snapshots.clear()
     surface = surface_for(box)
-    current_surface_state = surface._reorder_surface_visual_state.state  # noqa: SLF001
+    current_surface_state = surface.reorder.presentation.visual_state.state  # noqa: SLF001
     box.set_reorder_surface_visual_publication(
         PromptReorderSurfaceVisualPublication(
             mode=current_surface_state.mode,
@@ -137,7 +141,7 @@ def test_reorder_animation_frame_keeps_surface_text_for_chrome_only_preview_chip
     cast(Any, overlay)._handle_reorder_animation_frame()
 
     assert (
-        surface._reorder_surface_visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
+        surface.reorder.presentation.visual_state.state.suppression_snapshots_by_index  # noqa: SLF001
         == {}
     )
 
@@ -161,7 +165,7 @@ def test_reorder_animation_fallback_keeps_final_preview_correct(
     overlay = _open_reorder_overlay(editor)
     dragged_chip = _overlay_chip_by_segment_index(overlay, 3)
     target_chip = _overlay_chip_by_segment_index(overlay, 1)
-    animation_owner = cast(Any, overlay)._animation_presentation
+    animation_owner = cast(Any, overlay)._runtime.animation
     applied_generations: list[int] = []
 
     def no_op_apply_plan(plan: Any, **_context: Any) -> None:

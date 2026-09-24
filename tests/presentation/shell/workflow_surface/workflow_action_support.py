@@ -123,8 +123,8 @@ def _build_view(
                 lambda _workflow_id, _closed, _remaining: calls.append("canvas:prune")
             ),
         ),
-        input_canvas_state_service=SimpleNamespace(
-            prune_closed_workflow_images=(
+        input_asset_cleanup=SimpleNamespace(
+            prune_closed_workflow=(
                 lambda _closed, _remaining: calls.append("input:prune")
             ),
         ),

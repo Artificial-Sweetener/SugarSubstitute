@@ -140,6 +140,36 @@ def test_acquisition_verifies_and_atomically_reveals_exact_file(tmp_path: Path) 
     assert not tuple(result.path.parent.glob("*.part"))
 
 
+def test_explicit_upscaler_policy_acquires_and_reuses_pth_weights(
+    tmp_path: Path,
+) -> None:
+    """An exact-hash PTH should be safe only when its provider enables that format."""
+
+    content = b"restricted-pickle-weights"
+    root = tmp_path / "models"
+    destination = root / "upscale_models"
+    service = ModelAcquisitionService(
+        allowed_roots=(root,),
+        stream_opener=lambda _url, _headers, _timeout: _Stream(content),
+        download_url_validator=lambda _url: None,
+        allowed_extensions=(".pth", ".safetensors"),
+    )
+    model = _model(
+        content,
+        download_url="https://github.com/example/model.pth",
+        file_name="upscaler.pth",
+    )
+
+    installed = service.acquire(model, destination_dir=destination)
+    reused = service.acquire(model, destination_dir=destination)
+
+    assert installed.path.name == "upscaler.pth"
+    assert installed.path.read_bytes() == content
+    assert not installed.reused_existing
+    assert reused.path == installed.path
+    assert reused.reused_existing
+
+
 def test_authentication_response_requests_a_credential_without_leaving_files(
     tmp_path: Path,
 ) -> None:

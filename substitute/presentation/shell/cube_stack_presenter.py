@@ -87,6 +87,9 @@ class CubeStackProtocol(Protocol):
     def setTabBypassed(self, index: int, bypassed: bool) -> None:
         """Set one tab cube-level bypass presentation state."""
 
+    def setTabCaptureAvailable(self, index: int, available: bool) -> None:
+        """Set whether one tab offers exact Cube capture."""
+
     def tabItem(self, index: int) -> CubeTabItemProtocol:
         """Return one tab item."""
 
@@ -264,6 +267,11 @@ class CubeStackPresenter:
             issue_state=issue_state,
         )
         self._apply_bypass_state(
+            cube_stack,
+            tab_index=tab_index,
+            cube_state=cube_state,
+        )
+        self._apply_capture_state(
             cube_stack,
             tab_index=tab_index,
             cube_state=cube_state,
@@ -526,6 +534,21 @@ class CubeStackPresenter:
                 tab_index,
                 getattr(cube_state, "output_persistence_enabled", True) is not False,
             )
+
+    @staticmethod
+    def _apply_capture_state(
+        cube_stack: CubeStackProtocol,
+        *,
+        tab_index: int,
+        cube_state: object,
+    ) -> None:
+        """Apply transient SugarCubes capture availability when supported."""
+
+        setter = getattr(cube_stack, "setTabCaptureAvailable", None)
+        if not callable(setter):
+            return
+        classification = getattr(cube_state, "library_classification", None)
+        setter(tab_index, bool(getattr(classification, "can_capture", False)))
 
 
 __all__ = [

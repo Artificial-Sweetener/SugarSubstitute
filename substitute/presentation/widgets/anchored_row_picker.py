@@ -19,16 +19,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Literal, cast
+from typing import cast
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QGuiApplication, QKeyEvent, QMouseEvent, QPainter
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
-from qfluentwidgets.common.font import setFont  # type: ignore[import-untyped]
-from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
-    isDarkTheme,
-)
+from PySide6.QtGui import QGuiApplication, QKeyEvent
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 from qfluentwidgets.components.material import (  # type: ignore[import-untyped]
     AcrylicFlyout,
     AcrylicFlyoutViewBase,
@@ -36,172 +31,20 @@ from qfluentwidgets.components.material import (  # type: ignore[import-untyped]
 
 from substitute.presentation.widgets.anchored_row_flyout_placement import (
     anchored_row_flyout_placement,
+    anchored_row_flyout_viewport,
+)
+from substitute.presentation.widgets.anchored_row_picker_scroll import (
+    AnchoredRowPickerScrollSurface,
+)
+from substitute.presentation.widgets.anchored_row_picker_row import (
+    ANCHORED_ROW_PICKER_HORIZONTAL_TEXT_PADDING,
+    AnchoredRowPickerItem,
+    AnchoredRowPickerRow,
+    AnchoredRowPickerTextMode,
 )
 
-AnchoredRowPickerTextMode = Literal[
-    "anchor_center",
-    "anchor_left",
-    "row_center",
-    "row_left",
-]
-
 _ROW_SPACING = 2
-_FLYOUT_LEFT_MARGIN = 15
-_FLYOUT_TOP_MARGIN = 8
 _VIEW_MARGIN = 7
-_DEFAULT_HORIZONTAL_TEXT_PADDING = 12
-
-
-@dataclass(frozen=True, slots=True)
-class AnchoredRowPickerItem:
-    """Describe one visible row in an anchored row picker."""
-
-    key: str
-    label: str
-    enabled: bool = True
-
-
-class AnchoredRowPickerRow(QPushButton):
-    """Render one selectable anchored picker row with explicit text geometry."""
-
-    selected = Signal(str)
-
-    def __init__(
-        self,
-        item: AnchoredRowPickerItem,
-        *,
-        active: bool,
-        row_size: QSize,
-        anchor_slot_width: int,
-        active_text_mode: AnchoredRowPickerTextMode,
-        inactive_text_mode: AnchoredRowPickerTextMode,
-        horizontal_text_padding: int = _DEFAULT_HORIZONTAL_TEXT_PADDING,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Create a fixed-size picker row with explicit text painting."""
-
-        super().__init__(item.label, parent)
-        self.item = item
-        self._active = active
-        self._anchor_slot_width = anchor_slot_width
-        self._active_text_mode = active_text_mode
-        self._inactive_text_mode = inactive_text_mode
-        self._horizontal_text_padding = horizontal_text_padding
-        self.setProperty("active", active)
-        self.setFixedSize(row_size)
-        self.setEnabled(item.enabled)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        setFont(self, 14)
-        self.clicked.connect(lambda: self._emit_if_enabled())
-        self._apply_theme_styles()
-
-    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        """Emit selection directly so popup row clicks do not depend on focus."""
-
-        if (
-            self.item.enabled
-            and event.button() == Qt.MouseButton.LeftButton
-            and self.rect().contains(event.position().toPoint())
-        ):
-            self.selected.emit(self.item.key)
-            return
-        super().mouseReleaseEvent(event)
-
-    def set_active(self, active: bool) -> None:
-        """Update active state and repaint."""
-
-        self._active = active
-        self.setProperty("active", active)
-        self._apply_theme_styles()
-        self.update()
-
-    def text_rect_for_paint(self) -> QRect:
-        """Return the text rect used by explicit row painting."""
-
-        mode = self._current_text_mode()
-        if mode in ("anchor_center", "anchor_left"):
-            width = min(self._anchor_slot_width, self.width())
-            base_rect = QRect(0, 0, width, self.height())
-        else:
-            base_rect = self.rect()
-        if mode in ("anchor_left", "row_left"):
-            return base_rect.adjusted(
-                self._horizontal_text_padding,
-                0,
-                -self._horizontal_text_padding,
-                0,
-            )
-        return base_rect
-
-    def text_alignment_for_paint(self) -> Qt.AlignmentFlag:
-        """Return the text alignment used by explicit row painting."""
-
-        mode = self._current_text_mode()
-        if mode in ("anchor_center", "row_center"):
-            return Qt.AlignmentFlag.AlignCenter
-        return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-
-    def paintEvent(self, event: object) -> None:
-        """Paint row fill and text from explicit alignment modes."""
-
-        del event
-        painter = QPainter(self)
-        painter.setRenderHints(
-            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing,
-        )
-        fill = self._fill_color()
-        if fill is not None:
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(fill)
-            painter.drawRoundedRect(self.rect(), 5, 5)
-        painter.setFont(self.font())
-        painter.setPen(self._text_color())
-        painter.drawText(
-            self.text_rect_for_paint(),
-            self.text_alignment_for_paint(),
-            self.item.label,
-        )
-
-    def _emit_if_enabled(self) -> None:
-        """Emit the row key when the item is enabled."""
-
-        if self.item.enabled:
-            self.selected.emit(self.item.key)
-
-    def _current_text_mode(self) -> AnchoredRowPickerTextMode:
-        """Return the active or inactive text mode for this row."""
-
-        return self._active_text_mode if self._active else self._inactive_text_mode
-
-    def _apply_theme_styles(self) -> None:
-        """Apply qfluent-compatible base row states."""
-
-        self.setStyleSheet(
-            """
-            QPushButton {
-                background: transparent;
-                border: none;
-                border-radius: 5px;
-                padding: 0px;
-            }
-            """
-        )
-
-    def _fill_color(self) -> QColor | None:
-        """Return the current hover or active fill color."""
-
-        if self._active:
-            return QColor(255, 255, 255, 31) if isDarkTheme() else QColor(0, 0, 0, 20)
-        if self.underMouse():
-            return QColor(255, 255, 255, 20) if isDarkTheme() else QColor(0, 0, 0, 15)
-        return None
-
-    def _text_color(self) -> QColor:
-        """Return the current row text color."""
-
-        if not self.isEnabled():
-            return QColor(255, 255, 255, 92) if isDarkTheme() else QColor(0, 0, 0, 92)
-        return QColor(255, 255, 255) if isDarkTheme() else QColor(0, 0, 0)
 
 
 class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
@@ -216,9 +59,11 @@ class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         active_key: str,
         anchor_size: QSize,
         row_width: int | None = None,
+        maximum_height: int | None = None,
+        preferred_active_slot: int | None = None,
         active_text_mode: AnchoredRowPickerTextMode,
         inactive_text_mode: AnchoredRowPickerTextMode,
-        horizontal_text_padding: int = _DEFAULT_HORIZONTAL_TEXT_PADDING,
+        horizontal_text_padding: int = ANCHORED_ROW_PICKER_HORIZONTAL_TEXT_PADDING,
         parent: QWidget | None = None,
     ) -> None:
         """Create picker rows for the supplied items and text modes."""
@@ -226,12 +71,12 @@ class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         super().__init__(parent)
         self._items = items
         self._active_key = self._normalize_active_key(active_key)
+        self._preferred_active_slot = preferred_active_slot
         self._row_slot_size = QSize(
             row_width if row_width is not None else anchor_size.width(),
             anchor_size.height(),
         )
         self._rows: dict[str, AnchoredRowPickerRow] = {}
-        self.setFixedWidth(self._row_slot_size.width() + 2 * _VIEW_MARGIN)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         layout = QVBoxLayout(self)
@@ -239,6 +84,24 @@ class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
             _VIEW_MARGIN, _VIEW_MARGIN, _VIEW_MARGIN, _VIEW_MARGIN
         )
         layout.setSpacing(_ROW_SPACING)
+        maximum_scroll_height = (
+            None
+            if maximum_height is None
+            else max(1, maximum_height - (2 * _VIEW_MARGIN))
+        )
+        self._scroll = AnchoredRowPickerScrollSurface(
+            row_width=self._row_slot_size.width(),
+            row_height=self._row_slot_size.height(),
+            row_count=len(self._items),
+            row_spacing=_ROW_SPACING,
+            maximum_height=maximum_scroll_height,
+            parent=self,
+        )
+        layout.addWidget(self._scroll)
+        self.setFixedSize(
+            self._scroll.width() + (2 * _VIEW_MARGIN),
+            self._scroll.height() + (2 * _VIEW_MARGIN),
+        )
 
         for item in self._items:
             row = AnchoredRowPickerRow(
@@ -249,11 +112,11 @@ class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
                 active_text_mode=active_text_mode,
                 inactive_text_mode=inactive_text_mode,
                 horizontal_text_padding=horizontal_text_padding,
-                parent=self,
+                parent=self._scroll.content,
             )
             row.selected.connect(lambda key, self=self: self.itemSelected.emit(key))
             self._rows[item.key] = row
-            layout.addWidget(row)
+            self._scroll.add_row(row)
 
     def addWidget(
         self,
@@ -286,6 +149,54 @@ class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         """Return the currently highlighted key for tests and adapters."""
 
         return self._active_key
+
+    def visible_row_count(self) -> int:
+        """Return the number of complete rows exposed without scrolling."""
+
+        return self._scroll.visible_row_count()
+
+    def requires_scroll(self) -> bool:
+        """Return whether the picker row document exceeds its viewport."""
+
+        return self._scroll.requires_scroll()
+
+    def reveal_active_row(self) -> None:
+        """Reveal the highlighted row at its preferred anchor-relative slot."""
+
+        row = self._rows.get(self._active_key)
+        if row is None:
+            return
+        active_index = active_row_index_from_top(
+            items=self._items,
+            active_key=self._active_key,
+        )
+        visible_slot = self._initial_active_slot(active_index)
+        self._scroll.reveal_at_slot(active_index, visible_slot)
+        self._scroll.reveal(row)
+
+    def active_row_index_in_view(self) -> int:
+        """Return the highlighted row slot after initial overflow scrolling."""
+
+        active_index = active_row_index_from_top(
+            items=self._items,
+            active_key=self._active_key,
+        )
+        if not self._scroll.requires_scroll():
+            return active_index
+        visible_slot = self._initial_active_slot(active_index)
+        maximum_start = max(0, len(self._items) - self._scroll.visible_row_count())
+        start_index = min(maximum_start, max(0, active_index - visible_slot))
+        return active_index - start_index
+
+    def _initial_active_slot(self, active_index: int) -> int:
+        """Return the preferred visible slot for initial active-row alignment."""
+
+        maximum_slot = max(0, self._scroll.visible_row_count() - 1)
+        if self._preferred_active_slot is None:
+            preferred_slot = self._scroll.visible_row_count() // 2
+        else:
+            preferred_slot = self._preferred_active_slot
+        return min(active_index, maximum_slot, max(0, preferred_slot))
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle simple keyboard navigation for the active picker."""
@@ -325,6 +236,7 @@ class AnchoredRowPickerView(AcrylicFlyoutViewBase):  # type: ignore[misc]
         self._active_key = next_key
         for key, row in self._rows.items():
             row.set_active(key == next_key)
+        self._scroll.reveal(self._rows[next_key])
 
     def _normalize_active_key(self, active_key: str) -> str:
         """Return an active key that exists and is enabled in the row set."""
@@ -364,48 +276,73 @@ class AnchoredRowPicker:
             return
         self._flyout = None
 
+        anchor_global_rect = QRect(anchor.mapToGlobal(QPoint(0, 0)), anchor.size())
+        screen = QGuiApplication.screenAt(anchor_global_rect.center())
+        if screen is None:
+            screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            screen_geometry = QRect(anchor_global_rect.topLeft(), anchor.size())
+        else:
+            screen_geometry = screen.availableGeometry()
+
+        viewport = anchored_row_flyout_viewport(
+            anchor_global_rect=anchor_global_rect,
+            screen_available_geometry=screen_geometry,
+            row_height=anchor.height(),
+            row_spacing=_ROW_SPACING,
+            view_margin=_VIEW_MARGIN,
+        )
+
         view = AnchoredRowPickerView(
             items=items,
             active_key=active_key,
             anchor_size=anchor.size(),
             row_width=row_width,
+            maximum_height=viewport.maximum_view_height,
+            preferred_active_slot=viewport.active_row_slot_from_top,
             active_text_mode=active_text_mode,
             inactive_text_mode=inactive_text_mode,
         )
         view.itemSelected.connect(selected_callback)
         view.itemSelected.connect(lambda _key: self.close())
 
-        popup_size = QSize(view.sizeHint().width() + 30, view.sizeHint().height() + 28)
-        anchor_global_rect = QRect(anchor.mapToGlobal(QPoint(0, 0)), anchor.size())
-        screen = QGuiApplication.screenAt(anchor_global_rect.center())
-        if screen is None:
-            screen = QGuiApplication.primaryScreen()
-        if screen is None:
-            screen_geometry = QRect(anchor_global_rect.topLeft(), popup_size)
-        else:
-            screen_geometry = screen.availableGeometry()
-
-        active_row_index = active_row_index_from_top(
-            items=items,
-            active_key=view.active_key(),
+        flyout = AcrylicFlyout(view, self._parent, isDeleteOnClose=True)
+        flyout.show()
+        flyout.ensurePolished()
+        flyout.adjustSize()
+        flyout_layout = flyout.layout()
+        if flyout_layout is not None:
+            flyout_layout.activate()
+        popup_size = flyout.size()
+        row_origin = view.mapTo(flyout, QPoint(_VIEW_MARGIN, _VIEW_MARGIN))
+        outer_top_margin = max(0, row_origin.y() - _VIEW_MARGIN)
+        outer_bottom_margin = max(
+            0,
+            flyout.height() - view.y() - view.height(),
         )
+
+        active_row_index = view.active_row_index_in_view()
         placement = anchored_row_flyout_placement(
             anchor_global_rect=anchor_global_rect,
             popup_size=popup_size,
             row_width=view.row_slot_width(),
             row_height=anchor.height(),
-            row_count=len(items),
+            row_count=min(len(items), view.visible_row_count()),
             active_row_index_from_top=active_row_index,
-            row_left_offset=_FLYOUT_LEFT_MARGIN + _VIEW_MARGIN,
-            row_top_offset=_FLYOUT_TOP_MARGIN + _VIEW_MARGIN,
+            row_left_offset=row_origin.x(),
+            row_top_offset=row_origin.y(),
             row_spacing=_ROW_SPACING,
-            screen_available_geometry=screen_geometry,
+            screen_available_geometry=screen_geometry.adjusted(
+                0,
+                -outer_top_margin,
+                0,
+                outer_bottom_margin,
+            ),
         )
-        flyout = AcrylicFlyout(view, self._parent, isDeleteOnClose=True)
         self._flyout = cast(QWidget, flyout)
         flyout.move(placement.position)
-        flyout.show()
         flyout.activateWindow()
+        view.reveal_active_row()
         closed_signal = getattr(self._flyout, "closed", None)
         connect = getattr(closed_signal, "connect", None)
         if callable(connect):
@@ -459,9 +396,6 @@ def active_row_index_from_top(
 
 __all__ = [
     "AnchoredRowPicker",
-    "AnchoredRowPickerItem",
-    "AnchoredRowPickerRow",
-    "AnchoredRowPickerTextMode",
     "AnchoredRowPickerView",
     "active_row_index_from_top",
 ]

@@ -22,7 +22,7 @@ from __future__ import annotations
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
 )
-from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
+from substitute.presentation.canvas.output.output_navigation_source_tabs import (
     SourceTabTooltip,
     SourceTabItem,
     SourceTabTooltipRefreshItem,

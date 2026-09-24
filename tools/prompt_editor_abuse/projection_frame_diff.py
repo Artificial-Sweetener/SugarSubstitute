@@ -32,7 +32,10 @@ from substitute.presentation.editor.prompt_editor.projection.painter import (
 
 _TILE_WIDTH = 96
 _MINIMUM_EXPECTED_PIXELS = 8
+_MINIMUM_OPAQUE_TEXT_ALPHA = 200
 _MINIMUM_RETAINED_RATIO = 0.15
+_MINIMUM_VISIBLE_LINE_RATIO = 0.5
+_MINIMUM_LOCAL_CONTRAST = 40
 
 
 def missing_projection_text_tiles(
@@ -41,7 +44,7 @@ def missing_projection_text_tiles(
 ) -> tuple[str, ...]:
     """Return visible layout tiles whose expected glyph pixels are absent."""
 
-    surface = editor._surface
+    surface = editor._runtime.projection.surface
     frame = surface._layout.frame
     reference = _render_projection_reference(editor)
     expected_rgba = _rgba_pixels(reference)
@@ -53,6 +56,7 @@ def missing_projection_text_tiles(
         :, :, :3
     ].astype(np.int16)
     matching_mask = np.sum(color_delta * color_delta, axis=2) <= 75**2
+    matching_mask |= local_contrast_mask(actual_rgba[:, :, :3])
     viewport = editor.viewport()
     viewport_origin = viewport.mapTo(editor, QPoint())
     viewport_left = max(0, viewport_origin.x())
@@ -60,24 +64,29 @@ def missing_projection_text_tiles(
         backing_store.width(),
         viewport_left + viewport.width(),
     )
+    viewport_top = max(0, viewport_origin.y())
+    viewport_bottom = min(
+        backing_store.height(),
+        viewport_top + viewport.height(),
+    )
     scroll_offset = float(surface._scroll_offset())
     missing: list[str] = []
     for line_index, line in enumerate(frame.output.snapshot.lines):
-        top = max(
-            0,
-            int(math.floor(viewport_origin.y() + line.top - scroll_offset)),
+        visible_band = visible_projection_line_band(
+            viewport_top=viewport_top,
+            viewport_bottom=viewport_bottom,
+            line_top=viewport_origin.y() + line.top - scroll_offset,
+            line_height=line.height,
         )
-        bottom = min(
-            backing_store.height(),
-            int(
-                math.ceil(viewport_origin.y() + line.top + line.height - scroll_offset)
-            ),
-        )
-        if bottom <= top:
+        if visible_band is None:
             continue
+        top, bottom = visible_band
         for tile_left in range(viewport_left, viewport_right, _TILE_WIDTH):
             tile_right = min(viewport_right, tile_left + _TILE_WIDTH)
             expected_tile = expected_mask[top:bottom, tile_left:tile_right]
+            expected_alpha = expected_rgba[top:bottom, tile_left:tile_right, 3]
+            if not has_comparable_text_pixels(expected_alpha):
+                continue
             expected_count = int(np.count_nonzero(expected_tile))
             if expected_count < _MINIMUM_EXPECTED_PIXELS:
                 continue
@@ -94,6 +103,55 @@ def missing_projection_text_tiles(
     return tuple(missing)
 
 
+def has_comparable_text_pixels(expected_alpha: NDArray[np.uint8]) -> bool:
+    """Return whether a tile contains enough opaque pixels to represent glyphs."""
+
+    return bool(
+        np.count_nonzero(expected_alpha >= _MINIMUM_OPAQUE_TEXT_ALPHA)
+        >= _MINIMUM_EXPECTED_PIXELS
+    )
+
+
+def local_contrast_mask(actual_rgb: NDArray[np.uint8]) -> NDArray[np.bool_]:
+    """Return pixels bordering visible color transitions such as glyph edges."""
+
+    rgb = actual_rgb.astype(np.int16)
+    contrast = np.zeros(rgb.shape[:2], dtype=np.bool_)
+    horizontal = (
+        np.max(np.abs(rgb[:, 1:] - rgb[:, :-1]), axis=2) >= _MINIMUM_LOCAL_CONTRAST
+    )
+    contrast[:, 1:] |= horizontal
+    contrast[:, :-1] |= horizontal
+    vertical = (
+        np.max(np.abs(rgb[1:, :] - rgb[:-1, :]), axis=2) >= _MINIMUM_LOCAL_CONTRAST
+    )
+    contrast[1:, :] |= vertical
+    contrast[:-1, :] |= vertical
+    return contrast
+
+
+def visible_projection_line_band(
+    *,
+    viewport_top: int,
+    viewport_bottom: int,
+    line_top: float,
+    line_height: float,
+) -> tuple[int, int] | None:
+    """Return a stable pixel band for a meaningfully visible projection line."""
+
+    if line_height <= 0.0 or viewport_bottom <= viewport_top:
+        return None
+    line_bottom = line_top + line_height
+    visible_top = max(float(viewport_top), line_top)
+    visible_bottom = min(float(viewport_bottom), line_bottom)
+    visible_height = visible_bottom - visible_top
+    if visible_height < line_height * _MINIMUM_VISIBLE_LINE_RATIO:
+        return None
+    top = max(viewport_top, int(math.floor(line_top)))
+    bottom = min(viewport_bottom, int(math.ceil(line_bottom)))
+    return (top, bottom) if bottom > top else None
+
+
 def _render_projection_reference(editor: Any) -> QImage:
     """Render expected projection content without mutating the live widget."""
 
@@ -103,7 +161,7 @@ def _render_projection_reference(editor: Any) -> QImage:
         QImage.Format.Format_RGBA8888,
     )
     image.fill(0)
-    surface = editor._surface
+    surface = editor._runtime.projection.surface
     frame = surface._layout.frame
     viewport = editor.viewport()
     viewport_origin = viewport.mapTo(editor, QPoint())
@@ -115,7 +173,7 @@ def _render_projection_reference(editor: Any) -> QImage:
         PromptProjectionPainter().draw(
             painter,
             paint_input=frame.paint_input,
-            selection=surface._selection(),
+            selection_layer=surface._selection_layer_owner.layer,
             scroll_offset=scroll_offset,
             clip_rect=QRectF(viewport.rect()),
         )
@@ -140,4 +198,9 @@ def _rgba_pixels(image: QImage) -> NDArray[np.uint8]:
     )
 
 
-__all__ = ["missing_projection_text_tiles"]
+__all__ = [
+    "has_comparable_text_pixels",
+    "local_contrast_mask",
+    "missing_projection_text_tiles",
+    "visible_projection_line_band",
+]

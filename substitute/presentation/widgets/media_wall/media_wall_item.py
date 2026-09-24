@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from PySide6.QtGui import QIcon
 
 _STANDARD_THUMBNAIL_ROLE = "standard"
 
@@ -47,6 +48,8 @@ class MediaWallItem:
     thumbnail_variants: tuple[ThumbnailVariantReference, ...]
     payload: object
     tooltip: str | None = None
+    corner_badge_icon: QIcon | None = None
+    corner_badge_tooltip: str | None = None
 
 
 __all__ = ["MediaWallItem", "ThumbnailVariantReference"]

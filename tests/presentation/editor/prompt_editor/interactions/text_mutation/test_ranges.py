@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from substitute.presentation.editor.prompt_editor.core.projection.caret import (
@@ -161,6 +163,35 @@ def test_space_at_text_content_end_preserves_requested_source_boundary(
     )
 
     assert (resolved.start, resolved.end) == (token.content_end, token.content_end)
+
+
+def test_stale_token_edge_cannot_rewind_a_newer_source_insertion() -> None:
+    """Use the live source caret after a comma outruns projection publication."""
+
+    token = _token(
+        PromptProjectionTokenKind.EMPHASIS,
+        navigation_mode=PromptProjectionTokenNavigationMode.TEXT_CONTENT,
+    )
+    context = _context(
+        token,
+        position=token.source_end,
+        placement=PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE,
+    )
+    after_comma = token.source_end + 1
+    context = replace(
+        context,
+        selection=PromptProjectionSelection(
+            anchor_position=after_comma,
+            cursor_position=after_comma,
+        ),
+    )
+
+    resolved = PromptProjectionTextMutationRangeResolver().resolve(
+        context,
+        PromptProjectionTextMutationRequest(after_comma, after_comma, " "),
+    )
+
+    assert (resolved.start, resolved.end) == (after_comma, after_comma)
 
 
 @pytest.mark.parametrize(

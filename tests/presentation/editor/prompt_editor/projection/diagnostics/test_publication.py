@@ -59,7 +59,7 @@ def test_projection_surface_paint_consumes_published_diagnostic_layer(
     word = "missspelledword"
     box = show_prompt_editor(widgets, text=word, width=360)
     surface = surface_for(box)
-    surface.set_diagnostics(
+    surface.diagnostics.set_diagnostics(
         (
             PromptDiagnostic(
                 diagnostic_id=f"spelling:0:{len(word)}:{word}",
@@ -73,7 +73,7 @@ def test_projection_surface_paint_consumes_published_diagnostic_layer(
         )
     )
     wait_for_diagnostic_layer(surface, has_underlines=True)
-    owner = cast(Any, surface)._diagnostic_layer_owner
+    owner = surface.diagnostics
     assert owner.layer.underlines
     assert owner.layer.wave_tile is not None
 
@@ -107,7 +107,7 @@ def test_projection_surface_selection_republishes_diagnostic_layer(
     word = "missspelledword"
     box = show_prompt_editor(widgets, text=word, width=360)
     surface = surface_for(box)
-    surface.set_diagnostics(
+    surface.diagnostics.set_diagnostics(
         (
             PromptDiagnostic(
                 diagnostic_id=f"spelling:0:{len(word)}:{word}",
@@ -121,7 +121,7 @@ def test_projection_surface_selection_republishes_diagnostic_layer(
         )
     )
     wait_for_diagnostic_layer(surface, has_underlines=True)
-    owner = cast(Any, surface)._diagnostic_layer_owner
+    owner = surface.diagnostics
     assert owner.layer.underlines
 
     editing_session = cast(Any, surface)._editing_session
