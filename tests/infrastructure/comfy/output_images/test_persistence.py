@@ -28,6 +28,7 @@ import pytest
 
 from substitute.application.ports.comfy_gateway import OutputSavePlan
 from substitute.infrastructure.comfy import output_image_persistence
+from substitute.infrastructure.comfy import output_destination_allocator
 from substitute.infrastructure.comfy.output_image_persistence import (
     OutputImagePersistence,
     workflow_metadata_json,
@@ -149,7 +150,7 @@ def test_persist_output_image_uses_reserved_run_number_and_png_metadata(
         return 99
 
     monkeypatch.setattr(
-        output_image_persistence,
+        output_destination_allocator,
         "get_next_bucket_run_number",
         _record_unexpected_bucket_scan,
     )
@@ -210,7 +211,7 @@ def test_persist_output_image_allocates_lazy_run_and_source_ordinals(
         return 7
 
     monkeypatch.setattr(
-        output_image_persistence,
+        output_destination_allocator,
         "get_next_bucket_run_number",
         _record_bucket_scan,
     )
