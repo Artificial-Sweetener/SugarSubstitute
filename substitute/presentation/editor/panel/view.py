@@ -1542,7 +1542,7 @@ class EditorPanel(QWidget):
     ) -> EditorBehaviorSnapshot | None:
         """Resolve and cache the latest node-behavior snapshot for the active panel state."""
 
-        return self._prompt_context_controller.build_behavior_snapshot(
+        return self._prompt_context_controller.behavior.build(
             search_hidden_keys=search_hidden_keys,
             override_hidden_field_keys=override_hidden_field_keys,
             node_search_text=node_search_text,
@@ -1552,21 +1552,17 @@ class EditorPanel(QWidget):
     def begin_behavior_refresh_transaction(self, *, reason: str) -> None:
         """Start an explicit behavior snapshot reuse boundary for one refresh flow."""
 
-        self._prompt_context_controller.begin_behavior_refresh_transaction(
-            reason=reason
-        )
+        self._prompt_context_controller.behavior.begin(reason=reason)
 
     def end_behavior_refresh_transaction(self, *, reason: str) -> None:
         """Complete the active behavior snapshot reuse boundary when present."""
 
-        self._prompt_context_controller.end_behavior_refresh_transaction(reason=reason)
+        self._prompt_context_controller.behavior.end(reason=reason)
 
     def invalidate_behavior_refresh_transaction(self, *, reason: str) -> None:
         """Drop the active behavior transaction before a state-changing refresh."""
 
-        self._prompt_context_controller.invalidate_behavior_refresh_transaction(
-            reason=reason
-        )
+        self._prompt_context_controller.behavior.invalidate(reason=reason)
 
     def _behavior_snapshot_reuse_key(
         self,
@@ -1579,7 +1575,7 @@ class EditorPanel(QWidget):
     ) -> tuple[Hashable, ...]:
         """Return the identity key that makes transaction snapshot reuse safe."""
 
-        return self._prompt_context_controller.behavior_snapshot_reuse_key(
+        return self._prompt_context_controller.behavior.reuse_key(
             workflow_overrides=workflow_overrides,
             search_hidden_keys=search_hidden_keys,
             override_hidden_field_keys=override_hidden_field_keys,
@@ -1590,7 +1586,7 @@ class EditorPanel(QWidget):
     def current_behavior_snapshot(self) -> EditorBehaviorSnapshot | None:
         """Return the latest cached behavior snapshot for external toolbar rendering."""
 
-        return self._prompt_context_controller.current_behavior_snapshot()
+        return self._prompt_context_controller.behavior.current()
 
     def set_current_behavior_snapshot(
         self,
@@ -1598,7 +1594,7 @@ class EditorPanel(QWidget):
     ) -> None:
         """Publish the latest behavior snapshot through prompt-context ownership."""
 
-        self._prompt_context_controller.set_current_behavior_snapshot(snapshot)
+        self._prompt_context_controller.behavior.set_current(snapshot)
 
     def workflow_prompt_context(self) -> WorkflowPromptContext:
         """Return the current workflow context used by prompt-field resolvers."""

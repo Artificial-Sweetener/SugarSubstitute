@@ -403,22 +403,6 @@ responsibilities = [
 next_extraction = "Extract runtime-issue integration from projection cleanup and commit lifecycle."
 
 [[debts]]
-id = "SS-ARCH-049"
-owner = "editor prompt context"
-paths = ["substitute/presentation/editor/panel/prompt/context.py"]
-fingerprint = "sha256:a3c2c450380f1c5fca23220aef261687b7c78f8874cbcc4f1bdc580ef5d0098c"
-issue = "chore:SS-ARCH-049"
-review_by = 2026-12-15
-responsibilities = [
-  "behavior snapshot refresh transactions",
-  "workflow and cube prompt context snapshots",
-  "projection prompt-context lifecycle",
-  "feature-profile cache and diagnostics",
-  "scheduled LoRA resolver construction",
-]
-next_extraction = "Extract feature-profile caching and scheduled-LoRA adaptation from prompt-context and behavior transaction ownership."
-
-[[debts]]
 id = "SS-ARCH-050"
 owner = "editor panel search"
 paths = ["substitute/presentation/editor/panel/search_controller.py"]
@@ -439,7 +423,7 @@ next_extraction = "Extract corpus/match projection and refresh scheduling from r
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:02befe0dfec34fe0d57e8844bca0b44dea80f6a2d51bb7ab407f1ddb4867d14f"
+fingerprint = "sha256:f344cb442514ae03d966f4a070c357244a0cc30e21449fb8ac76eee4cf019e73"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
