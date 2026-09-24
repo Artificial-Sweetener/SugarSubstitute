@@ -359,16 +359,15 @@ next_extraction = "Extract title, icon, and link-endpoint composition from node-
 id = "SS-ARCH-046"
 owner = "toolbar global overrides"
 paths = ["substitute/presentation/editor/panel/overrides_controller.py"]
-fingerprint = "sha256:942ad53ce804bcbacb0d742e85e912e9c9c850f166291a6fe111c4e5955c4621"
+fingerprint = "sha256:871c9579ce8f24c22601156fffaff5f8f6388a8f0cbb4f5290ff3cc0c84a71ac"
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
 responsibilities = [
   "override menu construction",
   "toolbar snapshot orchestration",
-  "seed-mode behavior",
   "autosave and restart-spacing integration",
 ]
-next_extraction = "Extract seed-mode persistence and toolbar event binding from menu and toolbar orchestration."
+next_extraction = "Extract override menu presentation and toolbar reconciliation from the shell-facing manager."
 
 [[debts]]
 id = "SS-ARCH-051"

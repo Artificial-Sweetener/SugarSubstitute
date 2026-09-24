@@ -306,11 +306,11 @@ owner = "toolbar global overrides"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/overrides_controller.py"
 kind = "remediation"
-justification = "Workflow state, toolbar control identity and placement, and widget realization, signatures, sizing, tooltips, and model-picker refresh now have focused owners. The remaining file mixes override menu construction, toolbar snapshot orchestration, seed-mode behavior, autosave, and restart-spacing integration. Extract seed-mode persistence and toolbar event binding from menu and toolbar orchestration."
+justification = "Workflow state, toolbar control identity and placement, widget realization, and committed value and seed-mode interactions now have focused owners. The remaining file mixes override menu construction, toolbar snapshot orchestration, autosave, restart-spacing integration, and the shell-facing facade. Extract override menu presentation and toolbar reconciliation from the facade."
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
-max_lines = 639
-next_limit = 450
+max_lines = 542
+next_limit = 430
 debt = "SS-ARCH-046"
 
 [[waivers]]
