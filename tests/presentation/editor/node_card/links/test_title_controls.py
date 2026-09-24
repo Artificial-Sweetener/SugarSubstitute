@@ -135,7 +135,7 @@ def test_node_link_selector_precedes_enabled_switch(
         return widget
 
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_enabled_switch",
+        "substitute.presentation.editor.panel.node_card.title_composer.build_enabled_switch",
         build_switch,
     )
     inputs = cast(dict[str, object], cube_b.buffer["nodes"][node_name]["inputs"])
