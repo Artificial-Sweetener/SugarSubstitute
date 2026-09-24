@@ -19,20 +19,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping as MappingABC, Sequence
-from typing import Mapping, cast
+from typing import Mapping
 
-from PySide6.QtCore import QEvent, QObject, QPointF, Signal
-from PySide6.QtGui import QWheelEvent
+from PySide6.QtCore import QEvent, QObject, Signal
 from PySide6.QtWidgets import QWidget
-from PySide6.QtWidgets import QApplication
 from shiboken6 import isValid as _qt_is_valid
 
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
-    LiveNodeDefinitionError,
     NodeBehaviorService,
     ResolvedFieldSpec,
-    required_node_definition_classes_for_editor_projection,
 )
 from substitute.application.localization import NodePresentationService
 from substitute.application.editor_search import EditorSearchResult
@@ -43,8 +39,6 @@ from substitute.application.danbooru import (
     DanbooruWikiContentService,
 )
 from substitute.application.workflows import (
-    CubeRuntimeIssue,
-    CubeRuntimeIssueSource,
     NodeLinkIdentity,
     WorkflowIssueState,
 )
@@ -70,9 +64,6 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
     PromptScheduledLoraService,
 )
-from substitute.application.prompt_editor.scenes.workflow_analysis import (
-    WorkflowSceneAnalysis,
-)
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
 from substitute.application.model_metadata import (
@@ -95,57 +86,31 @@ from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
     EDITOR_SECTION_GAP,
 )
-from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
-from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.widgets.model_picker import ModelPickerField
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
-    log_info,
     log_warning,
-)
-from .cube_reveal_controller import (
-    EditorPanelCubeRevealController,
-    EditorPanelCubeRevealHost,
 )
 from .composition import compose_editor_panel
 from .composition_models import EditorPanelCompositionInputs
-from .cube_visibility_menu_controller import (
-    CubeVisibilityMenuController,
-    CubeVisibilityMenuHost,
-)
-from .cube_registry import EditorCubeRegistry, EditorCubeRegistryHost
-from .field_sync_controller import (
-    EditorPanelFieldSyncController,
-    EditorPanelFieldSyncHost,
-)
-from .field_state_controller import EditorPanelFieldStateController
-from .prompt_field_state_controller import EditorPanelFieldStateHost
-from .field_value_change_coordinator import (
-    DynamicFieldRefreshHost,
-    PanelFieldValueChangeCoordinator,
-)
-from .field_registry import EditorFieldRegistry
-from .lora_metadata_refresh_controller import (
-    EditorPanelLoraMetadataRefreshController,
-    EditorPanelLoraMetadataRefreshHost,
-)
-from .choice_field_surface_reconciler import (
-    ChoiceFieldSurfaceReconciliationResult,
-)
-from .preset_context_refresh import PanelPresetContextRefreshCoordinator
+from .cube_registry import EditorCubeRegistry
 from .prompt.profile_policy import PanelPromptFieldProfileDecision
-from .runtime_issue_presenter import (
-    EditorPanelRuntimeIssueHost,
-    EditorPanelRuntimeIssuePresenter,
+from .runtime_access import (
+    cube_registry_for_panel as _cube_registry_for_panel,
+    cube_reveal_controller_for_panel as _cube_reveal_controller_for_panel,
+    cube_visibility_menu_controller_for_panel as _cube_visibility_menu_controller_for_panel,
+    current_behavior_snapshot_for_panel as _current_behavior_snapshot_for_panel,
+    field_state_controller_for_panel as _field_state_controller_for_panel,
+    field_sync_controller_for_panel as _field_sync_controller_for_panel,
+    lora_metadata_refresh_controller_for_panel as _lora_metadata_refresh_controller_for_panel,
+    projection_coordinator_for_panel as _projection_coordinator_for_panel,
+    projection_stack_order as _projection_stack_order,
+    search_controller_for_panel as _search_controller_for_panel,
 )
-from .search_controller import EditorPanelSearchController, EditorPanelSearchHost
 from .service_bundle import (
     EditorPanelExecutionFactories,
 )
 from .behavior.panel_ports import behavior_applier_for_panel
-from .projection_coordinator import EditorPanelProjectionCoordinator
-from .projection_ports import ProjectionCoordinatorPanelPort
 from .projection_preparation import BehaviorRefreshReason
 from .projection_surface_state import EditorSurfaceProjectionSignature
 from .factories.meta_factories import (
@@ -154,7 +119,9 @@ from .factories.meta_factories import (
 )
 from .node_card.body_contribution import NodeCardBodyContributor
 from .node_card_builder import NodeCardBuilder
+from .node_definition_runtime import EditorPanelNodeDefinitionRuntime
 from .prompt.field_inputs import build_node_card_prompt_field_inputs
+from .prompt_interaction import EditorPanelPromptInteraction
 from .widgets.cube_section_builder import cube_section_builder_for_panel
 
 _LOGGER = get_logger("presentation.editor.panel.view")
@@ -164,190 +131,6 @@ def isValid(obj: object) -> bool:  # noqa: N802
     """Return whether one Qt wrapper is valid for panel test hooks."""
 
     return bool(_qt_is_valid(obj))
-
-
-def _cube_registry_for_panel(panel: object) -> EditorCubeRegistry:
-    """Return a cube registry controller for an editor-panel-like host."""
-
-    registry = getattr(panel, "_cube_registry", None)
-    if registry is None:
-        registry = EditorCubeRegistry(cast(EditorCubeRegistryHost, panel))
-        setattr(panel, "_cube_registry", registry)
-    return cast(EditorCubeRegistry, registry)
-
-
-def _field_registry_for_panel(panel: object) -> EditorFieldRegistry:
-    """Return the authoritative rendered field registry for a panel-like host."""
-
-    registry = getattr(panel, "_field_registry", None)
-    if registry is None:
-        registry = EditorFieldRegistry()
-        legacy_widgets = getattr(panel, "input_widgets_by_field_key", None)
-        if isinstance(legacy_widgets, MappingABC):
-            registry.synchronize_from_widget_map(
-                cast(Mapping[tuple[str, str, str], object], legacy_widgets)
-            )
-        setattr(panel, "_field_registry", registry)
-        setattr(panel, "input_widgets_by_field_key", registry.widget_map)
-    return cast(EditorFieldRegistry, registry)
-
-
-def _cube_reveal_controller_for_panel(
-    panel: object,
-) -> EditorPanelCubeRevealController:
-    """Return a cube reveal controller for an editor-panel-like host."""
-
-    controller = getattr(panel, "_cube_reveal_controller", None)
-    if controller is None:
-        controller = EditorPanelCubeRevealController(
-            cast(EditorPanelCubeRevealHost, panel)
-        )
-        setattr(panel, "_cube_reveal_controller", controller)
-    return cast(EditorPanelCubeRevealController, controller)
-
-
-def _cube_visibility_menu_controller_for_panel(
-    panel: object,
-) -> CubeVisibilityMenuController:
-    """Return the cube visibility-menu owner for a panel-like host."""
-
-    controller = getattr(panel, "_cube_visibility_menu_controller", None)
-    if controller is None:
-        controller = CubeVisibilityMenuController(cast(CubeVisibilityMenuHost, panel))
-        setattr(panel, "_cube_visibility_menu_controller", controller)
-    return cast(CubeVisibilityMenuController, controller)
-
-
-def _search_controller_for_panel(panel: object) -> EditorPanelSearchController:
-    """Return a search controller for an editor-panel-like host."""
-
-    controller = getattr(panel, "_search_controller", None)
-    if controller is None:
-        controller = EditorPanelSearchController(cast(EditorPanelSearchHost, panel))
-        setattr(panel, "_search_controller", controller)
-    return cast(EditorPanelSearchController, controller)
-
-
-def _field_sync_controller_for_panel(panel: object) -> EditorPanelFieldSyncController:
-    """Return a field-sync controller for an editor-panel-like host."""
-
-    controller = getattr(panel, "_field_sync_controller", None)
-    if controller is None:
-        controller = EditorPanelFieldSyncController(
-            cast(EditorPanelFieldSyncHost, panel)
-        )
-        setattr(panel, "_field_sync_controller", controller)
-    return cast(EditorPanelFieldSyncController, controller)
-
-
-def _field_state_controller_for_panel(panel: object) -> EditorPanelFieldStateController:
-    """Return a field-state controller for an editor-panel-like host."""
-
-    controller = getattr(panel, "_field_state_controller", None)
-    if controller is None:
-        field_change_coordinator = _field_value_change_coordinator_for_panel(panel)
-        controller = EditorPanelFieldStateController(
-            cast(EditorPanelFieldStateHost, panel),
-            field_value_changed=(
-                field_change_coordinator.field_value_changed
-                if field_change_coordinator is not None
-                else None
-            ),
-        )
-        setattr(panel, "_field_state_controller", controller)
-    return cast(EditorPanelFieldStateController, controller)
-
-
-def _field_value_change_coordinator_for_panel(
-    panel: object,
-) -> PanelFieldValueChangeCoordinator | None:
-    """Return the coordinator when the host owns preset-context state."""
-
-    coordinator = getattr(panel, "_field_value_change_coordinator", None)
-    if coordinator is None:
-        preset_context = getattr(panel, "_preset_context_refresh", None)
-        if preset_context is None:
-            return None
-        coordinator = PanelFieldValueChangeCoordinator(
-            host=cast(DynamicFieldRefreshHost, panel),
-            preset_context=cast(
-                PanelPresetContextRefreshCoordinator,
-                preset_context,
-            ),
-        )
-        setattr(panel, "_field_value_change_coordinator", coordinator)
-    return cast(PanelFieldValueChangeCoordinator, coordinator)
-
-
-def _projection_stack_order(
-    *,
-    stack_order: Sequence[str] | None,
-    cube_states: MappingABC[str, object] | None,
-) -> Sequence[str] | None:
-    """Return the stack order available at a projection boundary."""
-
-    if stack_order is not None:
-        return stack_order
-    if cube_states is not None:
-        return tuple(cube_states)
-    return None
-
-
-def _lora_metadata_refresh_controller_for_panel(
-    panel: object,
-) -> EditorPanelLoraMetadataRefreshController:
-    """Return a LoRA metadata refresh controller for a panel-like host."""
-
-    controller = getattr(panel, "_lora_metadata_refresh_controller", None)
-    if controller is None:
-        controller = EditorPanelLoraMetadataRefreshController(
-            cast(EditorPanelLoraMetadataRefreshHost, panel)
-        )
-        setattr(panel, "_lora_metadata_refresh_controller", controller)
-    return cast(EditorPanelLoraMetadataRefreshController, controller)
-
-
-def _runtime_issue_presenter_for_panel(
-    panel: object,
-) -> EditorPanelRuntimeIssuePresenter:
-    """Return a runtime issue presenter for an editor-panel-like host."""
-
-    presenter = getattr(panel, "_runtime_issue_presenter", None)
-    if presenter is None:
-        presenter = EditorPanelRuntimeIssuePresenter(
-            cast(EditorPanelRuntimeIssueHost, panel)
-        )
-        setattr(panel, "_runtime_issue_presenter", presenter)
-    return cast(EditorPanelRuntimeIssuePresenter, presenter)
-
-
-def _projection_coordinator_for_panel(
-    panel: object,
-) -> EditorPanelProjectionCoordinator:
-    """Return a projection coordinator for an editor-panel-like host."""
-
-    coordinator = getattr(panel, "_projection_coordinator", None)
-    if coordinator is None:
-        coordinator = EditorPanelProjectionCoordinator(
-            cast(ProjectionCoordinatorPanelPort, panel)
-        )
-        setattr(panel, "_projection_coordinator", coordinator)
-    return cast(EditorPanelProjectionCoordinator, coordinator)
-
-
-def _current_behavior_snapshot_for_panel(
-    panel: object,
-) -> EditorBehaviorSnapshot | None:
-    """Return the latest behavior snapshot from a panel or test double."""
-
-    current_behavior_snapshot = getattr(panel, "current_behavior_snapshot", None)
-    if callable(current_behavior_snapshot):
-        snapshot = current_behavior_snapshot()
-        return cast(EditorBehaviorSnapshot | None, snapshot)
-    return cast(
-        EditorBehaviorSnapshot | None,
-        getattr(panel, "_last_behavior_snapshot", None),
-    )
 
 
 _BEHAVIOR_TRANSACTION_INVALIDATING_REASONS: frozenset[BehaviorRefreshReason] = (
@@ -372,7 +155,11 @@ _PROJECTION_INVALIDATING_REASONS: frozenset[BehaviorRefreshReason] = frozenset(
 )
 
 
-class EditorPanel(QWidget):
+class EditorPanel(
+    EditorPanelPromptInteraction,
+    EditorPanelNodeDefinitionRuntime,
+    QWidget,
+):
     """Render one workflow editor surface and coordinate cube-section refreshes."""
 
     CUBE_SPACING = EDITOR_SECTION_GAP
@@ -418,51 +205,14 @@ class EditorPanel(QWidget):
         _cube_reveal_controller_for_panel(self).cancel_active_cube_reveal_scroll()
 
     def refresh_mask_picker(self, cube_alias: str, node_name: str, new_path: str):
-        """Finds and refreshes a specific MaskPicker's preview."""
-        # Find all MaskPicker widgets that are children of this panel
-        inspected_metadata: list[object] = []
-        for picker in self.findChildren(MaskPicker):
-            meta = picker.property("input_metadata")
-            inspected_metadata.append(meta)
-            if (
-                isinstance(meta, dict)
-                and meta.get("cube_alias") == cube_alias
-                and meta.get("node_name") == node_name
-            ):
-                refresh_mask_path = getattr(picker, "refresh_mask_path", None)
-                if callable(refresh_mask_path):
-                    refresh_mask_path(new_path)
-                else:
-                    picker.set_mask_path(new_path)
-                log_debug(
-                    _LOGGER,
-                    "Refreshed mask picker thumbnail",
-                    cube_alias=cube_alias,
-                    node_name=node_name,
-                    replacement_path_present=bool(new_path),
-                    refresh_method=(
-                        "refresh_mask_path"
-                        if callable(refresh_mask_path)
-                        else "set_mask_path"
-                    ),
-                )
-                return
-        log_warning(
-            _LOGGER,
-            "Failed to refresh mask picker because no matching picker was found",
-            cube_alias=cube_alias,
-            node_name=node_name,
-            replacement_path_present=bool(new_path),
-            inspected_count=len(inspected_metadata),
-        )
+        """Refresh the mask picker matching one cube and node identity."""
+
+        self.field_presentation.refresh_mask_picker(cube_alias, node_name, new_path)
 
     def refresh_model_metadata(self) -> None:
         """Refresh every model picker widget from current metadata."""
 
-        for entry in _field_registry_for_panel(self).entries():
-            if isinstance(entry.widget, ModelPickerField):
-                entry.widget.refresh_metadata()
-        self._preset_context_refresh.refresh(reason="model_metadata_refreshed")
+        self.field_presentation.refresh_model_metadata()
 
     def refresh_model_metadata_for_event(
         self,
@@ -470,14 +220,7 @@ class EditorPanel(QWidget):
     ) -> int:
         """Refresh visible model picker state affected by one metadata event."""
 
-        refreshed_count = 0
-        for entry in _field_registry_for_panel(self).entries():
-            if isinstance(
-                entry.widget, ModelPickerField
-            ) and entry.widget.refresh_metadata_for_event(event):
-                refreshed_count += 1
-        self._preset_context_refresh.refresh(reason="model_metadata_event_refreshed")
-        return refreshed_count
+        return self.field_presentation.refresh_model_metadata_for_event(event)
 
     def clear_model_thumbnail_caches_for_event(
         self,
@@ -485,22 +228,12 @@ class EditorPanel(QWidget):
     ) -> int:
         """Clear affected model picker thumbnail caches after image asset updates."""
 
-        cleared_count = 0
-        for entry in _field_registry_for_panel(self).entries():
-            if isinstance(
-                entry.widget, ModelPickerField
-            ) and entry.widget.clear_thumbnail_cache_for_event(event):
-                cleared_count += 1
-        return cleared_count
+        return self.field_presentation.clear_model_thumbnail_caches_for_event(event)
 
     def clear_lora_thumbnail_caches(self) -> int:
         """Clear prompt-editor LoRA thumbnail caches owned by this panel."""
 
-        cleared_count = 0
-        for prompt_editor in self.findChildren(PromptEditor):
-            prompt_editor.clear_lora_thumbnail_cache()
-            cleared_count += 1
-        return cleared_count
+        return self.field_presentation.clear_lora_thumbnail_caches()
 
     def set_model_field_load_progress(
         self,
@@ -513,54 +246,18 @@ class EditorPanel(QWidget):
     ) -> None:
         """Route source-enriched model-load progress to one model picker field."""
 
-        widget = _field_registry_for_panel(self).widget_map.get(
-            (cube_alias, node_name, field_key)
-        )
-        if widget is None:
-            log_info(
-                _LOGGER,
-                "Model-load progress target widget was not found",
-                cube_alias=cube_alias,
-                node_name=node_name,
-                field_key=field_key,
-                percent=percent,
-                active=active,
-            )
-            return
-        if not isinstance(widget, ModelPickerField):
-            log_info(
-                _LOGGER,
-                "Model-load progress target widget is not a model picker",
-                cube_alias=cube_alias,
-                node_name=node_name,
-                field_key=field_key,
-                widget_type=type(widget).__name__,
-                percent=percent,
-                active=active,
-            )
-            return
-        log_info(
-            _LOGGER,
-            "Applied model-load progress to model picker",
+        self.field_presentation.set_model_field_load_progress(
             cube_alias=cube_alias,
             node_name=node_name,
             field_key=field_key,
             percent=percent,
             active=active,
         )
-        widget.set_model_load_progress(percent=percent, active=active)
 
     def clear_model_field_load_progress(self) -> None:
         """Clear model-load progress from all tracked model picker fields."""
 
-        seen: set[int] = set()
-        for widget in _field_registry_for_panel(self).widget_map.values():
-            widget_id = id(widget)
-            if widget_id in seen:
-                continue
-            seen.add(widget_id)
-            if isinstance(widget, ModelPickerField):
-                widget.set_model_load_progress(percent=None, active=False)
+        self.field_presentation.clear_model_field_load_progress()
 
     def mark_lora_metadata_dirty(self) -> None:
         """Mark prompt editor LoRA metadata dirty without rebuilding projections."""
@@ -693,113 +390,6 @@ class EditorPanel(QWidget):
 
         return self._services.prompt.feature_profile_service
 
-    def configure_wheel_intent_for_widget(self, widget: QWidget) -> None:
-        """Attach shared wheel-intent policy to wheel-capable controls."""
-
-        self._wheel_intent_controller.configure_widget(widget)
-        for prompt_editor in self._prompt_wheel_widgets(widget):
-            self._configure_prompt_scene_diagnostics(prompt_editor)
-            self._configure_prompt_text_search_refresh(prompt_editor)
-
-    def _configure_prompt_scene_diagnostics(
-        self,
-        prompt_editor: PromptEditor,
-    ) -> None:
-        """Attach workflow-scene diagnostics refresh to one prompt editor."""
-
-        self._prompt_scene_diagnostics_controller.configure_prompt_scene_diagnostics(
-            prompt_editor
-        )
-
-    def _schedule_prompt_scene_diagnostics(self) -> None:
-        """Defer scene diagnostics until prompt text has reached workflow buffers."""
-
-        self._prompt_scene_diagnostics_controller.schedule_prompt_scene_diagnostics()
-
-    def _refresh_scheduled_prompt_scene_diagnostics(self) -> None:
-        """Apply one deferred prompt-scene diagnostics refresh."""
-
-        self._prompt_scene_diagnostics_controller.refresh_scheduled_prompt_scene_diagnostics()
-
-    def _configure_prompt_text_search_refresh(
-        self,
-        prompt_editor: PromptEditor,
-    ) -> None:
-        """Attach active search recomputation to one prompt editor."""
-
-        _search_controller_for_panel(self).configure_prompt_text_search_refresh(
-            prompt_editor
-        )
-
-    def _schedule_text_search_refresh(self) -> None:
-        """Schedule active text-search ranges to be rebuilt after prompt edits."""
-
-        _search_controller_for_panel(self).schedule_text_search_refresh()
-
-    def refresh_prompt_scene_diagnostics(self) -> None:
-        """Push current workflow scene diagnostics into all live prompt editors."""
-
-        self._prompt_scene_diagnostics_controller.refresh_prompt_scene_diagnostics()
-
-    def _clear_prompt_scene_diagnostics(self) -> None:
-        """Clear scene diagnostics from all live prompt editors."""
-
-        self._prompt_scene_diagnostics_controller.clear_prompt_scene_diagnostics()
-
-    def _current_prompt_scene_analysis(self) -> WorkflowSceneAnalysis | None:
-        """Return current workflow scene analysis when editor state is ready."""
-
-        return self._prompt_scene_diagnostics_controller.current_prompt_scene_analysis()
-
-    def _handle_prompt_scene_queue_requested(self, scene_key: str) -> None:
-        """Forward one prompt scene queue request when the scene is runnable."""
-
-        self._prompt_scene_diagnostics_controller.handle_prompt_scene_queue_requested(
-            scene_key
-        )
-
-    def _prompt_wheel_widgets(self, widget: QWidget) -> tuple[PromptEditor, ...]:
-        """Return prompt editors contained by one field widget."""
-
-        widgets: list[PromptEditor] = []
-        if isinstance(widget, PromptEditor):
-            widgets.append(widget)
-        widgets.extend(widget.findChildren(PromptEditor))
-        unique_widgets: list[PromptEditor] = []
-        seen_ids: set[int] = set()
-        for candidate in widgets:
-            candidate_id = id(candidate)
-            if candidate_id in seen_ids:
-                continue
-            seen_ids.add(candidate_id)
-            unique_widgets.append(candidate)
-        return tuple(unique_widgets)
-
-    def handle_external_wheel(self, event: QWheelEvent) -> None:
-        """Apply a wheel event routed from adjacent workspace navigation chrome."""
-
-        self._cancel_active_cube_reveal_scroll()
-        viewport = self.scroll.viewport()
-        local_position = viewport.mapFromGlobal(event.globalPosition().toPoint())
-        if not viewport.rect().contains(local_position):
-            local_position = viewport.rect().center()
-        global_position = viewport.mapToGlobal(local_position)
-        forwarded_event = QWheelEvent(
-            QPointF(local_position),
-            QPointF(global_position),
-            event.pixelDelta(),
-            event.angleDelta(),
-            event.buttons(),
-            event.modifiers(),
-            event.phase(),
-            event.inverted(),
-        )
-        QApplication.sendEvent(viewport, forwarded_event)
-        if forwarded_event.isAccepted():
-            event.accept()
-            return
-        event.ignore()
-
     def clear_search_filters(self) -> None:
         """Clear active search filters through the shared editor-search helper."""
 
@@ -814,272 +404,6 @@ class EditorPanel(QWidget):
         """Return workflow buffers in the current stack order for link refreshes."""
 
         return _cube_registry_for_panel(self).ordered_buffers()
-
-    def hydrate_node_definitions_for_projection(self, *, reason: str) -> None:
-        """Hydrate live node definitions before correctness-sensitive projection."""
-
-        if not self._stack_order or not self._cube_states:
-            return
-        result = self._node_definition_hydration_service.hydrate_for_projection(
-            cube_states=self._cube_states,
-            stack_order=self._stack_order,
-        )
-        log_info(
-            _LOGGER,
-            "Editor projection node definition hydration completed",
-            reason=reason,
-            requested_count=len(result.requested) if result is not None else 0,
-            unavailable_count=len(result.unavailable) if result is not None else 0,
-        )
-
-    def begin_live_node_definition_report_projection(self) -> None:
-        """Start a projection-scoped live metadata report dedupe window."""
-
-        _runtime_issue_presenter_for_panel(
-            self
-        ).begin_live_node_definition_report_projection()
-
-    def register_projection_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-        source: CubeRuntimeIssueSource,
-    ) -> bool:
-        """Register a cube-attributed projection hydration failure."""
-
-        return _runtime_issue_presenter_for_panel(
-            self
-        ).register_projection_live_node_definition_error(
-            error,
-            reason=reason,
-            source=source,
-        )
-
-    def present_recoverable_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show a deduplicated non-fatal live metadata report for a cube issue."""
-
-        _runtime_issue_presenter_for_panel(
-            self
-        ).present_recoverable_live_node_definition_error(error, reason=reason)
-
-    def _present_live_node_definition_error_once(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show one live metadata report unless the same report was already shown."""
-
-        _runtime_issue_presenter_for_panel(
-            self
-        ).present_live_node_definition_error_once(error, reason=reason)
-
-    def clear_projection_runtime_issues(self) -> None:
-        """Clear projection-owned runtime issues after successful hydration."""
-
-        _runtime_issue_presenter_for_panel(self).clear_projection_runtime_issues()
-
-    def set_cube_runtime_issues(
-        self,
-        cube_alias: str,
-        issues: Sequence[CubeRuntimeIssue],
-    ) -> None:
-        """Apply runtime issue presentation to one rendered cube section."""
-
-        _runtime_issue_presenter_for_panel(self).set_cube_runtime_issues(
-            cube_alias,
-            issues,
-        )
-
-    def clear_cube_runtime_issues(self, cube_alias: str) -> None:
-        """Clear runtime issues for one cube and refresh its rendered section."""
-
-        _runtime_issue_presenter_for_panel(self).clear_cube_runtime_issues(cube_alias)
-
-    def cube_runtime_issues(
-        self,
-        cube_alias: str,
-    ) -> tuple[CubeRuntimeIssue, ...]:
-        """Return locally projected runtime issues for one cube."""
-
-        return _runtime_issue_presenter_for_panel(self).cube_runtime_issues(cube_alias)
-
-    def cube_runtime_error_aliases(self) -> tuple[str, ...]:
-        """Return aliases with error-severity runtime issues."""
-
-        return _runtime_issue_presenter_for_panel(self).cube_runtime_error_aliases()
-
-    def _sync_cube_runtime_issues_from_state(self) -> None:
-        """Refresh local issue projection from workflow-owned issue state."""
-
-        _runtime_issue_presenter_for_panel(self).sync_cube_runtime_issues_from_state()
-
-    def _apply_cube_runtime_issues_to_widget(self, cube_alias: str) -> None:
-        """Apply issue wash state to one cube section widget when it exists."""
-
-        _runtime_issue_presenter_for_panel(self).apply_cube_runtime_issues_to_widget(
-            cube_alias
-        )
-
-    def _apply_cube_runtime_issues_to_stack(
-        self,
-        cube_alias: str,
-        severity: str | None,
-    ) -> None:
-        """Apply issue severity to the matching cube-stack tab when available."""
-
-        _runtime_issue_presenter_for_panel(self).apply_cube_runtime_issues_to_stack(
-            cube_alias,
-            severity,
-        )
-
-    def _build_error_cube_widget(self, route_key: str, cube_state: object) -> QWidget:
-        """Build a cube section that exposes recoverable runtime issues only."""
-
-        return _runtime_issue_presenter_for_panel(self).build_error_cube_widget(
-            route_key,
-            cube_state,
-        )
-
-    def _present_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show the blocking live-metadata report through the injected presenter."""
-
-        _runtime_issue_presenter_for_panel(self).present_live_node_definition_error(
-            error,
-            reason=reason,
-        )
-
-    def refresh_projection_after_node_definition_update(
-        self,
-        *,
-        refreshed_node_classes: Sequence[str],
-    ) -> bool:
-        """Rebuild rendered widgets when a late node definition affects them."""
-
-        if not self._stack_order or not self._cube_states:
-            return False
-        normalized_refreshed = {
-            node_class.strip()
-            for node_class in refreshed_node_classes
-            if isinstance(node_class, str) and node_class.strip()
-        }
-        if not normalized_refreshed:
-            return False
-        try:
-            required_node_classes = set(
-                required_node_definition_classes_for_editor_projection(
-                    self._ordered_projection_buffers()
-                )
-            )
-            affected_node_classes = tuple(
-                sorted(required_node_classes.intersection(normalized_refreshed))
-            )
-        except (RuntimeError, TypeError, ValueError) as error:
-            log_warning(
-                _LOGGER,
-                "Rebuilding editor projection after node definition refresh detection failed",
-                refreshed_node_classes=tuple(sorted(normalized_refreshed)),
-                error_type=type(error).__name__,
-            )
-            affected_node_classes = tuple(sorted(normalized_refreshed))
-        if not affected_node_classes:
-            log_debug(
-                _LOGGER,
-                "Skipped editor projection rebuild for unrelated node definition refresh",
-                refreshed_node_classes=tuple(sorted(normalized_refreshed)),
-            )
-            return False
-
-        cube_entries = self._current_cube_entries_for_projection()
-        if not cube_entries:
-            return False
-        affected_cube_aliases = self._cube_aliases_for_node_classes(
-            affected_node_classes
-        )
-        coordinator = _projection_coordinator_for_panel(self)
-        mark_stale = getattr(coordinator, "mark_cube_sections_stale", None)
-        active_build_affected = False
-        if callable(mark_stale):
-            active_build_affected = bool(
-                mark_stale(
-                    affected_cube_aliases,
-                    reason="node_definition_changed",
-                )
-            )
-        EditorPanel.invalidate_projection(self, reason="node_definition_changed")
-        self.load_all_cubes(
-            cube_entries,
-            cube_states=self._cube_states,
-            stack_order=self._stack_order,
-            projection_signature=None,
-        )
-        log_info(
-            _LOGGER,
-            "Rebuilt editor projection after node definition refresh",
-            affected_node_classes=affected_node_classes,
-            affected_cube_aliases=tuple(affected_cube_aliases),
-            refreshed_node_classes=tuple(sorted(normalized_refreshed)),
-            cube_section_count=len(cube_entries),
-            active_build_affected=active_build_affected,
-        )
-        return True
-
-    def reconcile_choice_fields_after_node_definition_update(
-        self,
-        *,
-        refreshed_node_classes: Sequence[str],
-    ) -> ChoiceFieldSurfaceReconciliationResult:
-        """Apply refreshed finite choices to controls without projection."""
-
-        result = self._choice_field_surface_reconciler.reconcile(refreshed_node_classes)
-        if result.reconciled_field_count:
-            self._preset_context_refresh.refresh(reason="model_options_changed")
-        return result
-
-    def _cube_aliases_for_node_classes(
-        self,
-        node_classes: Sequence[str],
-    ) -> tuple[str, ...]:
-        """Return cube aliases whose buffers contain one of the node classes."""
-
-        if not self._cube_states or not self._stack_order:
-            return ()
-        target_classes = set(node_classes)
-        aliases: list[str] = []
-        for alias in self._stack_order:
-            cube_state = self._cube_states.get(alias)
-            buffer = getattr(cube_state, "buffer", None)
-            nodes = buffer.get("nodes", {}) if isinstance(buffer, MappingABC) else {}
-            if not isinstance(nodes, MappingABC):
-                continue
-            for node_data in nodes.values():
-                if not isinstance(node_data, MappingABC):
-                    continue
-                if node_data.get("class_type") in target_classes:
-                    aliases.append(alias)
-                    break
-        return tuple(aliases)
-
-    def _ordered_projection_buffers(self) -> dict[str, Mapping[str, object]]:
-        """Return active cube buffers in stack order for projection dependency checks."""
-
-        return _cube_registry_for_panel(self).ordered_projection_buffers()
-
-    def _current_cube_entries_for_projection(self) -> list[tuple[str, object]]:
-        """Return active cube entries in stack order for projection rebuilds."""
-
-        return _cube_registry_for_panel(self).current_cube_entries_for_projection()
 
     def _refresh_sampler_scheduler_link_state(self) -> None:
         """Refresh sampler and scheduler link metadata using one shared path."""

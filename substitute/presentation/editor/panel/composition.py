@@ -62,6 +62,7 @@ from .cube_visibility_menu_controller import (
     CubeVisibilityMenuHost,
 )
 from .field_registry import EditorFieldRegistry
+from .field_presentation_controller import EditorPanelFieldPresentationController
 from .field_state_controller import EditorPanelFieldStateController
 from .field_sync_controller import (
     EditorPanelFieldSyncController,
@@ -242,6 +243,11 @@ def _initialize_controllers(panel: Any, inputs: EditorPanelCompositionInputs) ->
     )
     panel._field_sync_controller = EditorPanelFieldSyncController(
         cast(EditorPanelFieldSyncHost, panel)
+    )
+    panel.field_presentation = EditorPanelFieldPresentationController(
+        panel,
+        field_registry=panel._field_registry,
+        preset_context_refresh=panel._preset_context_refresh,
     )
     panel._lora_metadata_refresh_controller = EditorPanelLoraMetadataRefreshController(
         cast(EditorPanelLoraMetadataRefreshHost, panel)
