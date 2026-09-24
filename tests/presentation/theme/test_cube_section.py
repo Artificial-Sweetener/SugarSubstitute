@@ -23,7 +23,7 @@ from types import SimpleNamespace
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import SubtitleLabel, Theme  # type: ignore[import-untyped]
 
-from substitute.presentation.editor.panel.widgets.cube_section import (
+from substitute.presentation.editor.panel.widgets.cube_section_builder import (
     cube_section_builder_for_panel,
 )
 from tests.presentation.theme.support import ThemeWidgetOwner, is_qfluent_managed
