@@ -2997,7 +2997,7 @@ Install these nodes now?</source>
       <translation>失敗 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="875"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
       <source>Failed to allocate output run number.</source>
       <translation>出力の実行番号を割り当てられませんでした。</translation>
     </message>
@@ -3240,7 +3240,7 @@ Install these nodes now?</source>
       <translation>すべてのキューブにランタイムエラーがあるため、生成できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1059"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成ジョブを送信できませんでした。</translation>
     </message>
@@ -3990,7 +3990,7 @@ Install these nodes now?</source>
       <translation>検索に失敗しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
       <source>Loop video</source>
       <translation>動画をループ</translation>
     </message>
@@ -4350,7 +4350,7 @@ Install these nodes now?</source>
       <translation>上へ移動</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
       <source>Mute video</source>
       <translation>動画をミュート</translation>
     </message>
@@ -4410,7 +4410,7 @@ Install these nodes now?</source>
       <translation>次へ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
       <source>Next frame</source>
       <translation>次のフレーム</translation>
     </message>
@@ -5057,7 +5057,7 @@ I’ll bring my own</source>
       <translation>予定されている変更を更新しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
       <source>Play or pause</source>
       <translation>再生または一時停止</translation>
     </message>
@@ -5237,7 +5237,7 @@ I’ll bring my own</source>
       <translation>プレビューを利用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
       <source>Previous frame</source>
       <translation>前のフレーム</translation>
     </message>
@@ -5766,6 +5766,11 @@ No known extension claimant.</source>
       <translation>リセット</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <source>Reset video view</source>
+      <translation>ビデオ表示をリセット</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>キャンバスのサイズを変更</translation>
@@ -5861,7 +5866,7 @@ No known extension claimant.</source>
       <translation>再試行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
       <source>Retry video</source>
       <translation>動画を再試行</translation>
     </message>
@@ -8532,17 +8537,17 @@ Diagnostic evidence:
       <translation>%1 のバージョン</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="306"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>動画を再生できません（%1）。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
       <source>Video position</source>
       <translation>動画の位置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
       <source>Video volume</source>
       <translation>動画の音量</translation>
     </message>

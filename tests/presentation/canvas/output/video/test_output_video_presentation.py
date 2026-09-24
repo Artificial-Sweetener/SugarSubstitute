@@ -106,6 +106,11 @@ class _Player:
 
         self.commands.append(("mute", muted))
 
+    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
+        """Record viewport geometry."""
+
+        self.commands.append(("viewport", zoom, pan_x, pan_y))
+
     def set_output_active(self, active: bool) -> None:
         """Record output visibility."""
 
@@ -199,11 +204,12 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
             canvas.video_presentation.widget.currentWidget()
             is canvas.video_presentation.video_page
         )
-        assert player_box[0].commands[:5] == [
+        assert player_box[0].commands[:6] == [
             ("load", video_id, video_path.resolve()),
             ("volume", 100),
             ("mute", False),
             ("loop", True),
+            ("viewport", 1.0, 0.0, 0.0),
             ("active", True),
         ]
         canvas.video_presentation.video_page.controller.step_previous_frame()
