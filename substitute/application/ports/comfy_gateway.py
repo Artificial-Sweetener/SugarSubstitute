@@ -27,6 +27,7 @@ from typing import Callable, Literal, Protocol, runtime_checkable
 from substitute.application.errors import ErrorReport
 from substitute.domain.common import JsonObject, WorkflowId
 from substitute.domain.generation.output_preferences import JpegOutputSettings
+from substitute.domain.output_media import OutputMediaKind
 
 QueuePromptStatus = Literal["queued", "missing_prompt_id", "error"]
 InterruptStatus = Literal["sent", "failed"]
@@ -332,6 +333,7 @@ class ListenerOutputSource:
     node_id: str
     source_key: str
     source_label: str
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE
 
 
 @dataclass(frozen=True)

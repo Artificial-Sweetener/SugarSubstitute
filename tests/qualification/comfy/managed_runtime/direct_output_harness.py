@@ -42,7 +42,7 @@ from substitute.application.ports.comfy_gateway import (
     OutputSavePlan,
 )
 from substitute.domain.comfy_workflow import (
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     DirectWorkflowGenerationPlan,
 )
 from substitute.domain.common import JsonObject
@@ -188,7 +188,7 @@ class ManagedComfyDirectOutputHarness:
 
         root = self._required_root()
         definitions = self.node_definitions()
-        manifest = ComfyImageOutputDiscovery().discover(
+        manifest = ComfyOutputDiscovery().discover(
             graph,
             node_definitions=definitions,
         )
@@ -228,12 +228,13 @@ class ManagedComfyDirectOutputHarness:
                 scene=FinalImageScene(),
             ),
             sources_by_node={
-                recovery.recovery_node_id: ListenerOutputSource(
-                    recovery.recovery_node_id,
-                    recovery.source_key,
-                    recovery.source_label,
+                source.node_id: ListenerOutputSource(
+                    source.node_id,
+                    source.source_key,
+                    source.source_label,
+                    source.media_kind,
                 )
-                for recovery in projection.recovery_outputs
+                for source in projection.output_sources
             },
             final_image_handler=FinalImageEventHandler(
                 artifact_fetcher=ComfyArtifactFetcher(endpoint=self._endpoint),
