@@ -200,6 +200,36 @@ class OutputImageUpdate:
 
 
 @dataclass(frozen=True)
+class OutputVideoUpdate:
+    """Represent one validated local video artifact with routing context."""
+
+    workflow_id: WorkflowId
+    workflow_payload: JsonObject
+    file_path: Path
+    node_id: str
+    poster_bytes: bytes
+    temporary: bool
+    generation_run_id: str | None = None
+    prompt_id: str | None = None
+    client_id: str | None = None
+    display_node_id: str | None = None
+    source_key: str = ""
+    source_label: str = ""
+    list_index: int | None = None
+    batch_index: int | None = 0
+    artifact_width: int | None = None
+    artifact_height: int | None = None
+    duration_seconds: float | None = None
+    mime_type: str | None = None
+    output_session_id: str | None = None
+    scene_run_id: str | None = None
+    scene_key: str | None = None
+    scene_title: str | None = None
+    scene_order: int | None = None
+    scene_count: int | None = None
+
+
+@dataclass(frozen=True)
 class OutputSavePlan:
     """Describe immutable output organization settings for one queued prompt."""
 
@@ -379,6 +409,7 @@ class ListenerCallbacks:
     on_failed: Callable[[ListenerFailure], None]
     on_timing: Callable[[GenerationExecutionTiming], None]
     on_completed: Callable[[ListenerCompleted], None]
+    on_output_video: Callable[[OutputVideoUpdate], None] = lambda _update: None
 
 
 @dataclass(frozen=True)
@@ -476,6 +507,7 @@ __all__ = [
     "ListenerStartRequest",
     "ListenerStartResult",
     "OutputImageUpdate",
+    "OutputVideoUpdate",
     "OutputSavePlan",
     "PreviewImageUpdate",
     "ProgressUpdate",

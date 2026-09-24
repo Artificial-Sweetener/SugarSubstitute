@@ -32,6 +32,7 @@ from substitute.application.ports.comfy_gateway import (
     ListenerFailure,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -152,6 +153,7 @@ class GenerationCallbacks:
     on_timing: Callable[[GenerationExecutionTiming], None]
     on_run_started: Callable[[GenerationRunStarted], None] | None = None
     on_completed: Callable[[ListenerCompleted], None] | None = None
+    on_output_video: Callable[[OutputVideoUpdate], None] = lambda _update: None
 
 
 __all__ = [
