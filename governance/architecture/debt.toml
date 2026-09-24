@@ -339,21 +339,6 @@ responsibilities = [
 next_extraction = "Extract lookup execution and navigation history from modal presentation."
 
 [[debts]]
-id = "SS-ARCH-051"
-owner = "editor panel presentation"
-paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:e3ec56a3e8e6df72d78ca24da19a8340e32efffb8a80d8a415ffbaba99a92dec"
-issue = "chore:SS-ARCH-051"
-review_by = 2026-12-15
-responsibilities = [
-  "projection loading, insertion, cleanup, and freshness",
-  "link and prompt state synchronization",
-  "search and cube reveal coordination",
-  "behavior and prompt-context caching",
-]
-next_extraction = "Extract link synchronization and prompt-context host APIs from projection loading and cube-surface coordination."
-
-[[debts]]
 id = "SS-ARCH-065"
 owner = "managed text asset modal"
 paths = ["substitute/presentation/managed_text_assets/managed_text_asset_modal.py"]
