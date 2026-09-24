@@ -52,6 +52,9 @@ from tools.ci.installer_evidence_verification import (
     assert_startup_trace_sequence,
     diagnostic_tail,
 )
+from tools.ci.external_frozen_launch_environment import (
+    external_frozen_launch_environment,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_process_diagnostics import process_tree_diagnostics
 from tools.ci.installer_terminal_event_reader import (
@@ -67,8 +70,8 @@ from tools.ci.installed_application_shutdown import (
 )
 from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import (
-    assert_real_managed_comfy,
     terminate_owned_managed_comfy,
+    wait_for_real_managed_comfy,
 )
 from tools.ci.owned_process_runner import terminate_owned_process_tree
 from tools.ci.windows_desktop_process import start_windows_desktop_process
@@ -82,19 +85,6 @@ _INSTALLER_HANDOFF_SURFACES = frozenset(
     }
 )
 _MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
-_FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
-    "PYTHONHOME",
-    "PYTHONPATH",
-    "LD_LIBRARY_PATH",
-    "LD_LIBRARY_PATH_ORIG",
-    "DYLD_LIBRARY_PATH",
-    "DYLD_LIBRARY_PATH_ORIG",
-    "DYLD_FALLBACK_LIBRARY_PATH",
-    "DYLD_FRAMEWORK_PATH",
-    "QT_PLUGIN_PATH",
-    "QML2_IMPORT_PATH",
-    "QML_IMPORT_PATH",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +183,7 @@ def launch_installed_candidate(
     layout = InstallLayout.from_root(install_root)
     output_path = layout.logs_dir / "candidate-update-launch.log"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    launch_environment = _external_frozen_launch_environment(environment)
+    launch_environment = external_frozen_launch_environment(environment)
     observed_progress_paths = (
         layout.logs_dir / "launcher.log",
         layout.logs_dir / "launcher-update.log",
@@ -229,20 +219,6 @@ def launch_installed_candidate(
         progress_baselines=progress_baselines,
         update_attempt_baseline=_read_optional_bytes(attempt_store.path),
     )
-
-
-def _external_frozen_launch_environment(
-    environment: dict[str, str],
-) -> dict[str, str]:
-    """Remove host Python and frozen-runtime overrides from a packaged launch."""
-
-    launch_environment = dict(environment)
-    for variable_name in _FROZEN_LAUNCH_OVERRIDE_VARIABLES:
-        launch_environment.pop(variable_name, None)
-    for variable_name in tuple(launch_environment):
-        if variable_name.startswith("_PYI_"):
-            launch_environment.pop(variable_name, None)
-    return launch_environment
 
 
 def verify_main_shell_evidence(
@@ -304,9 +280,13 @@ def verify_main_shell_evidence(
             process_id=receipt.pid,
         )
         if evidence.plan.target_mode == "managed_local":
-            assert_real_managed_comfy(
+            wait_for_real_managed_comfy(
                 install_root=install_root,
                 plan=evidence.plan,
+                timeout_seconds=max(
+                    0.0,
+                    verification_deadline - time.monotonic(),
+                ),
                 require_governed_setup_record=require_governed_setup_record,
             )
         request_clean_qualification_shutdown(evidence.plan)
