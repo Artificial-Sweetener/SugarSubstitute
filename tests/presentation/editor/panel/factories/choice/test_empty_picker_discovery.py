@@ -136,6 +136,114 @@ def test_known_model_field_keeps_thumbnail_picker_before_catalog_preparation(
     assert tuple(item.value for item in snapshot.resolution.items) == options
 
 
+@pytest.mark.parametrize(
+    ("node_type", "field_key"),
+    (
+        ("SimpleSyrup.SimpleLoadCheckpoint", "vae_name"),
+        ("SimpleSyrup.SimpleLoadAnima", "vae"),
+        ("SimpleSyrup.SimpleLoadFlux", "vae"),
+        ("SimpleSyrup.SimpleLoadFlux2", "vae"),
+    ),
+)
+@pytest.mark.parametrize(
+    "options",
+    (
+        ("Use Checkpoint VAE",),
+        ("Use Checkpoint VAE", "SDXL/vae.safetensors", "pixel_space"),
+    ),
+)
+def test_simplesyrup_vae_fields_never_downgrade_to_combo(
+    monkeypatch: pytest.MonkeyPatch,
+    node_type: str,
+    field_key: str,
+    options: tuple[str, ...],
+) -> None:
+    """Every SimpleSyrup VAE loader choice remains a picker without catalog rows."""
+
+    monkeypatch.setattr(choice_factory, "ModelPickerField", _FakeModelPickerField)
+    catalog = _PendingModelCatalog()
+    resolver = RichChoiceResolver(
+        catalog_index=ModelChoiceCatalogIndex(model_catalog=catalog)
+    )
+    behavior = FieldBehavior(field_key=field_key)
+    snapshot = PanelModelChoiceSnapshotController(
+        model_catalog_service=catalog,
+        model_choice_resolver=resolver,
+    ).snapshot_for_field(
+        PanelModelChoiceSnapshotRequest(
+            field_behavior=behavior,
+            node_name="models",
+            key=field_key,
+            value=options[0],
+            node_type=node_type,
+            field_type="LIST",
+            field_info=[list(options), {}],
+            node_definition_gateway=None,
+        )
+    )
+
+    widget = ChoiceFieldFactory().build_field_widget(
+        ChoiceFieldBuildRequest(
+            parent="parent",
+            field_behavior=behavior,
+            node_name="models",
+            key=field_key,
+            value=options[0],
+            field_meta={},
+            model_choice_snapshot=snapshot,
+            node_type=node_type,
+            field_type="LIST",
+            field_info=[list(options), {}],
+        )
+    )
+
+    assert isinstance(widget, _FakeModelPickerField)
+    assert snapshot.model_kind == "vae"
+    assert snapshot.options == options
+    assert snapshot.resolution is not None
+    assert tuple(item.value for item in snapshot.resolution.items) == options
+
+
+@pytest.mark.parametrize(
+    ("node_type", "field_key", "model_kind"),
+    (
+        ("SimpleSyrup.SimpleLoadCheckpoint", "ckpt_name", "checkpoints"),
+        ("SimpleSyrup.SimpleLoadFlux", "diffusion_model", "diffusion_models"),
+        ("SimpleSyrup.SimpleLoadFlux2", "diffusion_model", "diffusion_models"),
+    ),
+)
+def test_other_simplesyrup_loader_choices_keep_empty_pickers(
+    node_type: str,
+    field_key: str,
+    model_kind: str,
+) -> None:
+    """Checkpoint and diffusion loaders share the namespace picker contract."""
+
+    catalog = _PendingModelCatalog()
+    resolver = RichChoiceResolver(
+        catalog_index=ModelChoiceCatalogIndex(model_catalog=catalog)
+    )
+    snapshot = PanelModelChoiceSnapshotController(
+        model_catalog_service=catalog,
+        model_choice_resolver=resolver,
+    ).snapshot_for_field(
+        PanelModelChoiceSnapshotRequest(
+            field_behavior=FieldBehavior(field_key=field_key),
+            node_name="models",
+            key=field_key,
+            value="",
+            node_type=node_type,
+            field_type="LIST",
+            field_info=[[], {}],
+            node_definition_gateway=None,
+        )
+    )
+
+    assert snapshot.should_build_picker
+    assert snapshot.model_kind == model_kind
+    assert snapshot.options == ()
+
+
 def _empty_snapshot(
     *, target_model: str
 ) -> tuple[FieldBehavior, PanelModelChoiceSnapshot]:
