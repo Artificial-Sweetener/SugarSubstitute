@@ -1012,11 +1012,6 @@ class EditorPanel(QWidget):
 
         _search_controller_for_panel(self).schedule_text_search_refresh()
 
-    def _refresh_scheduled_text_search(self) -> None:
-        """Recompute active editor text-search highlights from the latest buffers."""
-
-        _search_controller_for_panel(self).refresh_scheduled_text_search()
-
     def refresh_prompt_scene_diagnostics(self) -> None:
         """Push current workflow scene diagnostics into all live prompt editors."""
 

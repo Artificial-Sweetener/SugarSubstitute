@@ -403,27 +403,10 @@ responsibilities = [
 next_extraction = "Extract runtime-issue integration from projection cleanup and commit lifecycle."
 
 [[debts]]
-id = "SS-ARCH-050"
-owner = "editor panel search"
-paths = ["substitute/presentation/editor/panel/search_controller.py"]
-fingerprint = "sha256:bfa0789b930a95b07b5a4857af3b1e121815dd25c11ce35cb354f3c2b63a71df"
-issue = "chore:SS-ARCH-050"
-review_by = 2026-12-15
-responsibilities = [
-  "search refresh scheduling",
-  "search corpus and behavior snapshot construction",
-  "field and prompt match highlighting",
-  "card visibility filtering",
-  "result navigation and widget selection",
-  "search-state publication",
-]
-next_extraction = "Extract corpus/match projection and refresh scheduling from result navigation and widget presentation."
-
-[[debts]]
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:f344cb442514ae03d966f4a070c357244a0cc30e21449fb8ac76eee4cf019e73"
+fingerprint = "sha256:1e780af2f2e4d79b80de236ac44c7ebb1aebe86f1dbcdc8b0666c5f591bc867f"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
