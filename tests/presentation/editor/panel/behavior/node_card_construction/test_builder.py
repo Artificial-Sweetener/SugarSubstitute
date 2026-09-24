@@ -96,6 +96,14 @@ def _panel_module() -> ModuleType:
     return importlib.import_module("substitute.presentation.editor.panel.view")
 
 
+def _node_card_host_module() -> ModuleType:
+    """Return the production node-card host module."""
+
+    return importlib.import_module(
+        "substitute.presentation.editor.panel.node_card_host"
+    )
+
+
 def _panel_services(panel: SimpleNamespace) -> object:
     """Build the service bundle consumed by the production card builder."""
 
@@ -165,7 +173,8 @@ def test_editor_panel_build_node_card_uses_node_card_builder_constructor_surface
     """EditorPanel should not pass panel-only services into NodeCardBuilder."""
 
     module = _panel_module()
-    monkeypatch.setattr(module, "NodeCardBuilder", _StrictNodeCardBuilder)
+    node_card_host = _node_card_host_module()
+    monkeypatch.setattr(node_card_host, "NodeCardBuilder", _StrictNodeCardBuilder)
     panel = _panel_builder_host()
     panel._services = _panel_services(panel)
 
@@ -191,7 +200,8 @@ def test_editor_panel_prepares_node_card_prompt_inputs(
     """EditorPanel should prepare prompt context before invoking NodeCardBuilder."""
 
     module = _panel_module()
-    monkeypatch.setattr(module, "NodeCardBuilder", _StrictNodeCardBuilder)
+    node_card_host = _node_card_host_module()
+    monkeypatch.setattr(node_card_host, "NodeCardBuilder", _StrictNodeCardBuilder)
     prompt_feature_profile = PromptEditorFeatureProfile.enabled_profile(())
     prompt_syntax_profile = PromptSyntaxProfile(enabled_syntaxes=())
     prompt_field_profile = PanelPromptFieldProfileDecision(

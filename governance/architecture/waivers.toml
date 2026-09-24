@@ -288,19 +288,6 @@ next_limit = 806
 debt = "SS-ARCH-041"
 
 [[waivers]]
-id = "SS-WAIVER-R051"
-owner = "editor panel presentation"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/view.py"
-kind = "remediation"
-justification = "Service composition, registries, mounted layout, field presentation, prompt interaction, runtime access, live node-definition recovery, and runtime-issue presentation now have focused owners below the soft ceiling. The remaining view mixes projection loading and freshness, link and prompt synchronization, search and cube reveal coordination, and behavior/prompt-context caching. Extract the link and prompt-context host APIs next."
-issue = "chore:SS-ARCH-051"
-review_by = 2026-12-15
-max_lines = 1139
-next_limit = 800
-debt = "SS-ARCH-051"
-
-[[waivers]]
 id = "SS-WAIVER-S156"
 owner = "mounted prompt projection surface"
 rule = "STRUCT003"
