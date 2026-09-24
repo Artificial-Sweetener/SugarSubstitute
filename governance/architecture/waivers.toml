@@ -327,19 +327,6 @@ next_limit = 912
 debt = "SS-ARCH-046"
 
 [[waivers]]
-id = "SS-WAIVER-R047"
-owner = "editor projection lifecycle"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/projection_lifecycle.py"
-kind = "remediation"
-justification = "The assessed file mixes projection cleanup and visible commit lifecycle, render reconciliation and widget ordering, alias-keyed cache and registry cleanup, runtime issue integration and metadata hydration. Extract runtime-issue integration from projection cleanup and commit lifecycle."
-issue = "chore:SS-ARCH-047"
-review_by = 2026-12-15
-max_lines = 594
-next_limit = 500
-debt = "SS-ARCH-047"
-
-[[waivers]]
 id = "SS-WAIVER-R051"
 owner = "editor panel presentation"
 rule = "STRUCT003"

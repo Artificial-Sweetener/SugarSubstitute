@@ -54,9 +54,11 @@ from .projection_busy_adapter import EditorProjectionBusyAdapter
 from .projection_lifecycle import (
     EditorProjectionLifecyclePipeline,
     EditorProjectionLifecyclePorts,
-    EditorProjectionRuntimeIssueIntegration,
     ProjectionBuildRegistryPort,
     ProjectionLifecyclePanelPort,
+)
+from .projection_runtime_issue_integration import (
+    EditorProjectionRuntimeIssueIntegration,
     RuntimeIssueIntegrationPanelPort,
 )
 from .projection_preparation import (
