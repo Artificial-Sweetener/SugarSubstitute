@@ -92,7 +92,7 @@ class OutputTransferSettings:
 class VideoPlaybackSettings:
     """Configure safe generated-video decode and rendering preferences."""
 
-    hardware_decoding: VideoHardwareDecoding = VideoHardwareDecoding.AUTO
+    hardware_decoding: VideoHardwareDecoding = VideoHardwareDecoding.OFF
     renderer: VideoRenderer = VideoRenderer.AUTO
 
 

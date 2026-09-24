@@ -44,7 +44,7 @@ class FakePlayer:
         self.width: object = 2048
         self.height: object = 1024
         self.video_codec: object = "vp9"
-        self.video_format: object = "yuv420p"
+        self.video_params: object = {"pixelformat": "yuv420p"}
         self.pause: object = False
         self.screenshot = screenshot
         self.played: str | None = None

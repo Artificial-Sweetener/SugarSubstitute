@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from threading import Thread
 from types import ModuleType
 from typing import cast
 from uuid import uuid4
@@ -63,7 +64,10 @@ class FakePlayer:
         self.path: object = None
         self.commands: list[tuple[str, tuple[object, ...]]] = []
         self.observers: dict[str, ObservedCallback] = {}
+        self.observed_callbacks: dict[str, ObservedCallback] = {}
         self.terminated = False
+        self.callback_during_terminate = False
+        self.terminate_callback_completed = False
         self.fail_command: str | None = None
 
     def command(self, name: str, *arguments: object) -> object:
@@ -82,6 +86,7 @@ class FakePlayer:
         """Register one observer by property name."""
 
         self.observers[name] = callback
+        self.observed_callbacks[name] = callback
 
     def unobserve_property(self, name: str, callback: ObservedCallback) -> None:
         """Remove the matching property observer."""
@@ -92,6 +97,12 @@ class FakePlayer:
     def terminate(self) -> None:
         """Record native player teardown."""
 
+        if self.callback_during_terminate:
+            callback = self.observed_callbacks["pause"]
+            worker = Thread(target=lambda: callback("pause", True))
+            worker.start()
+            worker.join(timeout=0.5)
+            self.terminate_callback_completed = not worker.is_alive()
         self.terminated = True
 
     def emit(self, name: str, value: object) -> None:
@@ -152,7 +163,7 @@ def test_player_uses_closed_runtime_and_native_embedding(tmp_path: Path) -> None
     adapter, native, _events, _video = _player(tmp_path, native_window_id=4312)
 
     assert native.options["vo"] == "gpu-next,gpu"
-    assert native.options["hwdec"] == "auto-safe"
+    assert native.options["hwdec"] == "no"
     assert native.options["ao"] == "auto"
     assert native.options["wid"] == "4312"
     assert native.options["config"] is False
@@ -170,13 +181,13 @@ def test_player_applies_explicit_safe_video_preferences(tmp_path: Path) -> None:
         tmp_path,
         native_window_id=4312,
         settings=VideoPlaybackSettings(
-            hardware_decoding=VideoHardwareDecoding.OFF,
+            hardware_decoding=VideoHardwareDecoding.AUTO,
             renderer=VideoRenderer.GPU,
         ),
     )
 
     assert native.options["vo"] == "gpu"
-    assert native.options["hwdec"] == "no"
+    assert native.options["hwdec"] == "auto-safe"
     adapter.close()
 
 
@@ -290,7 +301,7 @@ def test_observations_update_state_and_reject_replaced_path(tmp_path: Path) -> N
     native.emit("height", 180)
     native.emit("time-pos", 0.125)
     current_count = len(events)
-    native.path = str(tmp_path / "old.webm")
+    native.emit("path", str(tmp_path / "old.webm"))
     native.emit("time-pos", 1.75)
 
     snapshot = adapter.snapshot()
@@ -307,14 +318,19 @@ def test_observations_publish_actual_native_path_and_software_fallback(
 ) -> None:
     """Diagnostics should distinguish requested policy from observed playback."""
 
-    adapter, native, _events, video = _player(tmp_path)
+    adapter, native, _events, video = _player(
+        tmp_path,
+        settings=VideoPlaybackSettings(
+            hardware_decoding=VideoHardwareDecoding.AUTO,
+        ),
+    )
     adapter.load(uuid4(), video)
 
     native.emit("current-vo", "gpu-next")
     native.emit("gpu-api", "d3d11")
     native.emit("gpu-context", "d3d11")
     native.emit("video-codec", "vp9")
-    native.emit("video-format", "yuv420p")
+    native.emit("video-params/pixelformat", "yuv420p")
     native.emit("hwdec-current", None)
 
     diagnostics = adapter.snapshot().diagnostics
@@ -395,3 +411,17 @@ def test_close_invalidates_observers_and_terminates_once(tmp_path: Path) -> None
     assert native.terminated
     with pytest.raises(VideoPlayerError, match="closed"):
         adapter.set_volume(50)
+
+
+def test_close_never_joins_native_event_thread_while_holding_state_lock(
+    tmp_path: Path,
+) -> None:
+    """Native teardown must let an in-flight observation finish without deadlock."""
+
+    adapter, native, _events, video = _player(tmp_path)
+    adapter.load(uuid4(), video)
+    native.callback_during_terminate = True
+
+    adapter.close()
+
+    assert native.terminate_callback_completed

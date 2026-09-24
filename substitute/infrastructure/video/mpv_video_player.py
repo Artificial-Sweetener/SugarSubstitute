@@ -51,6 +51,7 @@ class MpvVideoPlayer:
     """Own one reusable, isolated libmpv player and generation-scoped state."""
 
     _OBSERVED_PROPERTIES = (
+        "path",
         "pause",
         "time-pos",
         "duration",
@@ -62,7 +63,7 @@ class MpvVideoPlayer:
         "gpu-api",
         "gpu-context",
         "hwdec-current",
-        "video-format",
+        "video-params/pixelformat",
         "video-codec",
     )
 
@@ -83,6 +84,7 @@ class MpvVideoPlayer:
         self._event_callback = event_callback
         self._media_id: UUID | None = None
         self._media_path: Path | None = None
+        self._observed_path: str | None = None
         self._state = VideoPlaybackState.EMPTY
         self._paused = True
         self._loop_enabled = True
@@ -136,6 +138,7 @@ class MpvVideoPlayer:
             self._media_generation += 1
             self._media_id = media_id
             self._media_path = resolved
+            self._observed_path = None
             self._state = VideoPlaybackState.LOADING
             self._paused = True
             self._loop_enabled = True
@@ -174,6 +177,7 @@ class MpvVideoPlayer:
                 return
             self._media_id = None
             self._media_path = None
+            self._observed_path = None
             self._state = VideoPlaybackState.EMPTY
             self._paused = True
             self._time_seconds = None
@@ -322,12 +326,13 @@ class MpvVideoPlayer:
                 return
             self._closed = True
             self._media_generation += 1
-            for name in self._OBSERVED_PROPERTIES:
-                self._player.unobserve_property(name, self._observer)
-            self._player.terminate()
             self._media_id = None
             self._media_path = None
+            self._observed_path = None
             self._state = VideoPlaybackState.EMPTY
+        for name in self._OBSERVED_PROPERTIES:
+            self._player.unobserve_property(name, self._observer)
+        self._player.terminate()
 
     def _step_frame(self, command: str, failure_message: str) -> None:
         """Execute one exact decoded-frame command while remaining paused."""
@@ -349,13 +354,14 @@ class MpvVideoPlayer:
         """Translate native observations into one generation-scoped snapshot."""
 
         with self._lock:
-            if (
-                self._closed
-                or self._media_id is None
-                or not self._observes_current_path()
-            ):
+            if self._closed or self._media_id is None:
                 return
-            if name == "pause" and isinstance(value, bool):
+            if name == "path":
+                self._observed_path = _optional_string(value)
+                return
+            elif not self._observes_current_path():
+                return
+            elif name == "pause" and isinstance(value, bool):
                 self._paused = value
                 if self._state not in {
                     VideoPlaybackState.LOADING,
@@ -393,7 +399,7 @@ class MpvVideoPlayer:
             elif name == "hwdec-current":
                 self._hardware_decoder_observed = True
                 self._hardware_decoder = _optional_string(value)
-            elif name == "video-format":
+            elif name == "video-params/pixelformat":
                 self._pixel_format = _optional_string(value)
             elif name == "video-codec":
                 self._codec = _optional_string(value)
@@ -405,8 +411,8 @@ class MpvVideoPlayer:
 
         if self._media_path is None:
             return False
-        observed_path = self._player.path
-        if not isinstance(observed_path, str) or not observed_path:
+        observed_path = self._observed_path
+        if observed_path is None:
             return self._state is VideoPlaybackState.LOADING
         try:
             return Path(observed_path).expanduser().resolve() == self._media_path

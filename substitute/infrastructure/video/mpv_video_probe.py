@@ -46,7 +46,7 @@ class _MpvProbePlayer(Protocol):
     width: object
     height: object
     video_codec: object
-    video_format: object
+    video_params: object
     pause: object
 
     def play(self, filename: str) -> None:
@@ -92,7 +92,7 @@ class MpvVideoProbe:
                 mime_type=_mime_type(resolved.suffix),
                 poster_bytes=_encode_poster(poster),
                 codec=_optional_string(player.video_codec),
-                pixel_format=_optional_string(player.video_format),
+                pixel_format=_pixel_format(player.video_params),
             )
         except VideoProbeError:
             raise
@@ -170,6 +170,14 @@ def _optional_string(value: object) -> str | None:
     """Return one nonempty optional media string."""
 
     return value if isinstance(value, str) and value else None
+
+
+def _pixel_format(video_params: object) -> str | None:
+    """Read the decoded pixel format from libmpv's video-parameter map."""
+
+    if not isinstance(video_params, dict):
+        return None
+    return _optional_string(video_params.get("pixelformat"))
 
 
 def _mime_type(suffix: str) -> str | None:
