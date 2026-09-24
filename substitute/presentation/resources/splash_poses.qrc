@@ -30,9 +30,15 @@
     <file alias="28.png">splash_poses/28.png</file>
     <file alias="cass.png">splash_poses/cass.png</file>
     <file alias="comfy.png">splash_poses/comfy.png</file>
+    <file alias="comfy2.png">splash_poses/comfy2.png</file>
     <file alias="cubby.png">splash_poses/cubby.png</file>
+    <file alias="diffusion.png">splash_poses/diffusion.png</file>
     <file alias="liz.png">splash_poses/liz.png</file>
+    <file alias="lvgf.png">splash_poses/lvgf.png</file>
+    <file alias="married.png">splash_poses/married.png</file>
+    <file alias="pixelandlibrary.png">splash_poses/pixelandlibrary.png</file>
     <file alias="ren.png">splash_poses/ren.png</file>
+    <file alias="syl.png">splash_poses/syl.png</file>
     <file alias="witchy.png">splash_poses/witchy.png</file>
   </qresource>
 </RCC>

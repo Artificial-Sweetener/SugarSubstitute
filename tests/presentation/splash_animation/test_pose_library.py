@@ -21,9 +21,10 @@ from __future__ import annotations
 import pytest
 
 from substitute.presentation.splash_animation.pose_library import (
-    NAMED_POSE_WEIGHT,
+    GUEST_POSE_WEIGHT,
     NUMBERED_POSE_WEIGHT,
     PACKAGED_SPLASH_POSE_SIZE_PX,
+    RARE_GUEST_POSE_WEIGHT,
     SplashPoseLibraryError,
     discover_splash_pose_names,
     load_splash_pose_library,
@@ -37,12 +38,18 @@ def test_resource_names_load_from_qt_resource_prefix() -> None:
     names = discover_splash_pose_names()
 
     assert names[:3] == ("1.png", "2.png", "3.png")
-    assert names[-6:] == (
+    assert names[-12:] == (
         "cass.png",
         "comfy.png",
+        "comfy2.png",
         "cubby.png",
+        "diffusion.png",
         "liz.png",
+        "lvgf.png",
+        "married.png",
+        "pixelandlibrary.png",
         "ren.png",
+        "syl.png",
         "witchy.png",
     )
 
@@ -56,13 +63,33 @@ def test_numbered_resource_set_has_no_gaps() -> None:
     assert numbered == tuple(f"{index}.png" for index in range(1, 29))
 
 
-def test_pose_weight_policy_distinguishes_numbered_and_named_assets() -> None:
-    """Numbered poses should be common and named poses should be rare."""
+def test_pose_weight_policy_distinguishes_common_and_guest_assets() -> None:
+    """Numbered, guest, and rare-guest poses should use their own weights."""
 
     assert pose_base_weight("1.png") == pytest.approx(NUMBERED_POSE_WEIGHT)
-    assert pose_base_weight("witchy.png") == pytest.approx(NAMED_POSE_WEIGHT)
-    assert NAMED_POSE_WEIGHT == pytest.approx(0.25)
+    assert pose_base_weight("witchy.png") == pytest.approx(GUEST_POSE_WEIGHT)
+    assert pose_base_weight("married.png") == pytest.approx(RARE_GUEST_POSE_WEIGHT)
+    assert GUEST_POSE_WEIGHT == pytest.approx(0.25)
+    assert RARE_GUEST_POSE_WEIGHT == pytest.approx(GUEST_POSE_WEIGHT / 2)
     assert NUMBERED_POSE_WEIGHT == pytest.approx(1.0)
+
+
+def test_new_guest_poses_use_requested_rarities() -> None:
+    """New guest poses should share one weight except for the married couple."""
+
+    guest_names = (
+        "comfy2.png",
+        "diffusion.png",
+        "lvgf.png",
+        "pixelandlibrary.png",
+        "syl.png",
+    )
+
+    assert all(
+        pose_base_weight(name) == pytest.approx(GUEST_POSE_WEIGHT)
+        for name in guest_names
+    )
+    assert pose_base_weight("married.png") == pytest.approx(GUEST_POSE_WEIGHT / 2)
 
 
 def test_pose_library_loads_pixmaps_and_weights() -> None:
@@ -70,7 +97,7 @@ def test_pose_library_loads_pixmaps_and_weights() -> None:
 
     poses = load_splash_pose_library()
 
-    assert len(poses) == 34
+    assert len(poses) == 40
     assert poses[0].name == "1.png"
     assert poses[0].resource_path == ":/substitute/splash/poses/1.png"
     assert poses[0].base_weight == pytest.approx(NUMBERED_POSE_WEIGHT)
@@ -78,7 +105,7 @@ def test_pose_library_loads_pixmaps_and_weights() -> None:
     assert poses[0].size.width() == PACKAGED_SPLASH_POSE_SIZE_PX
     assert poses[0].size.height() == PACKAGED_SPLASH_POSE_SIZE_PX
     assert poses[-1].name == "witchy.png"
-    assert poses[-1].base_weight == pytest.approx(NAMED_POSE_WEIGHT)
+    assert poses[-1].base_weight == pytest.approx(GUEST_POSE_WEIGHT)
     assert not poses[-1].pixmap.isNull()
     assert poses[-1].size.width() == PACKAGED_SPLASH_POSE_SIZE_PX
     assert poses[-1].size.height() == PACKAGED_SPLASH_POSE_SIZE_PX

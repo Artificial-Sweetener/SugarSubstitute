@@ -22,12 +22,10 @@ from collections.abc import Mapping
 
 _EXACT_MODEL_FIELDS = {
     ("CheckpointLoaderSimple", "ckpt_name"): "checkpoints",
-    ("SimpleSyrup.SimpleLoadCheckpoint", "ckpt_name"): "checkpoints",
     ("LoraLoader", "lora_name"): "loras",
     ("LoraLoaderModelOnly", "lora_name"): "loras",
     ("VAELoader", "vae_name"): "vae",
     ("UNETLoader", "unet_name"): "diffusion_models",
-    ("SimpleSyrup.SimpleLoadAnima", "diffusion_model"): "diffusion_models",
     ("UpscaleModelLoader", "model_name"): "upscale_models",
     ("ControlNetLoader", "control_net_name"): "controlnet",
     ("CLIPLoader", "clip_name"): "text_encoders",
@@ -36,6 +34,13 @@ _EXACT_MODEL_FIELDS = {
     ("Power Lora Loader (rgthree)", "lora"): "loras",
     ("SimpleSyrup.LoadUltralyticsModel", "model_name"): "ultralytics",
     ("UltralyticsDetectorProvider", "model_name"): "ultralytics",
+}
+
+_SIMPLE_SYRUP_MODEL_FIELDS = {
+    "ckpt_name": "checkpoints",
+    "diffusion_model": "diffusion_models",
+    "vae": "vae",
+    "vae_name": "vae",
 }
 
 _UNQUALIFIED_MODEL_FIELDS = {
@@ -55,7 +60,15 @@ _UNQUALIFIED_MODEL_FIELDS = {
 
 def declared_model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
     """Return only a declared node-input contract suitable for selecting a widget."""
-    return _EXACT_MODEL_FIELDS.get((class_type.strip(), input_key.strip()))
+
+    normalized_class_type = class_type.strip()
+    normalized_input_key = input_key.strip()
+    exact_kind = _EXACT_MODEL_FIELDS.get((normalized_class_type, normalized_input_key))
+    if exact_kind is not None:
+        return exact_kind
+    if normalized_class_type.startswith("SimpleSyrup."):
+        return _SIMPLE_SYRUP_MODEL_FIELDS.get(normalized_input_key)
+    return None
 
 
 def declared_model_kind_for_projected_field(
