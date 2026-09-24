@@ -226,6 +226,37 @@ class VideoPlaybackController(QObject):
         self._current_media_id = None
         self.activate(media_id, path)
 
+    def retire(self, media_id: UUID) -> bool:
+        """Unload retired active media before its artifact lease is released."""
+
+        self._sessions.pop(media_id, None)
+        if media_id != self._current_media_id:
+            return True
+        player = self._player
+        if player is not None:
+            try:
+                player.unload()
+            except Exception as error:
+                self._publish_error(error)
+                return False
+        self._current_media_id = None
+        self._current_path = None
+        self._snapshot = VideoPlaybackSnapshot(
+            media_id=None,
+            state=VideoPlaybackState.EMPTY,
+            paused=True,
+            loop_enabled=True,
+            user_muted=False,
+            effectively_muted=True,
+            volume=100,
+            time_seconds=None,
+            duration_seconds=None,
+            width=None,
+            height=None,
+        )
+        self.snapshotChanged.emit(self._snapshot)
+        return True
+
     def close(self) -> None:
         """Release native player resources and reject later observations."""
 

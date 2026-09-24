@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -73,20 +73,12 @@ from substitute.application.workflows.output_canvas_timing_service import (
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
-from substitute.application.workflows.canvas_route_projector_port import (
-    create_canvas_session_boundary,
-)
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
-from substitute.presentation.canvas import (
-    create_canvas_host,
-    create_output_floating_chrome_factory,
-)
-from substitute.presentation.canvas.shared.types import OutputImageMeta
 from substitute.presentation.shell.comfy_output_panel import ComfyOutputPanel
 from substitute.presentation.shell.chrome_style import (
     CUBE_STACK_TOP_INSET,
@@ -95,6 +87,12 @@ from substitute.presentation.shell.chrome_style import (
 )
 from substitute.presentation.shell.generation_progress_strip import (
     GenerationProgressStrip,
+)
+from substitute.presentation.shell.main_window_canvas_scaffold import (
+    OutputAllExternalEditor,
+    OutputAssetReveal,
+    OutputSingleExternalEditor,
+    build_main_window_canvas_scaffold,
 )
 from substitute.presentation.shell.editor_busy_overlay import EditorBusyOverlay
 from substitute.presentation.shell.window_effects import ShellBackdropMode
@@ -109,10 +107,6 @@ from substitute.presentation.workflows.workflow_tabs_view import (
     TabBar,
 )
 from substitute.shared.startup_trace import trace_mark, trace_span
-
-OutputSingleExternalEditor = Callable[[object, OutputImageMeta], bool]
-OutputAllExternalEditor = Callable[[list[tuple[object, OutputImageMeta]]], bool]
-OutputAssetReveal = Callable[[OutputImageMeta], bool]
 
 
 @dataclass(frozen=True)
@@ -227,112 +221,6 @@ class WorkspaceSidePanelHost(QWidget):
         return self.width()
 
 
-def _build_canvas_scaffold(
-    window: object,
-    *,
-    canvas_execution_runtime: ExecutionRuntime,
-    output_preview_registry: OutputPreviewRegistry,
-    open_single_external_editor: OutputSingleExternalEditor | None,
-    open_all_external_editor: OutputAllExternalEditor | None,
-    reveal_output_asset: OutputAssetReveal | None = None,
-) -> tuple[
-    Any,
-    input_canvas_state_composition.InputCanvasStateComposition,
-    OutputCanvasStateService,
-    OutputCanvasFocusService,
-    OutputNavigationSessionService,
-    OutputGeneratedResultService,
-    OutputCanvasTimingService,
-    OutputCanvasProjectionCoordinator,
-    WorkflowCanvasProjectionCoordinator,
-    CanvasImageRegistry,
-    Any,
-    QWidget,
-]:
-    """Build the canvas host, state owners, and its container widget."""
-
-    canvas_session_boundary = create_canvas_session_boundary()
-    canvas_image_registry = CanvasImageRegistry()
-    output_floating_chrome_factory = create_output_floating_chrome_factory()
-    with trace_span("mainwindow.build_workspace.canvas.create_host"):
-        canvas_host = create_canvas_host(
-            execution_runtime=canvas_execution_runtime,
-            output_preview_registry=output_preview_registry,
-            open_single_external_editor=open_single_external_editor,
-            open_all_external_editor=open_all_external_editor,
-            reveal_output_asset=reveal_output_asset,
-            final_output_payload_lookup=canvas_image_registry.payload_for,
-            final_output_metadata_lookup=canvas_image_registry.metadata_for,
-            output_floating_chrome_factory=output_floating_chrome_factory,
-            route_session_boundary=canvas_session_boundary,
-        )
-    with trace_span("mainwindow.build_workspace.canvas.validate_host"):
-        output_canvas = cast(Any, canvas_host.canvas_for("Output"))
-        input_canvas = cast(Any, canvas_host.canvas_for("Input"))
-        if input_canvas is None or output_canvas is None:
-            raise RuntimeError("Canvas host must include Input and Output canvases.")
-
-    with trace_span("mainwindow.build_workspace.canvas.state_service"):
-        input_canvas_state = input_canvas_state_composition.compose_input_canvas_state(
-            document=input_canvas.document,
-            route_projector=input_canvas.route_projector,
-            session_boundary=canvas_session_boundary,
-            image_registry=canvas_image_registry,
-        )
-        output_canvas_state_service = OutputCanvasStateService(
-            image_registry=canvas_image_registry,
-        )
-        output_canvas_focus_service = OutputCanvasFocusService(
-            image_registry=canvas_image_registry,
-        )
-        output_navigation_session_service = OutputNavigationSessionService()
-        output_generated_result_service = OutputGeneratedResultService(
-            image_registry=canvas_image_registry,
-            output_state_service=output_canvas_state_service,
-            navigation_session_service=output_navigation_session_service,
-        )
-        output_canvas_timing_service = OutputCanvasTimingService(
-            image_registry=canvas_image_registry,
-        )
-        output_projection_content_synchronizer = (
-            output_canvas.create_projection_content_synchronizer(canvas_image_registry)
-        )
-        output_canvas_projection_coordinator = OutputCanvasProjectionCoordinator(
-            image_registry=canvas_image_registry,
-            output_canvas_state_service=output_canvas_state_service,
-            output_canvas_focus_service=output_canvas_focus_service,
-            output_navigation_session_service=output_navigation_session_service,
-            canvas_session_boundary=canvas_session_boundary,
-            content_synchronizer=output_projection_content_synchronizer,
-            projection_sink=output_canvas,
-        )
-        workflow_canvas_projection_coordinator = WorkflowCanvasProjectionCoordinator(
-            input_routes=input_canvas_state.routes,
-            output_canvas_projection_coordinator=output_canvas_projection_coordinator,
-        )
-
-    with trace_span("mainwindow.build_workspace.canvas.container"):
-        canvas_host_container = QWidget()
-        container_layout = QVBoxLayout(canvas_host_container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(0)
-        container_layout.addWidget(cast(QWidget, canvas_host))
-    return (
-        canvas_host,
-        input_canvas_state,
-        output_canvas_state_service,
-        output_canvas_focus_service,
-        output_navigation_session_service,
-        output_generated_result_service,
-        output_canvas_timing_service,
-        output_canvas_projection_coordinator,
-        workflow_canvas_projection_coordinator,
-        canvas_image_registry,
-        output_floating_chrome_factory,
-        canvas_host_container,
-    )
-
-
 def _build_progress_overlay(
     window: QWidget,
 ) -> tuple[QWidget, ProgressBar, ProgressBar]:
@@ -433,27 +321,33 @@ def build_main_window_workspace(
         editor_output_layout.addWidget(editor_output_splitter)
 
     with trace_span("mainwindow.build_workspace.canvas_scaffold"):
-        (
-            canvas_host,
-            input_canvas_state,
-            output_canvas_state_service,
-            output_canvas_focus_service,
-            output_navigation_session_service,
-            output_generated_result_service,
-            output_canvas_timing_service,
-            output_canvas_projection_coordinator,
-            workflow_canvas_projection_coordinator,
-            canvas_image_registry,
-            output_floating_chrome_factory,
-            canvas_host_container,
-        ) = _build_canvas_scaffold(
-            window,
+        canvas_scaffold = build_main_window_canvas_scaffold(
             canvas_execution_runtime=canvas_execution_runtime,
             output_preview_registry=output_preview_registry,
             open_single_external_editor=open_single_external_editor,
             open_all_external_editor=open_all_external_editor,
             reveal_output_asset=reveal_output_asset,
         )
+        canvas_host = canvas_scaffold.canvas_host
+        input_canvas_state = canvas_scaffold.input_canvas_state
+        output_canvas_state_service = canvas_scaffold.output_canvas_state_service
+        output_canvas_focus_service = canvas_scaffold.output_canvas_focus_service
+        output_navigation_session_service = (
+            canvas_scaffold.output_navigation_session_service
+        )
+        output_generated_result_service = (
+            canvas_scaffold.output_generated_result_service
+        )
+        output_canvas_timing_service = canvas_scaffold.output_canvas_timing_service
+        output_canvas_projection_coordinator = (
+            canvas_scaffold.output_canvas_projection_coordinator
+        )
+        workflow_canvas_projection_coordinator = (
+            canvas_scaffold.workflow_canvas_projection_coordinator
+        )
+        canvas_image_registry = canvas_scaffold.canvas_image_registry
+        output_floating_chrome_factory = canvas_scaffold.output_floating_chrome_factory
+        canvas_host_container = canvas_scaffold.canvas_host_container
         if configure_output_thumbnail_context is not None:
             configure_output_thumbnail_context(
                 canvas_image_registry,
