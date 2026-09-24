@@ -153,7 +153,7 @@ class _FakeRecoveryDialog:
         self._event_log = event_log
         self._retry_callback: Callable[[], None] | None = None
         self._force_close_callback: Callable[[], None] | None = None
-        self.detail_text = ""
+        self.cleanup_result: ManagedComfyCleanupResult | None = None
 
     def show(self) -> None:
         self._record("recovery.show")
@@ -177,12 +177,12 @@ class _FakeRecoveryDialog:
     def set_force_close_callback(self, callback: Callable[[], None]) -> None:
         self._force_close_callback = callback
 
-    def show_uncertain_outcome(self, detail_text: str) -> None:
-        self.detail_text = detail_text
+    def show_uncertain_outcome(self, result: ManagedComfyCleanupResult) -> None:
+        self.cleanup_result = result
         self._record("recovery.uncertain")
 
-    def show_failed_outcome(self, detail_text: str) -> None:
-        self.detail_text = detail_text
+    def show_failed_outcome(self, result: ManagedComfyCleanupResult) -> None:
+        self.cleanup_result = result
         self._record("recovery.failed")
 
     def trigger_retry(self) -> None:

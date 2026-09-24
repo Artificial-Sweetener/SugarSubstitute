@@ -539,7 +539,7 @@ This is taking much longer than expected</source>
       <translation>添加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="335"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="336"></location>
       <source>Add %1 key</source>
       <translation>添加 %1 密钥</translation>
     </message>
@@ -634,7 +634,7 @@ This is taking much longer than expected</source>
       <translation>受影响的 Cube</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="616"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_picker_controller.py" line="247"></location>
       <source>All</source>
       <translation>全部</translation>
     </message>
@@ -1624,7 +1624,7 @@ This is taking much longer than expected</source>
       <translation>替我关闭 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="74"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="84"></location>
       <source>Close Substitute Anyway</source>
       <translation>仍然关闭 Substitute</translation>
     </message>
@@ -2014,7 +2014,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI 已安装，但 Substitute 无法完成必需节点包的准备工作。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="200"></location>
+      <location filename="../substitute/presentation/canvas/output/output_compare_menu_item.py" line="40"></location>
       <source>Compare outputs</source>
       <translation>比较输出</translation>
     </message>
@@ -2194,9 +2194,14 @@ This is taking much longer than expected</source>
       <translation>控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="152"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="155"></location>
       <source>Copy</source>
       <translation>复制</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="79"></location>
+      <source>Copy Details</source>
+      <translation>复制详细信息</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/comfy_output_panel.py" line="96"></location>
@@ -2219,7 +2224,7 @@ This is taking much longer than expected</source>
       <translation>复制标签标题</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="54"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="61"></location>
       <source>Could Not Finish Closing</source>
       <translation>无法完成关闭</translation>
     </message>
@@ -2239,7 +2244,7 @@ This is taking much longer than expected</source>
       <translation>无法安装立方体库所需的节点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="954"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="195"></location>
       <source>Could not load image: %1</source>
       <translation>无法加载图片：%1</translation>
     </message>
@@ -2767,7 +2772,7 @@ Install these nodes now?</source>
       <translation>正在下载...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="51"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="57"></location>
       <source>Drag</source>
       <translation>拖放</translation>
     </message>
@@ -3210,7 +3215,7 @@ Install these nodes now?</source>
       <translation>生成场景时找不到可运行的场景：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="966"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="207"></location>
       <source>Generated image load failed</source>
       <translation>加载生成的图像失败</translation>
     </message>
@@ -3390,7 +3395,7 @@ Install these nodes now?</source>
       <translation>隐藏 Comfy 输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="178"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="194"></location>
       <source>Hide Details</source>
       <translation>隐藏详细信息</translation>
     </message>
@@ -3460,7 +3465,7 @@ Install these nodes now?</source>
       <translation>如果不确定，请改用“从运行中的 ComfyUI 检测”。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="64"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="71"></location>
       <source>If you close anyway, a background service may still be running.</source>
       <translation>如果仍然关闭，后台服务可能会继续运行。</translation>
     </message>
@@ -3855,7 +3860,7 @@ Install these nodes now?</source>
       <translation>LoRA 触发词</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="958"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="199"></location>
       <source>Load Error</source>
       <translation>加载错误</translation>
     </message>
@@ -4070,6 +4075,36 @@ Install these nodes now?</source>
       <translation>受管理的本地设置</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="147"></location>
+      <source>Managed process exit was not confirmed</source>
+      <translation>未能确认受管进程已退出</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="102"></location>
+      <source>Managed process native-exit verification timeout</source>
+      <translation>受管进程原生退出验证超时</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="159"></location>
+      <source>Managed process termination boundary</source>
+      <translation>受管进程终止边界</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="115"></location>
+      <source>Managed process termination command timeout</source>
+      <translation>受管进程终止命令超时</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="158"></location>
+      <source>Managed process termination failed</source>
+      <translation>受管进程终止失败</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="103"></location>
+      <source>Managed runtime or operating-system process teardown</source>
+      <translation>受管运行时或操作系统进程清理</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="310"></location>
       <source>Managed workspace: %1</source>
       <translation>托管工作区：%1</translation>
@@ -4080,12 +4115,12 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="677"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="216"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="614"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="170"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
@@ -4682,7 +4717,7 @@ I’ll bring my own</source>
       <translation>在 GitHub 上打开 %1 仓库</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="167"></location>
       <source>Open All in Photoshop</source>
       <translation>在 Photoshop 中打开全部</translation>
     </message>
@@ -4737,7 +4772,7 @@ I’ll bring my own</source>
       <translation>打开此本地 ComfyUI 来源的引导式设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="161"></location>
       <source>Open in Photoshop</source>
       <translation>在 Photoshop 中打开</translation>
     </message>
@@ -4775,6 +4810,11 @@ I’ll bring my own</source>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="213"></location>
       <source>Operating system</source>
       <translation>操作系统</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="116"></location>
+      <source>Operating-system process termination command</source>
+      <translation>操作系统进程终止命令</translation>
     </message>
     <message>
       <location filename="../substitute/application/error_report_builder.py" line="233"></location>
@@ -5806,7 +5846,7 @@ No known extension claimant.</source>
       <translation>显示隐藏的卡片</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="173"></location>
       <source>Reveal in File Manager</source>
       <translation>在文件管理器中显示</translation>
     </message>
@@ -6426,7 +6466,7 @@ No known extension claimant.</source>
       <translation>显示 Comfy 输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="187"></location>
       <source>Show Details</source>
       <translation>显示详细信息</translation>
     </message>
@@ -6838,7 +6878,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 连接到此 ComfyUI 服务器。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="107"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="122"></location>
       <source>Substitute could not confirm that shutdown finished.</source>
       <translation>Substitute 无法确认关闭已完成。</translation>
     </message>
@@ -6848,7 +6888,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 无法下载并验证此工作流所需的所有模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="120"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="135"></location>
       <source>Substitute could not finish closing completely.</source>
       <translation>Substitute 无法彻底完成关闭。</translation>
     </message>
@@ -6953,6 +6993,11 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 无法保存这些设置选项</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="129"></location>
+      <source>Substitute encountered an internal cleanup error before it could request managed-process termination.</source>
+      <translation>Substitute 在请求终止受管进程之前遇到内部清理错误。</translation>
+    </message>
+    <message>
       <location filename="../substitute/app/bootstrap/lifecycle.py" line="374"></location>
       <source>Substitute finished closing cleanly.</source>
       <translation>Substitute 已顺利完成关闭。</translation>
@@ -7033,6 +7078,21 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 会将完成的图片保存在这里。默认位置会将其与 Substitute 文件放在一起。</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="127"></location>
+      <source>Substitute shutdown cleanup error</source>
+      <translation>Substitute 关闭清理错误</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="137"></location>
+      <source>Substitute shutdown coordinator timeout</source>
+      <translation>Substitute 关闭协调器超时</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="128"></location>
+      <source>Substitute shutdown orchestration</source>
+      <translation>Substitute 关闭编排</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="106"></location>
       <source>Substitute still needs a ComfyUI connection</source>
       <translation>Substitute 仍需配置 ComfyUI 连接</translation>
@@ -7076,6 +7136,11 @@ Then create an API key in Account Settings and paste it here.</source>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="151"></location>
       <source>Substitute will not start over a different app that is already listening on the managed port.</source>
       <translation>如果其他应用已在监听托管端口，Substitute 不会强行占用该端口启动。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="139"></location>
+      <source>Substitute's cleanup task did not return before the shutdown coordinator deadline, so process exit could not be verified.</source>
+      <translation>Substitute 的清理任务未在关闭协调器截止时间前返回，因此无法验证进程退出。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="344"></location>
@@ -7242,9 +7307,24 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>SugarSubstitute 为 ComfyUI 提供专注的 PySide6 工作区，支持基于方块的工作流组合、托管模型元数据、提示词工具以及集成的图像画布工作流。</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="160"></location>
+      <source>SugarSubstitute reached the managed-process termination boundary, but the termination attempt did not complete successfully.</source>
+      <translation>SugarSubstitute 已到达受管进程终止边界，但终止尝试未成功完成。</translation>
+    </message>
+    <message>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="200"></location>
       <source>SugarSubstitute recorded release version</source>
       <translation>SugarSubstitute 记录的发行版本</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="119"></location>
+      <source>SugarSubstitute requested managed-process termination, but the operating system command did not finish before its deadline.</source>
+      <translation>SugarSubstitute 请求终止受管进程，但操作系统命令未在截止时间前完成。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="151"></location>
+      <source>SugarSubstitute requested termination but could not prove that the managed process family completed exit.</source>
+      <translation>SugarSubstitute 请求了终止，但无法证明受管进程族已完成退出。</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_compatibility.py" line="67"></location>
@@ -7255,6 +7335,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/domain/comfy_compatibility.py" line="89"></location>
       <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
       <translation>SugarSubstitute 的 ComfyUI 节点包需要 Python %1 或更高版本。所选环境使用的是 Python %2。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="106"></location>
+      <source>SugarSubstitute sent the termination request, but the operating system did not confirm that every managed process exited before the verification deadline. This does not indicate a crash in the Substitute interface.</source>
+      <translation>SugarSubstitute 已发送终止请求，但操作系统未在验证截止时间前确认所有受管进程均已退出。这并不表示 Substitute 界面发生崩溃。</translation>
     </message>
     <message>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="109"></location>
@@ -7295,6 +7380,59 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="204"></location>
       <source>Supervising launcher version</source>
       <translation>监督启动器版本</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="51"></location>
+      <source>Support code: %1
+Classification: %2
+Responsibility boundary: %3
+
+What happened:
+%4
+
+Observed shutdown facts:
+- Cleanup outcome: %5
+- Managed process detected before shutdown: %6
+- Ownership metadata available: %7
+- Persisted ownership metadata used: %8
+- Termination requested: %9
+- Native exit verification timed out: %10
+- Termination command timed out: %11
+- Managed process registry cleared: %12
+- Managed process ID: %13
+- Endpoint: %14
+- Cleanup elapsed: %15 milliseconds
+
+User-safe detail:
+%16
+
+Diagnostic evidence:
+%17</source>
+      <translation>支持代码：%1
+分类：%2
+责任边界：%3
+
+发生了什么：
+%4
+
+观察到的关闭事实：
+- 清理结果：%5
+- 关闭前检测到受管进程：%6
+- 所有权元数据可用：%7
+- 使用了持久化所有权元数据：%8
+- 已请求终止：%9
+- 原生退出验证超时：%10
+- 终止命令超时：%11
+- 已清除受管进程注册信息：%12
+- 受管进程 ID：%13
+- 端点：%14
+- 清理耗时：%15 毫秒
+
+用户安全详细信息：
+%16
+
+诊断证据：
+%17</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1761"></location>
@@ -7669,12 +7807,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="679"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="217"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="616"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="171"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>
@@ -7929,7 +8067,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法应用更改</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="42"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="46"></location>
       <source>Unable to copy output image.</source>
       <translation>无法复制输出图像。</translation>
     </message>
@@ -7974,7 +8112,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法保存资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="53"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="59"></location>
       <source>Unable to transfer output image.</source>
       <translation>无法传输输出图像。</translation>
     </message>
@@ -8599,7 +8737,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>你可以保留建议的位置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="110"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="125"></location>
       <source>You can retry shutdown or close Substitute anyway.</source>
       <translation>你可以重试关闭操作，也可以直接关闭 Substitute。</translation>
     </message>

@@ -22,6 +22,7 @@ from sugarsubstitute_shared.presentation.localization import (
     ApplicationText,
     apply_application_text,
     app_text,
+    render_application_text,
     set_localized_text,
     set_localized_window_title,
 )
@@ -33,13 +34,19 @@ from substitute.presentation.localization import (
 from collections.abc import Callable
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QCloseEvent, QKeyEvent
+from PySide6.QtGui import QCloseEvent, QGuiApplication, QKeyEvent, QTextCursor
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
+    QPlainTextEdit,
     QVBoxLayout,
     QWidget,
+)
+
+from substitute.app.bootstrap.lifecycle import ManagedComfyCleanupResult
+from substitute.app.bootstrap.shutdown_recovery_report import (
+    build_shutdown_recovery_report,
 )
 
 
@@ -56,7 +63,7 @@ class ShutdownRecoveryDialog(QDialog):
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setWindowFlag(Qt.WindowType.WindowContextHelpButtonHint, False)
         self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
-        self.setMinimumWidth(440)
+        self.setMinimumWidth(600)
 
         self.primary_label = QLabel("", self)
         self.secondary_label = QLabel("", self)
@@ -68,7 +75,10 @@ class ShutdownRecoveryDialog(QDialog):
             app_text("Show Details"), self
         )
         self.details_toggle_button.setCheckable(True)
-        self.details_label = QLabel("", self)
+        self.copy_details_button = LocalizedNativePushButton(
+            app_text("Copy Details"), self
+        )
+        self.details_editor = QPlainTextEdit(self)
         self.retry_button = LocalizedNativePushButton(app_text("Retry"), self)
         self.force_close_button = LocalizedNativePushButton(
             app_text("Close Substitute Anyway"), self
@@ -77,13 +87,18 @@ class ShutdownRecoveryDialog(QDialog):
         self.primary_label.setWordWrap(True)
         self.secondary_label.setWordWrap(True)
         self.warning_label.setWordWrap(True)
-        self.details_label.setWordWrap(True)
-        self.details_label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-        )
-        self.details_label.hide()
+        self.details_editor.setReadOnly(True)
+        self.details_editor.setMinimumHeight(220)
+        self.details_editor.setTabChangesFocus(True)
+        self.details_editor.hide()
         self.retry_button.setDefault(True)
         self.details_toggle_button.clicked.connect(self._toggle_details_visibility)
+        self.copy_details_button.clicked.connect(self._copy_details)
+
+        details_button_row = QHBoxLayout()
+        details_button_row.addWidget(self.details_toggle_button)
+        details_button_row.addStretch(1)
+        details_button_row.addWidget(self.copy_details_button)
 
         button_row = QHBoxLayout()
         button_row.addWidget(self.retry_button)
@@ -96,11 +111,11 @@ class ShutdownRecoveryDialog(QDialog):
         layout.addWidget(self.primary_label)
         layout.addWidget(self.secondary_label)
         layout.addWidget(self.warning_label)
-        layout.addWidget(self.details_toggle_button)
-        layout.addWidget(self.details_label)
+        layout.addLayout(details_button_row)
+        layout.addWidget(self.details_editor)
         layout.addLayout(button_row)
 
-    def show_uncertain_outcome(self, detail_text: ApplicationText) -> None:
+    def show_uncertain_outcome(self, result: ManagedComfyCleanupResult) -> None:
         """Render the recovery copy for an uncertain shutdown outcome."""
 
         self._set_copy(
@@ -110,10 +125,10 @@ class ShutdownRecoveryDialog(QDialog):
             secondary_text=app_text(
                 "You can retry shutdown or close Substitute anyway."
             ),
-            detail_text=detail_text,
+            detail_text=build_shutdown_recovery_report(result),
         )
 
-    def show_failed_outcome(self, detail_text: ApplicationText) -> None:
+    def show_failed_outcome(self, result: ManagedComfyCleanupResult) -> None:
         """Render the recovery copy for a failed shutdown outcome."""
 
         self._set_copy(
@@ -121,7 +136,7 @@ class ShutdownRecoveryDialog(QDialog):
             secondary_text=app_text(
                 "You can retry shutdown or close Substitute anyway."
             ),
-            detail_text=detail_text,
+            detail_text=build_shutdown_recovery_report(result),
         )
 
     def set_retry_callback(self, callback: Callable[[], None]) -> None:
@@ -166,10 +181,11 @@ class ShutdownRecoveryDialog(QDialog):
 
         apply_application_text(self.primary_label, primary_text)
         apply_application_text(self.secondary_label, secondary_text)
-        apply_application_text(self.details_label, detail_text)
+        self.details_editor.setPlainText(render_application_text(detail_text))
+        self.details_editor.moveCursor(QTextCursor.MoveOperation.Start)
         self.details_toggle_button.setChecked(False)
         set_localized_text(self.details_toggle_button, "Show Details")
-        self.details_label.hide()
+        self.details_editor.hide()
 
     def _toggle_details_visibility(self) -> None:
         """Toggle the visibility of the sanitized detail text."""
@@ -179,4 +195,10 @@ class ShutdownRecoveryDialog(QDialog):
             self.details_toggle_button,
             "Hide Details" if details_visible else "Show Details",
         )
-        self.details_label.setVisible(details_visible)
+        self.details_editor.setVisible(details_visible)
+        self.adjustSize()
+
+    def _copy_details(self) -> None:
+        """Copy the complete support report exactly as displayed."""
+
+        QGuiApplication.clipboard().setText(self.details_editor.toPlainText())
