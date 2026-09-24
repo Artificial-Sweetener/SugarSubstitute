@@ -1718,6 +1718,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cöpy ···⟧</translation>
     </message>
     <message>
+      <source>Copy Details</source>
+      <translation>⟦Cöpy Dëtàïls ···⟧</translation>
+    </message>
+    <message>
       <source>Copy all output</source>
       <translation>⟦Cöpy àll öütpüt ···⟧</translation>
     </message>
@@ -3214,6 +3218,30 @@ Install these nodes now?</source>
       <translation>⟦Mànàgëd löcàl sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Managed process exit was not confirmed</source>
+      <translation>⟦Mànàgëd pröcëss ëxït wàs nöt cönfïrmëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Managed process native-exit verification timeout</source>
+      <translation>⟦Mànàgëd pröcëss nàtïvë-ëxït vërïfïcàtïön tïmëöüt ···⟧</translation>
+    </message>
+    <message>
+      <source>Managed process termination boundary</source>
+      <translation>⟦Mànàgëd pröcëss tërmïnàtïön böündàry ···⟧</translation>
+    </message>
+    <message>
+      <source>Managed process termination command timeout</source>
+      <translation>⟦Mànàgëd pröcëss tërmïnàtïön cömmànd tïmëöüt ···⟧</translation>
+    </message>
+    <message>
+      <source>Managed process termination failed</source>
+      <translation>⟦Mànàgëd pröcëss tërmïnàtïön fàïlëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Managed runtime or operating-system process teardown</source>
+      <translation>⟦Mànàgëd rüntïmë ör öpëràtïng-systëm pröcëss tëàrdöwn ···⟧</translation>
+    </message>
+    <message>
       <source>Managed workspace: %1</source>
       <translation>⟦Mànàgëd wörkspàcë: %1 ···⟧</translation>
     </message>
@@ -3778,6 +3806,10 @@ I’ll bring my own</source>
     <message>
       <source>Operating system</source>
       <translation>⟦Öpëràtïng systëm ···⟧</translation>
+    </message>
+    <message>
+      <source>Operating-system process termination command</source>
+      <translation>⟦Öpëràtïng-systëm pröcëss tërmïnàtïön cömmànd ···⟧</translation>
     </message>
     <message>
       <source>Operation</source>
@@ -5522,6 +5554,10 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
       <translation>⟦Sübstïtütë cöüldn't sàvë thësë sëtüp chöïcës ···⟧</translation>
     </message>
     <message>
+      <source>Substitute encountered an internal cleanup error before it could request managed-process termination.</source>
+      <translation>⟦Sübstïtütë ëncöüntërëd àn ïntërnàl clëànüp ërrör bëförë ït cöüld rëqüëst mànàgëd-pröcëss tërmïnàtïön. ···⟧</translation>
+    </message>
+    <message>
       <source>Substitute finished closing cleanly.</source>
       <translation>⟦Sübstïtütë fïnïshëd clösïng clëànly. ···⟧</translation>
     </message>
@@ -5586,6 +5622,18 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
       <translation>⟦Sübstïtütë sàvës fïnïshëd ïmàgës hërë. Thë dëfàült këëps thëm wïth yöür Sübstïtütë fïlës. ···⟧</translation>
     </message>
     <message>
+      <source>Substitute shutdown cleanup error</source>
+      <translation>⟦Sübstïtütë shütdöwn clëànüp ërrör ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute shutdown coordinator timeout</source>
+      <translation>⟦Sübstïtütë shütdöwn cöördïnàtör tïmëöüt ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute shutdown orchestration</source>
+      <translation>⟦Sübstïtütë shütdöwn örchëstràtïön ···⟧</translation>
+    </message>
+    <message>
       <source>Substitute still needs a ComfyUI connection</source>
       <translation>⟦Sübstïtütë stïll nëëds à CömfyÜÏ cönnëctïön ···⟧</translation>
     </message>
@@ -5620,6 +5668,10 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
     <message>
       <source>Substitute will not start over a different app that is already listening on the managed port.</source>
       <translation>⟦Sübstïtütë wïll nöt stàrt övër à dïffërënt àpp thàt ïs àlrëàdy lïstënïng ön thë mànàgëd pört. ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute's cleanup task did not return before the shutdown coordinator deadline, so process exit could not be verified.</source>
+      <translation>⟦Sübstïtütë's clëànüp tàsk dïd nöt rëtürn bëförë thë shütdöwn cöördïnàtör dëàdlïnë, sö pröcëss ëxït cöüld nöt bë vërïfïëd. ···⟧</translation>
     </message>
     <message>
       <source>Substitute's local runtime is ready.</source>
@@ -5754,8 +5806,20 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦SügàrSübstïtütë prövïdës à föcüsëd PySïdë6 wörkspàcë för CömfyÜÏ, wïth cübë-bàsëd wörkflöw cömpösïtïön, mànàgëd mödël mëtàdàtà, prömpt töölïng, ànd ïntëgràtëd ïmàgë cànvàs wörkflöws. ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute reached the managed-process termination boundary, but the termination attempt did not complete successfully.</source>
+      <translation>⟦SügàrSübstïtütë rëàchëd thë mànàgëd-pröcëss tërmïnàtïön böündàry, büt thë tërmïnàtïön àttëmpt dïd nöt cömplëtë süccëssfülly. ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute recorded release version</source>
       <translation>⟦SügàrSübstïtütë rëcördëd rëlëàsë vërsïön ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute requested managed-process termination, but the operating system command did not finish before its deadline.</source>
+      <translation>⟦SügàrSübstïtütë rëqüëstëd mànàgëd-pröcëss tërmïnàtïön, büt thë öpëràtïng systëm cömmànd dïd nöt fïnïsh bëförë ïts dëàdlïnë. ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute requested termination but could not prove that the managed process family completed exit.</source>
+      <translation>⟦SügàrSübstïtütë rëqüëstëd tërmïnàtïön büt cöüld nöt prövë thàt thë mànàgëd pröcëss fàmïly cömplëtëd ëxït. ···⟧</translation>
     </message>
     <message>
       <source>SugarSubstitute requires ComfyUI %1 or newer. The selected checkout is ComfyUI %2.</source>
@@ -5764,6 +5828,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
       <translation>⟦SügàrSübstïtütë rëqüïrës Pythön %1 ör nëwër för CömfyÜÏ nödë pàcks. Thë sëlëctëd ënvïrönmënt üsës Pythön %2. ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute sent the termination request, but the operating system did not confirm that every managed process exited before the verification deadline. This does not indicate a crash in the Substitute interface.</source>
+      <translation>⟦SügàrSübstïtütë sënt thë tërmïnàtïön rëqüëst, büt thë öpëràtïng systëm dïd nöt cönfïrm thàt ëvëry mànàgëd pröcëss ëxïtëd bëförë thë vërïfïcàtïön dëàdlïnë. Thïs döës nöt ïndïcàtë à cràsh ïn thë Sübstïtütë ïntërfàcë. ···⟧</translation>
     </message>
     <message>
       <source>Suggest LoRA names from the model catalog while editing prompts.</source>
@@ -5796,6 +5864,58 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Supervising launcher version</source>
       <translation>⟦Süpërvïsïng làünchër vërsïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Support code: %1
+Classification: %2
+Responsibility boundary: %3
+
+What happened:
+%4
+
+Observed shutdown facts:
+- Cleanup outcome: %5
+- Managed process detected before shutdown: %6
+- Ownership metadata available: %7
+- Persisted ownership metadata used: %8
+- Termination requested: %9
+- Native exit verification timed out: %10
+- Termination command timed out: %11
+- Managed process registry cleared: %12
+- Managed process ID: %13
+- Endpoint: %14
+- Cleanup elapsed: %15 milliseconds
+
+User-safe detail:
+%16
+
+Diagnostic evidence:
+%17</source>
+      <translation>⟦Süppört cödë: %1
+Clàssïfïcàtïön: %2
+Rëspönsïbïlïty böündàry: %3
+
+Whàt hàppënëd:
+%4
+
+Öbsërvëd shütdöwn fàcts:
+- Clëànüp öütcömë: %5
+- Mànàgëd pröcëss dëtëctëd bëförë shütdöwn: %6
+- Öwnërshïp mëtàdàtà àvàïlàblë: %7
+- Përsïstëd öwnërshïp mëtàdàtà üsëd: %8
+- Tërmïnàtïön rëqüëstëd: %9
+- Nàtïvë ëxït vërïfïcàtïön tïmëd öüt: %10
+- Tërmïnàtïön cömmànd tïmëd öüt: %11
+- Mànàgëd pröcëss rëgïstry clëàrëd: %12
+- Mànàgëd pröcëss ÏD: %13
+- Ëndpöïnt: %14
+- Clëànüp ëlàpsëd: %15 mïllïsëcönds
+
+Üsër-sàfë dëtàïl:
+%16
+
+Dïàgnöstïc ëvïdëncë:
+%17 ···⟧</translation>
     </message>
     <message>
       <source>Supported actions:

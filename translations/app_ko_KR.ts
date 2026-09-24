@@ -484,7 +484,7 @@ This is taking much longer than expected</source>
       <translation>추가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="335"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="336"></location>
       <source>Add %1 key</source>
       <translation>%1 키 추가</translation>
     </message>
@@ -579,7 +579,7 @@ This is taking much longer than expected</source>
       <translation>영향받는 큐브</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="616"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_picker_controller.py" line="247"></location>
       <source>All</source>
       <translation>전체</translation>
     </message>
@@ -1569,7 +1569,7 @@ This is taking much longer than expected</source>
       <translation>Substitute가 ComfyUI 닫기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="74"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="84"></location>
       <source>Close Substitute Anyway</source>
       <translation>그래도 Substitute 닫기</translation>
     </message>
@@ -1959,7 +1959,7 @@ This is taking much longer than expected</source>
       <translation>ComfyUI를 설치했지만 Substitute가 필요한 노드 팩 준비를 완료하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="200"></location>
+      <location filename="../substitute/presentation/canvas/output/output_compare_menu_item.py" line="40"></location>
       <source>Compare outputs</source>
       <translation>출력 비교</translation>
     </message>
@@ -2139,9 +2139,14 @@ This is taking much longer than expected</source>
       <translation>컨트롤</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="152"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="155"></location>
       <source>Copy</source>
       <translation>복사</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="79"></location>
+      <source>Copy Details</source>
+      <translation>세부 정보 복사</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/comfy_output_panel.py" line="96"></location>
@@ -2164,7 +2169,7 @@ This is taking much longer than expected</source>
       <translation>태그 제목 복사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="54"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="61"></location>
       <source>Could Not Finish Closing</source>
       <translation>종료를 완료하지 못했습니다</translation>
     </message>
@@ -2184,7 +2189,7 @@ This is taking much longer than expected</source>
       <translation>필요한 큐브 라이브러리 노드를 설치하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="954"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="195"></location>
       <source>Could not load image: %1</source>
       <translation>이미지를 불러오지 못했습니다: %1</translation>
     </message>
@@ -2712,7 +2717,7 @@ Install these nodes now?</source>
       <translation>다운로드 중...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="51"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="57"></location>
       <source>Drag</source>
       <translation>드래그</translation>
     </message>
@@ -3155,7 +3160,7 @@ Install these nodes now?</source>
       <translation>장면 생성에서 실행 가능한 장면을 찾지 못했습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="966"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="207"></location>
       <source>Generated image load failed</source>
       <translation>생성된 이미지 불러오기 실패</translation>
     </message>
@@ -3335,7 +3340,7 @@ Install these nodes now?</source>
       <translation>Comfy 출력 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="178"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="194"></location>
       <source>Hide Details</source>
       <translation>세부 정보 숨기기</translation>
     </message>
@@ -3405,7 +3410,7 @@ Install these nodes now?</source>
       <translation>잘 모르겠다면 대신 실행 중인 ComfyUI에서 감지를 사용하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="64"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="71"></location>
       <source>If you close anyway, a background service may still be running.</source>
       <translation>그래도 닫으면 백그라운드 서비스가 계속 실행될 수 있습니다.</translation>
     </message>
@@ -3800,7 +3805,7 @@ Install these nodes now?</source>
       <translation>LoRA 트리거 단어</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="958"></location>
+      <location filename="../substitute/presentation/shell/workspace_output_preparation_actions.py" line="199"></location>
       <source>Load Error</source>
       <translation>불러오기 오류</translation>
     </message>
@@ -4015,6 +4020,36 @@ Install these nodes now?</source>
       <translation>관리형 로컬 설정</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="147"></location>
+      <source>Managed process exit was not confirmed</source>
+      <translation>관리되는 프로세스의 종료를 확인하지 못함</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="102"></location>
+      <source>Managed process native-exit verification timeout</source>
+      <translation>관리되는 프로세스의 네이티브 종료 확인 시간 초과</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="159"></location>
+      <source>Managed process termination boundary</source>
+      <translation>관리되는 프로세스 종료 경계</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="115"></location>
+      <source>Managed process termination command timeout</source>
+      <translation>관리되는 프로세스 종료 명령 시간 초과</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="158"></location>
+      <source>Managed process termination failed</source>
+      <translation>관리되는 프로세스 종료 실패</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="103"></location>
+      <source>Managed runtime or operating-system process teardown</source>
+      <translation>관리되는 런타임 또는 운영 체제 프로세스 종료 처리</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="310"></location>
       <source>Managed workspace: %1</source>
       <translation>관리형 작업 공간: %1</translation>
@@ -4025,12 +4060,12 @@ Install these nodes now?</source>
       <translation>메타데이터를 수동으로 새로 고치려면 모델 종류와 값이 필요합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="677"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="216"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>마스크 크기를 확인할 수 없습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="614"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="170"></location>
       <source>Mask dimensions do not match</source>
       <translation>마스크 크기가 일치하지 않습니다</translation>
     </message>
@@ -4627,7 +4662,7 @@ I’ll bring my own</source>
       <translation>GitHub에서 %1 저장소 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="167"></location>
       <source>Open All in Photoshop</source>
       <translation>Photoshop에서 모두 열기</translation>
     </message>
@@ -4682,7 +4717,7 @@ I’ll bring my own</source>
       <translation>이 로컬 ComfyUI 소스에 대한 설정 마법사를 엽니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="161"></location>
       <source>Open in Photoshop</source>
       <translation>Photoshop에서 열기</translation>
     </message>
@@ -4720,6 +4755,11 @@ I’ll bring my own</source>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="213"></location>
       <source>Operating system</source>
       <translation>운영 체제</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="116"></location>
+      <source>Operating-system process termination command</source>
+      <translation>운영 체제 프로세스 종료 명령</translation>
     </message>
     <message>
       <location filename="../substitute/application/error_report_builder.py" line="233"></location>
@@ -5751,7 +5791,7 @@ No known extension claimant.</source>
       <translation>숨겨진 카드 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="173"></location>
       <source>Reveal in File Manager</source>
       <translation>파일 관리자에서 보기</translation>
     </message>
@@ -6371,7 +6411,7 @@ No known extension claimant.</source>
       <translation>Comfy 출력 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="187"></location>
       <source>Show Details</source>
       <translation>세부 정보 표시</translation>
     </message>
@@ -6783,7 +6823,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute가 이 ComfyUI 서버에 연결합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="107"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="122"></location>
       <source>Substitute could not confirm that shutdown finished.</source>
       <translation>Substitute에서 종료가 완료되었는지 확인하지 못했습니다.</translation>
     </message>
@@ -6793,7 +6833,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute가 이 워크플로에 필요한 모든 모델을 다운로드하고 검증하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="120"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="135"></location>
       <source>Substitute could not finish closing completely.</source>
       <translation>Substitute를 완전히 닫지 못했습니다.</translation>
     </message>
@@ -6898,6 +6938,11 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>이 설정 선택 사항을 저장하지 못했습니다</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="129"></location>
+      <source>Substitute encountered an internal cleanup error before it could request managed-process termination.</source>
+      <translation>Substitute가 관리되는 프로세스 종료를 요청하기 전에 내부 정리 오류가 발생했습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/app/bootstrap/lifecycle.py" line="374"></location>
       <source>Substitute finished closing cleanly.</source>
       <translation>Substitute가 정상적으로 종료되었습니다.</translation>
@@ -6978,6 +7023,21 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute가 완성된 이미지를 여기에 저장합니다. 기본값을 사용하면 Substitute 파일과 함께 보관됩니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="127"></location>
+      <source>Substitute shutdown cleanup error</source>
+      <translation>Substitute 종료 정리 오류</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="137"></location>
+      <source>Substitute shutdown coordinator timeout</source>
+      <translation>Substitute 종료 코디네이터 시간 초과</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="128"></location>
+      <source>Substitute shutdown orchestration</source>
+      <translation>Substitute 종료 오케스트레이션</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="106"></location>
       <source>Substitute still needs a ComfyUI connection</source>
       <translation>Substitute에 아직 ComfyUI 연결이 필요합니다</translation>
@@ -7021,6 +7081,11 @@ Then create an API key in Account Settings and paste it here.</source>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="151"></location>
       <source>Substitute will not start over a different app that is already listening on the managed port.</source>
       <translation>Substitute는 관리형 포트를 이미 수신 중인 다른 앱 위에서 시작하지 않습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="139"></location>
+      <source>Substitute's cleanup task did not return before the shutdown coordinator deadline, so process exit could not be verified.</source>
+      <translation>Substitute 정리 작업이 종료 코디네이터 기한 전에 반환되지 않아 프로세스 종료를 확인할 수 없었습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="344"></location>
@@ -7187,9 +7252,24 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>SugarSubstitute는 큐브 기반 워크플로 구성, 관리형 모델 메타데이터, 프롬프트 도구 및 통합 이미지 캔버스 워크플로를 갖춘 ComfyUI용 집중형 PySide6 작업 공간을 제공합니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="160"></location>
+      <source>SugarSubstitute reached the managed-process termination boundary, but the termination attempt did not complete successfully.</source>
+      <translation>SugarSubstitute가 관리되는 프로세스 종료 경계에 도달했지만 종료 시도가 성공적으로 완료되지 않았습니다.</translation>
+    </message>
+    <message>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="200"></location>
       <source>SugarSubstitute recorded release version</source>
       <translation>SugarSubstitute 기록 릴리스 버전</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="119"></location>
+      <source>SugarSubstitute requested managed-process termination, but the operating system command did not finish before its deadline.</source>
+      <translation>SugarSubstitute가 관리되는 프로세스 종료를 요청했지만 운영 체제 명령이 기한 전에 완료되지 않았습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="151"></location>
+      <source>SugarSubstitute requested termination but could not prove that the managed process family completed exit.</source>
+      <translation>SugarSubstitute가 종료를 요청했지만 관리되는 프로세스 계열이 완전히 종료되었음을 확인하지 못했습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_compatibility.py" line="67"></location>
@@ -7200,6 +7280,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/domain/comfy_compatibility.py" line="89"></location>
       <source>SugarSubstitute requires Python %1 or newer for ComfyUI node packs. The selected environment uses Python %2.</source>
       <translation>SugarSubstitute의 ComfyUI 노드 팩에는 Python %1 이상이 필요합니다. 선택한 환경은 Python %2를 사용합니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="106"></location>
+      <source>SugarSubstitute sent the termination request, but the operating system did not confirm that every managed process exited before the verification deadline. This does not indicate a crash in the Substitute interface.</source>
+      <translation>SugarSubstitute가 종료 요청을 보냈지만 운영 체제가 확인 기한 전에 모든 관리되는 프로세스의 종료를 확인하지 못했습니다. 이는 Substitute 인터페이스 충돌을 의미하지 않습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/application/prompt_editor/features/definitions.py" line="109"></location>
@@ -7240,6 +7325,59 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="204"></location>
       <source>Supervising launcher version</source>
       <translation>감독 런처 버전</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/shutdown_recovery_report.py" line="51"></location>
+      <source>Support code: %1
+Classification: %2
+Responsibility boundary: %3
+
+What happened:
+%4
+
+Observed shutdown facts:
+- Cleanup outcome: %5
+- Managed process detected before shutdown: %6
+- Ownership metadata available: %7
+- Persisted ownership metadata used: %8
+- Termination requested: %9
+- Native exit verification timed out: %10
+- Termination command timed out: %11
+- Managed process registry cleared: %12
+- Managed process ID: %13
+- Endpoint: %14
+- Cleanup elapsed: %15 milliseconds
+
+User-safe detail:
+%16
+
+Diagnostic evidence:
+%17</source>
+      <translation>지원 코드: %1
+분류: %2
+책임 경계: %3
+
+발생한 상황:
+%4
+
+관찰된 종료 정보:
+- 정리 결과: %5
+- 종료 전에 관리되는 프로세스 감지: %6
+- 소유권 메타데이터 사용 가능: %7
+- 지속된 소유권 메타데이터 사용: %8
+- 종료 요청: %9
+- 네이티브 종료 확인 시간 초과: %10
+- 종료 명령 시간 초과: %11
+- 관리되는 프로세스 레지스트리 정리: %12
+- 관리되는 프로세스 ID: %13
+- 엔드포인트: %14
+- 정리 경과 시간: %15밀리초
+
+사용자에게 안전한 세부 정보:
+%16
+
+진단 증거:
+%17</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1761"></location>
@@ -7614,12 +7752,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 폴더는 완전한 ComfyUI 설치가 아닙니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="679"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="217"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>선택한 마스크 크기가 불러온 입력 이미지와 맞는지 확인하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="616"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_selection_presenter.py" line="171"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>선택한 마스크 크기가 불러온 입력 이미지와 일치하지 않습니다.</translation>
     </message>
@@ -7874,7 +8012,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>변경 사항을 적용할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="42"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="46"></location>
       <source>Unable to copy output image.</source>
       <translation>출력 이미지를 복사할 수 없습니다.</translation>
     </message>
@@ -7919,7 +8057,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>자산을 저장할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="53"></location>
+      <location filename="../substitute/presentation/canvas/output/output_transfer_failure_presenter.py" line="59"></location>
       <source>Unable to transfer output image.</source>
       <translation>출력 이미지를 전송할 수 없습니다.</translation>
     </message>
@@ -8544,7 +8682,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>제안된 위치를 그대로 사용해도 됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="110"></location>
+      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="125"></location>
       <source>You can retry shutdown or close Substitute anyway.</source>
       <translation>종료를 다시 시도하거나 그래도 Substitute를 닫을 수 있습니다.</translation>
     </message>
