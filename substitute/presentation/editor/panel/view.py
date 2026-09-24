@@ -21,16 +21,14 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable, Mapping as MappingABC, Sequence
 from typing import Mapping, cast
 
-from PySide6.QtCore import QEvent, QObject, QPointF, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, Signal
 from PySide6.QtGui import QWheelEvent
-from PySide6.QtWidgets import QSizePolicy, QWidget
+from PySide6.QtWidgets import QWidget
 from PySide6.QtWidgets import QApplication
-from qfluentwidgets import CheckableMenu
 from shiboken6 import isValid as _qt_is_valid
 
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
-    EditorNodeDefinitionHydrationService,
     LiveNodeDefinitionError,
     NodeBehaviorService,
     ResolvedFieldSpec,
@@ -48,7 +46,6 @@ from substitute.application.workflows import (
     CubeRuntimeIssue,
     CubeRuntimeIssueSource,
     NodeLinkIdentity,
-    WorkflowLinkReconciliationService,
     WorkflowIssueState,
 )
 from substitute.application.ports import (
@@ -97,21 +94,9 @@ from substitute.application.overrides import SamplerSchedulerLinkStateService
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
     EDITOR_SECTION_GAP,
-    MasonryGridLayout,
 )
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.runtime_services import (
-    PromptEditorRuntimeServices,
-)
-from substitute.presentation.editor.utils.create_vbox import create_vbox
-from substitute.presentation.editor.panel.context.active_model_context import (
-    PanelActiveModelContextController,
-)
-import substitute.presentation.widgets.wheel_intent_controller as wheel_intent
-from substitute.presentation.widgets.menu_buttons import (
-    ToggleTransparentDropDownToolButton,
-)
 from substitute.presentation.widgets.model_picker import ModelPickerField
 from substitute.shared.logging.logger import (
     get_logger,
@@ -123,11 +108,12 @@ from .cube_reveal_controller import (
     EditorPanelCubeRevealController,
     EditorPanelCubeRevealHost,
 )
+from .composition import compose_editor_panel
+from .composition_models import EditorPanelCompositionInputs
 from .cube_visibility_menu_controller import (
     CubeVisibilityMenuController,
     CubeVisibilityMenuHost,
 )
-from .content_gutter_controller import EditorPanelContentGutterController
 from .cube_registry import EditorCubeRegistry, EditorCubeRegistryHost
 from .field_sync_controller import (
     EditorPanelFieldSyncController,
@@ -140,28 +126,15 @@ from .field_value_change_coordinator import (
     PanelFieldValueChangeCoordinator,
 )
 from .field_registry import EditorFieldRegistry
-from .context.active_model_snapshot import (
-    CachedModelCatalogLookup,
-    PanelActiveModelSnapshotController,
-)
 from .lora_metadata_refresh_controller import (
     EditorPanelLoraMetadataRefreshController,
     EditorPanelLoraMetadataRefreshHost,
 )
-from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
 from .choice_field_surface_reconciler import (
-    ChoiceFieldSurfaceReconciler,
     ChoiceFieldSurfaceReconciliationResult,
 )
 from .preset_context_refresh import PanelPresetContextRefreshCoordinator
-from .presenter import EditorPanelPresenter
-from .prompt.context import (
-    EditorPanelPromptContextController,
-)
 from .prompt.profile_policy import PanelPromptFieldProfileDecision
-from .prompt.scene_diagnostics import (
-    EditorPanelPromptSceneDiagnosticsController,
-)
 from .runtime_issue_presenter import (
     EditorPanelRuntimeIssueHost,
     EditorPanelRuntimeIssuePresenter,
@@ -169,30 +142,17 @@ from .runtime_issue_presenter import (
 from .search_controller import EditorPanelSearchController, EditorPanelSearchHost
 from .service_bundle import (
     EditorPanelExecutionFactories,
-    EditorPanelModelServiceBundle,
-    EditorPanelPresetServiceBundle,
-    EditorPanelPromptServiceBundle,
-    EditorPanelServiceBundle,
 )
-from .behavior.behavior_applier import EditorBehaviorState
 from .behavior.panel_ports import behavior_applier_for_panel
 from .projection_coordinator import EditorPanelProjectionCoordinator
 from .projection_ports import ProjectionCoordinatorPanelPort
 from .projection_preparation import BehaviorRefreshReason
 from .projection_surface_state import EditorSurfaceProjectionSignature
-from .widgets.scroll_surface import EditorPanelScrollSurface
 from .factories.meta_factories import (
     sanitize_sampler_link_selection,
     sanitize_scheduler_link_selection,
 )
-from .dimension_presets import EditorDimensionPresetCatalogSource
-from .menus.node_input_preset_menu_source import EditorNodeInputPresetMenuSource
-from .meta_registry import MetaRegistry
-from .node_card.mode_controller import NodeCardModeController
 from .node_card.body_contribution import NodeCardBodyContributor
-from .prompt.preset_adapter import (
-    PanelPromptSegmentPresetAdapter,
-)
 from .node_card_builder import NodeCardBuilder
 from .prompt.field_inputs import build_node_card_prompt_field_inputs
 from .widgets.cube_section_builder import cube_section_builder_for_panel
@@ -650,276 +610,42 @@ class EditorPanel(QWidget):
         ),
         node_card_body_contributors: tuple[NodeCardBodyContributor, ...] = (),
     ) -> None:
-        """Initialize editor panel with live definitions and node-behavior service."""
+        """Initialize the passive view and delegate runtime composition."""
 
         super().__init__()
-        self.setMinimumWidth(1)
-        self._workflow_id = workflow_id
-        prompt_services = EditorPanelPromptServiceBundle(
-            runtime=PromptEditorRuntimeServices(
-                autocomplete_gateway=prompt_autocomplete_gateway,
-                wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+        compose_editor_panel(
+            self,
+            EditorPanelCompositionInputs(
+                node_definition_gateway=node_definition_gateway,
+                prompt_autocomplete_gateway=prompt_autocomplete_gateway,
+                prompt_wildcard_catalog_gateway=prompt_wildcard_catalog_gateway,
+                node_behavior_service=node_behavior_service,
+                node_presentation_service=node_presentation_service,
                 danbooru_url_import_service=danbooru_url_import_service,
                 danbooru_wiki_service=danbooru_wiki_service,
                 danbooru_image_preview_service=danbooru_image_preview_service,
                 danbooru_recent_posts_service=danbooru_recent_posts_service,
-                lora_catalog_service=prompt_lora_catalog_service,
-                scheduled_lora_service=(
-                    prompt_scheduled_lora_service or PromptScheduledLoraService()
-                ),
-                spellcheck_service=prompt_spellcheck_service,
+                prompt_lora_catalog_service=prompt_lora_catalog_service,
+                scheduled_lora_provider=scheduled_lora_provider,
+                prompt_scheduled_lora_service=prompt_scheduled_lora_service,
+                prompt_spellcheck_service=prompt_spellcheck_service,
+                prompt_feature_profile_service=prompt_feature_profile_service,
+                model_catalog_service=model_catalog_service,
+                model_choice_resolver=model_choice_resolver,
                 thumbnail_asset_repository=thumbnail_asset_repository,
                 model_metadata_action_handler=model_metadata_action_handler,
-                prompt_task_executor_factory=(
-                    editor_panel_execution_factories.prompt_task_executor_factory
-                    if editor_panel_execution_factories is not None
-                    else None
-                ),
-                danbooru_lookup_dispatcher_factory=(
-                    editor_panel_execution_factories.danbooru_lookup_dispatcher_factory
-                    if editor_panel_execution_factories is not None
-                    else None
-                ),
-            ),
-            scheduled_lora_provider=scheduled_lora_provider,
-            feature_profile_service=prompt_feature_profile_service,
-            model_picker_thumbnail_preload_route_factory=(
-                editor_panel_execution_factories.model_picker_thumbnail_preload_route_factory
-                if editor_panel_execution_factories is not None
-                else None
-            ),
-        )
-        self._services = EditorPanelServiceBundle(
-            node_definition_gateway=node_definition_gateway,
-            node_behavior_service=node_behavior_service,
-            node_presentation_service=node_presentation_service,
-            prompt=prompt_services,
-            model=EditorPanelModelServiceBundle(
-                catalog_service=model_catalog_service,
-                choice_resolver=model_choice_resolver,
-                thumbnail_asset_repository=thumbnail_asset_repository,
-                model_metadata_action_handler=model_metadata_action_handler,
+                ultralytics_thumbnail_associations=(ultralytics_thumbnail_associations),
                 empty_model_picker_action=empty_model_picker_action,
                 model_updates=model_updates,
+                user_preset_service=user_preset_service,
+                error_presenter=error_presenter,
+                workflow_issue_state=workflow_issue_state,
+                workflow_id=workflow_id,
+                execution_factories=editor_panel_execution_factories,
+                wheel_adjustment_mode=wheel_adjustment_mode,
+                node_card_body_contributors=node_card_body_contributors,
             ),
-            presets=EditorPanelPresetServiceBundle(
-                user_preset_service=user_preset_service,
-            ),
         )
-        self._node_card_body_contributors = node_card_body_contributors
-        self._runtime_issue_presenter = EditorPanelRuntimeIssuePresenter(
-            cast(EditorPanelRuntimeIssueHost, self),
-            workflow_issue_state=workflow_issue_state or WorkflowIssueState(),
-            error_presenter=error_presenter,
-        )
-        self.model_choice_snapshot_controller = PanelModelChoiceSnapshotController(
-            model_catalog_service=model_catalog_service,
-            model_choice_resolver=model_choice_resolver,
-            ultralytics_thumbnail_associations=ultralytics_thumbnail_associations,
-            panel_context_id_provider=lambda: self._workflow_id,
-        )
-        self.active_model_context_controller = PanelActiveModelContextController()
-        active_model_snapshots = PanelActiveModelSnapshotController(
-            model_context=self.active_model_context_controller,
-            model_catalog_service=cast(
-                CachedModelCatalogLookup | None,
-                model_catalog_service,
-            ),
-            panel_context_id_provider=lambda: self._workflow_id,
-        )
-        self.active_model_snapshot_controller = active_model_snapshots
-        self._node_definition_hydration_service = EditorNodeDefinitionHydrationService(
-            node_definition_gateway
-        )
-        self.dimension_preset_source = (
-            EditorDimensionPresetCatalogSource(
-                user_preset_service=user_preset_service,
-                active_model_snapshots=active_model_snapshots,
-            )
-            if user_preset_service is not None
-            else None
-        )
-        self.node_input_preset_source = (
-            EditorNodeInputPresetMenuSource(
-                user_preset_service=user_preset_service,
-                active_model_snapshots=active_model_snapshots,
-            )
-            if user_preset_service is not None
-            else None
-        )
-        self.prompt_segment_preset_source = (
-            PanelPromptSegmentPresetAdapter(
-                user_preset_service=user_preset_service,
-                active_model_snapshots=active_model_snapshots,
-            )
-            if user_preset_service is not None
-            else None
-        )
-
-        self.node_link_widgets = {}  # (cube_alias, NodeLinkIdentity): ComboBox
-        self.node_link_title_surfaces = {}  # (cube_alias, NodeLinkIdentity): surface
-        self.sampler_link_widgets = {}  # (cube_alias, node_name): ComboBox
-        self.scheduler_link_widgets = {}  # (cube_alias, node_name): ComboBox
-        self._workflow_link_reconciliation_service = WorkflowLinkReconciliationService(
-            prompt_endpoint_provider=node_behavior_service,
-            node_link_endpoint_provider=node_behavior_service,
-        )
-
-        self.meta_registry = MetaRegistry(self)
-
-        self.cube_widgets = {}  # alias -> QWidget section for that cube
-        self.cube_sections = {}  # alias -> QWidget section used by scroll/reveal
-        self._cube_states = None  # Dict of alias -> CubeState
-        self._stack_order = None  # List of aliases in workflow order
-        # Map of (alias, node_name) -> card wrapper QWidget for fast visibility toggling
-        self.card_wrappers = {}
-
-        self.cube_headers = {}  # routeKey -> QLabel
-        self.cube_positions = {}  # routeKey → y()
-
-        # === Input row and column mappings for reliable hide/show logic ===
-        self.row_widgets = {}  # field_key -> (divider_widget, row_widget)
-        self.col_widgets = {}  # field_key -> (row_container, column_widget)
-        self._field_registry = EditorFieldRegistry()
-        self.input_widgets_by_field_key: dict[tuple[str, str, str], QWidget] = cast(
-            dict[tuple[str, str, str], QWidget],
-            self._field_registry.widget_map,
-        )
-        self._preset_context_refresh = PanelPresetContextRefreshCoordinator(
-            host=self,
-            model_context=self.active_model_context_controller,
-            model_snapshots=self.active_model_snapshot_controller,
-            dimension_presets=self.dimension_preset_source,
-            node_input_presets=self.node_input_preset_source,
-        )
-
-        # === Input/prompt layout structures ===
-
-        # Prompt area: left-aligned with custom padding
-        self.prompt_area = create_vbox(margins=(0, 6, 7, 6), spacing=0)
-
-        # Flow layout for node cards (replaces columns)
-        self.flow_layout = MasonryGridLayout()
-
-        # === Full content layout (prompt area + flow layout) ===
-        self._layout = create_vbox(spacing=0)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.addLayout(self.prompt_area)
-        self._layout.addLayout(self.flow_layout)
-
-        content = QWidget()
-        content.setLayout(self._layout)
-        self._content_gutter_controller = EditorPanelContentGutterController(content)
-        content.setMinimumWidth(1)
-        content.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
-
-        # === Application-owned scroll container for content ===
-        self.scroll = EditorPanelScrollSurface()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setWidget(content)
-        self.scroll.setObjectName("EditorScroll")
-        self._cube_reveal_controller = EditorPanelCubeRevealController(
-            cast(EditorPanelCubeRevealHost, self)
-        )
-        self._cube_visibility_menu_controller = CubeVisibilityMenuController(
-            cast(CubeVisibilityMenuHost, self)
-        )
-        self.scroll.metrics_refreshed.connect(self._complete_pending_cube_reveal)
-        self.scroll.setStyleSheet(
-            """
-            QWidget#EditorScroll {
-                background-color: transparent;
-                border: none;
-            }
-        """
-        )
-
-        # Ensure scroll area viewport is transparent
-        viewport = self.scroll.viewport()
-        viewport.setAttribute(Qt.WA_TranslucentBackground)
-        viewport.setAttribute(Qt.WA_StyledBackground)
-        viewport.setStyleSheet("background-color: transparent;")
-        viewport.installEventFilter(self)
-
-        # === Outer container layout ===
-        outer = create_vbox(parent=self, spacing=0)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(self.scroll)
-        self.setLayout(outer)
-        # === Background and styling ===
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setStyleSheet("background-color: transparent;")
-        content.setAttribute(Qt.WA_TranslucentBackground)
-        content.setStyleSheet("background-color: transparent;")
-
-        self.setStyleSheet(
-            """
-            EditorPanel {
-                background-color: transparent;
-            }
-
-            QSpinBox, QDoubleSpinBox {
-                min-width: 48px;
-                max-width: 48px;
-                height: 32px;
-            }
-        """
-        )
-
-        # === Global hidden fields by key name ===
-        self._hidden_field_keys = set()
-        self._behavior_state = EditorBehaviorState()
-        # Panel-owned mirrors used by current lifecycle controllers.
-        self._last_card_decisions = self._behavior_state.last_card_decisions
-        self._last_hidden_field_keys = self._behavior_state.last_hidden_field_keys
-
-        # === Per-cube policy reveal UI ===
-        self._cube_visibility_btns: dict[str, ToggleTransparentDropDownToolButton] = {}
-        self._cube_visibility_menus: dict[str, CheckableMenu] = {}
-        self._cube_registry = EditorCubeRegistry(cast(EditorCubeRegistryHost, self))
-        self._cube_section_builder = cube_section_builder_for_panel(self)
-        self._field_value_change_coordinator = PanelFieldValueChangeCoordinator(
-            host=cast(DynamicFieldRefreshHost, self),
-            preset_context=self._preset_context_refresh,
-        )
-        self._field_state_controller = EditorPanelFieldStateController(
-            cast(EditorPanelFieldStateHost, self),
-            field_value_changed=self._field_value_change_coordinator.field_value_changed,
-        )
-        self._choice_field_surface_reconciler = ChoiceFieldSurfaceReconciler(
-            host=self,
-            field_registry=self._field_registry,
-            snapshot_controller=self.model_choice_snapshot_controller,
-            thumbnail_repository_available=thumbnail_asset_repository is not None,
-        )
-        self._field_sync_controller = EditorPanelFieldSyncController(
-            cast(EditorPanelFieldSyncHost, self)
-        )
-        self._lora_metadata_refresh_controller = (
-            EditorPanelLoraMetadataRefreshController(
-                cast(EditorPanelLoraMetadataRefreshHost, self)
-            )
-        )
-        self._node_card_mode_controller = NodeCardModeController()
-        self._projection_coordinator = _projection_coordinator_for_panel(self)
-        self._behavior_applier = behavior_applier_for_panel(self)
-        self._prompt_context_controller = EditorPanelPromptContextController(self)
-        self._prompt_scene_diagnostics_controller = (
-            EditorPanelPromptSceneDiagnosticsController(self)
-        )
-        self._search_controller = EditorPanelSearchController(
-            cast(EditorPanelSearchHost, self)
-        )
-        self._presenter = EditorPanelPresenter(self)
-        self._preset_context_refresh.refresh(reason="panel_initialized")
-        self._wheel_intent_controller = wheel_intent.WheelIntentController(
-            self,
-            wheel_adjustment_mode=wheel_adjustment_mode,
-        )
-
-        self._search_field_match_keys: set[tuple[str, str, str]] | None = None
-        self._field_search_active = False
-        self._last_behavior_snapshot: EditorBehaviorSnapshot | None = None
 
     def set_cube_stack_unavailable_progress(self, progress: float) -> None:
         """Apply the shared stack-transition progress to editor content spacing."""

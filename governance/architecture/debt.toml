@@ -342,18 +342,18 @@ next_extraction = "Extract lookup execution and navigation history from modal pr
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:60babdd7ffb405348e4f9fa385d99ce731b6dcccfe06a02c5033939d992948ae"
+fingerprint = "sha256:92a91cdaee42680d2c656a9cb185c8b6aa93133a5b35348fb92867509291268a"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
-  "editor-panel widget and registry lifecycle",
+  "editor-panel registry lifecycle",
   "projection loading, insertion, cleanup, and freshness",
   "field, link, and prompt state synchronization",
   "search and cube reveal coordination",
   "runtime issue and metadata presentation",
   "behavior and prompt-context caching",
 ]
-next_extraction = "Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
+next_extraction = "Extract model-field, prompt interaction, runtime issue, and link synchronization facades from the mounted view."
 
 [[debts]]
 id = "SS-ARCH-065"

@@ -293,11 +293,11 @@ owner = "editor panel presentation"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/view.py"
 kind = "remediation"
-justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
+justification = "Service graph composition, preset-source creation, mounted layout construction, registry initialization, and controller installation now have focused owners below the soft ceiling. The remaining view mixes registry lifecycle, projection loading and freshness, field/link/prompt synchronization, search and cube reveal coordination, runtime issue and metadata presentation, and behavior/prompt-context caching. Extract the feature facades from the mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1954
-next_limit = 1571
+max_lines = 1711
+next_limit = 1200
 debt = "SS-ARCH-051"
 
 [[waivers]]

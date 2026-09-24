@@ -35,6 +35,12 @@ from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptFieldProfileDecision,
 )
+from substitute.presentation.editor.panel.service_bundle import (
+    EditorPanelModelServiceBundle,
+    EditorPanelPresetServiceBundle,
+    EditorPanelPromptServiceBundle,
+    EditorPanelServiceBundle,
+)
 from substitute.presentation.editor.prompt_editor.runtime_services import (
     PromptEditorRuntimeServices,
 )
@@ -90,14 +96,14 @@ def _panel_module() -> ModuleType:
     return importlib.import_module("substitute.presentation.editor.panel.view")
 
 
-def _panel_services(module: ModuleType, panel: SimpleNamespace) -> object:
+def _panel_services(panel: SimpleNamespace) -> object:
     """Build the service bundle consumed by the production card builder."""
 
-    return module.EditorPanelServiceBundle(
+    return EditorPanelServiceBundle(
         node_definition_gateway=panel.node_definition_gateway,
         node_behavior_service=object(),
         node_presentation_service=empty_node_presentation_service(),
-        prompt=module.EditorPanelPromptServiceBundle(
+        prompt=EditorPanelPromptServiceBundle(
             runtime=PromptEditorRuntimeServices(
                 autocomplete_gateway=panel.prompt_autocomplete_gateway,
                 wildcard_catalog_gateway=panel.prompt_wildcard_catalog_gateway,
@@ -113,12 +119,12 @@ def _panel_services(module: ModuleType, panel: SimpleNamespace) -> object:
             scheduled_lora_provider=panel.scheduled_lora_provider,
             feature_profile_service=None,
         ),
-        model=module.EditorPanelModelServiceBundle(
+        model=EditorPanelModelServiceBundle(
             catalog_service=panel.model_catalog_service,
             choice_resolver=panel.model_choice_resolver,
             thumbnail_asset_repository=panel.thumbnail_asset_repository,
         ),
-        presets=module.EditorPanelPresetServiceBundle(user_preset_service=None),
+        presets=EditorPanelPresetServiceBundle(user_preset_service=None),
     )
 
 
@@ -161,7 +167,7 @@ def test_editor_panel_build_node_card_uses_node_card_builder_constructor_surface
     module = _panel_module()
     monkeypatch.setattr(module, "NodeCardBuilder", _StrictNodeCardBuilder)
     panel = _panel_builder_host()
-    panel._services = _panel_services(module, panel)
+    panel._services = _panel_services(panel)
 
     node_card = module.EditorPanel.build_node_card(
         panel,
@@ -225,7 +231,7 @@ def test_editor_panel_prepares_node_card_prompt_inputs(
         scheduled_lora_resolver_for_prompt=scheduled_lora_resolver_for_prompt,
         prompt_field_profile_for_prompt=prompt_field_profile_for_prompt,
     )
-    panel._services = _panel_services(module, panel)
+    panel._services = _panel_services(panel)
     field_behavior = FieldBehavior(
         field_key="text",
         presentation=FieldPresentation.PROMPT_BOX,
