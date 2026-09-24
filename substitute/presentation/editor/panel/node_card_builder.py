@@ -20,11 +20,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
-from qfluentwidgets import IconWidget  # type: ignore[import-untyped]
+from qfluentwidgets import IconWidget
 
 
 from substitute.application.node_behavior import (
@@ -33,9 +33,6 @@ from substitute.application.node_behavior import (
     NodeDisplayDecision,
     ResolvedFieldSpec,
     ResolvedNodeBehavior,
-)
-from substitute.domain.localization import (
-    FieldPresentation as LocalizedFieldPresentation,
 )
 from substitute.presentation.editor.field_actions import FieldActionContribution
 from .node_card.accordion_motion import (
@@ -51,6 +48,7 @@ from .node_card.body_contribution import (
     NodeCardBodyContributionContext,
     NodeCardBodyContributor,
 )
+from .node_card.field_realizer import NodeCardFieldRealizer
 from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalogSource,
 )
@@ -74,28 +72,14 @@ from substitute.presentation.editor.panel.node_presentation_binding import (
     NodeCardPresentationBinding,
     NodeTitleTextTarget,
 )
-from substitute.presentation.editor.panel.factories import widget_wiring
 from substitute.presentation.editor.panel.factories.field_pipeline import (
     LAYOUT_HANDLED,
-    build_widget_for_field_spec,
-)
-from substitute.presentation.editor.panel.factories.field_build_outcome import (
-    EditorFieldBuildKind,
-)
-from substitute.presentation.editor.panel.factories.field_build_resolver import (
-    resolve_editor_field_build,
-)
-from substitute.presentation.editor.panel.field_state_controller import (
-    EditorPanelFieldStateController,
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
 )
 from substitute.presentation.editor.panel.node_card_build_transaction import (
     NodeCardBuildTransaction,
-)
-from substitute.presentation.editor.panel.prompt.field_build_arguments import (
-    prompt_field_build_arguments,
 )
 from substitute.presentation.editor.panel.prompt.field_inputs import (
     NodeCardPromptFieldInputs,
@@ -110,9 +94,6 @@ from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_ICON_SIZE,
 )
 from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
-from substitute.presentation.editor.panel.widgets.field_relayout import (
-    bind_field_widget_card_relayout,
-)
 from substitute.presentation.editor.panel.widgets.node_card import (
     NODE_CARD_BODY_BOTTOM_PADDING,
     NODE_CARD_BODY_ROW_SPACING,
@@ -124,13 +105,11 @@ from substitute.presentation.editor.panel.widgets.node_card import (
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetSource,
 )
-from substitute.presentation.editor.utils import sanitation
 from substitute.presentation.editor.utils.create_vbox import create_vbox
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
     log_warning,
-    log_warning_exception,
 )
 
 _LOGGER = get_logger("presentation.editor.panel.node_card_builder")
@@ -144,18 +123,6 @@ class _NodeCardBuildLogContext:
     node_name: str
     node_class: str
     field_spec_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class _NodeCardFieldLogContext:
-    """Carry prompt-safe node-card field diagnostic fields."""
-
-    cube_alias: str
-    node_name: str
-    node_class: str
-    field_key: str
-    field_type: str
-    presentation: str
 
 
 def _log_node_card_build_timing(
@@ -183,31 +150,6 @@ def _log_node_card_build_timing(
     )
 
 
-def _log_node_card_field_timing(
-    event: str,
-    *,
-    started_at: float,
-    context: _NodeCardFieldLogContext,
-    result_type: str = "",
-    widget_type: str = "",
-) -> float:
-    """Log timing for one prompt-safe node-card field operation."""
-
-    return log_panel_projection_timing(
-        event,
-        started_at=started_at,
-        cube_alias=context.cube_alias,
-        node_name=context.node_name,
-        node_class=context.node_class,
-        field_key=context.field_key,
-        field_type=context.field_type,
-        presentation=context.presentation,
-        projection_mode="live",
-        result_type=result_type,
-        widget_type=widget_type,
-    )
-
-
 class NodeCardBuilder:
     """Compose node cards from resolved behavior and explicit collaborators."""
 
@@ -226,11 +168,15 @@ class NodeCardBuilder:
 
         self.panel = panel
         self._services = services
-        self._model_choice_snapshot_controller = model_choice_snapshot_controller
         self._dimension_preset_source = dimension_preset_source
         self._node_input_preset_source = node_input_preset_source
-        self._prompt_segment_preset_source = prompt_segment_preset_source
         self._body_contributors = body_contributors
+        self._field_realizer = NodeCardFieldRealizer(
+            panel=panel,
+            services=services,
+            model_choice_snapshot_controller=model_choice_snapshot_controller,
+            prompt_segment_preset_source=prompt_segment_preset_source,
+        )
         self._field_rows = FieldRowBuilder(
             panel=panel,
             icon_builder=self.build_icon_widget,
@@ -266,36 +212,6 @@ class NodeCardBuilder:
             if (cube_state := snapshot.cube_states.get(alias)) is not None
             and isinstance(getattr(cube_state, "buffer", None), dict)
         }
-
-    def _wire_widget(
-        self,
-        widget: Any,
-        cube_state: Any,
-        metadata: dict[str, Any],
-    ) -> None:
-        """Delegate widget-state wiring to the field-state owner."""
-
-        layout_changed = getattr(self.panel, "promptEditorLayoutChanged", None)
-        emit_layout_changed = getattr(layout_changed, "emit", None)
-
-        def emit_prompt_layout_changed() -> None:
-            """Emit prompt layout change when a prompt editor height changes."""
-
-            if callable(emit_layout_changed):
-                emit_layout_changed()
-
-        controller = getattr(self.panel, "_field_state_controller", None)
-        if not isinstance(controller, EditorPanelFieldStateController):
-            controller = EditorPanelFieldStateController(self.panel)
-            setattr(self.panel, "_field_state_controller", controller)
-        controller.bind_node_widget_state(
-            widget,
-            cube_state,
-            metadata,
-            manual_prompt_height_changed=emit_prompt_layout_changed
-            if callable(emit_layout_changed)
-            else None,
-        )
 
     def get_icon_for_row(
         self, node_name: str, row_label: str, column_index: int | None = None
@@ -473,7 +389,7 @@ class NodeCardBuilder:
                             action="field_attempt",
                             field_spec=field_specs.get(key),
                         )
-                        field = self._create_field_for_key(
+                        field = self._field_realizer.realize(
                             node_name=node_name,
                             field_spec=field_specs[key],
                             content_body=content_body,
@@ -568,7 +484,7 @@ class NodeCardBuilder:
                     action="field_attempt",
                     field_spec=field_specs.get(key),
                 )
-                field = self._create_field_for_key(
+                field = self._field_realizer.realize(
                     node_name=node_name,
                     field_spec=field_specs[key],
                     content_body=content_body,
@@ -916,221 +832,6 @@ class NodeCardBuilder:
             ),
         )
 
-    def _create_field_for_key(
-        self,
-        *,
-        node_name: str,
-        field_spec: ResolvedFieldSpec,
-        content_body: QWidget | None,
-        content_layout: QVBoxLayout | None,
-        allow_unbounded_content_height: bool,
-        cube_state: Any,
-        alias: str | None,
-        field_presentation: LocalizedFieldPresentation,
-        build_transaction: NodeCardBuildTransaction,
-        prompt_field_inputs: Mapping[str, NodeCardPromptFieldInputs] | None = None,
-    ) -> Any:
-        """Build one field widget from resolved field behavior and live definitions."""
-        field_started_at = panel_projection_observability_started_at()
-        key = field_spec.field_key
-        extended_meta = dict(field_spec.meta_info)
-        extended_meta["cube_alias"] = alias
-        if field_presentation.tooltip is not None:
-            extended_meta["tooltip"] = field_presentation.tooltip
-        cube_buffer = self._cube_buffer(cube_state)
-        node_data = cube_buffer.get("nodes", {}).get(node_name)
-        if isinstance(node_data, dict):
-            extended_meta["node_data"] = node_data
-        factory_started_at = panel_projection_observability_started_at()
-        log_context = _NodeCardFieldLogContext(
-            cube_alias=alias or "",
-            node_name=node_name,
-            node_class=field_spec.class_type,
-            field_key=key,
-            field_type=field_spec.field_type or "",
-            presentation=field_spec.field_behavior.presentation.value,
-        )
-        prompt_arguments = prompt_field_build_arguments(field_spec, prompt_field_inputs)
-        prompt_services = self._services.prompt
-        prompt_runtime = prompt_services.runtime
-
-        def build_field_surface() -> object | None:
-            """Invoke the raw factory pipeline inside the typed outcome boundary."""
-
-            return build_widget_for_field_spec(
-                parent=self.panel,
-                field_spec=ResolvedFieldSpec(
-                    cube_alias=field_spec.cube_alias,
-                    node_name=field_spec.node_name,
-                    class_type=field_spec.class_type,
-                    field_key=field_spec.field_key,
-                    field_type=field_spec.field_type,
-                    constraints=dict(field_spec.constraints),
-                    meta_info=extended_meta,
-                    field_info=list(field_spec.field_info)
-                    if field_spec.field_info is not None
-                    else None,
-                    value=field_spec.value,
-                    field_behavior=field_spec.field_behavior,
-                    label_source=field_spec.label_source,
-                    raw_value=field_spec.raw_value,
-                    value_source=field_spec.value_source,
-                ),
-                prompt_autocomplete_gateway=prompt_runtime.autocomplete_gateway,
-                prompt_wildcard_catalog_gateway=(
-                    prompt_runtime.wildcard_catalog_gateway
-                ),
-                danbooru_url_import_service=(
-                    prompt_runtime.danbooru_url_import_service
-                ),
-                danbooru_wiki_service=prompt_runtime.danbooru_wiki_service,
-                danbooru_image_preview_service=(
-                    prompt_runtime.danbooru_image_preview_service
-                ),
-                danbooru_recent_posts_service=(
-                    prompt_runtime.danbooru_recent_posts_service
-                ),
-                prompt_lora_catalog_service=prompt_runtime.lora_catalog_service,
-                prompt_scheduled_lora_service=(
-                    prompt_runtime.scheduled_lora_service_or_default()
-                ),
-                scheduled_lora_resolver=prompt_arguments.scheduled_lora_resolver,
-                prompt_feature_profile=prompt_arguments.feature_profile,
-                prompt_syntax_profile=prompt_arguments.syntax_profile,
-                prompt_conditioning_context=prompt_arguments.conditioning_context,
-                prompt_segment_preset_source=self._prompt_segment_preset_source,
-                prompt_spellcheck_service=prompt_runtime.spellcheck_service,
-                model_choice_snapshot_controller=self._model_choice_snapshot_controller,
-                thumbnail_asset_repository=(
-                    self._services.model.thumbnail_asset_repository
-                ),
-                model_metadata_action_handler=(
-                    self._services.model.model_metadata_action_handler
-                    or prompt_runtime.model_metadata_action_handler
-                ),
-                empty_model_picker_action=(
-                    self._services.model.empty_model_picker_action
-                ),
-                model_updates=self._services.model.model_updates,
-                node_definition_gateway=self._services.node_definition_gateway,
-                prompt_task_executor_factory=prompt_runtime.prompt_task_executor_factory,
-                danbooru_lookup_dispatcher_factory=(
-                    prompt_runtime.danbooru_lookup_dispatcher_factory
-                ),
-                model_picker_thumbnail_preload_route_factory=(
-                    prompt_services.model_picker_thumbnail_preload_route_factory
-                ),
-            )
-
-        outcome = resolve_editor_field_build(
-            field_spec=field_spec,
-            build=build_field_surface,
-            layout_handled_sentinel=LAYOUT_HANDLED,
-        )
-        _log_node_card_field_timing(
-            "node_card.field_factory",
-            started_at=factory_started_at,
-            context=log_context,
-            result_type=outcome.kind.value,
-        )
-        if outcome.kind is EditorFieldBuildKind.ERROR:
-            error = outcome.error
-            if error is not None:
-                log_warning_exception(
-                    _LOGGER,
-                    "Skipped editor field after factory failure",
-                    error=error,
-                    cube_alias=alias or "",
-                    node_name=node_name,
-                    node_class=field_spec.class_type,
-                    field_key=key,
-                    field_type=field_spec.field_type or "",
-                    value_source=field_spec.value_source.value,
-                )
-            return None
-        if outcome.kind is EditorFieldBuildKind.LAYOUT_HANDLED:
-            return LAYOUT_HANDLED
-        if not outcome.rendered:
-            if outcome.kind is EditorFieldBuildKind.UNSUPPORTED:
-                log_warning(
-                    _LOGGER,
-                    "Skipped unsupported editor field",
-                    cube_alias=alias or "",
-                    node_name=node_name,
-                    node_class=field_spec.class_type,
-                    field_key=key,
-                    field_type=field_spec.field_type or "",
-                    reason=outcome.reason,
-                )
-            return None
-        result = outcome.surface
-        if result is None:
-            return None
-        widget = result[0] if isinstance(result, tuple) else result
-        field_tooltip = field_presentation.tooltip
-        metadata = {
-            "cube_alias": alias,
-            "node_name": node_name,
-            "key": key,
-            "type": field_spec.field_type,
-            "meta_info": extended_meta,
-            "field_info": field_spec.field_info,
-            "constraints": dict(field_spec.constraints),
-            "node_type": field_spec.class_type,
-            "tooltip": field_tooltip,
-            "resolved_value": field_spec.value,
-            "value_source": field_spec.value_source.value,
-        }
-        safe_metadata = sanitation.deep_sanitize_for_qt(metadata)
-        widget.setProperty("input_metadata", safe_metadata)
-        configure_wheel_intent = getattr(
-            self.panel,
-            "configure_wheel_intent_for_widget",
-            None,
-        )
-        if callable(configure_wheel_intent):
-            configure_wheel_intent(widget)
-        if field_spec.field_behavior.label_override:
-            widget.setProperty(
-                "label_override",
-                field_spec.field_behavior.label_override,
-            )
-        if field_spec.field_behavior.column_span is not None:
-            widget.setProperty(
-                "column_span",
-                field_spec.field_behavior.column_span,
-            )
-        wiring_started_at = panel_projection_observability_started_at()
-        self._wire_widget(widget, cube_state, metadata)
-        _log_node_card_field_timing(
-            "node_card.field_wired",
-            started_at=wiring_started_at,
-            context=log_context,
-            widget_type=widget.__class__.__name__,
-        )
-        if alias is not None:
-            build_transaction.stage(field_key=key, widget=widget)
-        widget_wiring.bind_picker_signals(
-            widget,
-            self.panel,
-            cube_alias=alias,
-            node_name=node_name,
-        )
-        if content_body is not None and content_layout is not None:
-            bind_field_widget_card_relayout(
-                field_widget=widget,
-                content_body=content_body,
-                content_layout=content_layout,
-                allow_unbounded_height=allow_unbounded_content_height,
-            )
-        _log_node_card_field_timing(
-            "node_card.field_prepared",
-            started_at=field_started_at,
-            context=log_context,
-            widget_type=widget.__class__.__name__,
-        )
-        return widget
-
     def _create_node_card_container(
         self,
         *,
@@ -1139,7 +840,10 @@ class NodeCardBuilder:
         """Create the outer card widget and inner collapsible content container."""
 
         node_card = _NodeCardSurface(parent)
-        node_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        node_card.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         node_card_layout = create_vbox(
             parent=node_card, margins=(0, 0, 0, 0), spacing=0
         )
@@ -1167,7 +871,7 @@ class NodeCardBuilder:
         if icon_enum:
             icon = IconWidget(icon_enum, widget_parent)
             icon.setFixedSize(EDITOR_ROW_ICON_SIZE, EDITOR_ROW_ICON_SIZE)
-            return icon
+            return cast(QWidget, icon)
         spacer = QWidget(widget_parent)
         spacer.setFixedSize(EDITOR_ROW_ICON_SIZE, EDITOR_ROW_ICON_SIZE)
         return spacer

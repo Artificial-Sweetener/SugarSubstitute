@@ -173,7 +173,7 @@ def test_cube_authored_card_titles_survive_all_live_locale_switches(
         ),
     )
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QLineEdit(panel),
     )
     wrappers: dict[str, QWidget] = {}

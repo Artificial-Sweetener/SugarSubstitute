@@ -142,7 +142,7 @@ class _FieldDependencyScenario:
             return QWidget(self.panel)
 
         monkeypatch.setattr(
-            "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+            "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
             capture_factory,
         )
 
