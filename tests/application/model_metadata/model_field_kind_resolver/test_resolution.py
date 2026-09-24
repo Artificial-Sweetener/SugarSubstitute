@@ -22,6 +22,7 @@ import pytest
 
 from substitute.application.model_metadata import model_kind_for_field
 from substitute.application.model_metadata.model_field_kind_resolver import (
+    declared_model_kind_for_field,
     declared_model_kind_for_projected_field,
 )
 
@@ -80,6 +81,48 @@ def test_projected_model_kind_uses_hidden_wrapper_field_provenance() -> None:
             },
         )
         == "ultralytics"
+    )
+
+
+@pytest.mark.parametrize(
+    ("class_type", "input_key", "expected_kind"),
+    (
+        ("SimpleSyrup.SimpleLoadCheckpoint", "ckpt_name", "checkpoints"),
+        ("SimpleSyrup.SimpleLoadCheckpoint", "vae_name", "vae"),
+        ("SimpleSyrup.SimpleLoadAnima", "diffusion_model", "diffusion_models"),
+        ("SimpleSyrup.SimpleLoadAnima", "vae", "vae"),
+        ("SimpleSyrup.SimpleLoadFlux", "diffusion_model", "diffusion_models"),
+        ("SimpleSyrup.SimpleLoadFlux", "vae", "vae"),
+        ("SimpleSyrup.SimpleLoadFlux2", "diffusion_model", "diffusion_models"),
+        ("SimpleSyrup.SimpleLoadFlux2", "vae", "vae"),
+        ("SimpleSyrup.FutureLoader", "vae", "vae"),
+    ),
+)
+def test_declared_model_kind_covers_simplesyrup_loader_namespace(
+    class_type: str,
+    input_key: str,
+    expected_kind: str,
+) -> None:
+    """SimpleSyrup loader conventions should not require per-node registrations."""
+
+    assert (
+        declared_model_kind_for_field(
+            class_type=class_type,
+            input_key=input_key,
+        )
+        == expected_kind
+    )
+
+
+def test_declared_model_kind_does_not_apply_simplesyrup_keys_globally() -> None:
+    """Namespace conventions must not reclassify unrelated choice fields."""
+
+    assert (
+        declared_model_kind_for_field(
+            class_type="Unrelated.CustomLoader",
+            input_key="vae",
+        )
+        is None
     )
 
 
