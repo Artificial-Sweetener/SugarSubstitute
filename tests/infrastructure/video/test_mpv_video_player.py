@@ -28,7 +28,13 @@ import pytest
 
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
+    VideoPlaybackFallback,
     VideoPlaybackState,
+)
+from substitute.domain.generation import (
+    VideoHardwareDecoding,
+    VideoPlaybackSettings,
+    VideoRenderer,
 )
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
 from substitute.infrastructure.video.mpv_video_player import (
@@ -121,6 +127,7 @@ def _player(
     tmp_path: Path,
     *,
     native_window_id: int | None = None,
+    settings: VideoPlaybackSettings = VideoPlaybackSettings(),
 ) -> tuple[MpvVideoPlayer, FakePlayer, list[VideoPlaybackEvent], Path]:
     """Return one adapter, native double, event sink, and local video path."""
 
@@ -131,6 +138,7 @@ def _player(
         player_generation=7,
         event_callback=events.append,
         native_window_id=native_window_id,
+        settings=settings,
     )
     assert runtime.player is not None
     video = tmp_path / "generated.webm"
@@ -143,7 +151,8 @@ def test_player_uses_closed_runtime_and_native_embedding(tmp_path: Path) -> None
 
     adapter, native, _events, _video = _player(tmp_path, native_window_id=4312)
 
-    assert native.options["vo"] == "gpu-next"
+    assert native.options["vo"] == "gpu-next,gpu"
+    assert native.options["hwdec"] == "auto-safe"
     assert native.options["ao"] == "auto"
     assert native.options["wid"] == "4312"
     assert native.options["config"] is False
@@ -151,6 +160,23 @@ def test_player_uses_closed_runtime_and_native_embedding(tmp_path: Path) -> None
     assert native.options["demuxer_lavf_o"] == "protocol_whitelist=file"
     assert native.options["loop_file"] == "inf"
     assert native.options["mute"] is True
+    adapter.close()
+
+
+def test_player_applies_explicit_safe_video_preferences(tmp_path: Path) -> None:
+    """Validated user choices should map to the closed libmpv option surface."""
+
+    adapter, native, _events, _video = _player(
+        tmp_path,
+        native_window_id=4312,
+        settings=VideoPlaybackSettings(
+            hardware_decoding=VideoHardwareDecoding.OFF,
+            renderer=VideoRenderer.GPU,
+        ),
+    )
+
+    assert native.options["vo"] == "gpu"
+    assert native.options["hwdec"] == "no"
     adapter.close()
 
 
@@ -273,6 +299,68 @@ def test_observations_update_state_and_reject_replaced_path(tmp_path: Path) -> N
     assert snapshot.height == 180
     assert snapshot.time_seconds == 0.125
     assert len(events) == current_count
+    adapter.close()
+
+
+def test_observations_publish_actual_native_path_and_software_fallback(
+    tmp_path: Path,
+) -> None:
+    """Diagnostics should distinguish requested policy from observed playback."""
+
+    adapter, native, _events, video = _player(tmp_path)
+    adapter.load(uuid4(), video)
+
+    native.emit("current-vo", "gpu-next")
+    native.emit("gpu-api", "d3d11")
+    native.emit("gpu-context", "d3d11")
+    native.emit("video-codec", "vp9")
+    native.emit("video-format", "yuv420p")
+    native.emit("hwdec-current", None)
+
+    diagnostics = adapter.snapshot().diagnostics
+    assert diagnostics.actual_video_output == "gpu-next"
+    assert diagnostics.gpu_api == "d3d11"
+    assert diagnostics.gpu_context == "d3d11"
+    assert diagnostics.codec == "vp9"
+    assert diagnostics.pixel_format == "yuv420p"
+    assert diagnostics.fallback is VideoPlaybackFallback.SOFTWARE_DECODING
+    adapter.close()
+
+
+def test_diagnostics_report_explicit_renderer_fallback(tmp_path: Path) -> None:
+    """A renderer override should report when libmpv selects another backend."""
+
+    adapter, native, _events, video = _player(
+        tmp_path,
+        settings=VideoPlaybackSettings(renderer=VideoRenderer.GPU_NEXT),
+    )
+    adapter.load(uuid4(), video)
+
+    native.emit("current-vo", "gpu")
+
+    diagnostics = adapter.snapshot().diagnostics
+    assert diagnostics.requested_renderer is VideoRenderer.GPU_NEXT
+    assert diagnostics.actual_video_output == "gpu"
+    assert diagnostics.fallback is VideoPlaybackFallback.RENDERER
+    adapter.close()
+
+
+def test_software_decode_preference_is_not_reported_as_fallback(
+    tmp_path: Path,
+) -> None:
+    """An explicit software choice should remain policy rather than a fallback."""
+
+    adapter, native, _events, video = _player(
+        tmp_path,
+        settings=VideoPlaybackSettings(
+            hardware_decoding=VideoHardwareDecoding.OFF,
+        ),
+    )
+    adapter.load(uuid4(), video)
+
+    native.emit("hwdec-current", None)
+
+    assert adapter.snapshot().diagnostics.fallback is None
     adapter.close()
 
 

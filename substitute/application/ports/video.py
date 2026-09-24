@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Protocol
 from uuid import UUID
 
+from substitute.domain.generation import VideoHardwareDecoding, VideoRenderer
+
 
 @dataclass(frozen=True, slots=True)
 class VideoProbeResult:
@@ -49,6 +51,32 @@ class VideoPlaybackState(StrEnum):
     ERROR = "error"
 
 
+class VideoPlaybackFallback(StrEnum):
+    """Describe one safe native playback fallback selected at runtime."""
+
+    SOFTWARE_DECODING = "software_decoding"
+    RENDERER = "renderer"
+
+
+class VideoRuntimeUnavailableError(RuntimeError):
+    """Report that the project-owned video runtime cannot be loaded."""
+
+
+@dataclass(frozen=True, slots=True)
+class VideoPlaybackDiagnostics:
+    """Expose requested and observed native playback facts for support reports."""
+
+    requested_hardware_decoding: VideoHardwareDecoding = VideoHardwareDecoding.AUTO
+    requested_renderer: VideoRenderer = VideoRenderer.AUTO
+    actual_video_output: str | None = None
+    gpu_api: str | None = None
+    gpu_context: str | None = None
+    hardware_decoder: str | None = None
+    pixel_format: str | None = None
+    codec: str | None = None
+    fallback: VideoPlaybackFallback | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class VideoPlaybackSnapshot:
     """Expose the current player state without leaking libmpv types."""
@@ -65,6 +93,7 @@ class VideoPlaybackSnapshot:
     width: int | None
     height: int | None
     error: str | None = None
+    diagnostics: VideoPlaybackDiagnostics = VideoPlaybackDiagnostics()
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,9 +165,12 @@ class VideoPlayerPort(Protocol):
 
 __all__ = [
     "VideoPlaybackEvent",
+    "VideoPlaybackDiagnostics",
+    "VideoPlaybackFallback",
     "VideoPlaybackSnapshot",
     "VideoPlaybackState",
     "VideoPlayerPort",
     "VideoProbe",
     "VideoProbeResult",
+    "VideoRuntimeUnavailableError",
 ]

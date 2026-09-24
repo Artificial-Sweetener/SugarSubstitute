@@ -34,6 +34,7 @@ from substitute.application.ports.video import (
     VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPlayerPort,
+    VideoRuntimeUnavailableError,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -333,8 +334,14 @@ class VideoPlaybackController(QObject):
     def _publish_error(self, error: Exception) -> None:
         """Expose a sanitized player failure without leaking local paths."""
 
-        message = render_application_text(
-            app_text("Video playback is unavailable (%1).", type(error).__name__)
+        message = (
+            render_application_text(
+                app_text("The bundled video runtime is unavailable.")
+            )
+            if isinstance(error, VideoRuntimeUnavailableError)
+            else render_application_text(
+                app_text("Video playback is unavailable (%1).", type(error).__name__)
+            )
         )
         self._snapshot = VideoPlaybackSnapshot(
             media_id=self._current_media_id,
@@ -349,6 +356,7 @@ class VideoPlaybackController(QObject):
             width=self._snapshot.width,
             height=self._snapshot.height,
             error=message,
+            diagnostics=self._snapshot.diagnostics,
         )
         log_warning(
             _LOGGER,

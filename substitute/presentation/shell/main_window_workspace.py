@@ -76,6 +76,7 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
+from substitute.domain.generation import VideoPlaybackSettings
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -263,6 +264,7 @@ def build_main_window_workspace(
         None,
     ]
     | None = None,
+    video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
 ) -> MainWindowWorkspaceWidgets:
     """Build the MainWindow workspace scaffold and central layout."""
 
@@ -327,6 +329,7 @@ def build_main_window_workspace(
             open_single_external_editor=open_single_external_editor,
             open_all_external_editor=open_all_external_editor,
             reveal_output_asset=reveal_output_asset,
+            video_settings_provider=video_settings_provider,
         )
         canvas_host = canvas_scaffold.canvas_host
         input_canvas_state = canvas_scaffold.input_canvas_state

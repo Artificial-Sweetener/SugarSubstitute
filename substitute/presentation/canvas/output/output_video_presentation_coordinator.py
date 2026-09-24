@@ -28,6 +28,7 @@ from cutecanvas import CanvasPresentation, CanvasPresentationKind, CanvasWorkspa
 from shiboken6 import isValid
 
 from substitute.application.ports.video import VideoPlaybackEvent, VideoPlayerPort
+from substitute.domain.generation import VideoPlaybackSettings
 from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.canvas.output.output_document import OutputCanvasDocument
 from substitute.presentation.canvas.output.output_video_badge_overlays import (
@@ -53,6 +54,7 @@ class OutputVideoPresentationCoordinator(QObject):
             [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
         ]
         | None = None,
+        video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
     ) -> None:
         """Compose the media stack and observe document presentation changes."""
 
@@ -60,7 +62,11 @@ class OutputVideoPresentationCoordinator(QObject):
         self._workspace = workspace
         self._document = document
         self._metadata_for = metadata_for
-        self.video_page = VideoPlaybackPage(parent, player_factory=player_factory)
+        self.video_page = VideoPlaybackPage(
+            parent,
+            player_factory=player_factory,
+            video_settings_provider=video_settings_provider,
+        )
         self.widget = QStackedWidget(parent)
         self.widget.addWidget(workspace)
         self.widget.addWidget(self.video_page)

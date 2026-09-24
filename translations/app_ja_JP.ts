@@ -1214,6 +1214,16 @@ This is taking much longer than expected</source>
       <translation>音声を選択</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="70"></location>
+      <source>Choose automatic fallback or a specific supported GPU renderer.</source>
+      <translation>自動フォールバックまたは対応する特定の GPU レンダラーを選択します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="103"></location>
+      <source>Choose automatic hardware decoding or software decoding.</source>
+      <translation>自動ハードウェアデコードまたはソフトウェアデコードを選択します。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
       <source>Choose color</source>
       <translation>色を選択</translation>
@@ -1374,6 +1384,11 @@ This is taking much longer than expected</source>
       <translation>キャンバスの変更中に固定する点を選択します。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="111"></location>
+      <source>Choose the renderer used for generated video playback.</source>
+      <translation>生成動画の再生に使用するレンダラーを選択します。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="120"></location>
       <source>Choose the way you use ComfyUI.</source>
       <translation>ComfyUI の使い方を選択してください。</translation>
@@ -1429,7 +1444,7 @@ This is taking much longer than expected</source>
       <translation>この ComfyUI が使用する Python を選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="91"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="95"></location>
       <source>Choose which representation drag and Copy export.</source>
       <translation>ドラッグとコピーで書き出す形式を選択します。</translation>
     </message>
@@ -2777,7 +2792,7 @@ Install these nodes now?</source>
       <translation>ドラッグ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="90"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="94"></location>
       <source>Drag and Copy format</source>
       <translation>ドラッグとコピーの形式</translation>
     </message>
@@ -3195,9 +3210,14 @@ Install these nodes now?</source>
       <translation>GNU 一般公衆利用許諾書バージョン3</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="223"></location>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="76"></location>
       <source>GPU</source>
       <translation>グラフィックスプロセッサ (GPU)</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="75"></location>
+      <source>GPU Next</source>
+      <translation>次世代 GPU</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
@@ -3353,6 +3373,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="87"></location>
       <source>Hardness</source>
       <translation>硬さ</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="72"></location>
+      <source>Hardware video decoding was unavailable. Software decoding is active.</source>
+      <translation>ハードウェア動画デコードを利用できませんでした。ソフトウェアデコードが有効です。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="216"></location>
@@ -3540,7 +3565,7 @@ Install these nodes now?</source>
       <translation>情報</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="139"></location>
       <source>Input</source>
       <translation>入力</translation>
     </message>
@@ -3990,7 +4015,7 @@ Install these nodes now?</source>
       <translation>検索に失敗しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
       <source>Loop video</source>
       <translation>動画をループ</translation>
     </message>
@@ -4350,7 +4375,7 @@ Install these nodes now?</source>
       <translation>上へ移動</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
       <source>Mute video</source>
       <translation>動画をミュート</translation>
     </message>
@@ -4410,7 +4435,7 @@ Install these nodes now?</source>
       <translation>次へ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
       <source>Next frame</source>
       <translation>次のフレーム</translation>
     </message>
@@ -4697,6 +4722,11 @@ I’ll bring my own</source>
       <translation>OS：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="53"></location>
+      <source>Off</source>
+      <translation>オフ</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="115"></location>
       <source>Offer model downloads</source>
       <translation>モデルのダウンロードを提案</translation>
@@ -4872,7 +4902,7 @@ I’ll bring my own</source>
       <translation>メモリ不足</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="142"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="145"></location>
       <source>Output</source>
       <translation>出力</translation>
     </message>
@@ -4892,7 +4922,7 @@ I’ll bring my own</source>
       <translation>出力プレビュー</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/output_preference_service.py" line="130"></location>
+      <location filename="../substitute/application/generation/output_preference_service.py" line="131"></location>
       <source>Output settings saved.</source>
       <translation>出力設定を保存しました。</translation>
     </message>
@@ -5057,7 +5087,7 @@ I’ll bring my own</source>
       <translation>予定されている変更を更新しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="60"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
       <source>Play or pause</source>
       <translation>再生または一時停止</translation>
     </message>
@@ -5237,7 +5267,7 @@ I’ll bring my own</source>
       <translation>プレビューを利用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="61"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
       <source>Previous frame</source>
       <translation>前のフレーム</translation>
     </message>
@@ -5647,6 +5677,11 @@ I’ll bring my own</source>
       <translation>キャッシュ済みの Danbooru プレビュー画像をネイティブ Wiki ビューアー内に表示します。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="387"></location>
+      <source>Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7</source>
+      <translation>レンダラー: 要求 %1、使用中 %2; GPU: %3/%4; デコーダー: %5; コーデック: %6; ピクセル形式: %7</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/workflows/workflow_tabs_view.py" line="132"></location>
       <source>Reopen Closed Workflow</source>
       <translation>閉じたワークフローを再度開く</translation>
@@ -5766,7 +5801,7 @@ No known extension claimant.</source>
       <translation>リセット</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="70"></location>
       <source>Reset video view</source>
       <translation>ビデオ表示をリセット</translation>
     </message>
@@ -5866,7 +5901,7 @@ No known extension claimant.</source>
       <translation>再試行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="69"></location>
       <source>Retry video</source>
       <translation>動画を再試行</translation>
     </message>
@@ -7647,6 +7682,11 @@ Diagnostic evidence:
       <translation>接続した ComfyUI 環境は、更新された要件を満たしていません。続行する前に、その環境を修復してください。%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="339"></location>
+      <source>The bundled video runtime is unavailable.</source>
+      <translation>同梱の動画ランタイムを利用できません。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="394"></location>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>このダイアログを開いている間にキャンバスが変更されました。現在のサイズを確認して、もう一度お試しください。</translation>
@@ -7795,6 +7835,11 @@ Diagnostic evidence:
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
       <source>The requested definition is not available.</source>
       <translation>要求された定義は利用できません。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="75"></location>
+      <source>The requested video renderer was unavailable. A safe fallback is active.</source>
+      <translation>要求された動画レンダラーを利用できませんでした。安全なフォールバックが有効です。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="219"></location>
@@ -8437,6 +8482,11 @@ Diagnostic evidence:
       <translation>リモート ComfyUI を使用</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="48"></location>
+      <source>Use safe automatic hardware decoding or always decode in software.</source>
+      <translation>安全な自動ハードウェアデコードを使用するか、常にソフトウェアでデコードします。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="697"></location>
       <source>Use the ComfyUI page package filter to inspect installed packages and maintenance actions.</source>
       <translation>ComfyUI ページのパッケージフィルターを使って、インストール済みパッケージとメンテナンス操作を確認します。</translation>
@@ -8537,17 +8587,32 @@ Diagnostic evidence:
       <translation>%1 のバージョン</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="306"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="102"></location>
+      <source>Video hardware decoding</source>
+      <translation>動画のハードウェアデコード</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="71"></location>
+      <source>Video playback diagnostics</source>
+      <translation>動画再生の診断</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="343"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>動画を再生できません（%1）。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
       <source>Video position</source>
       <translation>動画の位置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="110"></location>
+      <source>Video renderer</source>
+      <translation>動画レンダラー</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
       <source>Video volume</source>
       <translation>動画の音量</translation>
     </message>
@@ -8918,7 +8983,7 @@ Diagnostic evidence:
       <translation>ソースチェックアウト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_presentation.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="78"></location>
       <source>unknown</source>
       <translation>不明</translation>
     </message>

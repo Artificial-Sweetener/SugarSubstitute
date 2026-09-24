@@ -27,6 +27,7 @@ from PySide6.QtWidgets import QWidget
 from cutecanvas import ExecutionRuntime, OutboundMimeProvider
 
 from substitute.application.ports.video import VideoPlaybackEvent, VideoPlayerPort
+from substitute.domain.generation import VideoPlaybackSettings
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -113,6 +114,7 @@ class OutputCanvas(QWidget):
             [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
         ]
         | None = None,
+        video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
     ) -> None: ...
     @property
     def route_projector(self) -> OutputDocumentRouteProjector:
