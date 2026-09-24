@@ -21,11 +21,9 @@ from __future__ import annotations
 from sugarsubstitute_shared.presentation.localization import set_localized_tooltip
 
 from collections.abc import Mapping
-from functools import partial
 from inspect import signature
 from typing import Any, cast
 
-from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.danbooru import (
@@ -51,11 +49,6 @@ from substitute.application.ports import (
     PromptAutocompleteGateway,
     PromptWildcardCatalogGateway,
 )
-from substitute.domain.generation.seed_control import (
-    SeedControlState,
-    SeedMode,
-    seed_mode_from_value,
-)
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogLookup,
 )
@@ -70,8 +63,8 @@ from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRen
 from substitute.presentation.workflows.workflow_tabs_view import (
     SETTINGS_WORKSPACE_ROUTE,
 )
-from substitute.presentation.editor.panel.override_control_binding import (
-    bind_override_control,
+from substitute.presentation.editor.panel.override_control_interactions import (
+    OverrideControlInteractionController,
 )
 from substitute.presentation.editor.panel.override_control_realizer import (
     OverrideControlRealizer,
@@ -131,7 +124,6 @@ class GlobalOverridesManager:
         """Initialize the toolbar renderer with explicit application dependencies."""
 
         self.mainwindow = mainwindow
-        self._service = pinned_override_service
         self._workflow_state = OverrideWorkflowState(
             mainwindow, pinned_override_service
         )
@@ -161,6 +153,12 @@ class GlobalOverridesManager:
             model_metadata_action_handler=model_metadata_action_handler,
             empty_model_picker_action=empty_model_picker_action,
             model_updates=model_updates,
+        )
+        self._control_interactions = OverrideControlInteractionController(
+            mainwindow,
+            pinned_override_service,
+            on_value_committed=self._refresh_after_value_commit,
+            request_autosave=self._request_session_autosave,
         )
         self._toolbar_snapshot: OverrideToolbarSnapshot | None = None
         self._workflow_projection_service = WorkflowEditorProjectionService()
@@ -435,14 +433,7 @@ class GlobalOverridesManager:
         if control is None:
             return
         _label, widget = control
-        set_value = getattr(widget, "setValue", None)
-        if not callable(set_value):
-            return
-        blocker = QSignalBlocker(widget)
-        try:
-            set_value(value)
-        finally:
-            del blocker
+        self._control_interactions.project_seed_value(widget, value)
 
     def dispose(self) -> None:
         """Tear down toolbar widgets and clear in-memory override state."""
@@ -617,111 +608,14 @@ class GlobalOverridesManager:
             realization.signature,
         )
 
-        self._restore_override_seed_mode(control.override_key, widget)
-        self._connect_override_seed_mode_signal(control.override_key, widget)
-        bind_override_control(
-            widget,
-            partial(self._commit_override_value, control.override_key),
-        )
+        self._control_interactions.bind(control.override_key, widget)
         return True
 
-    def _commit_override_value(
-        self,
-        override_key: str,
-        value: object,
-    ) -> None:
-        """Persist one committed toolbar value and request session autosave."""
-        workflow = self.mainwindow.get_active_workflow()
-        if workflow is None:
-            return
-        workflow_overrides = self._service.normalize_workflow_overrides(
-            getattr(workflow, "global_overrides", None)
-        )
-        log_debug(
-            _LOGGER,
-            "sync override from toolbar buffer",
-            override_key=override_key,
-            value=compact_override_log_value(value),
-            previous_value=compact_override_log_value(
-                workflow_overrides.get(override_key, {}).get("value")
-            ),
-        )
-        self._service.set_override_value(workflow_overrides, override_key, value)
-        workflow.global_overrides = dict(workflow_overrides)
+    def _refresh_after_value_commit(self) -> None:
+        """Refresh workflow state and mounted fields after a toolbar value commit."""
+
         self.sync_state_from_workflow()
         self.apply_global_overrides()
-        self._request_session_autosave()
-
-    def _restore_override_seed_mode(self, override_key: str, widget: Any) -> None:
-        """Restore seed mode for one override toolbar seed widget."""
-
-        if not self._is_seed_override_widget(override_key, widget):
-            return
-        set_mode = getattr(widget, "setMode", None)
-        if not callable(set_mode):
-            return
-        set_mode(self._override_seed_mode(override_key).value)
-
-    def _connect_override_seed_mode_signal(
-        self,
-        override_key: str,
-        widget: Any,
-    ) -> None:
-        """Persist seed mode changes from one override toolbar seed widget."""
-
-        if not self._is_seed_override_widget(override_key, widget):
-            return
-        mode_changed = getattr(widget, "modeChanged", None)
-        if mode_changed is None or not hasattr(mode_changed, "connect"):
-            return
-        mode_changed.connect(
-            lambda mode, key=override_key: self._sync_override_seed_mode(key, mode)
-        )
-
-    def _override_seed_mode(self, override_key: str) -> SeedMode:
-        """Return workflow-owned seed mode for one override key."""
-
-        workflow = self.mainwindow.get_active_workflow()
-        canonical_key = self._service.canonicalize_override_key(override_key)
-        states = getattr(workflow, "override_control_states", None)
-        if not isinstance(states, dict):
-            return SeedMode.RANDOM
-        state = states.get(canonical_key)
-        return state.mode if isinstance(state, SeedControlState) else SeedMode.RANDOM
-
-    def _sync_override_seed_mode(self, override_key: str, mode: object) -> None:
-        """Persist seed random/fixed mode without changing override participation mode."""
-
-        workflow = self.mainwindow.get_active_workflow()
-        if workflow is None:
-            return
-        canonical_key = self._service.canonicalize_override_key(override_key)
-        next_state = SeedControlState(seed_mode_from_value(mode))
-        states = getattr(workflow, "override_control_states", None)
-        if not isinstance(states, dict):
-            states = {}
-            setattr(workflow, "override_control_states", states)
-        previous = states.get(canonical_key)
-        if isinstance(previous, SeedControlState) and previous.mode == next_state.mode:
-            return
-        states[canonical_key] = next_state
-        self._request_session_autosave()
-        log_debug(
-            _LOGGER,
-            "persisted override seed mode",
-            override_key=canonical_key,
-            seed_mode=next_state.mode.value,
-        )
-
-    def _is_seed_override_widget(self, override_key: str, widget: Any) -> bool:
-        """Return whether one toolbar widget carries seed random/fixed mode."""
-
-        canonical_key = self._service.canonicalize_override_key(override_key)
-        return (
-            canonical_key == "seed"
-            and widget.__class__.__name__ == "SeedBox"
-            and hasattr(widget, "modeChanged")
-        )
 
     def _request_session_autosave(self) -> None:
         """Request persistence after one user-owned override mutation."""
