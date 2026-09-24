@@ -288,19 +288,6 @@ next_limit = 806
 debt = "SS-ARCH-041"
 
 [[waivers]]
-id = "SS-WAIVER-R043"
-owner = "editor field state"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/field_state_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes field metadata and widget binding discovery, buffer value mutation and dirty marking, widget-family signal wiring, and prompt editor value synchronization. Prompt presentation preferences and current-projection resolution have been extracted; next extract widget-family binding adapters from authoritative field-value mutation."
-issue = "chore:SS-ARCH-043"
-review_by = 2026-12-15
-max_lines = 999
-next_limit = 863
-debt = "SS-ARCH-043"
-
-[[waivers]]
 id = "SS-WAIVER-R045"
 owner = "editor node-card construction"
 rule = "STRUCT003"
@@ -335,7 +322,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1956
+max_lines = 1954
 next_limit = 1571
 debt = "SS-ARCH-051"
 

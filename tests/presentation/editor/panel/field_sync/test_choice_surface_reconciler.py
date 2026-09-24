@@ -33,9 +33,7 @@ from substitute.application.node_behavior import (
     ResolvedFieldSpec,
 )
 from substitute.presentation.editor.panel.field_registry import EditorFieldRegistry
-from substitute.presentation.editor.panel.field_state_controller import (
-    EditorFieldBinding,
-)
+from substitute.presentation.editor.panel.field_state_binding import EditorFieldBinding
 from substitute.presentation.editor.panel.model_choice_snapshots import (
     PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotKind,

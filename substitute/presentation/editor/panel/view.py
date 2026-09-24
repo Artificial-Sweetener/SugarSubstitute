@@ -133,10 +133,8 @@ from .field_sync_controller import (
     EditorPanelFieldSyncController,
     EditorPanelFieldSyncHost,
 )
-from .field_state_controller import (
-    EditorPanelFieldStateController,
-    EditorPanelFieldStateHost,
-)
+from .field_state_controller import EditorPanelFieldStateController
+from .prompt_field_state_controller import EditorPanelFieldStateHost
 from .field_value_change_coordinator import (
     DynamicFieldRefreshHost,
     PanelFieldValueChangeCoordinator,
