@@ -19,16 +19,14 @@
 from __future__ import annotations
 
 import copy
-import inspect
 import math
-from collections.abc import Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, cast
 
-from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtCore import QCoreApplication, QEvent, QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 from sugarsubstitute_shared.localization import render_source_application_text
 
@@ -45,18 +43,9 @@ from substitute.domain.cubes import (
     validate_canonical_cube_document,
 )
 from substitute.domain.workflow.models import CubeState, WorkflowState
-from substitute.presentation.editor.panel.widgets import field_row as field_row_view
-from substitute.presentation.editor.panel.widgets import node_card as node_card_view
 from substitute.presentation.editor.panel.view import EditorPanel
-from substitute.presentation.editor.panel.cube_section_build_session import (
-    CubeSectionBuildSession,
-)
-from substitute.presentation.editor.panel.projection_coordinator import (
-    EditorPanelProjectionCoordinator,
-)
-from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
-from substitute.presentation.shell.workflow_surface_reconciler import (
-    ActiveWorkflowSurfaceRefresher,
+from substitute.presentation.shell.main_window_editor_surface_adapter import (
+    MainWindowEditorSurfaceAdapter,
 )
 
 from .fake_gateways import (
@@ -65,6 +54,7 @@ from .fake_gateways import (
     FixtureNodeDefinitionGateway,
 )
 from .fixtures import read_json, stable_json_hash, workflow_fixture_path, write_json
+from .production_instrumentation import instrument_projection
 from .qt_harness import create_hidden_host, ensure_qapplication
 from .scenarios import WorkflowScenario
 from .signatures import (
@@ -74,6 +64,8 @@ from .signatures import (
     NodeCardSignature,
 )
 from .trace_events import ProjectionTraceRecorder
+
+_SETTLE_TURN_TIMEOUT_MS = 20
 
 
 @dataclass(slots=True)
@@ -152,7 +144,7 @@ def _trace_alternating_scenarios(
                 workflow_fixture_path(fixtures_dir, scenario.workflow_id)
             )
             workflow, definitions = _workflow_from_fixture(fixture)
-            host = create_hidden_host(show_window=False)
+            host = create_hidden_host(show_window=True)
             panel = _build_editor_panel(
                 host=host,
                 workflow_id=scenario.workflow_id,
@@ -241,17 +233,17 @@ def _trace_existing_panel_activation(
         invalidation_reason=str(invalidation_reason),
     )
     with (
-        _instrument_projection(recorder),
+        instrument_projection(recorder),
         recorder.timed(
             "production.total_elapsed_ms",
             workflow_id=scenario.workflow_id,
             activation=activation,
         ),
     ):
-        ActiveWorkflowSurfaceRefresher(
-            trace_shell.shell
-        ).refresh_active_workflow_surface(
-            on_complete=lambda: _mark_complete(trace_shell, recorder),
+        MainWindowEditorSurfaceAdapter(trace_shell.shell).refresh_editor_surface(
+            scenario.workflow_id,
+            force=False,
+            on_complete=lambda _result: _mark_complete(trace_shell, recorder),
         )
         _drain_until_complete(trace_shell, max_turns=settle_turns)
     _drain_qt_events(10)
@@ -319,7 +311,7 @@ def _trace_one_scenario(
     )
     workflow, definitions = _workflow_from_fixture(fixture)
     recorder = ProjectionTraceRecorder()
-    host = create_hidden_host(show_window=False)
+    host = create_hidden_host(show_window=True)
     panel = _build_editor_panel(
         host=host,
         workflow_id=scenario.workflow_id,
@@ -336,16 +328,16 @@ def _trace_one_scenario(
     recorder.mark("production_trace.start", widget_count=before_widgets)
     try:
         with (
-            _instrument_projection(recorder),
+            instrument_projection(recorder),
             recorder.timed(
                 "production.total_elapsed_ms",
                 workflow_id=scenario.workflow_id,
             ),
         ):
-            ActiveWorkflowSurfaceRefresher(
-                trace_shell.shell
-            ).refresh_active_workflow_surface(
-                on_complete=lambda: _mark_complete(trace_shell, recorder),
+            MainWindowEditorSurfaceAdapter(trace_shell.shell).refresh_editor_surface(
+                scenario.workflow_id,
+                force=False,
+                on_complete=lambda _result: _mark_complete(trace_shell, recorder),
             )
             _drain_until_complete(trace_shell, max_turns=settle_turns)
         _drain_qt_events(10)
@@ -553,6 +545,10 @@ def _build_editor_panel(
 ) -> EditorPanel:
     """Create a real editor panel with fixture-backed collaborators."""
 
+    from tests.support.execution.runtime_support import (
+        immediate_editor_panel_execution_factories,
+    )
+
     _configure_editor_control_registry()
     gateway = FixtureNodeDefinitionGateway(definitions)
     node_catalog_store = ActiveComfyNodeCatalogStore()
@@ -566,6 +562,7 @@ def _build_editor_panel(
             application_text_renderer=render_source_application_text,
         ),
         workflow_id=workflow_id,
+        editor_panel_execution_factories=(immediate_editor_panel_execution_factories()),
     )
     layout = QVBoxLayout(host)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -733,294 +730,6 @@ class _TraceGenerationActionCluster:
         )
 
 
-@contextmanager
-def _instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
-    """Temporarily wrap production methods with timing/counter instrumentation."""
-
-    patches: list[tuple[Any, str, object]] = []
-
-    def patch_attribute(
-        owner: Any,
-        attribute_name: str,
-        replacement: object,
-    ) -> None:
-        """Patch one attribute and remember how to restore it."""
-
-        original = getattr(owner, attribute_name)
-        patches.append((owner, attribute_name, original))
-        setattr(owner, attribute_name, replacement)
-
-    def patch_method(
-        owner: type[Any],
-        method_name: str,
-        event_name: str,
-        counter_name: str,
-        detail_reader: Callable[[Any, tuple[Any, ...], dict[str, Any]], dict[str, Any]]
-        | None = None,
-    ) -> None:
-        """Patch one method and remember how to restore it."""
-
-        original = getattr(owner, method_name)
-
-        def wrapped(self: Any, *args: Any, **kwargs: Any) -> Any:
-            """Record one production method call and delegate to the original."""
-
-            recorder.increment(counter_name)
-            details = detail_reader(self, args, kwargs) if detail_reader else {}
-            with recorder.timed(event_name, **details):
-                return original(self, *args, **kwargs)
-
-        patch_attribute(owner, method_name, wrapped)
-
-    def patch_function(
-        owner: Any,
-        function_name: str,
-        event_name: str,
-        counter_name: str,
-        detail_reader: Callable[[tuple[Any, ...], dict[str, Any]], dict[str, Any]]
-        | None = None,
-    ) -> None:
-        """Patch one module-level function and remember how to restore it."""
-
-        original = getattr(owner, function_name)
-
-        def wrapped(*args: Any, **kwargs: Any) -> Any:
-            """Record one production function call and delegate to the original."""
-
-            recorder.increment(counter_name)
-            details = detail_reader(args, kwargs) if detail_reader else {}
-            with recorder.timed(event_name, **details):
-                return original(*args, **kwargs)
-
-        patch_attribute(owner, function_name, wrapped)
-
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "load_all_cubes",
-        "production.editor.load_all_cubes",
-        "projection.load_all_cubes.calls",
-        lambda _self, args, _kwargs: {"cube_entries": len(args[0]) if args else 0},
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_prepare_projection",
-        "production.editor.prepare_projection",
-        "projection.prepare_projection.calls",
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_build_ordered_widgets",
-        "production.editor.build_ordered_widgets",
-        "projection.build_ordered_widgets.calls",
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_repopulate_layout",
-        "production.editor.repopulate_layout",
-        "projection.repopulate_layout.calls",
-        lambda _self, args, _kwargs: {"ordered_widgets": len(args[0]) if args else 0},
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_schedule_projected_cube_builds",
-        "production.editor.schedule_projected_cube_builds",
-        "projection.schedule_projected_cube_builds.calls",
-        lambda _self, args, _kwargs: {"projected_builds": len(args[0]) if args else 0},
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_reveal_projected_cube_build",
-        "production.editor.reveal_projected_cube_build",
-        "projection.reveal_projected_cube_build.calls",
-        lambda _self, args, _kwargs: {
-            "cube_alias": getattr(args[0], "cube_alias", "") if args else ""
-        },
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_reveal_projected_cube_builds",
-        "production.editor.reveal_projected_cube_builds",
-        "projection.reveal_projected_cube_builds.calls",
-        lambda _self, args, _kwargs: {"projected_builds": len(args[0]) if args else 0},
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "_refresh_visibility",
-        "production.editor.refresh_visibility",
-        "projection.refresh_visibility.calls",
-    )
-    patch_method(
-        EditorPanelProjectionCoordinator,
-        "begin_build_cube_widget",
-        "production.cube.begin_build_cube_widget",
-        "cube.begin_build_cube_widget.calls",
-        lambda _self, args, _kwargs: {"cube_alias": str(args[0]) if args else ""},
-    )
-    patch_method(
-        CubeSectionBuildSession,
-        "step",
-        "production.cube.build_step",
-        "cube.build_step.calls",
-        lambda self, _args, _kwargs: {
-            "cube_alias": getattr(self, "_route_key", ""),
-            "next_index": getattr(self, "_next_index", -1),
-        },
-    )
-    patch_method(
-        CubeSectionBuildSession,
-        "finish",
-        "production.cube.finish",
-        "cube.finish.calls",
-        lambda self, _args, _kwargs: {
-            "cube_alias": getattr(self, "_route_key", ""),
-            "node_count": len(getattr(self, "_node_order", ())),
-        },
-    )
-    patch_method(
-        NodeCardBuilder,
-        "build_node_card",
-        "production.node_card.build_node_card",
-        "node_card.build.calls",
-        lambda _self, _args, kwargs: {
-            "cube_alias": kwargs.get("alias", ""),
-            "node_name": kwargs.get("node_name", ""),
-            "node_class": kwargs.get("node_type", ""),
-            "field_count": len(kwargs.get("field_specs", {})),
-        },
-    )
-    patch_method(
-        NodeCardBuilder,
-        "_create_title_row",
-        "production.node_card.create_title_row",
-        "node_card.title_row.calls",
-        lambda _self, _args, kwargs: {
-            "node_name": kwargs.get("node_name", ""),
-            "node_class": kwargs.get("node_type", ""),
-            "field_count": len(kwargs.get("field_specs", {})),
-        },
-    )
-    patch_method(
-        NodeCardBuilder,
-        "_add_input_row",
-        "production.node_card.add_input_row",
-        "node_card.input_row.calls",
-        lambda _self, _args, kwargs: {
-            "label": kwargs.get("label", ""),
-            "widget_type": type(kwargs.get("widget")).__name__,
-        },
-    )
-    patch_method(
-        NodeCardBuilder,
-        "add_n_column_row",
-        "production.node_card.add_n_column_row",
-        "node_card.n_column_row.calls",
-        lambda _self, _args, kwargs: {
-            "field_count": len(kwargs.get("fields", ())),
-            "node_name": kwargs.get("node_name", ""),
-        },
-    )
-    patch_method(
-        NodeCardBuilder,
-        "_create_field_for_key",
-        "production.field.create_field_for_key",
-        "field.create.calls",
-        lambda _self, _args, kwargs: _field_spec_details(
-            kwargs.get("field_spec"),
-            cube_alias=kwargs.get("alias", ""),
-            node_name=kwargs.get("node_name", ""),
-        ),
-    )
-    patch_function(
-        node_card_view,
-        "build_widget_for_field_spec",
-        "production.field.factory",
-        "field.factory.calls",
-        lambda _args, kwargs: _field_spec_details(kwargs.get("field_spec")),
-    )
-    patch_function(
-        field_row_view,
-        "_apply_field_row_divider_style",
-        "production.field_row.apply_divider_style",
-        "field_row.divider_style.calls",
-        lambda args, _kwargs: {"widget_type": type(args[0]).__name__ if args else ""},
-    )
-    patch_function(
-        field_row_view,
-        "bind_fluent_tooltip",
-        "production.field_row.bind_tooltip",
-        "field_row.bind_tooltip.calls",
-        lambda args, _kwargs: {"target_count": max(0, len(args) - 2)},
-    )
-    patch_function(
-        node_card_view,
-        "bind_fluent_tooltip",
-        "production.node_card.bind_tooltip",
-        "node_card.bind_tooltip.calls",
-        lambda args, _kwargs: {"target_count": max(0, len(args) - 2)},
-    )
-    patch_method(
-        NodeBehaviorService,
-        "build_snapshot",
-        "production.behavior.build_snapshot",
-        "behavior.build_snapshot.calls",
-        lambda _self, _args, kwargs: {
-            "callsite": _behavior_snapshot_callsite(),
-            "cube_count": len(kwargs.get("cube_states", {})),
-            "stack_order_count": len(kwargs.get("stack_order", ())),
-            "workflow_override_count": len(kwargs.get("workflow_overrides") or {}),
-            "search_hidden_key_count": len(kwargs.get("search_hidden_keys") or ()),
-            "override_hidden_field_key_count": len(
-                kwargs.get("override_hidden_field_keys") or ()
-            ),
-            "node_search_text": str(kwargs.get("node_search_text") or ""),
-            "search_matching_node_count": len(
-                kwargs.get("search_matching_nodes") or ()
-            ),
-        },
-    )
-    try:
-        yield
-    finally:
-        for owner, method_name, original in reversed(patches):
-            setattr(owner, method_name, original)
-
-
-def _field_spec_details(
-    field_spec: object,
-    *,
-    cube_alias: object = "",
-    node_name: object = "",
-) -> dict[str, Any]:
-    """Return trace details for one resolved field spec."""
-
-    field_behavior = getattr(field_spec, "field_behavior", None)
-    presentation = getattr(field_behavior, "presentation", None)
-    return {
-        "cube_alias": str(cube_alias or getattr(field_spec, "cube_alias", "") or ""),
-        "node_name": str(node_name or getattr(field_spec, "node_name", "") or ""),
-        "node_class": str(getattr(field_spec, "class_type", "") or ""),
-        "field_key": str(getattr(field_spec, "field_key", "") or ""),
-        "field_type": str(getattr(field_spec, "field_type", "") or ""),
-        "presentation": str(getattr(presentation, "value", presentation) or ""),
-        "value_source": str(
-            getattr(getattr(field_spec, "value_source", None), "value", "") or ""
-        ),
-    }
-
-
-def _behavior_snapshot_callsite() -> str:
-    """Return the nearest application frame that requested a behavior snapshot."""
-
-    for frame in inspect.stack()[2:12]:
-        path = Path(frame.filename)
-        if "substitute" not in path.parts:
-            continue
-        if path.name == "behavior_service.py":
-            continue
-        return f"{path.name}:{frame.function}:{frame.lineno}"
-    return ""
-
-
 def _signature_from_panel(
     *,
     workflow_id: str,
@@ -1171,16 +880,29 @@ def _has_cube_ancestor(widget: QWidget, alias: str) -> bool:
 
 
 def _drain_until_complete(trace_shell: _TraceShell, *, max_turns: int) -> None:
-    """Process Qt events until projection completion or a bounded turn limit."""
+    """Run a bounded Qt event loop until projection completion is observable."""
 
     app = QApplication.instance()
     if app is None:
         return
-    for _turn in range(max_turns):
-        app.processEvents()
-        if trace_shell.projection_complete:
-            return
-    raise TimeoutError("Production editor projection did not complete in the rig.")
+    if trace_shell.projection_complete:
+        return
+    loop = QEventLoop()
+    completion_poll = QTimer()
+    completion_poll.setInterval(1)
+    completion_poll.timeout.connect(
+        lambda: loop.quit() if trace_shell.projection_complete else None
+    )
+    timeout = QTimer()
+    timeout.setSingleShot(True)
+    timeout.timeout.connect(loop.quit)
+    completion_poll.start()
+    timeout.start(max(1, max_turns) * _SETTLE_TURN_TIMEOUT_MS)
+    loop.exec()
+    completion_poll.stop()
+    timeout.stop()
+    if not trace_shell.projection_complete:
+        raise TimeoutError("Production editor projection did not complete in the rig.")
 
 
 def _drain_qt_events(turns: int) -> None:
