@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.presentation.localization import ApplicationText, app_text
+from sugarsubstitute_shared.presentation.localization import app_text
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -120,10 +120,10 @@ class ShutdownRecoveryDialogProtocol(Protocol):
     def set_force_close_callback(self, callback: Callable[[], None]) -> None:
         """Connect the force-close action to one callback."""
 
-    def show_uncertain_outcome(self, detail_text: ApplicationText) -> None:
+    def show_uncertain_outcome(self, result: ManagedComfyCleanupResult) -> None:
         """Render the uncertain-outcome copy."""
 
-    def show_failed_outcome(self, detail_text: ApplicationText) -> None:
+    def show_failed_outcome(self, result: ManagedComfyCleanupResult) -> None:
         """Render the failed-outcome copy."""
 
 
@@ -365,9 +365,9 @@ class ShutdownCoordinator(QObject):
         self._close_progress_dialog()
         dialog = self._ensure_recovery_dialog()
         if result.outcome is ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS:
-            dialog.show_uncertain_outcome(result.technical_detail)
+            dialog.show_uncertain_outcome(result)
         else:
-            dialog.show_failed_outcome(result.technical_detail)
+            dialog.show_failed_outcome(result)
         self._transition_to(ShutdownUiState.RECOVERY_VISIBLE)
         dialog.show()
         dialog.raise_()
