@@ -113,7 +113,7 @@ kind = "remediation"
 justification = "The assessed file now mixes single and prepared request orchestration, native and direct payload projection, input asset staging, and output save-plan preparation. Listener lifecycle and output routing have moved to their own owner; extract output save-plan preparation next."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-max_lines = 552
+max_lines = 550
 next_limit = 450
 debt = "SS-ARCH-012"
 

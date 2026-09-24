@@ -124,12 +124,12 @@ next_extraction = "Extract preview-source and visibility policy from cached netw
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]
-fingerprint = "sha256:92085573db3006a31b50babd05c868c8e22630496448b7045a496db8cd9db662"
+fingerprint = "sha256:c92e3e2f825b7e635e3ddcbf684ebac3e56344b21a586b699bdc6228789310e6"
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
 responsibilities = [
   "single and prepared request orchestration",
-  "native and direct payload projection",
+  "native and direct media payload projection",
   "input asset staging",
   "output save-plan preparation and generation diagnostics",
 ]

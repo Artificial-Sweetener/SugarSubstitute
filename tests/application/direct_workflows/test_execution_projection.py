@@ -24,7 +24,7 @@ from substitute.application.direct_workflows.execution_projection import (
     DirectWorkflowExecutionProjector,
 )
 from substitute.domain.comfy_workflow.output_manifest import (
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     ComfyOutputSocket,
     DirectWorkflowGenerationPlan,
 )
@@ -51,7 +51,7 @@ def test_execution_projection_is_detached_targeted_and_collision_safe() -> None:
         "OtherOutput": {"output_node": True, "input": {}},
         "AuthoredNode": {"output_node": False, "input": {}},
     }
-    manifest = ComfyImageOutputDiscovery().discover(
+    manifest = ComfyOutputDiscovery().discover(
         graph,
         node_definitions=definitions,
     )
@@ -67,12 +67,43 @@ def test_execution_projection_is_detached_targeted_and_collision_safe() -> None:
         "3",
         "__substitute_image_output_1_2",
     )
-    recovery = projection.recovery_outputs[0]
+    recovery = projection.output_sources[0]
     assert recovery.source_socket == ComfyOutputSocket("1", 0)
     assert recovery.source_key == "direct:1:0"
-    assert projection.prompt[recovery.recovery_node_id] == {
+    assert projection.prompt[recovery.node_id] == {
         "class_type": "PreviewImage",
         "inputs": {"images": ["1", 0]},
         "_meta": {"title": "1"},
     }
     assert projection.prompt["2"] == graph["2"]
+
+
+def test_execution_projection_runs_video_sink_without_image_recovery() -> None:
+    """Use the authored video node as both target and listener output source."""
+
+    graph: dict[str, object] = {
+        "1": {"class_type": "VideoSource", "inputs": {}},
+        "2": {"class_type": "SaveVideo", "inputs": {"video": ["1", 0]}},
+    }
+    manifest = ComfyOutputDiscovery().discover(
+        graph,
+        node_definitions={
+            "VideoSource": {"output_node": False, "input": {}},
+            "SaveVideo": {
+                "output_node": True,
+                "input": {"required": {"video": ["VIDEO", {}]}},
+            },
+        },
+    )
+
+    projection = DirectWorkflowExecutionProjector().project(
+        DirectWorkflowGenerationPlan(
+            authored_api_graph=graph,
+            output_manifest=manifest,
+        )
+    )
+
+    assert projection.prompt == graph
+    assert projection.execution_targets == ("2",)
+    assert projection.output_sources[0].node_id == "2"
+    assert projection.output_sources[0].media_kind.value == "video"

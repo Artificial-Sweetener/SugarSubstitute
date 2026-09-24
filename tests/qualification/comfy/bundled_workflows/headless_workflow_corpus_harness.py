@@ -27,7 +27,7 @@ from pathlib import Path
 
 from substitute.domain.comfy_workflow import (
     ComfyApiGraphBuilder,
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     ComfyWorkflowConverter,
 )
 from substitute.application.workflows.input_asset_endpoint_service import (
@@ -121,7 +121,7 @@ class HeadlessComfyWorkflowCorpusHarness:
                     node_definitions=self._node_definitions,
                 )
                 api_graph = ComfyApiGraphBuilder().build(graph)
-                output_manifest = ComfyImageOutputDiscovery().discover(
+                output_manifest = ComfyOutputDiscovery().discover(
                     api_graph,
                     node_definitions=self._node_definitions,
                 )
