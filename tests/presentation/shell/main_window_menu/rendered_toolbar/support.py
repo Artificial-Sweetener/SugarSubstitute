@@ -317,7 +317,7 @@ def rebuild_real_overrides(harness: ToolbarHarness) -> tuple[QWidget, ...]:
     harness.settle_layout()
     ordered: list[QWidget] = []
     for key in ("sampler_name", "scheduler", "seed"):
-        label, widget = harness.manager._global_override_controls[key]  # noqa: SLF001
+        label, widget = harness.manager._toolbar_registry.controls[key]  # noqa: SLF001
         ordered.append(cast(QWidget, label))
         ordered.append(cast(QWidget, widget))
     return tuple(ordered)
@@ -344,7 +344,7 @@ def seed_override_geometry(harness: ToolbarHarness) -> tuple[object, ...]:
     """Return complete visible geometry for the production seed pair."""
 
     rebuild_real_overrides(harness)
-    label, control = harness.manager._global_override_controls["seed"]  # noqa: SLF001
+    label, control = harness.manager._toolbar_registry.controls["seed"]  # noqa: SLF001
     assert isinstance(label, CaptionLabel)
     assert isinstance(control, SeedBox)
     return (

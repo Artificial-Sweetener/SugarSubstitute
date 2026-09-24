@@ -72,7 +72,7 @@ class RenderedOverrideHarness:
     def toolbar_widget(self, key: str) -> Any:
         """Return one production override widget by canonical key."""
 
-        return self.manager._global_override_controls[key][1]  # noqa: SLF001
+        return self.manager._toolbar_registry.controls[key][1]  # noqa: SLF001
 
     def close(self) -> None:
         """Destroy the harness root and all owned controls synchronously."""

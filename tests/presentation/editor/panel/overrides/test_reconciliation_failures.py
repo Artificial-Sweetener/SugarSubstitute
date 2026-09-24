@@ -104,7 +104,7 @@ def test_rebuild_active_override_controls_skips_failed_control_without_clearing_
     manager.rebuild_active_override_controls()
 
     assert set(manager._workflow_state.overrides) == {"seed", "scheduler"}
-    assert set(manager._global_override_controls) == {"seed"}
+    assert set(manager._toolbar_registry.controls) == {"seed"}
 
 
 def test_rebuild_active_override_controls_skips_raising_control_build(
@@ -171,4 +171,4 @@ def test_rebuild_active_override_controls_skips_raising_control_build(
     manager.rebuild_active_override_controls()
 
     assert set(manager._workflow_state.overrides) == {"seed", "sampler_name"}
-    assert set(manager._global_override_controls) == {"seed"}
+    assert set(manager._toolbar_registry.controls) == {"seed"}

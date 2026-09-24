@@ -195,7 +195,7 @@ def test_rebuild_active_override_controls_binds_fluent_tooltip_to_label_owner(
 
     manager.rebuild_active_override_controls()
 
-    label, widget = manager._global_override_controls["steps"]
+    label, widget = manager._toolbar_registry.controls["steps"]
     assert isinstance(label, _DummyLabel)
     assert isinstance(widget, _DummyWidget)
     assert label.size_policy == ("fixed", "preferred")
