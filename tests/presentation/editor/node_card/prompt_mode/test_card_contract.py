@@ -186,9 +186,9 @@ def test_prompt_cards_resolve_to_prompt_mode_and_skip_collapse_animation(
         lambda *args, **kwargs: collapsible_calls.append(True),
     )
     monkeypatch.setattr(
-        NodeCardBuilder,
-        "_create_title_row",
-        lambda self, **_kwargs: (QWidget(panel), None),
+        builder._title_composer,
+        "create",
+        lambda **_kwargs: (QWidget(panel), None),
     )
     monkeypatch.setattr(
         node_card_view,
@@ -260,9 +260,9 @@ def test_prompt_card_full_width_row_grows_with_prompt_editor_on_narrow_resize(
         prompt_autocomplete_gateway=autocomplete_gateway,
     )
     monkeypatch.setattr(
-        NodeCardBuilder,
-        "_create_title_row",
-        lambda self, **_kwargs: (QWidget(panel), None),
+        builder._title_composer,
+        "create",
+        lambda **_kwargs: (QWidget(panel), None),
     )
 
     wrapper = builder.build_node_card(
@@ -334,9 +334,9 @@ def test_prompt_card_body_grows_after_manual_prompt_editor_resize(
         _Gateway(),
     )
     monkeypatch.setattr(
-        NodeCardBuilder,
-        "_create_title_row",
-        lambda self, **_kwargs: (QWidget(panel), None),
+        builder._title_composer,
+        "create",
+        lambda **_kwargs: (QWidget(panel), None),
     )
 
     wrapper = builder.build_node_card(
@@ -412,9 +412,9 @@ def test_prompt_card_initial_prompt_height_tracks_laid_out_card_width(
         _Gateway(),
     )
     monkeypatch.setattr(
-        NodeCardBuilder,
-        "_create_title_row",
-        lambda self, **_kwargs: (QWidget(panel), None),
+        builder._title_composer,
+        "create",
+        lambda **_kwargs: (QWidget(panel), None),
     )
 
     wrapper = builder.build_node_card(
