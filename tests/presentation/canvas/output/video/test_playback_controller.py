@@ -207,6 +207,31 @@ def test_controller_routes_frame_steps_and_hidden_policy(tmp_path: Path) -> None
     controller.close()
 
 
+def test_controller_unloads_active_media_before_retirement(tmp_path: Path) -> None:
+    """Retirement should synchronously release the decoder's file handle."""
+
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+
+    assert controller.retire(media_id)
+    assert player_box[0].commands[-1] == ("unload",)
+    assert controller.snapshot.media_id is None
+    assert controller.snapshot.state is VideoPlaybackState.EMPTY
+    assert controller.retire(media_id)
+    assert player_box[0].commands.count(("unload",)) == 1
+    controller.close()
+
+
 def _snapshot(
     media_id: UUID | None,
     *,

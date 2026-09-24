@@ -104,6 +104,14 @@ class OutputVideoPresentationCoordinator(QObject):
         self.video_page.set_output_active(False)
         self.widget.setCurrentWidget(self._workspace)
 
+    def retire_media(self, media_id: UUID) -> bool:
+        """Unload a retired video and return to the CuteCanvas workspace."""
+
+        retired = self.video_page.retire_video(media_id)
+        if retired:
+            self.widget.setCurrentWidget(self._workspace)
+        return retired
+
     def close(self) -> None:
         """Release overlays and native playback before the surface is destroyed."""
 

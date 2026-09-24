@@ -21,20 +21,43 @@ from __future__ import annotations
 import atexit
 import shutil
 import tempfile
+import time
+from collections.abc import Callable
 from pathlib import Path
 from threading import Lock
 from uuid import uuid4
+
+from substitute.domain.output_media import OutputMediaKind
+from substitute.domain.workflow import ImageMeta
+from substitute.shared.logging.logger import get_logger, log_warning
+
+_LOGGER = get_logger("infrastructure.comfy.session_video_artifact_store")
+_OWNERSHIP_MARKER = ".sugarsubstitute-session-video-v1"
+_MARKER_CONTENT = "SugarSubstitute session video artifacts v1\n"
+_ABANDONED_AFTER_SECONDS = 7 * 24 * 60 * 60
 
 
 class SessionVideoArtifactStore:
     """Allocate and release video files inside one private session directory."""
 
-    def __init__(self, root: Path | None = None) -> None:
+    def __init__(
+        self,
+        root: Path | None = None,
+        *,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
         """Create a unique owned root without adopting existing content."""
 
         base = root or Path(tempfile.gettempdir()) / "SugarSubstitute" / "video-output"
+        base = base.resolve()
+        base.mkdir(parents=True, exist_ok=True)
+        _repair_abandoned_roots(base, now=clock())
         self._root = (base / uuid4().hex).resolve()
         self._root.mkdir(parents=True, exist_ok=False)
+        (self._root / _OWNERSHIP_MARKER).write_text(
+            _MARKER_CONTENT,
+            encoding="utf-8",
+        )
         self._owned_paths: set[Path] = set()
         self._lock = Lock()
         self._closed = False
@@ -72,8 +95,17 @@ class SessionVideoArtifactStore:
         with self._lock:
             if resolved not in self._owned_paths:
                 return False
+            try:
+                resolved.unlink(missing_ok=True)
+            except OSError as error:
+                log_warning(
+                    _LOGGER,
+                    "Deferred temporary video cleanup until session shutdown",
+                    path_suffix=resolved.suffix,
+                    error_type=type(error).__name__,
+                )
+                return False
             self._owned_paths.remove(resolved)
-        resolved.unlink(missing_ok=True)
         return True
 
     def close(self) -> None:
@@ -114,4 +146,65 @@ def default_session_video_store() -> SessionVideoArtifactStore:
         return _DEFAULT_STORE
 
 
-__all__ = ["SessionVideoArtifactStore", "default_session_video_store"]
+def close_default_session_video_store() -> None:
+    """Close and forget the process store without creating it."""
+
+    global _DEFAULT_STORE
+    with _DEFAULT_STORE_LOCK:
+        store = _DEFAULT_STORE
+        _DEFAULT_STORE = None
+    if store is not None:
+        store.close()
+
+
+def release_temporary_video_artifact(metadata: ImageMeta) -> None:
+    """Release one registry-retired leased video while preserving durable media."""
+
+    if (
+        metadata.media_kind is not OutputMediaKind.VIDEO
+        or not metadata.temporary
+        or not metadata.path
+    ):
+        return
+    default_session_video_store().release(Path(metadata.path))
+
+
+def _repair_abandoned_roots(base: Path, *, now: float) -> None:
+    """Remove only old directories carrying this store's exact ownership marker."""
+
+    try:
+        candidates = tuple(base.iterdir())
+    except OSError as error:
+        log_warning(
+            _LOGGER,
+            "Skipped temporary video repair scan",
+            error_type=type(error).__name__,
+        )
+        return
+    for candidate in candidates:
+        if not candidate.is_dir():
+            continue
+        marker = candidate / _OWNERSHIP_MARKER
+        try:
+            if marker.read_text(encoding="utf-8") != _MARKER_CONTENT:
+                continue
+            if now - marker.stat().st_mtime < _ABANDONED_AFTER_SECONDS:
+                continue
+            resolved = candidate.resolve()
+            if resolved.parent != base:
+                continue
+            shutil.rmtree(resolved)
+        except OSError as error:
+            log_warning(
+                _LOGGER,
+                "Skipped abandoned temporary video cleanup",
+                error_type=type(error).__name__,
+            )
+
+
+__all__ = [
+    "SessionVideoArtifactStore",
+    "close_default_session_video_store",
+    "default_session_video_store",
+    "release_temporary_video_artifact",
+]

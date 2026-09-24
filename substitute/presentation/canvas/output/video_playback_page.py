@@ -156,6 +156,11 @@ class VideoPlaybackPage(QWidget):
 
         self.controller.close()
 
+    def retire_video(self, media_id: UUID) -> bool:
+        """Unload one retired video before its temporary file is released."""
+
+        return self.controller.retire(media_id)
+
     def retranslate(self) -> None:
         """Refresh every SugarSubstitute-owned playback label."""
 

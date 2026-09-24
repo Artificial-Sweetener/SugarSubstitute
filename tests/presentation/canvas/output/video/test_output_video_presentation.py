@@ -216,10 +216,14 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         canvas.video_presentation.video_page.controller.step_next_frame()
         assert player_box[0].commands[-2:] == [("previous",), ("next",)]
 
+        assert canvas.video_presentation.retire_media(video_id)
+        assert player_box[0].commands[-1] == ("unload",)
+        assert canvas.video_presentation.widget.currentWidget() is canvas.workspace
+
         assert canvas.document.present_single(image_id)
         app.processEvents()
         assert canvas.video_presentation.widget.currentWidget() is canvas.workspace
-        assert player_box[0].commands[-1] == ("active", False)
+        assert ("active", False) in player_box[0].commands
     finally:
         canvas.close()
         destroy_qt_object(canvas)

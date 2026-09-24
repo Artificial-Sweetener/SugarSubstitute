@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import os
 from pathlib import Path
 
 import pytest
@@ -128,6 +129,35 @@ def test_video_handler_promotes_transient_artifact_and_deduplicates(
     store.close()
 
 
+def test_session_store_releases_promoted_artifact_and_repairs_only_owned_roots(
+    tmp_path: Path,
+) -> None:
+    """Release live leases and conservatively repair old marker-owned sessions."""
+
+    base = tmp_path / "session"
+    abandoned = SessionVideoArtifactStore(base, clock=lambda: 0.0)
+    marker = next(abandoned.root.glob(".sugarsubstitute-session-video-v1"))
+    os.utime(marker, (0.0, 0.0))
+    unknown = base / "unknown"
+    unknown.mkdir()
+    (unknown / "keep.txt").write_text("user data", encoding="utf-8")
+
+    active = SessionVideoArtifactStore(
+        base,
+        clock=lambda: 8 * 24 * 60 * 60,
+    )
+    partial = active.allocate_partial()
+    partial.write_bytes(b"video")
+    promoted = active.promote(partial, suffix=".webm")
+
+    assert not abandoned.root.exists()
+    assert unknown.is_dir()
+    assert active.release(promoted)
+    assert not promoted.exists()
+    assert not active.release(unknown / "keep.txt")
+    active.close()
+
+
 def test_video_handler_promotes_durable_artifact_atomically(tmp_path: Path) -> None:
     """Move a validated transfer into the normal output destination policy."""
 
@@ -171,7 +201,8 @@ def test_probe_failure_removes_partial_and_publishes_nothing(tmp_path: Path) -> 
         handler.handle(_event())
 
     assert updates == []
-    assert not tuple(store.root.iterdir())
+    assert not tuple(store.root.glob("*.partial"))
+    assert not tuple(store.root.glob("*.webm"))
     store.close()
 
 

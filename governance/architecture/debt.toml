@@ -762,22 +762,6 @@ responsibilities = [
 next_extraction = "Extract editor metadata and busy-controller composition behind the narrowed main-window assembly boundary."
 
 [[debts]]
-id = "SS-ARCH-081"
-owner = "main window workspace scaffold"
-paths = ["substitute/presentation/shell/main_window_workspace.py"]
-fingerprint = "sha256:57c3a2c33075a55120362d956968aabbb5f59255e038134018498b47dd1f0d7b"
-issue = "chore:SS-ARCH-081"
-review_by = 2026-12-15
-responsibilities = [
-  "workflow tabbar construction",
-  "canvas and editor scaffold construction",
-  "generation progress overlay construction",
-  "queue side-panel state and width transitions",
-  "workspace widget bundle assembly",
-]
-next_extraction = "Extract the queue side-panel host and feature scaffold builders from workspace bundle assembly."
-
-[[debts]]
 id = "SS-ARCH-082"
 owner = "shell titlebar controls"
 paths = ["substitute/presentation/shell/titlebar_buttons.py"]

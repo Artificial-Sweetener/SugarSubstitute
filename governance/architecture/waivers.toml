@@ -648,19 +648,6 @@ next_limit = 811
 debt = "SS-ARCH-080"
 
 [[waivers]]
-id = "SS-WAIVER-R081"
-owner = "main window workspace scaffold"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/main_window_workspace.py"
-kind = "remediation"
-justification = "The assessed file mixes workflow tabbar construction, canvas and editor scaffold construction, generation progress overlay construction, queue side-panel state and width transitions, workspace widget bundle assembly. Extract the queue side-panel host and feature scaffold builders from workspace bundle assembly."
-issue = "chore:SS-ARCH-081"
-review_by = 2026-12-15
-max_lines = 542
-next_limit = 500
-debt = "SS-ARCH-081"
-
-[[waivers]]
 id = "SS-WAIVER-R082"
 owner = "shell titlebar controls"
 rule = "STRUCT003"

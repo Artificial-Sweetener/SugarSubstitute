@@ -26,6 +26,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 from cutecanvas import ExecutionRuntime, OutboundMimeProvider
 
+from substitute.application.ports.video import VideoPlaybackEvent, VideoPlayerPort
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -48,6 +49,9 @@ from substitute.presentation.canvas.output.output_document import OutputCanvasDo
 from substitute.presentation.canvas.output.output_document_route_projector import (
     OutputDocumentRouteProjector,
 )
+from substitute.presentation.canvas.output.output_video_presentation_coordinator import (
+    OutputVideoPresentationCoordinator,
+)
 from substitute.presentation.canvas.output.output_projection_content_synchronizer import (
     OutputProjectionContentSynchronizer,
 )
@@ -63,6 +67,7 @@ class OutputCanvas(QWidget):
     dockActionRequested: Signal
     document: OutputCanvasDocument
     workspace: Any
+    video_presentation: OutputVideoPresentationCoordinator
     tabbar: Any
     scene_selector_button: Any
     set_selector_button: Any
@@ -104,6 +109,10 @@ class OutputCanvas(QWidget):
             Callable[[UUID], OutputImageMeta | None] | None
         ) = None,
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
+        video_player_factory: Callable[
+            [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
+        ]
+        | None = None,
     ) -> None: ...
     @property
     def route_projector(self) -> OutputDocumentRouteProjector:
