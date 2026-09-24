@@ -223,18 +223,13 @@ class _Streamer:
 class _Probe:
     """Return deterministic validated video facts."""
 
-    def probe(
-        self,
-        path: Path,
-        *,
-        artifact: ComfyImageArtifact,
-    ) -> VideoProbeResult:
+    def probe(self, path: Path) -> VideoProbeResult:
         """Validate that the stream exists before returning facts."""
 
         assert path.read_bytes()
         return VideoProbeResult(
-            width=artifact.width or 320,
-            height=artifact.height or 180,
+            width=320,
+            height=180,
             duration_seconds=2.5,
             mime_type="video/webm",
             poster_bytes=b"poster",
@@ -244,15 +239,10 @@ class _Probe:
 class _FailingProbe:
     """Reject every staged artifact."""
 
-    def probe(
-        self,
-        path: Path,
-        *,
-        artifact: ComfyImageArtifact,
-    ) -> VideoProbeResult:
+    def probe(self, path: Path) -> VideoProbeResult:
         """Raise the deterministic decode failure."""
 
-        del path, artifact
+        del path
         raise ValueError("decode failed")
 
 

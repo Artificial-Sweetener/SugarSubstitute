@@ -24,17 +24,17 @@ from pathlib import Path
 from typing import Protocol
 
 from substitute.application.ports.comfy_gateway import OutputVideoUpdate
+from substitute.application.ports.video import VideoProbe
 from substitute.infrastructure.comfy.final_image_event import FinalImageEvent
 from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 from substitute.infrastructure.comfy.output_source_identity_resolver import (
     OutputSourceIdentity,
 )
-from substitute.application.ports.video import VideoProbeResult
 from substitute.infrastructure.comfy.output_video_persistence import (
     OutputVideoPersistence,
 )
 
-_VIDEO_SUFFIXES = frozenset({".avi", ".gif", ".mkv", ".mov", ".mp4", ".webm"})
+_VIDEO_SUFFIXES = frozenset({".avi", ".gif", ".mkv", ".mov", ".mp4", ".webm", ".webp"})
 
 
 class VideoArtifactStreamer(Protocol):
@@ -44,25 +44,13 @@ class VideoArtifactStreamer(Protocol):
         """Stream one artifact into a new partial path."""
 
 
-class VideoArtifactProbe(Protocol):
-    """Describe decode validation and poster extraction."""
-
-    def probe(
-        self,
-        path: Path,
-        *,
-        artifact: ComfyImageArtifact,
-    ) -> VideoProbeResult:
-        """Validate one local video and return normalized facts."""
-
-
 @dataclass(frozen=True, slots=True)
 class FinalVideoEventHandler:
     """Own video artifact delivery and typed callback construction."""
 
     artifact_streamer: VideoArtifactStreamer
     output_persistence: OutputVideoPersistence
-    video_probe: VideoArtifactProbe
+    video_probe: VideoProbe
     on_output_video: Callable[[OutputVideoUpdate], None]
     _delivered_artifacts: set[tuple[str, str, int, int, str, str, str]] = field(
         default_factory=set,
@@ -100,7 +88,7 @@ class FinalVideoEventHandler:
                 source_identity=source_identity,
                 suffix=suffix,
                 stream=lambda path: self.artifact_streamer.stream_to(artifact, path),
-                probe=lambda path: self.video_probe.probe(path, artifact=artifact),
+                probe=self.video_probe.probe,
             )
             self._delivered_artifacts.add(delivery_key)
             self.on_output_video(
@@ -141,4 +129,4 @@ def _video_suffix(filename: str) -> str:
     return suffix
 
 
-__all__ = ["FinalVideoEventHandler", "VideoArtifactProbe", "VideoArtifactStreamer"]
+__all__ = ["FinalVideoEventHandler", "VideoArtifactStreamer"]

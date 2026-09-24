@@ -36,6 +36,7 @@ from substitute.application.ports import (
 from substitute.domain.common import JsonObject
 from substitute.infrastructure.comfy import (
     listener_output_pipeline,
+    output_destination_allocator,
     output_image_persistence,
 )
 from tests.infrastructure.comfy.listener.contract_harness import (
@@ -64,12 +65,13 @@ def _run_cube_output_visual_messages(
 
     module = _import_listener_module(monkeypatch)
     callbacks, _, _, output_events, failures, completed = _build_callbacks()
-    persistence: Any = output_image_persistence
+    allocator: Any = output_destination_allocator
     monkeypatch.setattr(
-        persistence,
+        allocator,
         "get_next_bucket_run_number",
         bucket_run_number or (lambda *_args: 7),
     )
+    persistence: Any = output_image_persistence
     if fallback_job_started_at is not None:
         fixed_started_at = fallback_job_started_at
 

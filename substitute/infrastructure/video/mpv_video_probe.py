@@ -117,6 +117,22 @@ class MpvVideoProbe:
         )
 
 
+class BundledMpvVideoProbe:
+    """Resolve the packaged runtime only when the first video artifact arrives."""
+
+    def __init__(self) -> None:
+        """Initialize without touching native runtime files during image-only use."""
+
+        self._probe: MpvVideoProbe | None = None
+
+    def probe(self, path: Path) -> VideoProbeResult:
+        """Probe through one lazily initialized packaged runtime."""
+
+        if self._probe is None:
+            self._probe = MpvVideoProbe(MpvRuntime.bundled())
+        return self._probe.probe(path)
+
+
 def _encode_poster(source: Image.Image) -> bytes:
     """Normalize one decoded frame to a bounded deterministic RGB PNG."""
 
@@ -167,7 +183,8 @@ def _mime_type(suffix: str) -> str | None:
         ".mkv": "video/x-matroska",
         ".avi": "video/x-msvideo",
         ".gif": "image/gif",
+        ".webp": "image/webp",
     }.get(suffix.casefold())
 
 
-__all__ = ["MpvVideoProbe", "VideoProbeError"]
+__all__ = ["BundledMpvVideoProbe", "MpvVideoProbe", "VideoProbeError"]
