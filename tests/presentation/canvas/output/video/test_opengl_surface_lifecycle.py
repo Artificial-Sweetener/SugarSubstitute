@@ -45,6 +45,21 @@ def test_video_surface_requests_transparent_composition() -> None:
         surface.close()
 
 
+def test_video_surface_clears_every_frame_before_player_rendering() -> None:
+    """Untouched letterbox pixels must never retain an opaque black buffer."""
+
+    ensure_qt_application()
+    clears: list[str] = []
+    surface = VideoOpenGLSurface(clear_framebuffer=lambda: clears.append("clear"))
+    try:
+        surface.paintGL()
+        surface.paintGL()
+
+        assert clears == ["clear", "clear"]
+    finally:
+        surface.close()
+
+
 @pytest.mark.platforms("windows")
 def test_video_renderer_recovers_after_floating_and_redocked_rehosting() -> None:
     """Each top-level context should receive a live renderer for the same player."""

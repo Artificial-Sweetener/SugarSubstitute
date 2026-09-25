@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
@@ -27,6 +28,9 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.ports.video import VideoOpenGLPlayerPort, VideoPlayerPort
 
+_GL_COLOR_BUFFER_BIT = 0x00004000
+_GL_SCISSOR_TEST = 0x0C11
+
 
 class VideoOpenGLSurface(QOpenGLWidget):
     """Render video as Qt content so chrome and pointer input remain authoritative."""
@@ -35,7 +39,12 @@ class VideoOpenGLSurface(QOpenGLWidget):
     surfaceResized = Signal()
     contextMenuRequested = Signal(object)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        clear_framebuffer: Callable[[], None] | None = None,
+    ) -> None:
         """Create an initially unbound transparent OpenGL surface."""
 
         super().__init__(parent)
@@ -46,6 +55,11 @@ class VideoOpenGLSurface(QOpenGLWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAutoFillBackground(False)
         self.setStyleSheet("background: transparent; border: none;")
+        self._clear_framebuffer = (
+            clear_transparent_opengl_framebuffer
+            if clear_framebuffer is None
+            else clear_framebuffer
+        )
         self._player: VideoOpenGLPlayerPort | None = None
         self._renderer_initialized = False
         self._renderer_context: QOpenGLContext | None = None
@@ -107,6 +121,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
     def paintGL(self) -> None:  # noqa: N802
         """Render the latest decoded frame into Qt's framebuffer."""
 
+        self._clear_framebuffer()
         player = self._player
         if player is None or not self._renderer_initialized:
             return
@@ -204,6 +219,19 @@ class VideoOpenGLSurface(QOpenGLWidget):
             return 0
         address = context.getProcAddress(name.encode())
         return int(address) if address is not None else 0
+
+
+def clear_transparent_opengl_framebuffer() -> None:
+    """Clear every current color-buffer pixel to transparent black."""
+
+    context = QOpenGLContext.currentContext()
+    if context is None:
+        return
+    functions = context.functions()
+    functions.glDisable(_GL_SCISSOR_TEST)
+    functions.glColorMask(True, True, True, True)
+    functions.glClearColor(0.0, 0.0, 0.0, 0.0)
+    functions.glClear(_GL_COLOR_BUFFER_BIT)
 
 
 __all__ = ["VideoOpenGLSurface"]
