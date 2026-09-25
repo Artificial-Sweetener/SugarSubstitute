@@ -30,6 +30,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
     """Render video as Qt content so chrome and pointer input remain authoritative."""
 
     frameRequested = Signal()
+    renderingReady = Signal()
     surfaceResized = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -57,6 +58,12 @@ class VideoOpenGLSurface(QOpenGLWidget):
             finally:
                 self.doneCurrent()
 
+    @property
+    def rendering_ready(self) -> bool:
+        """Return whether Qt has created the surface's usable OpenGL context."""
+
+        return self.context() is not None and self.isValid()
+
     def release_player(self) -> None:
         """Release libmpv rendering while this widget's GL context is current."""
 
@@ -79,6 +86,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
         """Initialize libmpv after Qt makes the surface context current."""
 
         self._initialize_renderer()
+        self.renderingReady.emit()
 
     def paintGL(self) -> None:  # noqa: N802
         """Render the latest decoded frame into Qt's framebuffer."""

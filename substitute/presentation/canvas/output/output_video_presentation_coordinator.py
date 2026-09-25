@@ -62,14 +62,11 @@ class OutputVideoPresentationCoordinator(QObject):
         self._workspace = workspace
         self._document = document
         self._metadata_for = metadata_for
-        self.video_page = VideoPlaybackPage(
-            parent,
-            player_factory=player_factory,
-            video_settings_provider=video_settings_provider,
-        )
+        self._player_factory = player_factory
+        self._video_settings_provider = video_settings_provider
+        self._video_page: VideoPlaybackPage | None = None
         self.widget = QStackedWidget(parent)
         self.widget.addWidget(workspace)
-        self.widget.addWidget(self.video_page)
         self.widget.setCurrentWidget(workspace)
         self._badges = OutputVideoBadgeOverlays(
             workspace=workspace,
@@ -77,6 +74,20 @@ class OutputVideoPresentationCoordinator(QObject):
             metadata_for=metadata_for,
         )
         parent.installEventFilter(self)
+
+    @property
+    def video_page(self) -> VideoPlaybackPage:
+        """Return the player page, constructing its OpenGL surface on first use."""
+
+        page = self._video_page
+        if page is None:
+            page = VideoPlaybackPage(
+                player_factory=self._player_factory,
+                video_settings_provider=self._video_settings_provider,
+            )
+            self._video_page = page
+            self.widget.addWidget(page)
+        return page
 
     def synchronize(self, presentation: CanvasPresentation) -> None:
         """Present video only for single detail and refresh grid play badges."""
@@ -96,8 +107,9 @@ class OutputVideoPresentationCoordinator(QObject):
             self.deactivate()
             return
         assert media_id is not None and metadata is not None
-        self.widget.setCurrentWidget(self.video_page)
-        self.video_page.present_video(media_id, Path(metadata.path))
+        page = self.video_page
+        self.widget.setCurrentWidget(page)
+        page.present_video(media_id, Path(metadata.path))
 
     def refresh_badges(self) -> None:
         """Re-evaluate badges after the application registry lookup is installed."""
@@ -108,7 +120,8 @@ class OutputVideoPresentationCoordinator(QObject):
     def video_detail_active(self) -> bool:
         """Return whether Output currently presents the dedicated video detail."""
 
-        return self.widget.currentWidget() is self.video_page
+        page = self._video_page
+        return page is not None and self.widget.currentWidget() is page
 
     def place_control_bar(
         self,
@@ -127,7 +140,10 @@ class OutputVideoPresentationCoordinator(QObject):
             if navigation_right is not None
             else right_margin
         )
-        self.video_page.place_control_bar(
+        page = self._video_page
+        if page is None:
+            return
+        page.place_control_bar(
             x=left,
             y=row_y,
             width=max(1, host_width - left - right_margin),
@@ -137,13 +153,18 @@ class OutputVideoPresentationCoordinator(QObject):
     def deactivate(self) -> None:
         """Return to CuteCanvas and enforce hidden-player pause and mute policy."""
 
-        self.video_page.set_output_active(False)
+        page = self._video_page
+        if page is not None:
+            page.set_output_active(False)
         self.widget.setCurrentWidget(self._workspace)
 
     def retire_media(self, media_id: UUID) -> bool:
         """Unload a retired video and return to the CuteCanvas workspace."""
 
-        retired = self.video_page.retire_video(media_id)
+        page = self._video_page
+        if page is None:
+            return False
+        retired = page.retire_video(media_id)
         if retired:
             self.widget.setCurrentWidget(self._workspace)
         return retired
@@ -152,7 +173,9 @@ class OutputVideoPresentationCoordinator(QObject):
         """Release overlays and native playback before the surface is destroyed."""
 
         self._badges.close()
-        self.video_page.close_player()
+        page = self._video_page
+        if page is not None:
+            page.close_player()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Enforce pause/mute policy across Output visibility transitions."""
