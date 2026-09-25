@@ -21,7 +21,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from substitute.application.ports.video import VideoPlaybackSnapshot
+from substitute.application.ports.video import (
+    VideoPlaybackSnapshot,
+    VideoPresentationSampling,
+)
 from substitute.presentation.canvas.output.output_canvas_view import OutputCanvas
 from substitute.presentation.canvas.output.video_playback_controller import (
     VideoViewportMode,
@@ -44,6 +47,8 @@ def write_video_output_evidence(
     loop_restart_time: float,
     soak_end_time: float,
     actual_size_zoom: float,
+    actual_size_sampling: VideoPresentationSampling,
+    fitted_sampling: VideoPresentationSampling,
     wheel_viewport: VideoViewportState,
     dragged_viewport: VideoViewportState,
     same_navigation_row: bool,
@@ -70,6 +75,8 @@ def write_video_output_evidence(
         "source_navigation_items": tuple(canvas.tabbar.items),
         "video_uses_compact_source_picker": True,
         "actual_size_zoom": actual_size_zoom,
+        "actual_size_sampling": actual_size_sampling.value,
+        "fitted_sampling": fitted_sampling.value,
         "wheel_zoom": wheel_viewport.zoom,
         "wheel_pan": [wheel_viewport.pan_x, wheel_viewport.pan_y],
         "pointer_pan": [dragged_viewport.pan_x, dragged_viewport.pan_y],

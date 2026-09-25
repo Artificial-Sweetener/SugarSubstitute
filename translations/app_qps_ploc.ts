@@ -4504,10 +4504,6 @@ I’ll bring my own</source>
       <translation>⟦Rëndër càchëd Dànböörü prëvïëw ïmàgës ïnsïdë thë nàtïvë wïkï vïëwër. ···⟧</translation>
     </message>
     <message>
-      <source>Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7</source>
-      <translation>⟦Rëndërër: rëqüëstëd %1, àctïvë %2; GPÜ: %3/%4; dëcödër: %5; cödëc: %6; pïxël förmàt: %7 ···⟧</translation>
-    </message>
-    <message>
       <source>Reopen Closed Workflow</source>
       <translation>⟦Rëöpën Clösëd Wörkflöw ···⟧</translation>
     </message>
@@ -6846,10 +6842,6 @@ Dïàgnöstïc ëvïdëncë:
     <message>
       <source>Video hardware decoding</source>
       <translation>⟦Vïdëö hàrdwàrë dëcödïng ···⟧</translation>
-    </message>
-    <message>
-      <source>Video playback diagnostics</source>
-      <translation>⟦Vïdëö plàybàck dïàgnöstïcs ···⟧</translation>
     </message>
     <message>
       <source>Video playback is unavailable (%1).</source>

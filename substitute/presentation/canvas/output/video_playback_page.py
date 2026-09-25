@@ -60,6 +60,9 @@ from substitute.presentation.canvas.output.video_playback_controller import (
 from substitute.presentation.canvas.output.video_viewport_interaction import (
     VideoViewportInteraction,
 )
+from substitute.presentation.canvas.output.video_volume_flyout import (
+    VideoVolumeFlyout,
+)
 from substitute.presentation.canvas.output.video_opengl_surface import (
     VideoOpenGLSurface,
 )
@@ -83,14 +86,12 @@ _VIDEO_POSITION = app_text("Video position")
 _RETRY_VIDEO = app_text("Retry video")
 _FIT_VIDEO = app_text("Fit video")
 _ACTUAL_SIZE_VIDEO = app_text("Show video at actual size")
-_VIDEO_DIAGNOSTICS = app_text("Video playback diagnostics")
 _SOFTWARE_FALLBACK = app_text(
     "Hardware video decoding was unavailable. Software decoding is active."
 )
 _RENDERER_FALLBACK = app_text(
     "The requested video renderer was unavailable. A safe fallback is active."
 )
-_UNKNOWN_DIAGNOSTIC = app_text("unknown")
 
 
 class VideoPlaybackPage(QWidget):
@@ -122,12 +123,6 @@ class VideoPlaybackPage(QWidget):
         self._loop.setCheckable(True)
         self._loop.setChecked(True)
         self._mute = QPushButton(self)
-        self._mute.setCheckable(True)
-        self._volume = QSlider(Qt.Orientation.Horizontal, self)
-        self._volume.setRange(0, 100)
-        self._volume.setValue(100)
-        self._volume.setMinimumWidth(48)
-        self._volume.setMaximumWidth(80)
         self._seek = QSlider(Qt.Orientation.Horizontal, self)
         self._seek.setRange(0, _SEEK_STEPS)
         self._time = QLabel("00:00 / 00:00", self)
@@ -137,7 +132,6 @@ class VideoPlaybackPage(QWidget):
         self._fit.setCheckable(True)
         self._actual_size = QPushButton(self)
         self._actual_size.setCheckable(True)
-        self._diagnostics = QPushButton(self)
         self._control_bar = QFrame(self)
         self._control_bar.setObjectName("outputVideoPlaybackControls")
         self._pending_video: tuple[UUID, Path] | None = None
@@ -150,6 +144,14 @@ class VideoPlaybackPage(QWidget):
             parent=self,
         )
         self.controller.snapshotChanged.connect(self._apply_snapshot)
+        self._volume_flyout = VideoVolumeFlyout(
+            anchor=self._mute,
+            set_volume=self.controller.set_volume,
+            set_muted=self.controller.set_user_muted,
+            mute_text=render_application_text(_MUTE_VIDEO),
+            volume_text=render_application_text(_VIDEO_VOLUME),
+            parent=self,
+        )
         self._viewport = VideoViewportInteraction(
             surface=self._surface,
             apply_viewport=self.controller.set_viewport,
@@ -157,7 +159,7 @@ class VideoPlaybackPage(QWidget):
         self.controller.viewportChanged.connect(self._viewport.set_state)
         self.controller.viewportChanged.connect(self._apply_viewport_state)
         self._surface.renderingReady.connect(self._present_pending_video)
-        self._surface.surfaceResized.connect(self._refresh_actual_size)
+        self._surface.surfaceResized.connect(self._refresh_surface_metrics)
         self.destroyed.connect(lambda _object=None: self.controller.close())
         self._compose_layout()
         connect_theme_refresh(self, self._apply_theme)
@@ -216,12 +218,14 @@ class VideoPlaybackPage(QWidget):
         """Release the native player before the Qt render surface is destroyed."""
 
         self._pending_video = None
+        self._volume_flyout.close()
         self._surface.release_player()
         self.controller.close()
 
     def prepare_for_window_transition(self) -> None:
         """Retire native window resources before the Output canvas is rehosted."""
 
+        self._volume_flyout.close()
         self._surface.release_player()
         self.controller.release_native_player_for_window_transition()
 
@@ -260,7 +264,6 @@ class VideoPlaybackPage(QWidget):
         retry_video = render_application_text(_RETRY_VIDEO)
         fit_video = render_application_text(_FIT_VIDEO)
         actual_size_video = render_application_text(_ACTUAL_SIZE_VIDEO)
-        video_diagnostics = render_application_text(_VIDEO_DIAGNOSTICS)
         set_fluent_tooltip_text(self._play, play_or_pause)
         self._play.setAccessibleName(play_or_pause)
         set_fluent_tooltip_text(self._previous_frame, previous_frame)
@@ -269,10 +272,12 @@ class VideoPlaybackPage(QWidget):
         self._next_frame.setAccessibleName(next_frame)
         set_fluent_tooltip_text(self._loop, loop_video)
         self._loop.setAccessibleName(loop_video)
-        set_fluent_tooltip_text(self._mute, mute_video)
-        self._mute.setAccessibleName(mute_video)
-        set_fluent_tooltip_text(self._volume, video_volume)
-        self._volume.setAccessibleName(video_volume)
+        set_fluent_tooltip_text(self._mute, video_volume)
+        self._mute.setAccessibleName(video_volume)
+        self._volume_flyout.retranslate(
+            mute_text=mute_video,
+            volume_text=video_volume,
+        )
         set_fluent_tooltip_text(self._seek, video_position)
         self._seek.setAccessibleName(video_position)
         self._retry.setText(retry_video)
@@ -281,11 +286,6 @@ class VideoPlaybackPage(QWidget):
         self._fit.setAccessibleName(fit_video)
         set_fluent_tooltip_text(self._actual_size, actual_size_video)
         self._actual_size.setAccessibleName(actual_size_video)
-        set_fluent_tooltip_text(
-            self._diagnostics,
-            _diagnostics_text(self.controller.snapshot),
-        )
-        self._diagnostics.setAccessibleName(video_diagnostics)
 
     def changeEvent(self, event: QEvent) -> None:  # noqa: N802
         """Retranslate the playback page when application language changes."""
@@ -312,10 +312,8 @@ class VideoPlaybackPage(QWidget):
         controls.addWidget(self._time)
         controls.addWidget(self._loop)
         controls.addWidget(self._mute)
-        controls.addWidget(self._volume)
         controls.addWidget(self._fit)
         controls.addWidget(self._actual_size)
-        controls.addWidget(self._diagnostics)
         controls.addWidget(self._retry)
         self._control_bar.setGeometry(8, 8, 1, 36)
         self._apply_theme()
@@ -327,8 +325,6 @@ class VideoPlaybackPage(QWidget):
         self._previous_frame.clicked.connect(self.controller.step_previous_frame)
         self._next_frame.clicked.connect(self.controller.step_next_frame)
         self._loop.toggled.connect(self.controller.set_loop_enabled)
-        self._mute.toggled.connect(self.controller.set_user_muted)
-        self._volume.valueChanged.connect(self.controller.set_volume)
         self._seek.sliderReleased.connect(self._seek_released)
         self._retry.clicked.connect(self.controller.retry)
         self._fit.clicked.connect(self.controller.reset_viewport)
@@ -402,6 +398,7 @@ class VideoPlaybackPage(QWidget):
             self._next_frame,
             self._seek,
             self._loop,
+            self._mute,
             self._fit,
             self._actual_size,
         ):
@@ -409,8 +406,6 @@ class VideoPlaybackPage(QWidget):
         self._loop.blockSignals(True)
         self._loop.setChecked(value.loop_enabled)
         self._loop.blockSignals(False)
-        self._mute.blockSignals(True)
-        self._mute.setChecked(value.user_muted)
         self._mute.setIcon(
             (
                 AppIcon.SPEAKER_MUTE_20_REGULAR
@@ -418,10 +413,10 @@ class VideoPlaybackPage(QWidget):
                 else AppIcon.SPEAKER_2_20_REGULAR
             ).icon()
         )
-        self._mute.blockSignals(False)
-        self._volume.blockSignals(True)
-        self._volume.setValue(value.volume)
-        self._volume.blockSignals(False)
+        self._volume_flyout.synchronize(
+            volume=value.volume,
+            muted=value.user_muted,
+        )
         self._seek.blockSignals(True)
         self._seek.setValue(_normalized_seek(value))
         self._seek.blockSignals(False)
@@ -433,7 +428,6 @@ class VideoPlaybackPage(QWidget):
         self._status.setText(error or fallback)
         self._status.setVisible(bool(error or fallback))
         self._retry.setVisible(bool(error))
-        set_fluent_tooltip_text(self._diagnostics, _diagnostics_text(value))
         self._control_bar.raise_()
 
     @Slot(object)
@@ -460,9 +454,14 @@ class VideoPlaybackPage(QWidget):
         )
 
     @Slot()
-    def _refresh_actual_size(self) -> None:
-        """Preserve 1:1 scale when the available video surface changes."""
+    def _refresh_surface_metrics(self) -> None:
+        """Refresh physical sampling and preserve 1:1 after surface changes."""
 
+        self.controller.set_surface_metrics(
+            width=self._surface.width(),
+            height=self._surface.height(),
+            device_pixel_ratio=self._surface.devicePixelRatioF(),
+        )
         if self._viewport.state.mode is VideoViewportMode.ACTUAL_SIZE:
             self._set_actual_size()
 
@@ -503,7 +502,6 @@ class VideoPlaybackPage(QWidget):
             (self._loop, AppIcon.ARROW_REPEAT_ALL_20_REGULAR),
             (self._fit, AppIcon.ZOOM_FIT_20_REGULAR),
             (self._actual_size, AppIcon.RATIO_ONE_TO_ONE_20_REGULAR),
-            (self._diagnostics, AppIcon.INFO_20_REGULAR),
         ):
             button.setIcon(icon.icon())
             button.setIconSize(QSize(18, 18))
@@ -552,25 +550,6 @@ def _fallback_text(fallback: VideoPlaybackFallback | None) -> str:
     if fallback is VideoPlaybackFallback.RENDERER:
         return render_application_text(_RENDERER_FALLBACK)
     return ""
-
-
-def _diagnostics_text(snapshot: VideoPlaybackSnapshot) -> str:
-    """Render sanitized requested and observed playback facts."""
-
-    diagnostics = snapshot.diagnostics
-    unknown = render_application_text(_UNKNOWN_DIAGNOSTIC)
-    return render_application_text(
-        app_text(
-            "Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7",
-            diagnostics.requested_renderer.value,
-            diagnostics.actual_video_output or unknown,
-            diagnostics.gpu_api or unknown,
-            diagnostics.gpu_context or unknown,
-            diagnostics.hardware_decoder or unknown,
-            diagnostics.codec or unknown,
-            diagnostics.pixel_format or unknown,
-        )
-    )
 
 
 __all__ = ["VideoPlaybackPage"]

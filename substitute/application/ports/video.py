@@ -59,6 +59,13 @@ class VideoPlaybackFallback(StrEnum):
     RENDERER = "renderer"
 
 
+class VideoPresentationSampling(StrEnum):
+    """Choose how the native player samples enlarged source pixels."""
+
+    BILINEAR = "bilinear"
+    NEAREST = "nearest"
+
+
 class VideoRuntimeUnavailableError(RuntimeError):
     """Report that the project-owned video runtime cannot be loaded."""
 
@@ -76,6 +83,9 @@ class VideoPlaybackDiagnostics:
     pixel_format: str | None = None
     codec: str | None = None
     fallback: VideoPlaybackFallback | None = None
+    presentation_sampling: VideoPresentationSampling = (
+        VideoPresentationSampling.BILINEAR
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,8 +161,14 @@ class VideoPlayerPort(Protocol):
     def set_user_muted(self, muted: bool) -> None:
         """Set the user's persistent-in-session mute choice."""
 
-    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
-        """Apply normalized zoom and pan to the rendered video."""
+    def set_viewport(
+        self,
+        zoom: float,
+        pan_x: float,
+        pan_y: float,
+        sampling: VideoPresentationSampling,
+    ) -> None:
+        """Apply normalized geometry and source-pixel sampling to the video."""
 
     def set_output_active(self, active: bool) -> None:
         """Pause and effectively mute playback while the output is inactive."""
@@ -202,6 +218,7 @@ __all__ = [
     "VideoPlaybackFallback",
     "VideoPlaybackSnapshot",
     "VideoPlaybackState",
+    "VideoPresentationSampling",
     "VideoOpenGLPlayerPort",
     "VideoPlayerPort",
     "VideoProbe",

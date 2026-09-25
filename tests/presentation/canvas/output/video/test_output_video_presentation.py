@@ -30,6 +30,7 @@ from substitute.application.ports.video import (
     VideoPlaybackEvent,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
+    VideoPresentationSampling,
 )
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
@@ -111,10 +112,16 @@ class _Player:
 
         self.commands.append(("mute", muted))
 
-    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
-        """Record viewport geometry."""
+    def set_viewport(
+        self,
+        zoom: float,
+        pan_x: float,
+        pan_y: float,
+        sampling: VideoPresentationSampling,
+    ) -> None:
+        """Record viewport geometry and source sampling."""
 
-        self.commands.append(("viewport", zoom, pan_x, pan_y))
+        self.commands.append(("viewport", zoom, pan_x, pan_y, sampling))
 
     def set_output_active(self, active: bool) -> None:
         """Record output visibility."""
@@ -233,7 +240,13 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
             ("volume", 100),
             ("mute", False),
             ("loop", True),
-            ("viewport", 1.0, 0.0, 0.0),
+            (
+                "viewport",
+                1.0,
+                0.0,
+                0.0,
+                VideoPresentationSampling.BILINEAR,
+            ),
             ("active", True),
         ]
         canvas.video_presentation.video_page.controller.step_previous_frame()

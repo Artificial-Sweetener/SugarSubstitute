@@ -150,6 +150,7 @@ def test_probe_disables_external_configuration_and_network(tmp_path: Path) -> No
     assert player.options["demuxer_lavf_o"] == "protocol_whitelist=file"
     assert player.options["background"] == "none"
     assert player.options["background_color"] == "#00000000"
+    assert player.options["scale"] == "bilinear"
 
 
 def test_probe_redacts_parent_directories_from_decode_error(tmp_path: Path) -> None:

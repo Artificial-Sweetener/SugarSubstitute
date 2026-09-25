@@ -88,6 +88,7 @@ from tools.video_output_qualification_rehosting import (
     qualify_rehosting,
     qualify_transparent_bars,
 )
+from tools.video_output_qualification_sampling import qualify_video_sampling
 
 
 _TIMEOUT_SECONDS = 10.0
@@ -298,22 +299,13 @@ def main(argv: list[str] | None = None) -> int:
             label="video source tab selection",
         )
 
-        actual_size_button = find_button(page, "Show video at actual size")
+        sampling_evidence = qualify_video_sampling(
+            application=application,
+            root=window,
+            page=page,
+            evidence_dir=evidence_dir,
+        )
         fit_button = find_button(page, "Fit video")
-        native_click(window, actual_size_button, application)
-        wait_until(
-            application,
-            lambda: page.viewport_state.mode is VideoViewportMode.ACTUAL_SIZE,
-            label="1:1 video viewport",
-        )
-        actual_size_zoom = page.viewport_state.zoom
-        capture(window, evidence_dir / "video-detail-actual-size.png")
-        native_click(window, fit_button, application)
-        wait_until(
-            application,
-            lambda: page.viewport_state.mode is VideoViewportMode.FIT,
-            label="fitted video viewport",
-        )
         native_wheel(
             window,
             page.render_surface,
@@ -519,7 +511,9 @@ def main(argv: list[str] | None = None) -> int:
             loop_off_end_time=loop_off_end_time,
             loop_restart_time=loop_restart_time,
             soak_end_time=soak_end_time,
-            actual_size_zoom=actual_size_zoom,
+            actual_size_zoom=sampling_evidence.actual_size_zoom,
+            actual_size_sampling=sampling_evidence.actual_size_sampling,
+            fitted_sampling=sampling_evidence.fitted_sampling,
             wheel_viewport=wheel_viewport,
             dragged_viewport=dragged_viewport,
             same_navigation_row=same_navigation_row,

@@ -35,11 +35,13 @@ from substitute.application.ports.video import (
     VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPlayerPort,
+    VideoPresentationSampling,
     VideoRuntimeUnavailableError,
 )
 from substitute.shared.logging.logger import get_logger, log_warning_exception
 
 _LOGGER = get_logger("presentation.canvas.output.video_playback_controller")
+_NEAREST_SOURCE_SCALE = 2.0
 
 
 class VideoViewportMode(StrEnum):
@@ -98,6 +100,7 @@ class VideoPlaybackController(QObject):
         self._player: VideoPlayerPort | None = None
         self._current_media_id: UUID | None = None
         self._current_path: Path | None = None
+        self._surface_metrics: tuple[int, int, float] | None = None
         self._sessions: dict[UUID, VideoMediaSession] = {}
         self._snapshot = VideoPlaybackSnapshot(
             media_id=None,
@@ -141,7 +144,7 @@ class VideoPlaybackController(QObject):
                 player.set_volume(session.volume)
                 player.set_user_muted(session.user_muted)
                 player.set_loop_enabled(session.loop_enabled)
-                player.set_viewport(session.zoom, session.pan_x, session.pan_y)
+                self._apply_session_viewport(player, session)
                 if session.time_seconds > 0:
                     player.seek(session.time_seconds)
                 self.viewportChanged.emit(_viewport_for_session(session))
@@ -249,14 +252,24 @@ class VideoPlaybackController(QObject):
         session.pan_x = state.pan_x
         session.pan_y = state.pan_y
         session.viewport_mode = state.mode
-        self._apply(
-            lambda player: player.set_viewport(
-                state.zoom,
-                state.pan_x,
-                state.pan_y,
-            )
-        )
+        self._apply(lambda player: self._apply_session_viewport(player, session))
         self.viewportChanged.emit(state)
+
+    def set_surface_metrics(
+        self,
+        *,
+        width: int,
+        height: int,
+        device_pixel_ratio: float,
+    ) -> None:
+        """Apply physical surface geometry to source-pixel sampling decisions."""
+
+        self._surface_metrics = (
+            max(1, int(width)),
+            max(1, int(height)),
+            max(0.01, float(device_pixel_ratio)),
+        )
+        self._apply_current_viewport()
 
     def reset_viewport(self) -> None:
         """Restore fit geometry for the active video."""
@@ -407,9 +420,52 @@ class VideoPlaybackController(QObject):
             or value.snapshot.media_id != self._current_media_id
         ):
             return
+        previous_source_size = (self._snapshot.width, self._snapshot.height)
         self._snapshot = value.snapshot
         self._remember_current_session()
+        if previous_source_size != (value.snapshot.width, value.snapshot.height):
+            self._apply_current_viewport()
         self.snapshotChanged.emit(value.snapshot)
+
+    def _apply_current_viewport(self) -> None:
+        """Reapply viewport state when source or physical surface scale changes."""
+
+        media_id = self._current_media_id
+        if media_id is None:
+            return
+        session = self._sessions.setdefault(media_id, VideoMediaSession())
+        self._apply(lambda player: self._apply_session_viewport(player, session))
+
+    def _apply_session_viewport(
+        self,
+        player: VideoPlayerPort,
+        session: VideoMediaSession,
+    ) -> None:
+        """Send one retained viewport with QPane-compatible sampling policy."""
+
+        player.set_viewport(
+            session.zoom,
+            session.pan_x,
+            session.pan_y,
+            self._presentation_sampling(session.zoom),
+        )
+
+    def _presentation_sampling(self, zoom: float) -> VideoPresentationSampling:
+        """Use nearest sampling at QPane's two-physical-pixels-per-source threshold."""
+
+        metrics = self._surface_metrics
+        source_width = self._snapshot.width
+        source_height = self._snapshot.height
+        if metrics is None or source_width is None or source_height is None:
+            return VideoPresentationSampling.BILINEAR
+        surface_width, surface_height, device_pixel_ratio = metrics
+        fit_scale = min(
+            surface_width * device_pixel_ratio / source_width,
+            surface_height * device_pixel_ratio / source_height,
+        )
+        if fit_scale * zoom < _NEAREST_SOURCE_SCALE:
+            return VideoPresentationSampling.BILINEAR
+        return VideoPresentationSampling.NEAREST
 
     def _remember_current_session(self) -> None:
         """Capture the latest stable playback choices for the current media."""
