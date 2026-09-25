@@ -125,6 +125,95 @@ def native_click_vertical_fraction(
     pump_events(application, 0.08)
 
 
+def key_press(
+    target: QWidget,
+    key: Qt.Key,
+    application: QApplication,
+) -> None:
+    """Press one key through the focused Qt widget event path."""
+
+    target.setFocus(Qt.FocusReason.OtherFocusReason)
+    QTest.keyPress(target, key)
+    pump_events(application, 0.08)
+
+
+def key_release(
+    target: QWidget,
+    key: Qt.Key,
+    application: QApplication,
+) -> None:
+    """Release one key through the focused Qt widget event path."""
+
+    QTest.keyRelease(target, key)
+    pump_events(application, 0.08)
+
+
+def native_drag(
+    window: QWidget,
+    target: QWidget,
+    application: QApplication,
+    *,
+    start: tuple[float, float],
+    finish: tuple[float, float],
+) -> None:
+    """Route one primary-button drag through native top-level hit-testing."""
+
+    start_point = _fractional_target_point(window, target, *start)
+    finish_point = _fractional_target_point(window, target, *finish)
+    send_mouse_message(window, 0x0200, 0, start_point.x(), start_point.y())
+    send_mouse_message(window, 0x0201, 0x0001, start_point.x(), start_point.y())
+    send_mouse_message(window, 0x0200, 0x0001, finish_point.x(), finish_point.y())
+    send_mouse_message(window, 0x0202, 0, finish_point.x(), finish_point.y())
+    pump_events(application, 0.08)
+
+
+def native_double_click(
+    window: QWidget,
+    target: QWidget,
+    application: QApplication,
+    *,
+    horizontal_fraction: float = 0.5,
+    vertical_fraction: float = 0.5,
+) -> None:
+    """Route one primary double-click through native top-level hit-testing."""
+
+    handle = window.windowHandle()
+    if handle is None:
+        raise RuntimeError("Qualification window has no native window handle.")
+    point = _fractional_target_point(
+        window,
+        target,
+        horizontal_fraction,
+        vertical_fraction,
+    )
+    QTest.mouseDClick(
+        handle,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        point,
+    )
+    pump_events(application, 0.08)
+
+
+def _fractional_target_point(
+    window: QWidget,
+    target: QWidget,
+    horizontal_fraction: float,
+    vertical_fraction: float,
+) -> QPoint:
+    """Map one bounded normalized target point into top-level coordinates."""
+
+    horizontal = min(max(horizontal_fraction, 0.0), 1.0)
+    vertical = min(max(vertical_fraction, 0.0), 1.0)
+    return target.mapTo(
+        window,
+        QPoint(
+            round((target.width() - 1) * horizontal),
+            round((target.height() - 1) * vertical),
+        ),
+    )
+
+
 def native_wheel(
     window: QWidget,
     target: QWidget,
@@ -355,9 +444,13 @@ __all__ = [
     "find_button",
     "find_slider",
     "images_differ",
+    "key_press",
+    "key_release",
     "native_click",
     "native_click_fraction",
     "native_click_vertical_fraction",
+    "native_double_click",
+    "native_drag",
     "native_target_is_root",
     "native_wheel",
     "open_source_picker",

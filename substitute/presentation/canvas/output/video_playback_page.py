@@ -22,7 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QEvent, QSize, Qt, Slot
+from PySide6.QtCore import QEvent, QPointF, QSize, Qt, Slot
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -155,6 +155,8 @@ class VideoPlaybackPage(QWidget):
         self._viewport = VideoViewportInteraction(
             surface=self._surface,
             apply_viewport=self.controller.set_viewport,
+            show_fit=self.controller.reset_viewport,
+            show_actual_size=self._set_actual_size_at,
         )
         self.controller.viewportChanged.connect(self._viewport.set_state)
         self.controller.viewportChanged.connect(self._apply_viewport_state)
@@ -179,6 +181,18 @@ class VideoPlaybackPage(QWidget):
         """Return the current user-visible Fit, 1:1, or custom viewport state."""
 
         return self._viewport.state
+
+    @property
+    def pan_zoom_active(self) -> bool:
+        """Return whether Space currently activates temporary video navigation."""
+
+        return self._viewport.pan_zoom_active
+
+    @property
+    def last_zoom_anchor(self) -> QPointF | None:
+        """Return the latest wheel anchor accepted by video navigation."""
+
+        return self._viewport.last_zoom_anchor
 
     @property
     def control_bar(self) -> QWidget:
@@ -334,7 +348,6 @@ class VideoPlaybackPage(QWidget):
         """Install keyboard equivalents scoped to the visible playback page."""
 
         for sequence, callback in (
-            ("Space", self._toggle_playback),
             (",", self.controller.step_previous_frame),
             (".", self.controller.step_next_frame),
             ("L", lambda: self._loop.setChecked(not self._loop.isChecked())),
@@ -451,6 +464,19 @@ class VideoPlaybackPage(QWidget):
             surface_width=self._surface.width(),
             surface_height=self._surface.height(),
             device_pixel_ratio=self._surface.devicePixelRatioF(),
+        )
+
+    def _set_actual_size_at(self, position: QPointF) -> None:
+        """Project source pixels 1:1 while retaining the double-click anchor."""
+
+        width = max(1, self._surface.width())
+        height = max(1, self._surface.height())
+        self.controller.set_actual_size_viewport(
+            surface_width=width,
+            surface_height=height,
+            device_pixel_ratio=self._surface.devicePixelRatioF(),
+            anchor_x=position.x() / width * 2.0 - 1.0,
+            anchor_y=position.y() / height * 2.0 - 1.0,
         )
 
     @Slot()

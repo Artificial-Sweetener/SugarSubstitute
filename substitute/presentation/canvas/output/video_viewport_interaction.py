@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import cast
 
 from PySide6.QtCore import QEvent, QObject, QPointF, Qt
-from PySide6.QtGui import QMouseEvent, QWheelEvent
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.canvas.output.video_playback_controller import (
@@ -32,7 +32,8 @@ from substitute.presentation.canvas.output.video_playback_controller import (
 
 _MIN_ZOOM = 1.0 / 64.0
 _MAX_ZOOM = 64.0
-_ZOOM_STEP = 1.2
+_ZOOM_IN_FACTOR = 1.25
+_ZOOM_OUT_FACTOR = 0.8
 
 
 class VideoViewportInteraction(QObject):
@@ -43,14 +44,21 @@ class VideoViewportInteraction(QObject):
         *,
         surface: QWidget,
         apply_viewport: Callable[[VideoViewportState], None],
+        show_fit: Callable[[], None],
+        show_actual_size: Callable[[QPointF], None],
     ) -> None:
         """Observe one surface and publish bounded pan/zoom changes."""
 
         super().__init__(surface)
         self._surface = surface
         self._apply_viewport = apply_viewport
+        self._show_fit = show_fit
+        self._show_actual_size = show_actual_size
         self._state = VideoViewportState()
+        self._space_held = False
         self._drag_position: QPointF | None = None
+        self._last_zoom_anchor: QPointF | None = None
+        surface.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         surface.installEventFilter(self)
 
     @property
@@ -59,10 +67,23 @@ class VideoViewportInteraction(QObject):
 
         return self._state
 
+    @property
+    def pan_zoom_active(self) -> bool:
+        """Return whether Space currently owns temporary viewport navigation."""
+
+        return self._space_held
+
+    @property
+    def last_zoom_anchor(self) -> QPointF | None:
+        """Return the most recent wheel anchor accepted by temporary navigation."""
+
+        return self._last_zoom_anchor
+
     def set_state(self, state: VideoViewportState) -> None:
         """Synchronize gestures with controller-restored geometry."""
 
         self._state = state
+        self._refresh_cursor()
 
     def reset(self) -> None:
         """Restore fitted video geometry."""
@@ -70,24 +91,35 @@ class VideoViewportInteraction(QObject):
         self._publish(VideoViewportState(mode=VideoViewportMode.FIT))
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        """Handle wheel zoom and left-button panning on the render surface."""
+        """Route Space-owned QPane-style navigation on the render surface."""
 
         if watched is not self._surface:
             return super().eventFilter(watched, event)
+        if event.type() == QEvent.Type.KeyPress:
+            key = cast(QKeyEvent, event)
+            if key.key() == Qt.Key.Key_Space:
+                if not key.isAutoRepeat():
+                    self._space_held = True
+                    self._refresh_cursor()
+                key.accept()
+                return True
+        if event.type() == QEvent.Type.KeyRelease:
+            key = cast(QKeyEvent, event)
+            if key.key() == Qt.Key.Key_Space:
+                if not key.isAutoRepeat():
+                    self._end_navigation()
+                key.accept()
+                return True
+        if event.type() in {QEvent.Type.FocusOut, QEvent.Type.Hide}:
+            self._end_navigation()
+            return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.Wheel:
+            if not self._space_held:
+                return super().eventFilter(watched, event)
             wheel = cast(QWheelEvent, event)
             steps = wheel.angleDelta().y() / 120.0
-            if wheel.modifiers() & Qt.KeyboardModifier.ShiftModifier and steps:
-                self._publish(
-                    panned_viewport(
-                        self._state,
-                        delta=QPointF(steps * 48.0, 0.0),
-                        surface=self._surface,
-                    )
-                )
-                wheel.accept()
-                return True
             if steps:
+                self._last_zoom_anchor = wheel.position()
                 self._publish(
                     zoomed_viewport(
                         self._state,
@@ -99,10 +131,13 @@ class VideoViewportInteraction(QObject):
                 wheel.accept()
                 return True
         if event.type() == QEvent.Type.MouseButtonPress:
+            if not self._space_held:
+                return super().eventFilter(watched, event)
             mouse = cast(QMouseEvent, event)
             if mouse.button() == Qt.MouseButton.LeftButton:
-                self._drag_position = mouse.position()
-                self._surface.setCursor(Qt.CursorShape.ClosedHandCursor)
+                if self._state.zoom > 1.0:
+                    self._drag_position = mouse.position()
+                    self._refresh_cursor()
                 return True
         if event.type() == QEvent.Type.MouseMove and self._drag_position is not None:
             mouse = cast(QMouseEvent, event)
@@ -114,9 +149,22 @@ class VideoViewportInteraction(QObject):
             return True
         if event.type() == QEvent.Type.MouseButtonRelease:
             mouse = cast(QMouseEvent, event)
+            if self._space_held and mouse.button() == Qt.MouseButton.LeftButton:
+                self._drag_position = None
+                self._refresh_cursor()
+                return True
+        if event.type() == QEvent.Type.MouseButtonDblClick:
+            if not self._space_held:
+                return super().eventFilter(watched, event)
+            mouse = cast(QMouseEvent, event)
             if mouse.button() == Qt.MouseButton.LeftButton:
                 self._drag_position = None
-                self._surface.unsetCursor()
+                if self._state.mode is VideoViewportMode.FIT:
+                    self._show_actual_size(mouse.position())
+                else:
+                    self._show_fit()
+                self._refresh_cursor()
+                mouse.accept()
                 return True
         return super().eventFilter(watched, event)
 
@@ -125,6 +173,26 @@ class VideoViewportInteraction(QObject):
 
         self._state = state
         self._apply_viewport(state)
+        self._refresh_cursor()
+
+    def _end_navigation(self) -> None:
+        """Clear transient Space and drag state after release or focus loss."""
+
+        self._space_held = False
+        self._drag_position = None
+        self._refresh_cursor()
+
+    def _refresh_cursor(self) -> None:
+        """Mirror QPane's arrow/open-hand/closed-hand navigation feedback."""
+
+        if not self._space_held:
+            self._surface.unsetCursor()
+        elif self._drag_position is not None:
+            self._surface.setCursor(Qt.CursorShape.ClosedHandCursor)
+        elif self._state.zoom > 1.0:
+            self._surface.setCursor(Qt.CursorShape.OpenHandCursor)
+        else:
+            self._surface.setCursor(Qt.CursorShape.ArrowCursor)
 
 
 def zoomed_viewport(
@@ -137,7 +205,11 @@ def zoomed_viewport(
     """Return cursor-anchored zoom while bounding reachable pan."""
 
     previous_zoom = state.zoom
-    zoom = min(_MAX_ZOOM, max(_MIN_ZOOM, previous_zoom * (_ZOOM_STEP**steps)))
+    step_factor = _ZOOM_IN_FACTOR if steps > 0 else _ZOOM_OUT_FACTOR
+    zoom = min(
+        _MAX_ZOOM,
+        max(_MIN_ZOOM, previous_zoom * (step_factor ** abs(steps))),
+    )
     if zoom == previous_zoom:
         return state
     width = max(1, surface.width())

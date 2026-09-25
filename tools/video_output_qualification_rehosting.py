@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor, QImage, QPalette
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget
 from sugarsubstitute_shared.localization import app_text
@@ -40,6 +40,8 @@ from tools.video_output_qualification_support import (
     capture,
     find_button,
     find_slider,
+    key_press,
+    key_release,
     native_click,
     native_click_fraction,
     native_wheel,
@@ -134,6 +136,7 @@ def qualify_rehosting(
 
     if page.controller.snapshot.loop_enabled:
         native_click(docked_window, loop, application)
+    key_press(page.render_surface, Qt.Key.Key_Space, application)
     native_wheel(
         docked_window,
         page.render_surface,
@@ -142,6 +145,7 @@ def qualify_rehosting(
         horizontal_fraction=0.7,
         vertical_fraction=0.3,
     )
+    key_release(page.render_surface, Qt.Key.Key_Space, application)
     wait_until(
         application,
         lambda: (

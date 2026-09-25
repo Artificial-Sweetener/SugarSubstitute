@@ -282,8 +282,10 @@ class VideoPlaybackController(QObject):
         surface_width: int,
         surface_height: int,
         device_pixel_ratio: float,
+        anchor_x: float | None = None,
+        anchor_y: float | None = None,
     ) -> None:
-        """Show one source pixel as one physical display pixel when possible."""
+        """Show source pixels physically 1:1 while retaining an optional anchor."""
 
         snapshot = self._snapshot
         source_width = snapshot.width
@@ -296,9 +298,40 @@ class VideoPlaybackController(QObject):
             physical_width / source_width,
             physical_height / source_height,
         )
+        zoom = 1.0 / max(fit_scale, 1.0 / 64.0)
+        pan_x = 0.0
+        pan_y = 0.0
+        if anchor_x is not None and anchor_y is not None:
+            media_id = self._current_media_id
+            session = (
+                None
+                if media_id is None
+                else self._sessions.setdefault(media_id, VideoMediaSession())
+            )
+            previous_zoom = 1.0 if session is None else max(session.zoom, 1.0 / 64.0)
+            previous_pan_x = 0.0 if session is None else session.pan_x
+            previous_pan_y = 0.0 if session is None else session.pan_y
+            ratio = zoom / previous_zoom
+            pan_limit = max(0.0, 1.0 - 1.0 / zoom)
+            pan_x = min(
+                pan_limit,
+                max(
+                    -pan_limit,
+                    anchor_x - (anchor_x - previous_pan_x) * ratio,
+                ),
+            )
+            pan_y = min(
+                pan_limit,
+                max(
+                    -pan_limit,
+                    anchor_y - (anchor_y - previous_pan_y) * ratio,
+                ),
+            )
         self.set_viewport(
             VideoViewportState(
-                zoom=1.0 / max(fit_scale, 1.0 / 64.0),
+                zoom=zoom,
+                pan_x=pan_x,
+                pan_y=pan_y,
                 mode=VideoViewportMode.ACTUAL_SIZE,
             )
         )
