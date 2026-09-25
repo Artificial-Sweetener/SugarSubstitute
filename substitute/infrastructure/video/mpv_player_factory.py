@@ -59,16 +59,14 @@ class MpvPlayerProtocol(Protocol):
 def create_mpv_player(
     module: ModuleType,
     *,
-    native_window_id: int | None,
+    render_api: bool,
     settings: VideoPlaybackSettings,
 ) -> MpvPlayerProtocol:
-    """Create one isolated native player with safe renderer fallbacks."""
+    """Create one isolated player with safe libmpv-render fallbacks."""
 
     options = local_video_options(
-        video_output=_video_output(
-            settings.renderer, embedded=native_window_id is not None
-        ),
-        audio_output="auto" if native_window_id is not None else "null",
+        video_output=_video_output(settings.renderer, render_api=render_api),
+        audio_output="auto" if render_api else "null",
     )
     options.update(
         {
@@ -85,22 +83,16 @@ def create_mpv_player(
             "mute": True,
         }
     )
-    if native_window_id is not None:
-        options["wid"] = str(native_window_id)
     constructor = cast(Callable[..., MpvPlayerProtocol], getattr(module, "MPV"))
     return constructor(**options)
 
 
-def _video_output(renderer: VideoRenderer, *, embedded: bool) -> str:
+def _video_output(renderer: VideoRenderer, *, render_api: bool) -> str:
     """Map one validated renderer policy to libmpv's ordered output list."""
 
-    if not embedded:
+    if not render_api:
         return "null"
-    if renderer is VideoRenderer.GPU_NEXT:
-        return "gpu-next"
-    if renderer is VideoRenderer.GPU:
-        return "gpu"
-    return "gpu-next,gpu"
+    return "libmpv"
 
 
 __all__ = ["MpvPlayerProtocol", "ObservedMpvCallback", "create_mpv_player"]

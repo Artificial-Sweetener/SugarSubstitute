@@ -531,6 +531,7 @@ class OutputCanvas(QWidget):
         if isinstance(presentation, CanvasPresentation):
             self._document_navigation.handle_workspace_presentation(presentation)
             self.video_presentation.synchronize(presentation)
+            update_output_tabbar_container(self)
 
 
 __all__ = ["OutputCanvas"]

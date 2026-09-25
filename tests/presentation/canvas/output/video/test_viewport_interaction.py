@@ -22,6 +22,7 @@ from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.canvas.output.video_playback_controller import (
+    VideoViewportMode,
     VideoViewportState,
 )
 from substitute.presentation.canvas.output.video_viewport_interaction import (
@@ -69,4 +70,9 @@ def test_pan_is_bounded_by_visible_scaled_extent() -> None:
         surface=surface,
     )
 
-    assert panned == VideoViewportState(zoom=2.0, pan_x=0.5, pan_y=-0.5)
+    assert panned == VideoViewportState(
+        zoom=2.0,
+        pan_x=0.5,
+        pan_y=-0.5,
+        mode=VideoViewportMode.CUSTOM,
+    )

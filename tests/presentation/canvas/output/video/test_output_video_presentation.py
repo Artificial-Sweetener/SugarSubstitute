@@ -22,7 +22,8 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QEvent, QSize
+from PySide6.QtWidgets import QWidget
 from cutecanvas import ExecutionRuntime
 
 from substitute.application.ports.video import (
@@ -194,9 +195,19 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         assert video_composition is not None
         video_tile = canvas.workspace.canvasFor(video_composition)
         assert video_tile is not None
-        assert OUTPUT_VIDEO_BADGE_OVERLAY_NAME in video_tile.contentOverlays()
+        badges = video_tile.findChildren(QWidget, OUTPUT_VIDEO_BADGE_OVERLAY_NAME)
+        assert len(badges) == 1
         assert canvas.video_presentation.widget.currentWidget() is canvas.workspace
         assert player_box == []
+
+        without_hover = video_tile.grab().toImage()
+        app.sendEvent(video_tile, QEvent(QEvent.Type.Enter))
+        app.processEvents()
+        with_hover = video_tile.grab().toImage()
+        assert with_hover != without_hover
+        app.sendEvent(video_tile, QEvent(QEvent.Type.Leave))
+        app.processEvents()
+        assert video_tile.grab().toImage() == without_hover
 
         assert canvas.document.present_single(video_id)
         app.processEvents()

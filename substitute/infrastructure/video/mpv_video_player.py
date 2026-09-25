@@ -40,6 +40,9 @@ from substitute.infrastructure.video.mpv_player_factory import (
     MpvPlayerProtocol,
     create_mpv_player,
 )
+from substitute.infrastructure.video.mpv_opengl_render_bridge import (
+    MpvOpenGLRenderBridge,
+)
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
 
 
@@ -73,10 +76,10 @@ class MpvVideoPlayer:
         runtime: MpvRuntime,
         player_generation: int,
         event_callback: Callable[[VideoPlaybackEvent], None],
-        native_window_id: int | None = None,
+        render_api: bool = False,
         settings: VideoPlaybackSettings = VideoPlaybackSettings(),
     ) -> None:
-        """Create a closed player bound to an optional native render surface."""
+        """Create a closed player prepared for optional OpenGL rendering."""
 
         self._lock = RLock()
         self._player_generation = player_generation
@@ -97,6 +100,7 @@ class MpvVideoPlayer:
         self._height: int | None = None
         self._error: str | None = None
         self._settings = settings
+        self._render_api = render_api
         self._actual_video_output: str | None = None
         self._gpu_api: str | None = None
         self._gpu_context: str | None = None
@@ -106,11 +110,13 @@ class MpvVideoPlayer:
         self._codec: str | None = None
         self._closed = False
         self._observer = self._property_observed
+        self._module = runtime.load_module()
         self._player: MpvPlayerProtocol = create_mpv_player(
-            runtime.load_module(),
-            native_window_id=native_window_id,
+            self._module,
+            render_api=render_api,
             settings=settings,
         )
+        self._renderer = MpvOpenGLRenderBridge(self._module, self._player)
         for name in self._OBSERVED_PROPERTIES:
             self._player.observe_property(name, self._observer)
 
@@ -281,7 +287,7 @@ class MpvVideoPlayer:
 
         with self._lock:
             self._require_media()
-            bounded_zoom = min(max(float(zoom), 1.0), 8.0)
+            bounded_zoom = min(max(float(zoom), 1.0 / 64.0), 64.0)
             bounded_pan_x = min(max(float(pan_x), -1.0), 1.0)
             bounded_pan_y = min(max(float(pan_y), -1.0), 1.0)
             try:
@@ -318,6 +324,42 @@ class MpvVideoPlayer:
         with self._lock:
             return self._snapshot()
 
+    def initialize_renderer(
+        self,
+        get_proc_address: Callable[[str], int],
+        request_update: Callable[[], None],
+    ) -> None:
+        """Create libmpv's render context against the current Qt GL context."""
+
+        with self._lock:
+            self._require_open()
+        self._renderer.initialize(get_proc_address, request_update)
+
+    def render_frame(
+        self,
+        *,
+        framebuffer: int,
+        width: int,
+        height: int,
+    ) -> None:
+        """Render one frame into the current OpenGL framebuffer."""
+
+        self._renderer.render(
+            framebuffer=framebuffer,
+            width=width,
+            height=height,
+        )
+
+    def report_swap(self) -> None:
+        """Report presentation of the most recently rendered frame."""
+
+        self._renderer.report_swap()
+
+    def release_renderer(self) -> None:
+        """Release the render context before terminating the mpv client."""
+
+        self._renderer.release()
+
     def close(self) -> None:
         """Invalidate observations and terminate native player resources."""
 
@@ -330,6 +372,7 @@ class MpvVideoPlayer:
             self._media_path = None
             self._observed_path = None
             self._state = VideoPlaybackState.EMPTY
+        self.release_renderer()
         for name in self._OBSERVED_PROPERTIES:
             self._player.unobserve_property(name, self._observer)
         self._player.terminate()
@@ -499,7 +542,8 @@ class MpvVideoPlayer:
             VideoRenderer.GPU: "gpu",
         }.get(self._settings.renderer)
         if (
-            requested_output is not None
+            not self._render_api
+            and requested_output is not None
             and self._actual_video_output is not None
             and self._actual_video_output != requested_output
         ):

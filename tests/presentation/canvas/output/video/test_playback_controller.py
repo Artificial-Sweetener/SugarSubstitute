@@ -26,10 +26,12 @@ from substitute.application.ports.video import (
     VideoPlaybackEvent,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
+    VideoPlayerPort,
     VideoRuntimeUnavailableError,
 )
 from substitute.presentation.canvas.output.video_playback_controller import (
     VideoPlaybackController,
+    VideoViewportMode,
     VideoViewportState,
 )
 from tests.support.qt.lifecycle import ensure_qt_application
@@ -208,6 +210,45 @@ def test_controller_routes_frame_steps_and_hidden_policy(tmp_path: Path) -> None
     controller.close()
 
 
+def test_controller_computes_physical_one_to_one_scale_and_fit_state(
+    tmp_path: Path,
+) -> None:
+    """1:1 must map source pixels to physical pixels and Fit must reset it."""
+
+    app = ensure_qt_application()
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    player_box[0].emit(_snapshot(media_id))
+    app.processEvents()
+
+    controller.set_actual_size_viewport(
+        surface_width=1280,
+        surface_height=720,
+        device_pixel_ratio=1.0,
+    )
+    actual = controller.session_for(media_id)
+    assert actual.viewport_mode is VideoViewportMode.ACTUAL_SIZE
+    assert actual.zoom == 0.25
+    assert player_box[0].commands[-1] == ("viewport", 0.25, 0.0, 0.0)
+
+    controller.reset_viewport()
+    fitted = controller.session_for(media_id)
+    assert fitted.viewport_mode is VideoViewportMode.FIT
+    assert fitted.zoom == 1.0
+    assert player_box[0].commands[-1] == ("viewport", 1.0, 0.0, 0.0)
+    controller.close()
+
+
 def test_controller_unloads_active_media_before_retirement(tmp_path: Path) -> None:
     """Retirement should synchronously release the decoder's file handle."""
 
@@ -250,6 +291,35 @@ def test_controller_reports_missing_bundled_runtime_without_local_path(
     assert controller.snapshot.state is VideoPlaybackState.ERROR
     assert controller.snapshot.error == "The bundled video runtime is unavailable."
     assert "private" not in (controller.snapshot.error or "")
+    controller.close()
+
+
+def test_controller_closes_player_when_render_surface_preparation_fails(
+    tmp_path: Path,
+) -> None:
+    """A failed OpenGL bind must not retain a half-prepared native player."""
+
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    def fail_preparation(_player: VideoPlayerPort) -> None:
+        raise RuntimeError("render context unavailable")
+
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(
+        player_factory=create,
+        player_preparer=fail_preparation,
+    )
+
+    controller.activate(uuid4(), path)
+
+    assert player_box[0].commands == [("close",)]
+    assert controller.snapshot.state is VideoPlaybackState.ERROR
     controller.close()
 
 

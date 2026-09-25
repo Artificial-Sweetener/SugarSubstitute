@@ -91,6 +91,22 @@ def test_source_display_collapses_when_width_overflows() -> None:
     assert display.show_source_selector is True
 
 
+def test_source_display_forces_compact_selector_for_video_detail() -> None:
+    """Video detail should reserve the remaining row for playback controls."""
+
+    display = OutputCanvasNavigationVisibilityPolicy.source_display(
+        show_source_navigation=True,
+        has_source_selector=True,
+        expanded_width=120,
+        available_width=600,
+        force_collapsed=True,
+    )
+
+    assert display.source_tabs_collapsed is True
+    assert display.show_source_tabs is False
+    assert display.show_source_selector is True
+
+
 def test_source_display_requires_selector_to_collapse() -> None:
     """Missing compact selector should keep visible source tabs expanded."""
 

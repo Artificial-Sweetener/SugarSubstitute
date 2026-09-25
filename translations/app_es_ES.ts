@@ -3160,6 +3160,11 @@ Install these nodes now?</source>
       <translation>Finalizando tu instalación</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
+      <source>Fit video</source>
+      <translation>Ajustar vídeo</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="255"></location>
       <source>Fix the reported issue if you can.</source>
       <translation>Corrige el problema notificado si es posible.</translation>
@@ -3375,7 +3380,7 @@ Install these nodes now?</source>
       <translation>Dureza</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="72"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
       <source>Hardware video decoding was unavailable. Software decoding is active.</source>
       <translation>La decodificación de vídeo por hardware no estaba disponible. La decodificación por software está activa.</translation>
     </message>
@@ -4015,7 +4020,7 @@ Install these nodes now?</source>
       <translation>La búsqueda ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="65"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
       <source>Loop video</source>
       <translation>Repetir vídeo</translation>
     </message>
@@ -4375,7 +4380,7 @@ Install these nodes now?</source>
       <translation>Subir</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="66"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
       <source>Mute video</source>
       <translation>Silenciar vídeo</translation>
     </message>
@@ -4435,7 +4440,7 @@ Install these nodes now?</source>
       <translation>Siguiente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="64"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="78"></location>
       <source>Next frame</source>
       <translation>Fotograma siguiente</translation>
     </message>
@@ -5087,7 +5092,7 @@ Usaré el mío.</translation>
       <translation>Se actualizaron los cambios previstos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="62"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="76"></location>
       <source>Play or pause</source>
       <translation>Reproducir o pausar</translation>
     </message>
@@ -5267,7 +5272,7 @@ Usaré el mío.</translation>
       <translation>Vista previa no disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="77"></location>
       <source>Previous frame</source>
       <translation>Fotograma anterior</translation>
     </message>
@@ -5677,7 +5682,7 @@ Usaré el mío.</translation>
       <translation>Muestra las imágenes de vista previa de Danbooru almacenadas en caché dentro del visor nativo de la wiki.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="387"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="531"></location>
       <source>Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7</source>
       <translation>Renderizador: solicitado %1, activo %2; GPU: %3/%4; decodificador: %5; códec: %6; formato de píxel: %7</translation>
     </message>
@@ -5801,11 +5806,6 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Restablecer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="70"></location>
-      <source>Reset video view</source>
-      <translation>Restablecer vista de vídeo</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>Cambiar tamaño del lienzo</translation>
@@ -5901,7 +5901,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="69"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
       <source>Retry video</source>
       <translation>Reintentar vídeo</translation>
     </message>
@@ -6599,6 +6599,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Show setup log</source>
       <translation>Mostrar registro de configuración</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
+      <source>Show video at actual size</source>
+      <translation>Mostrar vídeo a tamaño real</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1565"></location>
@@ -7682,7 +7687,7 @@ Evidencia de diagnóstico:
       <translation>El entorno de ComfyUI conectado no cumple los requisitos actualizados. Repara ese entorno antes de continuar. %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="339"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="388"></location>
       <source>The bundled video runtime is unavailable.</source>
       <translation>El entorno de ejecución de vídeo incluido no está disponible.</translation>
     </message>
@@ -7837,7 +7842,7 @@ Evidencia de diagnóstico:
       <translation>La definición solicitada no está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="75"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="90"></location>
       <source>The requested video renderer was unavailable. A safe fallback is active.</source>
       <translation>El renderizador de vídeo solicitado no estaba disponible. Se ha activado una alternativa segura.</translation>
     </message>
@@ -8592,17 +8597,17 @@ Evidencia de diagnóstico:
       <translation>Decodificación de vídeo por hardware</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
       <source>Video playback diagnostics</source>
       <translation>Diagnóstico de reproducción de vídeo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="343"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="392"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>La reproducción de vídeo no está disponible (%1).</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
       <source>Video position</source>
       <translation>Posición del vídeo</translation>
     </message>
@@ -8612,7 +8617,7 @@ Evidencia de diagnóstico:
       <translation>Renderizador de vídeo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="67"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
       <source>Video volume</source>
       <translation>Volumen del vídeo</translation>
     </message>
@@ -8983,7 +8988,7 @@ Evidencia de diagnóstico:
       <translation>copia del código fuente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="78"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="93"></location>
       <source>unknown</source>
       <translation>desconocido</translation>
     </message>

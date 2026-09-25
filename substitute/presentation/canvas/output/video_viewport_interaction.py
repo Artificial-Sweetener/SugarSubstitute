@@ -26,11 +26,12 @@ from PySide6.QtGui import QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.canvas.output.video_playback_controller import (
+    VideoViewportMode,
     VideoViewportState,
 )
 
-_MIN_ZOOM = 1.0
-_MAX_ZOOM = 8.0
+_MIN_ZOOM = 1.0 / 64.0
+_MAX_ZOOM = 64.0
 _ZOOM_STEP = 1.2
 
 
@@ -66,7 +67,7 @@ class VideoViewportInteraction(QObject):
     def reset(self) -> None:
         """Restore fitted video geometry."""
 
-        self._publish(VideoViewportState())
+        self._publish(VideoViewportState(mode=VideoViewportMode.FIT))
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Handle wheel zoom and left-button panning on the render surface."""
@@ -76,6 +77,16 @@ class VideoViewportInteraction(QObject):
         if event.type() == QEvent.Type.Wheel:
             wheel = cast(QWheelEvent, event)
             steps = wheel.angleDelta().y() / 120.0
+            if wheel.modifiers() & Qt.KeyboardModifier.ShiftModifier and steps:
+                self._publish(
+                    panned_viewport(
+                        self._state,
+                        delta=QPointF(steps * 48.0, 0.0),
+                        surface=self._surface,
+                    )
+                )
+                wheel.accept()
+                return True
             if steps:
                 self._publish(
                     zoomed_viewport(
@@ -138,6 +149,7 @@ def zoomed_viewport(
         zoom,
         anchor_x - (anchor_x - state.pan_x) * ratio,
         anchor_y - (anchor_y - state.pan_y) * ratio,
+        mode=VideoViewportMode.CUSTOM,
     )
 
 
@@ -149,21 +161,31 @@ def panned_viewport(
 ) -> VideoViewportState:
     """Return a pointer-dragged viewport in normalized surface coordinates."""
 
+    if state.zoom <= 1.0:
+        return state
     return _bounded_viewport(
         state.zoom,
         state.pan_x + delta.x() * 2.0 / max(1, surface.width()),
         state.pan_y + delta.y() * 2.0 / max(1, surface.height()),
+        mode=VideoViewportMode.CUSTOM,
     )
 
 
-def _bounded_viewport(zoom: float, pan_x: float, pan_y: float) -> VideoViewportState:
+def _bounded_viewport(
+    zoom: float,
+    pan_x: float,
+    pan_y: float,
+    *,
+    mode: VideoViewportMode,
+) -> VideoViewportState:
     """Clamp pan to the portion of scaled video extending past the viewport."""
 
-    pan_limit = 1.0 - 1.0 / zoom
+    pan_limit = max(0.0, 1.0 - 1.0 / zoom)
     return VideoViewportState(
         zoom=zoom,
         pan_x=min(pan_limit, max(-pan_limit, pan_x)),
         pan_y=min(pan_limit, max(-pan_limit, pan_y)),
+        mode=mode,
     )
 
 

@@ -2486,6 +2486,10 @@ Install these nodes now?</source>
       <translation>⟦Fïnïshïng yöür sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Fit video</source>
+      <translation>⟦Fït vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Fix the reported issue if you can.</source>
       <translation>⟦Fïx thë rëpörtëd ïssüë ïf yöü càn. ···⟧</translation>
     </message>
@@ -4600,10 +4604,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rësët ···⟧</translation>
     </message>
     <message>
-      <source>Reset video view</source>
-      <translation>⟦Rësët vïdëö vïëw ···⟧</translation>
-    </message>
-    <message>
       <source>Resize canvas</source>
       <translation>⟦Rësïzë cànvàs ···⟧</translation>
     </message>
@@ -5238,6 +5238,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Show setup log</source>
       <translation>⟦Shöw sëtüp lög ···⟧</translation>
+    </message>
+    <message>
+      <source>Show video at actual size</source>
+      <translation>⟦Shöw vïdëö àt àctüàl sïzë ···⟧</translation>
     </message>
     <message>
       <source>Showing stale catalog</source>
