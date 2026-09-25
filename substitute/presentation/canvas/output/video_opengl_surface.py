@@ -22,7 +22,7 @@ from collections.abc import Callable
 from functools import partial
 
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
-from PySide6.QtGui import QColor, QContextMenuEvent, QOpenGLContext, QSurfaceFormat
+from PySide6.QtGui import QColor, QContextMenuEvent, QOpenGLContext
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
 
@@ -49,16 +49,13 @@ class VideoOpenGLSurface(QOpenGLWidget):
         *,
         clear_framebuffer: Callable[[QColor], None] | None = None,
     ) -> None:
-        """Create an initially unbound transparent OpenGL surface."""
+        """Create an initially unbound, canvas-clipped OpenGL surface."""
 
         super().__init__(parent)
         self.setObjectName("outputVideoRenderSurface")
-        surface_format = QSurfaceFormat(self.format())
-        surface_format.setAlphaBufferSize(8)
-        self.setFormat(surface_format)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
         self.setAutoFillBackground(False)
-        self.setStyleSheet("background: transparent; border: none;")
+        self.setStyleSheet("border: none;")
         self._clear_framebuffer = (
             clear_opengl_framebuffer if clear_framebuffer is None else clear_framebuffer
         )

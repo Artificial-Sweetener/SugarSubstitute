@@ -31,6 +31,7 @@ from substitute.presentation.canvas.output.video_playback_controller import (
 from substitute.presentation.canvas.output.video_playback_page import VideoPlaybackPage
 from tools.video_output_qualification_support import (
     capture,
+    find_button,
     key_press,
     key_release,
     native_double_click,
@@ -58,9 +59,14 @@ def qualify_space_pan_zoom(
     """Exercise transient navigation, anchored zoom, drag pan, and mode toggles."""
 
     paused_before_navigation = page.controller.snapshot.paused
-    key_press(page.render_surface, Qt.Key.Key_Space, application)
+    transport_control = find_button(page, "Play or pause")
+    transport_control.setFocus()
+    application.processEvents()
+    key_press(transport_control, Qt.Key.Key_Space, application)
     if not page.pan_zoom_active:
-        raise RuntimeError("Holding Space did not activate video pan/zoom.")
+        raise RuntimeError(
+            "Holding Space from playback chrome did not activate pan/zoom."
+        )
     _toggle_one_to_one_and_fit(application=application, root=root, page=page)
     native_wheel(
         root,
@@ -100,7 +106,7 @@ def qualify_space_pan_zoom(
         lambda: page.viewport_state.mode is VideoViewportMode.FIT,
         label="double-click fit after pointer viewport changes",
     )
-    key_release(page.render_surface, Qt.Key.Key_Space, application)
+    key_release(transport_control, Qt.Key.Key_Space, application)
     if page.pan_zoom_active:
         raise RuntimeError("Releasing Space left video pan/zoom active.")
     if page.controller.snapshot.paused is not paused_before_navigation:

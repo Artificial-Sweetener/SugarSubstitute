@@ -22,8 +22,8 @@ from collections.abc import Callable
 from typing import cast
 
 from PySide6.QtCore import QEvent, QObject, QPointF, Qt
-from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
-from PySide6.QtWidgets import QWidget
+from PySide6.QtGui import QCursor, QKeyEvent, QMouseEvent, QWheelEvent
+from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.presentation.canvas.output.video_playback_controller import (
     VideoViewportMode,
@@ -46,6 +46,7 @@ class VideoViewportInteraction(QObject):
         apply_viewport: Callable[[VideoViewportState], None],
         show_fit: Callable[[], None],
         show_actual_size: Callable[[QPointF], None],
+        keyboard_scope: QWidget | None = None,
     ) -> None:
         """Observe one surface and publish bounded pan/zoom changes."""
 
@@ -54,12 +55,16 @@ class VideoViewportInteraction(QObject):
         self._apply_viewport = apply_viewport
         self._show_fit = show_fit
         self._show_actual_size = show_actual_size
+        self._keyboard_scope = keyboard_scope or surface
         self._state = VideoViewportState()
         self._space_held = False
         self._drag_position: QPointF | None = None
         self._last_zoom_anchor: QPointF | None = None
         surface.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         surface.installEventFilter(self)
+        application = QApplication.instance()
+        if application is not None:
+            application.installEventFilter(self)
 
     @property
     def state(self) -> VideoViewportState:
@@ -93,11 +98,9 @@ class VideoViewportInteraction(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Route Space-owned QPane-style navigation on the render surface."""
 
-        if watched is not self._surface:
-            return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.KeyPress:
             key = cast(QKeyEvent, event)
-            if key.key() == Qt.Key.Key_Space:
+            if key.key() == Qt.Key.Key_Space and self._accepts_space_press(watched):
                 if not key.isAutoRepeat():
                     self._space_held = True
                     self._refresh_cursor()
@@ -105,13 +108,18 @@ class VideoViewportInteraction(QObject):
                 return True
         if event.type() == QEvent.Type.KeyRelease:
             key = cast(QKeyEvent, event)
-            if key.key() == Qt.Key.Key_Space:
+            if key.key() == Qt.Key.Key_Space and self._space_held:
                 if not key.isAutoRepeat():
                     self._end_navigation()
                 key.accept()
                 return True
-        if event.type() in {QEvent.Type.FocusOut, QEvent.Type.Hide}:
+        if event.type() in {
+            QEvent.Type.ApplicationDeactivate,
+            QEvent.Type.WindowDeactivate,
+        } or (watched is self._surface and event.type() == QEvent.Type.Hide):
             self._end_navigation()
+            return super().eventFilter(watched, event)
+        if watched is not self._surface:
             return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.Wheel:
             if not self._space_held:
@@ -167,6 +175,16 @@ class VideoViewportInteraction(QObject):
                 mouse.accept()
                 return True
         return super().eventFilter(watched, event)
+
+    def _accepts_space_press(self, watched: QObject) -> bool:
+        """Accept Space from the video subtree or while its surface is hovered."""
+
+        if isinstance(watched, QWidget):
+            scope = self._keyboard_scope
+            if watched is scope or scope.isAncestorOf(watched):
+                return True
+        local_pointer = self._surface.mapFromGlobal(QCursor.pos())
+        return self._surface.rect().contains(local_pointer)
 
     def _publish(self, state: VideoViewportState) -> None:
         """Store and forward one viewport update."""
@@ -252,7 +270,7 @@ def _bounded_viewport(
 ) -> VideoViewportState:
     """Clamp pan to the portion of scaled video extending past the viewport."""
 
-    pan_limit = max(0.0, 1.0 - 1.0 / zoom)
+    pan_limit = max(0.0, zoom - 1.0)
     return VideoViewportState(
         zoom=zoom,
         pan_x=min(pan_limit, max(-pan_limit, pan_x)),

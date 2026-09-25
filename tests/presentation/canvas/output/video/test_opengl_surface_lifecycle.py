@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify transparent video composition and cross-window GL rehosting."""
+"""Verify clipped video composition and cross-window GL rehosting."""
 
 from __future__ import annotations
 
@@ -34,15 +34,14 @@ from substitute.presentation.canvas.output.video_opengl_surface import (
 from tests.support.qt.lifecycle import ensure_qt_application
 
 
-def test_video_surface_requests_transparent_composition() -> None:
-    """The OpenGL surface should retain the canvas wash outside video pixels."""
+def test_video_surface_is_opaque_and_clipped_to_its_canvas_region() -> None:
+    """The OpenGL surface must not wash sibling editor or Cube regions."""
 
     ensure_qt_application()
     surface = VideoOpenGLSurface()
     try:
-        assert surface.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        assert surface.format().alphaBufferSize() >= 8
-        assert "transparent" in surface.styleSheet()
+        assert surface.testAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
+        assert not surface.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     finally:
         surface.close()
 
@@ -63,6 +62,25 @@ def test_video_surface_clears_every_frame_with_canvas_material() -> None:
         assert expected != QColor(Qt.GlobalColor.black)
     finally:
         surface.close()
+
+
+@pytest.mark.platforms("windows")
+def test_video_surface_does_not_wash_neighboring_application_panels() -> None:
+    """Native GL composition must preserve Cube and editor sibling pixels."""
+
+    environment = os.environ.copy()
+    environment["QT_QPA_PLATFORM"] = "windows"
+    environment["QT_OPENGL"] = "software"
+    result = subprocess.run(
+        [sys.executable, "-m", "tests.support.video_opengl_clipping_probe"],
+        cwd=Path.cwd(),
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 @pytest.mark.platforms("windows")

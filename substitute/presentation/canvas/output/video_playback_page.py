@@ -161,6 +161,7 @@ class VideoPlaybackPage(QWidget):
             apply_viewport=self.controller.set_viewport,
             show_fit=self.controller.reset_viewport,
             show_actual_size=self._set_actual_size_at,
+            keyboard_scope=self,
         )
         self.controller.viewportChanged.connect(self._viewport.set_state)
         self.controller.viewportChanged.connect(self._apply_viewport_state)
