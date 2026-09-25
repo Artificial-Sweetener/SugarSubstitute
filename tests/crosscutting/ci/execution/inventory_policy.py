@@ -140,6 +140,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/infrastructure/video/mpv_video_player.py": frozenset(
         {"threading.RLock"}
     ),
+    "substitute/infrastructure/video/mpv_opengl_render_bridge.py": frozenset(
+        {"threading.RLock"}
+    ),
     "substitute/presentation/shell/model_catalog_update_bridge.py": frozenset(
         {"threading.RLock"}
     ),

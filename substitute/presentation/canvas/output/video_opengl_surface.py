@@ -116,7 +116,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
         context = QOpenGLContext.currentContext()
         if context is None:
             return 0
-        address = context.getProcAddress(name.encode("ascii"))
+        address = context.getProcAddress(name.encode())
         return int(address) if address is not None else 0
 
     @Slot()
