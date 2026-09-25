@@ -31,8 +31,8 @@ from .cube_section_staleness_controller import (
     CubeSectionStalenessController,
     CubeSectionStalenessPanelProtocol,
 )
-from .full_projection_load_pipeline import (
-    EditorFullProjectionLoadPipeline,
+from .full_projection_load_pipeline import EditorFullProjectionLoadPipeline
+from .full_projection_load_ports import (
     EditorFullProjectionLoadPorts,
     FullProjectionLoadPanelPort,
 )

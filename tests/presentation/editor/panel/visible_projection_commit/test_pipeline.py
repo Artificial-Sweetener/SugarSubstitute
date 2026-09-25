@@ -85,3 +85,55 @@ def test_visible_projection_commit_marks_failed_builds_on_reveal_error() -> None
     assert completed == []
     assert failed == [("CubeA", build_token, "RuntimeError")]
     assert cancelled == ["visible_projection_commit_failed"]
+
+
+def test_partial_visible_projection_commit_publishes_without_finishing_session() -> (
+    None
+):
+    """Progressive publication should expose one cube without resolving projection."""
+
+    revealed: list[tuple[tuple[str, ...], str]] = []
+    completed: list[tuple[str, object]] = []
+    build_token = object()
+    build = cast(
+        ProjectedCubeBuildProtocol,
+        SimpleNamespace(
+            cube_alias="CubeA",
+            final_widget=object(),
+            build_session=object(),
+            started_at=0.0,
+            token=build_token,
+        ),
+    )
+    session = ActiveProjectionSession(
+        workflow_id="workflow",
+        aliases={"CubeA"},
+        token=object(),
+        claimed_completions=[],
+        projection_completions=[],
+    )
+    pipeline = EditorVisibleProjectionCommitPipeline(
+        EditorVisibleProjectionCommitPorts(
+            active_workflow_id=lambda: "workflow",
+            panel_is_visible=lambda: True,
+            is_projection_session_current=lambda _session: True,
+            reveal_projected_cube_builds=lambda builds, workflow_id: revealed.append(
+                (tuple(item.cube_alias for item in builds), workflow_id)
+            ),
+            mark_build_complete=lambda alias, token: completed.append((alias, token)),
+            mark_build_failed=lambda _alias, _token, _error: None,
+        )
+    )
+
+    assert (
+        pipeline.commit_partial_visible_projection(
+            workflow_id="workflow",
+            projection_session=session,
+            projected_builds=(build,),
+        )
+        is True
+    )
+
+    assert revealed == [(("CubeA",), "workflow")]
+    assert completed == [("CubeA", build_token)]
+    assert pipeline.has_pending_visible_projection_commit() is False

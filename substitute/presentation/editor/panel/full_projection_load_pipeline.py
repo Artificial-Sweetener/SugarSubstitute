@@ -20,10 +20,8 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.presentation.localization import app_text
 
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Sequence
 from time import perf_counter
-from typing import Protocol
 
 from substitute.shared.logging.logger import (
     get_logger,
@@ -33,6 +31,7 @@ from substitute.shared.logging.logger import (
     log_warning,
 )
 
+from .full_projection_load_ports import EditorFullProjectionLoadPorts
 from .projection_models import (
     EditorFullProjectionBusyState,
     EditorFullProjectionLoadPlan,
@@ -43,267 +42,10 @@ from .projection_observability import (
     log_panel_projection_event,
     log_panel_projection_timing,
 )
-from .projection_preparation import BehaviorRefreshReason, EditorProjectionPreparation
+from .projection_preparation import EditorProjectionPreparation
 from .projection_session_models import ActiveProjectionSession
-from .projection_surface_state import EditorSurfaceProjectionSignature
 
 _LOGGER = get_logger("presentation.editor.panel.full_projection_load_pipeline")
-
-
-class FullProjectionLoadPanelPort(Protocol):
-    """Describe panel state used by full projection load orchestration."""
-
-    cube_widgets: dict[str, object]
-
-    def sync_prompt_editor_values_from_buffers(self) -> None:
-        """Synchronize prompt editor widgets from cube buffers."""
-
-    def _refresh_link_widgets(self) -> None:
-        """Refresh link widgets after projection publication."""
-
-
-class FullProjectionActiveSessionPort(Protocol):
-    """Describe active projection session ownership used by full loads."""
-
-    def start(
-        self,
-        *,
-        workflow_id: str,
-        cube_entries: Sequence[tuple[str, object]],
-    ) -> ActiveProjectionSession:
-        """Start a full projection session."""
-
-    def resolve(self, session: ActiveProjectionSession, *, reason: str) -> None:
-        """Resolve a successful projection session."""
-
-    def cancel(self, session: ActiveProjectionSession, *, reason: str) -> None:
-        """Cancel an abandoned projection session."""
-
-
-class FullProjectionCompletionPort(Protocol):
-    """Describe pending completion ownership used by full loads."""
-
-    def register_projection_completion(
-        self,
-        session: ActiveProjectionSession,
-        *,
-        workflow_id: str,
-        aliases: set[str],
-        on_complete: Callable[[], None] | None,
-        reason: BehaviorRefreshReason,
-    ) -> None:
-        """Register a full-projection completion callback."""
-
-
-class FullProjectionSessionCompletionPort(Protocol):
-    """Describe session completion attachment used by full loads."""
-
-    def claim_superseded_inserts(
-        self,
-        *,
-        workflow_id: str,
-        cube_entries: Sequence[tuple[str, object]],
-        projection_session: ActiveProjectionSession,
-    ) -> None:
-        """Claim superseded incremental insert completions."""
-
-
-class FullProjectionRuntimeIssuePort(Protocol):
-    """Describe runtime issue projection setup used by full loads."""
-
-    def begin_live_node_definition_report_projection(self) -> None:
-        """Start live node definition report projection."""
-
-
-class FullProjectionPreparationPort(Protocol):
-    """Describe projection preparation operations used by full loads."""
-
-    def prepare_projection(
-        self,
-        cube_entries: Sequence[tuple[str, object]],
-        *,
-        cube_states: dict[str, object] | None,
-        stack_order: Sequence[str] | None,
-        reason: BehaviorRefreshReason,
-        workflow_id: str,
-        previous_cube_states: dict[str, object] | None,
-        previous_stack_order: list[str] | None,
-        prompt_context_required: bool = False,
-    ) -> EditorProjectionPreparation:
-        """Prepare panel state for projection."""
-
-    def clear_prompt_context(
-        self,
-        preparation: EditorProjectionPreparation,
-        *,
-        reason: str,
-    ) -> None:
-        """Clear prompt context created for projection."""
-
-    def end_behavior_transaction(
-        self,
-        preparation: EditorProjectionPreparation,
-        *,
-        reason: BehaviorRefreshReason,
-    ) -> None:
-        """End behavior refresh transaction created for projection."""
-
-
-class FullProjectionLifecyclePort(Protocol):
-    """Describe lifecycle cleanup and visibility refresh used by full loads."""
-
-    def remove_closed_aliases(self, live_aliases: set[str]) -> None:
-        """Remove widgets for aliases not present in the new projection."""
-
-    def refresh_visibility(
-        self,
-        *,
-        message: str,
-        reason: BehaviorRefreshReason,
-        use_cached_snapshot: bool = False,
-    ) -> None:
-        """Refresh behavior-derived visibility state."""
-
-
-class FullProjectionWidgetBuilderPort(Protocol):
-    """Describe projected widget build/reuse operations used by full loads."""
-
-    def build_ordered_widgets(
-        self,
-        cube_entries: Sequence[tuple[str, object]],
-        *,
-        workflow_id: str,
-        snapshot_identity: object | None,
-        projection_session: ActiveProjectionSession,
-    ) -> tuple[list[tuple[str, object]], list[ProjectedCubeBuild]]:
-        """Build or reuse cube widgets for a projection."""
-
-    def discard_cancelled_projected_build(
-        self,
-        projected_build: ProjectedCubeBuild,
-        *,
-        workflow_id: str,
-        reason: str,
-    ) -> None:
-        """Discard one unrevealed projected build."""
-
-
-class FullProjectionRenderReconcilerPort(Protocol):
-    """Describe layout reconciliation used by full loads."""
-
-    def reconcile_ordered_widgets(
-        self,
-        ordered_widgets: Sequence[tuple[str, object]],
-    ) -> None:
-        """Publish ordered widgets to the panel layout."""
-
-
-class FullProjectionHiddenBuildSchedulerPort(Protocol):
-    """Describe hidden staged build scheduling used by full loads."""
-
-    def schedule_projected_cube_builds(
-        self,
-        projected_builds: Sequence[ProjectedCubeBuild],
-        on_complete: Callable[[], None],
-        on_cancel: Callable[[], None],
-        *,
-        workflow_id: str,
-        is_current: Callable[[], bool] | None = None,
-        visible_commit: Callable[[Sequence[ProjectedCubeBuild]], bool] | None = None,
-    ) -> None:
-        """Schedule hidden projected cube builds."""
-
-
-class FullProjectionSessionRegistryPort(Protocol):
-    """Describe projection session currency checks used by staged builds."""
-
-    def is_current(self, session: ActiveProjectionSession) -> bool:
-        """Return whether the supplied session still owns projection publication."""
-
-
-class FullProjectionBusyPort(Protocol):
-    """Describe busy presentation used by staged full loads."""
-
-    def begin_projection_busy(
-        self,
-        *,
-        workflow_id: str,
-        pending_build_count: int,
-    ) -> object | None:
-        """Begin busy presentation for a staged projection."""
-
-    def end_projection_busy(
-        self,
-        busy_token: object | None,
-        *,
-        workflow_id: str,
-        busy_started: bool,
-        pending_build_count: int,
-    ) -> None:
-        """End busy presentation for a staged projection."""
-
-
-class FullProjectionBuildRegistryPort(Protocol):
-    """Describe projected build cancellation used by full loads."""
-
-    def cancel(self, alias: str, token: object, reason: str) -> bool:
-        """Cancel one projected build by ownership token."""
-
-
-class FullProjectionVisibleCommitPort(Protocol):
-    """Describe visible commit publication used by staged full loads."""
-
-    def commit_or_defer(
-        self,
-        *,
-        workflow_id: str,
-        projection_session: ActiveProjectionSession,
-        projected_builds: Sequence[ProjectedCubeBuild],
-        finish_refresh: Callable[[], None],
-        cancel_refresh: Callable[[str], None],
-    ) -> bool:
-        """Commit staged builds immediately or defer until visible."""
-
-
-class FullProjectionStatePort(Protocol):
-    """Describe clean projection signature state used by full loads."""
-
-    def current_projection_signature(
-        self,
-        *,
-        workflow_id: str,
-        cube_entries: Sequence[tuple[str, object]],
-        cube_states: Mapping[str, object] | None,
-        stack_order: Sequence[str] | None,
-    ) -> EditorSurfaceProjectionSignature:
-        """Return the structural projection signature."""
-
-    def mark_projection_clean(
-        self,
-        signature: EditorSurfaceProjectionSignature,
-    ) -> None:
-        """Mark the projected surface clean for the supplied signature."""
-
-
-@dataclass(frozen=True, slots=True)
-class EditorFullProjectionLoadPorts:
-    """Group explicit collaborators required by full projection loads."""
-
-    panel: FullProjectionLoadPanelPort
-    active_sessions: FullProjectionActiveSessionPort
-    projection_completions: FullProjectionCompletionPort
-    session_completions: FullProjectionSessionCompletionPort
-    runtime_issues: FullProjectionRuntimeIssuePort
-    projection_preparation: FullProjectionPreparationPort
-    projection_lifecycle: FullProjectionLifecyclePort
-    projected_widget_builder: FullProjectionWidgetBuilderPort
-    render_reconciler: FullProjectionRenderReconcilerPort
-    hidden_build_scheduler: FullProjectionHiddenBuildSchedulerPort
-    projection_sessions: FullProjectionSessionRegistryPort
-    projection_busy: FullProjectionBusyPort
-    build_registry: FullProjectionBuildRegistryPort
-    visible_commits: FullProjectionVisibleCommitPort
-    projection_state: FullProjectionStatePort
 
 
 class EditorFullProjectionLoadPipeline:
@@ -623,6 +365,9 @@ class EditorFullProjectionLoadPipeline:
                 busy_state,
                 completed_builds,
             ),
+            partial_visible_commit=lambda completed_builds: (
+                self._commit_partial_projected_refresh(plan, completed_builds)
+            ),
         )
 
     def _begin_busy_state(
@@ -729,6 +474,19 @@ class EditorFullProjectionLoadPipeline:
                     reason=reason,
                 ),
             )
+        )
+
+    def _commit_partial_projected_refresh(
+        self,
+        plan: EditorFullProjectionLoadPlan,
+        completed_builds: Sequence[ProjectedCubeBuild],
+    ) -> bool:
+        """Publish one completed cube while later staged cubes keep building."""
+
+        return self._ports.visible_commits.commit_partial_visible_projection(
+            workflow_id=plan.request.workflow_id,
+            projection_session=plan.projection_session,
+            projected_builds=completed_builds,
         )
 
     def _end_busy_state(
