@@ -18,12 +18,20 @@
 
 from __future__ import annotations
 
-from substitute.presentation.editor.panel.projection_session import (
+from substitute.presentation.editor.panel.projection_completion_registry import (
+    ProjectionCompletionRegistry,
+    ProjectionSessionCompletionController,
+)
+from substitute.presentation.editor.panel.projection_completion_resolution import (
+    resolve_insert_completions,
+)
+from substitute.presentation.editor.panel.projection_session_models import (
     ActiveProjectionSession,
-    ActiveProjectionSessionRegistry,
     PendingInsertCompletion,
     PendingProjectionCompletion,
-    ProjectionCompletionRegistry,
+)
+from substitute.presentation.editor.panel.projection_session_registry import (
+    ActiveProjectionSessionRegistry,
 )
 
 
@@ -57,7 +65,8 @@ def test_active_projection_registry_rejects_stale_session_after_cancel() -> None
 def test_completion_registry_transfers_matching_superseded_callbacks() -> None:
     """Superseded sessions transfer matching callbacks and cancel stale ones."""
 
-    registry = ProjectionCompletionRegistry()
+    pending_inserts = ProjectionCompletionRegistry()
+    controller = ProjectionSessionCompletionController(pending_inserts)
     transferred_insert = PendingInsertCompletion(
         workflow_id="workflow",
         cube_alias="Keep",
@@ -101,7 +110,7 @@ def test_completion_registry_transfers_matching_superseded_callbacks() -> None:
         projection_completions=[],
     )
 
-    result = registry.transfer_from_superseded_session(
+    result = controller.transfer(
         old_session,
         replacement_session=replacement_session,
         reason="superseded",
@@ -122,7 +131,6 @@ def test_completion_registry_transfers_matching_superseded_callbacks() -> None:
 def test_completion_registry_resolves_callbacks_once() -> None:
     """Resolved callbacks must not run more than once."""
 
-    registry = ProjectionCompletionRegistry()
     calls: list[str] = []
     completion = PendingInsertCompletion(
         workflow_id="workflow",
@@ -133,7 +141,7 @@ def test_completion_registry_resolves_callbacks_once() -> None:
         reason="test",
     )
 
-    registry.resolve_insert_completions((completion,), reason="first")
-    registry.resolve_insert_completions((completion,), reason="second")
+    resolve_insert_completions((completion,), reason="first")
+    resolve_insert_completions((completion,), reason="second")
 
     assert calls == ["insert"]

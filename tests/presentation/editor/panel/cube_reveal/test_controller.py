@@ -25,10 +25,10 @@ from _pytest.monkeypatch import MonkeyPatch
 from PySide6.QtCore import QPropertyAnimation
 
 import substitute.presentation.editor.panel.cube_reveal_controller as mod
+import substitute.presentation.editor.panel.cube_reveal_scroll_driver as scroll_mod
 from substitute.presentation.editor.panel.cube_reveal_controller import (
     EditorPanelCubeRevealController,
     EditorPanelCubeRevealHost,
-    ScrollBarProtocol,
 )
 
 
@@ -263,7 +263,6 @@ class _RecordingRevealController(EditorPanelCubeRevealController):
 
         super().__init__(host, layout_attempt_limit=6)
         self.scroll_calls: list[dict[str, object]] = []
-        self.animation_targets: list[int] = []
 
     def scroll_to_cube(
         self,
@@ -284,24 +283,6 @@ class _RecordingRevealController(EditorPanelCubeRevealController):
                 "only_if_needed": only_if_needed,
             }
         )
-        if on_finished is not None:
-            on_finished()
-
-    def _animate_scrollbar_value(
-        self,
-        *,
-        scrollbar: ScrollBarProtocol,
-        target_value: int,
-        animated: bool,
-        duration_ms: int,
-        animation_attr_name: str,
-        suppress_tab_sync: bool,
-        on_finished: Callable[[], None] | None = None,
-    ) -> None:
-        """Record one animation target."""
-
-        _ = scrollbar, animated, duration_ms, animation_attr_name, suppress_tab_sync
-        self.animation_targets.append(target_value)
         if on_finished is not None:
             on_finished()
 
@@ -401,7 +382,7 @@ def test_scroll_target_aligns_header_anchor_through_scroll_model(
     )
     controller = _controller(host)
 
-    assert controller.cube_scroll_target_value("CubeA") == 455
+    assert controller.geometry.scroll_target_value("CubeA") == 455
 
 
 def test_reveal_readiness_uses_unclamped_scroll_target(
@@ -421,7 +402,7 @@ def test_reveal_readiness_uses_unclamped_scroll_target(
     )
     controller = _controller(host)
 
-    assert controller.cube_scroll_target_value("CubeB") == 300
+    assert controller.geometry.scroll_target_value("CubeB") == 300
     assert controller.cube_section_ready_for_reveal("CubeB") is False
 
     scrollbar.set_maximum(900)
@@ -483,12 +464,15 @@ def test_user_scroll_interruption_cancels_pending_reveal_animation(
     """Manual scroll intent should cancel active automated reveal state."""
 
     stopped: list[object] = []
-    monkeypatch.setattr(mod, "stop_animation", lambda anim: stopped.append(anim))
+    monkeypatch.setattr(scroll_mod, "stop_animation", lambda anim: stopped.append(anim))
     host = _Host(scroll=_ScrollSurface(scrollbar=_ScrollBar(value=42)))
     controller = _controller(host)
-    animation = cast(QPropertyAnimation, object())
-    controller._scroll_anim = animation
-    controller._suppress_tab_sync = True
+    animation = object()
+    controller.scroll_driver._cube_animation = cast(  # noqa: SLF001
+        "QPropertyAnimation",
+        animation,
+    )
+    controller.scroll_driver._suppresses_visible_sync = True  # noqa: SLF001
     controller._programmatic_navigation_route_key = "CubeA"
     controller._pending_reveal_route_key = "CubeA"
     controller._pending_reveal_attempts = 2
@@ -498,8 +482,8 @@ def test_user_scroll_interruption_cancels_pending_reveal_animation(
     controller.cancel_active_cube_reveal_scroll()
 
     assert stopped == [animation]
-    assert controller._scroll_anim is None
-    assert controller._suppress_tab_sync is False
+    assert controller.scroll_driver._cube_animation is None  # noqa: SLF001
+    assert controller.scroll_driver.suppresses_visible_sync is False
     assert controller._programmatic_navigation_route_key is None
     assert controller._pending_reveal_route_key is None
     assert controller._pending_reveal_attempts == 0
@@ -540,14 +524,14 @@ def test_cube_widget_visibility_threshold_uses_viewport_overlap(
     controller = _controller(host)
 
     assert (
-        controller.cube_widget_is_mostly_visible(
+        controller.geometry.is_mostly_visible(
             "CubeA",
             visibility_threshold=0.60,
         )
         is True
     )
     assert (
-        controller.cube_widget_is_mostly_visible(
+        controller.geometry.is_mostly_visible(
             "CubeA",
             visibility_threshold=0.90,
         )
@@ -560,9 +544,17 @@ def test_scroll_to_input_widget_centers_widget(monkeypatch: MonkeyPatch) -> None
 
     monkeypatch.setattr(mod, "isValid", lambda _widget: True)
     host = _Host(cube_sections={})
-    controller = _RecordingRevealController(cast(EditorPanelCubeRevealHost, host))
+    controller = _controller(host)
+    animation_targets: list[int] = []
+    monkeypatch.setattr(
+        controller.scroll_driver,
+        "move_input_scrollbar",
+        lambda _scrollbar, target_value, **_kwargs: animation_targets.append(
+            target_value
+        ),
+    )
     widget = _CubeWidget(top=700, height=40)
 
     controller.scroll_to_input_widget(widget, animated=False)
 
-    assert controller.animation_targets == [450]
+    assert animation_targets == [450]

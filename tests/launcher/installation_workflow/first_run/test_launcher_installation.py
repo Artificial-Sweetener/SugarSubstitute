@@ -26,6 +26,9 @@ from pathlib import Path
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.application.installation.existing_installation_rescue import (
+    ExistingInstallationRecognitionError,
+)
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import (
@@ -37,6 +40,9 @@ from launcher.sugarsubstitute_launcher.process_execution import (
     start_detached,
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    update_journal_paths,
+)
 from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
@@ -110,6 +116,159 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
         "schema_version": 1,
         "signed_digest": signed_digest,
     }
+
+
+@pytest.mark.platforms("windows")
+def test_installer_rescues_recognized_historical_root_and_preserves_user_data(
+    tmp_path: Path,
+) -> None:
+    """Selecting a 0.23-style root should retire bad update state and reinstall."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    launcher_zip = write_valid_launcher_bundle_zip(
+        release_root / "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip"
+    )
+    write_manifest(
+        release_root / "manifest.json", app_zip=app_zip, launcher_zip=launcher_zip
+    )
+    layout = InstallLayout.from_root(tmp_path / "Programs" / "SugarSubstitute")
+    LauncherInstallationRecord(version="0.23.0", target_key="windows_x64").save(
+        layout.launcher_installation_path
+    )
+    _current, legacy = update_journal_paths(layout)
+    legacy.write_text('{"schema_version":999}', encoding="utf-8")
+    output = layout.root / "comfyui" / "output" / "kept.png"
+    workflow = layout.user_dir / "workflows" / "kept.sugar"
+    write_file(output, "output-bytes")
+    write_file(workflow, "workflow-bytes")
+
+    result = FirstRunInstaller().install_downloaded_launcher(
+        install_root=layout.root,
+        release_source=LocalFolderReleaseSource(release_root),
+        launch_installed=False,
+    )
+
+    assert result.rescued_existing_installation
+    assert result.rescue_quarantine_root is not None
+    assert not legacy.exists()
+    retained = result.rescue_quarantine_root / legacy.relative_to(layout.root)
+    assert retained.read_text(encoding="utf-8") == '{"schema_version":999}'
+    assert output.read_text(encoding="utf-8") == "output-bytes"
+    assert workflow.read_text(encoding="utf-8") == "workflow-bytes"
+    assert LauncherInstallationRecord.load(layout.launcher_installation_path) == (
+        LauncherInstallationRecord(version="0.4.0", target_key="windows_x64")
+    )
+
+
+def test_installer_rejects_unrecognized_nonempty_directory(tmp_path: Path) -> None:
+    """Rescue authority must not reinterpret arbitrary user folders as installations."""
+
+    install_root = tmp_path / "not-substitute"
+    write_file(install_root / "personal.txt", "do not touch")
+
+    with pytest.raises(ExistingInstallationRecognitionError, match="not empty"):
+        FirstRunInstaller().install_downloaded_launcher(
+            install_root=install_root,
+            release_source=LocalFolderReleaseSource(tmp_path / "unused-release"),
+            launch_installed=False,
+        )
+
+    assert (install_root / "personal.txt").read_text(encoding="utf-8") == "do not touch"
+
+
+@pytest.mark.platforms("windows")
+def test_installer_accepts_its_preinstall_logging_footprint(tmp_path: Path) -> None:
+    """Logging initialized before root recognition must not poison a clean install."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    launcher_zip = write_valid_launcher_bundle_zip(
+        release_root / "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip"
+    )
+    write_manifest(
+        release_root / "manifest.json", app_zip=app_zip, launcher_zip=launcher_zip
+    )
+    install_root = tmp_path / "Programs" / "SugarSubstitute"
+    write_file(
+        install_root / "launcher" / "logs" / "launcher.log",
+        "installer bootstrap diagnostic\n",
+    )
+
+    result = FirstRunInstaller().install_downloaded_launcher(
+        install_root=install_root,
+        release_source=LocalFolderReleaseSource(release_root),
+        launch_installed=False,
+    )
+
+    assert not result.rescued_existing_installation
+    assert result.layout.executable_path.read_bytes() == b"launcher"
+    assert (install_root / "launcher" / "logs" / "launcher.log").read_text(
+        encoding="utf-8"
+    ) == "installer bootstrap diagnostic\n"
+
+
+@pytest.mark.platforms("windows")
+def test_installer_accepts_its_complete_preinstall_diagnostic_footprint(
+    tmp_path: Path,
+) -> None:
+    """Crash and readiness setup must not make a clean target look user-owned."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    launcher_zip = write_valid_launcher_bundle_zip(
+        release_root / "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip"
+    )
+    write_manifest(
+        release_root / "manifest.json", app_zip=app_zip, launcher_zip=launcher_zip
+    )
+    install_root = tmp_path / "Programs" / "SugarSubstitute"
+    write_file(install_root / "launcher" / "logs" / "launcher.log", "bootstrap\n")
+    write_file(
+        install_root / "launcher" / "readiness" / "ci-installer-chain.json",
+        "{}\n",
+    )
+    write_file(
+        install_root
+        / "appdata"
+        / "diagnostics"
+        / "runs"
+        / "qualification-run"
+        / "runtime-context.json",
+        "{}\n",
+    )
+    (install_root / "appdata" / "diagnostics" / "crashpad" / "reports").mkdir(
+        parents=True
+    )
+
+    result = FirstRunInstaller().install_downloaded_launcher(
+        install_root=install_root,
+        release_source=LocalFolderReleaseSource(release_root),
+        launch_installed=False,
+    )
+
+    assert not result.rescued_existing_installation
+    assert result.layout.executable_path.read_bytes() == b"launcher"
+
+
+def test_installer_rejects_unknown_content_inside_bootstrap_namespaces(
+    tmp_path: Path,
+) -> None:
+    """Bootstrap exceptions must not admit arbitrary files under familiar roots."""
+
+    install_root = tmp_path / "not-substitute"
+    write_file(install_root / "appdata" / "personal.txt", "do not touch")
+
+    with pytest.raises(ExistingInstallationRecognitionError, match="not empty"):
+        FirstRunInstaller().install_downloaded_launcher(
+            install_root=install_root,
+            release_source=LocalFolderReleaseSource(tmp_path / "unused-release"),
+            launch_installed=False,
+        )
+
+    assert (install_root / "appdata" / "personal.txt").read_text(
+        encoding="utf-8"
+    ) == "do not touch"
 
 
 def test_continue_install_command_carries_handoff_geometry(tmp_path: Path) -> None:

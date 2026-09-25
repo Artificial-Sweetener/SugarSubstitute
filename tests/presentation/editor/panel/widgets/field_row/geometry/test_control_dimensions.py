@@ -31,7 +31,7 @@ from qfluentwidgets import CheckBox, LineEdit  # type: ignore[import-untyped]
 from substitute.application.node_behavior import (
     FieldBehavior,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_HEIGHT,
     GROUPED_FIELD_DIVIDER_WIDTH,
 )
@@ -58,7 +58,7 @@ from .geometry_support import (
     _ensure_qapp,
     _model_picker,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FIELD_ROW_HEIGHT,
 )
 from .geometry_support import (

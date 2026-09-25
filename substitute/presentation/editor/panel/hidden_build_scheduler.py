@@ -67,8 +67,10 @@ class HiddenBuildScheduler:
         workflow_id: str,
         is_current: Callable[[], bool] | None = None,
         visible_commit: Callable[[Sequence[ProjectedCubeBuild]], bool] | None = None,
+        partial_visible_commit: Callable[[Sequence[ProjectedCubeBuild]], bool]
+        | None = None,
     ) -> None:
-        """Build hidden projected cube sections and reveal them in one layout commit."""
+        """Build hidden cube sections and publish eligible cubes progressively."""
 
         pending_builds = list(projected_builds)
         completed_builds: list[ProjectedCubeBuild] = []
@@ -111,15 +113,16 @@ class HiddenBuildScheduler:
                     )
                     if is_done:
                         pending_builds.pop(0)
-                        completed_builds.append(
-                            replace(
-                                current_build,
-                                build_elapsed_ms=elapsed_ms_since(
-                                    current_build.started_at
-                                ),
-                                completed_at=panel_projection_observability_started_at(),
-                            )
+                        completed_build = replace(
+                            current_build,
+                            build_elapsed_ms=elapsed_ms_since(current_build.started_at),
+                            completed_at=panel_projection_observability_started_at(),
                         )
+                        published = partial_visible_commit is not None and bool(
+                            partial_visible_commit((completed_build,))
+                        )
+                        if not published:
+                            completed_builds.append(completed_build)
             except (RuntimeError, TypeError, ValueError) as error:
                 if current_build is not None:
                     self._ports.mark_build_failed(

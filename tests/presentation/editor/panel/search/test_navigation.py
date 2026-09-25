@@ -39,6 +39,14 @@ def _search_module() -> ModuleType:
     )
 
 
+def _widget_presenter_module() -> ModuleType:
+    """Return the production mounted-widget search presenter module."""
+
+    return importlib.import_module(
+        "substitute.presentation.editor.panel.search_widget_presenter"
+    )
+
+
 def test_search_and_select_cycles_matches_and_updates_scroll_targets() -> None:
     """Search navigation should cycle matches in stable order."""
 
@@ -106,6 +114,7 @@ def test_search_and_select_includes_prompt_widgets_and_clears_prompt_selection(
 
     panel_module = _panel_module()
     search_module = _search_module()
+    widget_module = _widget_presenter_module()
 
     class _PromptCursor:
         def __init__(self) -> None:
@@ -148,9 +157,9 @@ def test_search_and_select_includes_prompt_widgets_and_clears_prompt_selection(
         def clear_search_matches(self) -> None:
             """Satisfy the search-editor rendering contract."""
 
-    monkeypatch.setattr(search_module, "PromptEditor", _PromptEditor)
+    monkeypatch.setattr(widget_module, "PromptEditor", _PromptEditor)
     monkeypatch.setattr(
-        search_module,
+        widget_module,
         "QTextCursor",
         SimpleNamespace(
             MoveOperation=SimpleNamespace(Right="right"),

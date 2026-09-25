@@ -339,199 +339,6 @@ responsibilities = [
 next_extraction = "Extract lookup execution and navigation history from modal presentation."
 
 [[debts]]
-id = "SS-ARCH-042"
-owner = "editor cube reveal"
-paths = ["substitute/presentation/editor/panel/cube_reveal_controller.py"]
-fingerprint = "sha256:bc0c6a3bf6381d292bdba49575113b40950f6df0fd14555019f8100c06a4766c"
-issue = "chore:SS-ARCH-042"
-review_by = 2026-12-15
-responsibilities = [
-  "cube visibility-menu construction and action routing",
-  "queued reveal lifecycle",
-  "scroll target geometry",
-  "scroll animation and user interruption",
-  "visible-cube synchronization",
-]
-next_extraction = "Extract visibility-menu ownership from reveal geometry and scroll-session coordination."
-
-[[debts]]
-id = "SS-ARCH-043"
-owner = "editor field state"
-paths = ["substitute/presentation/editor/panel/field_state_controller.py"]
-fingerprint = "sha256:ed1ff7bae1ca1ffc8fcc6b435ccd0a734b8989b5a6ddbc0fb84862e7918e6ba2"
-issue = "chore:SS-ARCH-043"
-review_by = 2026-12-15
-responsibilities = [
-  "field metadata and widget binding discovery",
-  "buffer value mutation and dirty marking",
-  "widget-family signal wiring",
-  "prompt editor value synchronization",
-]
-next_extraction = "Extract widget-family binding adapters from authoritative field-value mutation."
-
-[[debts]]
-id = "SS-ARCH-044"
-owner = "dimension row actions"
-paths = ["substitute/presentation/editor/panel/menus/dimension_row_actions.py"]
-fingerprint = "sha256:996fc65587e1f0ba0a735afe28b2586756a60db440d7d46f57e666b7905cc0a2"
-issue = "chore:SS-ARCH-044"
-review_by = 2026-12-15
-responsibilities = [
-  "dimension-row widget discovery and binding",
-  "saved-dimension persistence actions",
-  "aspect-ratio and orientation calculation",
-  "semantic dimension-action tree projection",
-]
-next_extraction = "Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
-
-[[debts]]
-id = "SS-ARCH-045"
-owner = "editor node-card construction"
-paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:01e03c67de1d959303259f8054ba1c496973408443f4803748915a1c6b70fe5f"
-issue = "chore:SS-ARCH-045"
-review_by = 2026-12-15
-responsibilities = [
-  "node-card and field-row construction",
-  "icon, title, and link-endpoint presentation",
-  "prompt and standard input-field routing",
-  "field-action contribution collection and title-menu routing",
-  "collapsible card animation and layout registration",
-  "build timing and trace diagnostics",
-]
-next_extraction = "Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
-
-[[debts]]
-id = "SS-ARCH-046"
-owner = "toolbar global overrides"
-paths = ["substitute/presentation/editor/panel/overrides_controller.py"]
-fingerprint = "sha256:e98336a2c397553fd4e2c9903129b83b5544795d408d7c768e470896d66f4f03"
-issue = "chore:SS-ARCH-046"
-review_by = 2026-12-15
-responsibilities = [
-  "workflow override synchronization and application",
-  "override menu construction",
-  "toolbar snapshot and control reconciliation",
-  "override widget factory and sizing",
-  "seed-mode and model-picker behavior",
-  "autosave and restart-spacing integration",
-]
-next_extraction = "Extract override control creation and toolbar layout from workflow synchronization and override commands."
-
-[[debts]]
-id = "SS-ARCH-047"
-owner = "editor projection lifecycle"
-paths = ["substitute/presentation/editor/panel/projection_lifecycle.py"]
-fingerprint = "sha256:fca5aea3504cee3a6aad5bd0a2df5adf37129eccb516e81b99ba4e1a1354a515"
-issue = "chore:SS-ARCH-047"
-review_by = 2026-12-15
-responsibilities = [
-  "projection cleanup and visible commit lifecycle",
-  "render reconciliation and widget ordering",
-  "alias-keyed cache and registry cleanup",
-  "runtime issue integration and metadata hydration",
-]
-next_extraction = "Extract runtime-issue integration from projection cleanup and commit lifecycle."
-
-[[debts]]
-id = "SS-ARCH-048"
-owner = "editor projection sessions"
-paths = ["substitute/presentation/editor/panel/projection_session.py"]
-fingerprint = "sha256:13e44ab0135c6af9110d3674bdb408fd12a436a396c60895664906f29f036850"
-issue = "chore:SS-ARCH-048"
-review_by = 2026-12-15
-responsibilities = [
-  "clean-surface signature state",
-  "active projection session ownership",
-  "pending insert completion registry",
-  "projection completion registry",
-  "superseded-session transfer and cancellation",
-]
-next_extraction = "Separate clean-surface state and completion transfer from active projection-session ownership."
-
-[[debts]]
-id = "SS-ARCH-049"
-owner = "editor prompt context"
-paths = ["substitute/presentation/editor/panel/prompt/context.py"]
-fingerprint = "sha256:a3c2c450380f1c5fca23220aef261687b7c78f8874cbcc4f1bdc580ef5d0098c"
-issue = "chore:SS-ARCH-049"
-review_by = 2026-12-15
-responsibilities = [
-  "behavior snapshot refresh transactions",
-  "workflow and cube prompt context snapshots",
-  "projection prompt-context lifecycle",
-  "feature-profile cache and diagnostics",
-  "scheduled LoRA resolver construction",
-]
-next_extraction = "Extract feature-profile caching and scheduled-LoRA adaptation from prompt-context and behavior transaction ownership."
-
-[[debts]]
-id = "SS-ARCH-050"
-owner = "editor panel search"
-paths = ["substitute/presentation/editor/panel/search_controller.py"]
-fingerprint = "sha256:bfa0789b930a95b07b5a4857af3b1e121815dd25c11ce35cb354f3c2b63a71df"
-issue = "chore:SS-ARCH-050"
-review_by = 2026-12-15
-responsibilities = [
-  "search refresh scheduling",
-  "search corpus and behavior snapshot construction",
-  "field and prompt match highlighting",
-  "card visibility filtering",
-  "result navigation and widget selection",
-  "search-state publication",
-]
-next_extraction = "Extract corpus/match projection and refresh scheduling from result navigation and widget presentation."
-
-[[debts]]
-id = "SS-ARCH-051"
-owner = "editor panel presentation"
-paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:511e452dc992e61589fd440bcfd25075b2bf20070b5db6ba98dc52d7d8ce60fa"
-issue = "chore:SS-ARCH-051"
-review_by = 2026-12-15
-responsibilities = [
-  "editor-panel widget and registry lifecycle",
-  "projection loading, insertion, cleanup, and freshness",
-  "field, link, and prompt state synchronization",
-  "search and cube reveal coordination",
-  "runtime issue and metadata presentation",
-  "behavior and prompt-context caching",
-]
-next_extraction = "Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
-
-[[debts]]
-id = "SS-ARCH-052"
-owner = "editor cube section"
-paths = ["substitute/presentation/editor/panel/widgets/cube_section.py"]
-fingerprint = "sha256:ca48ac38bf4ecd42e7413228647f80196bd0129e58b20f2dfa13823ce517edcc"
-issue = "chore:SS-ARCH-052"
-review_by = 2026-12-15
-responsibilities = [
-  "cube-section sizing and child relayout",
-  "field width-group synchronization",
-  "issue and update overlays",
-  "section and header construction",
-  "runtime issue card composition and painting",
-]
-next_extraction = "Extract runtime-issue cards and update/issue overlays from the passive cube-section container and builder."
-
-[[debts]]
-id = "SS-ARCH-053"
-owner = "editor field rows"
-paths = ["substitute/presentation/editor/panel/widgets/field_row.py"]
-fingerprint = "sha256:00be9b760126437698b9fda61244498380bdad3eb51ad5510c9f5778f977d37e"
-issue = "chore:SS-ARCH-053"
-review_by = 2026-12-15
-responsibilities = [
-  "scalar and grouped row construction",
-  "field label/control sizing policy",
-  "field visibility application",
-  "divider styling",
-  "semantic field-action source discovery",
-]
-next_extraction = "Extract field sizing policy and visibility registration from row construction."
-
-[[debts]]
 id = "SS-ARCH-065"
 owner = "managed text asset modal"
 paths = ["substitute/presentation/managed_text_assets/managed_text_asset_modal.py"]
@@ -732,18 +539,17 @@ next_extraction = "Extract definition/runtime execution and UI transaction state
 id = "SS-ARCH-079"
 owner = "loaded cube surface"
 paths = ["substitute/presentation/shell/loaded_cube_surface_controller.py"]
-fingerprint = "sha256:381714d2f47be926a17acb03a53ad32b1ac8a91dda92c59eafc5e75360677704"
+fingerprint = "sha256:5b495bd306ee243357be5f3dcc0399d5dec01bdd971b737cd1eae27ee28c84c9"
 issue = "chore:SS-ARCH-079"
 review_by = 2026-12-15
 responsibilities = [
   "cube-load callback adaptation",
   "cube stack tab presentation refresh",
   "editor surface activation and reveal",
-  "incremental and full surface refresh",
-  "override and dependent-control refresh",
+  "full surface refresh and activation",
   "workflow reconciliation after load",
 ]
-next_extraction = "Extract override/dependent-control refresh and callback adaptation from loaded-surface activation and reconciliation."
+next_extraction = "Extract callback adaptation from loaded-surface activation and workflow reconciliation."
 
 [[debts]]
 id = "SS-ARCH-080"
@@ -893,22 +699,6 @@ responsibilities = [
   "command-line configuration",
 ]
 next_extraction = "Extract process/configuration control and trace interpretation into focused collaborators behind the startup-cycle harness."
-
-[[debts]]
-id = "SS-ARCH-093"
-owner = "production editor projection trace"
-paths = ["tools/editor_projection_rig/production_trace.py"]
-fingerprint = "sha256:2cbed8ac95d00442326eff8620adcd0ce1e40c15f62033b55b8f0e6be0e3fc66"
-issue = "chore:SS-ARCH-093"
-review_by = 2026-12-15
-responsibilities = [
-  "scenario and workflow fixture orchestration",
-  "production editor-panel and shell construction",
-  "runtime projection instrumentation",
-  "widget and field invariant analysis",
-  "trace aggregation and budget summaries",
-]
-next_extraction = "Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
 
 [[debts]]
 id = "SS-ARCH-095"

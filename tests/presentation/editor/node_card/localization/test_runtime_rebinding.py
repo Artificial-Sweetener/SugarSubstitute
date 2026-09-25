@@ -138,7 +138,7 @@ def test_node_card_live_locale_switch_rebinds_text_without_rebuilding_inputs(
         ),
     )
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QLineEdit(panel),
     )
 

@@ -27,6 +27,7 @@ from substitute.app.maintenance.owned_nodes import OwnedNodeMaintenanceService
 from substitute.app.maintenance.full_managed_comfy import (
     FullManagedComfyMaintenanceService,
 )
+from substitute.app.maintenance.session_recovery import SessionRecoveryService
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -41,11 +42,33 @@ def main(argv: Sequence[str] | None = None) -> int:
             "stage-full-managed-comfy",
             "validate-full-managed-comfy",
             "provision-full-managed-comfy",
+            "reconcile-session",
         ),
     )
-    parser.add_argument("--workspace", type=Path, required=True)
+    parser.add_argument("--workspace", type=Path)
     parser.add_argument("--install-root", type=Path)
+    parser.add_argument("--session-dir", type=Path)
+    parser.add_argument("--recovery-root", type=Path)
+    parser.add_argument("--result-path", type=Path)
     arguments = parser.parse_args(argv)
+    if arguments.operation == "reconcile-session":
+        if any(
+            value is None
+            for value in (
+                arguments.session_dir,
+                arguments.recovery_root,
+                arguments.result_path,
+            )
+        ):
+            parser.error("reconcile-session requires session and recovery paths")
+        SessionRecoveryService().reconcile(
+            session_dir=arguments.session_dir,
+            recovery_root=arguments.recovery_root,
+            result_path=arguments.result_path,
+        )
+        return 0
+    if arguments.workspace is None:
+        parser.error(f"{arguments.operation} requires --workspace")
     service = OwnedNodeMaintenanceService()
     if arguments.operation == "repair-owned-nodes":
         service.repair(arguments.workspace)

@@ -49,11 +49,7 @@ class FieldVisibilityPolicy:
     def _is_behavior_hidden(self, field_key: object) -> bool:
         """Match both fully scoped and legacy leaf-only hidden identities."""
 
-        return bool(
-            field_key in self.hidden_keys
-            or (isinstance(field_key, tuple) and field_key[-1] in self.hidden_keys)
-            or (isinstance(field_key, str) and field_key in self.hidden_keys)
-        )
+        return field_key_is_hidden(field_key, self.hidden_keys)
 
     def _matches_search(self, field_key: object) -> bool:
         """Keep only explicit matches while field search is active."""
@@ -69,4 +65,14 @@ class FieldVisibilityPolicy:
         )
 
 
-__all__ = ["FieldVisibilityPolicy"]
+def field_key_is_hidden(field_key: object, hidden_keys: frozenset[object]) -> bool:
+    """Match fully scoped and legacy leaf-only hidden identities."""
+
+    return bool(
+        field_key in hidden_keys
+        or (isinstance(field_key, tuple) and field_key[-1] in hidden_keys)
+        or (isinstance(field_key, str) and field_key in hidden_keys)
+    )
+
+
+__all__ = ["FieldVisibilityPolicy", "field_key_is_hidden"]

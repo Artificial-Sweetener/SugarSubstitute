@@ -31,6 +31,7 @@ from launcher.sugarsubstitute_launcher.application.installation.workflow import 
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
+from sugarsubstitute_shared.session_recovery import SessionRecoveryState
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,4 +72,14 @@ class HeadlessInstallService:
                 "app_version": result.application.app_version,
             },
         )
+        if result.session_recovery.state is SessionRecoveryState.PRESERVED_NOT_RESTORED:
+            _LOGGER.warning(
+                "Installation restored the application and preserved user data, but could not restore the previous session.",
+                extra={
+                    "session_recovery_root": str(
+                        result.session_recovery.recovery_root
+                        or result.application.layout.appdata_dir / "session"
+                    )
+                },
+            )
         return result
