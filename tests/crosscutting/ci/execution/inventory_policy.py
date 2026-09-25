@@ -116,6 +116,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/infrastructure/comfy/managed_process_state.py": frozenset(
         {"threading.Lock"}
     ),
+    "substitute/infrastructure/comfy/session_video_artifact_store.py": frozenset(
+        {"threading.Lock"}
+    ),
     "substitute/infrastructure/external/comfy_object_info_client.py": frozenset(
         {"threading.RLock"}
     ),
@@ -133,6 +136,12 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     ),
     "substitute/infrastructure/persistence/image_naming.py": frozenset(
         {"threading.Lock"}
+    ),
+    "substitute/infrastructure/video/mpv_video_player.py": frozenset(
+        {"threading.RLock"}
+    ),
+    "substitute/infrastructure/video/mpv_opengl_render_bridge.py": frozenset(
+        {"threading.RLock"}
     ),
     "substitute/presentation/shell/model_catalog_update_bridge.py": frozenset(
         {"threading.RLock"}

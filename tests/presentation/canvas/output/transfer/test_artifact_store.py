@@ -51,6 +51,7 @@ def test_png_transfer_stages_memory_only_image_and_retains_it_until_close(
     assert artifact.mime_type == "image/png"
     assert artifact.path.suffix == ".png"
     assert artifact.path.is_file()
+    assert artifact.image is not None
     assert artifact.image.size() == _image().size()
 
     store.close()
@@ -139,6 +140,7 @@ def test_jpeg_transfer_stages_jpeg_without_a_durable_companion(tmp_path: Path) -
     assert artifact.staged is True
     assert artifact.path.suffix == ".jpg"
     assert artifact.mime_type == "image/jpeg"
+    assert artifact.data is not None
     assert artifact.data.startswith(b"\xff\xd8")
 
 

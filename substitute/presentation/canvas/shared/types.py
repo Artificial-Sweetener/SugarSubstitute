@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from substitute.domain.output_media import OutputMediaKind
+
 
 class OutputImageMeta(Protocol):
     """Describe output-image metadata consumed by canvas presentation widgets."""
@@ -42,6 +44,10 @@ class OutputImageMeta(Protocol):
     width: int | None
     height: int | None
     cube_execution_duration_ms: float | None
+    media_kind: OutputMediaKind
+    duration_seconds: float | None
+    mime_type: str | None
+    temporary: bool
 
 
 __all__ = [

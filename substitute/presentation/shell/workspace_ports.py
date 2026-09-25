@@ -31,6 +31,7 @@ from substitute.application.ports import (
     ListenerCompleted,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -124,6 +125,9 @@ class GenerationFeedbackDispatcherProtocol(Protocol):
 
     def on_output_image(self, update: OutputImageUpdate) -> None:
         """Handle generation output image feedback."""
+
+    def on_output_video(self, update: OutputVideoUpdate) -> None:
+        """Handle generation output video feedback."""
 
     def on_failure(self, failure: GenerationFailure) -> None:
         """Handle generation failure feedback."""

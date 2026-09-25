@@ -113,7 +113,7 @@ kind = "remediation"
 justification = "The assessed file now mixes single and prepared request orchestration, native and direct payload projection, input asset staging, and output save-plan preparation. Listener lifecycle and output routing have moved to their own owner; extract output save-plan preparation next."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-max_lines = 552
+max_lines = 550
 next_limit = 450
 debt = "SS-ARCH-012"
 
@@ -126,7 +126,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1557
+max_lines = 1534
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -492,19 +492,6 @@ next_limit = 811
 debt = "SS-ARCH-080"
 
 [[waivers]]
-id = "SS-WAIVER-R081"
-owner = "main window workspace scaffold"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/main_window_workspace.py"
-kind = "remediation"
-justification = "The assessed file mixes workflow tabbar construction, canvas and editor scaffold construction, generation progress overlay construction, queue side-panel state and width transitions, workspace widget bundle assembly. Extract the queue side-panel host and feature scaffold builders from workspace bundle assembly."
-issue = "chore:SS-ARCH-081"
-review_by = 2026-12-15
-max_lines = 542
-next_limit = 500
-debt = "SS-ARCH-081"
-
-[[waivers]]
 id = "SS-WAIVER-R082"
 owner = "shell titlebar controls"
 rule = "STRUCT003"
@@ -789,7 +776,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1017
+max_lines = 1031
 
 [[waivers]]
 id = "SS-WAIVER-S022"
@@ -1196,7 +1183,7 @@ kind = "structural"
 justification = "GenerationFeedbackCoalescer is the single pending-state owner between high-frequency generation callbacks and UI rendering. Submission, authorization, keying, replacement, retirement, terminal ordering, and draining all enforce one coalesced batch contract."
 issue = "chore:SS-WAIVER-S066"
 review_by = 2026-12-15
-max_lines = 618
+max_lines = 651
 
 [[waivers]]
 id = "SS-WAIVER-S067"
@@ -1218,7 +1205,7 @@ kind = "structural"
 justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, post-admission seed rearming, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 823
+max_lines = 827
 
 [[waivers]]
 id = "SS-WAIVER-S069"

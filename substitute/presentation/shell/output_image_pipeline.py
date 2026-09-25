@@ -24,7 +24,7 @@ from uuid import UUID
 
 from PySide6.QtCore import QObject
 
-from substitute.application.ports import OutputImageUpdate
+from substitute.application.ports import OutputImageUpdate, OutputVideoUpdate
 from substitute.application.workflows.output_visual_events import LiveFinalOutputEvent
 from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
@@ -189,6 +189,14 @@ class OutputImagePipeline(QObject):
         """Submit one saved generation output to the asynchronous commit pipeline."""
 
         request = self.build_commit_request(output_update)
+        if request is None:
+            return
+        self._preparation_dispatcher.submit(request)
+
+    def submit_video_update(self, output_update: OutputVideoUpdate) -> None:
+        """Submit one validated video's poster to the shared output commit lane."""
+
+        request = self._commit_request_builder.build_video_update(output_update)
         if request is None:
             return
         self._preparation_dispatcher.submit(request)

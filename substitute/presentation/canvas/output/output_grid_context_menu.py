@@ -34,6 +34,7 @@ from substitute.presentation.canvas.output.output_compare_menu_item import (
     output_compare_menu_item,
 )
 from substitute.presentation.canvas.shared.types import OutputImageMeta
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import (
     MenuItem,
@@ -76,27 +77,37 @@ class OutputGridContextMenu:
         """Build actions whose callbacks retain the clicked grid target."""
 
         entries: list[MenuItem | MenuSeparator] = []
-        compare = output_compare_menu_item(
-            available=self.compare_available(),
-            enabled=self.compare_enabled(),
-            set_enabled=self.set_compare_enabled,
+        is_video = self._reference_is_video(reference)
+        compare = (
+            None
+            if is_video
+            else output_compare_menu_item(
+                available=self.compare_available(),
+                enabled=self.compare_enabled(),
+                set_enabled=self.set_compare_enabled,
+            )
         )
         if compare is not None:
             entries.extend((compare, MenuSeparator()))
+        if not is_video:
+            entries.extend(
+                (
+                    MenuItem(
+                        "output_canvas.copy",
+                        app_text("Copy"),
+                        callback=lambda: self.request_copy(reference),
+                        icon=FIF.COPY,
+                    ),
+                    MenuItem(
+                        "output_canvas.open_current_external",
+                        app_text("Open in Photoshop"),
+                        callback=lambda: self.open_external(reference),
+                        icon=FIF.PHOTO,
+                    ),
+                )
+            )
         entries.extend(
             (
-                MenuItem(
-                    "output_canvas.copy",
-                    app_text("Copy"),
-                    callback=lambda: self.request_copy(reference),
-                    icon=FIF.COPY,
-                ),
-                MenuItem(
-                    "output_canvas.open_current_external",
-                    app_text("Open in Photoshop"),
-                    callback=lambda: self.open_external(reference),
-                    icon=FIF.PHOTO,
-                ),
                 MenuItem(
                     "output_canvas.reveal_current_asset",
                     app_text("Reveal in File Manager"),
@@ -120,6 +131,19 @@ class OutputGridContextMenu:
             )
         )
         return MenuModel(entries=tuple(entries))
+
+    def _reference_is_video(self, reference: CanvasContentReference) -> bool:
+        """Return whether one authorized grid target is a video artifact."""
+
+        image_id = self.image_id_for_reference(reference)
+        if image_id is None or not self.image_is_authorized(image_id):
+            return False
+        metadata = self.image_metadata(image_id)
+        return (
+            metadata is not None
+            and getattr(metadata, "media_kind", OutputMediaKind.IMAGE)
+            is OutputMediaKind.VIDEO
+        )
 
     def open_external(self, reference: CanvasContentReference) -> None:
         """Open exactly the authorized grid target in the configured editor."""

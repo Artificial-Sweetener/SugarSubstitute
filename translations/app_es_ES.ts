@@ -110,7 +110,7 @@ Vista previa del prompt:
       <translation>Se requiere una clave API de %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="196"></location>
       <source>%1 Canvas</source>
       <translation>Lienzo de %1</translation>
     </message>
@@ -1214,6 +1214,16 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Elegir audio</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="70"></location>
+      <source>Choose automatic fallback or a specific supported GPU renderer.</source>
+      <translation>Elige la alternativa automática o un renderizador de GPU compatible específico.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="103"></location>
+      <source>Choose automatic hardware decoding or software decoding.</source>
+      <translation>Elige la decodificación automática por hardware o por software.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/color_field.py" line="43"></location>
       <source>Choose color</source>
       <translation>Elegir color</translation>
@@ -1374,6 +1384,11 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Elige el punto que permanece fijo mientras cambia el lienzo.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="111"></location>
+      <source>Choose the renderer used for generated video playback.</source>
+      <translation>Elige el renderizador utilizado para reproducir los vídeos generados.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="120"></location>
       <source>Choose the way you use ComfyUI.</source>
       <translation>Elige cómo usas ComfyUI.</translation>
@@ -1429,7 +1444,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Elige qué instalación de Python usa esta configuración de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="91"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="95"></location>
       <source>Choose which representation drag and Copy export.</source>
       <translation>Elige qué representación exportan arrastrar y copiar.</translation>
     </message>
@@ -1679,7 +1694,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Comfy ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="861"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="865"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy no está disponible</translation>
     </message>
@@ -2159,12 +2174,12 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Continua</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="498"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="501"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>La generación continua no preparó ninguna tarea.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="485"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="488"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>La generación continua necesita la cola de generación.</translation>
     </message>
@@ -2194,7 +2209,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Controles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="155"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
       <source>Copy</source>
       <translation>Copiar</translation>
     </message>
@@ -2777,7 +2792,7 @@ Install these nodes now?</source>
       <translation>Arrastrar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="90"></location>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="94"></location>
       <source>Drag and Copy format</source>
       <translation>Formato de arrastrar y copiar</translation>
     </message>
@@ -2997,7 +3012,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -3068,13 +3083,13 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="402"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="403"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
@@ -3145,6 +3160,11 @@ Install these nodes now?</source>
       <translation>Finalizando tu instalación</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
+      <source>Fit video</source>
+      <translation>Ajustar vídeo</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="255"></location>
       <source>Fix the reported issue if you can.</source>
       <translation>Corrige el problema notificado si es posible.</translation>
@@ -3195,9 +3215,14 @@ Install these nodes now?</source>
       <translation>Licencia Pública General de GNU v3</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="223"></location>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="76"></location>
       <source>GPU</source>
       <translation>Procesador gráfico (GPU)</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="75"></location>
+      <source>GPU Next</source>
+      <translation>GPU de nueva generación</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
@@ -3210,7 +3235,7 @@ Install these nodes now?</source>
       <translation>Generar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="487"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="490"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
@@ -3240,7 +3265,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1058"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -3260,12 +3285,12 @@ Install these nodes now?</source>
       <translation>La generación ha fallado durante %1: %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="898"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="902"></location>
       <source>Generation preflight failed</source>
       <translation>La comprobación previa a la generación ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="716"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="719"></location>
       <source>Generation preparation failed</source>
       <translation>No se pudo preparar la generación</translation>
     </message>
@@ -3295,12 +3320,12 @@ Install these nodes now?</source>
       <translation>Cola de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="546"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="549"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>Las integraciones de preparación de la cola de generación no están disponibles.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="540"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>Las integraciones de instantáneas de la cola de generación no están disponibles.</translation>
     </message>
@@ -3353,6 +3378,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="87"></location>
       <source>Hardness</source>
       <translation>Dureza</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
+      <source>Hardware video decoding was unavailable. Software decoding is active.</source>
+      <translation>La decodificación de vídeo por hardware no estaba disponible. La decodificación por software está activa.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="216"></location>
@@ -3540,7 +3570,7 @@ Install these nodes now?</source>
       <translation>Información</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="136"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="139"></location>
       <source>Input</source>
       <translation>Entrada</translation>
     </message>
@@ -3990,6 +4020,11 @@ Install these nodes now?</source>
       <translation>La búsqueda ha fallado</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
+      <source>Loop video</source>
+      <translation>Repetir vídeo</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="418"></location>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>Asegúrate de que ComfyUI esté en ejecución en %1.</translation>
@@ -4345,6 +4380,11 @@ Install these nodes now?</source>
       <translation>Subir</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
+      <source>Mute video</source>
+      <translation>Silenciar vídeo</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
       <source>Name</source>
       <translation>Nombre</translation>
@@ -4398,6 +4438,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="340"></location>
       <source>Next</source>
       <translation>Siguiente</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
+      <source>Next frame</source>
+      <translation>Fotograma siguiente</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/search_view.py" line="66"></location>
@@ -4682,6 +4727,11 @@ Usaré el mío.</translation>
       <translation>SO: %1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="53"></location>
+      <source>Off</source>
+      <translation>Desactivado</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="115"></location>
       <source>Offer model downloads</source>
       <translation>Ofrecer descargas de modelos</translation>
@@ -4717,7 +4767,7 @@ Usaré el mío.</translation>
       <translation>Abrir el repositorio de %1 en GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="167"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
       <source>Open All in Photoshop</source>
       <translation>Abrir todo en Photoshop</translation>
     </message>
@@ -4772,7 +4822,7 @@ Usaré el mío.</translation>
       <translation>Abrir la instalación guiada para este origen local de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="161"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
       <source>Open in Photoshop</source>
       <translation>Abrir en Photoshop</translation>
     </message>
@@ -4857,7 +4907,7 @@ Usaré el mío.</translation>
       <translation>Memoria insuficiente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/factory.py" line="142"></location>
+      <location filename="../substitute/presentation/canvas/factory.py" line="145"></location>
       <source>Output</source>
       <translation>Salida</translation>
     </message>
@@ -4877,7 +4927,7 @@ Usaré el mío.</translation>
       <translation>Vista previa de la salida</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/output_preference_service.py" line="130"></location>
+      <location filename="../substitute/application/generation/output_preference_service.py" line="131"></location>
       <source>Output settings saved.</source>
       <translation>Se guardó la configuración de salida.</translation>
     </message>
@@ -5040,6 +5090,11 @@ Usaré el mío.</translation>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1265"></location>
       <source>Planned changes updated.</source>
       <translation>Se actualizaron los cambios previstos.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
+      <source>Play or pause</source>
+      <translation>Reproducir o pausar</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/shutdown_progress_dialog.py" line="48"></location>
@@ -5217,6 +5272,11 @@ Usaré el mío.</translation>
       <translation>Vista previa no disponible</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
+      <source>Previous frame</source>
+      <translation>Fotograma anterior</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/search_view.py" line="72"></location>
       <source>Previous match (Shift+Enter)</source>
       <translation>Coincidencia anterior (Mayús+Intro)</translation>
@@ -5372,7 +5432,7 @@ Usaré el mío.</translation>
       <translation>Añadir esta escena a la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="390"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>Para añadir esta escena se necesita la cola de generación.</translation>
     </message>
@@ -5836,6 +5896,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
+      <source>Retry video</source>
+      <translation>Reintentar vídeo</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="127"></location>
       <source>Return to setup and try again.</source>
       <translation>Vuelve a la configuración e inténtalo de nuevo.</translation>
@@ -5846,7 +5911,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="173"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="180"></location>
       <source>Reveal in File Manager</source>
       <translation>Mostrar en el gestor de archivos</translation>
     </message>
@@ -6196,12 +6261,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Escena</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="446"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="449"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>La generación de escenas necesita un índice de prompts activo en el flujo de trabajo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="459"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="462"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>La generación de escenas necesita al menos un marcador **scene en el primer prompt positivo.</translation>
     </message>
@@ -6529,6 +6594,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
       <source>Show setup log</source>
       <translation>Mostrar registro de configuración</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
+      <source>Show video at actual size</source>
+      <translation>Mostrar vídeo a tamaño real</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1565"></location>
@@ -7612,6 +7682,11 @@ Evidencia de diagnóstico:
       <translation>El entorno de ComfyUI conectado no cumple los requisitos actualizados. Repara ese entorno antes de continuar. %1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="490"></location>
+      <source>The bundled video runtime is unavailable.</source>
+      <translation>El entorno de ejecución de vídeo incluido no está disponible.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="394"></location>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>El lienzo cambió mientras este diálogo estaba abierto. Revisa el tamaño actual e inténtalo de nuevo.</translation>
@@ -7760,6 +7835,11 @@ Evidencia de diagnóstico:
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
       <source>The requested definition is not available.</source>
       <translation>La definición solicitada no está disponible.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="92"></location>
+      <source>The requested video renderer was unavailable. A safe fallback is active.</source>
+      <translation>El renderizador de vídeo solicitado no estaba disponible. Se ha activado una alternativa segura.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="219"></location>
@@ -8402,6 +8482,11 @@ Evidencia de diagnóstico:
       <translation>Usar un ComfyUI remoto</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/video_playback_settings.py" line="48"></location>
+      <source>Use safe automatic hardware decoding or always decode in software.</source>
+      <translation>Usa la decodificación automática segura por hardware o decodifica siempre por software.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="697"></location>
       <source>Use the ComfyUI page package filter to inspect installed packages and maintenance actions.</source>
       <translation>Usa el filtro de paquetes de la página de ComfyUI para consultar los paquetes instalados y las acciones de mantenimiento.</translation>
@@ -8500,6 +8585,31 @@ Evidencia de diagnóstico:
       <location filename="../substitute/presentation/model_updates/version_family_modal.py" line="349"></location>
       <source>Versions of %1</source>
       <translation>Versiones de %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="102"></location>
+      <source>Video hardware decoding</source>
+      <translation>Decodificación de vídeo por hardware</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="494"></location>
+      <source>Video playback is unavailable (%1).</source>
+      <translation>La reproducción de vídeo no está disponible (%1).</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
+      <source>Video position</source>
+      <translation>Posición del vídeo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/generation_output_settings_catalog.py" line="110"></location>
+      <source>Video renderer</source>
+      <translation>Renderizador de vídeo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
+      <source>Video volume</source>
+      <translation>Volumen del vídeo</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/model_discovery/discovery_card.py" line="219"></location>
