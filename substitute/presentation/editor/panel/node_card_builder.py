@@ -19,91 +19,47 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
-from functools import partial
 from typing import Any
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
-from qfluentwidgets import CaptionLabel
-from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets import IconWidget
-
-try:
-    from qfluentwidgets.common.font import setFont  # type: ignore[import-untyped]
-except ImportError:  # pragma: no cover - test-stub fallback only
-
-    def setFont(_widget: object, _font_size: int = 14, _weight: int = 50) -> None:
-        """Provide a no-op font helper when qfluentwidgets is unavailable."""
+from PySide6.QtWidgets import QWidget
 
 
 from substitute.application.node_behavior import (
     CollapseMode,
-    FieldBehavior,
     NodeDisplayDecision,
     ResolvedFieldSpec,
     ResolvedNodeBehavior,
-    TitleControl,
 )
-from substitute.domain.localization import (
-    FieldPresentation as LocalizedFieldPresentation,
-    NodePresentation,
-)
-from substitute.presentation.editor.field_actions import FieldActionContribution
-from .node_card.accordion_motion import (
-    AccordionChevronWidget,
-    AccordionContentClip,
-    AccordionMotionController,
-    set_accordion_surface_attachment,
-)
-from .node_card.accordion_section_layout import AccordionSectionLayoutBinding
 from .node_card.advanced_input_binding import AdvancedInputCardBinding
-from .node_card.action_menu import NodeCardActionMenuBinding
 from .node_card.body_composer import NodeCardBodyComposer
-from .node_card.body_contribution import (
-    NodeCardBodyContributionContext,
-    NodeCardBodyContributor,
+from .node_card.body_contribution import NodeCardBodyContributor
+from .node_card.body_realizer import NodeCardBodyRealizer
+from .node_card.build_observability import (
+    NodeCardBuildLogContext,
+    log_node_card_build_timing,
 )
+from .node_card.field_realizer import NodeCardFieldRealizer
 from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalogSource,
 )
-from .factories.meta_factories import build_enabled_switch
-from .node_card.mode_controller import (
-    NodeCardModeBinding,
-    apply_title_row_interaction,
-)
 from .node_card.panel_snapshot import (
-    NodePanelSnapshot,
     capture_node_panel_snapshot,
+)
+from .node_card.row_icon_factory import NodeCardRowIconFactory
+from .node_card.title_composer import NodeCardTitleComposer
+from .node_card.surface_composer import (
+    NodeCardSurfaceComposer,
+    NodeCardSurfaceMetadata,
 )
 from .node_card.variant import resolve_node_card_variant
 from substitute.presentation.editor.panel.menus.node_input_preset_menu_source import (
     NodeInputPresetSource,
 )
-from substitute.presentation.editor.panel.menus.node_title_preset_actions import (
-    NodeInputPresetContext,
-)
 from substitute.presentation.editor.panel.node_presentation_adapter import (
     build_node_presentation_request,
 )
 from substitute.presentation.editor.panel.node_presentation_binding import (
-    NodeCardPresentationBinding,
     NodeTitleTextTarget,
-)
-from substitute.presentation.editor.panel.factories import widget_wiring
-from substitute.presentation.editor.panel.factories.field_pipeline import (
-    LAYOUT_HANDLED,
-    build_widget_for_field_spec,
-)
-from substitute.presentation.editor.panel.factories.field_build_outcome import (
-    EditorFieldBuildKind,
-)
-from substitute.presentation.editor.panel.factories.field_build_resolver import (
-    resolve_editor_field_build,
-)
-from substitute.presentation.editor.panel.field_state_controller import (
-    EditorPanelFieldStateController,
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
@@ -111,175 +67,29 @@ from substitute.presentation.editor.panel.model_choice_snapshot_controller impor
 from substitute.presentation.editor.panel.node_card_build_transaction import (
     NodeCardBuildTransaction,
 )
-from substitute.presentation.editor.panel.prompt.field_build_arguments import (
-    prompt_field_build_arguments,
-)
 from substitute.presentation.editor.panel.prompt.field_inputs import (
     NodeCardPromptFieldInputs,
 )
 from substitute.presentation.editor.panel.projection_observability import (
-    log_panel_projection_timing,
     panel_projection_observability_started_at,
 )
 from substitute.presentation.editor.panel.service_bundle import EditorPanelServiceBundle
-from substitute.presentation.editor.panel.widgets.field_row import (
-    BuiltFieldRow,
-    EDITOR_ROW_HORIZONTAL_MARGINS,
-    EDITOR_ROW_ICON_SIZE,
-    EDITOR_ROW_SPACING,
-    FieldRowBuilder,
-)
-from substitute.presentation.editor.panel.widgets.field_relayout import (
-    bind_field_widget_card_relayout,
-)
-from substitute.presentation.editor.panel.widgets.node_card import (
-    NODE_CARD_BODY_BOTTOM_PADDING,
-    NODE_CARD_BODY_ROW_SPACING,
-    NODE_CARD_BODY_TOP_PADDING,
-    NODE_CARD_TITLE_HEIGHT,
-    NODE_CARD_TITLE_ICON_SIZE,
-    NODE_CARD_TITLE_ICON_SLOT_SIZE,
-    _NODE_CARD_SURFACE_VERTICAL_PADDING,
-    _NodeCardContentSurface,
-    _NodeCardHeaderSurface,
-    _NodeCardSurface,
-    NodeCardWidget,
-)
+from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.editor.panel.widgets.node_card import NodeCardWidget
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetSource,
 )
-from substitute.presentation.widgets.tooltips import (
-    bind_fluent_tooltip,
-    normalized_tooltip,
-)
-from substitute.presentation.editor.utils import sanitation
-from substitute.presentation.editor.utils.create_vbox import create_vbox
-from substitute.presentation.qt_label_text import literal_label_text
-from substitute.presentation.resources.app_icon import AppIcon
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
     log_warning,
-    log_warning_exception,
 )
 
 _LOGGER = get_logger("presentation.editor.panel.node_card_builder")
 
 
-@dataclass(frozen=True, slots=True)
-class _NodeCardBuildLogContext:
-    """Carry prompt-safe node-card build diagnostic fields."""
-
-    cube_alias: str
-    node_name: str
-    node_class: str
-    field_spec_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class _NodeCardFieldLogContext:
-    """Carry prompt-safe node-card field diagnostic fields."""
-
-    cube_alias: str
-    node_name: str
-    node_class: str
-    field_key: str
-    field_type: str
-    presentation: str
-
-
-def _log_node_card_build_timing(
-    event: str,
-    *,
-    started_at: float,
-    context: _NodeCardBuildLogContext,
-    visible_group_count: int | None = None,
-    has_rows: bool | None = None,
-    has_title_controls: bool | None = None,
-) -> float:
-    """Log timing for one prompt-safe node-card build operation."""
-
-    return log_panel_projection_timing(
-        event,
-        started_at=started_at,
-        cube_alias=context.cube_alias,
-        node_name=context.node_name,
-        node_class=context.node_class,
-        field_spec_count=context.field_spec_count,
-        projection_mode="live",
-        visible_group_count=visible_group_count,
-        has_rows=has_rows,
-        has_title_controls=has_title_controls,
-    )
-
-
-def _log_node_card_field_timing(
-    event: str,
-    *,
-    started_at: float,
-    context: _NodeCardFieldLogContext,
-    result_type: str = "",
-    widget_type: str = "",
-) -> float:
-    """Log timing for one prompt-safe node-card field operation."""
-
-    return log_panel_projection_timing(
-        event,
-        started_at=started_at,
-        cube_alias=context.cube_alias,
-        node_name=context.node_name,
-        node_class=context.node_class,
-        field_key=context.field_key,
-        field_type=context.field_type,
-        presentation=context.presentation,
-        projection_mode="live",
-        result_type=result_type,
-        widget_type=widget_type,
-    )
-
-
-def _switch_override_for_next_state(
-    decision: NodeDisplayDecision,
-    next_checked: bool,
-) -> bool | None:
-    """Return the explicit activation override represented by the next switch state."""
-
-    if next_checked:
-        return None if decision.policy_default_enabled else True
-    return False
-
-
-def _apply_node_activation_change(
-    panel: Any,
-    services: EditorPanelServiceBundle,
-    cube_state: Any,
-    node_name: str,
-    display_decision: NodeDisplayDecision,
-    checked: bool,
-) -> None:
-    """Persist one title-switch activation change through the panel service."""
-
-    explicit_override = _switch_override_for_next_state(display_decision, checked)
-    services.node_behavior_service.set_node_activation_override(
-        cube_state,
-        node_name,
-        explicit_override,
-    )
-    panel.refresh_node_behavior_state(reason="node_activation_changed")
-
-
 class NodeCardBuilder:
     """Compose node cards from resolved behavior and explicit collaborators."""
-
-    _ICON_MAP = {
-        "application": FIF.APPLICATION,
-        "edit": FIF.EDIT,
-        "eraser": AppIcon.ERASER_20_REGULAR,
-        "folder": FIF.FOLDER,
-        "model": AppIcon.BRAIN_CIRCUIT_20_REGULAR,
-        "palette": FIF.PALETTE,
-        "photo": FIF.PHOTO,
-    }
 
     def __init__(
         self,
@@ -296,79 +106,41 @@ class NodeCardBuilder:
 
         self.panel = panel
         self._services = services
-        self._model_choice_snapshot_controller = model_choice_snapshot_controller
-        self._dimension_preset_source = dimension_preset_source
-        self._node_input_preset_source = node_input_preset_source
-        self._prompt_segment_preset_source = prompt_segment_preset_source
-        self._body_contributors = body_contributors
+        field_realizer = NodeCardFieldRealizer(
+            panel=panel,
+            services=services,
+            model_choice_snapshot_controller=model_choice_snapshot_controller,
+            prompt_segment_preset_source=prompt_segment_preset_source,
+        )
+        row_icons = NodeCardRowIconFactory(panel=panel)
         self._field_rows = FieldRowBuilder(
             panel=panel,
-            icon_builder=self.build_icon_widget,
-            icon_resolver=self.get_icon_for_row,
+            icon_builder=row_icons.build,
+            icon_resolver=row_icons.resolve,
             dimension_preset_source=dimension_preset_source,
         )
         self._body_composer = NodeCardBodyComposer(
             panel=panel,
             field_rows=self._field_rows,
         )
-
-    @staticmethod
-    def _cube_buffer(cube_state: Any) -> dict[str, Any]:
-        """Return the mutable cube buffer when present."""
-
-        buffer = getattr(cube_state, "buffer", None)
-        return buffer if isinstance(buffer, dict) else {}
-
-    @staticmethod
-    def _all_buffers_from_snapshot(
-        snapshot: NodePanelSnapshot,
-    ) -> dict[str, dict[str, Any]]:
-        """Return stack-ordered cube buffers for initial link-selector setup."""
-
-        return {
-            alias: cube_state.buffer
-            for alias in snapshot.stack_order
-            if (cube_state := snapshot.cube_states.get(alias)) is not None
-            and isinstance(getattr(cube_state, "buffer", None), dict)
-        }
-
-    def _wire_widget(
-        self,
-        widget: Any,
-        cube_state: Any,
-        metadata: dict[str, Any],
-    ) -> None:
-        """Delegate widget-state wiring to the field-state owner."""
-
-        layout_changed = getattr(self.panel, "promptEditorLayoutChanged", None)
-        emit_layout_changed = getattr(layout_changed, "emit", None)
-
-        def emit_prompt_layout_changed() -> None:
-            """Emit prompt layout change when a prompt editor height changes."""
-
-            if callable(emit_layout_changed):
-                emit_layout_changed()
-
-        controller = getattr(self.panel, "_field_state_controller", None)
-        if not isinstance(controller, EditorPanelFieldStateController):
-            controller = EditorPanelFieldStateController(self.panel)
-            setattr(self.panel, "_field_state_controller", controller)
-        controller.bind_node_widget_state(
-            widget,
-            cube_state,
-            metadata,
-            manual_prompt_height_changed=emit_prompt_layout_changed
-            if callable(emit_layout_changed)
-            else None,
+        self._body_realizer = NodeCardBodyRealizer(
+            panel=panel,
+            field_realizer=field_realizer,
+            field_rows=self._field_rows,
+            body_composer=self._body_composer,
+            body_contributors=body_contributors,
         )
-
-    def get_icon_for_row(
-        self, node_name: str, row_label: str, column_index: int | None = None
-    ) -> FIF | None:
-        """Return an optional Fluent icon for one grouped row slot."""
-
-        _ = (node_name, row_label, column_index)
-        return None
+        self._surface_composer = NodeCardSurfaceComposer(
+            panel=panel,
+            node_presentation_service=services.node_presentation_service,
+            divider_factory=self._field_rows.make_horizontal_divider,
+            reconcile_separators=self._body_composer.reconcile_separator_visibility,
+        )
+        self._title_composer = NodeCardTitleComposer(
+            panel=panel,
+            services=services,
+            node_input_preset_source=node_input_preset_source,
+        )
 
     def build_node_card(
         self,
@@ -387,7 +159,7 @@ class NodeCardBuilder:
         """Build one node card from explicit node behavior and current buffer state."""
         card_started_at = panel_projection_observability_started_at()
         wrapper: NodeCardWidget | None = None
-        log_context = _NodeCardBuildLogContext(
+        log_context = NodeCardBuildLogContext(
             cube_alias=alias or "",
             node_name=node_name,
             node_class=node_type,
@@ -438,247 +210,47 @@ class NodeCardBuilder:
         node_presentation = self._services.node_presentation_service.present(
             presentation_request
         )
-        _log_node_card_build_timing(
+        log_node_card_build_timing(
             "node_card.snapshot_panel",
             started_at=snapshot_started_at,
             context=log_context,
         )
         wrapper_parent = parent if parent is not None else self.panel
-        wrapper = NodeCardWidget(wrapper_parent)
-        presentation_binding = NodeCardPresentationBinding(
-            owner=wrapper,
-            service=self._services.node_presentation_service,
-            request=presentation_request,
+        surface = self._surface_composer.create(
+            parent=wrapper_parent,
+            presentation_request=presentation_request,
+            show_immediately=parent is None,
         )
-        setattr(wrapper, "_node_presentation_binding", presentation_binding)
-        node_card, node_card_layout, content_body, content_layout = (
-            self._create_node_card_container(parent=wrapper)
-        )
-        contribution_context = NodeCardBodyContributionContext(
-            section_key=alias or "",
-            node_name=node_name,
-            node_type=node_type,
-            inputs=inputs,
-            graph=self._cube_buffer(cube_state),
-        )
-        contributions = tuple(
-            contribution
-            for contributor in self._body_contributors
-            if (
-                contribution := contributor.build(
-                    contribution_context,
-                )
-            )
-            is not None
-        )
-        input_keys = list(field_specs.keys())
-        visible_keys = self._gather_visible_keys(
-            input_keys=input_keys,
-            resolved_behavior=resolved_behavior,
-            skip_keys=set(),
-            preferred_field_groups=tuple(
-                contribution.field_keys for contribution in contributions
-            ),
-        )
+        wrapper = surface.wrapper
+        presentation_binding = surface.presentation_binding
+        node_card = surface.card
+        content_body = surface.content_body
+        content_layout = surface.content_layout
         allow_unbounded_content_height = (
             resolved_behavior.card.collapse_mode == CollapseMode.EXEMPT
         )
         node_card_variant = resolve_node_card_variant(resolved_behavior)
-        is_subgraph_wrapper_card = self._is_subgraph_wrapper_card(field_specs)
-        field_action_contributions: list[FieldActionContribution] = []
-        if is_subgraph_wrapper_card:
-            log_debug(
-                _LOGGER,
-                "Building subgraph wrapper node card",
-                cube_alias=alias or "",
+        try:
+            body_result = self._body_realizer.realize(
                 node_name=node_name,
-                node_class=node_type,
-                field_spec_keys=",".join(field_specs.keys()),
-                visible_groups=";".join(",".join(group) for group in visible_keys),
-                title_switch=bool(
+                node_type=node_type,
+                inputs=inputs,
+                field_specs=field_specs,
+                resolved_behavior=resolved_behavior,
+                cube_state=cube_state,
+                alias=alias,
+                content_body=content_body,
+                content_layout=content_layout,
+                allow_unbounded_content_height=allow_unbounded_content_height,
+                build_transaction=build_transaction,
+                prompt_field_inputs=prompt_field_inputs,
+                node_presentation=node_presentation,
+                presentation_binding=presentation_binding,
+                log_context=log_context,
+                show_enabled_switch=bool(
                     display_decision is not None
                     and display_decision.show_enabled_switch
                 ),
-            )
-
-        try:
-            fields_started_at = panel_projection_observability_started_at()
-            for key_group in visible_keys:
-                if len(key_group) > 1:
-                    widgets: list[tuple[str, QWidget]] = []
-                    field_behaviors: dict[str, FieldBehavior] = {}
-                    for key in key_group:
-                        val = inputs.get(key)
-                        if self.panel.is_connection(val):
-                            self._log_wrapper_field_trace(
-                                enabled=is_subgraph_wrapper_card,
-                                alias=alias,
-                                node_name=node_name,
-                                key=key,
-                                action="skip_connection",
-                                field_spec=field_specs.get(key),
-                            )
-                            continue
-                        field_behavior = resolved_behavior.fields.get(key)
-                        if field_behavior is None:
-                            self._log_wrapper_field_trace(
-                                enabled=is_subgraph_wrapper_card,
-                                alias=alias,
-                                node_name=node_name,
-                                key=key,
-                                action="skip_missing_behavior",
-                                field_spec=field_specs.get(key),
-                            )
-                            continue
-                        self._log_wrapper_field_trace(
-                            enabled=is_subgraph_wrapper_card,
-                            alias=alias,
-                            node_name=node_name,
-                            key=key,
-                            action="field_attempt",
-                            field_spec=field_specs.get(key),
-                        )
-                        field = self._create_field_for_key(
-                            node_name=node_name,
-                            field_spec=field_specs[key],
-                            content_body=content_body,
-                            content_layout=content_layout,
-                            allow_unbounded_content_height=(
-                                allow_unbounded_content_height
-                            ),
-                            cube_state=cube_state,
-                            alias=alias,
-                            build_transaction=build_transaction,
-                            prompt_field_inputs=prompt_field_inputs,
-                            field_presentation=node_presentation.fields[key],
-                        )
-                        if field is None or field is LAYOUT_HANDLED:
-                            self._log_wrapper_field_trace(
-                                enabled=is_subgraph_wrapper_card,
-                                alias=alias,
-                                node_name=node_name,
-                                key=key,
-                                action="layout_handled"
-                                if field is LAYOUT_HANDLED
-                                else "factory_none",
-                                field_spec=field_specs.get(key),
-                            )
-                            continue
-                        self._log_wrapper_field_trace(
-                            enabled=is_subgraph_wrapper_card,
-                            alias=alias,
-                            node_name=node_name,
-                            key=key,
-                            action="widget_built",
-                            field_spec=field_specs.get(key),
-                            widget_type=field.__class__.__name__,
-                        )
-                        widgets.append((key, field))
-                        field_behaviors[key] = field_behavior
-                    if widgets:
-                        widget_keys = frozenset(key for key, _widget in widgets)
-                        contribution = next(
-                            (
-                                candidate
-                                for candidate in contributions
-                                if candidate.claimed_field_keys == widget_keys
-                            ),
-                            None,
-                        )
-                        built_row = self._body_composer.add_n_column_row(
-                            fields=widgets,
-                            field_behaviors=field_behaviors,
-                            content_layout=content_layout,
-                            node_name=node_name,
-                            field_labels={
-                                key: node_presentation.fields[key].label
-                                for key, _widget in widgets
-                            },
-                            contribution=contribution,
-                        )
-                        presentation_binding.add_field_targets(built_row.text_targets)
-                        field_action_contributions.extend(
-                            built_row.action_contributions
-                        )
-                    continue
-
-                key = key_group[0]
-                value = inputs.get(key)
-                if self.panel.is_connection(value):
-                    self._log_wrapper_field_trace(
-                        enabled=is_subgraph_wrapper_card,
-                        alias=alias,
-                        node_name=node_name,
-                        key=key,
-                        action="skip_connection",
-                        field_spec=field_specs.get(key),
-                    )
-                    continue
-                field_behavior = resolved_behavior.fields.get(key)
-                if field_behavior is None:
-                    self._log_wrapper_field_trace(
-                        enabled=is_subgraph_wrapper_card,
-                        alias=alias,
-                        node_name=node_name,
-                        key=key,
-                        action="skip_missing_behavior",
-                        field_spec=field_specs.get(key),
-                    )
-                    continue
-                self._log_wrapper_field_trace(
-                    enabled=is_subgraph_wrapper_card,
-                    alias=alias,
-                    node_name=node_name,
-                    key=key,
-                    action="field_attempt",
-                    field_spec=field_specs.get(key),
-                )
-                field = self._create_field_for_key(
-                    node_name=node_name,
-                    field_spec=field_specs[key],
-                    content_body=content_body,
-                    content_layout=content_layout,
-                    allow_unbounded_content_height=allow_unbounded_content_height,
-                    cube_state=cube_state,
-                    alias=alias,
-                    build_transaction=build_transaction,
-                    prompt_field_inputs=prompt_field_inputs,
-                    field_presentation=node_presentation.fields[key],
-                )
-                if field is None or field is LAYOUT_HANDLED:
-                    self._log_wrapper_field_trace(
-                        enabled=is_subgraph_wrapper_card,
-                        alias=alias,
-                        node_name=node_name,
-                        key=key,
-                        action="layout_handled"
-                        if field is LAYOUT_HANDLED
-                        else "factory_none",
-                        field_spec=field_specs.get(key),
-                    )
-                    continue
-                self._log_wrapper_field_trace(
-                    enabled=is_subgraph_wrapper_card,
-                    alias=alias,
-                    node_name=node_name,
-                    key=key,
-                    action="widget_built",
-                    field_spec=field_specs.get(key),
-                    widget_type=field.__class__.__name__,
-                )
-                built_row = self._add_input_row(
-                    label=node_presentation.fields[key].label,
-                    widget=field,
-                    field_behavior=field_behavior,
-                    content_layout=content_layout,
-                )
-                presentation_binding.add_field_targets(built_row.text_targets)
-                field_action_contributions.extend(built_row.action_contributions)
-            _log_node_card_build_timing(
-                "node_card.build_fields",
-                started_at=fields_started_at,
-                context=log_context,
-                visible_group_count=len(visible_keys),
             )
         except Exception as error:
             log_warning(
@@ -691,6 +263,9 @@ class NodeCardBuilder:
             )
             build_transaction.discard(wrapper)
             raise
+        is_subgraph_wrapper_card = body_result.is_subgraph_wrapper
+        visible_keys = body_result.visible_groups
+        field_action_contributions = body_result.action_contributions
         advanced_input_binding = AdvancedInputCardBinding.create(
             panel=self.panel,
             wrapper=wrapper,
@@ -724,7 +299,7 @@ class NodeCardBuilder:
             return None
 
         title_started_at = panel_projection_observability_started_at()
-        title_row, chevron = self._create_title_row(
+        title_row, chevron = self._title_composer.create(
             node_name=node_name,
             node_type=node_type,
             inputs=inputs,
@@ -742,84 +317,37 @@ class NodeCardBuilder:
             advanced_input_binding=advanced_input_binding,
             field_action_contributions=tuple(field_action_contributions),
         )
-        _log_node_card_build_timing(
+        log_node_card_build_timing(
             "node_card.create_title_row",
             started_at=title_started_at,
             context=log_context,
             has_rows=has_rows,
             has_title_controls=has_title_controls,
         )
-        title_target = getattr(title_row, "_node_title_text_target", None)
-        if isinstance(title_target, NodeTitleTextTarget):
-            presentation_binding.set_title_target(title_target)
-        node_card_layout.addWidget(title_row)
-        accordion_controller = None
-        if has_rows:
-            # This divider must live inside the content surface, not as a standalone
-            # widget between the title and body. Standalone placement composites over
-            # the transparent parent and renders darker than field-row dividers.
-            content_layout.insertWidget(
-                0,
-                self._create_title_body_divider(content_body.content_widget()),
-            )
-            self._body_composer.reconcile_separator_visibility()
-            content_body.set_content_height(content_layout.sizeHint().height())
-            node_card_layout.addWidget(content_body)
-            if resolved_behavior.card.collapse_mode != CollapseMode.EXEMPT:
-                accordion_controller = self._setup_collapsible_animation(
-                    card_title=title_row,
-                    content_body=content_body,
-                    content_layout=content_layout,
-                    divider_below_title=None,
-                    chevron=chevron,
-                )
-            else:
-                set_accordion_surface_attachment(
-                    card_title=title_row,
-                    content_body=content_body,
-                    attached=True,
-                )
         if advanced_input_binding is not None:
             advanced_input_binding.attach_title_row(title_row)
-        wrapper_layout = QVBoxLayout(wrapper)
-        wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        wrapper_layout.setSpacing(0)
-        wrapper_layout.addWidget(node_card)
-        self._register_card_mode_binding(
-            alias=alias,
-            node_name=node_name,
-            wrapper=wrapper,
+        title_target = getattr(title_row, "_node_title_text_target", None)
+        self._surface_composer.mount(
+            assembly=surface,
             title_row=title_row,
-            content_body=content_body if has_rows else None,
-            content_layout=content_layout if has_rows else None,
+            title_target=title_target
+            if isinstance(title_target, NodeTitleTextTarget)
+            else None,
             chevron=chevron,
-            accordion_controller=accordion_controller,
+            metadata=NodeCardSurfaceMetadata(
+                cube_alias=alias,
+                node_name=node_name,
+                node_class_type=node_type,
+                variant=node_card_variant.value,
+                has_title_controls=has_title_controls,
+                has_advanced_input_action=advanced_input_binding is not None,
+            ),
             collapsible=(
                 has_rows and resolved_behavior.card.collapse_mode != CollapseMode.EXEMPT
             ),
             has_rows=has_rows,
             allow_unbounded_content_height=allow_unbounded_content_height,
         )
-        wrapper.setProperty("cube_alias", alias)
-        wrapper.setProperty("node_name", node_name)
-        wrapper.setProperty("node_class_type", node_type)
-        wrapper.setProperty("node_card_variant", node_card_variant.value)
-        wrapper.setProperty("node_title_source", node_presentation.title_source.value)
-        wrapper.setProperty(
-            "node_search_aliases", list(node_presentation.search_aliases)
-        )
-        wrapper.setProperty("has_title_controls", has_title_controls)
-        wrapper.setProperty(
-            "has_advanced_input_action",
-            advanced_input_binding is not None,
-        )
-        wrapper.setProperty("base_card_visible", True)
-        presentation_binding.retranslate()
-        if parent is None:
-            wrapper.setVisible(True)
-        else:
-            wrapper.setVisible(False)
-        node_card.defer_model_picker_width_group_sync()
         if is_subgraph_wrapper_card:
             log_debug(
                 _LOGGER,
@@ -831,7 +359,7 @@ class NodeCardBuilder:
                 has_title_controls=has_title_controls,
                 content_row_count=content_layout.count(),
             )
-        _log_node_card_build_timing(
+        log_node_card_build_timing(
             "node_card.built",
             started_at=card_started_at,
             context=log_context,
@@ -842,678 +370,5 @@ class NodeCardBuilder:
         build_transaction.commit()
         return wrapper
 
-    def _register_card_mode_binding(
-        self,
-        *,
-        alias: str | None,
-        node_name: str,
-        wrapper: QWidget,
-        title_row: QWidget,
-        content_body: QWidget | None,
-        content_layout: QVBoxLayout | None,
-        chevron: AccordionChevronWidget | None,
-        accordion_controller: AccordionMotionController | None,
-        collapsible: bool,
-        has_rows: bool,
-        allow_unbounded_content_height: bool,
-    ) -> None:
-        """Register a card's mode-controlled widgets with the owning panel."""
 
-        controller = getattr(self.panel, "_node_card_mode_controller", None)
-        register = getattr(controller, "register", None)
-        if not callable(register):
-            return
-        enabled_switch_wrapper = getattr(title_row, "_enabled_switch_wrapper", None)
-        enabled_switch = getattr(title_row, "_enabled_switch_widget", None)
-        register(
-            alias,
-            node_name,
-            NodeCardModeBinding(
-                wrapper=wrapper,
-                title_row=title_row,
-                content_body=content_body,
-                content_layout=content_layout,
-                chevron=chevron,
-                enabled_switch_wrapper=enabled_switch_wrapper
-                if isinstance(enabled_switch_wrapper, QWidget)
-                else None,
-                enabled_switch=enabled_switch,
-                accordion_controller=accordion_controller,
-                collapsible=collapsible,
-                has_rows=has_rows,
-                allow_unbounded_content_height=allow_unbounded_content_height,
-            ),
-        )
-
-    def _add_input_row(
-        self,
-        *,
-        label: str,
-        widget: QWidget,
-        field_behavior: FieldBehavior,
-        content_layout: QVBoxLayout,
-    ) -> BuiltFieldRow:
-        """Add one input row through the shared row builder."""
-
-        return self._body_composer.add_input_row(
-            label=label,
-            widget=widget,
-            field_behavior=field_behavior,
-            content_layout=content_layout,
-        )
-
-    def add_n_column_row(
-        self,
-        *,
-        fields: list[tuple[str, QWidget]],
-        field_behaviors: Mapping[str, FieldBehavior],
-        content_layout: QVBoxLayout,
-        node_name: str = "",
-        field_labels: Mapping[str, str] | None = None,
-    ) -> None:
-        """Add one grouped multi-column row through the shared row builder."""
-
-        self._body_composer.add_n_column_row(
-            fields=fields,
-            field_behaviors=field_behaviors,
-            content_layout=content_layout,
-            node_name=node_name,
-            field_labels=field_labels,
-        )
-
-    def _gather_visible_keys(
-        self,
-        *,
-        input_keys: list[str],
-        resolved_behavior: ResolvedNodeBehavior,
-        skip_keys: set[str],
-        preferred_field_groups: tuple[tuple[str, ...], ...] = (),
-    ) -> list[list[str]]:
-        """Delegate visible-field grouping rules to the row-builder collaborator."""
-
-        return self._field_rows.gather_visible_keys(
-            input_keys=input_keys,
-            field_groups=preferred_field_groups + resolved_behavior.field_groups,
-            skip_keys=skip_keys,
-        )
-
-    @staticmethod
-    def _is_subgraph_wrapper_card(
-        field_specs: Mapping[str, ResolvedFieldSpec],
-    ) -> bool:
-        """Return whether the field specs belong to a subgraph wrapper card."""
-
-        return any(
-            field_spec.meta_info.get("subgraph_wrapper") is True
-            for field_spec in field_specs.values()
-        )
-
-    @staticmethod
-    def _log_wrapper_field_trace(
-        *,
-        enabled: bool,
-        alias: str | None,
-        node_name: str,
-        key: str,
-        action: str,
-        field_spec: ResolvedFieldSpec | None,
-        widget_type: str = "",
-    ) -> None:
-        """Log wrapper field instrumentation for projection diagnostics."""
-
-        if not enabled:
-            return
-        log_debug(
-            _LOGGER,
-            "Handled subgraph wrapper node-card field",
-            cube_alias=alias or "",
-            node_name=node_name,
-            field_key=key,
-            action=action,
-            widget_type=widget_type,
-            field_type=field_spec.field_type if field_spec is not None else "",
-            raw_value_present=field_spec.raw_value is not None
-            if field_spec is not None
-            else "",
-            default="default" in field_spec.meta_info if field_spec is not None else "",
-            value_source=(
-                field_spec.value_source.value if field_spec is not None else ""
-            ),
-        )
-
-    def _create_field_for_key(
-        self,
-        *,
-        node_name: str,
-        field_spec: ResolvedFieldSpec,
-        content_body: QWidget | None,
-        content_layout: QVBoxLayout | None,
-        allow_unbounded_content_height: bool,
-        cube_state: Any,
-        alias: str | None,
-        field_presentation: LocalizedFieldPresentation,
-        build_transaction: NodeCardBuildTransaction,
-        prompt_field_inputs: Mapping[str, NodeCardPromptFieldInputs] | None = None,
-    ) -> Any:
-        """Build one field widget from resolved field behavior and live definitions."""
-        field_started_at = panel_projection_observability_started_at()
-        key = field_spec.field_key
-        extended_meta = dict(field_spec.meta_info)
-        extended_meta["cube_alias"] = alias
-        if field_presentation.tooltip is not None:
-            extended_meta["tooltip"] = field_presentation.tooltip
-        cube_buffer = self._cube_buffer(cube_state)
-        node_data = cube_buffer.get("nodes", {}).get(node_name)
-        if isinstance(node_data, dict):
-            extended_meta["node_data"] = node_data
-        factory_started_at = panel_projection_observability_started_at()
-        log_context = _NodeCardFieldLogContext(
-            cube_alias=alias or "",
-            node_name=node_name,
-            node_class=field_spec.class_type,
-            field_key=key,
-            field_type=field_spec.field_type or "",
-            presentation=field_spec.field_behavior.presentation.value,
-        )
-        prompt_arguments = prompt_field_build_arguments(field_spec, prompt_field_inputs)
-        prompt_services = self._services.prompt
-        prompt_runtime = prompt_services.runtime
-
-        def build_field_surface() -> object | None:
-            """Invoke the raw factory pipeline inside the typed outcome boundary."""
-
-            return build_widget_for_field_spec(
-                parent=self.panel,
-                field_spec=ResolvedFieldSpec(
-                    cube_alias=field_spec.cube_alias,
-                    node_name=field_spec.node_name,
-                    class_type=field_spec.class_type,
-                    field_key=field_spec.field_key,
-                    field_type=field_spec.field_type,
-                    constraints=dict(field_spec.constraints),
-                    meta_info=extended_meta,
-                    field_info=list(field_spec.field_info)
-                    if field_spec.field_info is not None
-                    else None,
-                    value=field_spec.value,
-                    field_behavior=field_spec.field_behavior,
-                    label_source=field_spec.label_source,
-                    raw_value=field_spec.raw_value,
-                    value_source=field_spec.value_source,
-                ),
-                prompt_autocomplete_gateway=prompt_runtime.autocomplete_gateway,
-                prompt_wildcard_catalog_gateway=(
-                    prompt_runtime.wildcard_catalog_gateway
-                ),
-                danbooru_url_import_service=(
-                    prompt_runtime.danbooru_url_import_service
-                ),
-                danbooru_wiki_service=prompt_runtime.danbooru_wiki_service,
-                danbooru_image_preview_service=(
-                    prompt_runtime.danbooru_image_preview_service
-                ),
-                danbooru_recent_posts_service=(
-                    prompt_runtime.danbooru_recent_posts_service
-                ),
-                prompt_lora_catalog_service=prompt_runtime.lora_catalog_service,
-                prompt_scheduled_lora_service=(
-                    prompt_runtime.scheduled_lora_service_or_default()
-                ),
-                scheduled_lora_resolver=prompt_arguments.scheduled_lora_resolver,
-                prompt_feature_profile=prompt_arguments.feature_profile,
-                prompt_syntax_profile=prompt_arguments.syntax_profile,
-                prompt_conditioning_context=prompt_arguments.conditioning_context,
-                prompt_segment_preset_source=self._prompt_segment_preset_source,
-                prompt_spellcheck_service=prompt_runtime.spellcheck_service,
-                model_choice_snapshot_controller=self._model_choice_snapshot_controller,
-                thumbnail_asset_repository=(
-                    self._services.model.thumbnail_asset_repository
-                ),
-                model_metadata_action_handler=(
-                    self._services.model.model_metadata_action_handler
-                    or prompt_runtime.model_metadata_action_handler
-                ),
-                empty_model_picker_action=(
-                    self._services.model.empty_model_picker_action
-                ),
-                model_updates=self._services.model.model_updates,
-                node_definition_gateway=self._services.node_definition_gateway,
-                prompt_task_executor_factory=prompt_runtime.prompt_task_executor_factory,
-                danbooru_lookup_dispatcher_factory=(
-                    prompt_runtime.danbooru_lookup_dispatcher_factory
-                ),
-                model_picker_thumbnail_preload_route_factory=(
-                    prompt_services.model_picker_thumbnail_preload_route_factory
-                ),
-            )
-
-        outcome = resolve_editor_field_build(
-            field_spec=field_spec,
-            build=build_field_surface,
-            layout_handled_sentinel=LAYOUT_HANDLED,
-        )
-        _log_node_card_field_timing(
-            "node_card.field_factory",
-            started_at=factory_started_at,
-            context=log_context,
-            result_type=outcome.kind.value,
-        )
-        if outcome.kind is EditorFieldBuildKind.ERROR:
-            error = outcome.error
-            if error is not None:
-                log_warning_exception(
-                    _LOGGER,
-                    "Skipped editor field after factory failure",
-                    error=error,
-                    cube_alias=alias or "",
-                    node_name=node_name,
-                    node_class=field_spec.class_type,
-                    field_key=key,
-                    field_type=field_spec.field_type or "",
-                    value_source=field_spec.value_source.value,
-                )
-            return None
-        if outcome.kind is EditorFieldBuildKind.LAYOUT_HANDLED:
-            return LAYOUT_HANDLED
-        if not outcome.rendered:
-            if outcome.kind is EditorFieldBuildKind.UNSUPPORTED:
-                log_warning(
-                    _LOGGER,
-                    "Skipped unsupported editor field",
-                    cube_alias=alias or "",
-                    node_name=node_name,
-                    node_class=field_spec.class_type,
-                    field_key=key,
-                    field_type=field_spec.field_type or "",
-                    reason=outcome.reason,
-                )
-            return None
-        result = outcome.surface
-        if result is None:
-            return None
-        widget = result[0] if isinstance(result, tuple) else result
-        field_tooltip = field_presentation.tooltip
-        metadata = {
-            "cube_alias": alias,
-            "node_name": node_name,
-            "key": key,
-            "type": field_spec.field_type,
-            "meta_info": extended_meta,
-            "field_info": field_spec.field_info,
-            "constraints": dict(field_spec.constraints),
-            "node_type": field_spec.class_type,
-            "tooltip": field_tooltip,
-            "resolved_value": field_spec.value,
-            "value_source": field_spec.value_source.value,
-        }
-        safe_metadata = sanitation.deep_sanitize_for_qt(metadata)
-        widget.setProperty("input_metadata", safe_metadata)
-        configure_wheel_intent = getattr(
-            self.panel,
-            "configure_wheel_intent_for_widget",
-            None,
-        )
-        if callable(configure_wheel_intent):
-            configure_wheel_intent(widget)
-        if field_spec.field_behavior.label_override:
-            widget.setProperty(
-                "label_override",
-                field_spec.field_behavior.label_override,
-            )
-        if field_spec.field_behavior.column_span is not None:
-            widget.setProperty(
-                "column_span",
-                field_spec.field_behavior.column_span,
-            )
-        wiring_started_at = panel_projection_observability_started_at()
-        self._wire_widget(widget, cube_state, metadata)
-        _log_node_card_field_timing(
-            "node_card.field_wired",
-            started_at=wiring_started_at,
-            context=log_context,
-            widget_type=widget.__class__.__name__,
-        )
-        if alias is not None:
-            build_transaction.stage(field_key=key, widget=widget)
-        widget_wiring.bind_picker_signals(
-            widget,
-            self.panel,
-            cube_alias=alias,
-            node_name=node_name,
-        )
-        if content_body is not None and content_layout is not None:
-            bind_field_widget_card_relayout(
-                field_widget=widget,
-                content_body=content_body,
-                content_layout=content_layout,
-                allow_unbounded_height=allow_unbounded_content_height,
-            )
-        _log_node_card_field_timing(
-            "node_card.field_prepared",
-            started_at=field_started_at,
-            context=log_context,
-            widget_type=widget.__class__.__name__,
-        )
-        return widget
-
-    def _create_node_card_container(
-        self,
-        *,
-        parent: QWidget,
-    ) -> tuple[_NodeCardSurface, QVBoxLayout, AccordionContentClip, QVBoxLayout]:
-        """Create the outer card widget and inner collapsible content container."""
-
-        node_card = _NodeCardSurface(parent)
-        node_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        node_card_layout = create_vbox(
-            parent=node_card, margins=(0, 0, 0, 0), spacing=0
-        )
-        content_body = AccordionContentClip(
-            parent=node_card,
-            content_surface_factory=_NodeCardContentSurface,
-        )
-        content_body.setObjectName("NodeCardContentClip")
-        content_surface = content_body.content_widget()
-        content_layout = create_vbox(
-            parent=content_surface,
-            margins=(0, NODE_CARD_BODY_TOP_PADDING, 0, NODE_CARD_BODY_BOTTOM_PADDING),
-            spacing=NODE_CARD_BODY_ROW_SPACING,
-        )
-        return node_card, node_card_layout, content_body, content_layout
-
-    def build_icon_widget(
-        self,
-        icon_enum: FIF | None,
-        parent: QWidget | None = None,
-    ) -> QWidget:
-        """Return an IconWidget if icon_enum is set, else a fixed-size spacer widget."""
-
-        widget_parent = parent if parent is not None else self.panel
-        if icon_enum:
-            icon = IconWidget(icon_enum, widget_parent)
-            icon.setFixedSize(EDITOR_ROW_ICON_SIZE, EDITOR_ROW_ICON_SIZE)
-            return icon
-        spacer = QWidget(widget_parent)
-        spacer.setFixedSize(EDITOR_ROW_ICON_SIZE, EDITOR_ROW_ICON_SIZE)
-        return spacer
-
-    def _build_title_icon_widget(
-        self,
-        icon_enum: Any | None,
-        *,
-        parent: QWidget,
-    ) -> QWidget:
-        """Return a fixed title-icon slot with the icon centered inside it."""
-
-        slot = QWidget(parent)
-        slot.setObjectName("NodeCardTitleIconSlot")
-        slot.setFixedSize(
-            NODE_CARD_TITLE_ICON_SLOT_SIZE,
-            NODE_CARD_TITLE_ICON_SLOT_SIZE,
-        )
-        if icon_enum is None:
-            return slot
-
-        icon = IconWidget(icon_enum, slot)
-        icon.setObjectName("NodeCardTitleIcon")
-        icon.setFixedSize(NODE_CARD_TITLE_ICON_SIZE, NODE_CARD_TITLE_ICON_SIZE)
-
-        slot_layout = QHBoxLayout(slot)
-        slot_layout.setContentsMargins(0, 0, 0, 0)
-        slot_layout.setSpacing(0)
-        slot_layout.addWidget(icon, 0, Qt.AlignmentFlag.AlignCenter)
-        return slot
-
-    def _resolve_title_icon(self, icon_name: str | None) -> Any | None:
-        """Return the mapped Fluent icon for one behavior icon name."""
-
-        return self._ICON_MAP.get(icon_name) if isinstance(icon_name, str) else None
-
-    def _create_title_row(
-        self,
-        *,
-        node_name: str,
-        resolved_behavior: ResolvedNodeBehavior,
-        display_decision: NodeDisplayDecision | None,
-        snapshot: NodePanelSnapshot,
-        no_chevron: bool,
-        cube_state: Any,
-        parent: QWidget | None = None,
-        node_type: str = "",
-        inputs: Mapping[str, object] | None = None,
-        field_specs: Mapping[str, ResolvedFieldSpec] | None = None,
-        node_presentation: NodePresentation,
-        advanced_input_binding: AdvancedInputCardBinding | None = None,
-        field_action_contributions: tuple[FieldActionContribution, ...] = (),
-    ) -> tuple[QWidget, AccordionChevronWidget | None]:
-        """Build the title row from resolved card behavior."""
-
-        card_parent = parent if parent is not None else self.panel
-        card_title = _NodeCardHeaderSurface(card_parent)
-        card_title.setFixedHeight(NODE_CARD_TITLE_HEIGHT)
-        title_layout = QHBoxLayout(card_title)
-        title_layout.setContentsMargins(
-            EDITOR_ROW_HORIZONTAL_MARGINS[0],
-            _NODE_CARD_SURFACE_VERTICAL_PADDING,
-            EDITOR_ROW_HORIZONTAL_MARGINS[2],
-            _NODE_CARD_SURFACE_VERTICAL_PADDING,
-        )
-        title_layout.setSpacing(EDITOR_ROW_SPACING)
-
-        title_icon = self._build_title_icon_widget(
-            self._resolve_title_icon(resolved_behavior.card.icon_name),
-            parent=card_title,
-        )
-        title_tooltip = normalized_tooltip(node_presentation.card_tooltip)
-        title_layout.addWidget(title_icon)
-
-        title_label = CaptionLabel(literal_label_text(node_presentation.title))
-        setFont(title_label, 14, QFont.DemiBold)
-        title_layout.addWidget(title_label)
-        title_layout.addStretch()
-        bind_fluent_tooltip(
-            card_title,
-            title_tooltip,
-            card_title,
-            title_icon,
-            title_label,
-            show_delay_ms=600,
-        )
-        card_title.set_interactive_targets((title_icon, title_label))
-        setattr(
-            card_title,
-            "_node_title_text_target",
-            NodeTitleTextTarget(
-                owner=card_title,
-                label=title_label,
-                tooltip_targets=(card_title, title_icon, title_label),
-            ),
-        )
-        if (
-            TitleControl.NODE_LINK_SELECTOR in resolved_behavior.card.title_controls
-            or TitleControl.PROMPT_LINK_SELECTOR
-            in resolved_behavior.card.title_controls
-        ):
-            behavior_snapshot = self.panel.current_behavior_snapshot()
-            endpoint_index = (
-                behavior_snapshot.node_link_endpoint_index
-                if behavior_snapshot is not None
-                else None
-            )
-            if endpoint_index is not None and snapshot.current_alias is not None:
-                endpoint = self._title_node_link_endpoint(
-                    endpoint_index=endpoint_index,
-                    cube_alias=snapshot.current_alias,
-                    node_name=node_name,
-                    resolved_behavior=resolved_behavior,
-                )
-                if endpoint is not None:
-                    meta_registry = getattr(self.panel, "meta_registry", None)
-                    register_title_surface = getattr(
-                        meta_registry,
-                        "register_node_link_title_surface",
-                        None,
-                    )
-                    if callable(register_title_surface):
-                        register_title_surface(
-                            cube_alias=snapshot.current_alias,
-                            node_name=node_name,
-                            identity=endpoint.identity,
-                            title_layout=title_layout,
-                            title_controls=resolved_behavior.card.title_controls,
-                        )
-                    update_node_link_widgets_for_cube = getattr(
-                        meta_registry,
-                        "update_node_link_widgets_for_cube",
-                        None,
-                    )
-                    if callable(update_node_link_widgets_for_cube):
-                        update_node_link_widgets_for_cube(snapshot.current_alias)
-
-        enabled_switch_wrapper = None
-        if display_decision is not None and display_decision.show_enabled_switch:
-            enabled_switch_wrapper = build_enabled_switch(
-                card_title,
-                snapshot.current_alias,
-                node_name,
-                cube_state,
-                display_decision,
-                checked_changed_callback=partial(
-                    _apply_node_activation_change,
-                    self.panel,
-                    self._services,
-                    cube_state,
-                    node_name,
-                    display_decision,
-                ),
-            )
-            title_layout.addWidget(enabled_switch_wrapper)
-
-        setattr(card_title, "_enabled_switch_wrapper", enabled_switch_wrapper)
-        setattr(
-            card_title,
-            "_enabled_switch_widget",
-            getattr(enabled_switch_wrapper, "_enabled_switch_widget", None),
-        )
-        apply_title_row_interaction(
-            title_row=card_title,
-            accordion_callback=None,
-            enabled_switch=getattr(card_title, "_enabled_switch_widget", None),
-            enabled_switch_wrapper=enabled_switch_wrapper,
-        )
-
-        if inputs is not None and field_specs is not None:
-            is_connection = getattr(self.panel, "is_connection", None)
-            input_widgets = getattr(self.panel, "input_widgets_by_field_key", {})
-            if not isinstance(input_widgets, Mapping):
-                input_widgets = {}
-            NodeCardActionMenuBinding.create(
-                title_row=card_title,
-                title_layout=title_layout,
-                preset_context=NodeInputPresetContext(
-                    cube_alias=snapshot.current_alias,
-                    node_name=node_name,
-                    node_type=node_type,
-                    inputs=inputs,
-                    field_specs=field_specs,
-                    cube_state=cube_state,
-                    input_widgets_by_field_key=input_widgets,
-                ),
-                preset_source=self._node_input_preset_source,
-                dialog_parent=self._preset_dialog_parent,
-                is_connection=is_connection if callable(is_connection) else None,
-                advanced_inputs=advanced_input_binding,
-                field_action_contributions=field_action_contributions,
-            )
-
-        if no_chevron:
-            return card_title, None
-
-        chevron = AccordionChevronWidget(card_title)
-        title_layout.addWidget(chevron)
-        card_title.set_interactive_targets((title_icon, title_label, chevron))
-        return card_title, chevron
-
-    def _preset_dialog_parent(self) -> QWidget:
-        """Return the widget that should own node preset save modals."""
-
-        return self.panel if isinstance(self.panel, QWidget) else QWidget()
-
-    def _create_title_body_divider(self, parent: QWidget) -> QWidget:
-        """Create the shared divider between the title row and body rows."""
-
-        divider = self._field_rows.make_horizontal_divider(parent)
-        divider.setObjectName("NodeCardTitleBodyDivider")
-        divider.setProperty("title_body_divider", True)
-        return divider
-
-    @staticmethod
-    def _title_node_link_endpoint(
-        *,
-        endpoint_index: Any,
-        cube_alias: str,
-        node_name: str,
-        resolved_behavior: ResolvedNodeBehavior,
-    ) -> Any | None:
-        """Return the node-link endpoint controlled by this title row."""
-
-        if TitleControl.PROMPT_LINK_SELECTOR in resolved_behavior.card.title_controls:
-            prompt_roles = [
-                field_behavior.prompt.role
-                for field_behavior in resolved_behavior.fields.values()
-                if field_behavior.prompt is not None and field_behavior.prompt.linkable
-            ]
-            if len(prompt_roles) != 1:
-                return None
-            endpoint = endpoint_index.prompt_endpoint_for(cube_alias, prompt_roles[0])
-            if endpoint is not None and endpoint.node_name == node_name:
-                return endpoint
-            return None
-        for identity in endpoint_index.identities_for_cube(cube_alias):
-            endpoint = endpoint_index.endpoint_for(cube_alias, identity)
-            if endpoint is not None and endpoint.node_name == node_name:
-                return endpoint
-        return None
-
-    def _setup_collapsible_animation(
-        self,
-        *,
-        card_title: QWidget,
-        content_body: AccordionContentClip,
-        content_layout: QVBoxLayout,
-        divider_below_title: QWidget | None,
-        chevron: AccordionChevronWidget | None,
-    ) -> AccordionMotionController | None:
-        """Add toggleable collapse/expand animation to a node card."""
-
-        if chevron is None:
-            return None
-
-        section_layout = AccordionSectionLayoutBinding(card_title)
-
-        controller = AccordionMotionController(
-            owner=self.panel,
-            card_title=card_title,
-            content_body=content_body,
-            content_layout=content_layout,
-            divider_below_title=divider_below_title,
-            chevron=chevron,
-            transition_started=section_layout.preserve_transition_geometry,
-            transition_finished=section_layout.finalize_transition_geometry,
-        )
-        setattr(content_body, "_accordion_motion_controller", controller)
-
-        apply_title_row_interaction(
-            title_row=card_title,
-            accordion_callback=controller.toggle,
-            enabled_switch=getattr(card_title, "_enabled_switch_widget", None),
-            enabled_switch_wrapper=getattr(card_title, "_enabled_switch_wrapper", None),
-        )
-        return controller
-
-
-__all__ = [
-    "NodeCardBodyComposer",
-    "NodeCardBuilder",
-    "NodePanelSnapshot",
-]
+__all__ = ["NodeCardBuilder"]

@@ -202,7 +202,7 @@ def _field_row_builder(panel: QWidget) -> FieldRowBuilder:
     return FieldRowBuilder(
         panel=panel,
         icon_builder=lambda _icon: QWidget(panel),
-        icon_resolver=lambda _node_name, _row_label, _column_index=None: None,
+        icon_resolver=lambda _node_name, _row_label, _column_index: None,
     )
 
 
@@ -257,7 +257,7 @@ def test_cube_section_header_gap_matches_editor_cube_gap() -> None:
 
     _ensure_qapp()
     mod = importlib.import_module(
-        "substitute.presentation.editor.panel.widgets.cube_section"
+        "substitute.presentation.editor.panel.widgets.cube_section_builder"
     )
     panel = cast(Any, QWidget())
     panel._last_behavior_snapshot = SimpleNamespace(field_specs_by_alias={})
@@ -284,7 +284,7 @@ def test_direct_workflow_section_hides_cube_title_chrome() -> None:
 
     _ensure_qapp()
     mod = importlib.import_module(
-        "substitute.presentation.editor.panel.widgets.cube_section"
+        "substitute.presentation.editor.panel.widgets.cube_section_builder"
     )
     panel = cast(Any, QWidget())
     panel._last_behavior_snapshot = SimpleNamespace(field_specs_by_alias={})
@@ -317,7 +317,7 @@ def test_cube_section_title_marks_bypassed_cube() -> None:
 
     _ensure_qapp()
     mod = importlib.import_module(
-        "substitute.presentation.editor.panel.widgets.cube_section"
+        "substitute.presentation.editor.panel.widgets.cube_section_builder"
     )
     panel = cast(Any, QWidget())
     panel._last_behavior_snapshot = SimpleNamespace(field_specs_by_alias={})
@@ -345,7 +345,7 @@ def test_cube_section_title_elision_preserves_bypassed_suffix() -> None:
 
     _ensure_qapp()
     mod = importlib.import_module(
-        "substitute.presentation.editor.panel.widgets.cube_section"
+        "substitute.presentation.editor.panel.widgets.cube_section_builder"
     )
     panel = cast(Any, QWidget())
     panel._last_behavior_snapshot = SimpleNamespace(field_specs_by_alias={})
@@ -393,7 +393,7 @@ def test_error_cube_section_height_includes_issue_details() -> None:
 
     _ensure_qapp()
     mod = importlib.import_module(
-        "substitute.presentation.editor.panel.widgets.cube_section"
+        "substitute.presentation.editor.panel.widgets.cube_section_builder"
     )
     panel = cast(Any, QWidget())
     panel.scroll = SimpleNamespace(schedule_metrics_refresh=lambda: None)

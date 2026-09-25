@@ -54,7 +54,9 @@ def test_wire_combobox_state_linked_sampler_skips_restore_and_unlinks_on_literal
         dirty=False,
     )
 
-    module.wire_combobox_state(_as_combo_box(combo), cube_state)
+    module.EditorPanelFieldStateController().wire_combobox_state(
+        _as_combo_box(combo), cube_state
+    )
 
     # Restore is intentionally skipped while a link is active.
     assert combo.currentText() == "(linked label)"
@@ -95,7 +97,9 @@ def test_wire_combobox_state_applies_prepared_sampler_link_choices(
         dirty=False,
     )
 
-    module.wire_combobox_state(_as_combo_box(combo), cube_state)
+    module.EditorPanelFieldStateController().wire_combobox_state(
+        _as_combo_box(combo), cube_state
+    )
     combo.currentTextChanged[str].emit("heun")
 
     assert cube_state.buffer["nodes"]["ksampler"]["inputs"]["sampler_name"] == "heun"
@@ -127,7 +131,9 @@ def test_wire_combobox_state_does_not_normalize_stale_non_link_literal_on_restor
         dirty=False,
     )
 
-    module.wire_combobox_state(_as_combo_box(combo), cube_state)
+    module.EditorPanelFieldStateController().wire_combobox_state(
+        _as_combo_box(combo), cube_state
+    )
 
     assert combo.currentText() == "modelA.safetensors"
     assert (
@@ -170,7 +176,7 @@ def test_bind_node_widget_state_sets_metadata_for_direct_combobox_widgets(
         dirty=False,
     )
 
-    module.bind_node_widget_state(
+    module.EditorPanelFieldStateController().bind_node_widget_state(
         combo,
         cube_state,
         {"node_name": None, "key": "scheduler"},

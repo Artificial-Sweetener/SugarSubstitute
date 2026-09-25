@@ -42,8 +42,10 @@ from substitute.presentation.dialogs.synthetic_canvas_resolution_form import (
 from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalogSource,
 )
-from substitute.presentation.editor.panel.menus.dimension_row_actions import (
+from substitute.presentation.editor.panel.menus.dimension_contract import (
     DimensionRowBinding,
+)
+from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     build_dimension_context_menu,
 )
 from substitute.presentation.localization import (

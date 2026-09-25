@@ -98,5 +98,5 @@ def _builder(panel: DimensionPanel) -> FieldRowBuilder:
     return FieldRowBuilder(
         panel=panel,
         icon_builder=lambda _icon: QWidget(panel),
-        icon_resolver=lambda _node, _label, column_index=None: None,
+        icon_resolver=lambda _node, _label, _column_index: None,
     )

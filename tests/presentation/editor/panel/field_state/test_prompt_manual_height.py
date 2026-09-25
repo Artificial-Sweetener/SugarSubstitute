@@ -22,6 +22,7 @@ from pytest import MonkeyPatch
 
 from types import SimpleNamespace
 
+import substitute.presentation.editor.panel.prompt_field_state_controller as prompt_state
 
 from tests.presentation.editor.panel.field_state.support import (
     _Signal,
@@ -40,7 +41,7 @@ def test_bind_node_widget_state_restores_prompt_editor_manual_height(
     _prepare_field_state_module(monkeypatch)
     module = field_state_controller
     monkeypatch.setattr(
-        module,
+        prompt_state,
         "QTimer",
         SimpleNamespace(singleShot=lambda _delay, callback: callback()),
     )
@@ -84,7 +85,7 @@ def test_bind_node_widget_state_restores_prompt_editor_manual_height(
         },
     )
 
-    module.bind_node_widget_state(
+    module.EditorPanelFieldStateController().bind_node_widget_state(
         prompt_editor,
         cube_state,
         {"node_name": "positive_prompt", "key": "text"},
@@ -136,7 +137,7 @@ def test_prompt_editor_manual_height_changes_update_cube_ui_and_autosave(
         ui=None,
     )
 
-    module.wire_prompt_editor_state(
+    module.EditorPanelFieldStateController().wire_prompt_editor_state(
         _as_prompt_editor(prompt_editor),
         cube_state,
         manual_height_changed=lambda: autosaves.append("autosave"),
@@ -160,7 +161,7 @@ def test_prompt_editor_manual_height_clearing_removes_cube_ui_entry(
     _prepare_field_state_module(monkeypatch)
     module = field_state_controller
     monkeypatch.setattr(
-        module,
+        prompt_state,
         "QTimer",
         SimpleNamespace(singleShot=lambda _delay, callback: callback()),
     )
@@ -197,7 +198,9 @@ def test_prompt_editor_manual_height_clearing_removes_cube_ui_entry(
         },
     )
 
-    module.wire_prompt_editor_state(_as_prompt_editor(prompt_editor), cube_state)
+    module.EditorPanelFieldStateController().wire_prompt_editor_state(
+        _as_prompt_editor(prompt_editor), cube_state
+    )
     prompt_editor.manualScrollHeightChanged.emit(None)
 
     assert cube_state.ui == {}
@@ -212,7 +215,7 @@ def test_prompt_editor_invalid_stored_manual_height_is_ignored(
     _prepare_field_state_module(monkeypatch)
     module = field_state_controller
     monkeypatch.setattr(
-        module,
+        prompt_state,
         "QTimer",
         SimpleNamespace(singleShot=lambda _delay, callback: callback()),
     )
@@ -255,7 +258,7 @@ def test_prompt_editor_invalid_stored_manual_height_is_ignored(
         },
     )
 
-    module.bind_node_widget_state(
+    module.EditorPanelFieldStateController().bind_node_widget_state(
         prompt_editor,
         cube_state,
         {"node_name": "positive_prompt", "key": "text"},

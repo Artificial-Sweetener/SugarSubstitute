@@ -75,7 +75,9 @@ def test_wire_model_picker_state_restores_and_writes_backend_values(
         dirty=False,
     )
 
-    module.wire_model_picker_state(_as_model_picker(picker), cube_state)
+    module.EditorPanelFieldStateController().wire_model_picker_state(
+        _as_model_picker(picker), cube_state
+    )
 
     assert picker.currentText() == "models/base.safetensors"
     assert cube_state.dirty is False
@@ -130,7 +132,9 @@ def test_wire_model_picker_state_keeps_dirty_false_for_same_backend_value(
         dirty=False,
     )
 
-    module.wire_model_picker_state(_as_model_picker(picker), cube_state)
+    module.EditorPanelFieldStateController().wire_model_picker_state(
+        _as_model_picker(picker), cube_state
+    )
     picker.currentTextChanged[str].emit("models/base.safetensors")
 
     assert cube_state.buffer["nodes"]["checkpoint"]["inputs"]["ckpt_name"] == (
@@ -177,7 +181,7 @@ def test_bind_node_widget_state_preserves_existing_safe_input_metadata(
         dirty=False,
     )
 
-    module.bind_node_widget_state(
+    module.EditorPanelFieldStateController().bind_node_widget_state(
         seedbox,
         cube_state,
         {

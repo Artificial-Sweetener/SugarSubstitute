@@ -22,7 +22,7 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from substitute.presentation.editor.panel.field_state_controller import (
+from substitute.presentation.editor.panel.field_state_binding import (
     EditorFieldBinding,
 )
 from substitute.presentation.editor.panel.node_card.accordion_motion import (

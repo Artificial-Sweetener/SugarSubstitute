@@ -55,7 +55,7 @@ def test_dimension_group_context_menu_swaps_width_and_height(
         builder = FieldRowBuilder(
             panel=panel,
             icon_builder=lambda _icon: QWidget(panel),
-            icon_resolver=lambda _node, _label, column_index=None: None,
+            icon_resolver=lambda _node, _label, _column_index: None,
         )
 
         builder.add_n_column_row(
@@ -200,7 +200,7 @@ def test_dimension_row_contributes_side_complete_node_actions() -> None:
         built_row = FieldRowBuilder(
             panel=panel,
             icon_builder=lambda _icon: QWidget(panel),
-            icon_resolver=lambda _node, _label, column_index=None: None,
+            icon_resolver=lambda _node, _label, _column_index: None,
         ).build_n_column_row(
             fields=[("source_width", width), ("source_height", height)],
             field_behaviors={
