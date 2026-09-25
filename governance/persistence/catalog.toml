@@ -1,5 +1,5 @@
 schema_version = 1
-reviewed_sources_sha256 = "985fe51d3cf985e02dc989f9614670d7adcd5606e02b7e288fd399d669f3e64d"
+reviewed_sources_sha256 = "5c622803554b5c13dc99569d289b91accfa3ebb783d24ab0794a0beae79d13d0"
 
 # Preservation and compatibility defaults are owned by classification in the
 # checker. Overrides below document formats with intentional historical readers.
@@ -18,8 +18,11 @@ migrations = ["1->2"]
 id = "application.workspace-snapshot"
 owner = "substitute/domain/workspace_snapshot/models.py"
 constant = "WORKSPACE_SNAPSHOT_SCHEMA_VERSION"
-current_version = "1"
+current_version = "2"
+accepted_versions = ["1", "2"]
 classification = "authoritative_state"
+compatibility = "migrate"
+migrations = ["1->2"]
 
 [[formats]]
 id = "application.user-presets"
@@ -60,8 +63,11 @@ classification = "authoritative_state"
 id = "application.output-preferences"
 owner = "substitute/domain/generation/output_preferences.py"
 constant = "OUTPUT_PREFERENCES_SCHEMA_VERSION"
-current_version = "3"
+current_version = "4"
+accepted_versions = ["1", "2", "3", "4"]
 classification = "authoritative_state"
+compatibility = "migrate"
+migrations = ["1->2", "2->3", "3->4"]
 
 [[formats]]
 id = "application.preview-preferences"
