@@ -60,8 +60,9 @@ class PromptProjectionPlainEditCaretStopSequence(Sequence[PromptProjectionCaretS
         *,
         edited_run: PromptProjectionRun,
         coordinates: PromptProjectionPlainEditCoordinates,
+        pivot_visual_index: int,
     ) -> None:
-        """Anchor the coordinate transform at the edited plain-run boundary."""
+        """Anchor the coordinate transform at an existing plain-run stop."""
 
         previous_stops = previous_caret_map.stops
         previous_sequence = (
@@ -94,27 +95,32 @@ class PromptProjectionPlainEditCaretStopSequence(Sequence[PromptProjectionCaretS
         self._lazy_depth = (
             1 if previous_sequence is None else previous_sequence._lazy_depth + 1
         )
+        self._pivot_visual_index = pivot_visual_index
+
+    @classmethod
+    def for_plain_text_pivot(
+        cls,
+        previous_caret_map: PromptProjectionCaretMap,
+        *,
+        edited_run: PromptProjectionRun,
+        coordinates: PromptProjectionPlainEditCoordinates,
+    ) -> PromptProjectionPlainEditCaretStopSequence | None:
+        """Use the lazy transform only when its pivot belongs to the plain run."""
+
         pivot_state = PromptProjectionCaretState(
             source_position=coordinates.source_start,
             placement=PromptProjectionCaretPlacement.PLAIN_TEXT,
             run_id=edited_run.run_id,
         )
-        pivot_visual_index = _visual_index_for_state(
-            self._previous_stops,
-            pivot_state,
+        pivot = _visual_index_for_state(previous_caret_map.stops, pivot_state)
+        if pivot is None or previous_caret_map.stops[pivot].state != pivot_state:
+            return None
+        return cls(
+            previous_caret_map,
+            edited_run=edited_run,
+            coordinates=coordinates,
+            pivot_visual_index=pivot,
         )
-        if pivot_visual_index is None:
-            resolved_pivot = previous_caret_map.state_for_source_position(
-                coordinates.source_start,
-                prefer_after=False,
-            )
-            pivot_visual_index = _visual_index_for_state(
-                self._previous_stops,
-                resolved_pivot,
-            )
-        if pivot_visual_index is None:
-            raise ValueError("Plain edit caret pivot is absent from the previous map.")
-        self._pivot_visual_index = pivot_visual_index
 
     @property
     def transform_depth(self) -> int:

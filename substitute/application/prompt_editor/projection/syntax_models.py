@@ -72,6 +72,7 @@ class PromptWildcardRendererSpanView:
     tag_is_numeric: bool
     can_step_tag: bool
     source_occurrence_count: int
+    resolution_pending: bool = False
 
 
 @dataclass(frozen=True, slots=True)

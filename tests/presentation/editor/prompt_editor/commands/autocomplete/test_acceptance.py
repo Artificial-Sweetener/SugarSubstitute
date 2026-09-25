@@ -188,6 +188,34 @@ def test_tag_autocomplete_command_consumes_existing_matching_right_text() -> Non
     assert session.source_text == "long hair"
 
 
+def test_tag_autocomplete_command_consumes_escaped_matching_right_text() -> None:
+    """Do not duplicate escaped parentheses when accepting a visible prefix."""
+
+    source_text = r"cat \(animal\)"
+    word_end = source_text.index("animal")
+    session = _session(source_text, cursor_position=word_end)
+    result = execute_prompt_command(
+        session,
+        PromptAcceptTagAutocompleteCommand(
+            acceptance=PromptTagAutocompleteAcceptance(
+                tag="cat_(animal)",
+                prefix="cat (",
+                word_start=0,
+                word_end=word_end,
+                active_tag_end=len(source_text),
+                add_comma=False,
+                source_identity=_source_identity(session),
+            ),
+            normalizer=PromptSourceNormalizationService(),
+            exact_source=False,
+            undo_snapshot=_undo_snapshot(session),
+        ),
+    )
+
+    assert result.status == "noop"
+    assert session.source_text == source_text
+
+
 def test_tag_autocomplete_command_preserves_unrelated_right_text() -> None:
     """Tag acceptance should not consume incompatible text after the caret."""
 
