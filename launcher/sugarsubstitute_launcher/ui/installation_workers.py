@@ -43,6 +43,7 @@ from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     launcher_failure_detail,
 )
+from sugarsubstitute_shared.session_recovery import SessionRecoveryState
 
 
 InstallationWorkflowFactory = Callable[
@@ -99,6 +100,17 @@ class SetupWorker(QObject):
             return
 
         self.log.emit(launcher_text("Runtime ready: %1", completed.runtime_python))
+        if (
+            completed.session_recovery.state
+            is SessionRecoveryState.PRESERVED_NOT_RESTORED
+        ):
+            recovery_root = completed.session_recovery.recovery_root
+            self.log.emit(
+                launcher_text(
+                    "SugarSubstitute is repaired. Your files were preserved, but the previous session could not be restored. Recovery copies are in %1.",
+                    recovery_root or self._application.layout.appdata_dir / "session",
+                )
+            )
         if self._cancellation.is_set():
             self.log.emit(launcher_text("Setup stopped at a safe point."))
             self.finished.emit()

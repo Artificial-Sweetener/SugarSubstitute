@@ -31,6 +31,7 @@ class SessionSnapshot:
     schema_version: str
     captured_at: datetime
     workspace: WorkspaceSnapshot
+    source_application_version: str | None = None
 
 
 __all__ = ["SessionSnapshot"]

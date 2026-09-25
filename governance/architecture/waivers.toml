@@ -1536,7 +1536,7 @@ kind = "structural"
 justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities; sweep sample selection is a separate collaborator."
 issue = "chore:SS-WAIVER-S077"
 review_by = 2026-12-15
-max_lines = 647
+max_lines = 656
 
 [[waivers]]
 id = "SS-WAIVER-S078"

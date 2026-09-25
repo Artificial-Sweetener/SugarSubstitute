@@ -44,6 +44,10 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installer import InstallPreparationResult
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
+from sugarsubstitute_shared.session_recovery import (
+    SessionRecoveryResult,
+    SessionRecoveryState,
+)
 
 
 class UnusedReleaseSource:
@@ -78,6 +82,7 @@ class RecordingArtifactInstaller:
     """Record launcher and payload artifact installation requests."""
 
     layout: InstallLayout
+    rescued_existing_installation: bool = False
     launcher_calls: int = 0
     payload_calls: int = 0
 
@@ -99,6 +104,7 @@ class RecordingArtifactInstaller:
         return DownloadedLauncherInstallResult(
             layout=self.layout,
             continue_command=[],
+            rescued_existing_installation=self.rescued_existing_installation,
         )
 
     def continue_install(
@@ -135,6 +141,27 @@ class RecordingRuntimeProvisioner:
             python_executable=layout.runtime_python,
             requirements_path=layout.app_dir / "requirements.txt",
         )
+
+
+@dataclass
+class RecordingSessionRescuer:
+    """Record session reconciliation after an existing installation is promoted."""
+
+    expected_layout: InstallLayout
+    result: SessionRecoveryResult
+    calls: list[Path]
+
+    def reconcile(
+        self,
+        *,
+        layout: InstallLayout,
+        recovery_root: Path,
+    ) -> SessionRecoveryResult:
+        """Return the configured result and retain the requested recovery root."""
+
+        assert layout == self.expected_layout
+        self.calls.append(recovery_root)
+        return self.result
 
 
 @pytest.mark.parametrize(
@@ -213,6 +240,44 @@ def test_workflow_provisions_runtime_and_delegates_setup_handoff(
     assert completed.application == application
     assert completed.runtime_python == layout.runtime_python
     assert started_commands == [["python.exe", "main.py"]]
+
+
+def test_existing_installation_reconciles_session_after_runtime_is_ready(
+    tmp_path: Path,
+) -> None:
+    """Installer rescue should migrate session state through the promoted app."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    session_result = SessionRecoveryResult(
+        SessionRecoveryState.RESTORED_PRIMARY,
+        recovery_root=tmp_path / "retained-session",
+    )
+    calls: list[Path] = []
+    workflow = InstallationWorkflow(
+        layout_preparer=RecordingLayoutPreparer(layout),
+        artifact_installer=RecordingArtifactInstaller(
+            layout,
+            rescued_existing_installation=True,
+        ),
+        runtime_provisioner=RecordingRuntimeProvisioner(layout),
+        process_starter=lambda _command: None,
+        session_rescuer=RecordingSessionRescuer(layout, session_result, calls),
+    )
+    application = workflow.install_application(
+        ApplicationInstallationRequest(
+            layout=layout,
+            release_source=UnusedReleaseSource(),
+            preparation=InstallationPreparation.INSTALL_LAUNCHER,
+            handoff_geometry="1,2,1260,800",
+        )
+    )
+
+    completed = workflow.provision_runtime(application)
+
+    assert application.rescued_existing_installation
+    assert completed.session_recovery == session_result
+    assert len(calls) == 1
+    assert calls[0].parent == layout.root / ".repair" / "session-recovery"
 
 
 def test_progress_advances_only_after_the_reported_work_returns(tmp_path: Path) -> None:

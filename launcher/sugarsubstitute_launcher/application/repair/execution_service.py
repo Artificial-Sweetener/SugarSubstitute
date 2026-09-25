@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import secrets
 
 from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 
@@ -90,6 +91,11 @@ from launcher.sugarsubstitute_launcher.application.repair.installation_state_wri
     RepairInstallationStateWriter,
     FreshRepairInstallationStateWriter,
 )
+from launcher.sugarsubstitute_launcher.application.repair.session_recovery import (
+    SessionRescuer,
+    SubprocessSessionRescuer,
+)
+from sugarsubstitute_shared.session_recovery import SessionRecoveryResult
 
 
 class RepairExecutionService:
@@ -102,6 +108,7 @@ class RepairExecutionService:
         comfy_repairer: ManagedComfyRepairer | None = None,
         state_writer: RepairInstallationStateWriter | None = None,
         transaction: RepairTransaction | None = None,
+        session_rescuer: SessionRescuer | None = None,
         progress_observer: RepairProgressObserver | None = None,
     ) -> None:
         """Store repair adapters whose side effects remain transaction-bound."""
@@ -110,6 +117,7 @@ class RepairExecutionService:
         self._comfy_repairer = comfy_repairer or SubprocessManagedComfyRepairer()
         self._state_writer = state_writer or FreshRepairInstallationStateWriter()
         self._transaction = transaction or RepairTransaction()
+        self._session_rescuer = session_rescuer or SubprocessSessionRescuer()
         self._progress_observer = progress_observer
 
     def execute_application(
@@ -132,7 +140,7 @@ class RepairExecutionService:
                 )
             target = launcher_target_for_key(request.target_key)
             layout = InstallLayout.from_root(request.install_root, target=target)
-            InstallationRecovery(layout).recover(ownership=operation)
+            InstallationRecovery(layout).recover_for_repair(ownership=operation)
             launcher_target = launcher_bundle_target_for_key(request.target_key)
             ownership = load_comfy_ownership(layout)
             repair_existing_nodes = (
@@ -165,6 +173,8 @@ class RepairExecutionService:
             replacements.append(launcher_repair.replacement)
             update_check = self._state_writer.capture_update_preferences(layout)
             runtime_result: list[RuntimeProvisioningOutcome] = []
+            session_recovery: list[SessionRecoveryResult] = []
+            session_recovery_id = request.preparation_id or secrets.token_hex(16)
 
             def apply_repair() -> None:
                 """Provision every candidate component before final validation."""
@@ -211,6 +221,17 @@ class RepairExecutionService:
                     layout=layout, request=request, update_check=update_check
                 )
                 launcher_repair.validate()
+                session_recovery.append(
+                    self._session_rescuer.reconcile(
+                        layout=layout,
+                        recovery_root=(
+                            layout.root
+                            / ".repair"
+                            / "session-recovery"
+                            / session_recovery_id
+                        ),
+                    )
+                )
 
             progress.begin(RepairStage.RESTORE_APPLICATION)
             quarantine = self._transaction.execute(
@@ -239,6 +260,7 @@ class RepairExecutionService:
                     repair_existing_nodes or comfy_quarantine is not None
                 ),
                 comfy_quarantine_root=comfy_quarantine,
+                session_recovery=session_recovery[0],
             )
 
     def _execute_full_managed_comfy(

@@ -14,30 +14,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define the completion and failure contract of a prepared repair."""
+"""Expose repository persistence-schema governance."""
 
-from __future__ import annotations
-from dataclasses import dataclass
-from pathlib import Path
+from tools.persistence_governance.validation import validate_persistence_governance
 
-from sugarsubstitute_shared.session_recovery import (
-    SessionRecoveryResult,
-    SessionRecoveryState,
-)
-
-
-class RepairExecutionError(RuntimeError):
-    """Report a prepared repair that cannot be executed or validated safely."""
-
-
-@dataclass(frozen=True, slots=True)
-class CompletedRepair:
-    """Describe one committed repair and its retained rollback quarantine."""
-
-    version: str
-    quarantine_root: Path
-    repaired_managed_comfy_nodes: bool
-    comfy_quarantine_root: Path | None = None
-    session_recovery: SessionRecoveryResult = SessionRecoveryResult(
-        SessionRecoveryState.NO_SESSION
-    )
+__all__ = ["validate_persistence_governance"]
