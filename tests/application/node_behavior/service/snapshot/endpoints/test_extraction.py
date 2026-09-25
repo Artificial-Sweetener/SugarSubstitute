@@ -175,6 +175,91 @@ def test_behavior_snapshot_exposes_prompt_node_link_endpoint() -> None:
     assert endpoint.reset_values == {"text": ""}
 
 
+def test_behavior_snapshot_does_not_expose_hidden_prompt_as_node_link_endpoint() -> (
+    None
+):
+    """Hard-hidden prompt infrastructure must not become an automatic node link."""
+
+    schedule_class = "SimpleSyrup.ScheduleAndEncodePromptsWithPromptControl"
+    definitions: dict[str, dict[str, object]] = {
+        schedule_class: {
+            "input": {
+                "required": {
+                    "model": ["MODEL"],
+                    "clip": ["CLIP"],
+                    "positive_prompt": [
+                        "STRING",
+                        {"default": "", "multiline": False},
+                    ],
+                    "negative_prompt": [
+                        "STRING",
+                        {"default": "", "multiline": False},
+                    ],
+                }
+            },
+            "output": [
+                "MODEL",
+                "CONDITIONING,CONDITIONING_BATCH",
+                "CONDITIONING,CONDITIONING_BATCH",
+            ],
+            "output_name": ["model", "positive", "negative"],
+        },
+        "PromptSource": {
+            "input": {"required": {"value": ["STRING", {"multiline": True}]}},
+            "output": ["STRING"],
+        },
+        "ModelSource": {
+            "input": {"required": {}},
+            "output": ["MODEL", "CLIP"],
+        },
+        "Sampler": {
+            "input": {
+                "required": {
+                    "model": ["MODEL"],
+                    "positive": ["CONDITIONING"],
+                    "negative": ["CONDITIONING"],
+                }
+            },
+            "output": ["LATENT"],
+        },
+    }
+    cube = cube_state(
+        nodes={
+            "prompt": {"class_type": "PromptSource", "inputs": {"value": "forest"}},
+            "model": {"class_type": "ModelSource", "inputs": {}},
+            "schedule": {
+                "class_type": schedule_class,
+                "inputs": {
+                    "model": ["model", 0],
+                    "clip": ["model", 1],
+                    "positive_prompt": ["prompt", 0],
+                },
+            },
+            "sampler": {
+                "class_type": "Sampler",
+                "inputs": {
+                    "model": ["schedule", 0],
+                    "positive": ["schedule", 1],
+                },
+            },
+        },
+        definitions=definitions,
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class=definitions,
+    )
+
+    negative = snapshot.prompt_endpoint_index.endpoint_for("A", PromptRole.NEGATIVE)
+    assert negative is not None
+    assert negative.node_name == "schedule"
+    assert negative.field_key == "negative_prompt"
+    assert snapshot.resolved_nodes_by_alias["A"]["schedule"].card.hidden is True
+    assert snapshot.node_link_endpoint_index.identities_for_cube("A") == ()
+
+
 def test_behavior_snapshot_exposes_vectorscope_node_link_endpoint() -> None:
     """VectorscopeCC should be exposed as a multi-field whole-node endpoint."""
 
