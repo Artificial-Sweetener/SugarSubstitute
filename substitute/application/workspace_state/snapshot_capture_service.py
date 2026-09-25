@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
+from substitute._version import __version__
 from substitute.domain.session import (
     SESSION_SNAPSHOT_SCHEMA_VERSION,
     SessionSnapshot,
@@ -109,6 +110,7 @@ class SnapshotCaptureService:
     """Capture a process-local session snapshot from presentation ports."""
 
     clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)
+    application_version: str = __version__
 
     def capture(self, port: SnapshotCapturePort) -> SessionSnapshot:
         """Capture one complete session snapshot."""
@@ -214,6 +216,7 @@ class SnapshotCaptureService:
         return SessionSnapshot(
             schema_version=SESSION_SNAPSHOT_SCHEMA_VERSION,
             captured_at=self.clock(),
+            source_application_version=self.application_version,
             workspace=WorkspaceSnapshot(
                 schema_version=WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
                 workflows=tuple(workflows),

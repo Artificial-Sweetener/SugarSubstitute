@@ -114,6 +114,7 @@ def run_real_shell_scenario(
             scenario,
             repetition=repetition,
             artifact_root=artifact_root,
+            settle=_settle_editor,
         )
     if visual_violations:
         result = replace(

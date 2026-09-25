@@ -78,7 +78,7 @@ def run_prepared_repair(
         target = launcher_target_for_key(request.target_key)
         InstallationRecovery(
             InstallLayout.from_root(request.install_root, target=target)
-        ).recover(ownership=operation)
+        ).recover_for_repair(ownership=operation)
         execute = (
             executor
             or build_repair_execution_service(
