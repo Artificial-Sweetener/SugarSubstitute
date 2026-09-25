@@ -53,13 +53,13 @@ def write_video_output_evidence(
     dragged_viewport: VideoViewportState,
     same_navigation_row: bool,
     native_stacking: dict[str, bool],
-    transparent_bars: dict[str, object],
+    canvas_margins: dict[str, object],
     rehosting: dict[str, object],
 ) -> None:
     """Write one stable JSON record for the completed native scenario."""
 
     evidence = {
-        "schema_version": "2",
+        "schema_version": "3",
         "theme": theme,
         "mixed_grid_badge": True,
         "next_frame": next_time,
@@ -93,7 +93,7 @@ def write_video_output_evidence(
             "pixel_format": ready.diagnostics.pixel_format,
             "renderer": ready.diagnostics.actual_video_output,
         },
-        "transparent_bars": transparent_bars,
+        "canvas_margins": canvas_margins,
         "rehosting": rehosting,
     }
     path.write_text(

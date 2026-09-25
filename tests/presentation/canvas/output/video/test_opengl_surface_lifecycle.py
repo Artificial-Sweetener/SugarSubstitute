@@ -25,9 +25,11 @@ import sys
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 
 from substitute.presentation.canvas.output.video_opengl_surface import (
     VideoOpenGLSurface,
+    video_canvas_material_color,
 )
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -45,17 +47,20 @@ def test_video_surface_requests_transparent_composition() -> None:
         surface.close()
 
 
-def test_video_surface_clears_every_frame_before_player_rendering() -> None:
-    """Untouched letterbox pixels must never retain an opaque black buffer."""
+def test_video_surface_clears_every_frame_with_canvas_material() -> None:
+    """Untouched letterbox pixels must receive the Output material color."""
 
     ensure_qt_application()
-    clears: list[str] = []
-    surface = VideoOpenGLSurface(clear_framebuffer=lambda: clears.append("clear"))
+    clears: list[QColor] = []
+    surface = VideoOpenGLSurface(clear_framebuffer=clears.append)
     try:
         surface.paintGL()
         surface.paintGL()
 
-        assert clears == ["clear", "clear"]
+        expected = video_canvas_material_color(surface)
+        assert clears == [expected, expected]
+        assert expected.alpha() == 255
+        assert expected != QColor(Qt.GlobalColor.black)
     finally:
         surface.close()
 

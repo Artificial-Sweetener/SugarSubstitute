@@ -39,6 +39,15 @@ class _RenderPlayer:
         self.releases = 0
         self.frames = 0
         self.swaps = 0
+        self.background_colors: list[tuple[int, int, int, int]] = []
+
+    def set_render_background_color(
+        self,
+        color: tuple[int, int, int, int],
+    ) -> None:
+        """Record the concrete canvas fill requested before rendering."""
+
+        self.background_colors.append(color)
 
     def initialize_renderer(self, get_proc_address: Callable[[str], int]) -> None:
         """Record renderer initialization for the current context generation."""

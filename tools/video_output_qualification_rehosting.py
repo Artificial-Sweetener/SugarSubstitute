@@ -14,13 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Qualify transparent video bars and Output canvas window transitions."""
+"""Qualify video canvas margins and Output canvas window transitions."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPalette
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
 from sugarsubstitute_shared.localization import app_text
@@ -36,6 +36,9 @@ from substitute.presentation.canvas.output.video_playback_controller import (
     VideoViewportMode,
 )
 from substitute.presentation.canvas.output.video_playback_page import VideoPlaybackPage
+from substitute.presentation.canvas.output.video_opengl_surface import (
+    video_canvas_material_color,
+)
 from substitute.presentation.shell.chrome_style import body_material_wash_color
 from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.shell.workspace_body_material_surface import (
@@ -90,37 +93,88 @@ def create_qualification_host(canvas: OutputCanvas) -> tuple[CanvasHost, QMainWi
     return host, window
 
 
-def qualify_transparent_bars(
+def qualify_canvas_margins(
     *,
+    application: QApplication,
     root: QWidget,
     page: VideoPlaybackPage,
     evidence_path: Path,
 ) -> dict[str, object]:
-    """Prove uncovered Fit-mode pixels contain the host canvas wash."""
+    """Prove Fit-mode letterbox and pillarbox pixels use the Output material."""
 
-    capture(root, evidence_path)
-    image = QImage(str(evidence_path))
-    if image.isNull():
-        raise RuntimeError("Transparent-bar evidence could not be loaded.")
-    sample = page.render_surface.mapTo(
-        root, QPoint(page.render_surface.width() // 2, 8)
+    source_width = page.controller.snapshot.width
+    source_height = page.controller.snapshot.height
+    if source_width is None or source_height is None:
+        raise RuntimeError("Video dimensions are unavailable for margin qualification.")
+    source_ratio = source_width / source_height
+    original_size = root.size()
+    expected = video_canvas_material_color(page.render_surface)
+    samples: dict[str, object] = {}
+    cases = (
+        ("pillarbox", QSize(1500, 600)),
+        ("letterbox", QSize(700, 900)),
     )
-    ratio = root.devicePixelRatioF()
-    pixel = image.pixelColor(round(sample.x() * ratio), round(sample.y() * ratio))
-    expected = qualification_wash_color()
-    if not _colors_match(pixel, expected):
-        raise RuntimeError(
-            "Video letterbox region did not expose the Output canvas wash: "
-            f"observed={pixel.name(QColor.NameFormat.HexArgb)} "
-            f"expected={expected.name(QColor.NameFormat.HexArgb)}"
-        )
-    return {
-        "wash_rgba": [pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()],
-        "sample_device_pixel": [
-            round(sample.x() * ratio),
-            round(sample.y() * ratio),
-        ],
-    }
+    try:
+        for margin, size in cases:
+            root.resize(size)
+
+            def geometry_is_ready() -> bool:
+                """Return whether the surface exposes the requested margin."""
+
+                surface_ratio = page.render_surface.width() / max(
+                    1, page.render_surface.height()
+                )
+                if margin == "pillarbox":
+                    return surface_ratio > source_ratio
+                return surface_ratio < source_ratio
+
+            wait_until(
+                application,
+                geometry_is_ready,
+                label=f"{margin} qualification geometry",
+            )
+            pump_events(application, 0.15)
+            output_path = evidence_path.with_name(
+                f"{evidence_path.stem}-{margin}{evidence_path.suffix}"
+            )
+            capture(page.render_surface, output_path)
+            image = QImage(str(output_path))
+            if image.isNull():
+                raise RuntimeError(f"Video {margin} evidence could not be loaded.")
+            logical_sample = (
+                QPoint(8, page.render_surface.height() // 2)
+                if margin == "pillarbox"
+                else QPoint(page.render_surface.width() // 2, 8)
+            )
+            ratio = page.render_surface.devicePixelRatioF()
+            device_sample = QPoint(
+                round(logical_sample.x() * ratio),
+                round(logical_sample.y() * ratio),
+            )
+            pixel = image.pixelColor(device_sample)
+            if not _colors_match(pixel, expected):
+                raise RuntimeError(
+                    f"Video {margin} region did not match the Output material: "
+                    f"observed={pixel.name(QColor.NameFormat.HexArgb)} "
+                    f"expected={expected.name(QColor.NameFormat.HexArgb)}"
+                )
+            samples[margin] = {
+                "wash_rgba": [
+                    pixel.red(),
+                    pixel.green(),
+                    pixel.blue(),
+                    pixel.alpha(),
+                ],
+                "sample_device_pixel": [device_sample.x(), device_sample.y()],
+                "surface_size": [
+                    page.render_surface.width(),
+                    page.render_surface.height(),
+                ],
+            }
+    finally:
+        root.resize(original_size)
+        pump_events(application, 0.15)
+    return samples
 
 
 def qualify_rehosting(
@@ -365,5 +419,5 @@ __all__ = [
     "create_qualification_host",
     "qualification_wash_color",
     "qualify_rehosting",
-    "qualify_transparent_bars",
+    "qualify_canvas_margins",
 ]

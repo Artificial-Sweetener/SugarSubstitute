@@ -187,6 +187,12 @@ class VideoPlayerPort(Protocol):
 class VideoOpenGLPlayerPort(Protocol):
     """Render decoded video through an application-owned OpenGL surface."""
 
+    def set_render_background_color(
+        self,
+        color: tuple[int, int, int, int],
+    ) -> None:
+        """Fill decoded-frame margins with one concrete RGBA color."""
+
     def initialize_renderer(
         self,
         get_proc_address: Callable[[str], int],

@@ -310,6 +310,25 @@ def test_render_context_is_polled_without_native_thread_python_callback(
     assert runtime.player is not None and runtime.player.terminated
 
 
+def test_render_background_color_is_applied_as_opaque_mpv_color() -> None:
+    """Use the canvas material instead of black for decoded-frame margins."""
+
+    runtime = FakeRuntime()
+    adapter = MpvVideoPlayer(
+        runtime=cast(MpvRuntime, runtime),
+        player_generation=7,
+        event_callback=lambda _event: None,
+        render_api=True,
+    )
+    try:
+        adapter.set_render_background_color((32, 41, 50, 255))
+
+        assert runtime.player is not None
+        assert runtime.player.background_color == "#FF202932"
+    finally:
+        adapter.close()
+
+
 def test_load_defaults_to_paused_looping_and_inactive_mute(tmp_path: Path) -> None:
     """Admit each video with loop on while preserving hidden-page safety."""
 

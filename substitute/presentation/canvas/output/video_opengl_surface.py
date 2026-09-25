@@ -22,11 +22,15 @@ from collections.abc import Callable
 from functools import partial
 
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
-from PySide6.QtGui import QContextMenuEvent, QOpenGLContext, QSurfaceFormat
+from PySide6.QtGui import QColor, QContextMenuEvent, QOpenGLContext, QSurfaceFormat
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.ports.video import VideoOpenGLPlayerPort, VideoPlayerPort
+from substitute.presentation.shell.chrome_style import (
+    body_material_wash_color,
+    resolved_backdrop_mode,
+)
 
 _GL_COLOR_BUFFER_BIT = 0x00004000
 _GL_SCISSOR_TEST = 0x0C11
@@ -43,7 +47,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
         self,
         parent: QWidget | None = None,
         *,
-        clear_framebuffer: Callable[[], None] | None = None,
+        clear_framebuffer: Callable[[QColor], None] | None = None,
     ) -> None:
         """Create an initially unbound transparent OpenGL surface."""
 
@@ -56,9 +60,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
         self.setAutoFillBackground(False)
         self.setStyleSheet("background: transparent; border: none;")
         self._clear_framebuffer = (
-            clear_transparent_opengl_framebuffer
-            if clear_framebuffer is None
-            else clear_framebuffer
+            clear_opengl_framebuffer if clear_framebuffer is None else clear_framebuffer
         )
         self._player: VideoOpenGLPlayerPort | None = None
         self._renderer_initialized = False
@@ -121,10 +123,19 @@ class VideoOpenGLSurface(QOpenGLWidget):
     def paintGL(self) -> None:  # noqa: N802
         """Render the latest decoded frame into Qt's framebuffer."""
 
-        self._clear_framebuffer()
+        canvas_color = video_canvas_material_color(self)
+        self._clear_framebuffer(canvas_color)
         player = self._player
         if player is None or not self._renderer_initialized:
             return
+        player.set_render_background_color(
+            (
+                canvas_color.red(),
+                canvas_color.green(),
+                canvas_color.blue(),
+                canvas_color.alpha(),
+            )
+        )
         ratio = self.devicePixelRatioF()
         player.render_frame(
             framebuffer=self.defaultFramebufferObject(),
@@ -221,8 +232,20 @@ class VideoOpenGLSurface(QOpenGLWidget):
         return int(address) if address is not None else 0
 
 
-def clear_transparent_opengl_framebuffer() -> None:
-    """Clear every current color-buffer pixel to transparent black."""
+def video_canvas_material_color(surface: QWidget) -> QColor:
+    """Return an opaque fallback matching the owning Output body material.
+
+    Qt does not reliably composite translucent ``QOpenGLWidget`` pixels through
+    a native Mica or Acrylic frame.  The video framebuffer therefore owns an
+    opaque theme color for pixels that libmpv intentionally leaves untouched.
+    """
+
+    red, green, blue, _alpha = body_material_wash_color(resolved_backdrop_mode(surface))
+    return QColor(red, green, blue)
+
+
+def clear_opengl_framebuffer(color: QColor) -> None:
+    """Clear every current color-buffer pixel to one concrete canvas color."""
 
     context = QOpenGLContext.currentContext()
     if context is None:
@@ -230,8 +253,13 @@ def clear_transparent_opengl_framebuffer() -> None:
     functions = context.functions()
     functions.glDisable(_GL_SCISSOR_TEST)
     functions.glColorMask(True, True, True, True)
-    functions.glClearColor(0.0, 0.0, 0.0, 0.0)
+    functions.glClearColor(
+        color.redF(),
+        color.greenF(),
+        color.blueF(),
+        1.0,
+    )
     functions.glClear(_GL_COLOR_BUFFER_BIT)
 
 
-__all__ = ["VideoOpenGLSurface"]
+__all__ = ["VideoOpenGLSurface", "video_canvas_material_color"]

@@ -37,6 +37,7 @@ from substitute.infrastructure.video.mpv_player_factory import (
     MpvPlayerProtocol,
     create_mpv_player,
 )
+from substitute.infrastructure.video.mpv_render_background import MpvRenderBackground
 from substitute.infrastructure.video.mpv_opengl_render_bridge import (
     MpvOpenGLRenderBridge,
 )
@@ -114,6 +115,7 @@ class MpvVideoPlayer:
             render_api=render_api,
             settings=settings,
         )
+        self._render_background = MpvRenderBackground(self._player)
         self._renderer = MpvOpenGLRenderBridge(self._module, self._player)
 
     @property
@@ -360,6 +362,13 @@ class MpvVideoPlayer:
         with self._lock:
             self._require_open()
         self._renderer.initialize(get_proc_address)
+
+    def set_render_background_color(self, color: tuple[int, int, int, int]) -> None:
+        """Set libmpv's fill for pixels outside the decoded video rectangle."""
+
+        with self._lock:
+            self._require_open()
+            self._render_background.apply(color)
 
     def poll_renderer_update(self) -> bool:
         """Acknowledge one render update without a native-thread Python callback."""
