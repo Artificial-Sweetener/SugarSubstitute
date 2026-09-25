@@ -160,6 +160,9 @@ class VideoPlayerPort(Protocol):
     def snapshot(self) -> VideoPlaybackSnapshot:
         """Return the latest coherent player state."""
 
+    def poll_playback_state(self) -> None:
+        """Refresh native playback observations on the caller's thread."""
+
     def close(self) -> None:
         """Terminate callbacks, decoding, and native player resources."""
 
@@ -171,9 +174,11 @@ class VideoOpenGLPlayerPort(Protocol):
     def initialize_renderer(
         self,
         get_proc_address: Callable[[str], int],
-        request_update: Callable[[], None],
     ) -> None:
         """Bind libmpv rendering to the surface's current OpenGL context."""
+
+    def poll_renderer_update(self) -> bool:
+        """Acknowledge and report one pending native frame update."""
 
     def render_frame(
         self,

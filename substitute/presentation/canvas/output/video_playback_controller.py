@@ -24,7 +24,7 @@ from enum import StrEnum
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot
+from PySide6.QtCore import QObject, QTimer, Qt, Signal, Slot
 from sugarsubstitute_shared.presentation.localization import (
     app_text,
     render_application_text,
@@ -116,6 +116,9 @@ class VideoPlaybackController(QObject):
             self._receive_player_event,
             Qt.ConnectionType.QueuedConnection,
         )
+        self._observation_timer = QTimer(self)
+        self._observation_timer.setInterval(50)
+        self._observation_timer.timeout.connect(self._poll_player)
 
     @property
     def snapshot(self) -> VideoPlaybackSnapshot:
@@ -308,6 +311,7 @@ class VideoPlaybackController(QObject):
         self._current_media_id = None
         self._current_path = None
         if player is not None:
+            self._observation_timer.stop()
             player.close()
 
     def session_for(self, media_id: UUID) -> VideoMediaSession:
@@ -337,6 +341,7 @@ class VideoPlaybackController(QObject):
                 player.close()
                 raise
             self._player = player
+            self._observation_timer.start()
         return self._player
 
     def _apply(self, command: Callable[[VideoPlayerPort], None]) -> None:
@@ -346,6 +351,18 @@ class VideoPlaybackController(QObject):
             return
         try:
             command(self._player)
+        except Exception as error:
+            self._publish_error(error)
+
+    @Slot()
+    def _poll_player(self) -> None:
+        """Refresh native playback state exclusively from Qt's GUI thread."""
+
+        player = self._player
+        if player is None:
+            return
+        try:
+            player.poll_playback_state()
         except Exception as error:
             self._publish_error(error)
 

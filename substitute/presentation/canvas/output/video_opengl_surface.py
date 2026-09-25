@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import QTimer, Signal, Slot
 from PySide6.QtGui import QOpenGLContext
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
@@ -29,7 +29,6 @@ from substitute.application.ports.video import VideoOpenGLPlayerPort, VideoPlaye
 class VideoOpenGLSurface(QOpenGLWidget):
     """Render video as Qt content so chrome and pointer input remain authoritative."""
 
-    frameRequested = Signal()
     renderingReady = Signal()
     surfaceResized = Signal()
 
@@ -40,7 +39,9 @@ class VideoOpenGLSurface(QOpenGLWidget):
         self.setObjectName("outputVideoRenderSurface")
         self._player: VideoOpenGLPlayerPort | None = None
         self._renderer_initialized = False
-        self.frameRequested.connect(self._queue_update)
+        self._render_poll = QTimer(self)
+        self._render_poll.setInterval(16)
+        self._render_poll.timeout.connect(self._poll_frame)
 
     def bind_player(self, player: VideoPlayerPort) -> None:
         """Bind a render-capable player when the controller creates it."""
@@ -67,24 +68,13 @@ class VideoOpenGLSurface(QOpenGLWidget):
     def release_player(self) -> None:
         """Release libmpv rendering while this widget's GL context is current."""
 
-        player = self._player
-        initialized = self._renderer_initialized
+        self._release_renderer()
         self._player = None
-        self._renderer_initialized = False
-        if player is None or not initialized:
-            return
-        if self.context() is not None and self.isValid():
-            self.makeCurrent()
-            try:
-                player.release_renderer()
-            finally:
-                self.doneCurrent()
-        else:
-            player.release_renderer()
 
     def initializeGL(self) -> None:  # noqa: N802
         """Initialize libmpv after Qt makes the surface context current."""
 
+        self.context().aboutToBeDestroyed.connect(self._release_renderer)
         self._initialize_renderer()
         self.renderingReady.emit()
 
@@ -114,8 +104,39 @@ class VideoOpenGLSurface(QOpenGLWidget):
         player = self._player
         if player is None or self._renderer_initialized:
             return
-        player.initialize_renderer(self._get_proc_address, self.frameRequested.emit)
+        player.initialize_renderer(self._get_proc_address)
         self._renderer_initialized = True
+        self._render_poll.start()
+        self.update()
+
+    @Slot()
+    def _poll_frame(self) -> None:
+        """Poll libmpv on Qt's GUI thread and repaint only for a new frame."""
+
+        player = self._player
+        if player is None or not self._renderer_initialized:
+            return
+        if player.poll_renderer_update():
+            self.update()
+
+    @Slot()
+    def _release_renderer(self) -> None:
+        """Release native rendering before Qt destroys its OpenGL context."""
+
+        self._render_poll.stop()
+        player = self._player
+        if player is None or not self._renderer_initialized:
+            self._renderer_initialized = False
+            return
+        self._renderer_initialized = False
+        if self.context() is not None and self.isValid():
+            self.makeCurrent()
+            try:
+                player.release_renderer()
+            finally:
+                self.doneCurrent()
+            return
+        player.release_renderer()
 
     @staticmethod
     def _get_proc_address(name: str) -> int:
@@ -126,12 +147,6 @@ class VideoOpenGLSurface(QOpenGLWidget):
             return 0
         address = context.getProcAddress(name.encode())
         return int(address) if address is not None else 0
-
-    @Slot()
-    def _queue_update(self) -> None:
-        """Schedule repaint on the Qt GUI thread."""
-
-        self.update()
 
 
 __all__ = ["VideoOpenGLSurface"]

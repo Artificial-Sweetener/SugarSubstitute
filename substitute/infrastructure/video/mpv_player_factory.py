@@ -29,8 +29,6 @@ from substitute.domain.generation import (
 )
 from substitute.infrastructure.video.mpv_options import local_video_options
 
-ObservedMpvCallback = Callable[[str, object], None]
-
 
 class MpvPlayerProtocol(Protocol):
     """Describe the python-mpv surface used by the playback adapter."""
@@ -46,11 +44,8 @@ class MpvPlayerProtocol(Protocol):
     def command(self, name: str, *arguments: object) -> object:
         """Execute one libmpv client command."""
 
-    def observe_property(self, name: str, callback: ObservedMpvCallback) -> None:
-        """Observe one player property on the native event thread."""
-
-    def unobserve_property(self, name: str, callback: ObservedMpvCallback) -> None:
-        """Remove one registered property observation."""
+    def _get_property(self, name: str) -> object:
+        """Read one native property synchronously on the caller's thread."""
 
     def terminate(self) -> None:
         """Release native player resources."""
@@ -70,6 +65,7 @@ def create_mpv_player(
     )
     options.update(
         {
+            "start_event_thread": False,
             "hwdec": (
                 "auto-safe"
                 if settings.hardware_decoding is VideoHardwareDecoding.AUTO
@@ -84,7 +80,21 @@ def create_mpv_player(
         }
     )
     constructor = cast(Callable[..., MpvPlayerProtocol], getattr(module, "MPV"))
-    return constructor(**options)
+    player = constructor(**options)
+    _release_unused_event_client(module, player)
+    return player
+
+
+def _release_unused_event_client(
+    module: ModuleType,
+    player: MpvPlayerProtocol,
+) -> None:
+    """Release python-mpv's undrained client so termination cannot deadlock."""
+
+    event_client = getattr(player, "_event_handle")
+    destroy_client = cast(Callable[[object], None], getattr(module, "_mpv_destroy"))
+    destroy_client(event_client)
+    setattr(player, "_event_handle", None)
 
 
 def _video_output(renderer: VideoRenderer, *, render_api: bool) -> str:
@@ -95,4 +105,4 @@ def _video_output(renderer: VideoRenderer, *, render_api: bool) -> str:
     return "libmpv"
 
 
-__all__ = ["MpvPlayerProtocol", "ObservedMpvCallback", "create_mpv_player"]
+__all__ = ["MpvPlayerProtocol", "create_mpv_player"]

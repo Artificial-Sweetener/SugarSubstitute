@@ -99,6 +99,7 @@ class MpvVideoPlayer:
         self._width: int | None = None
         self._height: int | None = None
         self._error: str | None = None
+        self._last_polled_snapshot: VideoPlaybackSnapshot | None = None
         self._settings = settings
         self._render_api = render_api
         self._actual_video_output: str | None = None
@@ -109,7 +110,6 @@ class MpvVideoPlayer:
         self._pixel_format: str | None = None
         self._codec: str | None = None
         self._closed = False
-        self._observer = self._property_observed
         self._module = runtime.load_module()
         self._player: MpvPlayerProtocol = create_mpv_player(
             self._module,
@@ -117,8 +117,6 @@ class MpvVideoPlayer:
             settings=settings,
         )
         self._renderer = MpvOpenGLRenderBridge(self._module, self._player)
-        for name in self._OBSERVED_PROPERTIES:
-            self._player.observe_property(name, self._observer)
 
     @property
     def player_generation(self) -> int:
@@ -324,16 +322,45 @@ class MpvVideoPlayer:
         with self._lock:
             return self._snapshot()
 
+    def poll_playback_state(self) -> None:
+        """Read native state without allowing libmpv to call into Python."""
+
+        with self._lock:
+            self._require_open()
+            if self._media_id is None:
+                return
+            try:
+                observations = {
+                    name: self._player._get_property(name)
+                    for name in self._OBSERVED_PROPERTIES
+                }
+            except Exception as error:
+                self._record_failure("Video state could not be read.", error)
+                return
+            for name, value in observations.items():
+                self._apply_observation(name, value)
+            event = self._event()
+            if event.snapshot == self._last_polled_snapshot:
+                return
+            self._last_polled_snapshot = event.snapshot
+        self._event_callback(event)
+
     def initialize_renderer(
         self,
         get_proc_address: Callable[[str], int],
-        request_update: Callable[[], None],
     ) -> None:
         """Create libmpv's render context against the current Qt GL context."""
 
         with self._lock:
             self._require_open()
-        self._renderer.initialize(get_proc_address, request_update)
+        self._renderer.initialize(get_proc_address)
+
+    def poll_renderer_update(self) -> bool:
+        """Acknowledge one render update without a native-thread Python callback."""
+
+        with self._lock:
+            self._require_open()
+        return self._renderer.poll_update()
 
     def render_frame(
         self,
@@ -373,8 +400,6 @@ class MpvVideoPlayer:
             self._observed_path = None
             self._state = VideoPlaybackState.EMPTY
         self.release_renderer()
-        for name in self._OBSERVED_PROPERTIES:
-            self._player.unobserve_property(name, self._observer)
         self._player.terminate()
 
     def _step_frame(self, command: str, failure_message: str) -> None:
@@ -393,61 +418,54 @@ class MpvVideoPlayer:
             event = self._event()
         self._event_callback(event)
 
-    def _property_observed(self, name: str, value: object) -> None:
-        """Translate native observations into one generation-scoped snapshot."""
+    def _apply_observation(self, name: str, value: object) -> None:
+        """Fold one synchronously read native property into owned state."""
 
-        with self._lock:
-            if self._closed or self._media_id is None:
-                return
-            if name == "path":
-                self._observed_path = _optional_string(value)
-                return
-            elif not self._observes_current_path():
-                return
-            elif name == "pause" and isinstance(value, bool):
-                self._paused = value
-                if self._state not in {
-                    VideoPlaybackState.LOADING,
-                    VideoPlaybackState.ENDED,
-                    VideoPlaybackState.ERROR,
-                }:
-                    self._state = (
-                        VideoPlaybackState.READY
-                        if value
-                        else VideoPlaybackState.PLAYING
-                    )
-            elif name == "time-pos":
-                self._time_seconds = _optional_nonnegative_float(value)
-            elif name == "duration":
-                self._duration_seconds = _optional_nonnegative_float(value)
-            elif name == "width":
-                self._width = _optional_positive_integer(value)
-            elif name == "height":
-                self._height = _optional_positive_integer(value)
-            elif name == "eof-reached" and value is True:
-                self._state = VideoPlaybackState.ENDED
-                self._paused = True
-            elif name == "core-idle" and value is False:
+        if self._closed or self._media_id is None:
+            return
+        if name == "path":
+            self._observed_path = _optional_string(value)
+            return
+        if not self._observes_current_path():
+            return
+        if name == "pause" and isinstance(value, bool):
+            self._paused = value
+            if self._state not in {
+                VideoPlaybackState.LOADING,
+                VideoPlaybackState.ENDED,
+                VideoPlaybackState.ERROR,
+            }:
                 self._state = (
-                    VideoPlaybackState.READY
-                    if self._paused
-                    else VideoPlaybackState.PLAYING
+                    VideoPlaybackState.READY if value else VideoPlaybackState.PLAYING
                 )
-            elif name == "current-vo":
-                self._actual_video_output = _optional_string(value)
-            elif name == "gpu-api":
-                self._gpu_api = _optional_string(value)
-            elif name == "gpu-context":
-                self._gpu_context = _optional_string(value)
-            elif name == "hwdec-current":
-                self._hardware_decoder_observed = True
-                self._hardware_decoder = _optional_string(value)
-            elif name == "video-params/pixelformat":
-                self._pixel_format = _optional_string(value)
-            elif name == "video-codec":
-                self._codec = _optional_string(value)
-            event = self._event()
-        self._event_callback(event)
+        elif name == "time-pos":
+            self._time_seconds = _optional_nonnegative_float(value)
+        elif name == "duration":
+            self._duration_seconds = _optional_nonnegative_float(value)
+        elif name == "width":
+            self._width = _optional_positive_integer(value)
+        elif name == "height":
+            self._height = _optional_positive_integer(value)
+        elif name == "eof-reached" and value is True:
+            self._state = VideoPlaybackState.ENDED
+            self._paused = True
+        elif name == "core-idle" and value is False:
+            self._state = (
+                VideoPlaybackState.READY if self._paused else VideoPlaybackState.PLAYING
+            )
+        elif name == "current-vo":
+            self._actual_video_output = _optional_string(value)
+        elif name == "gpu-api":
+            self._gpu_api = _optional_string(value)
+        elif name == "gpu-context":
+            self._gpu_context = _optional_string(value)
+        elif name == "hwdec-current":
+            self._hardware_decoder_observed = True
+            self._hardware_decoder = _optional_string(value)
+        elif name == "video-params/pixelformat":
+            self._pixel_format = _optional_string(value)
+        elif name == "video-codec":
+            self._codec = _optional_string(value)
 
     def _observes_current_path(self) -> bool:
         """Reject late observations that belong to a replaced decoder input."""

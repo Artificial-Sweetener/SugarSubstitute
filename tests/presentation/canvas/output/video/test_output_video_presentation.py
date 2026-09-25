@@ -142,6 +142,9 @@ class _Player:
             height=180,
         )
 
+    def poll_playback_state(self) -> None:
+        """Model one callback-free polling pass."""
+
     def close(self) -> None:
         """Record teardown."""
 
