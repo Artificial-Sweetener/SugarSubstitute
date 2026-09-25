@@ -23,7 +23,7 @@ from collections.abc import Iterator
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, Qt
-from PySide6.QtGui import QFontMetricsF, QMouseEvent, QPalette, QTextCursor, QWheelEvent
+from PySide6.QtGui import QFontMetricsF, QMouseEvent, QTextCursor, QWheelEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -234,7 +234,7 @@ def test_prompt_editor_wildcard_projection_collapses_resolved_placeholder_tokens
         surface.projection_document().projection_text.count(
             OBJECT_REPLACEMENT_CHARACTER
         )
-        == 1
+        == 2
     )
     assert len(tokens) == 1
     assert tokens[0].display_text == "pokemon/gen1/very_long_identifier"
@@ -292,24 +292,22 @@ def test_prompt_editor_wildcard_projection_places_italic_tag_on_body_baseline(
         wildcard_gateway=StaticPromptWildcardCatalogGateway({}),
     )
     token = wildcard_tokens_for(box)[0]
-    run = surface_for(box).projection_document().runs_for_token(token.token_id)[0]
+    surface = surface_for(box)
+    run = surface.projection_document().runs_for_token(token.token_id)[-1]
     renderer = PromptWildcardInlineObjectRenderer()
-    token_rect = token_rect_for(box, token)
-    tag_rect = renderer.weight_text_rect(run, token, token_rect, base_font=box.font())
+    suffix_rect = surface._layout.frame.geometry.tokens.token_fragments(token)[-1]  # noqa: SLF001
+    tag_rect = renderer.weight_text_rect(run, token, suffix_rect, base_font=box.font())
     base_metrics = QFontMetricsF(box.font())
     tag_font = renderer._tag_font(box.font())  # noqa: SLF001
     tag_metrics = QFontMetricsF(tag_font)
     brace_metrics = QFontMetricsF(renderer._brace_font(box.font()))  # noqa: SLF001
     expected_baseline = (
-        token_rect.top()
-        + max(0.0, (token_rect.height() - base_metrics.height()) / 2.0)
+        suffix_rect.top()
+        + max(0.0, (suffix_rect.height() - base_metrics.height()) / 2.0)
         + base_metrics.ascent()
     )
     expected_tag_left = (
-        token_rect.left()
-        + brace_metrics.horizontalAdvance("{")
-        + renderer._BRACE_GAP  # noqa: SLF001
-        + base_metrics.horizontalAdvance(run.display_text)
+        suffix_rect.left()
         + renderer._BRACE_GAP  # noqa: SLF001
         + brace_metrics.horizontalAdvance("}")
     )
@@ -319,30 +317,6 @@ def test_prompt_editor_wildcard_projection_places_italic_tag_on_body_baseline(
     assert renderer._TAG_GAP == 0.0  # noqa: SLF001
     assert tag_rect.left() == pytest.approx(expected_tag_left)
     assert tag_rect.top() == pytest.approx(expected_baseline - tag_metrics.ascent())
-
-
-def test_prompt_editor_missing_wildcard_uses_normal_syntax_color(
-    widgets: list[QWidget],
-) -> None:
-    """Missing wildcard syntax should rely on diagnostics, not red inline text."""
-
-    box = show_prompt_editor(
-        widgets,
-        text="{missing|2}",
-        width=240,
-        wildcard_gateway=StaticPromptWildcardCatalogGateway({}),
-    )
-    token = wildcard_tokens_for(box)[0]
-    renderer = PromptWildcardInlineObjectRenderer()
-    accent_color = renderer._accent_color_for_token(  # noqa: SLF001
-        token,
-        palette=box.palette(),
-    )
-    normal_color = box.palette().color(QPalette.ColorRole.Text)
-
-    assert token.exists is False
-    assert token.decoration_accented is False
-    assert accent_color.rgba() == normal_color.rgba()
 
 
 def test_prompt_editor_wildcard_numeric_controls_persist_implicit_group_edit(
@@ -477,6 +451,13 @@ def test_prompt_editor_wildcard_projection_tracks_caret_active_token_by_source_r
     assert not paint_state.is_token_active(first_token.token_id)
     assert paint_state.is_token_active(second_token.token_id)
     assert second_token.display_text == "monster:Color"
+    assert (
+        surface_for(box)
+        .projection_document()
+        .runs_for_token(second_token.token_id)[1]
+        .display_text
+        == "monster:Color"
+    )
     assert second_token.status_text is None
 
 

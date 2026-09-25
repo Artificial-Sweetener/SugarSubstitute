@@ -85,7 +85,7 @@ def _renderer_span(
         wildcard_span,
         source_occurrence_count=source_occurrence_count,
     )
-    tag_is_numeric = _is_numeric_tag(display_tag)
+    tag_is_numeric = is_numeric_wildcard_tag(display_tag)
     return PromptWildcardRendererSpanView(
         outer_start=wildcard_span.outer_start,
         outer_end=wildcard_span.outer_end,
@@ -143,10 +143,10 @@ def _display_tag(
     return None
 
 
-def _is_numeric_tag(tag: str | None) -> bool:
+def is_numeric_wildcard_tag(tag: str | None) -> bool:
     """Return whether one wildcard tag supports numeric group stepping."""
 
     return tag is not None and _NUMERIC_WILDCARD_TAG_PATTERN.fullmatch(tag) is not None
 
 
-__all__ = ["PromptWildcardRendererProjector"]
+__all__ = ["PromptWildcardRendererProjector", "is_numeric_wildcard_tag"]

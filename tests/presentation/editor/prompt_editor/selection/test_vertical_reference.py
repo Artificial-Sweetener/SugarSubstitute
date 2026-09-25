@@ -40,10 +40,10 @@ from tests.presentation.editor.prompt_editor.selection.support import (
 )
 
 
-def test_projection_selection_wildcards_remain_atomic_for_arrow_navigation(
+def test_projection_selection_wildcards_expose_source_content_for_arrow_navigation(
     widgets: list[QWidget],
 ) -> None:
-    """Wildcard tokens should still move from before to after in one step."""
+    """Arrow navigation should enter a decorated wildcard's editable content."""
 
     app = ensure_qapp()
     box = show_prompt_editor(
@@ -67,7 +67,7 @@ def test_projection_selection_wildcards_remain_atomic_for_arrow_navigation(
     QTest.keyClick(box, Qt.Key.Key_Right)
     process_events(app)
 
-    assert box.textCursor().position() == token.source_end
+    assert box.textCursor().position() == token.content_start
 
 
 def test_projection_selection_down_matches_qt_from_middle_of_wrapped_plain_text_line(

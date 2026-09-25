@@ -509,3 +509,81 @@ def test_source_text_edit_between_returns_minimal_contiguous_edit() -> None:
         )
     )
     assert source_text_edit_between("same", "same") is None
+
+
+def test_repeated_space_insertion_keeps_the_requested_source_boundary() -> None:
+    """Attribute an ambiguous duplicate-space edit to the user's caret position."""
+
+    source_text = "portrait, (red ornaments:1.10)"
+    session = _session(source_text)
+    insertion_position = source_text.index(" (")
+
+    result = session.replace_source_range(
+        start=insertion_position,
+        end=insertion_position,
+        replacement_text=" ",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=True,
+        record_undo=True,
+        undo_snapshot=_undo_snapshot(source_text),
+    )
+
+    assert result.next_snapshot.source_text == "portrait,  (red ornaments:1.10)"
+    assert result.cursor_state.cursor_position == insertion_position + 1
+    assert result.source_edit == PromptSourceTextEdit(
+        start=insertion_position,
+        end=insertion_position,
+        replacement_text=" ",
+    )
+
+
+def test_repeated_space_deletion_keeps_the_requested_source_boundary() -> None:
+    """Attribute an ambiguous duplicate-space deletion to the selected range."""
+
+    source_text = "portrait,  (red ornaments:1.10)"
+    session = _session(source_text)
+    deletion_start = source_text.index("  (") + 1
+
+    result = session.replace_source_range(
+        start=deletion_start,
+        end=deletion_start + 1,
+        replacement_text="",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=True,
+        record_undo=True,
+        undo_snapshot=_undo_snapshot(source_text),
+    )
+
+    assert result.next_snapshot.source_text == "portrait, (red ornaments:1.10)"
+    assert result.source_edit == PromptSourceTextEdit(
+        start=deletion_start,
+        end=deletion_start + 1,
+        replacement_text="",
+    )
+
+
+def test_normalized_range_edit_reports_the_effective_source_change() -> None:
+    """Describe canonicalized source rather than an incomplete requested edit."""
+
+    source_text = "painting (medium"
+    session = _session(source_text)
+
+    result = session.replace_source_range(
+        start=len(source_text),
+        end=len(source_text),
+        replacement_text=")",
+        normalizer=PromptSourceNormalizationService(),
+        origin=PromptSourceEditOrigin.TYPED,
+        exact_source=False,
+        record_undo=True,
+        undo_snapshot=_undo_snapshot(source_text),
+    )
+
+    assert result.next_snapshot.source_text == "painting (medium:1.10)"
+    assert result.source_edit == PromptSourceTextEdit(
+        start=len(source_text),
+        end=len(source_text),
+        replacement_text=":1.10)",
+    )

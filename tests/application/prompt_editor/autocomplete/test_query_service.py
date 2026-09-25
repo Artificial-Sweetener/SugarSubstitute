@@ -118,6 +118,93 @@ def test_prompt_autocomplete_query_service_keeps_space_inside_tag_query() -> Non
     )
 
 
+def test_parenthesis_escape_does_not_meet_autocomplete_minimum_length() -> None:
+    """Count only the visible parenthesis, not its storage-only escape."""
+
+    projector = PromptDocumentProjector()
+    query_service = PromptAutocompleteQueryService(document_projector=projector)
+    text = r"\("
+
+    query = query_service.autocomplete_query_at_cursor(
+        projector.build_document_view(text),
+        text=text,
+        cursor_position=len(text),
+        has_selection=False,
+        minimum_prefix_length=2,
+    )
+
+    assert query is None
+
+
+def test_escaped_emphasis_prefix_uses_visible_text_and_source_boundaries() -> None:
+    """Do not query emoticon tags using an escaped parenthesis prefix."""
+
+    projector = PromptDocumentProjector()
+    query_service = PromptAutocompleteQueryService(document_projector=projector)
+    text = r"(casshern \(series\):1.25)"
+    cursor_position = text.index(r"\(") + len(r"\(")
+
+    query = query_service.autocomplete_query_at_cursor(
+        projector.build_document_view(text),
+        text=text,
+        cursor_position=cursor_position,
+        has_selection=False,
+        minimum_prefix_length=2,
+    )
+
+    assert query == PromptAutocompleteQuery(
+        prefix="casshern (",
+        word_start=1,
+        word_end=cursor_position,
+        active_tag_end=text.index(":1.25"),
+        fallback_query=None,
+    )
+
+
+def test_escaped_parenthesis_fallback_retains_source_replacement_start() -> None:
+    """Map visible fallback text back to the escape's source boundary."""
+
+    projector = PromptDocumentProjector()
+    query_service = PromptAutocompleteQueryService(document_projector=projector)
+    text = r"(casshern \(series\):1.25)"
+    cursor_position = text.index("series") + len("se")
+
+    query = query_service.autocomplete_query_at_cursor(
+        projector.build_document_view(text),
+        text=text,
+        cursor_position=cursor_position,
+        has_selection=False,
+        minimum_prefix_length=2,
+    )
+
+    assert query is not None
+    assert query.prefix == "casshern (se"
+    assert query.fallback_query == PromptAutocompleteFallbackQuery(
+        prefix="(se",
+        word_start=text.index(r"\("),
+        word_end=cursor_position,
+        active_tag_end=text.index(":1.25"),
+    )
+
+
+def test_caret_within_hidden_escape_does_not_start_autocomplete() -> None:
+    """Suppress queries at a source boundary with no visible caret position."""
+
+    projector = PromptDocumentProjector()
+    query_service = PromptAutocompleteQueryService(document_projector=projector)
+    text = r"(casshern \(series\):1.25)"
+
+    query = query_service.autocomplete_query_at_cursor(
+        projector.build_document_view(text),
+        text=text,
+        cursor_position=text.index(r"\(") + 1,
+        has_selection=False,
+        minimum_prefix_length=2,
+    )
+
+    assert query is None
+
+
 def test_prompt_autocomplete_query_service_builds_specialized_queries() -> None:
     """Resolve wildcard, scene, and LoRA autocomplete ranges."""
 
