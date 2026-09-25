@@ -880,17 +880,6 @@ review_by = 2026-12-15
 max_lines = 580
 
 [[waivers]]
-id = "SS-WAIVER-S031"
-owner = "full editor projection load"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/full_projection_load_pipeline.py"
-kind = "structural"
-justification = "EditorFullProjectionLoadPipeline owns one staged transaction from projection preparation through hidden construction, visible reconciliation, and completion or cancellation. Its ports expose collaborators while the pipeline alone owns busy-state and commit ordering."
-issue = "chore:SS-WAIVER-S031"
-review_by = 2026-12-15
-max_lines = 635
-
-[[waivers]]
 id = "SS-WAIVER-S034"
 owner = "editor projection preparation"
 rule = "STRUCT003"

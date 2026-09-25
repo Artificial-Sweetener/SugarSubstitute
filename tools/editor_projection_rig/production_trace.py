@@ -227,6 +227,11 @@ def _trace_existing_panel_activation(
         )
         drain_until(lambda: trace_shell.projection_complete, max_turns=settle_turns)
     drain_qt_events(10)
+    recorder.record_elapsed_between(
+        "production.time_to_first_usable_ms",
+        start_event="production_trace.start",
+        end_event="production.editor.reveal_projected_cube_builds",
+    )
     actual_signature = signature_from_panel(
         workflow_id=scenario.workflow_id,
         workflow=workflow,
@@ -321,6 +326,11 @@ def _trace_one_scenario(
             )
             drain_until(lambda: trace_shell.projection_complete, max_turns=settle_turns)
         drain_qt_events(10)
+        recorder.record_elapsed_between(
+            "production.time_to_first_usable_ms",
+            start_event="production_trace.start",
+            end_event="production.editor.reveal_projected_cube_builds",
+        )
         actual_signature = signature_from_panel(
             workflow_id=scenario.workflow_id,
             workflow=workflow,

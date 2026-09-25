@@ -59,6 +59,23 @@ def test_production_trace_waits_for_timer_driven_projection_completion() -> None
     assert trace.projection_complete is True
 
 
+def test_projection_trace_records_first_usable_elapsed_time() -> None:
+    """Derived first-use timing should span trace start through first reveal end."""
+
+    recorder = ProjectionTraceRecorder()
+    recorder.mark("production_trace.start")
+    with recorder.timed("production.editor.reveal_projected_cube_builds"):
+        pass
+    elapsed_ms = recorder.record_elapsed_between(
+        "production.time_to_first_usable_ms",
+        start_event="production_trace.start",
+        end_event="production.editor.reveal_projected_cube_builds",
+    )
+
+    assert elapsed_ms is not None
+    assert recorder.timings_ms["production.time_to_first_usable_ms"] >= 0.0
+
+
 def test_production_trace_flags_orphaned_field_widgets_as_correctness_failure() -> None:
     """A missing card wrapper with registered fields must fail production budgets."""
 

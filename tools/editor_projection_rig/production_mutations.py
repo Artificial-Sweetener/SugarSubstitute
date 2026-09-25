@@ -315,7 +315,7 @@ def _trace_insert(
         panel.insert_cube_section(
             cube_alias,
             workflow.cubes[cube_alias],
-            cube_states=workflow.cubes,
+            cube_states=cast(dict[str, object], workflow.cubes),
             stack_order=workflow.stack_order,
             on_complete=complete,
             completion_phase="complete",
