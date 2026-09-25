@@ -14,30 +14,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define the closed libmpv option surface for generated local artifacts."""
+"""Parse native video-output qualification command-line options."""
 
 from __future__ import annotations
 
-
-def local_video_options(*, video_output: str, audio_output: str) -> dict[str, object]:
-    """Return options that isolate playback from user config and remote inputs."""
-
-    return {
-        "vo": video_output,
-        "ao": audio_output,
-        "config": False,
-        "load_scripts": False,
-        "input_conf": "",
-        "input_default_bindings": False,
-        "input_vo_keyboard": False,
-        "autoload_files": "no",
-        "audio_file_auto": "no",
-        "sub_auto": "no",
-        "save_position_on_quit": False,
-        "load_unsafe_playlists": False,
-        "access_references": False,
-        "demuxer_lavf_o": "protocol_whitelist=file",
-    }
+import argparse
+from pathlib import Path
 
 
-__all__ = ["local_video_options"]
+def parse_arguments(argv: list[str] | None) -> argparse.Namespace:
+    """Return the local video, evidence, theme, and soak selections."""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video", required=True, type=Path)
+    parser.add_argument("--evidence-dir", required=True, type=Path)
+    parser.add_argument("--theme", choices=("light", "dark"), default="light")
+    parser.add_argument(
+        "--soak-seconds",
+        type=float,
+        default=0.0,
+        help="Keep looped native playback active for this bounded duration.",
+    )
+    return parser.parse_args(argv)
+
+
+__all__ = ["parse_arguments"]

@@ -330,26 +330,60 @@ vendored_files = [
 
 [[component]]
 name = "mpv generated-video playback runtime"
-license = "GPL-2.0-or-later"
-license_file = "third_party/licenses/mpv.GPL.txt"
+license = "LGPL-2.1-or-later"
+license_file = "third_party/licenses/mpv.LGPL.txt"
 additional_license_files = [
   "third_party/licenses/mpv.Copyright.txt",
 ]
 source = "https://github.com/mpv-player/mpv"
-binary_source = "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/"
-revision = "062f4bf"
-archive = "mpv-dev-x86_64-20260412-git-062f4bf.7z"
-archive_sha256 = "f66f04075da0cbccd106513eab67b78b72ac00780423a9fe3c6e34ae93317806"
-runtime_sha256 = "9936e45ba4c5c8a93ce4e978634de369af0a1d61595447699b17393ba2dec417"
+binary_source = "https://github.com/Paxton-PKJ/libmpv/releases/tag/release"
+builder_source = "https://github.com/Paxton-PKJ/libmpv"
+builder_revision = "630cfb0e6cafce97122f67122a53ef63f47e64c1"
+revision = "v0.41.0"
+archive = "libmpv-lgpl-windows-x86_64.zip"
+archive_sha256 = "30fecef3c97d9634190bc5ac0a023694b414d3fd9e0938dbadd802ba34bf8794"
+runtime_sha256 = "d3f3337a28fc26ecee34e5b74e0d13ac1d0a819d205b46b10865cd6bfb10a2e3"
+build_options = [
+  "-Dgpl=false",
+  "-Dlua=disabled",
+  "-Djavascript=disabled",
+]
 source_paths = [
   "Copyright",
-  "LICENSE.GPL",
+  "LICENSE.LGPL",
   "libmpv/client.h",
   "libmpv/render.h",
   "libmpv/render_gl.h",
 ]
 vendored_files = []
 runtime_files = [
+  "third_party/bin/mpv/windows-x64/avcodec-60.dll",
+  "third_party/bin/mpv/windows-x64/avdevice-60.dll",
+  "third_party/bin/mpv/windows-x64/avfilter-9.dll",
+  "third_party/bin/mpv/windows-x64/avformat-60.dll",
+  "third_party/bin/mpv/windows-x64/avutil-58.dll",
+  "third_party/bin/mpv/windows-x64/libass-9.dll",
+  "third_party/bin/mpv/windows-x64/libbrotlicommon.dll",
+  "third_party/bin/mpv/windows-x64/libbrotlidec.dll",
+  "third_party/bin/mpv/windows-x64/libbz2-1.dll",
+  "third_party/bin/mpv/windows-x64/libfreetype-6.dll",
+  "third_party/bin/mpv/windows-x64/libfribidi-0.dll",
+  "third_party/bin/mpv/windows-x64/libgcc_s_seh-1.dll",
+  "third_party/bin/mpv/windows-x64/libglib-2.0-0.dll",
+  "third_party/bin/mpv/windows-x64/libgraphite2.dll",
+  "third_party/bin/mpv/windows-x64/libharfbuzz-0.dll",
+  "third_party/bin/mpv/windows-x64/libiconv-2.dll",
+  "third_party/bin/mpv/windows-x64/libintl-8.dll",
+  "third_party/bin/mpv/windows-x64/liblzma-5.dll",
   "third_party/bin/mpv/windows-x64/libmpv-2.dll",
+  "third_party/bin/mpv/windows-x64/libpcre2-8-0.dll",
+  "third_party/bin/mpv/windows-x64/libplacebo-338.dll",
+  "third_party/bin/mpv/windows-x64/libpng16-16.dll",
+  "third_party/bin/mpv/windows-x64/libshaderc_shared.dll",
+  "third_party/bin/mpv/windows-x64/libstdc++-6.dll",
+  "third_party/bin/mpv/windows-x64/libwinpthread-1.dll",
+  "third_party/bin/mpv/windows-x64/swresample-4.dll",
+  "third_party/bin/mpv/windows-x64/swscale-7.dll",
+  "third_party/bin/mpv/windows-x64/zlib1.dll",
 ]
 preparation_tool = "tools/prepare_mpv_runtime.py"

@@ -20,22 +20,42 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
+from tools import prepare_mpv_runtime
 from tools.prepare_mpv_runtime import (
+    _extract_archive,
+    _require_embeddable_runtime,
     _require_sha256,
     _require_windows_x64,
     _stage_runtime,
 )
 
 
-def test_runtime_stage_replaces_only_owned_library(tmp_path: Path) -> None:
-    """Promote a verified library without disturbing sibling content."""
+def test_runtime_stage_replaces_owned_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Promote every verified runtime DLL without disturbing sibling content."""
 
-    source = tmp_path / "source" / "libmpv-2.dll"
-    source.parent.mkdir()
-    source.write_bytes(b"new-runtime")
+    source = tmp_path / "source"
+    source.mkdir()
+    runtime_files = {
+        "libmpv-2.dll": b"new-runtime",
+        "avcodec-60.dll": b"codec-runtime",
+    }
+    monkeypatch.setattr(
+        prepare_mpv_runtime,
+        "WINDOWS_RUNTIME_SHA256",
+        {
+            name: hashlib.sha256(content).hexdigest()
+            for name, content in runtime_files.items()
+        },
+    )
+    for name, content in runtime_files.items():
+        (source / name).write_bytes(content)
     output_root = tmp_path / "output"
     destination_dir = output_root / "windows-x64"
     destination_dir.mkdir(parents=True)
@@ -48,8 +68,35 @@ def test_runtime_stage_replaces_only_owned_library(tmp_path: Path) -> None:
 
     assert staged == destination
     assert staged.read_bytes() == b"new-runtime"
+    assert (destination_dir / "avcodec-60.dll").read_bytes() == b"codec-runtime"
     assert sibling.read_text(encoding="utf-8") == "keep"
     assert not destination.with_suffix(".dll.partial").exists()
+
+
+def test_runtime_rejects_scripting_enabled_windows_build(tmp_path: Path) -> None:
+    """Exclude LuaJIT and JavaScript from the embedded Windows renderer."""
+
+    runtime = tmp_path / "libmpv-2.dll"
+    runtime.write_bytes(b"-Dlua=disabled\0-Djavascript=disabled\0safe")
+    _require_embeddable_runtime(runtime)
+
+    runtime.write_bytes(b"-Dlua=enabled\0-Djavascript=disabled\0LuaJIT 2.1")
+    with pytest.raises(RuntimeError, match="unsafe"):
+        _require_embeddable_runtime(runtime)
+
+
+def test_archive_extraction_rejects_path_traversal(tmp_path: Path) -> None:
+    """Keep a malformed release archive inside the extraction workspace."""
+
+    archive = tmp_path / "runtime.zip"
+    with ZipFile(archive, mode="w") as bundle:
+        bundle.writestr("../escape.dll", b"unsafe")
+
+    destination = tmp_path / "extracted"
+    destination.mkdir()
+    with pytest.raises(RuntimeError, match="unsafe path"):
+        _extract_archive(archive=archive, destination=destination)
+    assert not (tmp_path / "escape.dll").exists()
 
 
 def test_runtime_checksum_rejects_drift(tmp_path: Path) -> None:

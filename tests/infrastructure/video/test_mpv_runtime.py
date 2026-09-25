@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ctypes.util
 import importlib
+import os
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -72,6 +73,53 @@ def test_runtime_forces_python_binding_to_owned_library(
 
     assert loaded is module
     assert observed == [str(library.resolve())]
+
+
+def test_windows_runtime_activates_and_retains_sibling_dll_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resolve dynamically linked runtime dependencies beside libmpv."""
+
+    library = tmp_path / "runtime" / "libmpv-2.dll"
+    library.parent.mkdir()
+    library.write_bytes(b"native-placeholder")
+    module = ModuleType("mpv")
+
+    class Backend:
+        """Expose the expected project-owned backend path."""
+
+        _name = str(library.resolve())
+
+    class DirectoryHandle:
+        """Record whether the dependency search handle remains active."""
+
+        closed = False
+
+        def close(self) -> None:
+            """Record explicit release of the fake search directory."""
+
+            self.closed = True
+
+    module.backend = Backend()  # type: ignore[attr-defined]
+    handle = DirectoryHandle()
+    observed: list[str] = []
+
+    def add_dll_directory(path: str) -> DirectoryHandle:
+        """Capture the exact directory activated by the runtime owner."""
+
+        observed.append(path)
+        return handle
+
+    monkeypatch.delitem(sys.modules, "mpv", raising=False)
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(os, "add_dll_directory", add_dll_directory, raising=False)
+    runtime = MpvRuntime(library)
+    with patch.object(importlib, "import_module", return_value=module):
+        assert runtime.load_module() is module
+
+    assert observed == [str(library.parent.resolve())]
+    assert handle.closed is False
 
 
 def test_runtime_rejects_binding_loaded_from_another_path(

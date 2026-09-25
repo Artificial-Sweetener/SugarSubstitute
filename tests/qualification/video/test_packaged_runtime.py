@@ -64,8 +64,16 @@ def test_windows_payload_runs_real_video_acceptance_without_ambient_path(
     payload = tmp_path / "SugarSubstitute app payload.zip"
     build_app_payload_zip(repo_root=_REPOSITORY_ROOT, output_path=payload)
     archive_names = inspect_payload_zip(payload)
+    third_party_manifest = tomllib.loads(
+        (_REPOSITORY_ROOT / "third_party" / "manifest.toml").read_text(encoding="utf-8")
+    )
+    mpv_component = next(
+        component
+        for component in third_party_manifest["component"]
+        if component["name"] == "mpv generated-video playback runtime"
+    )
+    assert set(mpv_component["runtime_files"]).issubset(archive_names)
     runtime_relative = "third_party/bin/mpv/windows-x64/libmpv-2.dll"
-    assert runtime_relative in archive_names
 
     application_root = tmp_path / "installed app üñîçødé with spaces"
     with zipfile.ZipFile(payload) as archive:

@@ -62,8 +62,13 @@ their accompanying BSD, zlib, and public-domain notices.
 
 mpv and its libmpv client library are bundled as SugarSubstitute's generated-video
 decode and playback runtime. mpv is a fork of mplayer2 and MPlayer and is
-distributed under the GNU General Public License version 2 or later in the
-selected build. The complete upstream copyright inventory and GPL text accompany
-the application. The Windows binary is a checksum-pinned shinchiro build of mpv
-revision `062f4bf`; its preparation script records and verifies both the source
-archive and staged DLL digests.
+distributed under the GNU Lesser General Public License version 2.1 or later in
+the selected build. The complete upstream copyright inventory and LGPL text
+accompany the application. The Windows x64 runtime is a checksum-pinned
+Paxton-PKJ build of mpv `v0.41.0`, built without GPL components, Lua, or
+JavaScript. Its preparation script records and verifies the archive, every
+dynamically linked runtime file, the build configuration, and the builder
+revision. The bundle also contains the dynamically linked FFmpeg, libass,
+libplacebo, shaderc, FreeType, HarfBuzz, FriBidi, GLib, Graphite2, Brotli, bzip2,
+libiconv, libintl, liblzma, PCRE2, libpng, zlib, and MinGW runtime libraries;
+their copyright and license obligations remain with their respective projects.
