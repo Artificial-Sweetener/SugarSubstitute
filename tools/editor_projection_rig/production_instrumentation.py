@@ -25,9 +25,6 @@ from pathlib import Path
 from typing import Any
 
 from substitute.application.node_behavior.behavior_service import NodeBehaviorService
-from substitute.presentation.editor.panel import (
-    node_card_builder as node_card_builder_module,
-)
 from substitute.presentation.editor.panel.cube_section_build_session import (
     CubeSectionBuildSession,
 )
@@ -38,6 +35,21 @@ from substitute.presentation.editor.panel.hidden_build_scheduler import (
     HiddenBuildScheduler,
 )
 from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
+from substitute.presentation.editor.panel.node_card import (
+    field_factory_adapter as field_factory_adapter_module,
+)
+from substitute.presentation.editor.panel.node_card import (
+    title_composer as title_composer_module,
+)
+from substitute.presentation.editor.panel.node_card.body_composer import (
+    NodeCardBodyComposer,
+)
+from substitute.presentation.editor.panel.node_card.field_realizer import (
+    NodeCardFieldRealizer,
+)
+from substitute.presentation.editor.panel.node_card.title_composer import (
+    NodeCardTitleComposer,
+)
 from substitute.presentation.editor.panel.projection_coordinator import (
     EditorPanelProjectionCoordinator,
 )
@@ -51,6 +63,9 @@ from substitute.presentation.editor.panel.rendering.render_reconciler import (
     EditorPanelRenderReconciler,
 )
 from substitute.presentation.editor.panel.widgets import field_row as field_row_view
+from substitute.presentation.editor.panel.widgets import (
+    field_row_geometry as field_row_geometry_view,
+)
 
 from .trace_events import ProjectionTraceRecorder
 
@@ -215,8 +230,8 @@ def instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
         },
     )
     patch_method(
-        NodeCardBuilder,
-        "_create_title_row",
+        NodeCardTitleComposer,
+        "create",
         "production.node_card.create_title_row",
         "node_card.title_row.calls",
         lambda _self, _args, kwargs: {
@@ -226,8 +241,8 @@ def instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
         },
     )
     patch_method(
-        NodeCardBuilder,
-        "_add_input_row",
+        NodeCardBodyComposer,
+        "add_input_row",
         "production.node_card.add_input_row",
         "node_card.input_row.calls",
         lambda _self, _args, kwargs: {
@@ -236,7 +251,7 @@ def instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
         },
     )
     patch_method(
-        NodeCardBuilder,
+        NodeCardBodyComposer,
         "add_n_column_row",
         "production.node_card.add_n_column_row",
         "node_card.n_column_row.calls",
@@ -246,8 +261,8 @@ def instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
         },
     )
     patch_method(
-        NodeCardBuilder,
-        "_create_field_for_key",
+        NodeCardFieldRealizer,
+        "realize",
         "production.field.create_field_for_key",
         "field.create.calls",
         lambda _self, _args, kwargs: _field_spec_details(
@@ -257,14 +272,14 @@ def instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
         ),
     )
     patch_function(
-        node_card_builder_module,
+        field_factory_adapter_module,
         "build_widget_for_field_spec",
         "production.field.factory",
         "field.factory.calls",
         lambda _args, kwargs: _field_spec_details(kwargs.get("field_spec")),
     )
     patch_function(
-        field_row_view,
+        field_row_geometry_view,
         "_apply_field_row_divider_style",
         "production.field_row.apply_divider_style",
         "field_row.divider_style.calls",
@@ -278,7 +293,7 @@ def instrument_projection(recorder: ProjectionTraceRecorder) -> Iterator[None]:
         lambda args, _kwargs: {"target_count": max(0, len(args) - 2)},
     )
     patch_function(
-        node_card_builder_module,
+        title_composer_module,
         "bind_fluent_tooltip",
         "production.node_card.bind_tooltip",
         "node_card.bind_tooltip.calls",
