@@ -144,9 +144,7 @@ class ProjectionRegistryCleanup:
         card_wrappers = getattr(self._panel, "card_wrappers", None)
         if isinstance(card_wrappers, dict):
             for key in [
-                key
-                for key in card_wrappers
-                if _alias_key_matches(key, cube_alias)
+                key for key in card_wrappers if _alias_key_matches(key, cube_alias)
             ]:
                 card_wrappers.pop(key, None)
 

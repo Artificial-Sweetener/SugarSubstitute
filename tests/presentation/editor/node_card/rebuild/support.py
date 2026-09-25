@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import cast
 
 import pytest
 from PySide6.QtWidgets import QWidget
@@ -72,18 +71,15 @@ class RebuildScenario:
             stack_order=["A"],
             definitions_by_class=definitions,
         )
-        wrapper = cast(
-            QWidget | None,
-            self.builder.build_node_card(
-                node_name=self.node_name,
-                inputs=inputs,
-                node_type=self.node_type,
-                field_specs=snapshot.field_specs_by_alias["A"][self.node_name],
-                cube_state=self.cube_state,
-                resolved_behavior=snapshot.resolved_nodes_by_alias["A"][self.node_name],
-                display_decision=snapshot.card_decisions_by_alias["A"][self.node_name],
-                alias="A",
-            ),
+        wrapper = self.builder.build_node_card(
+            node_name=self.node_name,
+            inputs=inputs,
+            node_type=self.node_type,
+            field_specs=snapshot.field_specs_by_alias["A"][self.node_name],
+            cube_state=self.cube_state,
+            resolved_behavior=snapshot.resolved_nodes_by_alias["A"][self.node_name],
+            display_decision=snapshot.card_decisions_by_alias["A"][self.node_name],
+            alias="A",
         )
         if wrapper is None:
             raise AssertionError("Rebuild scenario did not produce a node card.")

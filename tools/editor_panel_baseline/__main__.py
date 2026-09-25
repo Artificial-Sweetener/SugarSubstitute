@@ -25,10 +25,6 @@ from pathlib import Path
 from tools.editor_panel_baseline import render_editor_panel_baseline
 from tools.editor_projection_rig.scenarios import resolve_scenarios
 
-_DEFAULT_BASE_CUBES = Path(
-    r"E:\ComfyUI\custom_nodes\SugarCubes\.sugarcubes"
-    r"\Artificial-Sweetener\Base-Cubes"
-)
 _DEFAULT_FIXTURES = Path("artifacts/editor_projection_rig/fixtures")
 _DEFAULT_OUTPUT = Path("artifacts/editor-panel-baseline")
 
@@ -49,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scenario", default="both")
     parser.add_argument("--fixtures", type=Path, default=_DEFAULT_FIXTURES)
     parser.add_argument("--output", type=Path, default=_DEFAULT_OUTPUT)
-    parser.add_argument("--base-cubes", type=Path, default=_DEFAULT_BASE_CUBES)
+    parser.add_argument("--base-cubes", type=Path, required=True)
     parser.add_argument("--themes", default="light,dark")
     parser.add_argument("--positions", default="top,middle,bottom")
     args = parser.parse_args(argv)

@@ -109,7 +109,7 @@ def test_contributor_locks_original_dimension_fields_and_opens_intent() -> None:
     field_rows = FieldRowBuilder(
         panel=panel,
         icon_builder=lambda _icon: QWidget(panel),
-        icon_resolver=lambda _node, _field, column_index=None: None,
+        icon_resolver=lambda _node, _field, _column_index: None,
     )
     content = QWidget(panel)
     content_layout = QVBoxLayout(content)
@@ -195,7 +195,7 @@ def test_canvas_resolution_action_preserves_supported_width_range() -> None:
         field_rows=FieldRowBuilder(
             panel=panel,
             icon_builder=lambda _icon: QWidget(panel),
-            icon_resolver=lambda _node, _field, column_index=None: None,
+            icon_resolver=lambda _node, _field, _column_index: None,
         ),
     ).add_n_column_row(
         fields=[("width", width), ("height", height)],
@@ -302,7 +302,7 @@ def test_synthetic_resolution_decorator_restricts_dimension_menu_to_saving(
     field_rows = FieldRowBuilder(
         panel=panel,
         icon_builder=lambda _icon: QWidget(panel),
-        icon_resolver=lambda _node, _field, column_index=None: None,
+        icon_resolver=lambda _node, _field, _column_index: None,
     )
     content = QWidget(panel)
     content_layout = QVBoxLayout(content)

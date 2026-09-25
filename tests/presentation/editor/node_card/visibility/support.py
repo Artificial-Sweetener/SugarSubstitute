@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import cast
 
 import pytest
 from PySide6.QtWidgets import QWidget
@@ -53,22 +52,17 @@ class VisibilityScenario:
     def build(self) -> QWidget | None:
         """Build the configured card through its public boundary."""
 
-        return cast(
-            QWidget | None,
-            self.builder.build_node_card(
-                node_name=self.node_name,
-                inputs=self.inputs,
-                node_type=self.node_type,
-                field_specs=self.snapshot.field_specs_by_alias["A"][self.node_name],
-                cube_state=self.cube_state,
-                resolved_behavior=self.snapshot.resolved_nodes_by_alias["A"][
-                    self.node_name
-                ],
-                display_decision=self.snapshot.card_decisions_by_alias["A"][
-                    self.node_name
-                ],
-                alias="A",
-            ),
+        return self.builder.build_node_card(
+            node_name=self.node_name,
+            inputs=self.inputs,
+            node_type=self.node_type,
+            field_specs=self.snapshot.field_specs_by_alias["A"][self.node_name],
+            cube_state=self.cube_state,
+            resolved_behavior=self.snapshot.resolved_nodes_by_alias["A"][
+                self.node_name
+            ],
+            display_decision=self.snapshot.card_decisions_by_alias["A"][self.node_name],
+            alias="A",
         )
 
     def destroy(self, wrapper: QWidget | None) -> None:

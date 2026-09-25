@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
+import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from PySide6.QtCore import QEvent, QEasingCurve, QObject, Qt
 from PySide6.QtTest import QTest
@@ -29,6 +30,7 @@ from substitute.presentation.motion.controller import SurfaceMotionController
 from substitute.presentation.motion.models import MotionSpec
 from substitute.presentation.motion.overlay import MotionOverlay
 from substitute.presentation.motion.timeline import MotionClock
+from tests.support.qt.lifecycle import widget_root_scope
 from tools.editor_projection_rig.qt_harness import ensure_qapplication
 
 
@@ -86,6 +88,14 @@ class _ManualMotionClock:
             finished()
 
 
+@pytest.fixture(autouse=True)
+def _destroy_motion_widget_roots() -> Iterator[None]:
+    """Synchronously destroy every native widget root created by one test."""
+
+    with widget_root_scope():
+        yield
+
+
 def _manual_clock_factory(clock: MotionClock) -> Callable[[QObject], MotionClock]:
     """Return a factory that injects one deterministic test clock."""
 
@@ -111,6 +121,7 @@ def test_zero_duration_settles_without_overlay(monkeypatch: MonkeyPatch) -> None
 
     viewport, target = _mounted_surface()
     controller = SurfaceMotionController(viewport_provider=lambda: viewport)
+    controller.setParent(viewport)
     monkeypatch.setattr(
         "substitute.presentation.motion.controller.resolve_motion_duration",
         lambda _duration: 0,
@@ -138,6 +149,7 @@ def test_active_motion_uses_one_mouse_transparent_overlay_and_cancels() -> None:
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
     )
+    controller.setParent(viewport)
     generation = controller.prepare(reason="cube_insert")
     assert generation is not None
 
@@ -170,6 +182,7 @@ def test_new_prepare_supersedes_active_generation() -> None:
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
     )
+    controller.setParent(viewport)
     first = controller.prepare(reason="first")
     assert first is not None
     assert controller.animate_widgets(
@@ -193,6 +206,7 @@ def test_viewport_resize_cancels_active_motion() -> None:
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
     )
+    controller.setParent(viewport)
     generation = controller.prepare(reason="cube_insert")
     assert generation is not None
     assert controller.animate_widgets(
@@ -216,6 +230,7 @@ def test_direct_input_and_surface_hide_cancel_motion() -> None:
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
     )
+    controller.setParent(viewport)
     generation = controller.prepare(reason="cube_insert")
     assert generation is not None
     assert controller.animate_widgets(
@@ -247,6 +262,7 @@ def test_input_delivered_to_descendant_cancels_motion() -> None:
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
     )
+    controller.setParent(viewport)
     generation = controller.prepare(reason="cube_insert")
     assert generation is not None
     assert controller.animate_widgets(
@@ -271,6 +287,7 @@ def test_injected_clock_finishes_and_disposes_overlay() -> None:
         default_spec=MotionSpec(duration_ms=180),
         clock_factory=_manual_clock_factory(clock),
     )
+    controller.setParent(viewport)
     generation = controller.prepare(reason="cube_insert")
     assert generation is not None
     assert controller.animate_widgets(
@@ -311,6 +328,7 @@ def test_target_capture_count_and_memory_are_bounded() -> None:
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
     )
+    controller.setParent(viewport)
     generation = controller.prepare(reason="bounded_targets")
     assert generation is not None
 

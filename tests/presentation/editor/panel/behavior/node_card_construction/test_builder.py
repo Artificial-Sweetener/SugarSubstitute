@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import importlib
 from types import ModuleType, SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 from _pytest.monkeypatch import MonkeyPatch
 from substitute.application.node_behavior import (
     FieldBehavior,
     FieldPresentation,
+    NodeBehaviorService,
     ResolvedFieldSpec,
 )
 from substitute.application.prompt_editor.features.syntax_profile import (
@@ -109,7 +110,7 @@ def _panel_services(panel: SimpleNamespace) -> object:
 
     return EditorPanelServiceBundle(
         node_definition_gateway=panel.node_definition_gateway,
-        node_behavior_service=object(),
+        node_behavior_service=cast(NodeBehaviorService, object()),
         node_presentation_service=empty_node_presentation_service(),
         prompt=EditorPanelPromptServiceBundle(
             runtime=PromptEditorRuntimeServices(
