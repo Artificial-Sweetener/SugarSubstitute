@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from threading import get_ident
 from uuid import UUID, uuid4
+
+from PySide6.QtTest import QSignalSpy
 
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
@@ -35,6 +38,7 @@ from substitute.presentation.canvas.output.video_playback_controller import (
     VideoViewportState,
 )
 from tests.support.qt.lifecycle import ensure_qt_application
+from tests.support.qt.semantic_wait import wait_for_qt_signal
 
 
 class _FakePlayer:
@@ -50,6 +54,8 @@ class _FakePlayer:
         self.media_id: UUID | None = None
         self.commands: list[tuple[object, ...]] = []
         self.current = _snapshot(None)
+        self.pending_poll_snapshot: VideoPlaybackSnapshot | None = None
+        self.poll_thread_ids: list[int] = []
 
     def load(self, media_id: UUID, path: Path) -> None:
         """Record one media replacement."""
@@ -113,6 +119,16 @@ class _FakePlayer:
         """Return current fake state."""
 
         return self.current
+
+    def poll_playback_state(self) -> None:
+        """Model one callback-free polling pass."""
+
+        self.poll_thread_ids.append(get_ident())
+        pending = self.pending_poll_snapshot
+        if pending is None:
+            return
+        self.pending_poll_snapshot = None
+        self.emit(pending)
 
     def close(self) -> None:
         """Record deterministic shutdown."""
@@ -207,6 +223,33 @@ def test_controller_routes_frame_steps_and_hidden_policy(tmp_path: Path) -> None
     assert ("previous",) in player_box[0].commands
     assert ("next",) in player_box[0].commands
     assert player_box[0].commands[-1] == ("active", False)
+    controller.close()
+
+
+def test_controller_polls_native_state_on_the_qt_thread(tmp_path: Path) -> None:
+    """Drive observations from the GUI timer without a native callback thread."""
+
+    ensure_qt_application()
+    players: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        players.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    changed = QSignalSpy(controller.snapshotChanged)
+    players[0].pending_poll_snapshot = _snapshot(media_id, time_seconds=0.5)
+
+    wait_for_qt_signal(changed, timeout_ms=1000)
+
+    assert controller.snapshot.time_seconds == 0.5
+    assert players[0].poll_thread_ids
+    assert set(players[0].poll_thread_ids) == {get_ident()}
     controller.close()
 
 

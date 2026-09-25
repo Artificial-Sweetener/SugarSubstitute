@@ -37,13 +37,11 @@ class MpvOpenGLRenderBridge:
         self._player = player
         self._lock = RLock()
         self._context: object | None = None
-        self._update_callback: Callable[[], None] | None = None
         self._get_proc_wrapper: object | None = None
 
     def initialize(
         self,
         get_proc_address: Callable[[str], int],
-        request_update: Callable[[], None],
     ) -> None:
         """Create the render context against the caller's current GL context."""
 
@@ -70,8 +68,16 @@ class MpvOpenGLRenderBridge:
                 "opengl",
                 opengl_init_params={"get_proc_address": self._get_proc_wrapper},
             )
-            self._update_callback = request_update
-            setattr(self._context, "update_cb", request_update)
+
+    def poll_update(self) -> bool:
+        """Acknowledge native render state from the caller's GUI thread."""
+
+        with self._lock:
+            context = self._context
+            if context is None:
+                return False
+            update = cast(Callable[[], bool], getattr(context, "update"))
+            return bool(update())
 
     def render(self, *, framebuffer: int, width: int, height: int) -> None:
         """Render one frame into the caller's current OpenGL framebuffer."""
@@ -105,10 +111,8 @@ class MpvOpenGLRenderBridge:
             context = self._context
             if context is None:
                 return
-            setattr(context, "update_cb", None)
             cast(Callable[[], None], getattr(context, "free"))()
             self._context = None
-            self._update_callback = None
             self._get_proc_wrapper = None
 
 

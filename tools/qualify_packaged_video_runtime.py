@@ -221,6 +221,7 @@ def _load_ready(player: Any, path: Path) -> None:
             and player.snapshot().height is not None
         ),
         label=f"metadata for {path.name}",
+        poll=player.poll_playback_state,
     )
 
 
@@ -232,18 +233,21 @@ def _step_round_trip(player: Any, path: Path) -> dict[str, float]:
     _wait_until(
         lambda: (player.snapshot().time_seconds or 0.0) >= 0.45,
         label=f"seek for {path.name}",
+        poll=player.poll_playback_state,
     )
     before = float(player.snapshot().time_seconds or 0.0)
     player.step_next_frame()
     _wait_until(
         lambda: (player.snapshot().time_seconds or 0.0) > before + 0.001,
         label=f"next frame for {path.name}",
+        poll=player.poll_playback_state,
     )
     after_next = float(player.snapshot().time_seconds or 0.0)
     player.step_previous_frame()
     _wait_until(
         lambda: (player.snapshot().time_seconds or after_next) < after_next - 0.001,
         label=f"previous frame for {path.name}",
+        poll=player.poll_playback_state,
     )
     after_previous = float(player.snapshot().time_seconds or 0.0)
     if not player.snapshot().paused:
@@ -273,6 +277,7 @@ def _step_vfr(player: Any, path: Path) -> dict[str, object]:
         _wait_until(
             advanced,
             label="VFR next frame",
+            poll=player.poll_playback_state,
         )
         timestamps.append(float(player.snapshot().time_seconds or 0.0))
     deltas = {
@@ -297,6 +302,7 @@ def _exercise_loop_policy(player: Any, path: Path) -> dict[str, object]:
     _wait_until(
         lambda: str(player.snapshot().state) == "ended",
         label="loop-off EOF",
+        poll=player.poll_playback_state,
     )
     ended_time = player.snapshot().time_seconds
 
@@ -306,6 +312,7 @@ def _exercise_loop_policy(player: Any, path: Path) -> dict[str, object]:
     wrapped_at: float | None = None
     deadline = time.monotonic() + _TIMEOUT_SECONDS
     while time.monotonic() < deadline:
+        player.poll_playback_state()
         current = float(player.snapshot().time_seconds or 0.0)
         if maximum > duration * 0.75 and current < duration * 0.35:
             wrapped_at = current
@@ -333,6 +340,7 @@ def _exercise_audio_and_visibility(player: Any, path: Path) -> dict[str, object]
     _wait_until(
         lambda: not player.snapshot().paused,
         label="audio fixture playback",
+        poll=player.poll_playback_state,
     )
     player.set_output_active(False)
     hidden = player.snapshot()
@@ -348,11 +356,18 @@ def _exercise_audio_and_visibility(player: Any, path: Path) -> dict[str, object]
     }
 
 
-def _wait_until(predicate: Callable[[], bool], *, label: str) -> None:
+def _wait_until(
+    predicate: Callable[[], bool],
+    *,
+    label: str,
+    poll: Callable[[], None] | None = None,
+) -> None:
     """Wait for one native observation with a bounded diagnostic timeout."""
 
     deadline = time.monotonic() + _TIMEOUT_SECONDS
     while time.monotonic() < deadline:
+        if poll is not None:
+            poll()
         if predicate():
             return
         time.sleep(0.01)

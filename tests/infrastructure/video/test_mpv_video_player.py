@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from threading import Thread
 from types import ModuleType
 from typing import cast
 from uuid import uuid4
@@ -44,11 +43,8 @@ from substitute.infrastructure.video.mpv_video_player import (
 )
 
 
-ObservedCallback = Callable[[str, object], None]
-
-
 class FakePlayer:
-    """Model the python-mpv commands and property observers used by playback."""
+    """Model the synchronous python-mpv surface used by playback."""
 
     def __init__(self, **options: object) -> None:
         """Capture constructor policy and initialize property state."""
@@ -61,13 +57,26 @@ class FakePlayer:
         self.video_zoom: object = 0.0
         self.video_pan_x: object = 0.0
         self.video_pan_y: object = 0.0
+        self._event_handle: object | None = object()
         self.path: object = None
         self.commands: list[tuple[str, tuple[object, ...]]] = []
-        self.observers: dict[str, ObservedCallback] = {}
-        self.observed_callbacks: dict[str, ObservedCallback] = {}
+        self.properties: dict[str, object] = {
+            "path": None,
+            "pause": self.pause,
+            "time-pos": None,
+            "duration": None,
+            "width": None,
+            "height": None,
+            "eof-reached": False,
+            "core-idle": None,
+            "current-vo": None,
+            "gpu-api": None,
+            "gpu-context": None,
+            "hwdec-current": None,
+            "video-params/pixelformat": None,
+            "video-codec": None,
+        }
         self.terminated = False
-        self.callback_during_terminate = False
-        self.terminate_callback_completed = False
         self.fail_command: str | None = None
 
     def command(self, name: str, *arguments: object) -> object:
@@ -78,37 +87,28 @@ class FakePlayer:
         self.commands.append((name, arguments))
         if name == "loadfile":
             self.path = arguments[0]
+            self.properties["path"] = arguments[0]
         elif name == "stop":
             self.path = None
+            self.properties["path"] = None
         return None
 
-    def observe_property(self, name: str, callback: ObservedCallback) -> None:
-        """Register one observer by property name."""
+    def _get_property(self, name: str) -> object:
+        """Return one synchronously polled property."""
 
-        self.observers[name] = callback
-        self.observed_callbacks[name] = callback
-
-    def unobserve_property(self, name: str, callback: ObservedCallback) -> None:
-        """Remove the matching property observer."""
-
-        if self.observers.get(name) is callback:
-            del self.observers[name]
+        if name == "pause":
+            return self.pause
+        return self.properties[name]
 
     def terminate(self) -> None:
         """Record native player teardown."""
 
-        if self.callback_during_terminate:
-            callback = self.observed_callbacks["pause"]
-            worker = Thread(target=lambda: callback("pause", True))
-            worker.start()
-            worker.join(timeout=0.5)
-            self.terminate_callback_completed = not worker.is_alive()
         self.terminated = True
 
     def emit(self, name: str, value: object) -> None:
-        """Deliver one synthetic native property observation."""
+        """Change one property for the next caller-owned polling pass."""
 
-        self.observers[name](name, value)
+        self.properties[name] = value
 
 
 class FakeRuntime:
@@ -133,6 +133,14 @@ class FakeRuntime:
 
         module.MPV = construct  # type: ignore[attr-defined]
         module.MpvGlGetProcAddressFn = lambda callback: callback  # type: ignore[attr-defined]
+
+        def destroy_event_client(event_client: object) -> None:
+            """Record disposal of python-mpv's unused event client."""
+
+            assert self.player is not None
+            assert event_client is self.player._event_handle
+
+        module._mpv_destroy = destroy_event_client  # type: ignore[attr-defined]
 
         def construct_render_context(
             player: FakePlayer,
@@ -159,9 +167,17 @@ class FakeRenderContext:
         self.api_type = api_type
         self.options = options
         self.update_cb: Callable[[], None] | None = None
+        self.update_pending = False
         self.rendered: list[dict[str, object]] = []
         self.swap_count = 0
         self.freed = False
+
+    def update(self) -> bool:
+        """Return and clear the render update requested by libmpv."""
+
+        pending = self.update_pending
+        self.update_pending = False
+        return pending
 
     def render(self, **options: object) -> None:
         """Record one framebuffer render."""
@@ -218,6 +234,8 @@ def test_player_uses_closed_runtime_and_qt_composited_render_api(
     assert native.options["demuxer_lavf_o"] == "protocol_whitelist=file"
     assert native.options["loop_file"] == "inf"
     assert native.options["mute"] is True
+    assert native.options["start_event_thread"] is False
+    assert native._event_handle is None
     adapter.close()
 
 
@@ -238,10 +256,10 @@ def test_player_applies_explicit_safe_video_preferences(tmp_path: Path) -> None:
     adapter.close()
 
 
-def test_render_context_uses_surface_framebuffer_and_releases_before_close(
+def test_render_context_is_polled_without_native_thread_python_callback(
     tmp_path: Path,
 ) -> None:
-    """Keep video in Qt composition through the libmpv OpenGL render API."""
+    """Keep every Python and Qt render action on the GUI polling thread."""
 
     runtime = FakeRuntime()
     adapter = MpvVideoPlayer(
@@ -250,9 +268,7 @@ def test_render_context_uses_surface_framebuffer_and_releases_before_close(
         event_callback=lambda _event: None,
         render_api=True,
     )
-    updates: list[bool] = []
-
-    adapter.initialize_renderer(lambda _name: 1234, lambda: updates.append(True))
+    adapter.initialize_renderer(lambda _name: 1234)
     assert len(runtime.render_contexts) == 1
     context = runtime.render_contexts[0]
     resolver = cast(
@@ -262,6 +278,11 @@ def test_render_context_uses_surface_framebuffer_and_releases_before_close(
         ],
     )
     assert resolver(object(), b"glGetString") == 1234
+    assert context.update_cb is None
+    assert not adapter.poll_renderer_update()
+    context.update_pending = True
+    assert adapter.poll_renderer_update()
+    assert not adapter.poll_renderer_update()
 
     adapter.render_frame(framebuffer=19, width=1280, height=720)
     adapter.report_swap()
@@ -277,9 +298,6 @@ def test_render_context_uses_surface_framebuffer_and_releases_before_close(
         }
     ]
     assert context.swap_count == 1
-    assert context.update_cb is not None
-    context.update_cb()
-    assert updates == [True]
 
     adapter.close()
     assert context.freed
@@ -336,6 +354,7 @@ def test_loop_off_eof_and_play_restart_from_beginning(tmp_path: Path) -> None:
     adapter.set_loop_enabled(False)
 
     native.emit("eof-reached", True)
+    adapter.poll_playback_state()
     assert adapter.snapshot().state is VideoPlaybackState.ENDED
     assert native.loop_file == "no"
 
@@ -396,9 +415,11 @@ def test_observations_update_state_and_reject_replaced_path(tmp_path: Path) -> N
     native.emit("width", 320)
     native.emit("height", 180)
     native.emit("time-pos", 0.125)
+    adapter.poll_playback_state()
     current_count = len(events)
     native.emit("path", str(tmp_path / "old.webm"))
     native.emit("time-pos", 1.75)
+    adapter.poll_playback_state()
 
     snapshot = adapter.snapshot()
     assert snapshot.duration_seconds == 2.5
@@ -428,6 +449,7 @@ def test_observations_publish_actual_native_path_and_software_fallback(
     native.emit("video-codec", "vp9")
     native.emit("video-params/pixelformat", "yuv420p")
     native.emit("hwdec-current", None)
+    adapter.poll_playback_state()
 
     diagnostics = adapter.snapshot().diagnostics
     assert diagnostics.actual_video_output == "gpu-next"
@@ -449,6 +471,7 @@ def test_diagnostics_report_explicit_renderer_fallback(tmp_path: Path) -> None:
     adapter.load(uuid4(), video)
 
     native.emit("current-vo", "gpu")
+    adapter.poll_playback_state()
 
     diagnostics = adapter.snapshot().diagnostics
     assert diagnostics.requested_renderer is VideoRenderer.GPU_NEXT
@@ -468,6 +491,7 @@ def test_render_api_is_the_requested_qt_composition_path(tmp_path: Path) -> None
     adapter.load(uuid4(), video)
 
     native.emit("current-vo", "libmpv")
+    adapter.poll_playback_state()
 
     diagnostics = adapter.snapshot().diagnostics
     assert diagnostics.actual_video_output == "libmpv"
@@ -489,6 +513,7 @@ def test_software_decode_preference_is_not_reported_as_fallback(
     adapter.load(uuid4(), video)
 
     native.emit("hwdec-current", None)
+    adapter.poll_playback_state()
 
     assert adapter.snapshot().diagnostics.fallback is None
     adapter.close()
@@ -512,8 +537,8 @@ def test_command_failure_is_sanitized_and_keeps_media_loaded(tmp_path: Path) -> 
     adapter.close()
 
 
-def test_close_invalidates_observers_and_terminates_once(tmp_path: Path) -> None:
-    """Release callbacks and native resources deterministically and idempotently."""
+def test_close_terminates_callback_free_player_once(tmp_path: Path) -> None:
+    """Release callback-free native resources deterministically and idempotently."""
 
     adapter, native, _events, video = _player(tmp_path)
     adapter.load(uuid4(), video)
@@ -521,21 +546,21 @@ def test_close_invalidates_observers_and_terminates_once(tmp_path: Path) -> None
     adapter.close()
     adapter.close()
 
-    assert native.observers == {}
     assert native.terminated
     with pytest.raises(VideoPlayerError, match="closed"):
         adapter.set_volume(50)
 
 
-def test_close_never_joins_native_event_thread_while_holding_state_lock(
-    tmp_path: Path,
-) -> None:
-    """Native teardown must let an in-flight observation finish without deadlock."""
+def test_native_state_changes_publish_only_when_caller_polls(tmp_path: Path) -> None:
+    """Never let a background libmpv thread enter application Python code."""
 
-    adapter, native, _events, video = _player(tmp_path)
+    adapter, native, events, video = _player(tmp_path)
     adapter.load(uuid4(), video)
-    native.callback_during_terminate = True
+    initial_count = len(events)
+    native.emit("time-pos", 0.5)
 
+    assert len(events) == initial_count
+    adapter.poll_playback_state()
+    assert len(events) == initial_count + 1
+    assert events[-1].snapshot.time_seconds == 0.5
     adapter.close()
-
-    assert native.terminate_callback_completed
