@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor, QImage, QPalette
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
 from sugarsubstitute_shared.localization import app_text
 
 from substitute.application.ports.video import VideoPlaybackState
@@ -36,6 +36,11 @@ from substitute.presentation.canvas.output.video_playback_controller import (
     VideoViewportMode,
 )
 from substitute.presentation.canvas.output.video_playback_page import VideoPlaybackPage
+from substitute.presentation.shell.chrome_style import body_material_wash_color
+from substitute.presentation.shell.window_effects import ShellBackdropMode
+from substitute.presentation.shell.workspace_body_material_surface import (
+    WorkspaceBodyMaterialSurface,
+)
 from tools.video_output_qualification_support import (
     capture,
     find_button,
@@ -50,7 +55,7 @@ from tools.video_output_qualification_support import (
 )
 from tools.video_output_qualification_volume import qualify_volume_flyout
 
-_WASH = QColor(37, 53, 71)
+_BACKDROP = QColor(37, 53, 71)
 
 
 def create_qualification_host(canvas: OutputCanvas) -> tuple[CanvasHost, QMainWindow]:
@@ -69,10 +74,18 @@ def create_qualification_host(canvas: OutputCanvas) -> tuple[CanvasHost, QMainWi
     window = QMainWindow()
     window.setWindowTitle("SugarSubstitute video output qualification")
     palette = window.palette()
-    palette.setColor(QPalette.ColorRole.Window, qualification_wash_color())
+    palette.setColor(QPalette.ColorRole.Window, _BACKDROP)
     window.setPalette(palette)
     window.setAutoFillBackground(True)
-    window.setCentralWidget(host)
+    material = WorkspaceBodyMaterialSurface(
+        backdrop_mode=ShellBackdropMode.MICA,
+        parent=window,
+    )
+    material_layout = QHBoxLayout(material)
+    material_layout.setContentsMargins(0, 0, 0, 0)
+    material_layout.setSpacing(0)
+    material_layout.addWidget(host)
+    window.setCentralWidget(material)
     window.setWindowOpacity(0.0)
     return host, window
 
@@ -94,11 +107,12 @@ def qualify_transparent_bars(
     )
     ratio = root.devicePixelRatioF()
     pixel = image.pixelColor(round(sample.x() * ratio), round(sample.y() * ratio))
-    if not _colors_match(pixel, _WASH):
+    expected = qualification_wash_color()
+    if not _colors_match(pixel, expected):
         raise RuntimeError(
             "Video letterbox region did not expose the Output canvas wash: "
             f"observed={pixel.name(QColor.NameFormat.HexArgb)} "
-            f"expected={_WASH.name(QColor.NameFormat.HexArgb)}"
+            f"expected={expected.name(QColor.NameFormat.HexArgb)}"
         )
     return {
         "wash_rgba": [pixel.red(), pixel.green(), pixel.blue(), pixel.alpha()],
@@ -303,9 +317,15 @@ def _exercise_transport(
 
 
 def qualification_wash_color() -> QColor:
-    """Return the opaque canvas wash used by native pixel qualification."""
+    """Return the production material wash composited over the known backdrop."""
 
-    return QColor(_WASH)
+    foreground = QColor(*body_material_wash_color(ShellBackdropMode.MICA))
+    alpha = foreground.alphaF()
+    return QColor(
+        round(foreground.red() * alpha + _BACKDROP.red() * (1.0 - alpha)),
+        round(foreground.green() * alpha + _BACKDROP.green() * (1.0 - alpha)),
+        round(foreground.blue() * alpha + _BACKDROP.blue() * (1.0 - alpha)),
+    )
 
 
 def _assert_video_frame_visible(
@@ -321,7 +341,7 @@ def _assert_video_frame_visible(
     center = page.render_surface.mapTo(root, page.render_surface.rect().center())
     ratio = root.devicePixelRatioF()
     pixel = image.pixelColor(round(center.x() * ratio), round(center.y() * ratio))
-    if pixel.lightness() <= 4 or _colors_match(pixel, _WASH):
+    if pixel.lightness() <= 4 or _colors_match(pixel, qualification_wash_color()):
         raise RuntimeError(
             "Rehosted video surface did not contain a decoded frame: "
             f"observed={pixel.name(QColor.NameFormat.HexArgb)}"
