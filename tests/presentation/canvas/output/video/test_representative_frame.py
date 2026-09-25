@@ -32,6 +32,9 @@ from substitute.presentation.canvas.output.output_video_representative_frame imp
 from tests.presentation.canvas.output.document.rendering_support import (
     _wait_for_rendered_color,
 )
+from tests.presentation.canvas.output.document.comparison_support import (
+    _wait_for_comparison_colors,
+)
 from tests.presentation.canvas.output.document.support import _app, _image
 from tests.support.qt.lifecycle import destroy_qt_object
 
@@ -73,6 +76,62 @@ def test_paused_frame_replaces_visible_tile_without_replacing_composition(
         assert document.image_path(media_id) == video_path
         assert document.workspace.canvasFor(composition_id) is target
         assert _wait_for_rendered_color(app, target, QColor("lime"))
+    finally:
+        document.close()
+        destroy_qt_object(document.workspace)
+        destroy_qt_object(document)
+
+
+def test_projection_resynchronization_preserves_paused_frame_in_comparison(
+    execution_runtime: ExecutionRuntime,
+    tmp_path: Path,
+) -> None:
+    """Keep the paused representative when comparison re-admits its source poster."""
+
+    app = _app()
+    document = OutputCanvasDocument(execution_runtime=execution_runtime)
+    video_id = uuid4()
+    image_id = uuid4()
+    video_path = tmp_path / "clip.webm"
+    video_path.write_bytes(b"video")
+    poster = _image("blue")
+    try:
+        assert document.admit_image(video_id, poster, path=video_path)
+        assert document.admit_image(image_id, _image("red"))
+        video_composition_id = document.composition_id_for(video_id)
+        frame = VideoRepresentativeFrame(
+            time_seconds=14.0 / 24.0,
+            width=2,
+            height=1,
+            stride=8,
+            pixels=bytes((0, 255, 0, 0)) * 2,
+        )
+        presenter = OutputVideoRepresentativeFramePresenter(document)
+
+        assert presenter.present(video_id, frame)
+        assert document.admit_image(video_id, poster, path=video_path) is False
+        assert document.composition_id_for(video_id) == video_composition_id
+        representative = document.image_payload(video_id)
+        assert representative is not None
+        assert representative.pixelColor(0, 0) == QColor("lime")
+
+        document.workspace.resize(640, 360)
+        document.workspace.show()
+        assert document.present_comparison(
+            video_id,
+            image_id,
+            split_position=0.5,
+            orientation="vertical",
+        )
+        app.processEvents()
+        comparison = document.workspace.currentCanvas()
+        assert comparison is not None
+        assert _wait_for_comparison_colors(
+            app,
+            comparison,
+            primary=QColor("lime"),
+            secondary=QColor("red"),
+        )
     finally:
         document.close()
         destroy_qt_object(document.workspace)

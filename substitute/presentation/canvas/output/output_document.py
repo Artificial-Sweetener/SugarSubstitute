@@ -71,6 +71,7 @@ class OutputDocumentImage:
     path: Path | None
     payload: QImage
     payload_cache_key: int
+    source_payload_cache_key: int
 
 
 class OutputCanvasDocument(QObject):
@@ -167,6 +168,7 @@ class OutputCanvasDocument(QObject):
             path=normalized_path,
             payload=QImage(image),
             payload_cache_key=image.cacheKey(),
+            source_payload_cache_key=image.cacheKey(),
         )
         if existing is not None:
             self._publish_detail_groups()
@@ -239,6 +241,7 @@ class OutputCanvasDocument(QObject):
             path=record.path,
             payload=QImage(image),
             payload_cache_key=image.cacheKey(),
+            source_payload_cache_key=record.source_payload_cache_key,
         )
         log_debug(
             _LOGGER,
@@ -400,7 +403,9 @@ class OutputCanvasDocument(QObject):
     ) -> bool:
         """Compare host payload identity without inspecting document resources."""
 
-        return record.payload_cache_key == image.cacheKey() and record.path == path
+        return (
+            record.source_payload_cache_key == image.cacheKey() and record.path == path
+        )
 
     def _composition_ids_for(self, image_ids: tuple[UUID, ...]) -> tuple[UUID, ...]:
         """Resolve ordered unique application identities to live composition IDs."""
