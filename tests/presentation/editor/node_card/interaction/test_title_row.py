@@ -79,7 +79,7 @@ def test_collapsible_node_card_title_row_exposes_row_activation(
         _Gateway(),
     )
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
 
@@ -219,7 +219,7 @@ def test_row_click_prefers_accordion_when_title_row_also_has_switch(
         _Gateway(),
     )
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
 

@@ -30,27 +30,22 @@ from substitute.application.prompt_editor.lora.effective_provider import (
 )
 from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.presentation.editor.panel.behavior_snapshot_controller import (
+    BehaviorSnapshotController,
+    BehaviorSnapshotHost,
+)
 from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptFieldProfileDecision,
-    PanelPromptProfilePolicy,
 )
 from substitute.presentation.editor.panel.projection_observability import (
     log_panel_projection_event,
-    log_panel_projection_timing,
-    panel_projection_observability_started_at,
 )
-from substitute.shared.logging.logger import get_logger, log_info
 
-_LOGGER = get_logger("presentation.editor.panel.prompt.context")
-
-
-@dataclass(slots=True)
-class PanelBehaviorRefreshTransaction:
-    """Track one explicit editor behavior snapshot reuse boundary."""
-
-    reason: str
-    snapshot: EditorBehaviorSnapshot | None = None
-    reuse_key: tuple[Hashable, ...] | None = None
+from .feature_profile_resolver import (
+    PromptFeatureProfileResolver,
+    PromptFeatureProfileServiceProtocol,
+)
+from .scheduled_lora_adapter import build_scheduled_lora_resolver
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,100 +59,17 @@ class PromptWorkflowCubeSnapshot:
     ui: Mapping[str, object] | None
 
 
-class PromptFeatureProfileServiceProtocol(Protocol):
-    """Describe prompt feature-profile resolution used by the controller."""
-
-    def build_profile(
-        self,
-        *,
-        field_style: Mapping[str, object],
-        workflow_context: WorkflowPromptContext,
-        cube_alias: str | None,
-        prompt_node_name: str,
-        prompt_field_key: str,
-    ) -> PromptEditorFeatureProfile:
-        """Build one prompt feature profile for a field context."""
-
-
-class NodeBehaviorServiceProtocol(Protocol):
-    """Describe behavior snapshot construction used by prompt context."""
-
-    def build_snapshot(
-        self,
-        *,
-        cube_states: Mapping[str, object],
-        stack_order: list[str],
-        workflow_overrides: Mapping[str, object],
-        search_hidden_keys: set[object],
-        override_hidden_field_keys: set[object] | None,
-        node_search_text: str | None,
-        search_matching_nodes: set[tuple[str, str]] | None,
-    ) -> EditorBehaviorSnapshot:
-        """Build a behavior snapshot for the supplied workflow state."""
-
-
 class EditorPanelPromptContextHost(Protocol):
     """Describe panel state needed to prepare prompt context snapshots."""
 
-    node_behavior_service: NodeBehaviorServiceProtocol
     scheduled_lora_provider: ScheduledLoraProvider | None
     prompt_feature_profile_service: PromptFeatureProfileServiceProtocol | None
     _cube_states: dict[str, object] | None
     _stack_order: list[str] | None
-    _current_search_hidden_keys: set[object] | None
-    _current_node_search_text: str | None
-    _current_search_matching_nodes: set[tuple[str, str]] | None
     _last_behavior_snapshot: EditorBehaviorSnapshot | None
 
     def _workflow_overrides(self) -> Mapping[str, object]:
         """Return workflow overrides for prompt context cache keys."""
-
-
-@dataclass(frozen=True, slots=True)
-class _PromptFeatureProfileCacheLogContext:
-    """Carry prompt-safe profile-cache diagnostic fields."""
-
-    cube_alias: str
-    node_name: str
-    field_key: str
-    context_source: str
-    cache_entry_count: int
-
-
-def _log_prompt_feature_profile_cache_event(
-    event: str,
-    *,
-    context: _PromptFeatureProfileCacheLogContext,
-) -> None:
-    """Log one prompt-safe feature-profile cache lifecycle event."""
-
-    log_panel_projection_event(
-        event,
-        cube_alias=context.cube_alias,
-        node_name=context.node_name,
-        field_key=context.field_key,
-        context_source=context.context_source,
-        cache_entry_count=context.cache_entry_count,
-    )
-
-
-def _log_prompt_feature_profile_cache_timing(
-    event: str,
-    *,
-    started_at: float,
-    context: _PromptFeatureProfileCacheLogContext,
-) -> float:
-    """Log timing for one prompt-safe feature-profile cache operation."""
-
-    return log_panel_projection_timing(
-        event,
-        started_at=started_at,
-        cube_alias=context.cube_alias,
-        node_name=context.node_name,
-        field_key=context.field_key,
-        context_source=context.context_source,
-        cache_entry_count=context.cache_entry_count,
-    )
 
 
 class EditorPanelPromptContextController:
@@ -167,188 +79,22 @@ class EditorPanelPromptContextController:
         """Store the host and initialize prompt-context caches."""
 
         self._host = host
-        self._behavior_refresh_transaction: PanelBehaviorRefreshTransaction | None = (
-            None
-        )
+        self.behavior = BehaviorSnapshotController(cast(BehaviorSnapshotHost, host))
         self._workflow_prompt_context_cache_key: tuple[Hashable, ...] | None = None
         self._workflow_prompt_context_cache: WorkflowPromptContext | None = None
         self._projection_prompt_context: WorkflowPromptContext | None = None
-        self._projection_prompt_context_token: tuple[Hashable, ...] | None = None
-        self._projection_prompt_context_reason = ""
-        self._prompt_feature_profile_cache_scope_key: tuple[Hashable, ...] | None = None
-        self._prompt_feature_profile_cache: dict[
-            tuple[Hashable, ...],
-            PromptEditorFeatureProfile,
-        ] = {}
-        self._prompt_profile_policy = PanelPromptProfilePolicy()
+        self._feature_profiles = PromptFeatureProfileResolver(
+            cast(
+                PromptFeatureProfileServiceProtocol | None,
+                getattr(host, "prompt_feature_profile_service", None),
+            )
+        )
 
     @property
     def projection_prompt_context(self) -> WorkflowPromptContext | None:
         """Return the active projection-scoped prompt context when present."""
 
         return self._projection_prompt_context
-
-    def set_current_behavior_snapshot(
-        self,
-        snapshot: EditorBehaviorSnapshot | None,
-    ) -> None:
-        """Publish the latest behavior snapshot through the panel mirror."""
-
-        self._host._last_behavior_snapshot = snapshot
-
-    def build_behavior_snapshot(
-        self,
-        *,
-        search_hidden_keys: set[object] | None = None,
-        override_hidden_field_keys: set[object] | None = None,
-        node_search_text: str | None = None,
-        search_matching_nodes: set[tuple[str, str]] | None = None,
-    ) -> EditorBehaviorSnapshot | None:
-        """Resolve and cache the latest node-behavior snapshot for panel state."""
-
-        if not self._host._stack_order or not self._host._cube_states:
-            return None
-        effective_search_hidden_keys = (
-            search_hidden_keys
-            if search_hidden_keys is not None
-            else (self._host._current_search_hidden_keys or set())
-        )
-        effective_node_search_text = (
-            node_search_text
-            if node_search_text is not None
-            else self._host._current_node_search_text
-        )
-        effective_search_matching_nodes = (
-            search_matching_nodes
-            if search_matching_nodes is not None
-            else self._host._current_search_matching_nodes
-        )
-        workflow_overrides = self._host._workflow_overrides()
-        reuse_key = self.behavior_snapshot_reuse_key(
-            workflow_overrides=workflow_overrides,
-            search_hidden_keys=effective_search_hidden_keys,
-            override_hidden_field_keys=override_hidden_field_keys,
-            node_search_text=effective_node_search_text,
-            search_matching_nodes=effective_search_matching_nodes,
-        )
-        transaction = self._behavior_refresh_transaction
-        if (
-            transaction is not None
-            and transaction.snapshot is not None
-            and transaction.reuse_key == reuse_key
-        ):
-            self.set_current_behavior_snapshot(transaction.snapshot)
-            log_info(
-                _LOGGER,
-                "Reused editor behavior snapshot from refresh transaction",
-                reason=transaction.reason,
-                cube_section_count=len(self._host._stack_order),
-            )
-            return transaction.snapshot
-        snapshot = self._host.node_behavior_service.build_snapshot(
-            cube_states=self._host._cube_states,
-            stack_order=list(self._host._stack_order),
-            workflow_overrides=workflow_overrides,
-            search_hidden_keys=effective_search_hidden_keys,
-            override_hidden_field_keys=override_hidden_field_keys,
-            node_search_text=effective_node_search_text,
-            search_matching_nodes=effective_search_matching_nodes,
-        )
-        self.set_current_behavior_snapshot(snapshot)
-        if transaction is not None:
-            transaction.snapshot = snapshot
-            transaction.reuse_key = reuse_key
-        return snapshot
-
-    def begin_behavior_refresh_transaction(self, *, reason: str) -> None:
-        """Start an explicit behavior snapshot reuse boundary for one refresh flow."""
-
-        self._behavior_refresh_transaction = PanelBehaviorRefreshTransaction(
-            reason=reason
-        )
-        log_info(
-            _LOGGER,
-            "Started editor behavior snapshot refresh transaction",
-            reason=reason,
-            cube_section_count=len(self._host._stack_order or []),
-        )
-
-    def end_behavior_refresh_transaction(self, *, reason: str) -> None:
-        """Complete the active behavior snapshot reuse boundary when present."""
-
-        transaction = self._behavior_refresh_transaction
-        if transaction is None:
-            return
-        self._behavior_refresh_transaction = None
-        log_info(
-            _LOGGER,
-            "Completed editor behavior snapshot refresh transaction",
-            reason=reason,
-            transaction_reason=transaction.reason,
-            reused_snapshot=transaction.snapshot is not None,
-        )
-
-    def invalidate_behavior_refresh_transaction(self, *, reason: str) -> None:
-        """Drop the active behavior transaction before a state-changing refresh."""
-
-        transaction = self._behavior_refresh_transaction
-        if transaction is None:
-            return
-        self._behavior_refresh_transaction = None
-        log_info(
-            _LOGGER,
-            "Invalidated editor behavior snapshot refresh transaction",
-            reason=reason,
-            transaction_reason=transaction.reason,
-        )
-
-    def behavior_snapshot_reuse_key(
-        self,
-        *,
-        workflow_overrides: Mapping[str, object],
-        search_hidden_keys: set[object] | None,
-        override_hidden_field_keys: set[object] | None,
-        node_search_text: str | None,
-        search_matching_nodes: set[tuple[str, str]] | None,
-    ) -> tuple[Hashable, ...]:
-        """Return the identity key that makes transaction snapshot reuse safe."""
-
-        cube_states = self._host._cube_states or {}
-        stack_order = tuple(self._host._stack_order or [])
-        cube_tokens = tuple(
-            (alias, id(cube_states.get(alias))) for alias in stack_order
-        )
-        override_tokens = tuple(
-            (str(key), repr(value))
-            for key, value in sorted(
-                workflow_overrides.items(),
-                key=lambda item: str(item[0]),
-            )
-        )
-        hidden_tokens = tuple(
-            sorted(repr(key) for key in (search_hidden_keys or set()))
-        )
-        override_hidden_tokens = tuple(
-            sorted(repr(key) for key in (override_hidden_field_keys or set()))
-        )
-        matching_tokens = tuple(
-            sorted(repr(key) for key in (search_matching_nodes or set()))
-        )
-        return (
-            stack_order,
-            id(cube_states),
-            cube_tokens,
-            override_tokens,
-            hidden_tokens,
-            override_hidden_tokens,
-            node_search_text,
-            matching_tokens,
-        )
-
-    def current_behavior_snapshot(self) -> EditorBehaviorSnapshot | None:
-        """Return the latest cached behavior snapshot for external rendering."""
-
-        return self._host._last_behavior_snapshot
 
     def workflow_prompt_context(self) -> WorkflowPromptContext:
         """Return the current workflow context used by prompt-field resolvers."""
@@ -386,9 +132,7 @@ class EditorPanelPromptContextController:
             reason=reason,
         )
         self._projection_prompt_context = context
-        self._projection_prompt_context_token = context.cache_token
-        self._projection_prompt_context_reason = reason
-        self._reset_prompt_feature_profile_cache_if_needed(context.cache_token)
+        self._feature_profiles.reset_scope_if_needed(context.cache_token)
         log_panel_projection_event(
             "prompt_context.projection_begin",
             reason=reason,
@@ -396,19 +140,15 @@ class EditorPanelPromptContextController:
             stack_order_count=len(context.stack_order),
             override_count=len(context.workflow_overrides),
             behavior_snapshot_present=context.behavior_snapshot is not None,
-            cache_entry_count=len(self._prompt_feature_profile_cache),
+            cache_entry_count=self._feature_profiles.entry_count,
         )
 
     def clear_projection_prompt_context(self, *, reason: str) -> None:
         """Clear projection-scoped prompt state before live editing resumes."""
 
-        previous_cache_entries = len(self._prompt_feature_profile_cache)
+        previous_cache_entries = self._feature_profiles.clear()
         projection_context_present = self._projection_prompt_context is not None
         self._projection_prompt_context = None
-        self._projection_prompt_context_token = None
-        self._projection_prompt_context_reason = ""
-        self._prompt_feature_profile_cache_scope_key = None
-        self._prompt_feature_profile_cache = {}
         log_panel_projection_event(
             "prompt_context.projection_clear",
             reason=reason,
@@ -572,20 +312,13 @@ class EditorPanelPromptContextController:
             stack_order=self._host._stack_order,
             reason="scheduled_lora_context",
         )
-
-        def resolve(prompt_text: str) -> tuple[PromptScheduledLora, ...]:
-            """Resolve scheduled LoRAs for the current prompt text."""
-
-            return provider.scheduled_loras_for_prompt_context(
-                workflow_context=workflow_context,
-                cube_alias=cube_alias,
-                prompt_node_name=prompt_node_name,
-                prompt_field_key=prompt_field_key,
-                prompt_text=prompt_text,
-            )
-
-        setattr(resolve, "scheduled_lora_context_token", workflow_context.cache_token)
-        return resolve
+        return build_scheduled_lora_resolver(
+            provider=provider,
+            workflow_context=workflow_context,
+            cube_alias=cube_alias,
+            prompt_node_name=prompt_node_name,
+            prompt_field_key=prompt_field_key,
+        )
 
     def prompt_feature_profile_for_prompt(
         self,
@@ -596,52 +329,16 @@ class EditorPanelPromptContextController:
     ) -> PromptEditorFeatureProfile | None:
         """Return the resolved prompt feature profile for one prompt field."""
 
-        service = self._host.prompt_feature_profile_service
-        if service is None:
-            return None
         source = "projection" if self._projection_prompt_context is not None else "live"
         workflow_context = self.prompt_workflow_context_for_feature_profiles()
-        self._reset_prompt_feature_profile_cache_if_needed(workflow_context.cache_token)
-        cache_key = self._prompt_feature_profile_cache_entry_key(
+        return self._feature_profiles.resolve(
             workflow_context=workflow_context,
-            cube_alias=cube_alias,
-            prompt_node_name=prompt_node_name,
-            prompt_field_key=prompt_field_key,
-            field_style=field_style,
-        )
-        log_context = _PromptFeatureProfileCacheLogContext(
-            cube_alias=cube_alias or "",
-            node_name=prompt_node_name,
-            field_key=prompt_field_key,
             context_source=source,
-            cache_entry_count=len(self._prompt_feature_profile_cache),
-        )
-        cached = self._prompt_feature_profile_cache.get(cache_key)
-        if cached is not None:
-            _log_prompt_feature_profile_cache_event(
-                "prompt_context.profile_cache_hit",
-                context=log_context,
-            )
-            return cached
-        _log_prompt_feature_profile_cache_event(
-            "prompt_context.profile_cache_miss",
-            context=log_context,
-        )
-        profile_started_at = panel_projection_observability_started_at()
-        profile = service.build_profile(
-            field_style=field_style,
-            workflow_context=workflow_context,
             cube_alias=cube_alias,
             prompt_node_name=prompt_node_name,
             prompt_field_key=prompt_field_key,
+            field_style=field_style,
         )
-        _log_prompt_feature_profile_cache_timing(
-            "prompt_context.profile_cache_build",
-            started_at=profile_started_at,
-            context=log_context,
-        )
-        self._prompt_feature_profile_cache[cache_key] = profile
-        return profile
 
     def prompt_field_profile_for_prompt(
         self,
@@ -652,85 +349,19 @@ class EditorPanelPromptContextController:
     ) -> PanelPromptFieldProfileDecision:
         """Return prepared feature and syntax profiles for one prompt field."""
 
-        feature_profile = self.prompt_feature_profile_for_prompt(
-            cube_alias,
-            prompt_node_name,
-            prompt_field_key,
-            field_style,
-        )
-        return self._prompt_profile_policy.prepare_prompt_field_profile(
+        source = "projection" if self._projection_prompt_context is not None else "live"
+        return self._feature_profiles.prepare_field_profile(
+            workflow_context=self.prompt_workflow_context_for_feature_profiles(),
+            context_source=source,
+            cube_alias=cube_alias,
+            prompt_node_name=prompt_node_name,
+            prompt_field_key=prompt_field_key,
             field_style=field_style,
-            feature_profile=feature_profile,
         )
-
-    def _reset_prompt_feature_profile_cache_if_needed(
-        self,
-        scope_key: tuple[Hashable, ...],
-    ) -> None:
-        """Clear prompt feature-profile entries when the render scope changes."""
-
-        if self._prompt_feature_profile_cache_scope_key == scope_key:
-            return
-        previous_entry_count = len(self._prompt_feature_profile_cache)
-        self._prompt_feature_profile_cache_scope_key = scope_key
-        self._prompt_feature_profile_cache = {}
-        log_panel_projection_event(
-            "prompt_context.profile_cache_reset",
-            previous_entry_count=previous_entry_count,
-        )
-
-    def _prompt_feature_profile_cache_entry_key(
-        self,
-        *,
-        workflow_context: WorkflowPromptContext,
-        cube_alias: str | None,
-        prompt_node_name: str,
-        prompt_field_key: str,
-        field_style: Mapping[str, object],
-    ) -> tuple[Hashable, ...]:
-        """Return the cache key for one resolved prompt feature profile."""
-
-        return (
-            workflow_context.cache_token,
-            cube_alias or "",
-            prompt_node_name,
-            prompt_field_key,
-            self._normalized_prompt_field_style_token(field_style),
-        )
-
-    def _normalized_prompt_field_style_token(
-        self,
-        value: object,
-    ) -> Hashable:
-        """Return a deterministic hashable token for prompt field style data."""
-
-        if value is None or isinstance(value, bool | int | float | str):
-            return value
-        if isinstance(value, Mapping):
-            return tuple(
-                (str(key), self._normalized_prompt_field_style_token(item))
-                for key, item in sorted(
-                    value.items(),
-                    key=lambda current: str(current[0]),
-                )
-            )
-        if isinstance(value, tuple | list):
-            return tuple(
-                self._normalized_prompt_field_style_token(item) for item in value
-            )
-        if isinstance(value, set | frozenset):
-            return tuple(
-                sorted(
-                    (self._normalized_prompt_field_style_token(item) for item in value),
-                    key=repr,
-                )
-            )
-        return repr(value)
 
 
 __all__ = [
     "EditorPanelPromptContextController",
     "EditorPanelPromptContextHost",
-    "PanelBehaviorRefreshTransaction",
     "PromptWorkflowCubeSnapshot",
 ]
