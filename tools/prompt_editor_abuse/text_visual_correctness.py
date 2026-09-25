@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 import os
 from pathlib import Path
@@ -36,14 +37,17 @@ from .real_shell_mount import (
 )
 from tests.support.prompt_editor.runtime_owners import segment_overlay
 
+type PromptTextVisualSettler = Callable[[object, str], tuple[float, bool]]
+
 
 def capture_prompt_text_visual_violations(
     scenario: PromptAbuseScenario,
     *,
     repetition: int,
     artifact_root: Path,
+    settle: PromptTextVisualSettler,
 ) -> tuple[str, ...]:
-    """Replay one prompt persistently and reject any missing visible text chunk."""
+    """Replay one prompt and settle owners between independently captured frames."""
 
     if scenario.editor_kind != "prompt":
         return ()
@@ -67,6 +71,14 @@ def capture_prompt_text_visual_violations(
                 artifact_root=artifact_root,
             )
         )
+        if not _settle_visual_replay(
+            editor,
+            expected_source=scenario.initial_text,
+            settle=settle,
+            checkpoint="baseline",
+            violations=violations,
+        ):
+            return tuple(dict.fromkeys(violations))
         for action_index, action in enumerate(scenario.actions):
             units = _visual_dispatch_units(action)
             for visual_unit_index, unit in enumerate(units):
@@ -86,9 +98,38 @@ def capture_prompt_text_visual_violations(
                         artifact_root=artifact_root,
                     )
                 )
+                if not _settle_visual_replay(
+                    editor,
+                    expected_source=(
+                        unit.expected_source
+                        if unit.expected_source is not None
+                        else cast(Any, editor).toPlainText()
+                    ),
+                    settle=settle,
+                    checkpoint=checkpoint,
+                    violations=violations,
+                ):
+                    return tuple(dict.fromkeys(violations))
     finally:
         harness.close()
     return tuple(dict.fromkeys(violations))
+
+
+def _settle_visual_replay(
+    editor: object,
+    *,
+    expected_source: str,
+    settle: PromptTextVisualSettler,
+    checkpoint: str,
+    violations: list[str],
+) -> bool:
+    """Require current semantic and projection owners before the next action."""
+
+    _elapsed_ms, settled = settle(editor, expected_source)
+    if settled:
+        return True
+    violations.append(f"text_visual_owner_settlement_failed:{checkpoint}")
+    return False
 
 
 def _visual_dispatch_units(action: PromptAbuseAction) -> tuple[PromptAbuseAction, ...]:

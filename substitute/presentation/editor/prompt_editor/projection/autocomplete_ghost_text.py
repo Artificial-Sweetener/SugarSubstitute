@@ -29,6 +29,9 @@ from substitute.application.prompt_editor.autocomplete.text import (
     autocomplete_completion_suffix,
     autocomplete_suffix_without_existing_right_text,
 )
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
+)
 from substitute.shared.diagnostics.prompt_editor_work import (
     PromptEditorWorkEvent,
     prompt_editor_work_event,
@@ -261,7 +264,9 @@ def _selected_tag_preview_suffix(
         return suffix
     return autocomplete_suffix_without_existing_right_text(
         suffix,
-        source_text[word_end:active_tag_end],
+        map_prompt_source_for_display(
+            source_text[word_end:active_tag_end]
+        ).display_text,
     )
 
 

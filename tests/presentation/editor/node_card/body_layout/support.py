@@ -85,7 +85,7 @@ def mount_body_card(
     )
     builder = build_node_card_builder(panel, Gateway())
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
     wrapper = builder.build_node_card(

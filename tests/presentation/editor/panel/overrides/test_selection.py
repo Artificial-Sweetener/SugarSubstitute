@@ -157,7 +157,7 @@ def test_unchecked_default_selection_blocks_default_rematerialization(
     assert changed is False
     assert workflow.global_overrides == {}
     assert workflow.global_override_selections == {"seed": False}
-    assert manager._global_override_controls == {}
+    assert manager._toolbar_controller.registry.controls == {}
 
 
 def test_checking_optional_override_persists_selection_and_value(

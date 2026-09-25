@@ -26,6 +26,10 @@ from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
+from sugarsubstitute_shared.session_recovery import (
+    SessionRecoveryResult,
+    SessionRecoveryState,
+)
 
 
 class InstallationAlreadyPresented(RuntimeError):
@@ -61,6 +65,10 @@ class DownloadedLauncherOutcome(Protocol):
     @property
     def layout(self) -> InstallLayout:
         """Return the installed launcher layout."""
+
+    @property
+    def rescued_existing_installation(self) -> bool:
+        """Return whether installation reconciled a recognized prior install."""
 
 
 class ApplicationPayloadOutcome(Protocol):
@@ -141,6 +149,7 @@ class InstalledApplication:
     app_command: tuple[str, ...]
     app_version: str
     launcher_installed: bool
+    rescued_existing_installation: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,3 +158,6 @@ class CompletedInstallation:
 
     application: InstalledApplication
     runtime_python: Path
+    session_recovery: SessionRecoveryResult = SessionRecoveryResult(
+        SessionRecoveryState.NO_SESSION
+    )

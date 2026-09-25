@@ -48,12 +48,10 @@ def _imported_module_names(source_path: Path) -> set[str]:
     return modules
 
 
-def test_projection_ports_exposes_editor_refresh_panel_protocol() -> None:
-    """Projection ports should expose the panel surface without importing the coordinator."""
+def test_projection_ports_do_not_expose_panel_shaped_protocol() -> None:
+    """Projection collaborators should depend on focused owner ports."""
 
-    assert projection_ports.EditorRefreshPanelProtocol.__name__ == (
-        "EditorRefreshPanelProtocol"
-    )
+    assert not hasattr(projection_ports, "EditorRefreshPanelProtocol")
 
 
 def test_projection_ports_do_not_import_qt_or_widget_libraries() -> None:

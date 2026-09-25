@@ -18,10 +18,62 @@
 
 from __future__ import annotations
 
-from tools.editor_projection_rig.production_trace import (
-    _budget_summary,
-    _partial_orphan_field_card_refs,
+from PySide6.QtCore import QTimer
+
+from tools.editor_projection_rig.production_mount import (
+    TraceOverrideManager,
+    TraceShell,
 )
+from tools.editor_projection_rig.production_mutations import mutation_budget_summary
+from tools.editor_projection_rig.production_signatures import (
+    partial_orphan_field_card_refs,
+)
+from tools.editor_projection_rig.production_report import budget_summary
+from tools.editor_projection_rig.production_instrumentation import (
+    instrument_projection,
+)
+from tools.editor_projection_rig.qt_harness import drain_until, ensure_qapplication
+from tools.editor_projection_rig.trace_events import ProjectionTraceRecorder
+
+
+def test_production_trace_instrumentation_matches_current_projection_owners() -> None:
+    """Instrumentation must enter cleanly as projection ownership evolves."""
+
+    with instrument_projection(ProjectionTraceRecorder()):
+        pass
+
+
+def test_production_trace_waits_for_timer_driven_projection_completion() -> None:
+    """The rig must allow production staged-build timers to publish completion."""
+
+    ensure_qapplication()
+    recorder = ProjectionTraceRecorder()
+    trace = TraceShell(
+        shell=None,
+        override_manager=TraceOverrideManager(recorder=recorder),
+    )
+    QTimer.singleShot(5, lambda: setattr(trace, "projection_complete", True))
+
+    drain_until(lambda: trace.projection_complete, max_turns=10)
+
+    assert trace.projection_complete is True
+
+
+def test_projection_trace_records_first_usable_elapsed_time() -> None:
+    """Derived first-use timing should span trace start through first reveal end."""
+
+    recorder = ProjectionTraceRecorder()
+    recorder.mark("production_trace.start")
+    with recorder.timed("production.editor.reveal_projected_cube_builds"):
+        pass
+    elapsed_ms = recorder.record_elapsed_between(
+        "production.time_to_first_usable_ms",
+        start_event="production_trace.start",
+        end_event="production.editor.reveal_projected_cube_builds",
+    )
+
+    assert elapsed_ms is not None
+    assert recorder.timings_ms["production.time_to_first_usable_ms"] >= 0.0
 
 
 def test_production_trace_flags_orphaned_field_widgets_as_correctness_failure() -> None:
@@ -45,8 +97,8 @@ def test_production_trace_flags_orphaned_field_widgets_as_correctness_failure() 
         ]
     }
 
-    refs = _partial_orphan_field_card_refs(signature)
-    budgets = _budget_summary(
+    refs = partial_orphan_field_card_refs(signature)
+    budgets = budget_summary(
         [
             {
                 "projection_completed": True,
@@ -60,3 +112,26 @@ def test_production_trace_flags_orphaned_field_widgets_as_correctness_failure() 
     assert refs == ["Cube 3: SDXL/Automask Detailer:detailer"]
     assert budgets["partial_orphan_field_cards"]["actual"] == 1
     assert budgets["partial_orphan_field_cards"]["passed"] is False
+
+
+def test_mutation_budgets_reject_incomplete_or_rebuilt_clean_operations() -> None:
+    """Mutation qualification must fail completion and construction regressions."""
+
+    budgets = mutation_budget_summary(
+        (
+            {
+                "operations": (
+                    {
+                        "completion_count": 0,
+                        "parent_chain_violations": (),
+                        "partial_orphan_field_cards": (),
+                        "expected_identity_preserved": True,
+                        "construction_budget_passed": False,
+                    },
+                )
+            },
+        )
+    )
+
+    assert budgets["incomplete_operations"]["actual"] == 1
+    assert budgets["unexpected_construction"]["actual"] == 1

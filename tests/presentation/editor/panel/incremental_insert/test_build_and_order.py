@@ -54,6 +54,31 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
     scroll_signal = _Signal()
     scrollbar = SimpleNamespace(valueChanged=scroll_signal, value=lambda: 3)
     registry_calls: list[str] = []
+    motion_calls: list[tuple[str, object]] = []
+
+    def prepare_motion(
+        alias: str,
+        *,
+        replace_node_cards: bool = False,
+    ) -> int:
+        """Record pre-commit capture for the inserted cube."""
+
+        motion_calls.append(
+            ("prepare", {"alias": alias, "replace_node_cards": replace_node_cards})
+        )
+        return 7
+
+    def present_motion(**kwargs: object) -> bool:
+        """Record post-commit presentation for the inserted cube."""
+
+        motion_calls.append(("present", kwargs))
+        return True
+
+    def cancel_motion(**kwargs: object) -> None:
+        """Record a requested transition cancellation."""
+
+        motion_calls.append(("cancel", kwargs))
+
     refresh_kwargs: list[dict[str, object]] = []
 
     cube_existing = SimpleNamespace(buffer={"nodes": {}})
@@ -105,6 +130,11 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
         ),
         _on_scroll_updated=lambda _value: registry_calls.append("scroll"),
         refresh_node_behavior_state=_record_visibility,
+        _surface_motion=SimpleNamespace(
+            prepare_cube_insert=prepare_motion,
+            present_cube_insert=present_motion,
+            cancel=cancel_motion,
+        ),
     )
 
     mod.EditorPanelProjectionCoordinator(panel).insert_cube(
@@ -112,10 +142,11 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
         cube_new,
         cube_states={"Existing": cube_existing, "New": cube_new},
         stack_order=["Existing", "New"],
+        motion_requested=True,
     )
 
     assert built_aliases == ["New"]
-    assert existing_widget.parents == [None]
+    assert existing_widget.parents == []
     assert panel.cube_widgets == {"Existing": existing_widget, "New": new_widget}
     assert panel.cube_sections["New"] is new_widget
     assert layout.added == [
@@ -135,6 +166,17 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
         "visibility",
     ]
     assert refresh_kwargs == [{"reason": "cube_added", "use_cached_snapshot": True}]
+    assert motion_calls == [
+        ("prepare", {"alias": "New", "replace_node_cards": False}),
+        (
+            "present",
+            {
+                "generation": 7,
+                "cube_alias": "New",
+                "cube_widget": new_widget,
+            },
+        ),
+    ]
 
 
 def test_insert_cube_honors_reordered_placeholder_stack_order(

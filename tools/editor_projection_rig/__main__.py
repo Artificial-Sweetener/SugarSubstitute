@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 from .capture import CaptureEndpoint, capture_scenarios
+from .production_mutations import trace_production_mutations
 from .production_trace import trace_production_scenarios
 from .replay import compare_fixture_dirs, replay_scenarios
 from .report import format_json
@@ -62,6 +63,14 @@ def main(argv: list[str] | None = None) -> int:
                 settle_turns=args.settle_turns,
                 write_production_targets=args.write_production_targets,
                 alternating=args.scenario.casefold() == "alternating",
+            )
+        elif args.command == "mutate":
+            result = trace_production_mutations(
+                resolve_scenarios(args.scenario),
+                fixtures_dir=Path(args.fixtures),
+                report_path=Path(args.report),
+                iterations=args.iterations,
+                settle_turns=args.settle_turns,
             )
         else:
             parser.print_help()
@@ -118,6 +127,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     trace.add_argument("--settle-turns", type=int, default=500)
     trace.add_argument("--write-production-targets", action="store_true")
+    mutate = subparsers.add_parser(
+        "mutate",
+        help="Trace production editor mutation and construction behavior.",
+    )
+    mutate.add_argument("--scenario", default="both")
+    mutate.add_argument("--iterations", type=int, default=5)
+    mutate.add_argument(
+        "--fixtures",
+        default="artifacts/editor_projection_rig/fixtures",
+    )
+    mutate.add_argument(
+        "--report",
+        default="artifacts/editor_projection_rig/reports/production-mutations.json",
+    )
+    mutate.add_argument("--settle-turns", type=int, default=500)
     return parser
 
 

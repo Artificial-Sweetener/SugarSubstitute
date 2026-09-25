@@ -405,10 +405,9 @@ class EditorPanelRenderReconciler:
         *,
         managed_widgets: set[object],
     ) -> None:
-        """Detach managed widgets and delete stale widgets no longer owned here."""
+        """Preserve retained parents and delete stale widgets no longer owned here."""
 
         if widget in managed_widgets:
-            _detach_widget(widget)
             return
 
         delete_later = getattr(widget, "deleteLater", None)

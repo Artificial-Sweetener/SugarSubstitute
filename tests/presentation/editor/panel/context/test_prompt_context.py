@@ -350,7 +350,7 @@ def test_projection_prompt_context_snapshots_cube_buffers() -> None:
         cube_state.buffer["nodes"]["positive_prompt"]["inputs"]["value"] = "after"
 
         context = panel._prompt_workflow_context_for_feature_profiles()
-        snapshot = context.cube_states["Cube"]
+        snapshot = cast(SimpleNamespace, context.cube_states["Cube"])
         nodes = cast(
             dict[str, dict[str, dict[str, str]]],
             snapshot.buffer["nodes"],
