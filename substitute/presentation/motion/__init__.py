@@ -51,7 +51,7 @@ from .models import (
     motion_duration_ms,
     target_progress,
 )
-from .timeline import MotionTimeline
+from .timeline import MotionClock, MotionClockFactory, MotionTimeline, QtMotionClock
 
 __all__ = [
     "ACCORDION_COLLAPSE_DURATION_MS",
@@ -74,11 +74,14 @@ __all__ = [
     "SIDE_PANEL_DURATION_MS",
     "TRANSFORM_EASING_CURVE",
     "MotionFrameTarget",
+    "MotionClock",
+    "MotionClockFactory",
     "MotionPlan",
     "MotionSpec",
     "MotionTarget",
     "MotionTelemetry",
     "MotionTimeline",
+    "QtMotionClock",
     "SurfaceMotionController",
     "is_reduced_motion_enabled",
     "resolve_motion_duration",

@@ -18,14 +18,78 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from _pytest.monkeypatch import MonkeyPatch
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, QEasingCurve, QObject, Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from substitute.presentation.motion.controller import SurfaceMotionController
 from substitute.presentation.motion.models import MotionSpec
 from substitute.presentation.motion.overlay import MotionOverlay
+from substitute.presentation.motion.timeline import MotionClock
 from tools.editor_projection_rig.qt_harness import ensure_qapplication
+
+
+class _ManualMotionClock:
+    """Expose deterministic frame and completion control to motion tests."""
+
+    def __init__(self) -> None:
+        """Initialize the clock in its stopped state."""
+
+        self._running = False
+        self._frame: Callable[[float], None] | None = None
+        self._finished: Callable[[], None] | None = None
+
+    def start(
+        self,
+        *,
+        duration_ms: int,
+        easing: QEasingCurve.Type,
+        frame: Callable[[float], None],
+        finished: Callable[[], None],
+    ) -> None:
+        """Retain callbacks until the test advances or finishes the clock."""
+
+        _ = duration_ms, easing
+        self._running = True
+        self._frame = frame
+        self._finished = finished
+
+    def stop(self) -> None:
+        """Stop timing without publishing completion."""
+
+        self._running = False
+        self._frame = None
+        self._finished = None
+
+    def is_running(self) -> bool:
+        """Return whether the test clock is active."""
+
+        return self._running
+
+    def advance(self, elapsed_ms: float) -> None:
+        """Publish one deterministic elapsed-time frame."""
+
+        if self._frame is not None:
+            self._frame(elapsed_ms)
+
+    def finish(self) -> None:
+        """Publish natural completion exactly once."""
+
+        finished = self._finished
+        self._running = False
+        self._frame = None
+        self._finished = None
+        if finished is not None:
+            finished()
+
+
+def _manual_clock_factory(clock: MotionClock) -> Callable[[QObject], MotionClock]:
+    """Return a factory that injects one deterministic test clock."""
+
+    return lambda _parent: clock
 
 
 def _mounted_surface() -> tuple[QWidget, QLabel]:
@@ -173,3 +237,86 @@ def test_direct_input_and_surface_hide_cancel_motion() -> None:
 
     assert controller.is_animating() is False
     assert controller.telemetry.plans_cancelled == 2
+
+
+def test_input_delivered_to_descendant_cancels_motion() -> None:
+    """Direct manipulation of a real child should settle the overlay immediately."""
+
+    viewport, target = _mounted_surface()
+    controller = SurfaceMotionController(
+        viewport_provider=lambda: viewport,
+        default_spec=MotionSpec(duration_ms=500),
+    )
+    generation = controller.prepare(reason="cube_insert")
+    assert generation is not None
+    assert controller.animate_widgets(
+        generation=generation,
+        widgets=(("cube:A", target),),
+    )
+
+    QTest.mousePress(target, Qt.MouseButton.LeftButton)
+
+    assert controller.is_animating() is False
+    assert controller.telemetry.plans_cancelled == 1
+    viewport.close()
+
+
+def test_injected_clock_finishes_and_disposes_overlay() -> None:
+    """Natural completion should be deterministic and release visual proxies."""
+
+    viewport, target = _mounted_surface()
+    clock = _ManualMotionClock()
+    controller = SurfaceMotionController(
+        viewport_provider=lambda: viewport,
+        default_spec=MotionSpec(duration_ms=180),
+        clock_factory=_manual_clock_factory(clock),
+    )
+    generation = controller.prepare(reason="cube_insert")
+    assert generation is not None
+    assert controller.animate_widgets(
+        generation=generation,
+        widgets=(("cube:A", target),),
+    )
+    overlays = viewport.findChildren(MotionOverlay)
+
+    clock.advance(90.0)
+    QApplication.processEvents()
+    assert controller.is_animating() is True
+
+    clock.finish()
+    QApplication.processEvents()
+
+    assert controller.is_animating() is False
+    assert controller.telemetry.plans_finished == 1
+    assert len(overlays) == 1
+    assert overlays[0].isVisible() is False
+    viewport.close()
+
+
+def test_target_capture_count_and_memory_are_bounded() -> None:
+    """One transition should retain only a bounded visible snapshot set."""
+
+    ensure_qapplication()
+    viewport = QWidget()
+    viewport.resize(400, 240)
+    targets: list[tuple[str, QWidget]] = []
+    for index in range(30):
+        target = QLabel(str(index), viewport)
+        target.setGeometry((index % 10) * 35, (index // 10) * 40, 30, 30)
+        target.show()
+        targets.append((str(index), target))
+    viewport.show()
+    QApplication.processEvents()
+    controller = SurfaceMotionController(
+        viewport_provider=lambda: viewport,
+        default_spec=MotionSpec(duration_ms=500),
+    )
+    generation = controller.prepare(reason="bounded_targets")
+    assert generation is not None
+
+    assert controller.animate_widgets(generation=generation, widgets=targets)
+
+    assert controller.telemetry.last_capture_target_count == 24
+    assert controller.telemetry.last_capture_target_pixels <= 4_000_000
+    controller.cancel(reason="test_complete")
+    viewport.close()
