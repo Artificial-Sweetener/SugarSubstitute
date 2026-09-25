@@ -26,12 +26,14 @@ from typing import Protocol, cast
 
 from PIL import Image
 
-from substitute.application.ports.video import VideoProbeResult
+from substitute.application.ports.video import (
+    VIDEO_REPRESENTATIVE_FRAME_MAX_EDGE,
+    VideoProbeResult,
+)
 from substitute.infrastructure.video.mpv_options import local_video_options
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
 
 
-_POSTER_MAX_EDGE = 1024
 _LOAD_TIMEOUT_SECONDS = 15.0
 
 
@@ -138,7 +140,10 @@ def _encode_poster(source: Image.Image) -> bytes:
 
     poster = source.convert("RGB")
     poster.thumbnail(
-        (_POSTER_MAX_EDGE, _POSTER_MAX_EDGE),
+        (
+            VIDEO_REPRESENTATIVE_FRAME_MAX_EDGE,
+            VIDEO_REPRESENTATIVE_FRAME_MAX_EDGE,
+        ),
         Image.Resampling.LANCZOS,
     )
     output = BytesIO()

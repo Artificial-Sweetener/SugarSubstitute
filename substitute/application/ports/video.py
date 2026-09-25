@@ -20,12 +20,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from math import isfinite
 from pathlib import Path
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from substitute.domain.generation import VideoHardwareDecoding, VideoRenderer
+
+VIDEO_REPRESENTATIVE_FRAME_MAX_EDGE = 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,12 +111,34 @@ class VideoPlaybackSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class VideoRepresentativeFrame:
+    """Carry one detached decoded BGR0 frame for transient Output presentation."""
+
+    time_seconds: float
+    width: int
+    height: int
+    stride: int
+    pixels: bytes
+
+    def __post_init__(self) -> None:
+        """Reject malformed native frame buffers before presentation consumes them."""
+
+        if not isfinite(self.time_seconds) or self.time_seconds < 0.0:
+            raise ValueError("representative-frame time must be finite and nonnegative")
+        if self.width <= 0 or self.height <= 0 or self.stride < self.width * 4:
+            raise ValueError("representative-frame geometry is invalid")
+        if len(self.pixels) < self.stride * self.height:
+            raise ValueError("representative-frame payload is incomplete")
+
+
+@dataclass(frozen=True, slots=True)
 class VideoPlaybackEvent:
     """Carry one generation-scoped player observation to presentation."""
 
     player_generation: int
     media_generation: int
     snapshot: VideoPlaybackSnapshot
+    representative_frame: VideoRepresentativeFrame | None = None
 
 
 class VideoProbe(Protocol):
@@ -224,10 +249,12 @@ __all__ = [
     "VideoPlaybackFallback",
     "VideoPlaybackSnapshot",
     "VideoPlaybackState",
+    "VideoRepresentativeFrame",
     "VideoPresentationSampling",
     "VideoOpenGLPlayerPort",
     "VideoPlayerPort",
     "VideoProbe",
     "VideoProbeResult",
     "VideoRuntimeUnavailableError",
+    "VIDEO_REPRESENTATIVE_FRAME_MAX_EDGE",
 ]

@@ -84,6 +84,7 @@ class VideoPlaybackController(QObject):
 
     snapshotChanged = Signal(object)
     viewportChanged = Signal(object)
+    representativeFrameChanged = Signal(object, object)
     _eventSubmitted = Signal(object)
 
     def __init__(
@@ -458,6 +459,11 @@ class VideoPlaybackController(QObject):
         self._remember_current_session()
         if previous_source_size != (value.snapshot.width, value.snapshot.height):
             self._apply_current_viewport()
+        if value.representative_frame is not None:
+            self.representativeFrameChanged.emit(
+                value.snapshot.media_id,
+                value.representative_frame,
+            )
         self.snapshotChanged.emit(value.snapshot)
 
     def _apply_current_viewport(self) -> None:

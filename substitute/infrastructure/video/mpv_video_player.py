@@ -19,25 +19,30 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from math import log2
 from pathlib import Path
 from threading import RLock
 from uuid import UUID
 
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
-    VideoPlaybackDiagnostics,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPresentationSampling,
+    VideoRepresentativeFrame,
 )
 from substitute.domain.generation import VideoPlaybackSettings
-from substitute.infrastructure.video.mpv_playback_fallback import playback_fallback
+from substitute.infrastructure.video.mpv_playback_diagnostics import (
+    build_playback_diagnostics,
+)
 from substitute.infrastructure.video.mpv_player_factory import (
     MpvPlayerProtocol,
     create_mpv_player,
 )
+from substitute.infrastructure.video.mpv_representative_frame import (
+    MpvRepresentativeFrameCapture,
+)
 from substitute.infrastructure.video.mpv_observation_values import (
+    observation_matches_media,
     optional_nonnegative_float,
     optional_positive_integer,
     optional_string,
@@ -47,10 +52,10 @@ from substitute.infrastructure.video.mpv_opengl_render_bridge import (
     MpvOpenGLRenderBridge,
 )
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
-
-
-class VideoPlayerError(RuntimeError):
-    """Report a safe actionable playback failure."""
+from substitute.infrastructure.video.mpv_viewport_presentation import (
+    MpvViewportPresentation,
+)
+from substitute.infrastructure.video.video_player_error import VideoPlayerError
 
 
 class MpvVideoPlayer:
@@ -123,6 +128,8 @@ class MpvVideoPlayer:
         )
         self._render_background = MpvRenderBackground(self._player)
         self._renderer = MpvOpenGLRenderBridge(self._module, self._player)
+        self._representative_frames = MpvRepresentativeFrameCapture()
+        self._viewport = MpvViewportPresentation(self._player)
 
     @property
     def player_generation(self) -> int:
@@ -146,6 +153,7 @@ class MpvVideoPlayer:
         with self._lock:
             self._require_open()
             self._media_generation += 1
+            self._representative_frames.reset()
             self._media_id = media_id
             self._media_path = resolved
             self._observed_path = None
@@ -300,15 +308,13 @@ class MpvVideoPlayer:
 
         with self._lock:
             self._require_media()
-            bounded_zoom = min(max(float(zoom), 1.0 / 64.0), 64.0)
-            bounded_pan_x = min(max(float(pan_x), -1.0), 1.0)
-            bounded_pan_y = min(max(float(pan_y), -1.0), 1.0)
             try:
-                self._player.video_zoom = log2(bounded_zoom)
-                self._player.video_pan_x = bounded_pan_x
-                self._player.video_pan_y = bounded_pan_y
-                self._player.scale = sampling.value
-                self._presentation_sampling = sampling
+                self._presentation_sampling = self._viewport.apply(
+                    zoom=zoom,
+                    pan_x=pan_x,
+                    pan_y=pan_y,
+                    sampling=sampling,
+                )
             except Exception as error:
                 self._record_failure("Video viewport could not be changed.", error)
 
@@ -359,6 +365,12 @@ class MpvVideoPlayer:
             event = self._event()
             if event.snapshot == self._last_polled_snapshot:
                 return
+            representative_frame = self._representative_frames.capture_if_changed(
+                self._player,
+                event.snapshot,
+            )
+            if representative_frame is not None:
+                event = self._event(representative_frame=representative_frame)
             self._last_polled_snapshot = event.snapshot
         self._event_callback(event)
 
@@ -451,7 +463,11 @@ class MpvVideoPlayer:
         if name == "path":
             self._observed_path = optional_string(value)
             return
-        if not self._observes_current_path():
+        if not observation_matches_media(
+            media_path=self._media_path,
+            observed_path=self._observed_path,
+            state=self._state,
+        ):
             return
         if name == "pause" and isinstance(value, bool):
             if self._frame_step_pause_latched and not value:
@@ -494,19 +510,6 @@ class MpvVideoPlayer:
         elif name == "video-codec":
             self._codec = optional_string(value)
 
-    def _observes_current_path(self) -> bool:
-        """Reject late observations that belong to a replaced decoder input."""
-
-        if self._media_path is None:
-            return False
-        observed_path = self._observed_path
-        if observed_path is None:
-            return self._state is VideoPlaybackState.LOADING
-        try:
-            return Path(observed_path).expanduser().resolve() == self._media_path
-        except OSError:
-            return False
-
     def _apply_audio_state(self) -> None:
         """Project user mute and visibility into the effective native mute."""
 
@@ -535,13 +538,18 @@ class MpvVideoPlayer:
         if self._media_id is None:
             raise VideoPlayerError("No video is loaded.")
 
-    def _event(self) -> VideoPlaybackEvent:
+    def _event(
+        self,
+        *,
+        representative_frame: VideoRepresentativeFrame | None = None,
+    ) -> VideoPlaybackEvent:
         """Build one immutable generation-scoped player event."""
 
         return VideoPlaybackEvent(
             player_generation=self._player_generation,
             media_generation=self._media_generation,
             snapshot=self._snapshot(),
+            representative_frame=representative_frame,
         )
 
     def _snapshot(self) -> VideoPlaybackSnapshot:
@@ -560,22 +568,16 @@ class MpvVideoPlayer:
             width=self._width,
             height=self._height,
             error=self._error,
-            diagnostics=VideoPlaybackDiagnostics(
-                requested_hardware_decoding=self._settings.hardware_decoding,
-                requested_renderer=self._settings.renderer,
+            diagnostics=build_playback_diagnostics(
+                settings=self._settings,
+                render_api=self._render_api,
                 actual_video_output=self._actual_video_output,
                 gpu_api=self._gpu_api,
                 gpu_context=self._gpu_context,
+                hardware_decoder_observed=self._hardware_decoder_observed,
                 hardware_decoder=self._hardware_decoder,
                 pixel_format=self._pixel_format,
                 codec=self._codec,
-                fallback=playback_fallback(
-                    settings=self._settings,
-                    render_api=self._render_api,
-                    actual_video_output=self._actual_video_output,
-                    hardware_decoder_observed=self._hardware_decoder_observed,
-                    hardware_decoder=self._hardware_decoder,
-                ),
                 presentation_sampling=self._presentation_sampling,
             ),
         )
