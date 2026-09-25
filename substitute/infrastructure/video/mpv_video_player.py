@@ -27,15 +27,12 @@ from uuid import UUID
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
     VideoPlaybackDiagnostics,
-    VideoPlaybackFallback,
     VideoPlaybackSnapshot,
     VideoPlaybackState,
+    VideoPresentationSampling,
 )
-from substitute.domain.generation import (
-    VideoHardwareDecoding,
-    VideoPlaybackSettings,
-    VideoRenderer,
-)
+from substitute.domain.generation import VideoPlaybackSettings
+from substitute.infrastructure.video.mpv_playback_fallback import playback_fallback
 from substitute.infrastructure.video.mpv_player_factory import (
     MpvPlayerProtocol,
     create_mpv_player,
@@ -109,6 +106,7 @@ class MpvVideoPlayer:
         self._hardware_decoder_observed = False
         self._pixel_format: str | None = None
         self._codec: str | None = None
+        self._presentation_sampling = VideoPresentationSampling.BILINEAR
         self._closed = False
         self._module = runtime.load_module()
         self._player: MpvPlayerProtocol = create_mpv_player(
@@ -280,8 +278,14 @@ class MpvVideoPlayer:
             event = self._event()
         self._event_callback(event)
 
-    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
-        """Apply bounded viewport transforms through native video properties."""
+    def set_viewport(
+        self,
+        zoom: float,
+        pan_x: float,
+        pan_y: float,
+        sampling: VideoPresentationSampling,
+    ) -> None:
+        """Apply bounded viewport geometry and the selected native sampler."""
 
         with self._lock:
             self._require_media()
@@ -292,6 +296,8 @@ class MpvVideoPlayer:
                 self._player.video_zoom = log2(bounded_zoom)
                 self._player.video_pan_x = bounded_pan_x
                 self._player.video_pan_y = bounded_pan_y
+                self._player.scale = sampling.value
+                self._presentation_sampling = sampling
             except Exception as error:
                 self._record_failure("Video viewport could not be changed.", error)
 
@@ -542,31 +548,16 @@ class MpvVideoPlayer:
                 hardware_decoder=self._hardware_decoder,
                 pixel_format=self._pixel_format,
                 codec=self._codec,
-                fallback=self._fallback_reason(),
+                fallback=playback_fallback(
+                    settings=self._settings,
+                    render_api=self._render_api,
+                    actual_video_output=self._actual_video_output,
+                    hardware_decoder_observed=self._hardware_decoder_observed,
+                    hardware_decoder=self._hardware_decoder,
+                ),
+                presentation_sampling=self._presentation_sampling,
             ),
         )
-
-    def _fallback_reason(self) -> VideoPlaybackFallback | None:
-        """Return the observed safe fallback from requested playback settings."""
-
-        if (
-            self._settings.hardware_decoding is VideoHardwareDecoding.AUTO
-            and self._hardware_decoder_observed
-            and self._hardware_decoder in {None, "no"}
-        ):
-            return VideoPlaybackFallback.SOFTWARE_DECODING
-        requested_output = {
-            VideoRenderer.GPU_NEXT: "gpu-next",
-            VideoRenderer.GPU: "gpu",
-        }.get(self._settings.renderer)
-        if (
-            not self._render_api
-            and requested_output is not None
-            and self._actual_video_output is not None
-            and self._actual_video_output != requested_output
-        ):
-            return VideoPlaybackFallback.RENDERER
-        return None
 
 
 def _optional_nonnegative_float(value: object) -> float | None:

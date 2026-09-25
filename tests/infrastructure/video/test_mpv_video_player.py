@@ -30,6 +30,7 @@ from substitute.application.ports.video import (
     VideoPlaybackEvent,
     VideoPlaybackFallback,
     VideoPlaybackState,
+    VideoPresentationSampling,
 )
 from substitute.domain.generation import (
     VideoHardwareDecoding,
@@ -57,6 +58,7 @@ class FakePlayer:
         self.video_zoom: object = 0.0
         self.video_pan_x: object = 0.0
         self.video_pan_y: object = 0.0
+        self.scale: object = options["scale"]
         self._event_handle: object | None = object()
         self.path: object = None
         self.commands: list[tuple[str, tuple[object, ...]]] = []
@@ -234,6 +236,7 @@ def test_player_uses_closed_runtime_and_qt_composited_render_api(
     assert native.options["demuxer_lavf_o"] == "protocol_whitelist=file"
     assert native.options["background"] == "none"
     assert native.options["background_color"] == "#00000000"
+    assert native.options["scale"] == "bilinear"
     assert native.options["loop_file"] == "inf"
     assert native.options["mute"] is True
     assert native.options["start_event_thread"] is False
@@ -393,17 +396,33 @@ def test_inactive_output_forces_pause_and_effective_mute(tmp_path: Path) -> None
     adapter.close()
 
 
-def test_viewport_maps_scale_to_native_zoom_and_pan(tmp_path: Path) -> None:
-    """Viewport control should apply bounded logarithmic zoom and normalized pan."""
+def test_viewport_maps_geometry_and_sampling_to_native_properties(
+    tmp_path: Path,
+) -> None:
+    """Viewport control should apply bounded geometry and explicit source sampling."""
 
     adapter, native, _events, video = _player(tmp_path)
     adapter.load(uuid4(), video)
 
-    adapter.set_viewport(4.0, 0.25, -0.5)
+    adapter.set_viewport(
+        4.0,
+        0.25,
+        -0.5,
+        VideoPresentationSampling.NEAREST,
+    )
 
     assert native.video_zoom == 2.0
     assert native.video_pan_x == 0.25
     assert native.video_pan_y == -0.5
+    assert native.scale == "nearest"
+
+    adapter.set_viewport(
+        1.5,
+        0.0,
+        0.0,
+        VideoPresentationSampling.BILINEAR,
+    )
+    assert str(native.scale) == "bilinear"
     adapter.close()
 
 

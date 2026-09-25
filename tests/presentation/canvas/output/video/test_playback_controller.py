@@ -30,6 +30,7 @@ from substitute.application.ports.video import (
     VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPlayerPort,
+    VideoPresentationSampling,
     VideoRuntimeUnavailableError,
 )
 from substitute.presentation.canvas.output.video_playback_controller import (
@@ -105,10 +106,16 @@ class _FakePlayer:
 
         self.commands.append(("mute", muted))
 
-    def set_viewport(self, zoom: float, pan_x: float, pan_y: float) -> None:
-        """Record normalized video viewport geometry."""
+    def set_viewport(
+        self,
+        zoom: float,
+        pan_x: float,
+        pan_y: float,
+        sampling: VideoPresentationSampling,
+    ) -> None:
+        """Record normalized viewport geometry and source sampling."""
 
-        self.commands.append(("viewport", zoom, pan_x, pan_y))
+        self.commands.append(("viewport", zoom, pan_x, pan_y, sampling))
 
     def set_output_active(self, active: bool) -> None:
         """Record visibility policy."""
@@ -193,7 +200,13 @@ def test_controller_restores_loop_time_and_audio_without_auto_resume(
         ("volume", 37),
         ("mute", True),
         ("loop", False),
-        ("viewport", 2.0, 0.25, -0.1),
+        (
+            "viewport",
+            2.0,
+            0.25,
+            -0.1,
+            VideoPresentationSampling.BILINEAR,
+        ),
         ("seek", 1.25),
         ("active", True),
         ("playing", False),
@@ -284,7 +297,13 @@ def test_controller_reconstructs_native_player_with_retained_session(
         ("volume", 42),
         ("mute", True),
         ("loop", False),
-        ("viewport", 1.75, 0.2, -0.3),
+        (
+            "viewport",
+            1.75,
+            0.2,
+            -0.3,
+            VideoPresentationSampling.BILINEAR,
+        ),
         ("seek", 0.8),
         ("active", True),
         ("playing", False),
@@ -349,13 +368,54 @@ def test_controller_computes_physical_one_to_one_scale_and_fit_state(
     actual = controller.session_for(media_id)
     assert actual.viewport_mode is VideoViewportMode.ACTUAL_SIZE
     assert actual.zoom == 0.25
-    assert player_box[0].commands[-1] == ("viewport", 0.25, 0.0, 0.0)
+    assert player_box[0].commands[-1] == (
+        "viewport",
+        0.25,
+        0.0,
+        0.0,
+        VideoPresentationSampling.BILINEAR,
+    )
 
     controller.reset_viewport()
     fitted = controller.session_for(media_id)
     assert fitted.viewport_mode is VideoViewportMode.FIT
     assert fitted.zoom == 1.0
-    assert player_box[0].commands[-1] == ("viewport", 1.0, 0.0, 0.0)
+    assert player_box[0].commands[-1] == (
+        "viewport",
+        1.0,
+        0.0,
+        0.0,
+        VideoPresentationSampling.BILINEAR,
+    )
+    controller.close()
+
+
+def test_controller_matches_qpane_sampling_at_two_physical_pixels_per_source(
+    tmp_path: Path,
+) -> None:
+    """Switch to nearest exactly at QPane's DPI-aware two-times threshold."""
+
+    app = ensure_qt_application()
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    player_box[0].emit(_snapshot(media_id))
+    app.processEvents()
+
+    controller.set_surface_metrics(width=319, height=179, device_pixel_ratio=2.0)
+    assert str(player_box[0].commands[-1][-1]) == "bilinear"
+
+    controller.set_surface_metrics(width=320, height=180, device_pixel_ratio=2.0)
+    assert str(player_box[0].commands[-1][-1]) == "nearest"
     controller.close()
 
 

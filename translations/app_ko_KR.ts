@@ -55,7 +55,7 @@ Prompt preview:
       <translation>%1 API 키 필요</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="196"></location>
       <source>%1 Canvas</source>
       <translation>%1 캔버스</translation>
     </message>
@@ -3105,7 +3105,7 @@ Install these nodes now?</source>
       <translation>설정 마무리 중</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
       <source>Fit video</source>
       <translation>동영상 맞춤</translation>
     </message>
@@ -3325,7 +3325,7 @@ Install these nodes now?</source>
       <translation>경도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
       <source>Hardware video decoding was unavailable. Software decoding is active.</source>
       <translation>하드웨어 비디오 디코딩을 사용할 수 없습니다. 소프트웨어 디코딩이 활성화되었습니다.</translation>
     </message>
@@ -3965,7 +3965,7 @@ Install these nodes now?</source>
       <translation>검색 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
       <source>Loop video</source>
       <translation>동영상 반복</translation>
     </message>
@@ -4325,7 +4325,7 @@ Install these nodes now?</source>
       <translation>위로 이동</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
       <source>Mute video</source>
       <translation>동영상 음소거</translation>
     </message>
@@ -4385,7 +4385,7 @@ Install these nodes now?</source>
       <translation>다음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="78"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
       <source>Next frame</source>
       <translation>다음 프레임</translation>
     </message>
@@ -5037,7 +5037,7 @@ I’ll bring my own</source>
       <translation>예정된 변경 사항을 업데이트했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="76"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
       <source>Play or pause</source>
       <translation>재생 또는 일시 정지</translation>
     </message>
@@ -5217,7 +5217,7 @@ I’ll bring my own</source>
       <translation>미리 보기를 사용할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="77"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
       <source>Previous frame</source>
       <translation>이전 프레임</translation>
     </message>
@@ -5627,11 +5627,6 @@ I’ll bring my own</source>
       <translation>네이티브 위키 뷰어 안에 캐시된 Danbooru 미리 보기 이미지를 표시합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="531"></location>
-      <source>Renderer: requested %1, active %2; GPU: %3/%4; decoder: %5; codec: %6; pixel format: %7</source>
-      <translation>렌더러: 요청 %1, 활성 %2; GPU: %3/%4; 디코더: %5; 코덱: %6; 픽셀 형식: %7</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/workflows/workflow_tabs_view.py" line="132"></location>
       <source>Reopen Closed Workflow</source>
       <translation>닫은 워크플로 다시 열기</translation>
@@ -5846,7 +5841,7 @@ No known extension claimant.</source>
       <translation>다시 시도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
       <source>Retry video</source>
       <translation>동영상 다시 시도</translation>
     </message>
@@ -6546,7 +6541,7 @@ No known extension claimant.</source>
       <translation>설정 로그 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
       <source>Show video at actual size</source>
       <translation>동영상을 실제 크기로 표시</translation>
     </message>
@@ -7632,7 +7627,7 @@ Diagnostic evidence:
       <translation>연결된 ComfyUI 환경이 업데이트된 요구 사항을 충족하지 않습니다. 계속하기 전에 해당 환경을 복구하세요. %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="388"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="490"></location>
       <source>The bundled video runtime is unavailable.</source>
       <translation>포함된 비디오 런타임을 사용할 수 없습니다.</translation>
     </message>
@@ -7787,7 +7782,7 @@ Diagnostic evidence:
       <translation>요청한 정의를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="90"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="92"></location>
       <source>The requested video renderer was unavailable. A safe fallback is active.</source>
       <translation>요청한 비디오 렌더러를 사용할 수 없습니다. 안전한 대체 렌더러가 활성화되었습니다.</translation>
     </message>
@@ -8542,17 +8537,12 @@ Diagnostic evidence:
       <translation>비디오 하드웨어 디코딩</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
-      <source>Video playback diagnostics</source>
-      <translation>비디오 재생 진단</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="392"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="494"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>동영상 재생을 사용할 수 없습니다(%1).</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
       <source>Video position</source>
       <translation>동영상 위치</translation>
     </message>
@@ -8562,7 +8552,7 @@ Diagnostic evidence:
       <translation>비디오 렌더러</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
       <source>Video volume</source>
       <translation>동영상 볼륨</translation>
     </message>
@@ -8933,7 +8923,7 @@ Diagnostic evidence:
       <translation>소스 체크아웃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="93"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_presentation.py" line="62"></location>
       <source>unknown</source>
       <translation>알 수 없음</translation>
     </message>

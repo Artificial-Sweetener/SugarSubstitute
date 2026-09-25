@@ -46,6 +46,7 @@ from tools.video_output_qualification_support import (
     pump_events,
     wait_until,
 )
+from tools.video_output_qualification_volume import qualify_volume_flyout
 
 _WASH = QColor(37, 53, 71)
 
@@ -124,6 +125,12 @@ def qualify_rehosting(
     fit = find_button(page, "Fit video")
     actual_size = find_button(page, "Show video at actual size")
     seek = find_slider(page, "Video position")
+    volume_evidence = qualify_volume_flyout(
+        application=application,
+        root=docked_window,
+        page=page,
+        evidence_dir=evidence_dir,
+    )
 
     if page.controller.snapshot.loop_enabled:
         native_click(docked_window, loop, application)
@@ -158,6 +165,8 @@ def qualify_rehosting(
             page.controller.snapshot.state is VideoPlaybackState.READY
             and page.controller.snapshot.paused
             and not page.controller.snapshot.loop_enabled
+            and page.controller.snapshot.user_muted
+            and 38 <= page.controller.snapshot.volume <= 46
             and page.viewport_state == pre_undock_viewport
             and not canvas.tabbar.isVisible()
             and canvas.source_selector_button.isVisible()
@@ -199,6 +208,8 @@ def qualify_rehosting(
             page.controller.snapshot.state is VideoPlaybackState.READY
             and page.controller.snapshot.paused
             and page.controller.snapshot.loop_enabled
+            and page.controller.snapshot.user_muted
+            and 38 <= page.controller.snapshot.volume <= 46
             and page.viewport_state.mode is VideoViewportMode.ACTUAL_SIZE
             and not canvas.tabbar.isVisible()
             and canvas.source_selector_button.isVisible()
@@ -230,6 +241,7 @@ def qualify_rehosting(
         "redocked_viewport_controls": True,
         "state_survived_detach": True,
         "state_survived_redock": True,
+        "volume_flyout": volume_evidence,
     }
 
 

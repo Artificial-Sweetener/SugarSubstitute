@@ -108,6 +108,23 @@ def native_click_fraction(
     pump_events(application, 0.08)
 
 
+def native_click_vertical_fraction(
+    window: QWidget,
+    target: QWidget,
+    fraction: float,
+    application: QApplication,
+) -> None:
+    """Click a vertical control at one normalized top-origin position."""
+
+    bounded = min(max(fraction, 0.0), 1.0)
+    local_y = round((target.height() - 1) * bounded)
+    point = target.mapTo(window, QPoint(target.width() // 2, local_y))
+    send_mouse_message(window, 0x0200, 0, point.x(), point.y())
+    send_mouse_message(window, 0x0201, 0x0001, point.x(), point.y())
+    send_mouse_message(window, 0x0202, 0, point.x(), point.y())
+    pump_events(application, 0.08)
+
+
 def native_wheel(
     window: QWidget,
     target: QWidget,
@@ -340,6 +357,7 @@ __all__ = [
     "images_differ",
     "native_click",
     "native_click_fraction",
+    "native_click_vertical_fraction",
     "native_target_is_root",
     "native_wheel",
     "open_source_picker",
