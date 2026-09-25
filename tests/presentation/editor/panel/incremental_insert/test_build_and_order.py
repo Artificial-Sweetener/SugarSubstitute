@@ -140,7 +140,7 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
     )
 
     assert built_aliases == ["New"]
-    assert existing_widget.parents == [None]
+    assert existing_widget.parents == []
     assert panel.cube_widgets == {"Existing": existing_widget, "New": new_widget}
     assert panel.cube_sections["New"] is new_widget
     assert layout.added == [

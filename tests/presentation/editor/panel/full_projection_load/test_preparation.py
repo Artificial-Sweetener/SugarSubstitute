@@ -392,7 +392,7 @@ def test_load_all_cubes_clears_legacy_root_layout_content() -> None:
     assert stale_widget.deleted == 1
     assert stale_nested_widget.deleted == 1
     assert keep_widget.deleted == 0
-    assert keep_widget.parents == [None]
+    assert keep_widget.parents == []
     assert layout.count() == 0
     assert legacy_layout.count() == 0
     assert layout.added == [("spacing", 8), ("widget", keep_widget)]
