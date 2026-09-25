@@ -45,15 +45,13 @@ from .cube_section_build_plan import (
     leading_first_usable_node_count,
     node_card_build_outcome,
 )
+from .cube_section_build_ports import CubeSectionBuildSessionPanelProtocol
 from .node_card.variant import (
     column_span_for_node_card_variant,
     resolve_node_card_variant,
 )
 from .projection_observability import log_panel_projection_event
-from .projection_ports import (
-    CubeSectionSessionWidgetProtocol,
-    EditorRefreshPanelProtocol,
-)
+from .projection_ports import CubeSectionSessionWidgetProtocol
 from .rendering.render_transaction import EditorRenderTransaction
 from .widgets.masonry_grid_layout import MasonryGridLayout
 
@@ -66,7 +64,7 @@ class CubeSectionBuildSession:
     def __init__(
         self,
         *,
-        panel: EditorRefreshPanelProtocol,
+        panel: CubeSectionBuildSessionPanelProtocol,
         route_key: str,
         cube_state: object,
         cube: dict[str, object],

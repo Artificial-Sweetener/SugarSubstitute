@@ -23,7 +23,7 @@ from typing import Protocol
 
 from PySide6.QtCore import QTimer
 
-from .field_state_controller import EditorFieldBinding
+from .field_state_binding import EditorFieldBinding
 from .preset_context_refresh import PanelPresetContextRefreshCoordinator
 
 _DYNAMIC_COMBO_TYPE = "COMFY_DYNAMICCOMBO_V3"

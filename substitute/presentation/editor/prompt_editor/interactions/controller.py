@@ -264,6 +264,11 @@ class PromptInteractionController:
 
         pending_document_view = self._syntax_state.pending_document_view
         pending_render_plan = self._syntax_state.pending_render_plan
+        if pending_document_view is not None and _wildcard_identities(
+            pending_document_view
+        ) != _wildcard_identities(self._syntax_state.document_view):
+            pending_document_view = None
+            pending_render_plan = None
         if (
             pending_document_view is None
             and text == self._syntax_state.document_view.source_text
@@ -581,6 +586,17 @@ class PromptInteractionController:
 
         cursor.setPosition(start, QTextCursor.MoveMode.MoveAnchor)
         cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+
+
+def _wildcard_identities(
+    document_view: PromptDocumentView,
+) -> tuple[tuple[str, str, str | None, str | None], ...]:
+    """Return catalog-relevant wildcard identities for refresh scheduling."""
+
+    return tuple(
+        (span.wildcard_form, span.identifier, span.csv_column, span.tag)
+        for span in document_view.wildcard_spans
+    )
 
 
 def _contains_position(

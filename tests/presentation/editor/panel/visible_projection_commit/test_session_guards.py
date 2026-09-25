@@ -21,7 +21,7 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer
 from _pytest.monkeypatch import MonkeyPatch
 from substitute.presentation.editor.panel.projection_models import ProjectedCubeBuild
-from substitute.presentation.editor.panel.projection_session import (
+from substitute.presentation.editor.panel.projection_session_models import (
     ActiveProjectionSession,
 )
 

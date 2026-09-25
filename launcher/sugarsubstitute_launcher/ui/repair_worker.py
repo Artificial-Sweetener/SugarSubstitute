@@ -38,6 +38,7 @@ from launcher.sugarsubstitute_launcher.repair_execution_progress import (
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     launcher_failure_detail,
 )
+from sugarsubstitute_shared.session_recovery import SessionRecoveryResult
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ class RepairWorker(QObject):
 
     progress = Signal(object)
     output = Signal(str)
+    session_recovery = Signal(object)
     succeeded = Signal()
     failed = Signal(str)
     cancelled = Signal()
@@ -79,9 +81,12 @@ class RepairWorker(QObject):
     def run(self) -> None:
         """Adapt the Qt-free execution owner to one terminal signal sequence."""
         try:
-            self._supervisor.run(
+            terminal = self._supervisor.run(
                 progress_observer=self._progress,
                 output_callback=self.output.emit,
+            )
+            session_recovery = SessionRecoveryResult.from_json(
+                terminal.get("session_recovery")
             )
         except RepairProcessCancelled:
             _LOGGER.info("Repair execution cancelled after owned process cleanup")
@@ -102,6 +107,7 @@ class RepairWorker(QObject):
                 )
                 self.fatal_failure.emit()
         else:
+            self.session_recovery.emit(session_recovery)
             self.succeeded.emit()
         finally:
             self.finished.emit()

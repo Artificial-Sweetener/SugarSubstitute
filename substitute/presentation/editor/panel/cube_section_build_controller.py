@@ -26,12 +26,10 @@ from typing import cast
 from substitute.application.node_behavior import ResolvedFieldSpec
 from substitute.shared.logging.logger import get_logger, log_debug, log_timing
 
+from .cube_section_build_ports import CubeSectionBuildPanelProtocol
 from .cube_section_build_session import CubeSectionBuildSession
 from .projection_observability import log_panel_projection_event
-from .projection_ports import (
-    CubeSectionSessionWidgetProtocol,
-    EditorRefreshPanelProtocol,
-)
+from .projection_ports import CubeSectionSessionWidgetProtocol
 from .widgets.masonry_grid_layout import MasonryGridLayout
 
 _LOGGER = get_logger("presentation.editor.panel.cube_section_build_controller")
@@ -40,7 +38,7 @@ _LOGGER = get_logger("presentation.editor.panel.cube_section_build_controller")
 class CubeSectionBuildController:
     """Own cube-section build-session preparation and synchronous completion."""
 
-    def __init__(self, panel: EditorRefreshPanelProtocol) -> None:
+    def __init__(self, panel: CubeSectionBuildPanelProtocol) -> None:
         """Store the editor panel port used to prepare cube-section widgets."""
 
         self._panel = panel
