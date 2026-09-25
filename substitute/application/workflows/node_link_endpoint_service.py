@@ -77,7 +77,7 @@ class NodeLinkEndpointService:
         cube_states: Mapping[str, Any],
         stack_order: list[str],
     ) -> tuple[NodeLinkEndpoint, ...]:
-        """Return prompt endpoints represented as whole-node link endpoints."""
+        """Return visible prompt controls represented as whole-node link endpoints."""
 
         endpoints: list[NodeLinkEndpoint] = []
         for cube_alias in stack_order:
@@ -89,7 +89,7 @@ class NodeLinkEndpointService:
                 behavior = resolved_nodes_by_alias.get(cube_alias, {}).get(
                     prompt_endpoint.node_name
                 )
-                if behavior is None:
+                if behavior is None or behavior.card.hidden:
                     continue
                 endpoints.append(
                     NodeLinkEndpoint(
