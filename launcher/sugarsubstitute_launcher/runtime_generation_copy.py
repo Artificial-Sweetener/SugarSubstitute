@@ -14,30 +14,34 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define the completion and failure contract of a prepared repair."""
+"""Copy reusable runtime assets without retaining generation-bound paths."""
 
 from __future__ import annotations
-from dataclasses import dataclass
+
 from pathlib import Path
+import re
+import shutil
 
-from sugarsubstitute_shared.session_recovery import (
-    SessionRecoveryResult,
-    SessionRecoveryState,
-)
-
-
-class RepairExecutionError(RuntimeError):
-    """Report a prepared repair that cannot be executed or validated safely."""
+_UV_PYTHON_MINOR_ALIAS = re.compile(r"^cpython-\d+\.\d+-")
 
 
-@dataclass(frozen=True, slots=True)
-class CompletedRepair:
-    """Describe one committed repair and its retained rollback quarantine."""
+def copy_reusable_runtime(*, source: Path, destination: Path) -> None:
+    """Copy immutable runtime assets while forcing path-bound state to rebuild."""
 
-    version: str
-    quarantine_root: Path
-    repaired_managed_comfy_nodes: bool
-    comfy_quarantine_root: Path | None = None
-    session_recovery: SessionRecoveryResult = SessionRecoveryResult(
-        SessionRecoveryState.NO_SESSION
+    shutil.copytree(source, destination, ignore=_path_bound_runtime_entries)
+
+
+def _path_bound_runtime_entries(directory: str, names: list[str]) -> tuple[str, ...]:
+    """Exclude uv aliases and partial downloads tied to the old generation."""
+
+    current = Path(directory)
+    if current.name != "python":
+        return ()
+    return tuple(
+        name
+        for name in names
+        if name == ".temp" or _UV_PYTHON_MINOR_ALIAS.match(name) is not None
     )
+
+
+__all__ = ["copy_reusable_runtime"]
