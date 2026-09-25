@@ -16,7 +16,7 @@
 
 """Presentation-layer motion policy and reusable animation helpers."""
 
-from .controller import MotionTelemetry, SurfaceMotionController
+from .controller import SurfaceMotionController
 
 from .fluent_motion import (
     ACCORDION_COLLAPSE_DURATION_MS,
@@ -29,6 +29,12 @@ from .fluent_motion import (
     CUBE_STACK_MODE_DURATION_MS,
     ENTER_EASING_CURVE,
     EXIT_EASING_CURVE,
+    FLUENT_ENTRANCE_EASING_CURVE,
+    FLUENT_EXIT_EASING_CURVE,
+    FLUENT_FAST_DURATION_MS,
+    FLUENT_FASTER_DURATION_MS,
+    FLUENT_NORMAL_DURATION_MS,
+    FLUENT_POINT_TO_POINT_EASING_CURVE,
     HIGHLIGHT_SETTLE_DURATION_MS,
     INPUT_SCROLL_DURATION_MS,
     REVEAL_FADE_DURATION_MS,
@@ -48,10 +54,12 @@ from .models import (
     MotionPlan,
     MotionSpec,
     MotionTarget,
+    interpolate_target,
     motion_duration_ms,
     target_progress,
 )
 from .timeline import MotionClock, MotionClockFactory, MotionTimeline, QtMotionClock
+from .telemetry import MotionTelemetry
 
 __all__ = [
     "ACCORDION_COLLAPSE_DURATION_MS",
@@ -64,6 +72,12 @@ __all__ = [
     "CUBE_STACK_MODE_DURATION_MS",
     "ENTER_EASING_CURVE",
     "EXIT_EASING_CURVE",
+    "FLUENT_ENTRANCE_EASING_CURVE",
+    "FLUENT_EXIT_EASING_CURVE",
+    "FLUENT_FAST_DURATION_MS",
+    "FLUENT_FASTER_DURATION_MS",
+    "FLUENT_NORMAL_DURATION_MS",
+    "FLUENT_POINT_TO_POINT_EASING_CURVE",
     "HIGHLIGHT_SETTLE_DURATION_MS",
     "INPUT_SCROLL_DURATION_MS",
     "REVEAL_FADE_DURATION_MS",
@@ -83,6 +97,7 @@ __all__ = [
     "MotionTimeline",
     "QtMotionClock",
     "SurfaceMotionController",
+    "interpolate_target",
     "is_reduced_motion_enabled",
     "resolve_motion_duration",
     "restart_property_animation",

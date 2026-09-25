@@ -86,6 +86,22 @@ class RenderReconcilerPort(Protocol):
         """Append one cube widget to the root cube layout."""
 
 
+class ProjectionLifecycleMotionPort(Protocol):
+    """Describe structural motion surrounding user-driven lifecycle commits."""
+
+    def prepare_cube_reorder(self) -> int | None:
+        """Capture cube positions before stack reorder."""
+
+    def present_cube_reorder(self, generation: int | None) -> bool:
+        """Present the committed reordered stack."""
+
+    def prepare_cube_removal(self, cube_alias: str) -> int | None:
+        """Capture the stack before one cube leaves it."""
+
+    def present_cube_removal(self, generation: int | None) -> bool:
+        """Present the committed stack and departing cube snapshot."""
+
+
 class ProjectionLifecyclePanelPort(Protocol):
     """Describe panel state and operations owned by projection lifecycle."""
 
@@ -127,6 +143,7 @@ class EditorProjectionLifecyclePorts:
     projection_completions: ProjectionCompletionPort
     visible_commits: VisibleProjectionCommitPort
     render_reconciler: RenderReconcilerPort
+    motion: ProjectionLifecycleMotionPort
     active_projection_session: Callable[[], ActiveProjectionSession | None]
     cancel_active_projection_session: Callable[[ActiveProjectionSession, str], None]
     invalidate_projection: Callable[[str], None]
@@ -148,6 +165,7 @@ class EditorProjectionLifecyclePipeline:
         """Remove one cube from projection state and refresh derived visibility."""
 
         panel = self._ports.panel
+        motion_generation = self._ports.motion.prepare_cube_removal(cube_alias)
         clear_issue = getattr(panel, "clear_cube_runtime_issues", None)
         if callable(clear_issue):
             clear_issue(cube_alias)
@@ -157,6 +175,7 @@ class EditorProjectionLifecyclePipeline:
             reason="cube_removed",
         )
         self._ports.invalidate_projection("cube_removed")
+        self._ports.motion.present_cube_removal(motion_generation)
 
     def rename_cube(self, old_alias: str, new_alias: str) -> None:
         """Rename one cube and refresh projection-derived link state."""
@@ -218,6 +237,7 @@ class EditorProjectionLifecyclePipeline:
         if not panel._stack_order:
             return
         refresh_started_at = perf_counter()
+        motion_generation = self._ports.motion.prepare_cube_reorder()
 
         panel.sanitize_prompt_link_state()
         panel._refresh_sampler_scheduler_link_state()
@@ -234,6 +254,7 @@ class EditorProjectionLifecyclePipeline:
             message=app_text("Failed to refresh editor visibility after cube reorder"),
             reason="stack_reordered",
         )
+        self._ports.motion.present_cube_reorder(motion_generation)
         log_timing(
             _LOGGER,
             "Reordered editor cube widgets",

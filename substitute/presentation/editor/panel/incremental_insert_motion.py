@@ -27,7 +27,12 @@ IncrementalInsertMotionTarget = Literal["cube", "node_cards"]
 class IncrementalInsertMotionPort(Protocol):
     """Describe visual motion available after functional insertion."""
 
-    def prepare_cube_insert(self, cube_alias: str) -> int | None:
+    def prepare_cube_insert(
+        self,
+        cube_alias: str,
+        *,
+        replace_node_cards: bool = False,
+    ) -> int | None:
         """Capture visible pre-commit state for one cube insertion."""
 
     def present_cube_insert(
@@ -79,7 +84,10 @@ class EditorIncrementalInsertMotion:
 
         if not requested or not creates_widget:
             return PreparedIncrementalInsertMotion()
-        generation = self._motion.prepare_cube_insert(cube_alias)
+        generation = self._motion.prepare_cube_insert(
+            cube_alias,
+            replace_node_cards=replaces_widget,
+        )
         if generation is None:
             return PreparedIncrementalInsertMotion()
         return PreparedIncrementalInsertMotion(

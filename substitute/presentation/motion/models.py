@@ -33,7 +33,7 @@ class MotionSpec:
     translation_x: float = 0.0
     translation_y: float = 14.0
     start_opacity: float = 0.0
-    easing: QEasingCurve.Type = QEasingCurve.Type.OutCubic
+    easing: QEasingCurve.Type | QEasingCurve = QEasingCurve.Type.OutCubic
 
     def __post_init__(self) -> None:
         """Reject timing and opacity values that cannot produce stable motion."""
@@ -48,11 +48,14 @@ class MotionSpec:
 
 @dataclass(frozen=True, slots=True)
 class MotionTarget:
-    """Bind one semantic surface identity to a captured final-state image."""
+    """Bind one semantic surface identity to its visual transition endpoints."""
 
     identity: str
+    start_rect: QRectF
     final_rect: QRectF
     snapshot: QPixmap
+    start_opacity: float = 1.0
+    final_opacity: float = 1.0
     order: int = 0
 
 
@@ -76,6 +79,33 @@ class MotionFrameTarget:
     rect: QRectF
     opacity: float
     snapshot: QPixmap
+
+
+def interpolate_target(
+    target: MotionTarget,
+    *,
+    progress: float,
+) -> MotionFrameTarget:
+    """Interpolate one immutable target between its visual endpoints."""
+
+    clamped = max(0.0, min(1.0, progress))
+    start = target.start_rect
+    final = target.final_rect
+    rect = QRectF(
+        start.x() + ((final.x() - start.x()) * clamped),
+        start.y() + ((final.y() - start.y()) * clamped),
+        start.width() + ((final.width() - start.width()) * clamped),
+        start.height() + ((final.height() - start.height()) * clamped),
+    )
+    opacity = target.start_opacity + (
+        (target.final_opacity - target.start_opacity) * clamped
+    )
+    return MotionFrameTarget(
+        identity=target.identity,
+        rect=rect,
+        opacity=opacity,
+        snapshot=target.snapshot,
+    )
 
 
 def target_progress(
@@ -106,6 +136,7 @@ __all__ = [
     "MotionPlan",
     "MotionSpec",
     "MotionTarget",
+    "interpolate_target",
     "motion_duration_ms",
     "target_progress",
 ]

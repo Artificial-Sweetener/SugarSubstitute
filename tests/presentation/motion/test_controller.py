@@ -18,74 +18,25 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
-from PySide6.QtCore import QEvent, QEasingCurve, QObject, Qt
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QWidget
 
 from substitute.presentation.motion.controller import SurfaceMotionController
 from substitute.presentation.motion.models import MotionSpec
 from substitute.presentation.motion.overlay import MotionOverlay
-from substitute.presentation.motion.timeline import MotionClock
+from tests.presentation.motion.support import (
+    ManualMotionClock,
+    manual_clock_factory,
+    mounted_surface,
+)
 from tests.support.qt.lifecycle import widget_root_scope
 from tools.editor_projection_rig.qt_harness import ensure_qapplication
-
-
-class _ManualMotionClock:
-    """Expose deterministic frame and completion control to motion tests."""
-
-    def __init__(self) -> None:
-        """Initialize the clock in its stopped state."""
-
-        self._running = False
-        self._frame: Callable[[float], None] | None = None
-        self._finished: Callable[[], None] | None = None
-
-    def start(
-        self,
-        *,
-        duration_ms: int,
-        easing: QEasingCurve.Type,
-        frame: Callable[[float], None],
-        finished: Callable[[], None],
-    ) -> None:
-        """Retain callbacks until the test advances or finishes the clock."""
-
-        _ = duration_ms, easing
-        self._running = True
-        self._frame = frame
-        self._finished = finished
-
-    def stop(self) -> None:
-        """Stop timing without publishing completion."""
-
-        self._running = False
-        self._frame = None
-        self._finished = None
-
-    def is_running(self) -> bool:
-        """Return whether the test clock is active."""
-
-        return self._running
-
-    def advance(self, elapsed_ms: float) -> None:
-        """Publish one deterministic elapsed-time frame."""
-
-        if self._frame is not None:
-            self._frame(elapsed_ms)
-
-    def finish(self) -> None:
-        """Publish natural completion exactly once."""
-
-        finished = self._finished
-        self._running = False
-        self._frame = None
-        self._finished = None
-        if finished is not None:
-            finished()
 
 
 @pytest.fixture(autouse=True)
@@ -96,30 +47,10 @@ def _destroy_motion_widget_roots() -> Iterator[None]:
         yield
 
 
-def _manual_clock_factory(clock: MotionClock) -> Callable[[QObject], MotionClock]:
-    """Return a factory that injects one deterministic test clock."""
-
-    return lambda _parent: clock
-
-
-def _mounted_surface() -> tuple[QWidget, QLabel]:
-    """Return one visible surface and target suitable for capture."""
-
-    ensure_qapplication()
-    viewport = QWidget()
-    viewport.resize(320, 180)
-    target = QLabel("Committed card", viewport)
-    target.setGeometry(30, 40, 180, 52)
-    target.show()
-    viewport.show()
-    QApplication.processEvents()
-    return viewport, target
-
-
 def test_zero_duration_settles_without_overlay(monkeypatch: MonkeyPatch) -> None:
     """Reduced or disabled motion should expose committed pixels immediately."""
 
-    viewport, target = _mounted_surface()
+    viewport, target = mounted_surface()
     controller = SurfaceMotionController(viewport_provider=lambda: viewport)
     controller.setParent(viewport)
     monkeypatch.setattr(
@@ -144,7 +75,7 @@ def test_zero_duration_settles_without_overlay(monkeypatch: MonkeyPatch) -> None
 def test_active_motion_uses_one_mouse_transparent_overlay_and_cancels() -> None:
     """One timeline and overlay should cover the transition and cleanly cancel."""
 
-    viewport, target = _mounted_surface()
+    viewport, target = mounted_surface()
     controller = SurfaceMotionController(
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
@@ -177,7 +108,7 @@ def test_active_motion_uses_one_mouse_transparent_overlay_and_cancels() -> None:
 def test_new_prepare_supersedes_active_generation() -> None:
     """A newer structural change should settle the prior visual generation."""
 
-    viewport, target = _mounted_surface()
+    viewport, target = mounted_surface()
     controller = SurfaceMotionController(
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
@@ -201,7 +132,7 @@ def test_new_prepare_supersedes_active_generation() -> None:
 def test_viewport_resize_cancels_active_motion() -> None:
     """Geometry changes should remove the stale overlay in the same event turn."""
 
-    viewport, target = _mounted_surface()
+    viewport, target = mounted_surface()
     controller = SurfaceMotionController(
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
@@ -225,7 +156,7 @@ def test_viewport_resize_cancels_active_motion() -> None:
 def test_direct_input_and_surface_hide_cancel_motion() -> None:
     """Real user input and teardown should synchronously expose final pixels."""
 
-    viewport, target = _mounted_surface()
+    viewport, target = mounted_surface()
     controller = SurfaceMotionController(
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
@@ -257,7 +188,7 @@ def test_direct_input_and_surface_hide_cancel_motion() -> None:
 def test_input_delivered_to_descendant_cancels_motion() -> None:
     """Direct manipulation of a real child should settle the overlay immediately."""
 
-    viewport, target = _mounted_surface()
+    viewport, target = mounted_surface()
     controller = SurfaceMotionController(
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=500),
@@ -280,12 +211,12 @@ def test_input_delivered_to_descendant_cancels_motion() -> None:
 def test_injected_clock_finishes_and_disposes_overlay() -> None:
     """Natural completion should be deterministic and release visual proxies."""
 
-    viewport, target = _mounted_surface()
-    clock = _ManualMotionClock()
+    viewport, target = mounted_surface()
+    clock = ManualMotionClock()
     controller = SurfaceMotionController(
         viewport_provider=lambda: viewport,
         default_spec=MotionSpec(duration_ms=180),
-        clock_factory=_manual_clock_factory(clock),
+        clock_factory=manual_clock_factory(clock),
     )
     controller.setParent(viewport)
     generation = controller.prepare(reason="cube_insert")
@@ -336,5 +267,136 @@ def test_target_capture_count_and_memory_are_bounded() -> None:
 
     assert controller.telemetry.last_capture_target_count == 24
     assert controller.telemetry.last_capture_target_pixels <= 4_000_000
+    controller.cancel(reason="test_complete")
+    viewport.close()
+
+
+def test_layout_motion_moves_retained_target_from_old_to_new_rect() -> None:
+    """A retained surface should visibly traverse its committed geometry delta."""
+
+    viewport, target = mounted_surface()
+    target.setStyleSheet("background: rgb(20, 120, 220);")
+    clock = ManualMotionClock()
+    controller = SurfaceMotionController(
+        viewport_provider=lambda: viewport,
+        clock_factory=manual_clock_factory(clock),
+    )
+    controller.setParent(viewport)
+    generation = controller.prepare(
+        reason="cube_reorder",
+        widgets=(("cube:A", target),),
+    )
+    assert generation is not None
+    target.move(30, 100)
+
+    assert controller.animate_layout(
+        generation=generation,
+        widgets=(("cube:A", target),),
+        spec=MotionSpec(duration_ms=250, stagger_ms=0),
+    )
+    overlay = viewport.findChild(MotionOverlay)
+    assert overlay is not None
+
+    clock.advance(0.0)
+    QApplication.processEvents()
+    start = overlay.grab().toImage()
+    assert QColor(start.pixel(40, 50)).blue() > 150
+
+    clock.advance(125.0)
+    QApplication.processEvents()
+    middle = overlay.grab().toImage()
+    assert QColor(middle.pixel(40, 85)).blue() > 150
+
+    clock.advance(250.0)
+    QApplication.processEvents()
+    end = overlay.grab().toImage()
+    assert QColor(end.pixel(40, 110)).blue() > 150
+    viewport.close()
+
+
+def test_layout_motion_animates_entry_and_exit_on_final_background() -> None:
+    """One plan should fade entering and exiting surfaces without live duplicates."""
+
+    viewport, exiting = mounted_surface()
+    exiting.setStyleSheet("background: rgb(220, 40, 40);")
+    clock = ManualMotionClock()
+    controller = SurfaceMotionController(
+        viewport_provider=lambda: viewport,
+        clock_factory=manual_clock_factory(clock),
+    )
+    controller.setParent(viewport)
+    generation = controller.prepare(
+        reason="replace",
+        widgets=(("old", exiting),),
+    )
+    assert generation is not None
+    exiting.hide()
+    entering = QLabel("New", viewport)
+    entering.setStyleSheet("background: rgb(40, 190, 80);")
+    entering.setGeometry(30, 100, 180, 52)
+    entering.show()
+
+    assert controller.animate_layout(
+        generation=generation,
+        widgets=(("new", entering),),
+        spec=MotionSpec(duration_ms=250, stagger_ms=0, translation_y=16.0),
+        exit_translation_y=-8.0,
+    )
+    overlay = viewport.findChild(MotionOverlay)
+    assert overlay is not None
+    assert entering.isVisible() is True
+
+    clock.advance(0.0)
+    QApplication.processEvents()
+    start = overlay.grab().toImage()
+    assert QColor(start.pixel(40, 50)).red() > 150
+    assert QColor(start.pixel(40, 110)).red() > 200
+
+    clock.advance(250.0)
+    QApplication.processEvents()
+    end = overlay.grab().toImage()
+    assert QColor(end.pixel(40, 110)).green() > 150
+    assert QColor(end.pixel(40, 110)).red() < 100
+    departed_pixel = QColor(end.pixel(40, 50))
+    assert abs(departed_pixel.red() - departed_pixel.green()) < 5
+    viewport.close()
+
+
+def test_target_free_capture_preserves_focus_visibility_and_geometry() -> None:
+    """Snapshot preparation must not perturb committed widgets or focused input."""
+
+    ensure_qapplication()
+    viewport = QWidget()
+    viewport.resize(320, 180)
+    target = QWidget(viewport)
+    target.setGeometry(20, 30, 220, 70)
+    editor = QLineEdit(target)
+    editor.setGeometry(10, 10, 180, 32)
+    target.show()
+    viewport.show()
+    editor.setFocus()
+    QApplication.processEvents()
+    original_geometry = target.geometry()
+    clock = ManualMotionClock()
+    controller = SurfaceMotionController(
+        viewport_provider=lambda: viewport,
+        clock_factory=manual_clock_factory(clock),
+    )
+    controller.setParent(viewport)
+    generation = controller.prepare(
+        reason="focus_safe",
+        widgets=(("cube:A", target),),
+    )
+    assert generation is not None
+    target.move(20, 80)
+
+    assert controller.animate_layout(
+        generation=generation,
+        widgets=(("cube:A", target),),
+    )
+
+    assert target.isVisible() is True
+    assert target.geometry() == original_geometry.translated(0, 50)
+    assert editor.hasFocus() is True
     controller.cancel(reason="test_complete")
     viewport.close()
