@@ -39,6 +39,9 @@ from substitute.application.ports.video import (
     VideoRuntimeUnavailableError,
 )
 from substitute.shared.logging.logger import get_logger, log_warning_exception
+from substitute.presentation.canvas.output.video_viewport_geometry import (
+    viewport_geometry,
+)
 
 _LOGGER = get_logger("presentation.canvas.output.video_playback_controller")
 _NEAREST_SOURCE_SCALE = 2.0
@@ -247,6 +250,16 @@ class VideoPlaybackController(QObject):
         media_id = self._current_media_id
         if media_id is None:
             return
+        geometry = viewport_geometry(
+            self._surface_metrics,
+            source_width=self._snapshot.width,
+            source_height=self._snapshot.height,
+        )
+        if geometry is not None:
+            pan_x, pan_y = geometry.clamp_panel_pan(
+                zoom=state.zoom, pan_x=state.pan_x, pan_y=state.pan_y
+            )
+            state = VideoViewportState(state.zoom, pan_x, pan_y, state.mode)
         session = self._sessions.setdefault(media_id, VideoMediaSession())
         session.zoom = state.zoom
         session.pan_x = state.pan_x
@@ -312,21 +325,8 @@ class VideoPlaybackController(QObject):
             previous_pan_x = 0.0 if session is None else session.pan_x
             previous_pan_y = 0.0 if session is None else session.pan_y
             ratio = zoom / previous_zoom
-            pan_limit = max(0.0, 1.0 - 1.0 / zoom)
-            pan_x = min(
-                pan_limit,
-                max(
-                    -pan_limit,
-                    anchor_x - (anchor_x - previous_pan_x) * ratio,
-                ),
-            )
-            pan_y = min(
-                pan_limit,
-                max(
-                    -pan_limit,
-                    anchor_y - (anchor_y - previous_pan_y) * ratio,
-                ),
-            )
+            pan_x = anchor_x - (anchor_x - previous_pan_x) * ratio
+            pan_y = anchor_y - (anchor_y - previous_pan_y) * ratio
         self.set_viewport(
             VideoViewportState(
                 zoom=zoom,
@@ -476,10 +476,23 @@ class VideoPlaybackController(QObject):
     ) -> None:
         """Send one retained viewport with QPane-compatible sampling policy."""
 
+        pan_x = session.pan_x
+        pan_y = session.pan_y
+        geometry = viewport_geometry(
+            self._surface_metrics,
+            source_width=self._snapshot.width,
+            source_height=self._snapshot.height,
+        )
+        if geometry is not None:
+            pan_x, pan_y = geometry.mpv_pan(
+                zoom=session.zoom,
+                panel_pan_x=pan_x,
+                panel_pan_y=pan_y,
+            )
         player.set_viewport(
             session.zoom,
-            session.pan_x,
-            session.pan_y,
+            pan_x,
+            pan_y,
             self._presentation_sampling(session.zoom),
         )
 

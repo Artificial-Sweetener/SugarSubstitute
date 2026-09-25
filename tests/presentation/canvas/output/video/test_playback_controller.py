@@ -21,13 +21,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from threading import get_ident
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from PySide6.QtTest import QSignalSpy
 
 from substitute.application.ports.video import (
     VideoPlaybackEvent,
-    VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPlayerPort,
     VideoPresentationSampling,
@@ -40,119 +39,10 @@ from substitute.presentation.canvas.output.video_playback_controller import (
 )
 from tests.support.qt.lifecycle import ensure_qt_application
 from tests.support.qt.semantic_wait import wait_for_qt_signal
-
-
-class _FakePlayer:
-    """Record controller commands and publish generation-scoped observations."""
-
-    player_generation = 7
-
-    def __init__(self, callback: Callable[[VideoPlaybackEvent], None]) -> None:
-        """Store callback and initialize empty player state."""
-
-        self.callback = callback
-        self.media_generation = 0
-        self.media_id: UUID | None = None
-        self.commands: list[tuple[object, ...]] = []
-        self.current = _snapshot(None)
-        self.pending_poll_snapshot: VideoPlaybackSnapshot | None = None
-        self.poll_thread_ids: list[int] = []
-
-    def load(self, media_id: UUID, path: Path) -> None:
-        """Record one media replacement."""
-
-        self.media_generation += 1
-        self.media_id = media_id
-        self.commands.append(("load", media_id, path))
-        self.current = _snapshot(media_id)
-
-    def unload(self) -> None:
-        """Record unload."""
-
-        self.commands.append(("unload",))
-
-    def set_playing(self, playing: bool) -> None:
-        """Record play state."""
-
-        self.commands.append(("playing", playing))
-
-    def seek(self, seconds: float) -> None:
-        """Record seek target."""
-
-        self.commands.append(("seek", seconds))
-
-    def step_next_frame(self) -> None:
-        """Record exact next-frame command."""
-
-        self.commands.append(("next",))
-
-    def step_previous_frame(self) -> None:
-        """Record exact previous-frame command."""
-
-        self.commands.append(("previous",))
-
-    def set_loop_enabled(self, enabled: bool) -> None:
-        """Record loop state."""
-
-        self.commands.append(("loop", enabled))
-
-    def set_volume(self, volume: int) -> None:
-        """Record volume."""
-
-        self.commands.append(("volume", volume))
-
-    def set_user_muted(self, muted: bool) -> None:
-        """Record user mute."""
-
-        self.commands.append(("mute", muted))
-
-    def set_viewport(
-        self,
-        zoom: float,
-        pan_x: float,
-        pan_y: float,
-        sampling: VideoPresentationSampling,
-    ) -> None:
-        """Record normalized viewport geometry and source sampling."""
-
-        self.commands.append(("viewport", zoom, pan_x, pan_y, sampling))
-
-    def set_output_active(self, active: bool) -> None:
-        """Record visibility policy."""
-
-        self.commands.append(("active", active))
-
-    def snapshot(self) -> VideoPlaybackSnapshot:
-        """Return current fake state."""
-
-        return self.current
-
-    def poll_playback_state(self) -> None:
-        """Model one callback-free polling pass."""
-
-        self.poll_thread_ids.append(get_ident())
-        pending = self.pending_poll_snapshot
-        if pending is None:
-            return
-        self.pending_poll_snapshot = None
-        self.emit(pending)
-
-    def close(self) -> None:
-        """Record deterministic shutdown."""
-
-        self.commands.append(("close",))
-
-    def emit(self, snapshot: VideoPlaybackSnapshot) -> None:
-        """Publish one native-thread-style event through the callback."""
-
-        self.current = snapshot
-        self.callback(
-            VideoPlaybackEvent(
-                player_generation=self.player_generation,
-                media_generation=self.media_generation,
-                snapshot=snapshot,
-            )
-        )
+from tests.support.video_playback_controller import (
+    FakeVideoPlayer as _FakePlayer,
+    playback_snapshot as _snapshot,
+)
 
 
 def test_controller_restores_loop_time_and_audio_without_auto_resume(
@@ -429,6 +319,91 @@ def test_controller_anchors_one_to_one_at_the_double_click_position(
     controller.close()
 
 
+def test_controller_retains_far_anchor_when_one_to_one_is_much_larger(
+    tmp_path: Path,
+) -> None:
+    """1:1 should not apply libmpv's smaller pan bounds to panel-space state."""
+
+    app = ensure_qt_application()
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    player_box[0].emit(_snapshot(media_id))
+    app.processEvents()
+    controller.set_surface_metrics(width=80, height=45, device_pixel_ratio=1.0)
+
+    controller.set_actual_size_viewport(
+        surface_width=80,
+        surface_height=45,
+        device_pixel_ratio=1.0,
+        anchor_x=0.75,
+        anchor_y=-0.75,
+    )
+
+    actual = controller.session_for(media_id)
+    assert actual.zoom == 4.0
+    assert actual.pan_x == -2.25
+    assert actual.pan_y == 2.25
+    assert player_box[0].commands[-1] == (
+        "viewport",
+        4.0,
+        -0.28125,
+        0.28125,
+        VideoPresentationSampling.BILINEAR,
+    )
+    controller.close()
+
+
+def test_controller_translates_cursor_anchor_to_libmpv_pan_units(
+    tmp_path: Path,
+) -> None:
+    """Send anchored panel movement in libmpv's scaled-video coordinates."""
+
+    app = ensure_qt_application()
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    player_box[0].emit(_snapshot(media_id))
+    app.processEvents()
+    controller.set_surface_metrics(width=320, height=180, device_pixel_ratio=1.0)
+
+    controller.set_viewport(
+        VideoViewportState(
+            zoom=1.25,
+            pan_x=-0.125,
+            pan_y=0.125,
+            mode=VideoViewportMode.CUSTOM,
+        )
+    )
+
+    assert player_box[0].commands[-1] == (
+        "viewport",
+        1.25,
+        -0.05,
+        0.05,
+        VideoPresentationSampling.BILINEAR,
+    )
+    controller.close()
+
+
 def test_controller_matches_qpane_sampling_at_two_physical_pixels_per_source(
     tmp_path: Path,
 ) -> None:
@@ -530,30 +505,3 @@ def test_controller_closes_player_when_render_surface_preparation_fails(
     assert player_box[0].commands == [("close",)]
     assert controller.snapshot.state is VideoPlaybackState.ERROR
     controller.close()
-
-
-def _snapshot(
-    media_id: UUID | None,
-    *,
-    time_seconds: float | None = None,
-    loop_enabled: bool = True,
-    volume: int = 100,
-    user_muted: bool = False,
-) -> VideoPlaybackSnapshot:
-    """Build one coherent fake playback snapshot."""
-
-    return VideoPlaybackSnapshot(
-        media_id=media_id,
-        state=(
-            VideoPlaybackState.EMPTY if media_id is None else VideoPlaybackState.READY
-        ),
-        paused=True,
-        loop_enabled=loop_enabled,
-        user_muted=user_muted,
-        effectively_muted=user_muted,
-        volume=volume,
-        time_seconds=time_seconds,
-        duration_seconds=2.0 if media_id is not None else None,
-        width=320 if media_id is not None else None,
-        height=180 if media_id is not None else None,
-    )
