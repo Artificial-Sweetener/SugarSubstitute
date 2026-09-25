@@ -19,11 +19,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QEvent, Qt
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import (
     QApplication,
+    QLabel,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -34,6 +36,10 @@ from launcher.sugarsubstitute_launcher.ui.repair_progress_view import RepairProg
 from launcher.sugarsubstitute_launcher.ui.repair_window import RepairWindow
 from sugarsubstitute_shared.presentation.activity_progress_bar import (
     ActivityProgressBar,
+)
+from sugarsubstitute_shared.session_recovery import (
+    SessionRecoveryResult,
+    SessionRecoveryState,
 )
 
 
@@ -97,6 +103,25 @@ def test_terminal_result_exposes_the_next_action(
     activated = QSignalSpy(view.primary_requested)
     QTest.mouseClick(primary, Qt.MouseButton.LeftButton)
     assert activated.count() == 1
+
+
+def test_success_warns_when_session_was_preserved_but_not_restored(
+    view: RepairProgressView,
+) -> None:
+    """Repair success must not imply that incompatible mutable session state loaded."""
+
+    recovery_root = Path("C:/SugarSubstitute/.repair/session-recovery/example")
+    view.show_result(
+        succeeded=True,
+        session_recovery=SessionRecoveryResult(
+            SessionRecoveryState.PRESERVED_NOT_RESTORED,
+            recovery_root=recovery_root,
+        ),
+    )
+
+    visible_text = "\n".join(label.text() for label in view.findChildren(QLabel))
+    assert "previous session could not be restored" in visible_text
+    assert str(recovery_root) in visible_text
 
 
 def test_window_defers_close_until_execution_is_safe(

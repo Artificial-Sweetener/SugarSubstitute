@@ -54,6 +54,23 @@ Engineering priority is strict architecture, strong separation of concerns, beha
   intact until a verified migration identifies its producer and safe
   disposition.
 
+## Persistence Schema Governance
+
+- Register every persisted format and cross-version protocol in
+  `governance/persistence/catalog.toml` with its authoritative owner,
+  classification, preservation policy, compatibility policy, accepted versions,
+  and reviewed source fingerprint.
+- Treat session state, preferences, projects, workflows, outputs, trust state,
+  and user-authored artifacts as must-preserve data. A migration failure may
+  prevent restoration, but it must not destroy the original bytes.
+- When a persisted format changes semantics incompatibly, advance the schema version
+  and add a contiguous forward migration from every supported historical version.
+  Compatible changes still require an explicit catalog fingerprint review.
+- Make migrations idempotent, restart-safe, and forward-only. Validate migrated
+  data with the new reader before replacing live state, and retain recovery copies.
+- Integrate new schema owners into the existing architecture gate in the same
+  change as their code, migration behavior, fixtures, and recovery tests.
+
 ## Localization Policy
 
 - Route all SugarSubstitute-owned user-facing text, including installer text, through its explicit localization owner. Hard-coded visible copy is not allowed.
