@@ -471,7 +471,7 @@ class PromptProjectionSession:
         selection_start: int,
         selection_end: int,
     ) -> PromptTokenCollapseDecision:
-        """Return the current expanded-token collapse decision without mutating state."""
+        """Collapse outside the token, including at its opening boundary."""
 
         expanded_range = self.expanded_source_range
         if expanded_range is None:
@@ -485,12 +485,12 @@ class PromptProjectionSession:
             for span in document_view.syntax_spans
         )
         if (
-            expanded_range[0] <= selection_start <= expanded_range[1]
-            or expanded_range[0] <= selection_end <= expanded_range[1]
+            expanded_range[0] < selection_start <= expanded_range[1]
+            or expanded_range[0] < selection_end <= expanded_range[1]
         ):
             return PromptTokenCollapseDecision(
                 collapsed=False,
-                reason="selection_inside_or_on_boundary",
+                reason="selection_inside_or_on_trailing_boundary",
                 expanded_source_range=expanded_range,
                 matching_syntax_span_present=matching_syntax_span_present,
             )

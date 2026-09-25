@@ -723,7 +723,7 @@ kind = "structural"
 justification = "The module is one pure decision pipeline that derives card visibility, activation, hidden fields, and reveal entries from the same EditorBehaviorContext. Its helper rules feed one EditorBehavior result and must share precedence and override semantics."
 issue = "chore:SS-WAIVER-S014"
 review_by = 2026-12-15
-max_lines = 524
+max_lines = 521
 
 [[waivers]]
 id = "SS-WAIVER-S015"
@@ -745,7 +745,7 @@ kind = "structural"
 justification = "The module is one tolerant parser whose emphasis, wildcard, LoRA, quote, and syntax-span routines cooperate in a single source scan and return one PromptDocument. Their nesting, range, and depth invariants are shared across syntax families."
 issue = "chore:SS-WAIVER-S016"
 review_by = 2026-12-15
-max_lines = 675
+max_lines = 673
 
 [[waivers]]
 id = "SS-WAIVER-S017"
@@ -940,10 +940,10 @@ owner = "prompt source edit transaction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/core/editing/source_commands.py"
 kind = "structural"
-justification = "PromptSourceEditSession owns one bounded source-edit transaction. Normalization, parenthesis intent, generated-emphasis remapping, range validation, revision publication, and returned boundary transitions must agree for every replacement."
+justification = "PromptSourceEditSession owns one bounded source-edit transaction. Normalization, parenthesis intent, generated-emphasis remapping, range validation, revision publication, and returned boundary transitions must agree for every replacement. Source-edit attribution must use the requested boundary when normalization leaves the text exact so downstream caret maps do not infer an ambiguous boundary from repeated characters; extracting attribution would split this transaction invariant."
 issue = "chore:SS-WAIVER-S039"
 review_by = 2026-12-15
-max_lines = 560
+max_lines = 578
 
 [[waivers]]
 id = "SS-WAIVER-S040"
@@ -1075,7 +1075,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 615
+max_lines = 613
 
 [[waivers]]
 id = "SS-WAIVER-S054"
@@ -1127,10 +1127,10 @@ owner = "prompt semantic edit remapping"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/semantic_remap.py"
 kind = "structural"
-justification = "The module owns one optimistic remapping algorithm that shifts prepared document, render-plan, segment, syntax, diagnostic, and renderer ranges across a bounded source edit. Every helper applies the same overlap and position-delta rules."
+justification = "The module owns one optimistic semantic remapping contract across bounded source edits. Document and renderer emphasis spans, syntax ranges, and source positions must apply the same overlap and delta rules to keep the immediate projection internally consistent. Wildcard identity, LoRA span, and segment remapping are separate collaborators; this owner coordinates their results in one edit transaction."
 issue = "chore:SS-WAIVER-S058"
 review_by = 2026-12-15
-max_lines = 606
+max_lines = 542
 
 [[waivers]]
 id = "SS-WAIVER-S059"
@@ -1562,10 +1562,10 @@ owner = "prompt wildcard overlay contract"
 rule = "STRUCT003"
 path = "tests/presentation/editor/prompt_editor/overlays/wildcard_tokens/test_projection_contract.py"
 kind = "structural"
-justification = "This module owns one inline wildcard token presentation and interaction contract. Collapsed placeholder text, italic tag geometry, baseline, missing state, numeric controls, wheel mutation, copy source, active-range tracking, hover, resize, scroll, and coexistence with emphasis all share the same wildcard token state."
+justification = "This module owns one inline wildcard token presentation and interaction contract. Decorated source text, italic tag geometry, baseline, numeric controls, wheel mutation, copy source, active-range tracking, hover, resize, scroll, and coexistence with emphasis share the same wildcard token state. Resolution error colors have a separate focused contract."
 issue = "chore:SS-WAIVER-S148"
 review_by = 2026-12-15
-  max_lines = 523
+max_lines = 508
 
 [[waivers]]
 id = "SS-WAIVER-S149"
@@ -1583,10 +1583,10 @@ owner = "canonical prompt line assembly"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/layout/canonical_builder.py"
 kind = "structural"
-justification = "PromptProjectionLineLayoutBuilder owns one atomic line-assembly state machine over line width, height, vertical position, pending fragments, caret boundaries, and reusable-suffix convergence. Text and inline placement, wrapping transitions, paragraph and structural-row transitions, line finalization, caret geometry, and snapshot emission must update that state together; extracting one transition family would divide the authoritative layout invariant rather than create an independently changing owner. Measurement, wrap policy, projection partitioning, keep-group planning, and source-boundary resolution are separate collaborators."
+justification = "PromptProjectionLineLayoutBuilder owns one atomic line-assembly state machine over line width, height, vertical position, pending fragments, caret boundaries, and reusable-suffix convergence. Text and inline placement, wrapping transitions, paragraph and structural-row transitions, line finalization, ordered caret geometry, and snapshot emission must update that state together; extracting one transition family would divide the authoritative layout invariant rather than create an independently changing owner. Measurement, wrap policy, projection partitioning, keep-group planning, and source-boundary resolution are separate collaborators."
 issue = "chore:SS-WAIVER-S152"
 review_by = 2026-12-15
-max_lines = 778
+max_lines = 783
 
 [[waivers]]
 id = "SS-WAIVER-S153"
