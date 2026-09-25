@@ -142,7 +142,7 @@ def test_probe_disables_external_configuration_and_network(tmp_path: Path) -> No
 
     assert player.options["config"] is False
     assert player.options["load_scripts"] is False
-    assert player.options["ytdl"] is False
+    assert "ytdl" not in player.options
     assert player.options["autoload_files"] == "no"
     assert player.options["audio_file_auto"] == "no"
     assert player.options["sub_auto"] == "no"

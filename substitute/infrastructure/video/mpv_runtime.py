@@ -21,10 +21,12 @@ from __future__ import annotations
 import ctypes.util
 from dataclasses import dataclass
 import importlib
+import os
 from pathlib import Path
 import platform
 import sys
 from types import ModuleType
+from typing import Protocol, cast
 from unittest.mock import patch
 
 from substitute.application.ports.video import VideoRuntimeUnavailableError
@@ -32,6 +34,13 @@ from substitute.application.ports.video import VideoRuntimeUnavailableError
 
 class MpvRuntimeError(VideoRuntimeUnavailableError):
     """Report an unavailable or invalid project-owned libmpv runtime."""
+
+
+class _DllDirectoryHandle(Protocol):
+    """Keep a Windows DLL dependency search directory active."""
+
+    def close(self) -> None:
+        """Remove the directory from the process DLL search path."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +64,7 @@ class MpvRuntime:
             )
         self._library_path = resolved
         self._module: ModuleType | None = None
+        self._dll_directory: _DllDirectoryHandle | None = None
 
     @classmethod
     def bundled(cls, *, application_root: Path | None = None) -> MpvRuntime:
@@ -101,6 +111,7 @@ class MpvRuntime:
                 return str(self._library_path)
             return original_find_library(name)
 
+        self._open_windows_dependency_directory()
         with patch.object(
             ctypes.util,
             "find_library",
@@ -109,12 +120,43 @@ class MpvRuntime:
             try:
                 module = importlib.import_module("mpv")
             except (ImportError, OSError) as error:
+                self._close_windows_dependency_directory()
                 raise MpvRuntimeError(
                     f"The bundled video runtime could not be loaded: {self._library_path.name}"
                 ) from error
-        self._verify_loaded_backend(module)
+        try:
+            self._verify_loaded_backend(module)
+        except MpvRuntimeError:
+            self._close_windows_dependency_directory()
+            raise
         self._module = module
         return module
+
+    def _open_windows_dependency_directory(self) -> None:
+        """Expose sibling runtime DLLs only while the owned backend is loaded."""
+
+        if sys.platform != "win32" or self._dll_directory is not None:
+            return
+        add_dll_directory = getattr(os, "add_dll_directory", None)
+        if add_dll_directory is None:
+            raise MpvRuntimeError(
+                "This Python runtime cannot load bundled video dependencies."
+            )
+        try:
+            handle = add_dll_directory(str(self._library_path.parent))
+        except OSError as error:
+            raise MpvRuntimeError(
+                "The bundled video dependency directory could not be activated."
+            ) from error
+        self._dll_directory = cast(_DllDirectoryHandle, handle)
+
+    def _close_windows_dependency_directory(self) -> None:
+        """Release a dependency search directory after a failed import."""
+
+        if self._dll_directory is None:
+            return
+        self._dll_directory.close()
+        self._dll_directory = None
 
     def _verify_loaded_backend(self, module: ModuleType) -> None:
         """Reject an imported python-mpv module backed by another library."""

@@ -21,6 +21,13 @@ from __future__ import annotations
 from pathlib import Path
 import tomllib
 
+from tools.prepare_mpv_runtime import (
+    MPV_REVISION,
+    WINDOWS_ARCHIVE_SHA256,
+    WINDOWS_BUILDER_REVISION,
+    WINDOWS_RUNTIME_SHA256,
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -122,8 +129,17 @@ def test_generated_video_runtime_records_reproducible_provenance() -> None:
 
     mpv = components["mpv generated-video playback runtime"]
 
-    assert len(mpv["archive_sha256"]) == 64
-    assert len(mpv["runtime_sha256"]) == 64
+    assert mpv["revision"] == MPV_REVISION
+    assert mpv["archive_sha256"] == WINDOWS_ARCHIVE_SHA256
+    assert mpv["runtime_sha256"] == WINDOWS_RUNTIME_SHA256["libmpv-2.dll"]
+    assert mpv["builder_revision"] == WINDOWS_BUILDER_REVISION
+    assert mpv["build_options"] == [
+        "-Dgpl=false",
+        "-Dlua=disabled",
+        "-Djavascript=disabled",
+    ]
     assert mpv["preparation_tool"] == "tools/prepare_mpv_runtime.py"
     assert (REPO_ROOT / mpv["preparation_tool"]).is_file()
-    assert mpv["runtime_files"] == ["third_party/bin/mpv/windows-x64/libmpv-2.dll"]
+    assert mpv["runtime_files"] == [
+        f"third_party/bin/mpv/windows-x64/{name}" for name in WINDOWS_RUNTIME_SHA256
+    ]

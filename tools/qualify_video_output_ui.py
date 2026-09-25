@@ -20,7 +20,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 import sys
@@ -84,6 +83,7 @@ from tools.video_output_qualification_fixture import (
     qualification_image,
     qualification_metadata,
 )
+from tools.video_output_qualification_cli import parse_arguments
 
 
 _TIMEOUT_SECONDS = 10.0
@@ -92,7 +92,7 @@ _TIMEOUT_SECONDS = 10.0
 def main(argv: list[str] | None = None) -> int:
     """Render mixed grid and player states and record behavioral evidence."""
 
-    arguments = _parse_arguments(argv)
+    arguments = parse_arguments(argv)
     video_path = arguments.video.expanduser().resolve()
     evidence_dir = arguments.evidence_dir.expanduser().resolve()
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -464,6 +464,11 @@ def main(argv: list[str] | None = None) -> int:
             label="automatic loop restart",
         )
         loop_restart_time = float(page.controller.snapshot.time_seconds or 0.0)
+        if arguments.soak_seconds > 0.0:
+            pump_events(application, arguments.soak_seconds)
+            if page.controller.snapshot.state is not VideoPlaybackState.PLAYING:
+                raise RuntimeError("Video stopped during the native playback soak.")
+        soak_end_time = float(page.controller.snapshot.time_seconds or 0.0)
         native_click(window, play_button, application)
         wait_until(
             application,
@@ -494,6 +499,8 @@ def main(argv: list[str] | None = None) -> int:
             "loop_defaulted_on": ready.loop_enabled,
             "loop_off_end_time": loop_off_end_time,
             "loop_restart_time": loop_restart_time,
+            "soak_seconds": arguments.soak_seconds,
+            "soak_end_time": soak_end_time,
             "loop_reenabled": page.controller.snapshot.loop_enabled,
             "hidden_paused": page.controller.snapshot.paused,
             "hidden_muted": page.controller.snapshot.effectively_muted,
@@ -527,16 +534,6 @@ def main(argv: list[str] | None = None) -> int:
         window.deleteLater()
         application.processEvents()
         execution_runtime.shutdown()
-
-
-def _parse_arguments(argv: list[str] | None) -> argparse.Namespace:
-    """Parse the local video and evidence destinations."""
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--video", required=True, type=Path)
-    parser.add_argument("--evidence-dir", required=True, type=Path)
-    parser.add_argument("--theme", choices=("light", "dark"), default="light")
-    return parser.parse_args(argv)
 
 
 if __name__ == "__main__":

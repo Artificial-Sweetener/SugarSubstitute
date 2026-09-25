@@ -110,6 +110,8 @@ _SOURCE_SELECTOR_MIN_WIDTH = 58
 class OutputCanvas(QWidget):
     """Host one read-only CuteCanvas Output document and its navigation chrome."""
 
+    tabbar_container: QWidget
+
     activeOutputChanged = Signal(str)
     activeOutputGridChanged = Signal(str)
     activeOutputSceneChanged = Signal(object)
