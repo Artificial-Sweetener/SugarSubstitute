@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer, Signal, Slot
-from PySide6.QtGui import QOpenGLContext
+from functools import partial
+
+from PySide6.QtCore import QTimer, Qt, Signal, Slot
+from PySide6.QtGui import QOpenGLContext, QSurfaceFormat
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
 
@@ -33,12 +35,20 @@ class VideoOpenGLSurface(QOpenGLWidget):
     surfaceResized = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """Create an initially unbound black OpenGL surface."""
+        """Create an initially unbound transparent OpenGL surface."""
 
         super().__init__(parent)
         self.setObjectName("outputVideoRenderSurface")
+        surface_format = QSurfaceFormat(self.format())
+        surface_format.setAlphaBufferSize(8)
+        self.setFormat(surface_format)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAutoFillBackground(False)
+        self.setStyleSheet("background: transparent; border: none;")
         self._player: VideoOpenGLPlayerPort | None = None
         self._renderer_initialized = False
+        self._renderer_context: QOpenGLContext | None = None
+        self._observed_context: QOpenGLContext | None = None
         self._render_poll = QTimer(self)
         self._render_poll.setInterval(16)
         self._render_poll.timeout.connect(self._poll_frame)
@@ -71,10 +81,25 @@ class VideoOpenGLSurface(QOpenGLWidget):
         self._release_renderer()
         self._player = None
 
+    def prepare_for_window_transition(self) -> None:
+        """Release context-owned rendering before an ancestor changes windows."""
+
+        self._release_renderer()
+
+    def complete_window_transition(self) -> None:
+        """Request renderer binding after the replacement window becomes live."""
+
+        QTimer.singleShot(0, self._resume_renderer_after_window_transition)
+
     def initializeGL(self) -> None:  # noqa: N802
         """Initialize libmpv after Qt makes the surface context current."""
 
-        self.context().aboutToBeDestroyed.connect(self._release_renderer)
+        context = self.context()
+        if context is not self._observed_context:
+            self._observed_context = context
+            context.aboutToBeDestroyed.connect(
+                partial(self._release_renderer_for_context, context)
+            )
         self._initialize_renderer()
         self.renderingReady.emit()
 
@@ -106,8 +131,24 @@ class VideoOpenGLSurface(QOpenGLWidget):
             return
         player.initialize_renderer(self._get_proc_address)
         self._renderer_initialized = True
+        self._renderer_context = QOpenGLContext.currentContext()
         self._render_poll.start()
         self.update()
+
+    @Slot()
+    def _resume_renderer_after_window_transition(self) -> None:
+        """Initialize against the settled context or ask Qt to create one."""
+
+        if self._player is None or self._renderer_initialized:
+            return
+        if self.context() is None or not self.isValid():
+            self.update()
+            return
+        self.makeCurrent()
+        try:
+            self._initialize_renderer()
+        finally:
+            self.doneCurrent()
 
     @Slot()
     def _poll_frame(self) -> None:
@@ -127,8 +168,10 @@ class VideoOpenGLSurface(QOpenGLWidget):
         player = self._player
         if player is None or not self._renderer_initialized:
             self._renderer_initialized = False
+            self._renderer_context = None
             return
         self._renderer_initialized = False
+        self._renderer_context = None
         if self.context() is not None and self.isValid():
             self.makeCurrent()
             try:
@@ -137,6 +180,13 @@ class VideoOpenGLSurface(QOpenGLWidget):
                 self.doneCurrent()
             return
         player.release_renderer()
+
+    def _release_renderer_for_context(self, context: QOpenGLContext) -> None:
+        """Ignore delayed destruction from a superseded surface context."""
+
+        if context is not self._renderer_context:
+            return
+        self._release_renderer()
 
     @staticmethod
     def _get_proc_address(name: str) -> int:

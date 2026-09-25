@@ -226,6 +226,73 @@ def test_controller_routes_frame_steps_and_hidden_policy(tmp_path: Path) -> None
     controller.close()
 
 
+def test_controller_reconstructs_native_player_with_retained_session(
+    tmp_path: Path,
+) -> None:
+    """Window transitions should rebuild native state without losing user choices."""
+
+    app = ensure_qt_application()
+    players: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        players.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    controller.set_loop_enabled(False)
+    controller.set_volume(42)
+    controller.set_user_muted(True)
+    controller.set_viewport(
+        VideoViewportState(
+            zoom=1.75,
+            pan_x=0.2,
+            pan_y=-0.3,
+            mode=VideoViewportMode.CUSTOM,
+        )
+    )
+    players[0].emit(
+        _snapshot(
+            media_id,
+            time_seconds=0.8,
+            loop_enabled=False,
+            volume=42,
+            user_muted=True,
+        )
+    )
+    app.processEvents()
+
+    transition_snapshots = QSignalSpy(controller.snapshotChanged)
+    controller.release_native_player_for_window_transition()
+
+    assert controller.snapshot.state is VideoPlaybackState.LOADING
+    assert controller.snapshot.media_id == media_id
+    assert controller.snapshot.paused
+    assert controller.snapshot.effectively_muted
+    assert transition_snapshots.count() == 1
+
+    controller.activate(media_id, path)
+
+    assert len(players) == 2
+    assert players[0].commands[-1] == ("close",)
+    assert players[1].commands == [
+        ("load", media_id, path.resolve()),
+        ("volume", 42),
+        ("mute", True),
+        ("loop", False),
+        ("viewport", 1.75, 0.2, -0.3),
+        ("seek", 0.8),
+        ("active", True),
+        ("playing", False),
+    ]
+    assert controller.session_for(media_id).viewport_mode is VideoViewportMode.CUSTOM
+    controller.close()
+
+
 def test_controller_polls_native_state_on_the_qt_thread(tmp_path: Path) -> None:
     """Drive observations from the GUI timer without a native callback thread."""
 

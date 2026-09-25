@@ -232,6 +232,8 @@ def test_player_uses_closed_runtime_and_qt_composited_render_api(
     assert native.options["config"] is False
     assert native.options["load_scripts"] is False
     assert native.options["demuxer_lavf_o"] == "protocol_whitelist=file"
+    assert native.options["background"] == "none"
+    assert native.options["background_color"] == "#00000000"
     assert native.options["loop_file"] == "inf"
     assert native.options["mute"] is True
     assert native.options["start_event_thread"] is False

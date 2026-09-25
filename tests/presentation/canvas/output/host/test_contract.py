@@ -22,6 +22,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
+import pytest
+
 from substitute.presentation.canvas.output.output_canvas_view import OutputCanvas
 
 
@@ -55,6 +57,32 @@ def test_set_canvas_detached_updates_attachment_state() -> None:
     cast(Any, OutputCanvas).set_canvas_detached(fake, True)
 
     assert fake._canvas_detached is True
+
+
+def test_complete_window_transition_refreshes_video_and_navigation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Redocking should rebuild playback and retain compact video navigation."""
+
+    calls: list[str] = []
+    module = __import__(
+        "substitute.presentation.canvas.output.output_canvas_view",
+        fromlist=["update_output_tabbar_container"],
+    )
+    monkeypatch.setattr(
+        module,
+        "update_output_tabbar_container",
+        lambda _host: calls.append("navigation"),
+    )
+    fake = SimpleNamespace(
+        video_presentation=SimpleNamespace(
+            complete_window_transition=lambda: calls.append("video")
+        )
+    )
+
+    cast(Any, OutputCanvas).complete_window_transition(fake)
+
+    assert calls == ["video", "navigation"]
 
 
 def test_output_canvas_has_no_private_compare_pass_through_wrappers() -> None:

@@ -111,7 +111,6 @@ class VideoPlaybackPage(QWidget):
         super().__init__(parent)
         self.setObjectName("outputVideoPlaybackPage")
         self._surface = VideoOpenGLSurface(self)
-        self._surface.setStyleSheet("background: #000000; border: none;")
         self._status = QLabel(self)
         self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._status.setWordWrap(True)
@@ -142,6 +141,7 @@ class VideoPlaybackPage(QWidget):
         self._control_bar = QFrame(self)
         self._control_bar.setObjectName("outputVideoPlaybackControls")
         self._pending_video: tuple[UUID, Path] | None = None
+        self._player_generation = 0
         self._video_settings_provider = video_settings_provider or VideoPlaybackSettings
         factory = player_factory or self._create_bundled_player
         self.controller = VideoPlaybackController(
@@ -218,6 +218,17 @@ class VideoPlaybackPage(QWidget):
         self._pending_video = None
         self._surface.release_player()
         self.controller.close()
+
+    def prepare_for_window_transition(self) -> None:
+        """Retire native window resources before the Output canvas is rehosted."""
+
+        self._surface.release_player()
+        self.controller.release_native_player_for_window_transition()
+
+    def complete_window_transition(self) -> None:
+        """Bind rendering to the context created by the new Output window."""
+
+        self._surface.complete_window_transition()
 
     def retire_video(self, media_id: UUID) -> bool:
         """Unload one retired video before its temporary file is released."""
@@ -344,9 +355,10 @@ class VideoPlaybackPage(QWidget):
     ) -> VideoPlayerPort:
         """Create the project-owned player against this page's native surface."""
 
+        self._player_generation += 1
         return MpvVideoPlayer(
             runtime=MpvRuntime.bundled(),
-            player_generation=1,
+            player_generation=self._player_generation,
             event_callback=callback,
             render_api=True,
             settings=self._video_settings_provider(),

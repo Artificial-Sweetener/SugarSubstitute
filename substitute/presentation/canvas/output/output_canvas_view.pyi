@@ -69,6 +69,7 @@ class OutputCanvas(QWidget):
     document: OutputCanvasDocument
     workspace: Any
     video_presentation: OutputVideoPresentationCoordinator
+    tabbar_container: QWidget
     tabbar: Any
     scene_selector_button: Any
     set_selector_button: Any
@@ -201,6 +202,12 @@ class OutputCanvas(QWidget):
         ...
     def set_canvas_detached(self, detached: bool) -> None:
         """Set manager-owned canvas attachment state."""
+        ...
+    def prepare_for_window_transition(self) -> None:
+        """Release native video rendering before changing windows."""
+        ...
+    def complete_window_transition(self) -> None:
+        """Resume native video rendering after changing windows."""
         ...
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Bind the active Output projection session into the workspace."""
