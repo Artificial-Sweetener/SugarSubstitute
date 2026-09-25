@@ -37,8 +37,8 @@ from .full_projection_load_pipeline import (
     FullProjectionLoadPanelPort,
 )
 from .hidden_build_scheduler import HiddenBuildScheduler, HiddenBuildSchedulerPorts
-from .incremental_insert_pipeline import (
-    EditorIncrementalInsertPipeline,
+from .incremental_insert_pipeline import EditorIncrementalInsertPipeline
+from .incremental_insert_ports import (
     EditorIncrementalInsertPorts,
     IncrementalInsertPanelPort,
 )
@@ -88,6 +88,7 @@ from .visible_projection_commit import (
     EditorVisibleProjectionCommitPorts,
     editor_panel_is_visible,
 )
+from .surface_motion import EditorSurfaceMotionController
 
 
 class EditorProjectionCoordinatorPort(Protocol):
@@ -149,6 +150,10 @@ def compose_editor_projection(
     cube_section_builds = CubeSectionBuildController(
         cast(CubeSectionBuildPanelProtocol, panel)
     )
+    surface_motion = getattr(panel, "_surface_motion", None)
+    if surface_motion is None:
+        surface_motion = EditorSurfaceMotionController(panel)
+        setattr(panel, "_surface_motion", surface_motion)
     runtime_issue_projection = RuntimeIssueProjectionAdapter(
         panel=cast(RuntimeIssueProjectionPanelPort, panel),
         runtime_issues=runtime_issues,
@@ -251,6 +256,7 @@ def compose_editor_projection(
             build_registry=build_registry,
             projection_lifecycle=projection_lifecycle,
             render_reconciler=render_reconciler,
+            motion=cast(EditorSurfaceMotionController, surface_motion),
         )
     )
     projected_widget_builder = ProjectedWidgetBuilder(

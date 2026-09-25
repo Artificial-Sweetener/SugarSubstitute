@@ -16,6 +16,8 @@
 
 """Presentation-layer motion policy and reusable animation helpers."""
 
+from .controller import MotionTelemetry, SurfaceMotionController
+
 from .fluent_motion import (
     ACCORDION_COLLAPSE_DURATION_MS,
     ACCORDION_COLLAPSE_EASING_CURVE,
@@ -41,6 +43,15 @@ from .fluent_motion import (
     restart_property_animation,
     stop_animation,
 )
+from .models import (
+    MotionFrameTarget,
+    MotionPlan,
+    MotionSpec,
+    MotionTarget,
+    motion_duration_ms,
+    target_progress,
+)
+from .timeline import MotionTimeline
 
 __all__ = [
     "ACCORDION_COLLAPSE_DURATION_MS",
@@ -62,8 +73,17 @@ __all__ = [
     "SETTINGS_PAGE_TRANSITION_OFFSET",
     "SIDE_PANEL_DURATION_MS",
     "TRANSFORM_EASING_CURVE",
+    "MotionFrameTarget",
+    "MotionPlan",
+    "MotionSpec",
+    "MotionTarget",
+    "MotionTelemetry",
+    "MotionTimeline",
+    "SurfaceMotionController",
     "is_reduced_motion_enabled",
     "resolve_motion_duration",
     "restart_property_animation",
     "stop_animation",
+    "motion_duration_ms",
+    "target_progress",
 ]

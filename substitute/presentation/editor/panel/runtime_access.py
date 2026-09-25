@@ -55,6 +55,7 @@ from .runtime_issue_presenter import (
     EditorPanelRuntimeIssuePresenter,
 )
 from .search_controller import EditorPanelSearchController, EditorPanelSearchHost
+from .surface_motion import EditorSurfaceMotionController
 
 
 def cube_registry_for_panel(panel: object) -> EditorCubeRegistry:
@@ -237,6 +238,16 @@ def current_behavior_snapshot_for_panel(
     )
 
 
+def surface_motion_for_panel(panel: object) -> EditorSurfaceMotionController:
+    """Return the structural motion owner for a panel-like host."""
+
+    controller = getattr(panel, "_surface_motion", None)
+    if controller is None:
+        controller = EditorSurfaceMotionController(panel)
+        setattr(panel, "_surface_motion", controller)
+    return cast(EditorSurfaceMotionController, controller)
+
+
 __all__ = [
     "cube_registry_for_panel",
     "cube_reveal_controller_for_panel",
@@ -251,4 +262,5 @@ __all__ = [
     "projection_stack_order",
     "runtime_issue_presenter_for_panel",
     "search_controller_for_panel",
+    "surface_motion_for_panel",
 ]

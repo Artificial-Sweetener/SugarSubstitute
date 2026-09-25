@@ -471,11 +471,11 @@ owner = "loaded cube surface"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/loaded_cube_surface_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes cube-load callback adaptation, cube stack tab presentation refresh, editor surface activation and reveal, incremental and full surface refresh, override and dependent-control refresh, workflow reconciliation after load. Extract override/dependent-control refresh and callback adaptation from loaded-surface activation and reconciliation."
+justification = "The assessed file mixes cube-load callback adaptation, cube stack tab presentation refresh, editor surface activation and reveal, full surface refresh and activation, and workflow reconciliation after load. Extract callback adaptation from loaded-surface activation and workflow reconciliation."
 issue = "chore:SS-ARCH-079"
 review_by = 2026-12-15
-max_lines = 852
-next_limit = 684
+max_lines = 643
+next_limit = 515
 debt = "SS-ARCH-079"
 
 [[waivers]]
@@ -889,17 +889,6 @@ justification = "EditorFullProjectionLoadPipeline owns one staged transaction fr
 issue = "chore:SS-WAIVER-S031"
 review_by = 2026-12-15
 max_lines = 635
-
-[[waivers]]
-id = "SS-WAIVER-S032"
-owner = "incremental editor cube insertion"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/incremental_insert_pipeline.py"
-kind = "structural"
-justification = "EditorIncrementalInsertPipeline owns one incremental insert transaction from preparation and registry claim through hidden build, reconciliation, first-usable publication, completion, or cancellation. All methods preserve that transaction's session identity."
-issue = "chore:SS-WAIVER-S032"
-review_by = 2026-12-15
-max_lines = 587
 
 [[waivers]]
 id = "SS-WAIVER-S034"

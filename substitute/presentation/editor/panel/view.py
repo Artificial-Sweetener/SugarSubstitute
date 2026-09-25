@@ -161,6 +161,7 @@ class EditorPanel(
         """Stop active or pending cube reveal motion after deliberate user input."""
 
         _cube_reveal_controller_for_panel(self).cancel_active_cube_reveal_scroll()
+        self._surface_motion.cancel(reason="user_scroll_interruption")
 
     def refresh_mask_picker(self, cube_alias: str, node_name: str, new_path: str):
         """Refresh the mask picker matching one cube and node identity."""

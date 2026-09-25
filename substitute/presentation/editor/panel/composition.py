@@ -91,6 +91,7 @@ from .runtime_issue_presenter import (
     EditorPanelRuntimeIssuePresenter,
 )
 from .search_controller import EditorPanelSearchController, EditorPanelSearchHost
+from .surface_motion import EditorSurfaceMotionController
 from .widgets.cube_section_builder import cube_section_builder_for_panel
 from .widgets.scroll_surface import EditorPanelScrollSurface
 
@@ -253,6 +254,7 @@ def _initialize_controllers(panel: Any, inputs: EditorPanelCompositionInputs) ->
         cast(EditorPanelLoraMetadataRefreshHost, panel)
     )
     panel._node_card_mode_controller = NodeCardModeController()
+    panel._surface_motion = EditorSurfaceMotionController(panel)
     panel._projection_coordinator = EditorPanelProjectionCoordinator(
         cast(ProjectionCoordinatorPanelPort, panel)
     )

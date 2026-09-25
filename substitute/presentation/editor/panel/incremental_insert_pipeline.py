@@ -20,10 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.presentation.localization import app_text
 
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from time import perf_counter
-from typing import Protocol
 
 from substitute.shared.logging.logger import (
     get_logger,
@@ -32,6 +29,11 @@ from substitute.shared.logging.logger import (
     log_timing,
 )
 
+from .incremental_insert_motion import (
+    EditorIncrementalInsertMotion,
+    PreparedIncrementalInsertMotion,
+)
+from .incremental_insert_ports import EditorIncrementalInsertPorts
 from .projection_build_registry import CubeSectionBuildReuseDecision
 from .projection_models import (
     EditorIncrementalInsertCompletionState,
@@ -39,223 +41,12 @@ from .projection_models import (
     EditorIncrementalInsertRequest,
 )
 from .projection_preparation import (
-    BehaviorRefreshReason,
-    CubeDefinitionIdentity,
     EditorProjectionPreparation,
     cube_definition_identity,
 )
-from .projection_session_models import ActiveProjectionSession, InsertCompletionPhase
+from .projection_session_models import InsertCompletionPhase
 
 _LOGGER = get_logger("presentation.editor.panel.incremental_insert_pipeline")
-
-
-class IncrementalInsertPanelPort(Protocol):
-    """Describe panel state and widget hooks used by incremental inserts."""
-
-    _cube_states: dict[str, object] | None
-    _stack_order: list[str] | None
-    cube_widgets: dict[str, object]
-    cube_sections: dict[str, object]
-
-    def _begin_build_cube_widget(self, cube_alias: str, cube_state: object) -> object:
-        """Begin a deferred cube-section build."""
-
-    def sync_prompt_editor_values_for_cube(self, cube_alias: str) -> None:
-        """Synchronize prompt editor values for one cube."""
-
-    def refresh_link_widgets_for_cube(self, cube_alias: str) -> None:
-        """Refresh link widgets for one cube."""
-
-
-class IncrementalInsertSessionRegistryPort(Protocol):
-    """Describe active full-projection lookup used by incremental inserts."""
-
-    def owns(
-        self,
-        *,
-        workflow_id: str,
-        cube_alias: str,
-    ) -> ActiveProjectionSession | None:
-        """Return the active projection session owning one cube alias."""
-
-
-class IncrementalInsertCompletionPort(Protocol):
-    """Describe pending insert completion registry operations."""
-
-    def register_pending_insert(
-        self,
-        *,
-        workflow_id: str,
-        cube_alias: str,
-        token: object,
-        completion_phase: InsertCompletionPhase,
-        on_complete: Callable[[], None] | None,
-    ) -> None:
-        """Register a pending insert completion callback."""
-
-    def forget_pending_insert(
-        self,
-        *,
-        workflow_id: str,
-        cube_alias: str,
-        token: object,
-        reason: str,
-    ) -> None:
-        """Forget a pending insert completion callback."""
-
-    def cancel_pending_insert(
-        self,
-        *,
-        workflow_id: str,
-        cube_alias: str,
-        token: object,
-        reason: str,
-        cancel_superseded: bool,
-    ) -> None:
-        """Cancel a pending insert completion callback."""
-
-
-class IncrementalInsertSessionCompletionPort(Protocol):
-    """Describe completion attachment to an active full projection."""
-
-    def attach_insert(
-        self,
-        *,
-        session: ActiveProjectionSession,
-        workflow_id: str,
-        cube_alias: str,
-        completion_phase: InsertCompletionPhase,
-        on_complete: Callable[[], None] | None,
-        reason: str,
-    ) -> None:
-        """Attach an insert completion to an active full projection."""
-
-
-class IncrementalInsertPreparationPort(Protocol):
-    """Describe projection preparation operations used by incremental inserts."""
-
-    def prepare_projection(
-        self,
-        cube_entries: Sequence[tuple[str, object]],
-        *,
-        cube_states: dict[str, object] | None,
-        stack_order: Sequence[str] | None,
-        reason: BehaviorRefreshReason,
-        workflow_id: str,
-        previous_cube_states: dict[str, object] | None,
-        previous_stack_order: list[str] | None,
-        prompt_context_required: bool = False,
-    ) -> EditorProjectionPreparation:
-        """Prepare panel state for insert projection."""
-
-    def end_behavior_transaction(
-        self,
-        preparation: EditorProjectionPreparation,
-        *,
-        reason: BehaviorRefreshReason,
-    ) -> None:
-        """End behavior refresh transaction for insert projection."""
-
-
-class IncrementalInsertHiddenBuildSchedulerPort(Protocol):
-    """Describe deferred build-session scheduling used by incremental inserts."""
-
-    def schedule_cube_build_session(
-        self,
-        build_session: object,
-        *,
-        on_first_usable: Callable[[], None] | None = None,
-        on_complete: Callable[[], None],
-        is_current: Callable[[], bool] | None = None,
-        on_cancel: Callable[[], None] | None = None,
-    ) -> None:
-        """Schedule one cube build session across event-loop turns."""
-
-
-class IncrementalInsertBuildRegistryPort(Protocol):
-    """Describe build registry operations used by incremental inserts."""
-
-    def reuse_decision(
-        self,
-        alias: str,
-        widget: object,
-        definition_identity: CubeDefinitionIdentity | None,
-    ) -> CubeSectionBuildReuseDecision:
-        """Return whether an existing widget remains reusable."""
-
-    def start(
-        self,
-        *,
-        alias: str,
-        widget: object,
-        session: object | None,
-        snapshot_identity: object | None,
-        definition_identity: CubeDefinitionIdentity | None,
-    ) -> object:
-        """Start tracking one active build."""
-
-    def is_current(self, alias: str, token: object) -> bool:
-        """Return whether the token still owns the alias build."""
-
-    def mark_complete(self, alias: str, token: object) -> bool:
-        """Mark one active build complete."""
-
-    def cancel(self, alias: str, token: object, reason: str) -> bool:
-        """Cancel one active build."""
-
-
-class IncrementalInsertLifecyclePort(Protocol):
-    """Describe lifecycle cleanup and visibility refresh used by inserts."""
-
-    def discard_cube_widget(self, cube_alias: str, *, reason: str) -> None:
-        """Discard a stale cube widget."""
-
-    def refresh_visibility(
-        self,
-        *,
-        message: str,
-        reason: BehaviorRefreshReason,
-        use_cached_snapshot: bool = False,
-    ) -> None:
-        """Refresh behavior-derived visibility state."""
-
-
-class IncrementalInsertRenderReconcilerPort(Protocol):
-    """Describe layout and reveal operations used by incremental inserts."""
-
-    def reconcile_ordered_widgets(
-        self,
-        ordered_widgets: Sequence[tuple[str, object]],
-    ) -> None:
-        """Publish ordered widgets to the panel layout."""
-
-    def finalize_cube_widget_for_reveal(
-        self,
-        cube_alias: str,
-        cube_widget: object,
-        *,
-        reason: str,
-        workflow_id: str,
-    ) -> None:
-        """Finalize one widget for visible reveal."""
-
-    def set_cube_widget_update_wash(self, widget: object, *, visible: bool) -> None:
-        """Apply or remove update-wash styling on one widget."""
-
-
-@dataclass(frozen=True, slots=True)
-class EditorIncrementalInsertPorts:
-    """Group explicit collaborators required by incremental insert orchestration."""
-
-    panel: IncrementalInsertPanelPort
-    projection_sessions: IncrementalInsertSessionRegistryPort
-    projection_completions: IncrementalInsertCompletionPort
-    session_completions: IncrementalInsertSessionCompletionPort
-    projection_preparation: IncrementalInsertPreparationPort
-    hidden_build_scheduler: IncrementalInsertHiddenBuildSchedulerPort
-    build_registry: IncrementalInsertBuildRegistryPort
-    projection_lifecycle: IncrementalInsertLifecyclePort
-    render_reconciler: IncrementalInsertRenderReconcilerPort
 
 
 class EditorIncrementalInsertPipeline:
@@ -265,6 +56,7 @@ class EditorIncrementalInsertPipeline:
         """Store explicit collaborators needed by incremental insert orchestration."""
 
         self._ports = ports
+        self._motion = EditorIncrementalInsertMotion(ports.motion)
 
     def insert_cube(self, request: EditorIncrementalInsertRequest) -> None:
         """Insert one cube widget without rebuilding existing cube sections."""
@@ -393,6 +185,12 @@ class EditorIncrementalInsertPipeline:
         replacing_existing_widget = (
             cube_widget is not None and not can_reuse_existing_widget
         )
+        prepared_motion = self._motion.prepare(
+            requested=request.motion_requested,
+            cube_alias=request.cube_alias,
+            creates_widget=cube_widget is None or replacing_existing_widget,
+            replaces_widget=replacing_existing_widget,
+        )
         if cube_widget is not None and not can_reuse_existing_widget:
             ports.projection_lifecycle.discard_cube_widget(
                 request.cube_alias,
@@ -461,6 +259,8 @@ class EditorIncrementalInsertPipeline:
             build_token=build_token,
             build_session=build_session,
             built_new_widget=built_new_widget,
+            motion_generation=prepared_motion.generation,
+            motion_target=prepared_motion.target,
         )
 
     def _repopulate_incremental_insert_layout(
@@ -546,6 +346,12 @@ class EditorIncrementalInsertPipeline:
             plan.cube_widget,
             visible=False,
         )
+        state.motion_started = self._motion.present_cube(
+            prepared=self._prepared_motion(plan),
+            already_started=state.motion_started,
+            cube_alias=request.cube_alias,
+            cube_widget=plan.cube_widget,
+        )
         log_timing(
             _LOGGER,
             "Inserted editor cube section reached first usable state",
@@ -613,6 +419,11 @@ class EditorIncrementalInsertPipeline:
                 reason="incremental_complete",
                 workflow_id=request.workflow_id,
             )
+            state.motion_started = self._motion.present_node_cards(
+                prepared=self._prepared_motion(plan),
+                already_started=state.motion_started,
+                cube_alias=request.cube_alias,
+            )
             if plan.build_session is not None:
                 ports.build_registry.mark_complete(
                     request.cube_alias,
@@ -650,6 +461,7 @@ class EditorIncrementalInsertPipeline:
         """Cancel one alias build session when its token is superseded."""
 
         request = plan.request
+        self._motion.cancel()
         self._ports.build_registry.cancel(
             request.cube_alias,
             plan.build_token,
@@ -669,4 +481,15 @@ class EditorIncrementalInsertPipeline:
         self._ports.render_reconciler.set_cube_widget_update_wash(
             plan.cube_widget,
             visible=False,
+        )
+
+    @staticmethod
+    def _prepared_motion(
+        plan: EditorIncrementalInsertPlan,
+    ) -> PreparedIncrementalInsertMotion:
+        """Restore the immutable motion request carried by an insert plan."""
+
+        return PreparedIncrementalInsertMotion(
+            generation=plan.motion_generation,
+            target=plan.motion_target,
         )
