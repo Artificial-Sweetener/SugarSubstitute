@@ -879,7 +879,7 @@ kind = "structural"
 justification = "The module is one pure decision pipeline that derives card visibility, activation, hidden fields, and reveal entries from the same EditorBehaviorContext. Its helper rules feed one EditorBehavior result and must share precedence and override semantics."
 issue = "chore:SS-WAIVER-S014"
 review_by = 2026-12-15
-max_lines = 524
+max_lines = 521
 
 [[waivers]]
 id = "SS-WAIVER-S015"
