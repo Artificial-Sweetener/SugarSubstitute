@@ -22,7 +22,11 @@ from typing import cast
 
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.motion import MotionSpec, SurfaceMotionController
+from substitute.presentation.motion import (
+    MotionSpec,
+    MotionTelemetry,
+    SurfaceMotionController,
+)
 
 _EDITOR_INSERT_SPEC = MotionSpec(
     duration_ms=190,
@@ -45,7 +49,7 @@ class EditorSurfaceMotionController:
         )
 
     @property
-    def telemetry(self) -> object:
+    def telemetry(self) -> MotionTelemetry:
         """Return shared motion qualification counters and timings."""
 
         return self._motion.telemetry

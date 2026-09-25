@@ -31,6 +31,12 @@ from substitute.presentation.shell.main_window_editor_surface_adapter import (
 )
 
 from .fixtures import read_json, stable_json_hash, workflow_fixture_path, write_json
+from .motion_metrics import (
+    MotionOperationMetrics,
+    editor_motion_is_active,
+    motion_metric_cursor,
+    motion_metrics_since,
+)
 from .production_fixture import workflow_from_fixture
 from .production_instrumentation import instrument_projection
 from .production_mount import build_editor_panel, build_trace_shell
@@ -211,18 +217,17 @@ def _trace_scenario_mutations(
             reason="baseline_node_field_replacement",
         )
         operations.append(
-            _trace_refresh(
+            _trace_insert(
                 name="replace_one_cube_node_field_surface",
+                cube_alias=replaced_alias,
                 workflow=workflow,
                 panel=panel,
-                shell=trace_shell.shell,
                 settle_turns=settle_turns,
                 expected_preserved={
                     alias: identity
                     for alias, identity in preserved.items()
                     if alias != replaced_alias
                 },
-                maximum_cube_builds=1,
             )
         )
         preserved = _widget_identities(panel)
@@ -310,6 +315,7 @@ def _trace_insert(
 
     recorder = ProjectionTraceRecorder()
     before_widgets = widget_count()
+    motion_cursor = motion_metric_cursor(panel)
     started_at = perf_counter()
     with instrument_projection(recorder):
         panel.insert_cube_section(
@@ -319,18 +325,26 @@ def _trace_insert(
             stack_order=workflow.stack_order,
             on_complete=complete,
             completion_phase="complete",
+            motion_requested=True,
         )
         drain_until(lambda: completion_count == 1, max_turns=settle_turns)
+    functional_elapsed_ms = (perf_counter() - started_at) * 1000.0
+    if editor_motion_is_active(panel):
+        drain_until(
+            lambda: not editor_motion_is_active(panel),
+            max_turns=settle_turns,
+        )
     return _operation_report(
         name=name,
         workflow=workflow,
         panel=panel,
         recorder=recorder,
         completion_count=completion_count,
-        elapsed_ms=(perf_counter() - started_at) * 1000.0,
+        elapsed_ms=functional_elapsed_ms,
         before_widgets=before_widgets,
         expected_preserved=expected_preserved,
         maximum_cube_builds=1,
+        motion_metrics=motion_metrics_since(panel, motion_cursor),
     )
 
 
@@ -345,6 +359,7 @@ def _operation_report(
     before_widgets: int,
     expected_preserved: Mapping[str, int],
     maximum_cube_builds: int,
+    motion_metrics: MotionOperationMetrics | None = None,
 ) -> dict[str, Any]:
     """Return correctness, identity, construction, and timing evidence."""
 
@@ -355,7 +370,7 @@ def _operation_report(
     ).to_json()
     identities = _widget_identities(panel)
     cube_builds = recorder.counters.get("cube.begin_build_cube_widget.calls", 0)
-    return {
+    report = {
         "name": name,
         "elapsed_ms": round(elapsed_ms, 3),
         "completion_count": completion_count,
@@ -375,6 +390,9 @@ def _operation_report(
         "counters": recorder.counters,
         "timings_ms": recorder.timings_ms,
     }
+    if motion_metrics is not None:
+        report["motion"] = motion_metrics
+    return report
 
 
 def _widget_identities(panel: EditorPanel) -> dict[str, int]:

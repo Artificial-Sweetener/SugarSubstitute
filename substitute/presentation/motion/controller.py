@@ -37,9 +37,10 @@ from .models import (
     target_progress,
 )
 from .overlay import MotionOverlay
-from .timeline import MotionTimeline
+from .timeline import MotionClockFactory, MotionTimeline
 
-_MAX_CAPTURE_PIXELS = 16_000_000
+_MAX_BACKGROUND_CAPTURE_PIXELS = 16_000_000
+_MAX_TARGET_CAPTURE_PIXELS = 4_000_000
 _MAX_TARGETS = 24
 
 
@@ -53,6 +54,8 @@ class MotionTelemetry:
     plans_settled_immediately: int = 0
     preparation_ms: list[float] = field(default_factory=list)
     paint_ms: list[float] = field(default_factory=list)
+    last_capture_target_count: int = 0
+    last_capture_target_pixels: int = 0
 
 
 class SurfaceMotionController(QObject):
@@ -63,16 +66,19 @@ class SurfaceMotionController(QObject):
         *,
         viewport_provider: Callable[[], QWidget | None],
         default_spec: MotionSpec | None = None,
+        clock_factory: MotionClockFactory | None = None,
     ) -> None:
         """Store the viewport provider and initialize idle transition state."""
 
         super().__init__()
         self._viewport_provider = viewport_provider
         self._default_spec = default_spec or MotionSpec()
-        self._timeline = MotionTimeline(self)
+        self._timeline = MotionTimeline(self, clock_factory=clock_factory)
         self._watched_viewport: QWidget | None = None
+        self._watched_inputs: list[QWidget] = []
         self._overlay: MotionOverlay | None = None
         self._prepared_background: QPixmap | None = None
+        self._prepared_capture_ms = 0.0
         self._prepared_generation: int | None = None
         self._prepared_reason: str | None = None
         self._latest_generation = 0
@@ -82,6 +88,7 @@ class SurfaceMotionController(QObject):
         """Capture the current viewport before an eligible structural commit."""
 
         self.cancel(reason="superseded_prepare")
+        started_at = perf_counter()
         viewport = self._valid_viewport()
         if viewport is None or not self._capture_is_bounded(viewport):
             return None
@@ -89,6 +96,8 @@ class SurfaceMotionController(QObject):
         self._prepared_generation = self._latest_generation
         self._prepared_reason = reason
         self._prepared_background = viewport.grab()
+        self._prepared_capture_ms = (perf_counter() - started_at) * 1000.0
+        self._watch_direct_inputs(viewport)
         return self._prepared_generation
 
     def animate_widgets(
@@ -116,6 +125,7 @@ class SurfaceMotionController(QObject):
         resolved_duration = resolve_motion_duration(active_spec.duration_ms)
         if resolved_duration == 0:
             self._clear_prepared()
+            self._unwatch_direct_inputs()
             self.telemetry.plans_settled_immediately += 1
             return False
         active_spec = MotionSpec(
@@ -129,6 +139,7 @@ class SurfaceMotionController(QObject):
         targets = self._capture_targets(viewport, widgets)
         if not targets:
             self._clear_prepared()
+            self._unwatch_direct_inputs()
             return False
         plan = MotionPlan(
             generation=generation,
@@ -144,9 +155,13 @@ class SurfaceMotionController(QObject):
             paint_observer=self._record_paint,
         )
         self._overlay = overlay
+        self._watch_direct_inputs(viewport)
+        preparation_ms = self._prepared_capture_ms + (
+            (perf_counter() - started_at) * 1000.0
+        )
         self._clear_prepared()
         self.telemetry.plans_started += 1
-        self.telemetry.preparation_ms.append((perf_counter() - started_at) * 1000.0)
+        self.telemetry.preparation_ms.append(preparation_ms)
         total_duration = motion_duration_ms(plan)
         self._timeline.start(
             generation=generation,
@@ -180,14 +195,18 @@ class SurfaceMotionController(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Settle motion when its viewport changes or receives direct input."""
 
-        if watched is self._watched_viewport and event.type() in {
+        event_type = event.type()
+        if watched is self._watched_viewport and event_type in {
             QEvent.Type.Destroy,
             QEvent.Type.Hide,
             QEvent.Type.Resize,
+        }:
+            self.cancel(reason=f"viewport_event:{event_type.name}")
+        elif event_type in {
             QEvent.Type.Wheel,
             QEvent.Type.MouseButtonPress,
-        }:
-            self.cancel(reason=f"viewport_event:{event.type().name}")
+        } and self._is_viewport_target(watched):
+            self.cancel(reason=f"direct_input:{event_type.name}")
         return False
 
     def _capture_targets(
@@ -198,6 +217,7 @@ class SurfaceMotionController(QObject):
         """Capture bounded visible targets in viewport coordinates."""
 
         targets: list[MotionTarget] = []
+        captured_pixels = 0
         for identity, widget in widgets[:_MAX_TARGETS]:
             if not isValid(widget) or not widget.isVisible():
                 continue
@@ -207,9 +227,22 @@ class SurfaceMotionController(QObject):
             )
             if not final_rect.intersects(QRectF(viewport.rect())):
                 continue
+            pixel_ratio = widget.devicePixelRatioF()
+            estimated_pixels = int(
+                widget.width() * pixel_ratio * widget.height() * pixel_ratio
+            )
+            if (
+                estimated_pixels <= 0
+                or captured_pixels + estimated_pixels > _MAX_TARGET_CAPTURE_PIXELS
+            ):
+                continue
             snapshot = widget.grab()
             if snapshot.isNull():
                 continue
+            snapshot_pixels = snapshot.width() * snapshot.height()
+            if captured_pixels + snapshot_pixels > _MAX_TARGET_CAPTURE_PIXELS:
+                continue
+            captured_pixels += snapshot_pixels
             targets.append(
                 MotionTarget(
                     identity=identity,
@@ -218,6 +251,8 @@ class SurfaceMotionController(QObject):
                     order=len(targets),
                 )
             )
+        self.telemetry.last_capture_target_count = len(targets)
+        self.telemetry.last_capture_target_pixels = captured_pixels
         return tuple(targets)
 
     def _paint_frame(self, plan: MotionPlan, elapsed_ms: float) -> None:
@@ -266,15 +301,18 @@ class SurfaceMotionController(QObject):
         overlay = self._overlay
         self._overlay = None
         if overlay is None:
+            self._unwatch_direct_inputs()
             return
         if isValid(overlay):
             overlay.hide()
             overlay.deleteLater()
+        self._unwatch_direct_inputs()
 
     def _clear_prepared(self) -> None:
         """Drop pre-commit capture state after start, cancel, or settlement."""
 
         self._prepared_background = None
+        self._prepared_capture_ms = 0.0
         self._prepared_generation = None
         self._prepared_reason = None
 
@@ -287,17 +325,43 @@ class SurfaceMotionController(QObject):
         if viewport.width() <= 0 or viewport.height() <= 0:
             return None
         if viewport is not self._watched_viewport:
-            if self._watched_viewport is not None and isValid(self._watched_viewport):
-                self._watched_viewport.removeEventFilter(self)
             self._watched_viewport = viewport
-            viewport.installEventFilter(self)
         return viewport
 
     @staticmethod
     def _capture_is_bounded(viewport: QWidget) -> bool:
         """Return whether one viewport snapshot fits the memory safety bound."""
 
-        return viewport.width() * viewport.height() <= _MAX_CAPTURE_PIXELS
+        return viewport.width() * viewport.height() <= _MAX_BACKGROUND_CAPTURE_PIXELS
+
+    def _is_viewport_target(self, watched: QObject) -> bool:
+        """Return whether an input receiver belongs to the active viewport."""
+
+        viewport = self._watched_viewport
+        return (
+            viewport is not None
+            and isValid(viewport)
+            and isinstance(watched, QWidget)
+            and (watched is viewport or viewport.isAncestorOf(watched))
+        )
+
+    def _watch_direct_inputs(self, viewport: QWidget) -> None:
+        """Observe direct input on the committed viewport subtree during motion."""
+
+        self._unwatch_direct_inputs()
+        self._watched_inputs = [viewport, *viewport.findChildren(QWidget)]
+        for widget in self._watched_inputs:
+            if isValid(widget):
+                widget.installEventFilter(self)
+
+    def _unwatch_direct_inputs(self) -> None:
+        """Release transient child filters when motion settles."""
+
+        watched_inputs = self._watched_inputs
+        self._watched_inputs = []
+        for widget in watched_inputs:
+            if isValid(widget):
+                widget.removeEventFilter(self)
 
     def _record_paint(self, elapsed_ms: float) -> None:
         """Retain bounded frame-paint timings for qualification."""
