@@ -41,6 +41,7 @@ class MpvPlayerProtocol(Protocol):
     video_pan_x: object
     video_pan_y: object
     scale: object
+    background_color: object
 
     def command(self, name: str, *arguments: object) -> object:
         """Execute one libmpv client command."""

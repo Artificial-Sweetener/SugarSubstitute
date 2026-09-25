@@ -82,7 +82,7 @@ from tools.video_output_qualification_evidence import write_video_output_evidenc
 from tools.video_output_qualification_rehosting import (
     create_qualification_host,
     qualify_rehosting,
-    qualify_transparent_bars,
+    qualify_canvas_margins,
 )
 from tools.video_output_qualification_sampling import qualify_video_sampling
 from tools.video_output_qualification_navigation import qualify_space_pan_zoom
@@ -258,10 +258,11 @@ def main(argv: list[str] | None = None) -> int:
         if not ready.loop_enabled:
             raise RuntimeError("Video did not default to automatic looping.")
         capture(window, evidence_dir / "video-detail-paused.png")
-        transparent_bar_evidence = qualify_transparent_bars(
+        canvas_margin_evidence = qualify_canvas_margins(
+            application=application,
             root=window,
             page=page,
-            evidence_path=evidence_dir / "video-detail-transparent-bars.png",
+            evidence_path=evidence_dir / "video-detail-canvas-margin.png",
         )
 
         if tuple(canvas.tabbar.items) != ("image-output", "video-output"):
@@ -486,7 +487,7 @@ def main(argv: list[str] | None = None) -> int:
             dragged_viewport=navigation_evidence.dragged_viewport,
             same_navigation_row=same_navigation_row,
             native_stacking=native_stacking,
-            transparent_bars=transparent_bar_evidence,
+            canvas_margins=canvas_margin_evidence,
             rehosting=rehosting_evidence,
         )
         print(evidence_path)
