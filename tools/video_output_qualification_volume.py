@@ -30,7 +30,7 @@ from substitute.presentation.canvas.output.video_volume_flyout import (
     video_volume_icon,
 )
 from tools.video_output_qualification_support import (
-    capture_with_popup,
+    capture,
     find_button,
     native_click,
     native_click_vertical_fraction,
@@ -71,6 +71,20 @@ def qualify_volume_flyout(
         raise RuntimeError("Video volume flyout disappeared before interaction.")
     pump_events(application, 0.25)
     flyout_window = view.window()
+    if view.isWindow() or flyout_window is not root.window():
+        raise RuntimeError("Video volume opened as a separate window.")
+    if QApplication.activeWindow() is not root.window():
+        raise RuntimeError("Opening video volume deactivated the application window.")
+    if view.size() != QSize(56, 208):
+        raise RuntimeError(f"Video volume overlay is not compact: size={view.size()}.")
+    if view.muteButton.iconSize() != volume_button.iconSize():
+        raise RuntimeError(
+            "Stacked volume icons are not rendered at the same size: "
+            f"overlay={view.muteButton.iconSize()}, bar={volume_button.iconSize()}."
+        )
+    if not _icons_match(view.muteButton.icon(), volume_button.icon()):
+        raise RuntimeError("Stacked volume icons do not render the same pixels.")
+    overlay_size = [view.width(), view.height()]
     if view.volumeSlider.orientation() != Qt.Orientation.Vertical:
         raise RuntimeError("Video volume flyout slider is not vertical.")
     if view.volumeSlider.toolTip():
@@ -117,11 +131,7 @@ def qualify_volume_flyout(
     ):
         raise RuntimeError("Video volume button did not switch to its low-volume icon.")
     _assert_slider_geometry(view, selected_volume)
-    capture_with_popup(
-        root,
-        flyout_window,
-        evidence_dir / "video-volume-flyout.png",
-    )
+    capture(root, evidence_dir / "video-volume-flyout.png")
     native_click(flyout_window, view.muteButton, application)
     wait_until(
         application,
@@ -133,7 +143,7 @@ def qualify_volume_flyout(
         video_volume_icon(volume=selected_volume, muted=True).icon(),
     ):
         raise RuntimeError("Video volume button did not switch to its muted icon.")
-    flyout_window.close()
+    native_click(root, volume_button, application)
     wait_until(
         application,
         lambda: _visible_volume_view(root) is None,
@@ -143,6 +153,10 @@ def qualify_volume_flyout(
         "persistent_slider_names": persistent_slider_names,
         "diagnostics_button_removed": True,
         "flyout_above_button": True,
+        "in_window_overlay": True,
+        "window_activation_preserved": True,
+        "icon_pixels_match": True,
+        "overlay_size": overlay_size,
         "stack_center_x": anchor_center_x,
         "slider_tooltip_removed": True,
         "responsive_volume_icons": True,
