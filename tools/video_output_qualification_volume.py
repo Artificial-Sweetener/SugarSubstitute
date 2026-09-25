@@ -20,12 +20,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QPushButton, QSlider, QWidget
 
 from substitute.presentation.canvas.output.video_playback_page import VideoPlaybackPage
 from substitute.presentation.canvas.output.video_volume_flyout import (
     VideoVolumeFlyoutView,
+    video_volume_icon,
 )
 from tools.video_output_qualification_support import (
     capture_with_popup,
@@ -71,6 +73,19 @@ def qualify_volume_flyout(
     flyout_window = view.window()
     if view.volumeSlider.orientation() != Qt.Orientation.Vertical:
         raise RuntimeError("Video volume flyout slider is not vertical.")
+    if view.volumeSlider.toolTip():
+        raise RuntimeError("Video volume slider still exposes a redundant tooltip.")
+    anchor_center_x = volume_button.mapToGlobal(volume_button.rect().center()).x()
+    aligned_centers = {
+        "slider": view.volumeSlider.mapToGlobal(view.volumeSlider.rect().center()).x(),
+        "value": view.volumeLabel.mapToGlobal(view.volumeLabel.rect().center()).x(),
+        "mute": view.muteButton.mapToGlobal(view.muteButton.rect().center()).x(),
+    }
+    if any(center != anchor_center_x for center in aligned_centers.values()):
+        raise RuntimeError(
+            "Video volume stack is not aligned to its button: "
+            f"anchor={anchor_center_x}, controls={aligned_centers}."
+        )
     anchor_top = volume_button.mapToGlobal(QPoint()).y()
     view_bottom = view.mapToGlobal(QPoint(0, view.height())).y()
     if view_bottom > anchor_top + 2:
@@ -96,6 +111,11 @@ def qualify_volume_flyout(
             f"volume={page.controller.snapshot.volume}."
         ) from error
     selected_volume = page.controller.snapshot.volume
+    if not _icons_match(
+        volume_button.icon(),
+        video_volume_icon(volume=selected_volume, muted=False).icon(),
+    ):
+        raise RuntimeError("Video volume button did not switch to its low-volume icon.")
     _assert_slider_geometry(view, selected_volume)
     capture_with_popup(
         root,
@@ -108,6 +128,11 @@ def qualify_volume_flyout(
         lambda: page.controller.snapshot.user_muted,
         label="flyout mute change",
     )
+    if not _icons_match(
+        volume_button.icon(),
+        video_volume_icon(volume=selected_volume, muted=True).icon(),
+    ):
+        raise RuntimeError("Video volume button did not switch to its muted icon.")
     flyout_window.close()
     wait_until(
         application,
@@ -118,6 +143,9 @@ def qualify_volume_flyout(
         "persistent_slider_names": persistent_slider_names,
         "diagnostics_button_removed": True,
         "flyout_above_button": True,
+        "stack_center_x": anchor_center_x,
+        "slider_tooltip_removed": True,
+        "responsive_volume_icons": True,
         "slider_orientation": "vertical",
         "selected_volume": selected_volume,
         "selected_muted": True,
@@ -146,6 +174,13 @@ def _assert_slider_geometry(view: VideoVolumeFlyoutView, volume: int) -> None:
         raise RuntimeError(
             "Vertical volume rail does not visibly fill from the bottom."
         )
+
+
+def _icons_match(first: QIcon, second: QIcon) -> bool:
+    """Return whether two themed icons paint the same native pixels."""
+
+    size = QSize(20, 20)
+    return first.pixmap(size).toImage() == second.pixmap(size).toImage()
 
 
 def _visible_volume_view(root: QWidget) -> VideoVolumeFlyoutView | None:

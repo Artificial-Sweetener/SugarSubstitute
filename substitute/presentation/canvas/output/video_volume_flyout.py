@@ -119,12 +119,11 @@ class VideoVolumeFlyoutView(VolumeView):  # type: ignore[misc]
         self.retranslate(mute_text=mute_text, volume_text=volume_text)
 
     def retranslate(self, *, mute_text: str, volume_text: str) -> None:
-        """Refresh accessible names and tooltips without rebuilding the flyout."""
+        """Refresh accessible names and the mute tooltip without rebuilding."""
 
         self._mute_text = mute_text
         set_fluent_tooltip_text(self.muteButton, mute_text)
         self.muteButton.setAccessibleName(mute_text)
-        set_fluent_tooltip_text(self.volumeSlider, volume_text)
         self.volumeSlider.setAccessibleName(volume_text)
 
     def synchronize(self, *, volume: int, muted: bool) -> None:
@@ -137,13 +136,7 @@ class VideoVolumeFlyoutView(VolumeView):  # type: ignore[misc]
             self.volumeSlider.blockSignals(was_blocked)
         self.setMuted(muted)
         set_fluent_tooltip_text(self.muteButton, self._mute_text)
-        self.muteButton.setIcon(
-            (
-                AppIcon.SPEAKER_MUTE_20_REGULAR
-                if muted
-                else AppIcon.SPEAKER_2_20_REGULAR
-            ).icon()
-        )
+        self.muteButton.setIcon(video_volume_icon(volume=volume, muted=muted).icon())
 
     def setVolume(self, volume: int) -> None:  # noqa: N802
         """Place the current value above the vertical slider."""
@@ -268,4 +261,17 @@ class VideoVolumeFlyout(QObject):
         self._view = None
 
 
-__all__ = ["VideoVolumeFlyout", "VideoVolumeFlyoutView"]
+def video_volume_icon(*, volume: int, muted: bool) -> AppIcon:
+    """Return the Fluent speaker variant matching effective audio output."""
+
+    if muted:
+        return AppIcon.SPEAKER_MUTE_20_REGULAR
+    bounded_volume = min(max(int(volume), 0), 100)
+    if bounded_volume == 0:
+        return AppIcon.SPEAKER_0_20_REGULAR
+    if bounded_volume < 50:
+        return AppIcon.SPEAKER_1_20_REGULAR
+    return AppIcon.SPEAKER_2_20_REGULAR
+
+
+__all__ = ["VideoVolumeFlyout", "VideoVolumeFlyoutView", "video_volume_icon"]

@@ -51,6 +51,8 @@ class AppIcon(FluentIconBase, Enum):  # type: ignore[misc]
     PREVIOUS_20_REGULAR = "Previous20Regular"
     NEXT_20_REGULAR = "Next20Regular"
     ARROW_REPEAT_ALL_20_REGULAR = "ArrowRepeatAll20Regular"
+    SPEAKER_0_20_REGULAR = "Speaker020Regular"
+    SPEAKER_1_20_REGULAR = "Speaker120Regular"
     SPEAKER_2_20_REGULAR = "Speaker220Regular"
     SPEAKER_MUTE_20_REGULAR = "SpeakerMute20Regular"
     ZOOM_FIT_20_REGULAR = "ZoomFit20Regular"
