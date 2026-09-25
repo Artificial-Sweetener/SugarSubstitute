@@ -369,6 +369,27 @@ def test_frame_commands_pause_and_use_decoded_frame_operations(tmp_path: Path) -
     adapter.close()
 
 
+def test_frame_step_never_publishes_native_transient_playback(tmp_path: Path) -> None:
+    """Keep the Play glyph stable while libmpv advances one paused frame."""
+
+    adapter, native, _events, video = _player(tmp_path)
+    adapter.load(uuid4(), video)
+    adapter.set_output_active(True)
+    adapter.step_next_frame()
+
+    native.pause = False
+    native.emit("time-pos", 0.04)
+    adapter.poll_playback_state()
+
+    assert adapter.snapshot().paused
+    assert adapter.snapshot().state is VideoPlaybackState.READY
+
+    adapter.set_playing(True)
+    assert not adapter.snapshot().paused
+    assert adapter.snapshot().state is VideoPlaybackState.PLAYING
+    adapter.close()
+
+
 def test_loop_off_eof_and_play_restart_from_beginning(tmp_path: Path) -> None:
     """Remain ended without looping and restart from zero on the next Play."""
 

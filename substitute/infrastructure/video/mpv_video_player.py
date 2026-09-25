@@ -37,6 +37,11 @@ from substitute.infrastructure.video.mpv_player_factory import (
     MpvPlayerProtocol,
     create_mpv_player,
 )
+from substitute.infrastructure.video.mpv_observation_values import (
+    optional_nonnegative_float,
+    optional_positive_integer,
+    optional_string,
+)
 from substitute.infrastructure.video.mpv_render_background import MpvRenderBackground
 from substitute.infrastructure.video.mpv_opengl_render_bridge import (
     MpvOpenGLRenderBridge,
@@ -88,6 +93,7 @@ class MpvVideoPlayer:
         self._observed_path: str | None = None
         self._state = VideoPlaybackState.EMPTY
         self._paused = True
+        self._frame_step_pause_latched = False
         self._loop_enabled = True
         self._user_muted = False
         self._output_active = False
@@ -145,6 +151,7 @@ class MpvVideoPlayer:
             self._observed_path = None
             self._state = VideoPlaybackState.LOADING
             self._paused = True
+            self._frame_step_pause_latched = False
             self._loop_enabled = True
             self._time_seconds = None
             self._duration_seconds = None
@@ -184,6 +191,7 @@ class MpvVideoPlayer:
             self._observed_path = None
             self._state = VideoPlaybackState.EMPTY
             self._paused = True
+            self._frame_step_pause_latched = False
             self._time_seconds = None
             self._duration_seconds = None
             self._width = None
@@ -198,6 +206,7 @@ class MpvVideoPlayer:
 
         with self._lock:
             self._require_media()
+            self._frame_step_pause_latched = False
             if playing and not self._output_active:
                 raise VideoPlayerError("Video output is not active.")
             try:
@@ -429,6 +438,7 @@ class MpvVideoPlayer:
                 self._record_failure(failure_message, error)
                 return
             self._paused = True
+            self._frame_step_pause_latched = True
             self._state = VideoPlaybackState.READY
             event = self._event()
         self._event_callback(event)
@@ -439,11 +449,13 @@ class MpvVideoPlayer:
         if self._closed or self._media_id is None:
             return
         if name == "path":
-            self._observed_path = _optional_string(value)
+            self._observed_path = optional_string(value)
             return
         if not self._observes_current_path():
             return
         if name == "pause" and isinstance(value, bool):
+            if self._frame_step_pause_latched and not value:
+                return
             self._paused = value
             if self._state not in {
                 VideoPlaybackState.LOADING,
@@ -454,13 +466,13 @@ class MpvVideoPlayer:
                     VideoPlaybackState.READY if value else VideoPlaybackState.PLAYING
                 )
         elif name == "time-pos":
-            self._time_seconds = _optional_nonnegative_float(value)
+            self._time_seconds = optional_nonnegative_float(value)
         elif name == "duration":
-            self._duration_seconds = _optional_nonnegative_float(value)
+            self._duration_seconds = optional_nonnegative_float(value)
         elif name == "width":
-            self._width = _optional_positive_integer(value)
+            self._width = optional_positive_integer(value)
         elif name == "height":
-            self._height = _optional_positive_integer(value)
+            self._height = optional_positive_integer(value)
         elif name == "eof-reached" and value is True:
             self._state = VideoPlaybackState.ENDED
             self._paused = True
@@ -469,18 +481,18 @@ class MpvVideoPlayer:
                 VideoPlaybackState.READY if self._paused else VideoPlaybackState.PLAYING
             )
         elif name == "current-vo":
-            self._actual_video_output = _optional_string(value)
+            self._actual_video_output = optional_string(value)
         elif name == "gpu-api":
-            self._gpu_api = _optional_string(value)
+            self._gpu_api = optional_string(value)
         elif name == "gpu-context":
-            self._gpu_context = _optional_string(value)
+            self._gpu_context = optional_string(value)
         elif name == "hwdec-current":
             self._hardware_decoder_observed = True
-            self._hardware_decoder = _optional_string(value)
+            self._hardware_decoder = optional_string(value)
         elif name == "video-params/pixelformat":
-            self._pixel_format = _optional_string(value)
+            self._pixel_format = optional_string(value)
         elif name == "video-codec":
-            self._codec = _optional_string(value)
+            self._codec = optional_string(value)
 
     def _observes_current_path(self) -> bool:
         """Reject late observations that belong to a replaced decoder input."""
@@ -567,30 +579,6 @@ class MpvVideoPlayer:
                 presentation_sampling=self._presentation_sampling,
             ),
         )
-
-
-def _optional_nonnegative_float(value: object) -> float | None:
-    """Return one optional nonnegative numeric observation."""
-
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    converted = float(value)
-    return converted if converted >= 0.0 else None
-
-
-def _optional_positive_integer(value: object) -> int | None:
-    """Return one optional positive integer observation."""
-
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    converted = int(value)
-    return converted if converted > 0 else None
-
-
-def _optional_string(value: object) -> str | None:
-    """Return one non-empty native property string."""
-
-    return value if isinstance(value, str) and value else None
 
 
 __all__ = ["MpvVideoPlayer", "VideoPlayerError"]

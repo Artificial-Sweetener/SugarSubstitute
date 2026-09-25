@@ -22,10 +22,16 @@ from pathlib import Path
 
 from PySide6.QtCore import QPoint, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPalette
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QMainWindow,
+    QPushButton,
+    QWidget,
+)
 from sugarsubstitute_shared.localization import app_text
 
-from substitute.application.ports.video import VideoPlaybackState
+from substitute.application.ports.video import VideoPlaybackSnapshot, VideoPlaybackState
 from substitute.presentation.canvas.host.canvas_host import CanvasHost
 from substitute.presentation.canvas.host.canvas_host_state import CanvasHostPage
 from substitute.presentation.canvas.factory import (
@@ -322,7 +328,7 @@ def _exercise_transport(
     application: QApplication,
     root: QWidget,
     page: VideoPlaybackPage,
-    play: QWidget,
+    play: QPushButton,
     next_frame: QWidget,
     previous_frame: QWidget,
     seek: QWidget,
@@ -336,19 +342,41 @@ def _exercise_transport(
         label="rehosted seek",
     )
     initial = float(page.controller.snapshot.time_seconds or 0.0)
-    native_click(root, next_frame, application)
-    wait_until(
-        application,
-        lambda: float(page.controller.snapshot.time_seconds or 0.0) > initial,
-        label="rehosted next frame",
-    )
-    advanced = float(page.controller.snapshot.time_seconds or 0.0)
-    native_click(root, previous_frame, application)
-    wait_until(
-        application,
-        lambda: float(page.controller.snapshot.time_seconds or 0.0) < advanced,
-        label="rehosted previous frame",
-    )
+    expected_play_icon = play.icon().pixmap(QSize(18, 18)).toImage()
+    frame_step_observations: list[tuple[bool, QImage]] = []
+
+    def record_frame_step_state(value: object) -> None:
+        """Capture the rendered transport glyph for each stepping snapshot."""
+
+        if not isinstance(value, VideoPlaybackSnapshot):
+            return
+        frame_step_observations.append(
+            (value.paused, play.icon().pixmap(QSize(18, 18)).toImage())
+        )
+
+    page.controller.snapshotChanged.connect(record_frame_step_state)
+    try:
+        native_click(root, next_frame, application)
+        wait_until(
+            application,
+            lambda: float(page.controller.snapshot.time_seconds or 0.0) > initial,
+            label="rehosted next frame",
+        )
+        advanced = float(page.controller.snapshot.time_seconds or 0.0)
+        native_click(root, previous_frame, application)
+        wait_until(
+            application,
+            lambda: float(page.controller.snapshot.time_seconds or 0.0) < advanced,
+            label="rehosted previous frame",
+        )
+        pump_events(application, 0.1)
+    finally:
+        page.controller.snapshotChanged.disconnect(record_frame_step_state)
+    if not frame_step_observations or any(
+        not paused or icon != expected_play_icon
+        for paused, icon in frame_step_observations
+    ):
+        raise RuntimeError("Frame stepping did not retain a stable Play control.")
     native_click(root, play, application)
     wait_until(
         application,
