@@ -142,6 +142,7 @@ def _compose_output_transfer_lifecycle(shell: Any) -> OutputTransferLifecycle:
     lifecycle = compose_output_transfer_lifecycle(
         document=output_canvas.document,
         is_image_authorized=output_canvas.route_projector.is_image_allowed_for_transfer,
+        metadata_for=output_canvas.final_output_metadata,
         preference_service=shell.output_preference_service,
         drag_submitter=drag_submitter,
         close_drag_submitter=drag_submitter.close,

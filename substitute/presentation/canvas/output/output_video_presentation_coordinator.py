@@ -22,7 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QEvent, QObject
+from PySide6.QtCore import QEvent, QObject, Signal
 from PySide6.QtWidgets import QStackedWidget, QWidget
 from cutecanvas import CanvasPresentation, CanvasPresentationKind, CanvasWorkspace
 from shiboken6 import isValid
@@ -42,6 +42,8 @@ from substitute.presentation.canvas.shared.types import OutputImageMeta
 
 class OutputVideoPresentationCoordinator(QObject):
     """Own player-page switching while leaving every grid with CuteCanvas."""
+
+    contextMenuRequested = Signal(object)
 
     def __init__(
         self,
@@ -85,6 +87,7 @@ class OutputVideoPresentationCoordinator(QObject):
                 player_factory=self._player_factory,
                 video_settings_provider=self._video_settings_provider,
             )
+            page.contextMenuRequested.connect(self.contextMenuRequested.emit)
             self._video_page = page
             self.widget.addWidget(page)
         return page

@@ -22,7 +22,8 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from PySide6.QtCore import QEvent, QSize
+from PySide6.QtCore import QEvent, QPoint, QSize
+from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import QWidget
 from cutecanvas import ExecutionRuntime
 
@@ -186,6 +187,10 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         route_session_boundary=create_canvas_session_boundary(),
         video_player_factory=create_player,
     )
+    context_requests: list[tuple[object, object]] = []
+    canvas.install_transfer_context_handler(
+        lambda subject, position: context_requests.append((subject, position))
+    )
     try:
         canvas.set_final_output_lookup(
             payload_lookup=lambda media_id: {
@@ -235,6 +240,16 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         )
         assert len(canvas.findChildren(VideoPlaybackPage)) == 1
         assert len(player_box) == 1, [player.commands for player in player_box]
+        global_position = surface.mapToGlobal(QPoint(17, 19))
+        context_event = QContextMenuEvent(
+            QContextMenuEvent.Reason.Mouse,
+            QPoint(17, 19),
+            global_position,
+        )
+        app.sendEvent(surface, context_event)
+        video_reference = canvas.document.content_reference_for(video_id)
+        assert video_reference is not None
+        assert context_requests == [(video_reference, global_position)]
         assert player_box[0].commands[:6] == [
             ("load", video_id, video_path.resolve()),
             ("volume", 100),

@@ -284,8 +284,8 @@ def test_output_menu_disables_pathless_reveal_and_labels_redock() -> None:
     assert actions["output_canvas.dock_action"].label == "Redock canvas"
 
 
-def test_video_output_menu_omits_image_only_actions() -> None:
-    """Video detail keeps file actions while excluding image editing and compare."""
+def test_video_output_menu_keeps_native_file_actions() -> None:
+    """Video detail keeps copy and file actions while excluding image-only actions."""
 
     image_id = uuid4()
     metadata = _metadata(image_id, path="E:/outputs/clip.webm")
@@ -301,6 +301,7 @@ def test_video_output_menu_omits_image_only_actions() -> None:
         entry.action_id for entry in model.entries if isinstance(entry, MenuItem)
     )
     assert action_ids == (
+        "output_canvas.copy",
         "output_canvas.reveal_current_asset",
         "output_canvas.dock_action",
     )

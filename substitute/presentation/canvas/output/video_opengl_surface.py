@@ -21,7 +21,7 @@ from __future__ import annotations
 from functools import partial
 
 from PySide6.QtCore import QTimer, Qt, Signal, Slot
-from PySide6.QtGui import QOpenGLContext, QSurfaceFormat
+from PySide6.QtGui import QContextMenuEvent, QOpenGLContext, QSurfaceFormat
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QWidget
 
@@ -33,6 +33,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
 
     renderingReady = Signal()
     surfaceResized = Signal()
+    contextMenuRequested = Signal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Create an initially unbound transparent OpenGL surface."""
@@ -122,6 +123,12 @@ class VideoOpenGLSurface(QOpenGLWidget):
 
         del width, height
         self.surfaceResized.emit()
+
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # noqa: N802
+        """Forward video-detail context gestures through the Output owner."""
+
+        self.contextMenuRequested.emit(event.globalPos())
+        event.accept()
 
     def _initialize_renderer(self) -> None:
         """Create the render context once a player and current GL context exist."""
