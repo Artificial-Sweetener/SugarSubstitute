@@ -93,12 +93,21 @@ def test_platform_partitions_overlap_without_weakening_dependency_proof() -> Non
     job = workflow["jobs"]["platform-tests"]
     steps = {step["name"]: step for step in job["steps"]}
     python_setup = steps["Set up verified Python toolchain"]
+    video_runtime = steps["Prepare pinned Windows video runtime"]
 
     assert job["strategy"]["matrix"]["partition"] == ["ordinary", "fresh"]
     assert python_setup["uses"] == "./.github/actions/setup-python-toolchain"
     assert python_setup["with"]["python-version"] == "${{ matrix.python-version }}"
     assert steps["Audit installed Python dependency graph"]["if"] == (
         "matrix.partition == 'ordinary'"
+    )
+    assert video_runtime["if"] == (
+        "runner.os == 'Windows' && matrix.partition == 'ordinary'"
+    )
+    assert "tools/prepare_mpv_runtime.py" in video_runtime["run"]
+    step_names = [step["name"] for step in job["steps"]]
+    assert step_names.index("Prepare pinned Windows video runtime") < step_names.index(
+        "Run parallel-safe test partition"
     )
     assert steps["Run parallel-safe test partition"]["if"] == (
         "matrix.partition == 'ordinary'"
