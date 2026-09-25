@@ -19,11 +19,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from PySide6.QtCore import QEvent, QPoint, QSize
-from PySide6.QtGui import QContextMenuEvent
+from PySide6.QtGui import QColor, QContextMenuEvent
 from PySide6.QtWidgets import QWidget
 from cutecanvas import ExecutionRuntime
 
@@ -32,6 +33,7 @@ from substitute.application.ports.video import (
     VideoPlaybackSnapshot,
     VideoPlaybackState,
     VideoPresentationSampling,
+    VideoRepresentativeFrame,
 )
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
@@ -267,6 +269,27 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         canvas.video_presentation.video_page.controller.step_previous_frame()
         canvas.video_presentation.video_page.controller.step_next_frame()
         assert player_box[0].commands[-2:] == [("previous",), ("next",)]
+
+        paused_frame = VideoRepresentativeFrame(
+            time_seconds=0.75,
+            width=2,
+            height=1,
+            stride=8,
+            pixels=bytes((0, 255, 0, 0)) * 2,
+        )
+        player_box[0].callback(
+            VideoPlaybackEvent(
+                player_generation=player_box[0].player_generation,
+                media_generation=player_box[0].media_generation,
+                snapshot=replace(player_box[0].snapshot(), time_seconds=0.75),
+                representative_frame=paused_frame,
+            )
+        )
+        app.processEvents()
+        payload = canvas.document.image_payload(video_id)
+        assert payload is not None
+        assert payload.pixelColor(0, 0) == QColor("lime")
+        assert canvas.document.composition_id_for(video_id) == video_composition
 
         assert canvas.video_presentation.retire_media(video_id)
         assert player_box[0].commands[-1] == ("unload",)

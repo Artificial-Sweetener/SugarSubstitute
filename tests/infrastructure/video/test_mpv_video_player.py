@@ -20,14 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from types import ModuleType
 from typing import cast
 from uuid import uuid4
 
 import pytest
 
 from substitute.application.ports.video import (
-    VideoPlaybackEvent,
     VideoPlaybackFallback,
     VideoPlaybackState,
     VideoPresentationSampling,
@@ -42,182 +40,10 @@ from substitute.infrastructure.video.mpv_video_player import (
     MpvVideoPlayer,
     VideoPlayerError,
 )
-
-
-class FakePlayer:
-    """Model the synchronous python-mpv surface used by playback."""
-
-    def __init__(self, **options: object) -> None:
-        """Capture constructor policy and initialize property state."""
-
-        self.options = options
-        self.pause: object = options["pause"]
-        self.loop_file: object = options["loop_file"]
-        self.mute: object = options["mute"]
-        self.volume: object = options["volume"]
-        self.video_zoom: object = 0.0
-        self.video_pan_x: object = 0.0
-        self.video_pan_y: object = 0.0
-        self.scale: object = options["scale"]
-        self._event_handle: object | None = object()
-        self.path: object = None
-        self.commands: list[tuple[str, tuple[object, ...]]] = []
-        self.properties: dict[str, object] = {
-            "path": None,
-            "pause": self.pause,
-            "time-pos": None,
-            "duration": None,
-            "width": None,
-            "height": None,
-            "eof-reached": False,
-            "core-idle": None,
-            "current-vo": None,
-            "gpu-api": None,
-            "gpu-context": None,
-            "hwdec-current": None,
-            "video-params/pixelformat": None,
-            "video-codec": None,
-        }
-        self.terminated = False
-        self.fail_command: str | None = None
-
-    def command(self, name: str, *arguments: object) -> object:
-        """Record commands and model load/stop path changes."""
-
-        if name == self.fail_command:
-            raise ValueError("sensitive decoder detail")
-        self.commands.append((name, arguments))
-        if name == "loadfile":
-            self.path = arguments[0]
-            self.properties["path"] = arguments[0]
-        elif name == "stop":
-            self.path = None
-            self.properties["path"] = None
-        return None
-
-    def _get_property(self, name: str) -> object:
-        """Return one synchronously polled property."""
-
-        if name == "pause":
-            return self.pause
-        return self.properties[name]
-
-    def terminate(self) -> None:
-        """Record native player teardown."""
-
-        self.terminated = True
-
-    def emit(self, name: str, value: object) -> None:
-        """Change one property for the next caller-owned polling pass."""
-
-        self.properties[name] = value
-
-
-class FakeRuntime:
-    """Return one shared fake player from a python-mpv-shaped module."""
-
-    def __init__(self) -> None:
-        """Initialize constructor capture state."""
-
-        self.player: FakePlayer | None = None
-        self.render_contexts: list[FakeRenderContext] = []
-
-    def load_module(self) -> ModuleType:
-        """Return a binding module whose constructor is called only once."""
-
-        module = ModuleType("mpv")
-
-        def construct(**options: object) -> FakePlayer:
-            """Create and retain the sole native player."""
-
-            self.player = FakePlayer(**options)
-            return self.player
-
-        module.MPV = construct  # type: ignore[attr-defined]
-        module.MpvGlGetProcAddressFn = lambda callback: callback  # type: ignore[attr-defined]
-
-        def destroy_event_client(event_client: object) -> None:
-            """Record disposal of python-mpv's unused event client."""
-
-            assert self.player is not None
-            assert event_client is self.player._event_handle
-
-        module._mpv_destroy = destroy_event_client  # type: ignore[attr-defined]
-
-        def construct_render_context(
-            player: FakePlayer,
-            api_type: str,
-            **options: object,
-        ) -> FakeRenderContext:
-            """Create and retain one observable fake render context."""
-
-            context = FakeRenderContext(player, api_type, **options)
-            self.render_contexts.append(context)
-            return context
-
-        module.MpvRenderContext = construct_render_context  # type: ignore[attr-defined]
-        return module
-
-
-class FakeRenderContext:
-    """Record render-API lifecycle without an OpenGL dependency."""
-
-    def __init__(self, player: FakePlayer, api_type: str, **options: object) -> None:
-        """Capture the player, API, and initialization parameters."""
-
-        self.player = player
-        self.api_type = api_type
-        self.options = options
-        self.update_cb: Callable[[], None] | None = None
-        self.update_pending = False
-        self.rendered: list[dict[str, object]] = []
-        self.swap_count = 0
-        self.freed = False
-
-    def update(self) -> bool:
-        """Return and clear the render update requested by libmpv."""
-
-        pending = self.update_pending
-        self.update_pending = False
-        return pending
-
-    def render(self, **options: object) -> None:
-        """Record one framebuffer render."""
-
-        self.rendered.append(options)
-
-    def report_swap(self) -> None:
-        """Record one completed swap."""
-
-        self.swap_count += 1
-
-    def free(self) -> None:
-        """Record deterministic release."""
-
-        self.freed = True
-
-
-def _player(
-    tmp_path: Path,
-    *,
-    render_api: bool = False,
-    settings: VideoPlaybackSettings = VideoPlaybackSettings(),
-) -> tuple[MpvVideoPlayer, FakePlayer, list[VideoPlaybackEvent], Path]:
-    """Return one adapter, native double, event sink, and local video path."""
-
-    runtime = FakeRuntime()
-    events: list[VideoPlaybackEvent] = []
-    adapter = MpvVideoPlayer(
-        runtime=cast(MpvRuntime, runtime),
-        player_generation=7,
-        event_callback=events.append,
-        render_api=render_api,
-        settings=settings,
-    )
-    assert runtime.player is not None
-    video = tmp_path / "generated.webm"
-    video.write_bytes(b"video")
-    return adapter, runtime.player, events, video
+from tests.support.mpv_video_player import (
+    FakeMpvRuntime as FakeRuntime,
+    create_video_player as _player,
+)
 
 
 def test_player_uses_closed_runtime_and_qt_composited_render_api(

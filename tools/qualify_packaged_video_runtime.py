@@ -179,15 +179,17 @@ def _qualify_playback(
 ) -> dict[str, object]:
     """Exercise real frame, loop, audio, and hidden-page behavior."""
 
+    events: list[Any] = []
     player = player_type(
         runtime=runtime,
         player_generation=1,
-        event_callback=lambda _event: None,
+        event_callback=events.append,
         settings=settings,
     )
     try:
         print("  CFR frame stepping", flush=True)
         cfr = _step_round_trip(player, fixtures["cfr-h264-silent.mp4"])
+        representative_frame = _representative_frame_evidence(player, events)
         print("  VFR frame stepping", flush=True)
         vfr = _step_vfr(player, fixtures["vfr-vp9-silent.webm"])
         print("  B-frame stepping", flush=True)
@@ -201,12 +203,40 @@ def _qualify_playback(
             "bframe_step": bframes,
             "cfr_step": cfr,
             "loop": loop,
+            "representative_frame": representative_frame,
             "vfr_step": vfr,
         }
     finally:
         print("  closing native player", flush=True)
         player.close()
         print("  native player closed", flush=True)
+
+
+def _representative_frame_evidence(
+    player: Any,
+    events: list[Any],
+) -> dict[str, object]:
+    """Prove native paused-position events carry the last decoded source frame."""
+
+    frames = tuple(
+        event.representative_frame
+        for event in events
+        if event.representative_frame is not None
+    )
+    if len(frames) < 3:
+        raise RuntimeError("Paused playback did not publish representative frames.")
+    frame = frames[-1]
+    paused_time = player.snapshot().time_seconds
+    if paused_time is None or abs(frame.time_seconds - paused_time) > 0.001:
+        raise RuntimeError("Representative frame did not match the paused position.")
+    return {
+        "captured_positions": len(frames),
+        "height": frame.height,
+        "pixel_sha256": hashlib.sha256(frame.pixels).hexdigest(),
+        "stride": frame.stride,
+        "time_seconds": frame.time_seconds,
+        "width": frame.width,
+    }
 
 
 def _load_ready(player: Any, path: Path) -> None:

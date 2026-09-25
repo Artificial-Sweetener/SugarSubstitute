@@ -28,11 +28,15 @@ from cutecanvas import CanvasPresentation, CanvasPresentationKind, CanvasWorkspa
 from shiboken6 import isValid
 
 from substitute.application.ports.video import VideoPlaybackEvent, VideoPlayerPort
+from substitute.application.ports.video import VideoRepresentativeFrame
 from substitute.domain.generation import VideoPlaybackSettings
 from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.canvas.output.output_document import OutputCanvasDocument
 from substitute.presentation.canvas.output.output_video_badge_overlays import (
     OutputVideoBadgeOverlays,
+)
+from substitute.presentation.canvas.output.output_video_representative_frame import (
+    OutputVideoRepresentativeFramePresenter,
 )
 from substitute.presentation.canvas.output.video_playback_page import (
     VideoPlaybackPage,
@@ -67,6 +71,7 @@ class OutputVideoPresentationCoordinator(QObject):
         self._player_factory = player_factory
         self._video_settings_provider = video_settings_provider
         self._video_page: VideoPlaybackPage | None = None
+        self._representative_frames = OutputVideoRepresentativeFramePresenter(document)
         self.widget = QStackedWidget(parent)
         self.widget.addWidget(workspace)
         self.widget.setCurrentWidget(workspace)
@@ -88,9 +93,21 @@ class OutputVideoPresentationCoordinator(QObject):
                 video_settings_provider=self._video_settings_provider,
             )
             page.contextMenuRequested.connect(self.contextMenuRequested.emit)
+            page.controller.representativeFrameChanged.connect(
+                self._present_representative_frame
+            )
             self._video_page = page
             self.widget.addWidget(page)
         return page
+
+    def _present_representative_frame(
+        self,
+        media_id: UUID,
+        frame: VideoRepresentativeFrame,
+    ) -> None:
+        """Replace CuteCanvas pixels with the latest stable paused source frame."""
+
+        self._representative_frames.present(media_id, frame)
 
     def synchronize(self, presentation: CanvasPresentation) -> None:
         """Present video only for single detail and refresh grid play badges."""

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from substitute.application.ports.video import VideoPlaybackState
+
 
 def optional_nonnegative_float(value: object) -> float | None:
     """Return one optional nonnegative numeric observation."""
@@ -43,8 +47,27 @@ def optional_string(value: object) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
+def observation_matches_media(
+    *,
+    media_path: Path | None,
+    observed_path: str | None,
+    state: VideoPlaybackState,
+) -> bool:
+    """Accept observations only when they belong to the loaded decoder input."""
+
+    if media_path is None:
+        return False
+    if observed_path is None:
+        return state is VideoPlaybackState.LOADING
+    try:
+        return Path(observed_path).expanduser().resolve() == media_path
+    except OSError:
+        return False
+
+
 __all__ = [
     "optional_nonnegative_float",
     "optional_positive_integer",
     "optional_string",
+    "observation_matches_media",
 ]
