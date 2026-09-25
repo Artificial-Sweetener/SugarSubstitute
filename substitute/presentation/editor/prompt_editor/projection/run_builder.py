@@ -125,19 +125,16 @@ class PromptProjectionRunBuilder:
                     projection_position=projection_position,
                 ),
             )
-        renderer_key = (
-            _LORA_CHIP_RENDERER_KEY
-            if token.kind is PromptProjectionTokenKind.LORA
-            else _WILDCARD_CHIP_RENDERER_KEY
-        )
-        run_kind = (
-            "lora-chip"
-            if token.kind is PromptProjectionTokenKind.LORA
-            else "wildcard-chip"
-        )
+        if token.kind is PromptProjectionTokenKind.WILDCARD:
+            return _wildcard_runs(
+                token,
+                source_text=source_text,
+                projection_position=projection_position,
+            )
+        assert token.kind is PromptProjectionTokenKind.LORA
         return (
             PromptProjectionRun(
-                run_id=f"{run_kind}:{token.token_id}",
+                run_id=f"lora-chip:{token.token_id}",
                 kind=PromptProjectionRunKind.INLINE_OBJECT,
                 source_start=token.source_start,
                 source_end=token.source_end,
@@ -146,7 +143,7 @@ class PromptProjectionRunBuilder:
                 projection_start=projection_position,
                 projection_end=projection_position + 1,
                 token_id=token.token_id,
-                renderer_key=renderer_key,
+                renderer_key=_LORA_CHIP_RENDERER_KEY,
                 active=token.active,
             ),
         )
@@ -183,6 +180,68 @@ def _emphasis_runs(
     )
     suffix_run = _emphasis_suffix_run(token, content_run.projection_end)
     return (prefix_run, content_run, suffix_run)
+
+
+def _wildcard_runs(
+    token: PromptProjectionToken,
+    *,
+    source_text: str,
+    projection_position: int,
+) -> tuple[PromptProjectionRun, ...]:
+    """Keep wildcard syntax decorated while exposing editable source content."""
+
+    assert token.content_start is not None
+    assert token.content_end is not None
+    content = map_prompt_source_for_display(
+        source_text[token.content_start : token.content_end],
+        source_start=token.content_start,
+    )
+    display_text = (
+        token.display_text
+        if len(token.display_text) == len(content.display_text)
+        else content.display_text
+    )
+    prefix = PromptProjectionRun(
+        run_id=f"wildcard-prefix:{token.token_id}",
+        kind=PromptProjectionRunKind.INLINE_OBJECT,
+        source_start=token.source_start,
+        source_end=token.content_start,
+        display_text="{",
+        source_positions=(token.source_start, token.content_start),
+        projection_start=projection_position,
+        projection_end=projection_position + 1,
+        token_id=token.token_id,
+        renderer_key=_WILDCARD_CHIP_RENDERER_KEY,
+        role=PromptProjectionRunRole.TOKEN_LEADING_DECORATION,
+        active=token.active,
+    )
+    body = PromptProjectionRun(
+        run_id=f"wildcard-content:{token.token_id}",
+        kind=PromptProjectionRunKind.TEXT,
+        source_start=token.content_start,
+        source_end=token.content_end,
+        display_text=display_text,
+        source_positions=content.source_positions,
+        projection_start=prefix.projection_end,
+        projection_end=prefix.projection_end + len(display_text),
+        token_id=token.token_id,
+        active=token.active,
+    )
+    suffix = PromptProjectionRun(
+        run_id=f"wildcard-suffix:{token.token_id}",
+        kind=PromptProjectionRunKind.INLINE_OBJECT,
+        source_start=token.content_end,
+        source_end=token.source_end,
+        display_text=token.wildcard_display_tag or "",
+        source_positions=(token.content_end, token.source_end),
+        projection_start=body.projection_end,
+        projection_end=body.projection_end + 1,
+        token_id=token.token_id,
+        renderer_key=_WILDCARD_CHIP_RENDERER_KEY,
+        role=PromptProjectionRunRole.TOKEN_TRAILING_DECORATION,
+        active=token.active,
+    )
+    return prefix, body, suffix
 
 
 def _emphasis_prefix_run(

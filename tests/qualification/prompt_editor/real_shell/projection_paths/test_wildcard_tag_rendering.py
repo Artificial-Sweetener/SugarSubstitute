@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import pytest
+from PySide6.QtGui import QFontMetricsF
 
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
@@ -76,19 +77,35 @@ def test_adding_second_wildcard_remeasures_first_implicit_group_tag(
 
     after_tokens = _wildcard_tokens(field)
     first_token = after_tokens[0]
-    first_run = surface.projection_document().runs_for_token(first_token.token_id)[0]
     after_rect = surface._layout.frame.geometry.tokens.token_rect(  # noqa: SLF001
         first_token,
         scroll_offset=float(field.editor.verticalScrollBar().value()),
     )
-    expected_width = renderer.measure_inline_object(
-        first_run,
-        first_token,
-        base_font=field.editor.font(),
-    ).width()
+    expected_tag_width = QFontMetricsF(
+        renderer._tag_font(field.editor.font())  # noqa: SLF001
+    ).horizontalAdvance("1")
 
     assert field.editor.toPlainText() == _CANARY_PREFIX + _CANARY_INSERTION
     assert tuple(token.wildcard_display_tag for token in after_tokens) == ("1", "1")
     assert after_rect is not None
     assert after_rect.width() > before_rect.width()
-    assert after_rect.width() == pytest.approx(expected_width)
+    assert after_rect.width() - before_rect.width() == pytest.approx(
+        expected_tag_width,
+        abs=1.0,
+    )
+
+
+def test_numeric_wildcard_tag_owns_its_weight_hit_rectangle(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Find the tag's numeric hit area after its separate opening decoration."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="{animal|2}")
+    surface = surface_for(field.editor)
+    token = _wildcard_tokens(field)[0]
+
+    anchor_rect = surface.token_anchor_rect(token)
+    weight_rect = surface.token_weight_text_rect(token)
+
+    assert anchor_rect is not None
+    assert weight_rect == anchor_rect
