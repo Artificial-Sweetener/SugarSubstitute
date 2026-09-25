@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import cast
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 import pytest
@@ -32,6 +33,9 @@ from substitute.presentation.editor.panel.widgets.field_row_geometry import (
 from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 from tests.presentation.editor.node_card.builder_support import build_node_card_builder
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.prompt_editor.features.autocomplete_query_result_lifecycle import (
+    PromptAutocompleteQueryResultLifecycle,
+)
 from tests.support.node_behavior import build_behavior_snapshot, cube_state
 from tests.support.prompt_editor.autocomplete_support import (
     EmptyPromptAutocompleteGateway,
@@ -180,14 +184,12 @@ def test_prompt_cards_resolve_to_prompt_mode_and_skip_collapse_animation(
     )
     collapsible_calls: list[bool] = []
     monkeypatch.setattr(
-        builder._surface_composer,
-        "_setup_collapsible_animation",
-        lambda *args, **kwargs: collapsible_calls.append(True),
+        "substitute.presentation.editor.panel.node_card.surface_composer.NodeCardSurfaceComposer._setup_collapsible_animation",
+        lambda *_args, **_kwargs: collapsible_calls.append(True),
     )
     monkeypatch.setattr(
-        builder._title_composer,
-        "create",
-        lambda **_kwargs: (QWidget(panel), None),
+        "substitute.presentation.editor.panel.node_card.title_composer.NodeCardTitleComposer.create",
+        lambda _self, **_kwargs: (QWidget(panel), None),
     )
     monkeypatch.setattr(
         node_card_view,
@@ -195,9 +197,8 @@ def test_prompt_cards_resolve_to_prompt_mode_and_skip_collapse_animation(
         lambda **_kwargs: QWidget(),
     )
     monkeypatch.setattr(
-        builder._body_composer,
-        "add_input_row",
-        lambda *, content_layout, **_kwargs: _add_test_field_row(
+        "substitute.presentation.editor.panel.node_card.body_composer.NodeCardBodyComposer.add_input_row",
+        lambda _self, *, content_layout, **_kwargs: _add_test_field_row(
             content_layout,
             panel,
         ),
@@ -259,9 +260,8 @@ def test_prompt_card_full_width_row_grows_with_prompt_editor_on_narrow_resize(
         prompt_autocomplete_gateway=autocomplete_gateway,
     )
     monkeypatch.setattr(
-        builder._title_composer,
-        "create",
-        lambda **_kwargs: (QWidget(panel), None),
+        "substitute.presentation.editor.panel.node_card.title_composer.NodeCardTitleComposer.create",
+        lambda _self, **_kwargs: (QWidget(panel), None),
     )
 
     wrapper = builder.build_node_card(
@@ -283,10 +283,12 @@ def test_prompt_card_full_width_row_grows_with_prompt_editor_on_narrow_resize(
     prompt_editor = wrapper.findChild(PromptEditor)
     assert prompt_editor is not None
     wait_for_qt_condition(lambda: prompt_editor.viewport().width() >= 500)
-    assert (
-        prompt_editor._runtime.core.syntax.autocomplete_timing_controller._lifecycle_requester._result_controller._prompt_autocomplete_gateway
-        is autocomplete_gateway
+    lifecycle = cast(
+        PromptAutocompleteQueryResultLifecycle,
+        prompt_editor._runtime.core.syntax.autocomplete_timing_controller._lifecycle_requester,
     )
+    result_controller = lifecycle._result_controller
+    assert result_controller._prompt_autocomplete_gateway is autocomplete_gateway
 
     row_widgets = panel.row_widgets[("A", "positive_prompt", "prompt_template")]
     _divider, padded_row = row_widgets
@@ -333,9 +335,8 @@ def test_prompt_card_body_grows_after_manual_prompt_editor_resize(
         _Gateway(),
     )
     monkeypatch.setattr(
-        builder._title_composer,
-        "create",
-        lambda **_kwargs: (QWidget(panel), None),
+        "substitute.presentation.editor.panel.node_card.title_composer.NodeCardTitleComposer.create",
+        lambda _self, **_kwargs: (QWidget(panel), None),
     )
 
     wrapper = builder.build_node_card(
@@ -411,9 +412,8 @@ def test_prompt_card_initial_prompt_height_tracks_laid_out_card_width(
         _Gateway(),
     )
     monkeypatch.setattr(
-        builder._title_composer,
-        "create",
-        lambda **_kwargs: (QWidget(panel), None),
+        "substitute.presentation.editor.panel.node_card.title_composer.NodeCardTitleComposer.create",
+        lambda _self, **_kwargs: (QWidget(panel), None),
     )
 
     wrapper = builder.build_node_card(

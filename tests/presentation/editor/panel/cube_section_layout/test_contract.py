@@ -202,7 +202,7 @@ def _field_row_builder(panel: QWidget) -> FieldRowBuilder:
     return FieldRowBuilder(
         panel=panel,
         icon_builder=lambda _icon: QWidget(panel),
-        icon_resolver=lambda _node_name, _row_label, _column_index=None: None,
+        icon_resolver=lambda _node_name, _row_label, _column_index: None,
     )
 
 

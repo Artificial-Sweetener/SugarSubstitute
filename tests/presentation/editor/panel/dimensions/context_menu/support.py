@@ -356,7 +356,7 @@ def add_dimension_row(
     builder = FieldRowBuilder(
         panel=panel,
         icon_builder=lambda _icon: QWidget(panel),
-        icon_resolver=lambda _node, _label, column_index=None: None,
+        icon_resolver=lambda _node, _label, _column_index: None,
         dimension_preset_source=dimension_preset_source,
     )
     built_row = builder.build_n_column_row(

@@ -147,13 +147,13 @@ def test_real_shell_empty_entry_reprojection_preserves_anima_segment_scopes(
 
         panel.load_all_cubes(
             [],
-            cube_states=workflow.cubes,
+            cube_states=cast(dict[str, object], workflow.cubes),
             stack_order=workflow.stack_order,
         )
         shell_harness.workflows.wait_for_prompt_field_absence(field)
         panel.load_all_cubes(
             [(field.workflow.cube_alias, field.workflow.cube_state)],
-            cube_states=workflow.cubes,
+            cube_states=cast(dict[str, object], workflow.cubes),
             stack_order=workflow.stack_order,
         )
         panel.reveal_loaded_cube(field.workflow.cube_alias)
