@@ -390,6 +390,45 @@ def test_controller_computes_physical_one_to_one_scale_and_fit_state(
     controller.close()
 
 
+def test_controller_anchors_one_to_one_at_the_double_click_position(
+    tmp_path: Path,
+) -> None:
+    """1:1 should retain the source point under an off-center double-click."""
+
+    app = ensure_qt_application()
+    player_box: list[_FakePlayer] = []
+
+    def create(callback: Callable[[VideoPlaybackEvent], None]) -> _FakePlayer:
+        player = _FakePlayer(callback)
+        player_box.append(player)
+        return player
+
+    media_id = uuid4()
+    path = tmp_path / "clip.webm"
+    path.write_bytes(b"video")
+    controller = VideoPlaybackController(player_factory=create)
+    controller.activate(media_id, path)
+    player_box[0].emit(_snapshot(media_id))
+    app.processEvents()
+
+    controller.set_actual_size_viewport(
+        surface_width=160,
+        surface_height=90,
+        device_pixel_ratio=1.0,
+        anchor_x=0.5,
+        anchor_y=-0.5,
+    )
+
+    actual = controller.session_for(media_id)
+    assert actual.viewport_mode is VideoViewportMode.ACTUAL_SIZE
+    assert actual.zoom == 2.0
+    assert actual.pan_x == -0.5
+    assert actual.pan_y == 0.5
+    assert (0.5 - actual.pan_x) / actual.zoom == 0.5
+    assert (-0.5 - actual.pan_y) / actual.zoom == -0.5
+    controller.close()
+
+
 def test_controller_matches_qpane_sampling_at_two_physical_pixels_per_source(
     tmp_path: Path,
 ) -> None:

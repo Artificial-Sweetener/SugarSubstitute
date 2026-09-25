@@ -36,9 +36,6 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
 from substitute.application.ports.video import VideoPlaybackState
-from substitute.presentation.canvas.output.video_playback_controller import (
-    VideoViewportMode,
-)
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
 )
@@ -70,7 +67,6 @@ from tools.video_output_qualification_support import (
     native_click,
     native_click_fraction,
     native_target_is_root,
-    native_wheel,
     open_source_picker,
     pointer_move,
     pump_events,
@@ -89,6 +85,7 @@ from tools.video_output_qualification_rehosting import (
     qualify_transparent_bars,
 )
 from tools.video_output_qualification_sampling import qualify_video_sampling
+from tools.video_output_qualification_navigation import qualify_space_pan_zoom
 
 
 _TIMEOUT_SECONDS = 10.0
@@ -305,40 +302,11 @@ def main(argv: list[str] | None = None) -> int:
             page=page,
             evidence_dir=evidence_dir,
         )
-        fit_button = find_button(page, "Fit video")
-        native_wheel(
-            window,
-            page.render_surface,
-            240,
-            application,
-            horizontal_fraction=0.75,
-            vertical_fraction=0.25,
-        )
-        wait_until(
-            application,
-            lambda: page.viewport_state.mode is VideoViewportMode.CUSTOM,
-            label="pointer-wheel video zoom",
-        )
-        wheel_viewport = page.viewport_state
-        native_wheel(
-            window,
-            page.render_surface,
-            120,
-            application,
-            shift=True,
-        )
-        wait_until(
-            application,
-            lambda: page.viewport_state.pan_x != wheel_viewport.pan_x,
-            label="pointer-wheel video pan",
-        )
-        dragged_viewport = page.viewport_state
-        capture(window, evidence_dir / "video-detail-zoomed-panned.png")
-        native_click(window, fit_button, application)
-        wait_until(
-            application,
-            lambda: page.viewport_state.mode is VideoViewportMode.FIT,
-            label="fit after pointer viewport changes",
+        navigation_evidence = qualify_space_pan_zoom(
+            application=application,
+            root=window,
+            page=page,
+            evidence_dir=evidence_dir,
         )
         window.resize(760, 540)
         pump_events(application, 0.25)
@@ -514,8 +482,8 @@ def main(argv: list[str] | None = None) -> int:
             actual_size_zoom=sampling_evidence.actual_size_zoom,
             actual_size_sampling=sampling_evidence.actual_size_sampling,
             fitted_sampling=sampling_evidence.fitted_sampling,
-            wheel_viewport=wheel_viewport,
-            dragged_viewport=dragged_viewport,
+            wheel_viewport=navigation_evidence.wheel_viewport,
+            dragged_viewport=navigation_evidence.dragged_viewport,
             same_navigation_row=same_navigation_row,
             native_stacking=native_stacking,
             transparent_bars=transparent_bar_evidence,
