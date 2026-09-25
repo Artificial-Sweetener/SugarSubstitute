@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 from .projection_preparation import EditorProjectionPreparation
 from .projection_session_models import ActiveProjectionSession, InsertCompletionPhase
@@ -86,6 +87,7 @@ class EditorIncrementalInsertRequest:
     previous_cube_states: dict[str, object] | None
     previous_stack_order: list[str] | None
     started_at: float
+    motion_requested: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +100,8 @@ class EditorIncrementalInsertPlan:
     build_token: object
     build_session: object | None
     built_new_widget: bool
+    motion_generation: int | None = None
+    motion_target: Literal["cube", "node_cards"] | None = None
 
 
 @dataclass(slots=True)
@@ -106,3 +110,4 @@ class EditorIncrementalInsertCompletionState:
 
     first_usable_completed: bool = False
     insert_completion_reported: bool = False
+    motion_started: bool = False

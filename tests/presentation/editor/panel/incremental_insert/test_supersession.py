@@ -57,6 +57,31 @@ def test_stale_incremental_insert_washes_replacement_until_first_usable(
         first_usable_after=2,
     )
     registry_calls: list[str] = []
+    motion_calls: list[tuple[str, object]] = []
+
+    def prepare_motion(alias: str) -> int:
+        """Record pre-commit capture for the replacement cube."""
+
+        motion_calls.append(("prepare", alias))
+        return 11
+
+    def present_cube_motion(**kwargs: object) -> bool:
+        """Record cube-level motion without starting a real timeline."""
+
+        motion_calls.append(("cube", kwargs))
+        return True
+
+    def present_card_motion(**kwargs: object) -> bool:
+        """Record node-card replacement motion after the final commit."""
+
+        motion_calls.append(("node_cards", kwargs))
+        return True
+
+    def cancel_motion(**kwargs: object) -> None:
+        """Record a requested transition cancellation."""
+
+        motion_calls.append(("cancel", kwargs))
+
     cube = SimpleNamespace(buffer={"nodes": {}})
     workflow_session_service = SimpleNamespace(active_workflow_id="workflow-a")
     panel = _make_projection_handoff_panel(
@@ -66,6 +91,12 @@ def test_stale_incremental_insert_washes_replacement_until_first_usable(
     )
     panel.cube_widgets = {"Cube": existing_widget}
     panel.cube_sections = {"Cube": existing_widget}
+    panel._surface_motion = SimpleNamespace(
+        prepare_cube_insert=prepare_motion,
+        present_cube_insert=present_cube_motion,
+        present_node_card_replacement=present_card_motion,
+        cancel=cancel_motion,
+    )
     coordinator = mod.EditorPanelProjectionCoordinator(panel)
 
     coordinator.mark_cube_sections_stale(["Cube"], reason="cube_definition_changed")
@@ -75,6 +106,7 @@ def test_stale_incremental_insert_washes_replacement_until_first_usable(
         cube_states={"Cube": cube},
         stack_order=["Cube"],
         completion_phase="complete",
+        motion_requested=True,
     )
 
     assert replacement_widget.update_wash_calls == [("show", "Updating")]
@@ -86,6 +118,13 @@ def test_stale_incremental_insert_washes_replacement_until_first_usable(
         ("hide", ""),
     ]
     assert panel.cube_widgets == {"Cube": replacement_widget}
+    assert motion_calls == [
+        ("prepare", "Cube"),
+        (
+            "node_cards",
+            {"generation": 11, "cube_alias": "Cube"},
+        ),
+    ]
 
 
 def test_insert_cube_allows_concurrent_builds_for_different_aliases(

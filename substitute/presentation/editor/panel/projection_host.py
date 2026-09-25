@@ -32,6 +32,7 @@ from .runtime_access import (
     cube_registry_for_panel,
     projection_coordinator_for_panel,
     projection_stack_order,
+    surface_motion_for_panel,
 )
 from .widgets.cube_section_builder import (
     CubeSectionWidgetParts,
@@ -111,6 +112,7 @@ class EditorPanelProjectionHost:
         """Reconcile rendered cube widgets to latest workflow state."""
 
         panel: Any = self
+        surface_motion_for_panel(self).cancel(reason="full_projection_started")
         coordinator = projection_coordinator_for_panel(self)
         panel._preset_context_refresh.begin_projection(
             cube_entries=cube_entries,
@@ -176,6 +178,7 @@ class EditorPanelProjectionHost:
         stack_order: Sequence[str] | None = None,
         on_complete: Callable[[], None] | None = None,
         completion_phase: InsertCompletionPhase = "first_usable",
+        motion_requested: bool = False,
     ) -> None:
         """Insert one cube section without rebuilding existing sections."""
 
@@ -204,6 +207,7 @@ class EditorPanelProjectionHost:
             stack_order=stack_order,
             on_complete=cube_projection_completed,
             completion_phase=completion_phase,
+            motion_requested=motion_requested,
         )
 
     def remove_cube(self, route_key: str) -> None:

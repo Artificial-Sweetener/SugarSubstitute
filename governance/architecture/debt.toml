@@ -539,18 +539,17 @@ next_extraction = "Extract definition/runtime execution and UI transaction state
 id = "SS-ARCH-079"
 owner = "loaded cube surface"
 paths = ["substitute/presentation/shell/loaded_cube_surface_controller.py"]
-fingerprint = "sha256:7b544494c3bb330820d23ee1bf6d3d5b4e585a09c2ba1c78f930458df13479de"
+fingerprint = "sha256:5b495bd306ee243357be5f3dcc0399d5dec01bdd971b737cd1eae27ee28c84c9"
 issue = "chore:SS-ARCH-079"
 review_by = 2026-12-15
 responsibilities = [
   "cube-load callback adaptation",
   "cube stack tab presentation refresh",
   "editor surface activation and reveal",
-  "incremental and full surface refresh",
-  "override and dependent-control refresh",
+  "full surface refresh and activation",
   "workflow reconciliation after load",
 ]
-next_extraction = "Extract override/dependent-control refresh and callback adaptation from loaded-surface activation and reconciliation."
+next_extraction = "Extract callback adaptation from loaded-surface activation and workflow reconciliation."
 
 [[debts]]
 id = "SS-ARCH-080"

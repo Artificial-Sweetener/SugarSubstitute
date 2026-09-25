@@ -90,6 +90,7 @@ from .node_card_host import EditorPanelNodeCardHost
 from .node_definition_runtime import EditorPanelNodeDefinitionRuntime
 from .projection_host import EditorPanelProjectionHost
 from .prompt_interaction import EditorPanelPromptInteraction
+from .surface_motion import EditorSurfaceMotionController
 
 class EditorPanel(
     EditorPanelPromptInteraction,
@@ -122,6 +123,7 @@ class EditorPanel(
     _prompt_context_controller: EditorPanelPromptContextController
     _prompt_scene_diagnostics_controller: EditorPanelPromptSceneDiagnosticsController
     field_presentation: EditorPanelFieldPresentationController
+    _surface_motion: EditorSurfaceMotionController
 
     def __init__(
         self,
