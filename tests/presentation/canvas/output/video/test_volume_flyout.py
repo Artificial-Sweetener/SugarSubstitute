@@ -95,6 +95,11 @@ def test_volume_button_opens_synced_flyout_and_routes_audio_changes() -> None:
         assert view.volumeSlider.toolTip() == ""
         assert view.muteButton.accessibleName() == "Mute video"
         assert view.muteButton.toolTip() == "Mute video"
+        assert view.muteButton.size() == anchor.size()
+        assert view.muteButton.mapToGlobal(QPoint()) == anchor.mapToGlobal(QPoint())
+        assert view.muteButton.mapToGlobal(view.muteButton.rect().bottomRight()) == (
+            anchor.mapToGlobal(anchor.rect().bottomRight())
+        )
         anchor_center_x = anchor.mapToGlobal(anchor.rect().center()).x()
         assert (
             view.volumeSlider.mapToGlobal(view.volumeSlider.rect().center()).x()

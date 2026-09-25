@@ -92,8 +92,8 @@ class OutputCanvasContextMenu:
             return None
         return MenuModel(entries=self._entries(compare_enabled))
 
-    def copy_current_image(self) -> None:
-        """Copy the authorized current image using the shared MIME policy."""
+    def copy_current_output(self) -> None:
+        """Copy the authorized current image or video using its MIME policy."""
 
         image_id = self.current_image_id()
         if image_id is None or not self.image_is_authorized(image_id):
@@ -150,15 +150,17 @@ class OutputCanvasContextMenu:
         compare = None if is_video else self._compare_item(compare_enabled)
         if compare is not None:
             entries.extend((compare, MenuSeparator()))
+        entries.append(
+            MenuItem(
+                "output_canvas.copy",
+                app_text("Copy"),
+                callback=self.copy_current_output,
+                icon=FIF.COPY,
+            )
+        )
         if not is_video:
             entries.extend(
                 (
-                    MenuItem(
-                        "output_canvas.copy",
-                        app_text("Copy"),
-                        callback=self.copy_current_image,
-                        icon=FIF.COPY,
-                    ),
                     MenuItem(
                         "output_canvas.open_current_external",
                         app_text("Open in Photoshop"),

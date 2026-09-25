@@ -33,7 +33,11 @@ def drag_payload_for_transfer(
 
     artifact = resolved.artifact
     return OutboundDragPayload(
-        items=(OutboundMimeItem(artifact.mime_type, artifact.data),),
+        items=(
+            ()
+            if artifact.data is None
+            else (OutboundMimeItem(artifact.mime_type, artifact.data),)
+        ),
         urls=(QUrl.fromLocalFile(str(artifact.path)),),
         preview=artifact.image,
     )
@@ -45,8 +49,10 @@ def mime_data_for_transfer(resolved: ResolvedOutputTransfer) -> QMimeData:
     artifact = resolved.artifact
     mime_data = QMimeData()
     mime_data.setUrls((QUrl.fromLocalFile(str(artifact.path)),))
-    mime_data.setData(artifact.mime_type, artifact.data)
-    mime_data.setImageData(artifact.image)
+    if artifact.data is not None:
+        mime_data.setData(artifact.mime_type, artifact.data)
+    if artifact.image is not None:
+        mime_data.setImageData(artifact.image)
     return mime_data
 
 

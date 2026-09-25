@@ -41,7 +41,6 @@ from substitute.presentation.resources.fluent_app_icon import AppIcon
 
 _VOLUME_VIEW_SIZE = QSize(56, 208)
 _VOLUME_ICON_SIZE = QSize(18, 18)
-_ANCHOR_GAP = 4
 
 
 class _VerticalVolumeSlider(Slider):  # type: ignore[misc]
@@ -96,11 +95,12 @@ class VideoVolumeFlyoutView(VolumeView):  # type: ignore[misc]
     def __init__(
         self,
         *,
+        anchor_size: QSize,
         mute_text: str,
         volume_text: str,
         parent: QWidget | None = None,
     ) -> None:
-        """Create the standard slider, value label, and nested mute action."""
+        """Create a slider whose mute action exactly covers its anchor button."""
 
         super().__init__(parent)
         self._mute_text = mute_text
@@ -112,11 +112,15 @@ class VideoVolumeFlyoutView(VolumeView):  # type: ignore[misc]
         self.volumeSlider.setFixedSize(22, 136)
         self.volumeSlider.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.muteButton.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.muteButton.setFixedSize(anchor_size)
         self.muteButton.setIconSize(_VOLUME_ICON_SIZE)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setFixedSize(_VOLUME_VIEW_SIZE)
         self.volumeSlider.move(17, 28)
-        self.muteButton.move(13, 172)
+        self.muteButton.move(
+            (self.width() - self.muteButton.width()) // 2,
+            self.height() - self.muteButton.height(),
+        )
         self.setObjectName("outputVideoVolumeFlyout")
         self.muteButton.setObjectName("outputVideoFlyoutMuteButton")
         self.volumeSlider.setObjectName("outputVideoFlyoutVolumeSlider")
@@ -205,6 +209,7 @@ class VideoVolumeFlyout(QObject):
             self.close()
             return
         view = VideoVolumeFlyoutView(
+            anchor_size=self._anchor.size(),
             mute_text=self._mute_text,
             volume_text=self._volume_text,
             parent=self._anchor,
@@ -272,18 +277,14 @@ class VideoVolumeFlyout(QObject):
         return super().eventFilter(watched, event)
 
     def _position_view(self) -> None:
-        """Align the overlay's visual centerline to the anchor's icon pixels."""
+        """Stack the nested action over every pixel of the anchor button."""
 
         view = self._view
         host = self._host
         if view is None or host is None:
             return
-        anchor_center = self._anchor.mapToGlobal(self._anchor.rect().center())
-        anchor_top = self._anchor.mapToGlobal(QPoint()).y()
-        global_top_left = QPoint(
-            anchor_center.x() - view.rect().center().x(),
-            anchor_top - _ANCHOR_GAP - view.height(),
-        )
+        anchor_top_left = self._anchor.mapToGlobal(QPoint())
+        global_top_left = anchor_top_left - view.muteButton.pos()
         host_top_left = host.mapFromGlobal(global_top_left)
         maximum_x = max(0, host.width() - view.width())
         maximum_y = max(0, host.height() - view.height())

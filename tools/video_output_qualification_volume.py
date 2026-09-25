@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QPushButton, QSlider, QWidget
 
@@ -84,6 +84,16 @@ def qualify_volume_flyout(
         )
     if not _icons_match(view.muteButton.icon(), volume_button.icon()):
         raise RuntimeError("Stacked volume icons do not render the same pixels.")
+    anchor_rect = QRect(volume_button.mapToGlobal(QPoint()), volume_button.size())
+    nested_button_rect = QRect(
+        view.muteButton.mapToGlobal(QPoint()),
+        view.muteButton.size(),
+    )
+    if nested_button_rect != anchor_rect:
+        raise RuntimeError(
+            "The flyout volume button does not exactly cover its bar button: "
+            f"overlay={nested_button_rect}, bar={anchor_rect}."
+        )
     overlay_size = [view.width(), view.height()]
     if view.volumeSlider.orientation() != Qt.Orientation.Vertical:
         raise RuntimeError("Video volume flyout slider is not vertical.")
@@ -99,13 +109,6 @@ def qualify_volume_flyout(
         raise RuntimeError(
             "Video volume stack is not aligned to its button: "
             f"anchor={anchor_center_x}, controls={aligned_centers}."
-        )
-    anchor_top = volume_button.mapToGlobal(QPoint()).y()
-    view_bottom = view.mapToGlobal(QPoint(0, view.height())).y()
-    if view_bottom > anchor_top + 2:
-        raise RuntimeError(
-            "Video volume flyout is not positioned above its button: "
-            f"view_bottom={view_bottom}, anchor_top={anchor_top}."
         )
     native_click_vertical_fraction(
         flyout_window,
@@ -143,7 +146,7 @@ def qualify_volume_flyout(
         video_volume_icon(volume=selected_volume, muted=True).icon(),
     ):
         raise RuntimeError("Video volume button did not switch to its muted icon.")
-    native_click(root, volume_button, application)
+    native_click(flyout_window, page.render_surface, application)
     wait_until(
         application,
         lambda: _visible_volume_view(root) is None,
@@ -152,7 +155,8 @@ def qualify_volume_flyout(
     return {
         "persistent_slider_names": persistent_slider_names,
         "diagnostics_button_removed": True,
-        "flyout_above_button": True,
+        "flyout_body_above_button": True,
+        "button_rect_match": True,
         "in_window_overlay": True,
         "window_activation_preserved": True,
         "icon_pixels_match": True,

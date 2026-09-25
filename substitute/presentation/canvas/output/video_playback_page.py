@@ -22,7 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QEvent, QPointF, QSize, Qt, Slot
+from PySide6.QtCore import QEvent, QPointF, QSize, Qt, Signal, Slot
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -98,6 +98,8 @@ _RENDERER_FALLBACK = app_text(
 class VideoPlaybackPage(QWidget):
     """Host one native video surface and its localized playback controls."""
 
+    contextMenuRequested = Signal(object)
+
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -113,6 +115,7 @@ class VideoPlaybackPage(QWidget):
         super().__init__(parent)
         self.setObjectName("outputVideoPlaybackPage")
         self._surface = VideoOpenGLSurface(self)
+        self._surface.contextMenuRequested.connect(self.contextMenuRequested.emit)
         self._status = QLabel(self)
         self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._status.setWordWrap(True)

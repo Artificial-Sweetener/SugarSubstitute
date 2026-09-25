@@ -204,6 +204,9 @@ class OutputCanvas(QWidget):
             player_factory=video_player_factory,
             video_settings_provider=video_settings_provider,
         )
+        self.video_presentation.contextMenuRequested.connect(
+            self._forward_video_context_request
+        )
         workspace_layout.addWidget(self.video_presentation.widget)
         self._compare_material_gap = OutputCompareMaterialGapCoordinator(self.workspace)
         self._zoom_indicators = OutputCanvasZoomIndicators(self.workspace)
@@ -351,6 +354,20 @@ class OutputCanvas(QWidget):
             )
         self.workspace.contentContextRequested.connect(handler)
         self._transfer_context_handler = handler
+
+    def _forward_video_context_request(self, global_position: object) -> None:
+        """Address the active video through the established Output menu route."""
+
+        handler = self._transfer_context_handler
+        composition_id = self.document.session.active_composition_id
+        if handler is None or composition_id is None:
+            return
+        image_id = self.document.image_id_for_composition(composition_id)
+        if image_id is None:
+            return
+        reference = self.document.content_reference_for(image_id)
+        if reference is not None:
+            handler(reference, global_position)
 
     def create_projection_content_synchronizer(
         self,
