@@ -28,11 +28,13 @@ from substitute.application.generation.output_preference_service import (
     OutputPreferenceService,
 )
 from substitute.domain.generation import effective_output_transfer_format
+from substitute.domain.output_media import OutputMediaKind
 from substitute.infrastructure.persistence.output_transfer_artifact_store import (
     OutputTransferArtifact,
     OutputTransferArtifactStore,
 )
 from substitute.presentation.canvas.output.output_document import OutputCanvasDocument
+from substitute.presentation.canvas.shared.types import OutputImageMeta
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +56,7 @@ class OutputTransferResolver:
         preference_service: OutputPreferenceService,
         artifact_store: OutputTransferArtifactStore,
         is_image_authorized: Callable[[UUID], bool],
+        metadata_for: Callable[[UUID], OutputImageMeta | None] | None = None,
     ) -> None:
         """Bind document identity, preference snapshot, and product authorization."""
 
@@ -61,6 +64,7 @@ class OutputTransferResolver:
         self._preference_service = preference_service
         self._artifact_store = artifact_store
         self._is_image_authorized = is_image_authorized
+        self._metadata_for = metadata_for
 
     def resolve(
         self,
@@ -73,6 +77,15 @@ class OutputTransferResolver:
         image_id = self._authorized_image_id(reference)
         if image_id is None:
             return None
+        metadata = (
+            self._metadata_for(image_id) if self._metadata_for is not None else None
+        )
+        if metadata is not None and metadata.media_kind is OutputMediaKind.VIDEO:
+            artifact = self._artifact_store.reference_file(
+                self._document.image_path(image_id),
+                mime_type=metadata.mime_type,
+            )
+            return self._resolved_if_still_authorized(reference, image_id, artifact)
         image = self._document.image_payload(image_id)
         if image is None:
             return None
@@ -84,16 +97,22 @@ class OutputTransferResolver:
             jpeg_settings=preferences.jpeg,
             cancellation_requested=cancellation_requested,
         )
+        return self._resolved_if_still_authorized(reference, image_id, artifact)
+
+    def _resolved_if_still_authorized(
+        self,
+        reference: CanvasContentReference,
+        image_id: UUID,
+        artifact: OutputTransferArtifact | None,
+    ) -> ResolvedOutputTransfer | None:
+        """Return an artifact only while its captured subject remains current."""
+
         if artifact is None:
             return None
         if self._authorized_image_id(reference) != image_id:
             artifact.release()
             return None
-        return ResolvedOutputTransfer(
-            image_id=image_id,
-            reference=reference,
-            artifact=artifact,
-        )
+        return ResolvedOutputTransfer(image_id, reference, artifact)
 
     def _authorized_image_id(self, reference: CanvasContentReference) -> UUID | None:
         """Return the captured image only when both document and product scopes allow it."""

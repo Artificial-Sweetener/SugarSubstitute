@@ -26,19 +26,13 @@ from pathlib import Path
 
 from PIL import Image, PngImagePlugin
 
-from substitute.application.generation.output_path_template_renderer import (
-    OutputPathTemplateRenderer,
-)
 from substitute.application.ports.comfy_gateway import OutputSavePlan
-from substitute.domain.generation import OutputPathRenderContext
 from substitute.infrastructure.comfy.comfy_payload_fields import positive_int_or_zero
+from substitute.infrastructure.comfy.output_destination_allocator import (
+    OutputDestinationAllocator,
+)
 from substitute.infrastructure.comfy.output_source_identity_resolver import (
     OutputSourceIdentity,
-    cube_number_for_source_identity,
-)
-from substitute.infrastructure.persistence.image_naming import (
-    get_next_bucket_run_number,
-    get_next_folder_image_number,
 )
 from substitute.infrastructure.comfy.jpeg_companion_encoder import (
     JpegCompanionEncoder,
@@ -67,7 +61,7 @@ class OutputImagePersistence:
         workflow_payload: Mapping[str, object],
         persistence_sugar_script: str | None,
         cube_numbers_by_alias: Mapping[str, int],
-        output_path_renderer: OutputPathTemplateRenderer | None = None,
+        destination_allocator: OutputDestinationAllocator | None = None,
         jpeg_encoder: JpegCompanionEncoder | None = None,
     ) -> None:
         """Initialize one listener-run persistence owner."""
@@ -75,12 +69,13 @@ class OutputImagePersistence:
         self._output_save_plan = output_save_plan
         self._workflow_payload = workflow_payload
         self._persistence_sugar_script = persistence_sugar_script
-        self._cube_numbers_by_alias = dict(cube_numbers_by_alias)
-        self._output_path_renderer = (
-            output_path_renderer or OutputPathTemplateRenderer()
+        self._destination_allocator = (
+            destination_allocator
+            or OutputDestinationAllocator(
+                output_save_plan=output_save_plan,
+                cube_numbers_by_alias=cube_numbers_by_alias,
+            )
         )
-        self._image_run_counter: int | None = output_save_plan.output_run_number
-        self._source_output_counts: dict[str, int] = {}
         self._jpeg_encoder = jpeg_encoder or JpegCompanionEncoder()
 
     def persist_output_image(
@@ -91,80 +86,30 @@ class OutputImagePersistence:
     ) -> PersistedOutputImage:
         """Materialize optional durable files and always return decoded dimensions."""
 
-        workflow_name = self._output_save_plan.workflow_name
-        source_label = source_identity.source_label
-        source_index = self._next_source_output_index(source_identity.source_key)
-        cube_number = cube_number_for_source_identity(
-            source_identity,
-            self._cube_numbers_by_alias,
-        )
-
         with Image.open(io.BytesIO(image_bytes)) as image:
             width = positive_int_or_zero(getattr(image, "width", 0))
             height = positive_int_or_zero(getattr(image, "height", 0))
-            if not self._output_save_plan.persists_cube(
-                source_identity.cube_alias or source_identity.source_label
-            ):
+            file_path = self._destination_allocator.allocate(
+                source_identity=source_identity,
+                width=width,
+                height=height,
+                suffix=".png",
+                companion_suffixes=(".jpg",)
+                if self._output_save_plan.jpeg.enabled
+                else (),
+            )
+            if file_path is None:
                 return PersistedOutputImage(
                     file_path=None,
                     width=width,
                     height=height,
                 )
-            cube_label = source_identity.cube_alias or source_label
-            if self._image_run_counter is None:
-                bucket = self._output_path_renderer.resolve_run_bucket(
-                    output_root=self._output_save_plan.output_root,
-                    path_pattern=self._output_save_plan.path_pattern,
-                    context=self._output_path_context(
-                        workflow_name=workflow_name,
-                        source=source_label,
-                        cube=cube_label,
-                        output_run_number=None,
-                        cube_number=cube_number,
-                        folder_image_number=None,
-                        width=width,
-                        height=height,
-                        index=source_index,
-                        set_index=source_index,
-                    ),
-                )
-                self._image_run_counter = get_next_bucket_run_number(bucket.directory)
-            folder_image_number = self._next_folder_image_number(
-                workflow_name=workflow_name,
-                source=source_label,
-                cube=cube_label,
-                output_run_number=self._image_run_counter,
-                cube_number=cube_number,
-                width=width,
-                height=height,
-                source_index=source_index,
-            )
-            file_path = self._output_path_renderer.render_path(
-                output_root=self._output_save_plan.output_root,
-                path_pattern=self._output_save_plan.path_pattern,
-                context=self._output_path_context(
-                    workflow_name=workflow_name,
-                    source=source_label,
-                    cube=cube_label,
-                    output_run_number=self._image_run_counter,
-                    cube_number=cube_number,
-                    folder_image_number=folder_image_number,
-                    width=width,
-                    height=height,
-                    index=source_index,
-                    set_index=source_index,
-                ),
-            ).path
-            file_path = _reserve_png_jpeg_pair(
-                file_path,
-                include_jpeg=self._output_save_plan.jpeg.enabled,
-            )
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-
             png_metadata = PngImagePlugin.PngInfo()
             if self._persistence_sugar_script:
                 headered_script = (
-                    f"# Project: {workflow_name}\n\n{self._persistence_sugar_script}"
+                    "# Project: "
+                    f"{self._output_save_plan.workflow_name}\n\n"
+                    f"{self._persistence_sugar_script}"
                 )
                 png_metadata.add_text("sugar_script", headered_script)
             workflow_metadata = workflow_metadata_json(self._workflow_payload)
@@ -186,82 +131,6 @@ class OutputImagePersistence:
                     )
         return PersistedOutputImage(file_path=file_path, width=width, height=height)
 
-    def _next_folder_image_number(
-        self,
-        *,
-        workflow_name: str,
-        source: str,
-        cube: str,
-        output_run_number: int | None,
-        cube_number: int | None,
-        width: int,
-        height: int,
-        source_index: int,
-    ) -> int | None:
-        """Allocate a folder-local image number when `{image#}` is configured."""
-
-        if "{image#}" not in self._output_save_plan.path_pattern:
-            return None
-        unnumbered_path = self._output_path_renderer.render_path(
-            output_root=self._output_save_plan.output_root,
-            path_pattern=self._output_save_plan.path_pattern,
-            context=self._output_path_context(
-                workflow_name=workflow_name,
-                source=source,
-                cube=cube,
-                output_run_number=output_run_number,
-                cube_number=cube_number,
-                folder_image_number=None,
-                width=width,
-                height=height,
-                index=source_index,
-                set_index=source_index,
-            ),
-            avoid_collisions=False,
-        ).path
-        return get_next_folder_image_number(
-            unnumbered_path.parent,
-            self._output_save_plan.path_pattern,
-        )
-
-    def _output_path_context(
-        self,
-        *,
-        workflow_name: str,
-        source: str,
-        cube: str,
-        output_run_number: int | None,
-        cube_number: int | None,
-        folder_image_number: int | None,
-        width: int,
-        height: int,
-        index: int,
-        set_index: int,
-    ) -> OutputPathRenderContext:
-        """Build the renderer context shared by bucket and path rendering."""
-
-        return OutputPathRenderContext(
-            workflow_name=workflow_name,
-            source=source,
-            cube=cube,
-            output_run_number=output_run_number,
-            cube_number=cube_number,
-            folder_image_number=folder_image_number,
-            job_started_at=self._output_save_plan.job_started_at,
-            width=width,
-            height=height,
-            index=index,
-            set_index=set_index,
-            seed=self._output_save_plan.seed,
-        )
-
-    def _next_source_output_index(self, source_key: str) -> int:
-        """Increment and return the per-source output ordinal for this listener."""
-
-        next_index = self._source_output_counts.get(source_key, 0) + 1
-        self._source_output_counts[source_key] = next_index
-        return next_index
-
 
 def workflow_metadata_json(workflow_payload: Mapping[str, object]) -> str | None:
     """Return Comfy UI workflow metadata from wrapped or canonical graph payloads."""
@@ -280,19 +149,6 @@ def _is_canonical_workflow(value: Mapping[str, object]) -> bool:
     return isinstance(value.get("nodes"), list) and isinstance(
         value.get("definitions"), Mapping
     )
-
-
-def _reserve_png_jpeg_pair(path: Path, *, include_jpeg: bool) -> Path:
-    """Return a collision-free PNG path whose optional JPEG stem is also free."""
-
-    candidate = path.with_suffix(".png")
-    ordinal = 2
-    while candidate.exists() or (
-        include_jpeg and candidate.with_suffix(".jpg").exists()
-    ):
-        candidate = path.with_name(f"{path.stem}_{ordinal}").with_suffix(".png")
-        ordinal += 1
-    return candidate
 
 
 __all__ = [

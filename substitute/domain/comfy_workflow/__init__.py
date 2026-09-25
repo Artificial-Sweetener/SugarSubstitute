@@ -28,20 +28,20 @@ from .models import DirectWorkflowState, NodeActivationStorage, ProjectedCubeDoc
 from .node_classes import executable_node_classes
 from .node_roles import WorkflowNodeExecutionRole
 from .output_manifest import (
-    AuthoredImageSink,
-    ComfyImageOutputDiscovery,
+    AuthoredOutputSink,
+    ComfyOutputDiscovery,
     ComfyOutputSocket,
-    DirectImageOutputSource,
+    DirectOutputSource,
     DirectWorkflowGenerationPlan,
     DirectWorkflowOutputManifest,
-    is_terminal_image_output_sink,
+    is_terminal_output_sink,
 )
 from .workflow_converter import ComfyWorkflowConversionError, ComfyWorkflowConverter
 
 __all__ = [
     "ComfyApiGraphBuildError",
     "ComfyApiGraphBuilder",
-    "ComfyImageOutputDiscovery",
+    "ComfyOutputDiscovery",
     "ComfyOutputSocket",
     "ComfyWorkflowConversionError",
     "ComfyWorkflowConverter",
@@ -50,8 +50,8 @@ __all__ = [
     "CubeGraphInstance",
     "CubeGraphProjection",
     "CubeGraphSegment",
-    "AuthoredImageSink",
-    "DirectImageOutputSource",
+    "AuthoredOutputSink",
+    "DirectOutputSource",
     "DirectWorkflowGenerationPlan",
     "DirectWorkflowOutputManifest",
     "DirectWorkflowState",
@@ -59,5 +59,5 @@ __all__ = [
     "NodeActivationStorage",
     "ProjectedCubeDocument",
     "WorkflowNodeExecutionRole",
-    "is_terminal_image_output_sink",
+    "is_terminal_output_sink",
 ]

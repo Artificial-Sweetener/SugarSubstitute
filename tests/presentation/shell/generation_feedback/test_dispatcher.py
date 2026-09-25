@@ -38,6 +38,7 @@ from tests.presentation.shell.generation_feedback.support import (
     live_preview as _live_preview,
     model_load_update as _model_load_update,
     output_update as _output_update,
+    output_video_update as _output_video_update,
     preview_update as _preview_update,
     progress_update as _progress_update,
     qt_app as _qt_app,
@@ -361,6 +362,22 @@ def test_output_images_all_reach_sink(tmp_path: Path) -> None:
     wait_for_sink(sink, lambda: len(sink.outputs) == 2)
 
     assert sink.outputs == [_live_output(first), _live_output(second)]
+
+
+def test_output_video_reaches_sink_on_gui_thread(tmp_path: Path) -> None:
+    """Final output video delivery should satisfy the dispatcher sink contract."""
+
+    _qt_app()
+    sink = _Sink()
+    dispatcher = GenerationFeedbackDispatcher(sink=sink)
+    dispatcher.on_run_started(_run_started())
+    update = _output_video_update(tmp_path / "result.mp4")
+
+    dispatcher.on_output_video(update)
+    wait_for_sink(sink, lambda: bool(sink.videos))
+
+    assert sink.videos == [update]
+    assert sink.events[-1] == "video"
 
 
 def test_output_images_bypass_active_prompt_deferral(tmp_path: Path) -> None:

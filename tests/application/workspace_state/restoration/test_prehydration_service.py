@@ -87,10 +87,12 @@ class _Port:
 
         return False
 
-    def load_restored_output_image(self, path: Path) -> object | None:
+    def load_restored_output_image(
+        self, reference: OutputImageReference
+    ) -> object | None:
         """Return a deterministic output payload for existing paths."""
 
-        self.calls.append(("load_output", path))
+        self.calls.append(("load_output", reference.path))
         return object()
 
     def restore_output_image(

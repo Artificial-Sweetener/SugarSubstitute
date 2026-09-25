@@ -51,6 +51,7 @@ class _Canvas(QWidget):
         self.chrome_obstacles: list[tuple[QRect, ...]] = []
         self.detached_states: list[bool] = []
         self.availability: list[tuple[bool, object]] = []
+        self.window_transitions: list[str] = []
 
     def set_host_chrome_obstacles(self, obstacles: tuple[QRect, ...]) -> None:
         """Record host chrome geometry presented to this canvas."""
@@ -66,6 +67,16 @@ class _Canvas(QWidget):
         """Record passive availability presentation."""
 
         self.availability.append((available, reason))
+
+    def prepare_for_window_transition(self) -> None:
+        """Record pre-reparent native surface notification."""
+
+        self.window_transitions.append("prepare")
+
+    def complete_window_transition(self) -> None:
+        """Record post-reparent native surface notification."""
+
+        self.window_transitions.append("complete")
 
 
 class _DefersFirstFocusCanvas(_Canvas):
@@ -411,6 +422,7 @@ def test_detach_and_redock_reuse_state_without_parallel_selector_registry(
 
         assert host.selector.isHidden()
         assert input_canvas.detached_states[-1]
+        assert input_canvas.window_transitions == ["prepare", "complete"]
         assert input_canvas.chrome_obstacles[-1] == ()
         assert host.canvas_layout_snapshot() == CanvasLayoutSnapshot(
             floating_windows=(FloatingCanvasWindowSnapshot(label="Input"),)
@@ -421,6 +433,12 @@ def test_detach_and_redock_reuse_state_without_parallel_selector_registry(
 
         assert host.selector.isVisible()
         assert input_canvas.detached_states[-1] is False
+        assert input_canvas.window_transitions == [
+            "prepare",
+            "complete",
+            "prepare",
+            "complete",
+        ]
         assert host.is_canvas_visible("Input")
     finally:
         host.close()

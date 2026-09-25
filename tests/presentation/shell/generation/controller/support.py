@@ -35,6 +35,7 @@ from substitute.application.ports import (
     InterruptResult,
     ListenerCompleted,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -193,6 +194,7 @@ class _BindingRecorder:
     build_request_calls: int = 0
     completed: list[ListenerCompleted] = field(default_factory=list)
     timing: list[GenerationExecutionTiming] = field(default_factory=list)
+    videos: list[OutputVideoUpdate] = field(default_factory=list)
 
 
 def _build_bindings(recorder: _BindingRecorder) -> GenerationUiBindings:
@@ -216,6 +218,7 @@ def _build_bindings(recorder: _BindingRecorder) -> GenerationUiBindings:
         on_model_load_progress=lambda _event: None,
         on_preview=lambda event: recorder.previews.append(event),
         on_output_image=lambda event: recorder.outputs.append(event),
+        on_output_video=lambda event: recorder.videos.append(event),
         on_failure=lambda failure: recorder.failures.append(failure),
         on_timing=lambda event: recorder.timing.append(event),
         on_completed=lambda event: recorder.completed.append(event),
@@ -292,6 +295,7 @@ def _bindings_with_snapshots(
         on_model_load_progress=bindings.on_model_load_progress,
         on_preview=bindings.on_preview,
         on_output_image=bindings.on_output_image,
+        on_output_video=bindings.on_output_video,
         on_failure=bindings.on_failure,
         on_timing=bindings.on_timing,
         on_completed=bindings.on_completed,

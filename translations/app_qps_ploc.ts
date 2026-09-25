@@ -930,6 +930,14 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Chöösë àüdïö ···⟧</translation>
     </message>
     <message>
+      <source>Choose automatic fallback or a specific supported GPU renderer.</source>
+      <translation>⟦Chöösë àütömàtïc fàllbàck ör à spëcïfïc süppörtëd GPÜ rëndërër. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose automatic hardware decoding or software decoding.</source>
+      <translation>⟦Chöösë àütömàtïc hàrdwàrë dëcödïng ör söftwàrë dëcödïng. ···⟧</translation>
+    </message>
+    <message>
       <source>Choose color</source>
       <translation>⟦Chöösë cölör ···⟧</translation>
     </message>
@@ -1056,6 +1064,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose the point that stays fixed while the canvas changes.</source>
       <translation>⟦Chöösë thë pöïnt thàt stàys fïxëd whïlë thë cànvàs chàngës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose the renderer used for generated video playback.</source>
+      <translation>⟦Chöösë thë rëndërër üsëd för gënëràtëd vïdëö plàybàck. ···⟧</translation>
     </message>
     <message>
       <source>Choose the way you use ComfyUI.</source>
@@ -2474,6 +2486,10 @@ Install these nodes now?</source>
       <translation>⟦Fïnïshïng yöür sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Fit video</source>
+      <translation>⟦Fït vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Fix the reported issue if you can.</source>
       <translation>⟦Fïx thë rëpörtëd ïssüë ïf yöü càn. ···⟧</translation>
     </message>
@@ -2516,6 +2532,10 @@ Install these nodes now?</source>
     <message>
       <source>GPU</source>
       <translation>⟦GPÜ ···⟧</translation>
+    </message>
+    <message>
+      <source>GPU Next</source>
+      <translation>⟦GPÜ Nëxt ···⟧</translation>
     </message>
     <message>
       <source>GUI restart is not available in this session.</source>
@@ -2640,6 +2660,10 @@ Install these nodes now?</source>
     <message>
       <source>Hardness</source>
       <translation>⟦Hàrdnëss ···⟧</translation>
+    </message>
+    <message>
+      <source>Hardware video decoding was unavailable. Software decoding is active.</source>
+      <translation>⟦Hàrdwàrë vïdëö dëcödïng wàs ünàvàïlàblë. Söftwàrë dëcödïng ïs àctïvë. ···⟧</translation>
     </message>
     <message>
       <source>Height</source>
@@ -3150,6 +3174,10 @@ Install these nodes now?</source>
       <translation>⟦Lööküp fàïlëd ···⟧</translation>
     </message>
     <message>
+      <source>Loop video</source>
+      <translation>⟦Lööp vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>⟦Màkë sürë CömfyÜÏ ïs rünnïng àt %1. ···⟧</translation>
     </message>
@@ -3434,6 +3462,10 @@ Install these nodes now?</source>
       <translation>⟦Mövë üp ···⟧</translation>
     </message>
     <message>
+      <source>Mute video</source>
+      <translation>⟦Mütë vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Name</source>
       <translation>⟦Nàmë ···⟧</translation>
     </message>
@@ -3476,6 +3508,10 @@ Install these nodes now?</source>
     <message>
       <source>Next</source>
       <translation>⟦Nëxt ···⟧</translation>
+    </message>
+    <message>
+      <source>Next frame</source>
+      <translation>⟦Nëxt fràmë ···⟧</translation>
     </message>
     <message>
       <source>Next match (Enter)</source>
@@ -3702,6 +3738,10 @@ I’ll bring my own</source>
     <message>
       <source>OS: %1</source>
       <translation>⟦ÖS: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Off</source>
+      <translation>⟦Öff ···⟧</translation>
     </message>
     <message>
       <source>Offer model downloads</source>
@@ -3992,6 +4032,10 @@ I’ll bring my own</source>
       <translation>⟦Plànnëd chàngës üpdàtëd. ···⟧</translation>
     </message>
     <message>
+      <source>Play or pause</source>
+      <translation>⟦Plày ör pàüsë ···⟧</translation>
+    </message>
+    <message>
       <source>Please wait a moment.</source>
       <translation>⟦Plëàsë wàït à mömënt. ···⟧</translation>
     </message>
@@ -4130,6 +4174,10 @@ I’ll bring my own</source>
     <message>
       <source>Preview unavailable</source>
       <translation>⟦Prëvïëw ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>Previous frame</source>
+      <translation>⟦Prëvïöüs fràmë ···⟧</translation>
     </message>
     <message>
       <source>Previous match (Shift+Enter)</source>
@@ -4626,6 +4674,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Retry</source>
       <translation>⟦Rëtry ···⟧</translation>
+    </message>
+    <message>
+      <source>Retry video</source>
+      <translation>⟦Rëtry vïdëö ···⟧</translation>
     </message>
     <message>
       <source>Return to setup and try again.</source>
@@ -5182,6 +5234,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Show setup log</source>
       <translation>⟦Shöw sëtüp lög ···⟧</translation>
+    </message>
+    <message>
+      <source>Show video at actual size</source>
+      <translation>⟦Shöw vïdëö àt àctüàl sïzë ···⟧</translation>
     </message>
     <message>
       <source>Showing stale catalog</source>
@@ -6060,6 +6116,10 @@ Dïàgnöstïc ëvïdëncë:
       <translation>⟦Thë àttàchëd CömfyÜÏ ënvïrönmënt döës nöt sàtïsfy ïts üpdàtëd rëqüïrëmënts. Rëpàïr thàt ënvïrönmënt bëförë cöntïnüïng. %1 ···⟧</translation>
     </message>
     <message>
+      <source>The bundled video runtime is unavailable.</source>
+      <translation>⟦Thë bündlëd vïdëö rüntïmë ïs ünàvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>⟦Thë cànvàs chàngëd whïlë thïs dïàlög wàs öpën. Rëvïëw thë cürrënt sïzë ànd try àgàïn. ···⟧</translation>
     </message>
@@ -6178,6 +6238,10 @@ Dïàgnöstïc ëvïdëncë:
     <message>
       <source>The requested definition is not available.</source>
       <translation>⟦Thë rëqüëstëd dëfïnïtïön ïs nöt àvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
+      <source>The requested video renderer was unavailable. A safe fallback is active.</source>
+      <translation>⟦Thë rëqüëstëd vïdëö rëndërër wàs ünàvàïlàblë. Å sàfë fàllbàck ïs àctïvë. ···⟧</translation>
     </message>
     <message>
       <source>The running ComfyUI Python environment could not be validated.</source>
@@ -6692,6 +6756,10 @@ Dïàgnöstïc ëvïdëncë:
       <translation>⟦Üsë rëmötë CömfyÜÏ ···⟧</translation>
     </message>
     <message>
+      <source>Use safe automatic hardware decoding or always decode in software.</source>
+      <translation>⟦Üsë sàfë àütömàtïc hàrdwàrë dëcödïng ör àlwàys dëcödë ïn söftwàrë. ···⟧</translation>
+    </message>
+    <message>
       <source>Use the ComfyUI page package filter to inspect installed packages and maintenance actions.</source>
       <translation>⟦Üsë thë CömfyÜÏ pàgë pàckàgë fïltër tö ïnspëct ïnstàllëd pàckàgës ànd màïntënàncë àctïöns. ···⟧</translation>
     </message>
@@ -6770,6 +6838,26 @@ Dïàgnöstïc ëvïdëncë:
     <message>
       <source>Versions of %1</source>
       <translation>⟦Vërsïöns öf %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Video hardware decoding</source>
+      <translation>⟦Vïdëö hàrdwàrë dëcödïng ···⟧</translation>
+    </message>
+    <message>
+      <source>Video playback is unavailable (%1).</source>
+      <translation>⟦Vïdëö plàybàck ïs ünàvàïlàblë (%1). ···⟧</translation>
+    </message>
+    <message>
+      <source>Video position</source>
+      <translation>⟦Vïdëö pösïtïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Video renderer</source>
+      <translation>⟦Vïdëö rëndërër ···⟧</translation>
+    </message>
+    <message>
+      <source>Video volume</source>
+      <translation>⟦Vïdëö völümë ···⟧</translation>
     </message>
     <message>
       <source>View %1 on %2</source>

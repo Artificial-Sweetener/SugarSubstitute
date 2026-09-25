@@ -31,6 +31,7 @@ from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
 from substitute.presentation.shell import main_window_workspace as workspace
+from substitute.presentation.shell import main_window_canvas_scaffold as canvas_scaffold
 from tests.support.qt.lifecycle import (
     activate_widget_layouts,
     destroy_qt_object,
@@ -149,9 +150,11 @@ class _WorkspaceCollaborators:
     def install(self, monkeypatch: MonkeyPatch) -> None:
         """Replace only workspace collaborators that own unrelated behavior."""
 
-        monkeypatch.setattr(workspace, "create_canvas_host", self.create_canvas_host)
         monkeypatch.setattr(
-            workspace,
+            canvas_scaffold, "create_canvas_host", self.create_canvas_host
+        )
+        monkeypatch.setattr(
+            canvas_scaffold,
             "create_output_floating_chrome_factory",
             self.create_output_floating_chrome_factory,
         )

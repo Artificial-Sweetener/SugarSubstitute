@@ -52,6 +52,7 @@ from substitute.domain.generation.output_preferences import (
     OutputPersistenceMode,
     OutputPreferences,
     OutputTransferSettings,
+    VideoPlaybackSettings,
 )
 
 
@@ -266,6 +267,10 @@ class OutputPreferenceService:
             ),
             transfer=OutputTransferSettings(
                 preferred_format=preferences.transfer.preferred_format,
+            ),
+            video=VideoPlaybackSettings(
+                hardware_decoding=preferences.video.hardware_decoding,
+                renderer=preferences.video.renderer,
             ),
             persistence_mode=preferences.persistence_mode,
         )

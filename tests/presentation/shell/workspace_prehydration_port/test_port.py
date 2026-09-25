@@ -102,10 +102,10 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
         calls.append(("restore_mask", reference))
         return True
 
-    def load_output(path: Path) -> object:
+    def load_output(reference: OutputImageReference) -> object:
         """Record output image loading and return the fake payload."""
 
-        calls.append(("load_output", path))
+        calls.append(("load_output", reference))
         return output_payload
 
     def restore_output(
@@ -156,7 +156,7 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
     assert port.load_restored_input_image(input_reference.path) is input_payload
     port.restore_input_image(input_reference, input_payload)
     assert port.restore_input_mask(mask_reference) is True
-    assert port.load_restored_output_image(output_reference.path) is output_payload
+    assert port.load_restored_output_image(output_reference) is output_payload
     port.restore_output_image("wf-a", output_reference, output_payload, output_meta)
     port.remember_prehydrated_shell_layout(layout)
     port.finish_prehydrated_restore(workspace)
@@ -169,7 +169,7 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
         ("load_input", Path("input.png")),
         ("restore_input", (input_reference, input_payload)),
         ("restore_mask", mask_reference),
-        ("load_output", Path("output.png")),
+        ("load_output", output_reference),
         ("restore_output", ("wf-a", output_reference, output_payload, output_meta)),
         ("layout", layout),
         ("finish", workspace),

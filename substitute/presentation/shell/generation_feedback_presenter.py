@@ -31,6 +31,7 @@ from substitute.application.ports import (
     GenerationExecutionTiming,
     ListenerCompleted,
     ModelLoadProgressUpdate,
+    OutputVideoUpdate,
 )
 from substitute.application.workflows import LiveFinalOutputEvent, LivePreviewEvent
 from substitute.presentation.shell.window_attention import (
@@ -175,6 +176,11 @@ class GenerationFeedbackPresenter:
         """Submit saved output image updates to the asynchronous commit pipeline."""
 
         self._shell.output_image_pipeline.submit_live_output_event(output_update)
+
+    def apply_generation_output_video(self, output_update: OutputVideoUpdate) -> None:
+        """Submit a validated video poster to the shared output commit pipeline."""
+
+        self._shell.output_image_pipeline.submit_video_update(output_update)
 
     def apply_generation_timing(
         self,
