@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from uuid import UUID
 
@@ -36,9 +37,17 @@ from substitute.application.ports.video import (
     VideoPlayerPort,
     VideoRuntimeUnavailableError,
 )
-from substitute.shared.logging.logger import get_logger, log_warning
+from substitute.shared.logging.logger import get_logger, log_warning_exception
 
 _LOGGER = get_logger("presentation.canvas.output.video_playback_controller")
+
+
+class VideoViewportMode(StrEnum):
+    """Name the user-visible interpretation of video viewport scale."""
+
+    FIT = "fit"
+    ACTUAL_SIZE = "actual_size"
+    CUSTOM = "custom"
 
 
 @dataclass(slots=True)
@@ -52,6 +61,7 @@ class VideoMediaSession:
     zoom: float = 1.0
     pan_x: float = 0.0
     pan_y: float = 0.0
+    viewport_mode: VideoViewportMode = VideoViewportMode.FIT
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +71,7 @@ class VideoViewportState:
     zoom: float = 1.0
     pan_x: float = 0.0
     pan_y: float = 0.0
+    mode: VideoViewportMode = VideoViewportMode.FIT
 
 
 class VideoPlaybackController(QObject):
@@ -76,12 +87,14 @@ class VideoPlaybackController(QObject):
         player_factory: Callable[
             [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
         ],
+        player_preparer: Callable[[VideoPlayerPort], None] | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Store the lazy player factory and initialize empty playback state."""
 
         super().__init__(parent)
         self._player_factory = player_factory
+        self._player_preparer = player_preparer
         self._player: VideoPlayerPort | None = None
         self._current_media_id: UUID | None = None
         self._current_path: Path | None = None
@@ -203,6 +216,7 @@ class VideoPlaybackController(QObject):
         session.zoom = state.zoom
         session.pan_x = state.pan_x
         session.pan_y = state.pan_y
+        session.viewport_mode = state.mode
         self._apply(
             lambda player: player.set_viewport(
                 state.zoom,
@@ -215,7 +229,34 @@ class VideoPlaybackController(QObject):
     def reset_viewport(self) -> None:
         """Restore fit geometry for the active video."""
 
-        self.set_viewport(VideoViewportState())
+        self.set_viewport(VideoViewportState(mode=VideoViewportMode.FIT))
+
+    def set_actual_size_viewport(
+        self,
+        *,
+        surface_width: int,
+        surface_height: int,
+        device_pixel_ratio: float,
+    ) -> None:
+        """Show one source pixel as one physical display pixel when possible."""
+
+        snapshot = self._snapshot
+        source_width = snapshot.width
+        source_height = snapshot.height
+        if source_width is None or source_height is None:
+            return
+        physical_width = max(1.0, surface_width * device_pixel_ratio)
+        physical_height = max(1.0, surface_height * device_pixel_ratio)
+        fit_scale = min(
+            physical_width / source_width,
+            physical_height / source_height,
+        )
+        self.set_viewport(
+            VideoViewportState(
+                zoom=1.0 / max(fit_scale, 1.0 / 64.0),
+                mode=VideoViewportMode.ACTUAL_SIZE,
+            )
+        )
 
     def retry(self) -> None:
         """Reload the current local artifact after a recoverable player failure."""
@@ -281,13 +322,21 @@ class VideoPlaybackController(QObject):
             zoom=session.zoom,
             pan_x=session.pan_x,
             pan_y=session.pan_y,
+            viewport_mode=session.viewport_mode,
         )
 
     def _ensure_player(self) -> VideoPlayerPort:
         """Create the one native player only when a video is first activated."""
 
         if self._player is None:
-            self._player = self._player_factory(self._eventSubmitted.emit)
+            player = self._player_factory(self._eventSubmitted.emit)
+            try:
+                if self._player_preparer is not None:
+                    self._player_preparer(player)
+            except Exception:
+                player.close()
+                raise
+            self._player = player
         return self._player
 
     def _apply(self, command: Callable[[VideoPlayerPort], None]) -> None:
@@ -358,11 +407,11 @@ class VideoPlaybackController(QObject):
             error=message,
             diagnostics=self._snapshot.diagnostics,
         )
-        log_warning(
+        log_warning_exception(
             _LOGGER,
             "Video playback command failed",
+            error=error,
             media_id=str(self._current_media_id or ""),
-            error_type=type(error).__name__,
         )
         self.snapshotChanged.emit(self._snapshot)
 
@@ -374,7 +423,13 @@ def _viewport_for_session(session: VideoMediaSession) -> VideoViewportState:
         zoom=session.zoom,
         pan_x=session.pan_x,
         pan_y=session.pan_y,
+        mode=session.viewport_mode,
     )
 
 
-__all__ = ["VideoMediaSession", "VideoPlaybackController", "VideoViewportState"]
+__all__ = [
+    "VideoMediaSession",
+    "VideoPlaybackController",
+    "VideoViewportMode",
+    "VideoViewportState",
+]

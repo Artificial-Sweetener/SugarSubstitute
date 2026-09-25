@@ -104,6 +104,36 @@ class OutputVideoPresentationCoordinator(QObject):
 
         self._badges.synchronize()
 
+    @property
+    def video_detail_active(self) -> bool:
+        """Return whether Output currently presents the dedicated video detail."""
+
+        return self.widget.currentWidget() is self.video_page
+
+    def place_control_bar(
+        self,
+        *,
+        navigation_right: int | None,
+        row_y: int,
+        row_height: int,
+        host_width: int,
+        horizontal_gap: int,
+        right_margin: int,
+    ) -> None:
+        """Place video controls in the unused portion of the Output row."""
+
+        left = (
+            navigation_right + horizontal_gap
+            if navigation_right is not None
+            else right_margin
+        )
+        self.video_page.place_control_bar(
+            x=left,
+            y=row_y,
+            width=max(1, host_width - left - right_margin),
+            height=row_height,
+        )
+
     def deactivate(self) -> None:
         """Return to CuteCanvas and enforce hidden-player pause and mute policy."""
 

@@ -21,38 +21,68 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
-import ctypes
-from ctypes import wintypes
 import json
 from pathlib import Path
 import sys
-import time
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPOSITORY_ROOT))
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QImage, QLinearGradient, QPainter
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QWidget
-from PIL import ImageGrab
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QImage
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+)
+from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
 from substitute.application.ports.video import VideoPlaybackState
+from substitute.presentation.canvas.output.video_playback_controller import (
+    VideoViewportMode,
+)
 from substitute.application.workflows.canvas_route_projector_port import (
     create_canvas_session_boundary,
 )
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
+from substitute.application.workflows.output_canvas_projection_model import (
+    OutputCanvasImageItem,
+    OutputCanvasProjection,
+    OutputCanvasSourceGroup,
+)
+from substitute.application.workflows.output_canvas_session import (
+    bind_output_canvas_session,
+)
 from substitute.domain.output_media import OutputMediaKind
-from substitute.domain.workflow import ImageMeta
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.infrastructure.video.mpv_runtime import MpvRuntime
 from substitute.infrastructure.video.mpv_video_probe import MpvVideoProbe
 from substitute.presentation.canvas.output.output_canvas_view import OutputCanvas
 from substitute.presentation.canvas.output.output_video_badge_overlays import (
     OUTPUT_VIDEO_BADGE_OVERLAY_NAME,
+)
+from tools.video_output_qualification_support import (
+    capture,
+    capture_with_popup,
+    find_button,
+    find_slider,
+    images_differ,
+    native_click,
+    native_click_fraction,
+    native_target_is_root,
+    native_wheel,
+    open_source_picker,
+    pointer_move,
+    pump_events,
+    render_capture,
+    wait_until,
+)
+from tools.video_output_qualification_fixture import (
+    qualification_image,
+    qualification_metadata,
 )
 
 
@@ -72,35 +102,38 @@ def main(argv: list[str] | None = None) -> int:
         if isinstance(existing_application, QApplication)
         else QApplication([])
     )
+    setTheme(Theme.DARK if arguments.theme == "dark" else Theme.LIGHT)
     runtime = MpvRuntime.bundled()
     poster_result = MpvVideoProbe(runtime).probe(video_path)
-    poster = QImage.fromData(poster_result.poster_bytes, b"PNG")
+    poster = QImage.fromData(poster_result.poster_bytes)
     if poster.isNull():
         raise RuntimeError("Production probe returned an invalid poster.")
 
     image_id = uuid4()
     video_id = uuid4()
     image_path = evidence_dir / "qualification-image.png"
-    image = _qualification_image(QSize(640, 360))
+    image = qualification_image(QSize(640, 360))
     if not image.save(str(image_path)):
         raise RuntimeError("Could not write qualification image.")
     metadata = {
-        image_id: _metadata(image_path, OutputMediaKind.IMAGE),
-        video_id: _metadata(
+        image_id: qualification_metadata(image_path, OutputMediaKind.IMAGE),
+        video_id: qualification_metadata(
             video_path,
             OutputMediaKind.VIDEO,
             duration_seconds=poster_result.duration_seconds,
         ),
     }
     execution_runtime = ExecutionRuntime()
+    route_boundary = create_canvas_session_boundary()
     canvas = OutputCanvas(
         execution_runtime=execution_runtime.canvas_execution_runtime,
         preview_registry=OutputPreviewRegistry(),
-        route_session_boundary=create_canvas_session_boundary(),
+        route_session_boundary=route_boundary,
     )
     window = QMainWindow()
     window.setWindowTitle("SugarSubstitute video output qualification")
     window.setCentralWidget(canvas)
+    window.setWindowOpacity(0.0)
     try:
         canvas.set_final_output_lookup(
             payload_lookup=lambda media_id: {
@@ -113,6 +146,49 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError("Qualification image was not admitted.")
         if not canvas.document.admit_image(video_id, poster, path=video_path):
             raise RuntimeError("Qualification video poster was not admitted.")
+        sources = (
+            OutputCanvasSourceGroup(
+                source_key="image-output",
+                label="Image Output",
+                images_by_set={
+                    1: OutputCanvasImageItem(image_id, metadata[image_id], 1)
+                },
+            ),
+            OutputCanvasSourceGroup(
+                source_key="video-output",
+                label="Video Output",
+                images_by_set={
+                    1: OutputCanvasImageItem(video_id, metadata[video_id], 1)
+                },
+            ),
+        )
+
+        def bind_selection(media_id: UUID) -> None:
+            """Bind one real source projection through the application boundary."""
+
+            source_key = "image-output" if media_id == image_id else "video-output"
+            projection = OutputCanvasProjection(
+                sources=sources,
+                active_source_key=source_key,
+                active_set_index=1,
+                active_uuid=media_id,
+                set_count=1,
+            )
+            canvas.bind_projection_session(
+                bind_output_canvas_session(
+                    route_boundary,
+                    workflow_id="video-output-qualification",
+                    projection=projection,
+                    image_metadata_lookup=metadata,
+                )
+            )
+
+        def follow_source_selection(raw_media_id: str) -> None:
+            """Apply user source-tab selection like the owning shell coordinator."""
+
+            bind_selection(UUID(raw_media_id))
+
+        canvas.activeOutputChanged.connect(follow_source_selection)
         window.resize(1100, 720)
         primary_screen = application.primaryScreen()
         if primary_screen is None:
@@ -120,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         available = primary_screen.availableGeometry()
         window.move(available.left() + 40, available.top() + 40)
         window.show()
-        _pump_events(application, 0.3)
+        pump_events(application, 0.3)
         print(
             "Rendered geometry:",
             f"window={window.width()}x{window.height()}",
@@ -132,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if not canvas.document.present_grid((image_id, video_id)):
             raise RuntimeError("Mixed-media grid presentation failed.")
-        _pump_events(application, 0.4)
+        pump_events(application, 0.4)
         video_composition = canvas.document.composition_id_for(video_id)
         video_tile = (
             canvas.workspace.canvasFor(video_composition)
@@ -141,15 +217,28 @@ def main(argv: list[str] | None = None) -> int:
         )
         if (
             video_tile is None
-            or OUTPUT_VIDEO_BADGE_OVERLAY_NAME not in video_tile.contentOverlays()
+            or video_tile.findChild(QWidget, OUTPUT_VIDEO_BADGE_OVERLAY_NAME) is None
         ):
             raise RuntimeError("Video tile did not expose its play badge.")
-        _capture(window, evidence_dir / "mixed-image-video-grid.png")
+        badge = video_tile.findChild(QWidget, OUTPUT_VIDEO_BADGE_OVERLAY_NAME)
+        assert badge is not None
+        capture(window, evidence_dir / "mixed-image-video-grid.png")
+        render_capture(video_tile, evidence_dir / "video-tile-rest.png")
+        pointer_move(window, video_tile, application)
+        if badge.isHidden():
+            raise RuntimeError("Video tile hover did not reveal its play affordance.")
+        capture(window, evidence_dir / "mixed-image-video-grid-hover.png")
+        render_capture(video_tile, evidence_dir / "video-tile-hover.png")
+        pointer_move(window, canvas.tabbar_container, application)
+        if not images_differ(
+            evidence_dir / "video-tile-rest.png",
+            evidence_dir / "video-tile-hover.png",
+        ):
+            raise RuntimeError("Video tile hover did not change rendered output.")
 
-        if not canvas.document.present_single(video_id):
-            raise RuntimeError("Video detail presentation failed.")
+        bind_selection(video_id)
         page = canvas.video_presentation.video_page
-        _wait_until(
+        wait_until(
             application,
             lambda: (
                 page.controller.snapshot.state is VideoPlaybackState.READY
@@ -160,21 +249,134 @@ def main(argv: list[str] | None = None) -> int:
             label="ready video detail",
         )
         ready = page.controller.snapshot
-        _capture(window, evidence_dir / "video-detail-paused.png")
+        if not ready.loop_enabled:
+            raise RuntimeError("Video did not default to automatic looping.")
+        capture(window, evidence_dir / "video-detail-paused.png")
 
-        next_button = _button(page, "Next frame")
-        previous_button = _button(page, "Previous frame")
-        loop_button = _button(page, "Loop video")
-        play_button = _button(page, "Play or pause")
-        page.controller.seek(0.5)
-        _wait_until(
+        if tuple(canvas.tabbar.items) != ("image-output", "video-output"):
+            raise RuntimeError("Output source navigation omitted a projected source.")
+        if canvas.tabbar.isVisible() or not canvas.source_selector_button.isVisible():
+            raise RuntimeError("Video detail did not force compact source navigation.")
+        picker, picker_view = open_source_picker(canvas, window, application)
+        if picker_view.item_keys() != ("image-output", "video-output"):
+            raise RuntimeError("Compact source picker omitted a projected source.")
+        capture_with_popup(
+            window,
+            picker,
+            evidence_dir / "video-detail-source-picker-open.png",
+        )
+        image_row = picker_view.row_for_key("image-output")
+        if image_row is None:
+            raise RuntimeError("Compact source picker omitted the image row.")
+        native_click(picker, image_row, application)
+        wait_until(
+            application,
+            lambda: (
+                canvas.video_presentation.widget.currentWidget() is canvas.workspace
+            ),
+            label="image compact source selection",
+        )
+        capture(window, evidence_dir / "image-selected-by-source-picker.png")
+        video_tab = canvas.tabbar.items["video-output"]
+        native_click(window, video_tab, application)
+        wait_until(
+            application,
+            lambda: canvas.video_presentation.widget.currentWidget() is page,
+            label="video source tab selection",
+        )
+
+        actual_size_button = find_button(page, "Show video at actual size")
+        fit_button = find_button(page, "Fit video")
+        native_click(window, actual_size_button, application)
+        wait_until(
+            application,
+            lambda: page.viewport_state.mode is VideoViewportMode.ACTUAL_SIZE,
+            label="1:1 video viewport",
+        )
+        actual_size_zoom = page.viewport_state.zoom
+        capture(window, evidence_dir / "video-detail-actual-size.png")
+        native_click(window, fit_button, application)
+        wait_until(
+            application,
+            lambda: page.viewport_state.mode is VideoViewportMode.FIT,
+            label="fitted video viewport",
+        )
+        native_wheel(
+            window,
+            page.render_surface,
+            240,
+            application,
+            horizontal_fraction=0.75,
+            vertical_fraction=0.25,
+        )
+        wait_until(
+            application,
+            lambda: page.viewport_state.mode is VideoViewportMode.CUSTOM,
+            label="pointer-wheel video zoom",
+        )
+        wheel_viewport = page.viewport_state
+        native_wheel(
+            window,
+            page.render_surface,
+            120,
+            application,
+            shift=True,
+        )
+        wait_until(
+            application,
+            lambda: page.viewport_state.pan_x != wheel_viewport.pan_x,
+            label="pointer-wheel video pan",
+        )
+        dragged_viewport = page.viewport_state
+        capture(window, evidence_dir / "video-detail-zoomed-panned.png")
+        native_click(window, fit_button, application)
+        wait_until(
+            application,
+            lambda: page.viewport_state.mode is VideoViewportMode.FIT,
+            label="fit after pointer viewport changes",
+        )
+        window.resize(760, 540)
+        pump_events(application, 0.25)
+        capture(window, evidence_dir / "video-detail-resized.png")
+        controls_geometry = page.control_bar.geometry()
+        navigation_geometry = canvas.tabbar_container.geometry()
+        same_navigation_row = (
+            controls_geometry.top() == navigation_geometry.top()
+            and controls_geometry.height() == navigation_geometry.height()
+            and controls_geometry.left() > navigation_geometry.right()
+        )
+        if not same_navigation_row:
+            raise RuntimeError(
+                "Playback controls did not share the Output navigation row."
+            )
+        window.resize(1100, 720)
+        pump_events(application, 0.25)
+
+        native_stacking = {
+            "surface": native_target_is_root(window, page.render_surface),
+            "play": native_target_is_root(window, find_button(page, "Play or pause")),
+            "source_selector": native_target_is_root(
+                window, canvas.source_selector_button
+            ),
+        }
+        if not all(native_stacking.values()):
+            raise RuntimeError("A native child surface still occludes Output controls.")
+
+        next_button = find_button(page, "Next frame")
+        previous_button = find_button(page, "Previous frame")
+        loop_button = find_button(page, "Loop video")
+        play_button = find_button(page, "Play or pause")
+        native_click_fraction(
+            window, find_slider(page, "Video position"), 0.5, application
+        )
+        wait_until(
             application,
             lambda: float(page.controller.snapshot.time_seconds or 0.0) >= 0.45,
             label="UI qualification seek",
         )
         initial_time = float(page.controller.snapshot.time_seconds or 0.0)
-        next_button.click()
-        _wait_until(
+        native_click(window, next_button, application)
+        wait_until(
             application,
             lambda: (
                 float(page.controller.snapshot.time_seconds or 0.0)
@@ -183,8 +385,8 @@ def main(argv: list[str] | None = None) -> int:
             label="UI next-frame command",
         )
         next_time = float(page.controller.snapshot.time_seconds or 0.0)
-        previous_button.click()
-        _wait_until(
+        native_click(window, previous_button, application)
+        wait_until(
             application,
             lambda: (
                 page.controller.snapshot.time_seconds is not None
@@ -193,24 +395,82 @@ def main(argv: list[str] | None = None) -> int:
             label="UI previous-frame command",
         )
         previous_time = float(page.controller.snapshot.time_seconds or 0.0)
-        loop_button.click()
-        _wait_until(
+        native_click(window, loop_button, application)
+        wait_until(
             application,
             lambda: not page.controller.snapshot.loop_enabled,
             label="UI loop-off command",
         )
-        play_button.click()
-        _wait_until(
+        native_click(window, play_button, application)
+        wait_until(
             application,
             lambda: page.controller.snapshot.state is VideoPlaybackState.PLAYING,
             label="UI play command",
         )
-        _pump_events(application, 0.25)
-        _capture(window, evidence_dir / "video-detail-playing.png")
+        playing_started_at = float(page.controller.snapshot.time_seconds or 0.0)
+        wait_until(
+            application,
+            lambda: (
+                float(page.controller.snapshot.time_seconds or 0.0)
+                > playing_started_at + 0.08
+            ),
+            label="advancing video playback clock",
+        )
+        capture(window, evidence_dir / "video-detail-playing.png")
+        wait_until(
+            application,
+            lambda: page.controller.snapshot.state is VideoPlaybackState.ENDED,
+            label="loop-off video end",
+        )
+        loop_off_end_time = float(page.controller.snapshot.time_seconds or 0.0)
+        native_click(window, play_button, application)
+        wait_until(
+            application,
+            lambda: (
+                page.controller.snapshot.state is VideoPlaybackState.PLAYING
+                and float(page.controller.snapshot.time_seconds or 1.0) < 0.35
+            ),
+            label="restart after loop-off end",
+        )
+        native_click(window, loop_button, application)
+        wait_until(
+            application,
+            lambda: page.controller.snapshot.loop_enabled,
+            label="UI loop-on command",
+        )
+        native_click_fraction(
+            window,
+            find_slider(page, "Video position"),
+            0.82,
+            application,
+        )
+        wait_until(
+            application,
+            lambda: float(page.controller.snapshot.time_seconds or 0.0) >= 0.75,
+            label="loop qualification near-end seek",
+        )
+        wait_until(
+            application,
+            lambda: (
+                page.controller.snapshot.state is VideoPlaybackState.PLAYING
+                and float(page.controller.snapshot.time_seconds or 1.0) < 0.35
+            ),
+            label="automatic loop restart",
+        )
+        loop_restart_time = float(page.controller.snapshot.time_seconds or 0.0)
+        native_click(window, play_button, application)
+        wait_until(
+            application,
+            lambda: page.controller.snapshot.paused,
+            label="pause after loop qualification",
+        )
 
-        if not canvas.document.present_single(image_id):
-            raise RuntimeError("Image detail presentation failed.")
-        _wait_until(
+        picker, picker_view = open_source_picker(canvas, window, application)
+        image_row = picker_view.row_for_key("image-output")
+        if image_row is None:
+            raise RuntimeError("Compact source picker omitted the image row.")
+        native_click(picker, image_row, application)
+        wait_until(
             application,
             lambda: (
                 page.controller.snapshot.paused
@@ -218,15 +478,30 @@ def main(argv: list[str] | None = None) -> int:
             ),
             label="hidden-video safety",
         )
-        _capture(window, evidence_dir / "image-after-video.png")
+        capture(window, evidence_dir / "image-after-video.png")
         evidence = {
-            "schema_version": "1",
+            "schema_version": "2",
+            "theme": arguments.theme,
             "mixed_grid_badge": True,
             "next_frame": next_time,
             "previous_frame": previous_time,
-            "loop_disabled": not page.controller.snapshot.loop_enabled,
+            "loop_defaulted_on": ready.loop_enabled,
+            "loop_off_end_time": loop_off_end_time,
+            "loop_restart_time": loop_restart_time,
+            "loop_reenabled": page.controller.snapshot.loop_enabled,
             "hidden_paused": page.controller.snapshot.paused,
             "hidden_muted": page.controller.snapshot.effectively_muted,
+            "source_navigation_items": tuple(canvas.tabbar.items),
+            "video_uses_compact_source_picker": True,
+            "actual_size_zoom": actual_size_zoom,
+            "wheel_zoom": wheel_viewport.zoom,
+            "wheel_pan": [wheel_viewport.pan_x, wheel_viewport.pan_y],
+            "pointer_pan": [dragged_viewport.pan_x, dragged_viewport.pan_y],
+            "fit_restored": page.viewport_state.mode is VideoViewportMode.FIT,
+            "rendered_hover_changed": True,
+            "controls_share_output_navigation_row": same_navigation_row,
+            "native_stacking": native_stacking,
+            "device_pixel_ratio": page.render_surface.devicePixelRatioF(),
             "diagnostics": {
                 "codec": ready.diagnostics.codec,
                 "pixel_format": ready.diagnostics.pixel_format,
@@ -254,119 +529,8 @@ def _parse_arguments(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--video", required=True, type=Path)
     parser.add_argument("--evidence-dir", required=True, type=Path)
+    parser.add_argument("--theme", choices=("light", "dark"), default="light")
     return parser.parse_args(argv)
-
-
-def _qualification_image(size: QSize) -> QImage:
-    """Create one project-owned image fixture with visible spatial detail."""
-
-    image = QImage(size, QImage.Format.Format_RGB32)
-    gradient = QLinearGradient(0, 0, size.width(), size.height())
-    gradient.setColorAt(0.0, QColor("#e85d75"))
-    gradient.setColorAt(0.5, QColor("#7a5cff"))
-    gradient.setColorAt(1.0, QColor("#38bdf8"))
-    painter = QPainter(image)
-    painter.fillRect(image.rect(), gradient)
-    painter.setPen(QColor("white"))
-    painter.drawText(image.rect(), Qt.AlignmentFlag.AlignCenter, "IMAGE")
-    painter.end()
-    return image
-
-
-def _metadata(
-    path: Path,
-    kind: OutputMediaKind,
-    *,
-    duration_seconds: float | None = None,
-) -> ImageMeta:
-    """Create one complete final-media record for the production canvas."""
-
-    return ImageMeta(
-        workflow_name="Video qualification",
-        cube_name="Mixed output",
-        image_number=1,
-        suffix="",
-        path=path.as_posix(),
-        source_key="qualification",
-        source_label="Mixed output",
-        media_kind=kind,
-        duration_seconds=duration_seconds,
-        mime_type="video/mp4" if kind is OutputMediaKind.VIDEO else "image/png",
-    )
-
-
-def _button(parent: QWidget, accessible_name: str) -> QPushButton:
-    """Find one public accessibility-labeled playback control."""
-
-    for button in parent.findChildren(QPushButton):
-        if button.accessibleName() == accessible_name:
-            return button
-    raise RuntimeError(f"Playback control is unavailable: {accessible_name}")
-
-
-def _capture(widget: QWidget, path: Path) -> None:
-    """Capture the complete top-level canvas including native child surfaces."""
-
-    if sys.platform == "win32":
-        bounds = wintypes.RECT()
-        window_handle = int(widget.winId())
-        user32 = ctypes.windll.user32
-        if not user32.GetWindowRect(
-            window_handle,
-            ctypes.byref(bounds),
-        ):
-            raise RuntimeError("Could not resolve rendered window bounds.")
-        physical_screen_width = int(user32.GetSystemMetrics(0))
-        logical_screen_width = widget.screen().geometry().width()
-        coordinate_scale = (
-            logical_screen_width / physical_screen_width
-            if physical_screen_width > 0
-            else 1.0
-        )
-        capture_bounds = (
-            round(bounds.left * coordinate_scale),
-            round(bounds.top * coordinate_scale),
-            round(bounds.right * coordinate_scale),
-            round(bounds.bottom * coordinate_scale),
-        )
-        capture = ImageGrab.grab(
-            bbox=capture_bounds,
-            all_screens=True,
-        )
-        capture.save(path, format="PNG")
-        return
-    screen = widget.screen()
-    if screen is None:
-        raise RuntimeError("Output canvas has no active screen.")
-    pixmap = screen.grabWindow(int(widget.winId()))
-    if pixmap.isNull() or not pixmap.save(str(path)):
-        raise RuntimeError(f"Could not capture rendered output: {path.name}")
-
-
-def _wait_until(
-    application: QApplication,
-    predicate: Callable[[], bool],
-    *,
-    label: str,
-) -> None:
-    """Wait for one Qt/native state transition with a bounded timeout."""
-
-    deadline = time.monotonic() + _TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        application.processEvents()
-        if predicate():
-            return
-        time.sleep(0.01)
-    raise TimeoutError(f"Timed out waiting for {label}.")
-
-
-def _pump_events(application: QApplication, seconds: float) -> None:
-    """Keep the Qt/native event queues moving for one bounded render interval."""
-
-    deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline:
-        application.processEvents()
-        time.sleep(0.01)
 
 
 if __name__ == "__main__":

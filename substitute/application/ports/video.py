@@ -21,7 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Protocol
+from collections.abc import Callable
+from typing import Protocol, runtime_checkable
 from uuid import UUID
 
 from substitute.domain.generation import VideoHardwareDecoding, VideoRenderer
@@ -163,12 +164,40 @@ class VideoPlayerPort(Protocol):
         """Terminate callbacks, decoding, and native player resources."""
 
 
+@runtime_checkable
+class VideoOpenGLPlayerPort(Protocol):
+    """Render decoded video through an application-owned OpenGL surface."""
+
+    def initialize_renderer(
+        self,
+        get_proc_address: Callable[[str], int],
+        request_update: Callable[[], None],
+    ) -> None:
+        """Bind libmpv rendering to the surface's current OpenGL context."""
+
+    def render_frame(
+        self,
+        *,
+        framebuffer: int,
+        width: int,
+        height: int,
+    ) -> None:
+        """Render the latest decoded frame into the current framebuffer."""
+
+    def report_swap(self) -> None:
+        """Tell libmpv that the surface presented its rendered frame."""
+
+    def release_renderer(self) -> None:
+        """Release render resources while the owning GL context is current."""
+
+
 __all__ = [
     "VideoPlaybackEvent",
     "VideoPlaybackDiagnostics",
     "VideoPlaybackFallback",
     "VideoPlaybackSnapshot",
     "VideoPlaybackState",
+    "VideoOpenGLPlayerPort",
     "VideoPlayerPort",
     "VideoProbe",
     "VideoProbeResult",

@@ -118,6 +118,7 @@ class FakeRuntime:
         """Initialize constructor capture state."""
 
         self.player: FakePlayer | None = None
+        self.render_contexts: list[FakeRenderContext] = []
 
     def load_module(self) -> ModuleType:
         """Return a binding module whose constructor is called only once."""
@@ -131,13 +132,57 @@ class FakeRuntime:
             return self.player
 
         module.MPV = construct  # type: ignore[attr-defined]
+        module.MpvGlGetProcAddressFn = lambda callback: callback  # type: ignore[attr-defined]
+
+        def construct_render_context(
+            player: FakePlayer,
+            api_type: str,
+            **options: object,
+        ) -> FakeRenderContext:
+            """Create and retain one observable fake render context."""
+
+            context = FakeRenderContext(player, api_type, **options)
+            self.render_contexts.append(context)
+            return context
+
+        module.MpvRenderContext = construct_render_context  # type: ignore[attr-defined]
         return module
+
+
+class FakeRenderContext:
+    """Record render-API lifecycle without an OpenGL dependency."""
+
+    def __init__(self, player: FakePlayer, api_type: str, **options: object) -> None:
+        """Capture the player, API, and initialization parameters."""
+
+        self.player = player
+        self.api_type = api_type
+        self.options = options
+        self.update_cb: Callable[[], None] | None = None
+        self.rendered: list[dict[str, object]] = []
+        self.swap_count = 0
+        self.freed = False
+
+    def render(self, **options: object) -> None:
+        """Record one framebuffer render."""
+
+        self.rendered.append(options)
+
+    def report_swap(self) -> None:
+        """Record one completed swap."""
+
+        self.swap_count += 1
+
+    def free(self) -> None:
+        """Record deterministic release."""
+
+        self.freed = True
 
 
 def _player(
     tmp_path: Path,
     *,
-    native_window_id: int | None = None,
+    render_api: bool = False,
     settings: VideoPlaybackSettings = VideoPlaybackSettings(),
 ) -> tuple[MpvVideoPlayer, FakePlayer, list[VideoPlaybackEvent], Path]:
     """Return one adapter, native double, event sink, and local video path."""
@@ -148,7 +193,7 @@ def _player(
         runtime=cast(MpvRuntime, runtime),
         player_generation=7,
         event_callback=events.append,
-        native_window_id=native_window_id,
+        render_api=render_api,
         settings=settings,
     )
     assert runtime.player is not None
@@ -157,15 +202,17 @@ def _player(
     return adapter, runtime.player, events, video
 
 
-def test_player_uses_closed_runtime_and_native_embedding(tmp_path: Path) -> None:
-    """Construct one isolated player with the supplied native render surface."""
+def test_player_uses_closed_runtime_and_qt_composited_render_api(
+    tmp_path: Path,
+) -> None:
+    """Construct one isolated player for application-owned OpenGL rendering."""
 
-    adapter, native, _events, _video = _player(tmp_path, native_window_id=4312)
+    adapter, native, _events, _video = _player(tmp_path, render_api=True)
 
-    assert native.options["vo"] == "gpu-next,gpu"
+    assert native.options["vo"] == "libmpv"
     assert native.options["hwdec"] == "no"
     assert native.options["ao"] == "auto"
-    assert native.options["wid"] == "4312"
+    assert "wid" not in native.options
     assert native.options["config"] is False
     assert native.options["load_scripts"] is False
     assert native.options["demuxer_lavf_o"] == "protocol_whitelist=file"
@@ -179,16 +226,65 @@ def test_player_applies_explicit_safe_video_preferences(tmp_path: Path) -> None:
 
     adapter, native, _events, _video = _player(
         tmp_path,
-        native_window_id=4312,
+        render_api=True,
         settings=VideoPlaybackSettings(
             hardware_decoding=VideoHardwareDecoding.AUTO,
             renderer=VideoRenderer.GPU,
         ),
     )
 
-    assert native.options["vo"] == "gpu"
+    assert native.options["vo"] == "libmpv"
     assert native.options["hwdec"] == "auto-safe"
     adapter.close()
+
+
+def test_render_context_uses_surface_framebuffer_and_releases_before_close(
+    tmp_path: Path,
+) -> None:
+    """Keep video in Qt composition through the libmpv OpenGL render API."""
+
+    runtime = FakeRuntime()
+    adapter = MpvVideoPlayer(
+        runtime=cast(MpvRuntime, runtime),
+        player_generation=7,
+        event_callback=lambda _event: None,
+        render_api=True,
+    )
+    updates: list[bool] = []
+
+    adapter.initialize_renderer(lambda _name: 1234, lambda: updates.append(True))
+    assert len(runtime.render_contexts) == 1
+    context = runtime.render_contexts[0]
+    resolver = cast(
+        Callable[[object, bytes], int],
+        cast(dict[str, object], context.options["opengl_init_params"])[
+            "get_proc_address"
+        ],
+    )
+    assert resolver(object(), b"glGetString") == 1234
+
+    adapter.render_frame(framebuffer=19, width=1280, height=720)
+    adapter.report_swap()
+    assert context.rendered == [
+        {
+            "opengl_fbo": {
+                "fbo": 19,
+                "w": 1280,
+                "h": 720,
+                "internal_format": 0,
+            },
+            "flip_y": True,
+        }
+    ]
+    assert context.swap_count == 1
+    assert context.update_cb is not None
+    context.update_cb()
+    assert updates == [True]
+
+    adapter.close()
+    assert context.freed
+    assert context.update_cb is None
+    assert runtime.player is not None and runtime.player.terminated
 
 
 def test_load_defaults_to_paused_looping_and_inactive_mute(tmp_path: Path) -> None:
@@ -358,6 +454,24 @@ def test_diagnostics_report_explicit_renderer_fallback(tmp_path: Path) -> None:
     assert diagnostics.requested_renderer is VideoRenderer.GPU_NEXT
     assert diagnostics.actual_video_output == "gpu"
     assert diagnostics.fallback is VideoPlaybackFallback.RENDERER
+    adapter.close()
+
+
+def test_render_api_is_the_requested_qt_composition_path(tmp_path: Path) -> None:
+    """The libmpv VO should not be mislabeled as a renderer fallback."""
+
+    adapter, native, _events, video = _player(
+        tmp_path,
+        render_api=True,
+        settings=VideoPlaybackSettings(renderer=VideoRenderer.GPU_NEXT),
+    )
+    adapter.load(uuid4(), video)
+
+    native.emit("current-vo", "libmpv")
+
+    diagnostics = adapter.snapshot().diagnostics
+    assert diagnostics.actual_video_output == "libmpv"
+    assert diagnostics.fallback is None
     adapter.close()
 
 

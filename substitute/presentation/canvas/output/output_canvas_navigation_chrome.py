@@ -93,6 +93,7 @@ def update_output_tabbar_container(
     source_tab_count = len(getattr(getattr(host, "tabbar", None), "items", {}))
     active_scene_overview = bool(getattr(host, "active_scene_overview", False))
     source_selector = getattr(host, "source_selector_button", None)
+    force_source_selector = _video_detail_active(host)
     scene_groups = _scene_groups_by_key(host)
     visibility = OutputCanvasNavigationVisibilityPolicy.normal(
         scene_count=int(getattr(host, "scene_count", 0)),
@@ -136,6 +137,7 @@ def update_output_tabbar_container(
         has_source_selector=source_selector is not None,
         expanded_width=expanded_width,
         available_width=navigation_controller.available_tabbar_container_width(),
+        force_collapsed=force_source_selector,
     )
     setattr(host, "_source_tabs_collapsed", source_display.source_tabs_collapsed)
     show_source_tabs = source_display.show_source_tabs
@@ -154,6 +156,13 @@ def update_output_tabbar_container(
             set_selector=set_selector,
             scene_selector=scene_selector,
             source_selector=source_selector,
+        )
+        _place_video_control_bar(
+            host,
+            navigation_right=None,
+            row_height=36,
+            padding_bottom=padding_bottom,
+            horizontal_gap=gap,
         )
         return
     scene_selector = getattr(host, "scene_selector_button", None)
@@ -184,6 +193,7 @@ def update_output_tabbar_container(
         padding_bottom=padding_bottom,
         extra_pad=extra_pad,
         gap=gap,
+        force_source_selector=force_source_selector,
     )
 
 
@@ -204,6 +214,7 @@ def _schedule_deferred_source_navigation_geometry(
     padding_bottom: int,
     extra_pad: int,
     gap: int,
+    force_source_selector: bool,
 ) -> None:
     """Schedule geometry only while a Qt navigation host remains valid."""
 
@@ -225,6 +236,7 @@ def _schedule_deferred_source_navigation_geometry(
             padding_bottom=padding_bottom,
             extra_pad=extra_pad,
             gap=gap,
+            force_source_selector=force_source_selector,
         )
 
     if isinstance(host, QObject):
@@ -259,6 +271,7 @@ def _apply_deferred_source_navigation_geometry(
     padding_bottom: int,
     extra_pad: int,
     gap: int,
+    force_source_selector: bool,
 ) -> None:
     """Apply deferred tabbar overlay geometry from settled widget metrics."""
 
@@ -275,6 +288,7 @@ def _apply_deferred_source_navigation_geometry(
         has_source_selector=source_selector is not None,
         expanded_width=settled_expanded_width,
         available_width=navigation_controller.available_tabbar_container_width(),
+        force_collapsed=force_source_selector,
     )
     setattr(
         host, "_source_tabs_collapsed", settled_source_display.source_tabs_collapsed
@@ -337,16 +351,18 @@ def _apply_deferred_source_navigation_geometry(
     bg_h = control_h + 2 * extra_pad
     parent_h = int(getattr(host, "height")())
     y = parent_h - bg_h - padding_bottom
+    container = getattr(host, "tabbar_container")
+    geometry = OutputNavBarGeometry(
+        x=padding_left - extra_pad,
+        y=y,
+        width=bg_w,
+        height=bg_h,
+        stacked=False,
+    )
     OutputNavigationLayoutAdapter.place_source_bar(
-        container=getattr(host, "tabbar_container"),
+        container=container,
         background=getattr(host, "tabbar_bg"),
-        geometry=OutputNavBarGeometry(
-            x=padding_left - extra_pad,
-            y=y,
-            width=bg_w,
-            height=bg_h,
-            stacked=False,
-        ),
+        geometry=geometry,
         tabbar=tabbar,
         set_selector=set_selector,
         scene_selector=scene_selector,
@@ -363,6 +379,46 @@ def _apply_deferred_source_navigation_geometry(
         control_height=control_h,
         extra_pad=extra_pad,
         gap=gap,
+    )
+    _place_video_control_bar(
+        host,
+        navigation_right=geometry.x + geometry.width,
+        row_height=geometry.height,
+        padding_bottom=padding_bottom,
+        horizontal_gap=gap,
+    )
+
+
+def _video_detail_active(host: object) -> bool:
+    """Return whether an opaque Output host presents video detail."""
+
+    presentation = getattr(host, "video_presentation", None)
+    return bool(getattr(presentation, "video_detail_active", False))
+
+
+def _place_video_control_bar(
+    host: object,
+    *,
+    navigation_right: int | None,
+    row_height: int,
+    padding_bottom: int,
+    horizontal_gap: int,
+) -> None:
+    """Give video playback the unused width in the Output navigation row."""
+
+    presentation = getattr(host, "video_presentation", None)
+    place = getattr(presentation, "place_control_bar", None)
+    if not callable(place):
+        return
+    host_width = int(getattr(host, "width")())
+    host_height = int(getattr(host, "height")())
+    place(
+        navigation_right=navigation_right,
+        row_y=host_height - row_height - padding_bottom,
+        row_height=row_height,
+        host_width=host_width,
+        horizontal_gap=horizontal_gap,
+        right_margin=padding_bottom,
     )
 
 
