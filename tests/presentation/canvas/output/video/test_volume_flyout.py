@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QPoint, QSize, Qt
 from PySide6.QtWidgets import QPushButton, QSlider, QVBoxLayout, QWidget
 
 from substitute.presentation.canvas.output.video_playback_page import VideoPlaybackPage
@@ -60,8 +60,9 @@ def test_volume_button_opens_synced_flyout_and_routes_audio_changes() -> None:
     host = QWidget()
     layout = QVBoxLayout(host)
     anchor = QPushButton(host)
+    layout.addStretch()
     layout.addWidget(anchor)
-    host.resize(320, 180)
+    host.resize(320, 360)
     host.show()
     app.processEvents()
     volumes: list[int] = []
@@ -82,6 +83,10 @@ def test_volume_button_opens_synced_flyout_and_routes_audio_changes() -> None:
         view = host.findChild(VideoVolumeFlyoutView)
         assert view is not None
         assert flyout.is_visible()
+        assert not view.isWindow()
+        assert view.window() is host
+        assert view.size() == QSize(56, 208)
+        assert view.muteButton.iconSize() == QSize(18, 18)
         assert view.volumeSlider.value() == 37
         assert view.volumeSlider.orientation() == Qt.Orientation.Vertical
         assert view.height() > view.width()
@@ -103,6 +108,7 @@ def test_volume_button_opens_synced_flyout_and_routes_audio_changes() -> None:
             view.muteButton.mapToGlobal(view.muteButton.rect().center()).x()
             == anchor_center_x
         )
+        assert host.isActiveWindow()
 
         flyout.synchronize(volume=40, muted=True)
         app.processEvents()

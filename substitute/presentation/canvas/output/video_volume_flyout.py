@@ -21,15 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import cast
 
-from PySide6.QtCore import QObject, QPoint, QRectF, Qt, Slot
-from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QPushButton, QWidget
+from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, QSize, Qt, Slot
+from PySide6.QtGui import QMouseEvent, QPainter
+from PySide6.QtWidgets import QApplication, QPushButton, QWidget
 from qfluentwidgets.common.color import (  # type: ignore[import-untyped]
     autoFallbackThemeColor,
-)
-from qfluentwidgets.components.widgets.flyout import (  # type: ignore[import-untyped]
-    Flyout,
-    FlyoutAnimationType,
 )
 from qfluentwidgets.multimedia.media_play_bar import (  # type: ignore[import-untyped]
     VolumeView,
@@ -42,6 +38,10 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 )
 
 from substitute.presentation.resources.fluent_app_icon import AppIcon
+
+_VOLUME_VIEW_SIZE = QSize(56, 208)
+_VOLUME_ICON_SIZE = QSize(18, 18)
+_ANCHOR_GAP = 4
 
 
 class _VerticalVolumeSlider(Slider):  # type: ignore[misc]
@@ -109,10 +109,14 @@ class VideoVolumeFlyoutView(VolumeView):  # type: ignore[misc]
         horizontal_slider.deleteLater()
         self.volumeSlider = _VerticalVolumeSlider(Qt.Orientation.Vertical, self)
         self.volumeSlider.setRange(0, 100)
-        self.volumeSlider.setFixedSize(22, 144)
-        self.setFixedSize(64, 224)
-        self.volumeSlider.move(21, 34)
-        self.muteButton.move(17, 187)
+        self.volumeSlider.setFixedSize(22, 136)
+        self.volumeSlider.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.muteButton.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.muteButton.setIconSize(_VOLUME_ICON_SIZE)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setFixedSize(_VOLUME_VIEW_SIZE)
+        self.volumeSlider.move(17, 28)
+        self.muteButton.move(13, 172)
         self.setObjectName("outputVideoVolumeFlyout")
         self.muteButton.setObjectName("outputVideoFlyoutMuteButton")
         self.volumeSlider.setObjectName("outputVideoFlyoutVolumeSlider")
@@ -146,11 +150,11 @@ class VideoVolumeFlyoutView(VolumeView):  # type: ignore[misc]
         self.volumeSlider._adjustHandlePos()
         self.volumeLabel.setNum(bounded_volume)
         self.volumeLabel.adjustSize()
-        self.volumeLabel.move((self.width() - self.volumeLabel.width()) // 2, 8)
+        self.volumeLabel.move((self.width() - self.volumeLabel.width()) // 2, 6)
 
 
 class VideoVolumeFlyout(QObject):
-    """Own one window-local volume flyout anchored to the compact audio button."""
+    """Own one in-window volume overlay anchored to the compact audio button."""
 
     def __init__(
         self,
@@ -172,8 +176,9 @@ class VideoVolumeFlyout(QObject):
         self._volume_text = volume_text
         self._volume = 100
         self._muted = False
-        self._flyout: Flyout | None = None
         self._view: VideoVolumeFlyoutView | None = None
+        self._host: QWidget | None = None
+        self._event_filter_installed = False
         self._anchor.clicked.connect(self.toggle)
 
     def synchronize(self, *, volume: int, muted: bool) -> None:
@@ -194,7 +199,7 @@ class VideoVolumeFlyout(QObject):
 
     @Slot()
     def toggle(self) -> None:
-        """Open the volume surface above the button, or close the visible one."""
+        """Open the child overlay above the button, or close the visible one."""
 
         if self.is_visible():
             self.close()
@@ -207,33 +212,85 @@ class VideoVolumeFlyout(QObject):
         view.synchronize(volume=self._volume, muted=self._muted)
         view.volumeSlider.valueChanged.connect(self._handle_volume_changed)
         view.muteButton.clicked.connect(self._handle_mute_clicked)
-        flyout = cast(
-            Flyout,
-            Flyout.make(
-                view,
-                self._anchor,
-                self._anchor.window(),
-                FlyoutAnimationType.PULL_UP,
-                True,
-            ),
-        )
+        host = self._anchor.window()
+        view.setParent(host)
         self._view = view
-        self._flyout = flyout
-        flyout.closed.connect(self._handle_closed)
+        self._host = host
+        self._position_view()
+        view.show()
+        view.raise_()
+        application = QApplication.instance()
+        if application is not None:
+            application.installEventFilter(self)
+            self._event_filter_installed = True
 
     def close(self) -> None:
-        """Close and forget the current window-local flyout."""
+        """Close and forget the current in-window overlay."""
 
-        flyout = self._flyout
-        self._flyout = None
+        application = QApplication.instance()
+        if application is not None and self._event_filter_installed:
+            application.removeEventFilter(self)
+        self._event_filter_installed = False
+        view = self._view
         self._view = None
-        if flyout is not None:
-            flyout.close()
+        self._host = None
+        if view is not None:
+            view.hide()
+            view.deleteLater()
 
     def is_visible(self) -> bool:
-        """Return whether the current volume flyout is visible."""
+        """Return whether the current volume overlay is visible."""
 
-        return self._flyout is not None and self._flyout.isVisible()
+        return self._view is not None and self._view.isVisible()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Dismiss outside clicks and keep the overlay attached to its anchor."""
+
+        view = self._view
+        host = self._host
+        if view is None or host is None:
+            return super().eventFilter(watched, event)
+        if event.type() in {QEvent.Type.Move, QEvent.Type.Resize} and watched in {
+            self._anchor,
+            host,
+        }:
+            self._position_view()
+        if (
+            isinstance(event, QMouseEvent)
+            and event.type() is QEvent.Type.MouseButtonPress
+        ):
+            global_position = event.globalPosition().toPoint()
+            if not _global_rect(view).contains(global_position) and not _global_rect(
+                self._anchor
+            ).contains(global_position):
+                self.close()
+        if watched is host and event.type() in {
+            QEvent.Type.Close,
+            QEvent.Type.Hide,
+        }:
+            self.close()
+        return super().eventFilter(watched, event)
+
+    def _position_view(self) -> None:
+        """Align the overlay's visual centerline to the anchor's icon pixels."""
+
+        view = self._view
+        host = self._host
+        if view is None or host is None:
+            return
+        anchor_center = self._anchor.mapToGlobal(self._anchor.rect().center())
+        anchor_top = self._anchor.mapToGlobal(QPoint()).y()
+        global_top_left = QPoint(
+            anchor_center.x() - view.rect().center().x(),
+            anchor_top - _ANCHOR_GAP - view.height(),
+        )
+        host_top_left = host.mapFromGlobal(global_top_left)
+        maximum_x = max(0, host.width() - view.width())
+        maximum_y = max(0, host.height() - view.height())
+        view.move(
+            min(max(host_top_left.x(), 0), maximum_x),
+            min(max(host_top_left.y(), 0), maximum_y),
+        )
 
     @Slot(int)
     def _handle_volume_changed(self, volume: int) -> None:
@@ -253,13 +310,6 @@ class VideoVolumeFlyout(QObject):
             self._view.synchronize(volume=self._volume, muted=self._muted)
         self._set_muted(self._muted)
 
-    @Slot()
-    def _handle_closed(self) -> None:
-        """Drop references after QFluent completes outside-click dismissal."""
-
-        self._flyout = None
-        self._view = None
-
 
 def video_volume_icon(*, volume: int, muted: bool) -> AppIcon:
     """Return the Fluent speaker variant matching effective audio output."""
@@ -272,6 +322,12 @@ def video_volume_icon(*, volume: int, muted: bool) -> AppIcon:
     if bounded_volume < 50:
         return AppIcon.SPEAKER_1_20_REGULAR
     return AppIcon.SPEAKER_2_20_REGULAR
+
+
+def _global_rect(widget: QWidget) -> QRectF:
+    """Return one widget rectangle in global logical coordinates."""
+
+    return QRectF(widget.mapToGlobal(QPoint()), widget.size())
 
 
 __all__ = ["VideoVolumeFlyout", "VideoVolumeFlyoutView", "video_volume_icon"]
