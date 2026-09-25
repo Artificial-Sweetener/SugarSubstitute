@@ -43,6 +43,10 @@ from substitute.presentation.canvas.output.output_canvas_view import OutputCanva
 from substitute.presentation.canvas.output.output_video_badge_overlays import (
     OUTPUT_VIDEO_BADGE_OVERLAY_NAME,
 )
+from substitute.presentation.canvas.output.video_opengl_surface import (
+    VideoOpenGLSurface,
+)
+from substitute.presentation.canvas.output.video_playback_page import VideoPlaybackPage
 from tests.presentation.canvas.output.document.support import _app, _sized_image
 from tests.support.qt.lifecycle import destroy_qt_object
 
@@ -188,6 +192,7 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         )
         canvas.resize(640, 480)
         canvas.show()
+        assert canvas.findChild(VideoOpenGLSurface) is None
         assert canvas.document.present_grid((image_id, video_id))
         app.processEvents()
 
@@ -210,11 +215,16 @@ def test_mixed_grid_uses_video_badge_and_single_video_uses_player(
         assert video_tile.grab().toImage() == without_hover
 
         assert canvas.document.present_single(video_id)
+        surface = canvas.findChild(VideoOpenGLSurface)
+        assert surface is not None
+        surface.renderingReady.emit()
         app.processEvents()
         assert (
             canvas.video_presentation.widget.currentWidget()
             is canvas.video_presentation.video_page
         )
+        assert len(canvas.findChildren(VideoPlaybackPage)) == 1
+        assert len(player_box) == 1, [player.commands for player in player_box]
         assert player_box[0].commands[:6] == [
             ("load", video_id, video_path.resolve()),
             ("volume", 100),

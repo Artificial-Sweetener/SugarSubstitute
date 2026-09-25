@@ -238,16 +238,22 @@ def main(argv: list[str] | None = None) -> int:
 
         bind_selection(video_id)
         page = canvas.video_presentation.video_page
-        wait_until(
-            application,
-            lambda: (
-                page.controller.snapshot.state is VideoPlaybackState.READY
-                and page.controller.snapshot.diagnostics.codec is not None
-                and page.controller.snapshot.diagnostics.pixel_format is not None
-                and page.controller.snapshot.diagnostics.actual_video_output is not None
-            ),
-            label="ready video detail",
-        )
+        try:
+            wait_until(
+                application,
+                lambda: (
+                    page.controller.snapshot.state is VideoPlaybackState.READY
+                    and page.controller.snapshot.diagnostics.codec is not None
+                    and page.controller.snapshot.diagnostics.pixel_format is not None
+                    and page.controller.snapshot.diagnostics.actual_video_output
+                    is not None
+                ),
+                label="ready video detail",
+            )
+        except TimeoutError as error:
+            raise RuntimeError(
+                f"{error} Last snapshot: {page.controller.snapshot!r}"
+            ) from error
         ready = page.controller.snapshot
         if not ready.loop_enabled:
             raise RuntimeError("Video did not default to automatic looping.")

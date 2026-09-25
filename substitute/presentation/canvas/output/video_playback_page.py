@@ -141,6 +141,7 @@ class VideoPlaybackPage(QWidget):
         self._diagnostics = QPushButton(self)
         self._control_bar = QFrame(self)
         self._control_bar.setObjectName("outputVideoPlaybackControls")
+        self._pending_video: tuple[UUID, Path] | None = None
         self._video_settings_provider = video_settings_provider or VideoPlaybackSettings
         factory = player_factory or self._create_bundled_player
         self.controller = VideoPlaybackController(
@@ -155,6 +156,7 @@ class VideoPlaybackPage(QWidget):
         )
         self.controller.viewportChanged.connect(self._viewport.set_state)
         self.controller.viewportChanged.connect(self._apply_viewport_state)
+        self._surface.renderingReady.connect(self._present_pending_video)
         self._surface.surfaceResized.connect(self._refresh_actual_size)
         self.destroyed.connect(lambda _object=None: self.controller.close())
         self._compose_layout()
@@ -185,7 +187,11 @@ class VideoPlaybackPage(QWidget):
     def present_video(self, media_id: UUID, path: Path) -> None:
         """Present one validated local video and leave it paused."""
 
-        self.controller.activate(media_id, path)
+        if self._surface.rendering_ready:
+            self.controller.activate(media_id, path)
+            return
+        self._pending_video = (media_id, path)
+        self._surface.update()
 
     def place_control_bar(self, *, x: int, y: int, width: int, height: int) -> None:
         """Place playback controls beside Output navigation on its exact row."""
@@ -203,18 +209,32 @@ class VideoPlaybackPage(QWidget):
             if media_id is not None:
                 self.controller.set_playing(False)
             return
+        self._pending_video = None
         self.controller.deactivate()
 
     def close_player(self) -> None:
         """Release the native player before the Qt render surface is destroyed."""
 
+        self._pending_video = None
         self._surface.release_player()
         self.controller.close()
 
     def retire_video(self, media_id: UUID) -> bool:
         """Unload one retired video before its temporary file is released."""
 
+        if self._pending_video is not None and self._pending_video[0] == media_id:
+            self._pending_video = None
         return self.controller.retire(media_id)
+
+    @Slot()
+    def _present_pending_video(self) -> None:
+        """Activate queued media only after Qt owns a usable GL context."""
+
+        pending = self._pending_video
+        if pending is None:
+            return
+        self._pending_video = None
+        self.controller.activate(*pending)
 
     def retranslate(self) -> None:
         """Refresh every SugarSubstitute-owned playback label."""
