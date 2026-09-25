@@ -20,7 +20,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import sys
 from uuid import UUID, uuid4
@@ -33,7 +32,6 @@ from PySide6.QtCore import QSize
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import (
     QApplication,
-    QMainWindow,
     QWidget,
 )
 from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
@@ -84,6 +82,12 @@ from tools.video_output_qualification_fixture import (
     qualification_metadata,
 )
 from tools.video_output_qualification_cli import parse_arguments
+from tools.video_output_qualification_evidence import write_video_output_evidence
+from tools.video_output_qualification_rehosting import (
+    create_qualification_host,
+    qualify_rehosting,
+    qualify_transparent_bars,
+)
 
 
 _TIMEOUT_SECONDS = 10.0
@@ -130,10 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         preview_registry=OutputPreviewRegistry(),
         route_session_boundary=route_boundary,
     )
-    window = QMainWindow()
-    window.setWindowTitle("SugarSubstitute video output qualification")
-    window.setCentralWidget(canvas)
-    window.setWindowOpacity(0.0)
+    host, window = create_qualification_host(canvas)
     try:
         canvas.set_final_output_lookup(
             payload_lookup=lambda media_id: {
@@ -196,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         available = primary_screen.availableGeometry()
         window.move(available.left() + 40, available.top() + 40)
         window.show()
+        host.activate_canvas("Output", keyboard_focus=False)
         pump_events(application, 0.3)
         print(
             "Rendered geometry:",
@@ -258,6 +260,11 @@ def main(argv: list[str] | None = None) -> int:
         if not ready.loop_enabled:
             raise RuntimeError("Video did not default to automatic looping.")
         capture(window, evidence_dir / "video-detail-paused.png")
+        transparent_bar_evidence = qualify_transparent_bars(
+            root=window,
+            page=page,
+            evidence_path=evidence_dir / "video-detail-transparent-bars.png",
+        )
 
         if tuple(canvas.tabbar.items) != ("image-output", "video-output"):
             raise RuntimeError("Output source navigation omitted a projected source.")
@@ -476,6 +483,15 @@ def main(argv: list[str] | None = None) -> int:
             label="pause after loop qualification",
         )
 
+        rehosting_evidence = qualify_rehosting(
+            application=application,
+            host=host,
+            canvas=canvas,
+            docked_window=window,
+            page=page,
+            evidence_dir=evidence_dir,
+        )
+
         picker, picker_view = open_source_picker(canvas, window, application)
         image_row = picker_view.row_for_key("image-output")
         if image_row is None:
@@ -490,41 +506,26 @@ def main(argv: list[str] | None = None) -> int:
             label="hidden-video safety",
         )
         capture(window, evidence_dir / "image-after-video.png")
-        evidence = {
-            "schema_version": "2",
-            "theme": arguments.theme,
-            "mixed_grid_badge": True,
-            "next_frame": next_time,
-            "previous_frame": previous_time,
-            "loop_defaulted_on": ready.loop_enabled,
-            "loop_off_end_time": loop_off_end_time,
-            "loop_restart_time": loop_restart_time,
-            "soak_seconds": arguments.soak_seconds,
-            "soak_end_time": soak_end_time,
-            "loop_reenabled": page.controller.snapshot.loop_enabled,
-            "hidden_paused": page.controller.snapshot.paused,
-            "hidden_muted": page.controller.snapshot.effectively_muted,
-            "source_navigation_items": tuple(canvas.tabbar.items),
-            "video_uses_compact_source_picker": True,
-            "actual_size_zoom": actual_size_zoom,
-            "wheel_zoom": wheel_viewport.zoom,
-            "wheel_pan": [wheel_viewport.pan_x, wheel_viewport.pan_y],
-            "pointer_pan": [dragged_viewport.pan_x, dragged_viewport.pan_y],
-            "fit_restored": page.viewport_state.mode is VideoViewportMode.FIT,
-            "rendered_hover_changed": True,
-            "controls_share_output_navigation_row": same_navigation_row,
-            "native_stacking": native_stacking,
-            "device_pixel_ratio": page.render_surface.devicePixelRatioF(),
-            "diagnostics": {
-                "codec": ready.diagnostics.codec,
-                "pixel_format": ready.diagnostics.pixel_format,
-                "renderer": ready.diagnostics.actual_video_output,
-            },
-        }
         evidence_path = evidence_dir / "video-output-ui.json"
-        evidence_path.write_text(
-            json.dumps(evidence, indent=2, sort_keys=True),
-            encoding="utf-8",
+        write_video_output_evidence(
+            path=evidence_path,
+            theme=arguments.theme,
+            soak_seconds=arguments.soak_seconds,
+            page=page,
+            canvas=canvas,
+            ready=ready,
+            next_time=next_time,
+            previous_time=previous_time,
+            loop_off_end_time=loop_off_end_time,
+            loop_restart_time=loop_restart_time,
+            soak_end_time=soak_end_time,
+            actual_size_zoom=actual_size_zoom,
+            wheel_viewport=wheel_viewport,
+            dragged_viewport=dragged_viewport,
+            same_navigation_row=same_navigation_row,
+            native_stacking=native_stacking,
+            transparent_bars=transparent_bar_evidence,
+            rehosting=rehosting_evidence,
         )
         print(evidence_path)
         return 0

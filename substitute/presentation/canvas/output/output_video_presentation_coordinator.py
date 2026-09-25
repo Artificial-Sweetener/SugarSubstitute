@@ -177,6 +177,20 @@ class OutputVideoPresentationCoordinator(QObject):
         if page is not None:
             page.close_player()
 
+    def prepare_for_window_transition(self) -> None:
+        """Release the active render context before Output changes windows."""
+
+        page = self._video_page
+        if page is not None:
+            page.prepare_for_window_transition()
+
+    def complete_window_transition(self) -> None:
+        """Resume rendering after Output reaches its new window."""
+
+        page = self._video_page
+        if page is not None:
+            page.complete_window_transition()
+
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Enforce pause/mute policy across Output visibility transitions."""
 

@@ -412,6 +412,17 @@ class OutputCanvas(QWidget):
 
         self._canvas_detached = detached
 
+    def prepare_for_window_transition(self) -> None:
+        """Release native video rendering before this canvas changes windows."""
+
+        self.video_presentation.prepare_for_window_transition()
+
+    def complete_window_transition(self) -> None:
+        """Resume native video rendering in this canvas's settled window."""
+
+        self.video_presentation.complete_window_transition()
+        update_output_tabbar_container(self)
+
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Apply one authorized projection through the Output document workspace."""
 

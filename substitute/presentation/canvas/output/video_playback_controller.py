@@ -75,7 +75,7 @@ class VideoViewportState:
 
 
 class VideoPlaybackController(QObject):
-    """Coordinate one long-lived player without exposing native callbacks to Qt UI."""
+    """Coordinate the active player generation without exposing native callbacks."""
 
     snapshotChanged = Signal(object)
     viewportChanged = Signal(object)
@@ -160,6 +160,35 @@ class VideoPlaybackController(QObject):
             self._player.set_output_active(False)
         except Exception as error:
             self._publish_error(error)
+
+    def release_native_player_for_window_transition(self) -> None:
+        """Retain media session state while retiring window-bound native state."""
+
+        self._remember_current_session()
+        player = self._player
+        media_id = self._current_media_id
+        self._player = None
+        self._current_media_id = None
+        self._current_path = None
+        self._observation_timer.stop()
+        if media_id is not None:
+            self._snapshot = VideoPlaybackSnapshot(
+                media_id=media_id,
+                state=VideoPlaybackState.LOADING,
+                paused=True,
+                loop_enabled=self._snapshot.loop_enabled,
+                user_muted=self._snapshot.user_muted,
+                effectively_muted=True,
+                volume=self._snapshot.volume,
+                time_seconds=self._snapshot.time_seconds,
+                duration_seconds=self._snapshot.duration_seconds,
+                width=self._snapshot.width,
+                height=self._snapshot.height,
+                diagnostics=self._snapshot.diagnostics,
+            )
+            self.snapshotChanged.emit(self._snapshot)
+        if player is not None:
+            player.close()
 
     def set_playing(self, playing: bool) -> None:
         """Apply explicit play or pause intent to the active video."""
@@ -330,7 +359,7 @@ class VideoPlaybackController(QObject):
         )
 
     def _ensure_player(self) -> VideoPlayerPort:
-        """Create the one native player only when a video is first activated."""
+        """Create one native player for the current top-level window."""
 
         if self._player is None:
             player = self._player_factory(self._eventSubmitted.emit)

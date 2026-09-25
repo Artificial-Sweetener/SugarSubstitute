@@ -93,6 +93,7 @@ class CanvasDockingController:
         ):
             return
 
+        self._prepare_window_transition(entry)
         self._stack.layout.removeWidget(entry.wrapper)
         entry.page.widget.setParent(None)
         try:
@@ -101,6 +102,7 @@ class CanvasDockingController:
             wrapper_layout = entry.wrapper.layout()
             if isinstance(wrapper_layout, QVBoxLayout):
                 wrapper_layout.addWidget(entry.page.widget)
+            self._complete_window_transition(entry)
             self._state.select(route_key)
             self._synchronize_presentation()
             log_exception(
@@ -115,6 +117,7 @@ class CanvasDockingController:
 
         floating_window.resize(800, 600)
         floating_window.show()
+        self._complete_window_transition(entry)
         self._canvas_activated(route_key)
         if not self._state.selectable_entries():
             self._visibility_changed(False)
@@ -230,12 +233,14 @@ class CanvasDockingController:
         entry = self._state.entry(route_key)
         if entry is None or widget is not entry.page.widget:
             return
+        self._prepare_window_transition(entry)
         wrapper_layout = entry.wrapper.layout()
         if isinstance(wrapper_layout, QVBoxLayout):
             wrapper_layout.addWidget(widget)
         self._set_canvas_detached(entry, False)
         activated = self._state.complete_attach(route_key)
         self._synchronize_presentation()
+        self._complete_window_transition(entry)
         self._visibility_changed(True)
         if activated:
             self._canvas_activated(route_key)
@@ -249,6 +254,22 @@ class CanvasDockingController:
         set_canvas_detached = getattr(entry.page.widget, "set_canvas_detached", None)
         if callable(set_canvas_detached):
             set_canvas_detached(detached)
+
+    @staticmethod
+    def _prepare_window_transition(entry: CanvasHostEntry) -> None:
+        """Notify a canvas before Qt reparents it across top-level windows."""
+
+        prepare = getattr(entry.page.widget, "prepare_for_window_transition", None)
+        if callable(prepare):
+            prepare()
+
+    @staticmethod
+    def _complete_window_transition(entry: CanvasHostEntry) -> None:
+        """Notify a canvas after Qt reparents it into its destination window."""
+
+        complete = getattr(entry.page.widget, "complete_window_transition", None)
+        if callable(complete):
+            complete()
 
 
 __all__ = ["CanvasDockingController"]

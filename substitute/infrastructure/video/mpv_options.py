@@ -37,6 +37,8 @@ def local_video_options(*, video_output: str, audio_output: str) -> dict[str, ob
         "load_unsafe_playlists": False,
         "access_references": False,
         "demuxer_lavf_o": "protocol_whitelist=file",
+        "background": "none",
+        "background_color": "#00000000",
     }
 
 
