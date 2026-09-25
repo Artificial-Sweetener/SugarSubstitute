@@ -25,7 +25,9 @@ from substitute.presentation.canvas.output.video_playback_page import VideoPlayb
 from substitute.presentation.canvas.output.video_volume_flyout import (
     VideoVolumeFlyout,
     VideoVolumeFlyoutView,
+    video_volume_icon,
 )
+from substitute.presentation.resources.fluent_app_icon import AppIcon
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
 
 
@@ -85,8 +87,22 @@ def test_volume_button_opens_synced_flyout_and_routes_audio_changes() -> None:
         assert view.height() > view.width()
         assert view.volumeSlider.mapTo(view, QPoint()).y() < view.muteButton.y()
         assert view.volumeSlider.accessibleName() == "Video volume"
+        assert view.volumeSlider.toolTip() == ""
         assert view.muteButton.accessibleName() == "Mute video"
         assert view.muteButton.toolTip() == "Mute video"
+        anchor_center_x = anchor.mapToGlobal(anchor.rect().center()).x()
+        assert (
+            view.volumeSlider.mapToGlobal(view.volumeSlider.rect().center()).x()
+            == anchor_center_x
+        )
+        assert (
+            view.volumeLabel.mapToGlobal(view.volumeLabel.rect().center()).x()
+            == anchor_center_x
+        )
+        assert (
+            view.muteButton.mapToGlobal(view.muteButton.rect().center()).x()
+            == anchor_center_x
+        )
 
         flyout.synchronize(volume=40, muted=True)
         app.processEvents()
@@ -111,3 +127,14 @@ def test_volume_button_opens_synced_flyout_and_routes_audio_changes() -> None:
         flyout.close()
         host.close()
         destroy_qt_object(host)
+
+
+def test_volume_icon_tracks_output_level_and_explicit_mute() -> None:
+    """Speaker waves should communicate zero, low, high, and muted output."""
+
+    assert video_volume_icon(volume=0, muted=False) is AppIcon.SPEAKER_0_20_REGULAR
+    assert video_volume_icon(volume=1, muted=False) is AppIcon.SPEAKER_1_20_REGULAR
+    assert video_volume_icon(volume=49, muted=False) is AppIcon.SPEAKER_1_20_REGULAR
+    assert video_volume_icon(volume=50, muted=False) is AppIcon.SPEAKER_2_20_REGULAR
+    assert video_volume_icon(volume=100, muted=False) is AppIcon.SPEAKER_2_20_REGULAR
+    assert video_volume_icon(volume=100, muted=True) is AppIcon.SPEAKER_MUTE_20_REGULAR

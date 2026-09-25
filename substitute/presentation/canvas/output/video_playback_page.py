@@ -62,6 +62,7 @@ from substitute.presentation.canvas.output.video_viewport_interaction import (
 )
 from substitute.presentation.canvas.output.video_volume_flyout import (
     VideoVolumeFlyout,
+    video_volume_icon,
 )
 from substitute.presentation.canvas.output.video_opengl_surface import (
     VideoOpenGLSurface,
@@ -420,11 +421,7 @@ class VideoPlaybackPage(QWidget):
         self._loop.setChecked(value.loop_enabled)
         self._loop.blockSignals(False)
         self._mute.setIcon(
-            (
-                AppIcon.SPEAKER_MUTE_20_REGULAR
-                if value.user_muted
-                else AppIcon.SPEAKER_2_20_REGULAR
-            ).icon()
+            video_volume_icon(volume=value.volume, muted=value.user_muted).icon()
         )
         self._volume_flyout.synchronize(
             volume=value.volume,
