@@ -61,6 +61,7 @@ from .projection_runtime_issue_integration import (
     EditorProjectionRuntimeIssueIntegration,
     RuntimeIssueIntegrationPanelPort,
 )
+from .projection_reveal_motion import AnimatedProjectionReveal
 from .projection_preparation import (
     EditorProjectionPreparationController,
     ProjectionPreparationPanelPort,
@@ -141,7 +142,15 @@ def compose_editor_projection(
     runtime_issues = EditorProjectionRuntimeIssueIntegration(
         cast(RuntimeIssueIntegrationPanelPort, panel)
     )
+    surface_motion = getattr(panel, "_surface_motion", None)
+    if surface_motion is None:
+        surface_motion = EditorSurfaceMotionController(panel)
+        setattr(panel, "_surface_motion", surface_motion)
     render_reconciler = EditorPanelRenderReconciler(panel)
+    animated_projection_reveal = AnimatedProjectionReveal(
+        reconciler=render_reconciler,
+        motion=cast(EditorSurfaceMotionController, surface_motion),
+    )
     workflow_context = EditorProjectionWorkflowContext(panel)
     projection_busy = EditorProjectionBusyAdapter(panel)
     clean_projection_refresh = EditorCleanProjectionRefreshController(
@@ -150,10 +159,6 @@ def compose_editor_projection(
     cube_section_builds = CubeSectionBuildController(
         cast(CubeSectionBuildPanelProtocol, panel)
     )
-    surface_motion = getattr(panel, "_surface_motion", None)
-    if surface_motion is None:
-        surface_motion = EditorSurfaceMotionController(panel)
-        setattr(panel, "_surface_motion", surface_motion)
     runtime_issue_projection = RuntimeIssueProjectionAdapter(
         panel=cast(RuntimeIssueProjectionPanelPort, panel),
         runtime_issues=runtime_issues,
@@ -164,11 +169,9 @@ def compose_editor_projection(
             panel_is_visible=lambda: editor_panel_is_visible(panel),
             is_projection_session_current=projection_sessions.is_current,
             reveal_projected_cube_builds=(
-                lambda builds, workflow_id: (
-                    render_reconciler.reveal_projected_cube_builds(
-                        builds,
-                        workflow_id=workflow_id,
-                    )
+                lambda builds, workflow_id: animated_projection_reveal.reveal(
+                    builds,
+                    workflow_id,
                 )
             ),
             mark_build_complete=build_registry.mark_complete,
@@ -233,6 +236,7 @@ def compose_editor_projection(
             projection_completions=projection_completions,
             visible_commits=visible_commits,
             render_reconciler=render_reconciler,
+            motion=cast(EditorSurfaceMotionController, surface_motion),
             active_projection_session=lambda: active_sessions.active_session,
             cancel_active_projection_session=(
                 lambda session, reason: active_sessions.cancel(

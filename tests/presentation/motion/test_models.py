@@ -22,10 +22,19 @@ import pytest
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPixmap
 
+from substitute.presentation.motion import (
+    FLUENT_ENTRANCE_EASING_CURVE,
+    FLUENT_EXIT_EASING_CURVE,
+    FLUENT_FAST_DURATION_MS,
+    FLUENT_FASTER_DURATION_MS,
+    FLUENT_NORMAL_DURATION_MS,
+    FLUENT_POINT_TO_POINT_EASING_CURVE,
+)
 from substitute.presentation.motion.models import (
     MotionPlan,
     MotionSpec,
     MotionTarget,
+    interpolate_target,
     motion_duration_ms,
     target_progress,
 )
@@ -50,6 +59,7 @@ def test_motion_duration_includes_only_last_target_stagger() -> None:
     targets = tuple(
         MotionTarget(
             identity=str(index),
+            start_rect=QRectF(),
             final_rect=QRectF(),
             snapshot=QPixmap(),
             order=index,
@@ -66,6 +76,37 @@ def test_motion_duration_includes_only_last_target_stagger() -> None:
     )
 
     assert motion_duration_ms(plan) == 210
+
+
+def test_interpolate_target_blends_geometry_and_opacity() -> None:
+    """Structural targets should follow one continuous before/after path."""
+
+    ensure_qapplication()
+    target = MotionTarget(
+        identity="cube:A",
+        start_rect=QRectF(10.0, 20.0, 100.0, 40.0),
+        final_rect=QRectF(30.0, 60.0, 140.0, 60.0),
+        snapshot=QPixmap(),
+        start_opacity=0.25,
+        final_opacity=1.0,
+    )
+
+    frame = interpolate_target(target, progress=0.5)
+
+    assert frame.rect == QRectF(20.0, 40.0, 120.0, 50.0)
+    assert frame.opacity == pytest.approx(0.625)
+
+
+def test_structural_motion_uses_windows_fluent_timing_tokens() -> None:
+    """Shared tokens should encode Microsoft's fast, normal, and easing guidance."""
+
+    assert FLUENT_FASTER_DURATION_MS == 83
+    assert FLUENT_FAST_DURATION_MS == 167
+    assert FLUENT_NORMAL_DURATION_MS == 250
+    assert FLUENT_ENTRANCE_EASING_CURVE.valueForProgress(0.5) > 0.8
+    assert FLUENT_EXIT_EASING_CURVE.valueForProgress(0.5) < 0.2
+    midpoint = FLUENT_POINT_TO_POINT_EASING_CURVE.valueForProgress(0.5)
+    assert 0.9 < midpoint < 0.95
 
 
 @pytest.mark.parametrize(

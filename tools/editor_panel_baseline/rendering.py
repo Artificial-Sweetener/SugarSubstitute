@@ -90,7 +90,7 @@ def render_editor_panel_baseline(
 
     application = ensure_qapplication()
     application.setProperty("substitute.reduce_motion", True)
-    _register_headless_fluent_font()
+    register_headless_fluent_font()
     output_dir.mkdir(parents=True, exist_ok=True)
     fixture_records = validate_base_cube_sources(
         scenarios=scenarios,
@@ -183,7 +183,7 @@ def _render_scenario_theme(
                 f"{result.error}"
             )
         drain_until(lambda: trace_shell.projection_complete, max_turns=1_000)
-        _settle_layout(host, panel)
+        settle_editor_panel_layout(host, panel)
         scroll_surface = cast(
             EditorPanelScrollSurface,
             getattr(panel, "scroll"),
@@ -206,7 +206,7 @@ def _render_scenario_theme(
             path = output_dir / (
                 f"{scenario.workflow_id}-{theme_name}-{position_name}.png"
             )
-            _save_host(host, path, background=BACKGROUNDS[theme_name])
+            save_editor_panel_host(host, path, background=BACKGROUNDS[theme_name])
             renders.append(
                 {
                     "scenario_id": scenario.workflow_id,
@@ -251,7 +251,7 @@ def scroll_capture_values(
     return tuple(resolved)
 
 
-def _settle_layout(host: QWidget, panel: EditorPanel) -> None:
+def settle_editor_panel_layout(host: QWidget, panel: EditorPanel) -> None:
     """Settle host, viewport, and content geometry before pixel capture."""
 
     host.ensurePolished()
@@ -324,7 +324,7 @@ def _surface_geometry(panel: EditorPanel) -> dict[str, Any]:
     }
 
 
-def _save_host(host: QWidget, path: Path, *, background: QColor) -> None:
+def save_editor_panel_host(host: QWidget, path: Path, *, background: QColor) -> None:
     """Save one opaque host render to a PNG file."""
 
     image = QImage(host.size(), QImage.Format.Format_ARGB32_Premultiplied)
@@ -337,7 +337,7 @@ def _save_host(host: QWidget, path: Path, *, background: QColor) -> None:
         raise OSError(f"Could not save editor baseline render: {path}")
 
 
-def _register_headless_fluent_font() -> None:
+def register_headless_fluent_font() -> None:
     """Register Segoe UI for deterministic Windows offscreen rendering."""
 
     windows_root = os.environ.get("WINDIR")

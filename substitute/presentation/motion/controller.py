@@ -19,43 +19,34 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
 from time import perf_counter
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRectF
+from PySide6.QtCore import QEvent, QObject, QRectF
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QWidget
 from shiboken6 import isValid
 
 from .fluent_motion import resolve_motion_duration
+from .capture import (
+    CapturedSurface,
+    capture_background_without_targets,
+    capture_surfaces,
+)
 from .models import (
     MotionFrameTarget,
     MotionPlan,
     MotionSpec,
     MotionTarget,
+    interpolate_target,
     motion_duration_ms,
     target_progress,
 )
 from .overlay import MotionOverlay
+from .plans import plan_entrances, plan_layout_transition
 from .timeline import MotionClockFactory, MotionTimeline
+from .telemetry import MotionTelemetry
 
 _MAX_BACKGROUND_CAPTURE_PIXELS = 16_000_000
-_MAX_TARGET_CAPTURE_PIXELS = 4_000_000
-_MAX_TARGETS = 24
-
-
-@dataclass(slots=True)
-class MotionTelemetry:
-    """Record bounded preparation and paint evidence for one controller."""
-
-    plans_started: int = 0
-    plans_finished: int = 0
-    plans_cancelled: int = 0
-    plans_settled_immediately: int = 0
-    preparation_ms: list[float] = field(default_factory=list)
-    paint_ms: list[float] = field(default_factory=list)
-    last_capture_target_count: int = 0
-    last_capture_target_pixels: int = 0
 
 
 class SurfaceMotionController(QObject):
@@ -78,13 +69,19 @@ class SurfaceMotionController(QObject):
         self._watched_inputs: list[QWidget] = []
         self._overlay: MotionOverlay | None = None
         self._prepared_background: QPixmap | None = None
+        self._prepared_surfaces: tuple[CapturedSurface, ...] = ()
         self._prepared_capture_ms = 0.0
         self._prepared_generation: int | None = None
         self._prepared_reason: str | None = None
         self._latest_generation = 0
         self.telemetry = MotionTelemetry()
 
-    def prepare(self, *, reason: str) -> int | None:
+    def prepare(
+        self,
+        *,
+        reason: str,
+        widgets: Sequence[tuple[str, QWidget]] = (),
+    ) -> int | None:
         """Capture the current viewport before an eligible structural commit."""
 
         self.cancel(reason="superseded_prepare")
@@ -95,10 +92,58 @@ class SurfaceMotionController(QObject):
         self._latest_generation += 1
         self._prepared_generation = self._latest_generation
         self._prepared_reason = reason
-        self._prepared_background = viewport.grab()
+        self._prepared_background = viewport.grab() if not widgets else None
+        capture = capture_surfaces(viewport, widgets)
+        self._prepared_surfaces = capture.surfaces
+        self._record_target_capture(capture.surfaces, capture.pixels)
         self._prepared_capture_ms = (perf_counter() - started_at) * 1000.0
         self._watch_direct_inputs(viewport)
         return self._prepared_generation
+
+    def animate_layout(
+        self,
+        *,
+        generation: int,
+        widgets: Sequence[tuple[str, QWidget]],
+        spec: MotionSpec | None = None,
+        exit_translation_y: float = -8.0,
+    ) -> bool:
+        """Animate entering, moved, and exiting surfaces across one layout commit."""
+
+        started_at = perf_counter()
+        prepared = self._prepared_state(generation)
+        if prepared is None:
+            self.cancel(reason="invalid_or_stale_generation")
+            return False
+        viewport, reason = prepared
+        active_spec = self._resolved_spec(spec)
+        if active_spec is None:
+            return False
+        final_capture = capture_surfaces(viewport, widgets)
+        self._record_target_capture(
+            final_capture.surfaces,
+            final_capture.pixels,
+        )
+        targets = plan_layout_transition(
+            self._prepared_surfaces,
+            final_capture.surfaces,
+            active_spec,
+            exit_translation_y=exit_translation_y,
+        )
+        if not targets:
+            self._clear_prepared()
+            self._unwatch_direct_inputs()
+            return False
+        background = capture_background_without_targets(viewport, widgets)
+        return self._start_plan(
+            generation=generation,
+            reason=reason,
+            background=background,
+            viewport=viewport,
+            targets=targets,
+            spec=active_spec,
+            started_at=started_at,
+        )
 
     def animate_widgets(
         self,
@@ -110,44 +155,52 @@ class SurfaceMotionController(QObject):
         """Animate captured widgets above their already-committed final surface."""
 
         started_at = perf_counter()
-        viewport = self._valid_viewport()
+        prepared = self._prepared_state(generation)
         background = self._prepared_background
-        reason = self._prepared_reason
-        if (
-            viewport is None
-            or background is None
-            or generation != self._prepared_generation
-            or reason is None
-        ):
+        if prepared is None or background is None:
             self.cancel(reason="invalid_or_stale_generation")
             return False
-        active_spec = spec or self._default_spec
-        resolved_duration = resolve_motion_duration(active_spec.duration_ms)
-        if resolved_duration == 0:
-            self._clear_prepared()
-            self._unwatch_direct_inputs()
-            self.telemetry.plans_settled_immediately += 1
+        viewport, reason = prepared
+        active_spec = self._resolved_spec(spec)
+        if active_spec is None:
             return False
-        active_spec = MotionSpec(
-            duration_ms=resolved_duration,
-            stagger_ms=active_spec.stagger_ms,
-            translation_x=active_spec.translation_x,
-            translation_y=active_spec.translation_y,
-            start_opacity=active_spec.start_opacity,
-            easing=active_spec.easing,
-        )
-        targets = self._capture_targets(viewport, widgets)
+        capture = capture_surfaces(viewport, widgets)
+        self._record_target_capture(capture.surfaces, capture.pixels)
+        targets = plan_entrances(capture.surfaces, active_spec)
         if not targets:
             self._clear_prepared()
             self._unwatch_direct_inputs()
             return False
+        return self._start_plan(
+            generation=generation,
+            reason=reason,
+            background=background,
+            viewport=viewport,
+            targets=targets,
+            spec=active_spec,
+            started_at=started_at,
+        )
+
+    def _start_plan(
+        self,
+        *,
+        generation: int,
+        reason: str,
+        background: QPixmap,
+        viewport: QWidget,
+        targets: tuple[MotionTarget, ...],
+        spec: MotionSpec,
+        started_at: float,
+    ) -> bool:
+        """Mount one overlay and start its single synchronized timeline."""
+
         plan = MotionPlan(
             generation=generation,
             reason=reason,
             background=background,
             viewport_rect=QRectF(viewport.rect()),
             targets=targets,
-            spec=active_spec,
+            spec=spec,
         )
         overlay = MotionOverlay(
             viewport,
@@ -162,15 +215,50 @@ class SurfaceMotionController(QObject):
         self._clear_prepared()
         self.telemetry.plans_started += 1
         self.telemetry.preparation_ms.append(preparation_ms)
-        total_duration = motion_duration_ms(plan)
+        self._paint_frame(plan, 0.0)
         self._timeline.start(
             generation=generation,
-            duration_ms=total_duration,
-            easing=active_spec.easing,
+            duration_ms=motion_duration_ms(plan),
+            easing=spec.easing,
             frame=lambda elapsed: self._paint_frame(plan, elapsed),
             finished=self._finish,
         )
         return True
+
+    def _prepared_state(
+        self,
+        generation: int,
+    ) -> tuple[QWidget, str] | None:
+        """Return the valid viewport and reason for one prepared generation."""
+
+        viewport = self._valid_viewport()
+        reason = self._prepared_reason
+        if (
+            viewport is None
+            or generation != self._prepared_generation
+            or reason is None
+        ):
+            return None
+        return viewport, reason
+
+    def _resolved_spec(self, spec: MotionSpec | None) -> MotionSpec | None:
+        """Resolve one policy through reduced motion and settle when disabled."""
+
+        active_spec = spec or self._default_spec
+        resolved_duration = resolve_motion_duration(active_spec.duration_ms)
+        if resolved_duration == 0:
+            self._clear_prepared()
+            self._unwatch_direct_inputs()
+            self.telemetry.plans_settled_immediately += 1
+            return None
+        return MotionSpec(
+            duration_ms=resolved_duration,
+            stagger_ms=active_spec.stagger_ms,
+            translation_x=active_spec.translation_x,
+            translation_y=active_spec.translation_y,
+            start_opacity=active_spec.start_opacity,
+            easing=active_spec.easing,
+        )
 
     def cancel(self, *, reason: str) -> None:
         """Stop active or prepared motion and reveal the committed surface."""
@@ -209,52 +297,6 @@ class SurfaceMotionController(QObject):
             self.cancel(reason=f"direct_input:{event_type.name}")
         return False
 
-    def _capture_targets(
-        self,
-        viewport: QWidget,
-        widgets: Sequence[tuple[str, QWidget]],
-    ) -> tuple[MotionTarget, ...]:
-        """Capture bounded visible targets in viewport coordinates."""
-
-        targets: list[MotionTarget] = []
-        captured_pixels = 0
-        for identity, widget in widgets[:_MAX_TARGETS]:
-            if not isValid(widget) or not widget.isVisible():
-                continue
-            top_left = widget.mapTo(viewport, QPoint(0, 0))
-            final_rect = QRectF(
-                top_left.x(), top_left.y(), widget.width(), widget.height()
-            )
-            if not final_rect.intersects(QRectF(viewport.rect())):
-                continue
-            pixel_ratio = widget.devicePixelRatioF()
-            estimated_pixels = int(
-                widget.width() * pixel_ratio * widget.height() * pixel_ratio
-            )
-            if (
-                estimated_pixels <= 0
-                or captured_pixels + estimated_pixels > _MAX_TARGET_CAPTURE_PIXELS
-            ):
-                continue
-            snapshot = widget.grab()
-            if snapshot.isNull():
-                continue
-            snapshot_pixels = snapshot.width() * snapshot.height()
-            if captured_pixels + snapshot_pixels > _MAX_TARGET_CAPTURE_PIXELS:
-                continue
-            captured_pixels += snapshot_pixels
-            targets.append(
-                MotionTarget(
-                    identity=identity,
-                    final_rect=final_rect,
-                    snapshot=snapshot,
-                    order=len(targets),
-                )
-            )
-        self.telemetry.last_capture_target_count = len(targets)
-        self.telemetry.last_capture_target_pixels = captured_pixels
-        return tuple(targets)
-
     def _paint_frame(self, plan: MotionPlan, elapsed_ms: float) -> None:
         """Interpolate and publish one frame for all plan targets."""
 
@@ -269,22 +311,7 @@ class SurfaceMotionController(QObject):
                 target_order=target.order,
                 spec=plan.spec,
             )
-            rect = QRectF(target.final_rect)
-            rect.translate(
-                plan.spec.translation_x * (1.0 - progress),
-                plan.spec.translation_y * (1.0 - progress),
-            )
-            opacity = plan.spec.start_opacity + (
-                (1.0 - plan.spec.start_opacity) * progress
-            )
-            frame_targets.append(
-                MotionFrameTarget(
-                    identity=target.identity,
-                    rect=rect,
-                    opacity=opacity,
-                    snapshot=target.snapshot,
-                )
-            )
+            frame_targets.append(interpolate_target(target, progress=progress))
         overlay.set_frame(frame_targets)
 
     def _finish(self, generation: int) -> None:
@@ -312,6 +339,7 @@ class SurfaceMotionController(QObject):
         """Drop pre-commit capture state after start, cancel, or settlement."""
 
         self._prepared_background = None
+        self._prepared_surfaces = ()
         self._prepared_capture_ms = 0.0
         self._prepared_generation = None
         self._prepared_reason = None
@@ -369,6 +397,16 @@ class SurfaceMotionController(QObject):
         self.telemetry.paint_ms.append(elapsed_ms)
         if len(self.telemetry.paint_ms) > 512:
             del self.telemetry.paint_ms[:-512]
+
+    def _record_target_capture(
+        self,
+        surfaces: tuple[CapturedSurface, ...],
+        pixels: int,
+    ) -> None:
+        """Publish bounded capture evidence for the most recent snapshot set."""
+
+        self.telemetry.last_capture_target_count = len(surfaces)
+        self.telemetry.last_capture_target_pixels = pixels
 
 
 __all__ = ["MotionTelemetry", "SurfaceMotionController"]

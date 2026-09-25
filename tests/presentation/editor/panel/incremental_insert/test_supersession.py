@@ -59,10 +59,16 @@ def test_stale_incremental_insert_washes_replacement_until_first_usable(
     registry_calls: list[str] = []
     motion_calls: list[tuple[str, object]] = []
 
-    def prepare_motion(alias: str) -> int:
+    def prepare_motion(
+        alias: str,
+        *,
+        replace_node_cards: bool = False,
+    ) -> int:
         """Record pre-commit capture for the replacement cube."""
 
-        motion_calls.append(("prepare", alias))
+        motion_calls.append(
+            ("prepare", {"alias": alias, "replace_node_cards": replace_node_cards})
+        )
         return 11
 
     def present_cube_motion(**kwargs: object) -> bool:
@@ -119,7 +125,7 @@ def test_stale_incremental_insert_washes_replacement_until_first_usable(
     ]
     assert panel.cube_widgets == {"Cube": replacement_widget}
     assert motion_calls == [
-        ("prepare", "Cube"),
+        ("prepare", {"alias": "Cube", "replace_node_cards": True}),
         (
             "node_cards",
             {"generation": 11, "cube_alias": "Cube"},

@@ -32,7 +32,7 @@ class MotionClock(Protocol):
         self,
         *,
         duration_ms: int,
-        easing: QEasingCurve.Type,
+        easing: QEasingCurve.Type | QEasingCurve,
         frame: Callable[[float], None],
         finished: Callable[[], None],
     ) -> None:
@@ -61,7 +61,7 @@ class QtMotionClock(QObject):
         self,
         *,
         duration_ms: int,
-        easing: QEasingCurve.Type,
+        easing: QEasingCurve.Type | QEasingCurve,
         frame: Callable[[float], None],
         finished: Callable[[], None],
     ) -> None:
@@ -72,7 +72,7 @@ class QtMotionClock(QObject):
         animation.setStartValue(0.0)
         animation.setEndValue(float(duration_ms))
         animation.setDuration(duration_ms)
-        animation.setEasingCurve(QEasingCurve(easing))
+        animation.setEasingCurve(easing)
         animation.valueChanged.connect(lambda value: frame(float(value)))
         animation.finished.connect(
             lambda active=animation: self._finish_if_current(active, finished)
@@ -141,7 +141,7 @@ class MotionTimeline(QObject):
         *,
         generation: int,
         duration_ms: int,
-        easing: QEasingCurve.Type,
+        easing: QEasingCurve.Type | QEasingCurve,
         frame: Callable[[float], None],
         finished: Callable[[int], None],
     ) -> None:

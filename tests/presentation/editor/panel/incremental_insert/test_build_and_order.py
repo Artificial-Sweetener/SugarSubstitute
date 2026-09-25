@@ -56,10 +56,16 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
     registry_calls: list[str] = []
     motion_calls: list[tuple[str, object]] = []
 
-    def prepare_motion(alias: str) -> int:
+    def prepare_motion(
+        alias: str,
+        *,
+        replace_node_cards: bool = False,
+    ) -> int:
         """Record pre-commit capture for the inserted cube."""
 
-        motion_calls.append(("prepare", alias))
+        motion_calls.append(
+            ("prepare", {"alias": alias, "replace_node_cards": replace_node_cards})
+        )
         return 7
 
     def present_motion(**kwargs: object) -> bool:
@@ -161,7 +167,7 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
     ]
     assert refresh_kwargs == [{"reason": "cube_added", "use_cached_snapshot": True}]
     assert motion_calls == [
-        ("prepare", "New"),
+        ("prepare", {"alias": "New", "replace_node_cards": False}),
         (
             "present",
             {

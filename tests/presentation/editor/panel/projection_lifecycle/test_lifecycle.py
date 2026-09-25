@@ -43,6 +43,19 @@ def test_remove_cube_discards_widget_and_alias_scoped_registries() -> None:
     removed_widgets: list[object] = []
     visibility_reasons: list[object] = []
     removed_node_link_cubes: list[str] = []
+    motion_events: list[object] = []
+
+    def _prepare_removal(alias: str) -> int:
+        """Record removal preparation and return its generation."""
+
+        motion_events.append(("prepare_remove", alias))
+        return 17
+
+    def _present_removal(generation: int | None) -> bool:
+        """Record presentation of the committed removal."""
+
+        motion_events.append(("present_remove", generation))
+        return True
 
     panel = SimpleNamespace(
         CUBE_SPACING=8,
@@ -85,6 +98,10 @@ def test_remove_cube_discards_widget_and_alias_scoped_registries() -> None:
         refresh_node_behavior_state=lambda **kwargs: visibility_reasons.append(
             kwargs.get("reason")
         ),
+        _surface_motion=SimpleNamespace(
+            prepare_cube_removal=_prepare_removal,
+            present_cube_removal=_present_removal,
+        ),
     )
 
     coordinator = mod.EditorPanelProjectionCoordinator(panel)
@@ -112,6 +129,7 @@ def test_remove_cube_discards_widget_and_alias_scoped_registries() -> None:
     assert panel._last_hidden_field_keys == {("Keep", "Node", "field")}
     assert removed_node_link_cubes == ["Remove"]
     assert visibility_reasons == ["cube_removed"]
+    assert motion_events == [("prepare_remove", "Remove"), ("present_remove", 17)]
     assert not coordinator.is_projection_clean(clean_signature)
 
 
@@ -302,6 +320,19 @@ def test_reorder_cube_widgets_reattaches_widgets_in_stack_order() -> None:
         ]
     )
     registry_calls: list[str] = []
+    motion_events: list[object] = []
+
+    def _prepare_reorder() -> int:
+        """Record reorder preparation and return its generation."""
+
+        motion_events.append("prepare")
+        return 23
+
+    def _present_reorder(generation: int | None) -> bool:
+        """Record presentation of the committed reorder."""
+
+        motion_events.append(("present", generation))
+        return True
 
     def _record_state() -> None:
         registry_calls.append("state")
@@ -329,6 +360,10 @@ def test_reorder_cube_widgets_reattaches_widgets_in_stack_order() -> None:
         _refresh_sampler_scheduler_link_state=_record_state,
         _refresh_link_widgets=_record_widgets,
         refresh_node_behavior_state=_record_refresh,
+        _surface_motion=SimpleNamespace(
+            prepare_cube_reorder=_prepare_reorder,
+            present_cube_reorder=_present_reorder,
+        ),
     )
 
     mod.EditorPanelProjectionCoordinator(panel).reorder_cube_widgets()
@@ -348,6 +383,7 @@ def test_reorder_cube_widgets_reattaches_widgets_in_stack_order() -> None:
         "recompute",
         "stack_reordered",
     ]
+    assert motion_events == ["prepare", ("present", 23)]
 
 
 def test_projection_coordinator_no_longer_defines_lifecycle_wrappers() -> None:
