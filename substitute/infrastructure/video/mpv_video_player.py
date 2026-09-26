@@ -42,10 +42,14 @@ from substitute.infrastructure.video.mpv_representative_frame import (
     MpvRepresentativeFrameCapture,
 )
 from substitute.infrastructure.video.mpv_observation_values import (
+    MPV_PLAYBACK_OBSERVED_PROPERTIES,
     observation_matches_media,
     optional_nonnegative_float,
     optional_positive_integer,
     optional_string,
+)
+from substitute.infrastructure.video.mpv_frame_step_coordinator import (
+    MpvFrameStepCoordinator,
 )
 from substitute.infrastructure.video.mpv_render_background import MpvRenderBackground
 from substitute.infrastructure.video.mpv_opengl_render_bridge import (
@@ -60,23 +64,6 @@ from substitute.infrastructure.video.video_player_error import VideoPlayerError
 
 class MpvVideoPlayer:
     """Own one reusable, isolated libmpv player and generation-scoped state."""
-
-    _OBSERVED_PROPERTIES = (
-        "path",
-        "pause",
-        "time-pos",
-        "duration",
-        "width",
-        "height",
-        "eof-reached",
-        "core-idle",
-        "current-vo",
-        "gpu-api",
-        "gpu-context",
-        "hwdec-current",
-        "video-params/pixelformat",
-        "video-codec",
-    )
 
     def __init__(
         self,
@@ -126,6 +113,7 @@ class MpvVideoPlayer:
             render_api=render_api,
             settings=settings,
         )
+        self._frame_steps = MpvFrameStepCoordinator(self._player)
         self._render_background = MpvRenderBackground(self._player)
         self._renderer = MpvOpenGLRenderBridge(self._module, self._player)
         self._representative_frames = MpvRepresentativeFrameCapture()
@@ -160,6 +148,7 @@ class MpvVideoPlayer:
             self._state = VideoPlaybackState.LOADING
             self._paused = True
             self._frame_step_pause_latched = False
+            self._frame_steps.reset()
             self._loop_enabled = True
             self._time_seconds = None
             self._duration_seconds = None
@@ -200,6 +189,7 @@ class MpvVideoPlayer:
             self._state = VideoPlaybackState.EMPTY
             self._paused = True
             self._frame_step_pause_latched = False
+            self._frame_steps.reset()
             self._time_seconds = None
             self._duration_seconds = None
             self._width = None
@@ -215,6 +205,8 @@ class MpvVideoPlayer:
         with self._lock:
             self._require_media()
             self._frame_step_pause_latched = False
+            if playing:
+                self._frame_steps.cancel_steps()
             if playing and not self._output_active:
                 raise VideoPlayerError("Video output is not active.")
             try:
@@ -240,7 +232,7 @@ class MpvVideoPlayer:
             if self._duration_seconds is not None:
                 target = min(target, self._duration_seconds)
             try:
-                self._player.command("seek", target, "absolute+exact")
+                self._frame_steps.seek(target)
             except Exception as error:
                 self._record_failure("Video seek failed.", error)
 
@@ -355,13 +347,18 @@ class MpvVideoPlayer:
             try:
                 observations = {
                     name: self._player._get_property(name)
-                    for name in self._OBSERVED_PROPERTIES
+                    for name in MPV_PLAYBACK_OBSERVED_PROPERTIES
                 }
             except Exception as error:
                 self._record_failure("Video state could not be read.", error)
                 return
             for name, value in observations.items():
                 self._apply_observation(name, value)
+            try:
+                self._frame_steps.observe_seeking(observations["seeking"])
+            except Exception as error:
+                self._record_failure("Queued frame advancement failed.", error)
+                return
             event = self._event()
             if event.snapshot == self._last_polled_snapshot:
                 return
@@ -444,8 +441,7 @@ class MpvVideoPlayer:
         with self._lock:
             self._require_media()
             try:
-                self._player.pause = True
-                self._player.command(command)
+                self._frame_steps.step(command)
             except Exception as error:
                 self._record_failure(failure_message, error)
                 return

@@ -56,6 +56,7 @@ class FakeMpvPlayer:
             "width": None,
             "height": None,
             "eof-reached": False,
+            "seeking": False,
             "core-idle": None,
             "current-vo": None,
             "gpu-api": None,

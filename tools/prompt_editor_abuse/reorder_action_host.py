@@ -146,9 +146,9 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         source_chip = self._require_active_drag()
         overlay = cast(Any, source_chip.overlay)
         drag_state = overlay._runtime.gesture.state
-        geometry_state = overlay._runtime.geometry.state
+        geometry = overlay._runtime.geometry
         sweep_plan = sweep_targeting.wait_for_reorder_sweep_pointer_plan(
-            snapshot_supplier=lambda: geometry_state.placement_snapshot,
+            snapshot_supplier=lambda: geometry.state.placement_snapshot,
             drag_intent_size=drag_state.drag_intent_size,
             drag_grab_offset=drag_state.drag_grab_offset,
             pointer_bounds=overlay.rect(),
