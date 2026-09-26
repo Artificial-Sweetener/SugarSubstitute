@@ -83,7 +83,7 @@ class OnboardingQualificationDriver(QObject):
     def schedule(self) -> None:
         """Queue interaction after the window and readiness receipt are visible."""
 
-        QTimer.singleShot(0, self._await_preflight)
+        QTimer.singleShot(0, self, self._await_preflight)
 
     @Slot()
     def _await_preflight(self) -> None:
@@ -103,6 +103,7 @@ class OnboardingQualificationDriver(QObject):
                 self._plan.record("onboarding.welcome.continued")
                 QTimer.singleShot(
                     _POLL_INTERVAL_MILLISECONDS,
+                    self,
                     self._await_preflight,
                 )
                 return
@@ -111,7 +112,11 @@ class OnboardingQualificationDriver(QObject):
                 return
             if time.monotonic() >= self._preflight_deadline:
                 raise TimeoutError("Timed out waiting for installed Comfy preflight.")
-            QTimer.singleShot(_POLL_INTERVAL_MILLISECONDS, self._await_preflight)
+            QTimer.singleShot(
+                _POLL_INTERVAL_MILLISECONDS,
+                self,
+                self._await_preflight,
+            )
         except Exception as error:
             self._record_failure(error)
 
@@ -271,7 +276,11 @@ class OnboardingQualificationDriver(QObject):
             f"clickable control {object_name}",
         )
         control = self._widget(QAbstractButton, object_name)
-        QTimer.singleShot(0, lambda: self._activate_terminal_action(control))
+        QTimer.singleShot(
+            0,
+            control,
+            lambda: self._activate_terminal_action(control),
+        )
 
     def _activate_terminal_action(self, control: QAbstractButton) -> None:
         """Record and activate the close-owning action after automation returns."""

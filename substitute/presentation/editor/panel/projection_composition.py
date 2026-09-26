@@ -21,6 +21,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, cast
 
+from PySide6.QtCore import QObject
+
 from .clean_projection_refresh import (
     CleanProjectionRefreshPanelProtocol,
     EditorCleanProjectionRefreshController,
@@ -165,6 +167,7 @@ def compose_editor_projection(
     )
     visible_commits = EditorVisibleProjectionCommitPipeline(
         EditorVisibleProjectionCommitPorts(
+            lifetime_owner=cast(QObject, panel),
             active_workflow_id=workflow_context.active_workflow_id,
             panel_is_visible=lambda: editor_panel_is_visible(panel),
             is_projection_session_current=projection_sessions.is_current,
@@ -217,6 +220,7 @@ def compose_editor_projection(
     )
     hidden_build_scheduler = HiddenBuildScheduler(
         HiddenBuildSchedulerPorts(
+            lifetime_owner=cast(QObject, panel),
             reveal_projected_cube_builds=(
                 lambda builds, workflow_id: (
                     render_reconciler.reveal_projected_cube_builds(

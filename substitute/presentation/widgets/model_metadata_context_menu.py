@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from PySide6.QtCore import QPoint, QTimer
+from PySide6.QtCore import QObject, QPoint, QTimer
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-untyped]
     Action,
@@ -356,7 +356,10 @@ class ModelMetadataContextMenuPresenter:
             action_handler=action_handler,
             target_updated=target_updated,
             thumbnail_library_opening=thumbnail_library_opening,
-            schedule_modal_action=_schedule_on_next_gui_turn,
+            schedule_modal_action=lambda callback: _schedule_on_next_gui_turn(
+                parent,
+                callback,
+            ),
             model_updates=model_updates,
         )
 
@@ -744,10 +747,10 @@ def _run_immediately(callback: Callable[[], None]) -> None:
     callback()
 
 
-def _schedule_on_next_gui_turn(callback: Callable[[], None]) -> None:
+def _schedule_on_next_gui_turn(owner: QObject, callback: Callable[[], None]) -> None:
     """Enter a modal after the active transient-menu callback unwinds."""
 
-    QTimer.singleShot(0, callback)
+    QTimer.singleShot(0, owner, callback)
 
 
 __all__ = [

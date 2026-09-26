@@ -284,7 +284,11 @@ class SyntheticCanvasGeometryAdapter(QObject):
     def _publish_later(self, result: SyntheticCanvasGeometryResult) -> None:
         """Publish synchronous geometry outcomes after the initiating signal unwinds."""
 
-        QTimer.singleShot(0, lambda: self.operationCompleted.emit(result))
+        QTimer.singleShot(
+            0,
+            self,
+            lambda: self.operationCompleted.emit(result),
+        )
 
 
 __all__ = [

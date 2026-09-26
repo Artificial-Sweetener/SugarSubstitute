@@ -252,7 +252,7 @@ class CanvasToolStrip(CanvasControlFrame):
         if self._pending_rebuild_scheduled:
             return
         self._pending_rebuild_scheduled = True
-        QTimer.singleShot(0, self._apply_pending_rebuild)
+        QTimer.singleShot(0, self, self._apply_pending_rebuild)
 
     def _apply_pending_rebuild(self) -> None:
         """Apply the latest deferred catalog after click dispatch is complete."""

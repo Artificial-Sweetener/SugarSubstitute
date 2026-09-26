@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 from sugarsubstitute_shared.localization import app_text
@@ -352,7 +352,11 @@ class MainWindowSignalBinder:
                         self._shell,
                         source_workflow_id,
                         target_workflow_id,
-                        schedule_next=lambda callback: QTimer.singleShot(0, callback),
+                        schedule_next=lambda callback: QTimer.singleShot(
+                            0,
+                            cast(QObject, self._shell),
+                            callback,
+                        ),
                     )
                 )
             ),

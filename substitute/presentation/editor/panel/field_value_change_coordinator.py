@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import Protocol
+from typing import Protocol, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from .field_state_binding import EditorFieldBinding
 from .preset_context_refresh import PanelPresetContextRefreshCoordinator
@@ -118,11 +118,10 @@ class PanelFieldValueChangeCoordinator:
             completion_phase="complete",
         )
 
-    @staticmethod
-    def _schedule_on_qt_event_loop(callback: Callable[[], None]) -> None:
+    def _schedule_on_qt_event_loop(self, callback: Callable[[], None]) -> None:
         """Defer destructive widget replacement until the current signal returns."""
 
-        QTimer.singleShot(0, callback)
+        QTimer.singleShot(0, cast(QObject, self._host), callback)
 
 
 __all__ = ["DynamicFieldRefreshHost", "PanelFieldValueChangeCoordinator"]

@@ -251,9 +251,16 @@ def test_canvas_only_dirty_workflow_tab_switch_projects_without_deferred_refresh
     assert invalidation.is_clean("wf-b")
 
 
-def test_override_only_dirty_refresh_uses_typed_override_reconciliation() -> None:
+def test_override_only_dirty_refresh_uses_typed_override_reconciliation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Override-only dirty maintenance should avoid legacy broad refresh hooks."""
 
+    scheduled: list[object] = []
+    monkeypatch.setattr(
+        "substitute.presentation.shell.main_window_override_surface_adapter.QTimer.singleShot",
+        staticmethod(lambda _delay, _owner, callback: scheduled.append(callback)),
+    )
     mod = _import_module()
     view = _build_view(active_workflow_id="wf-b")
     targeted: list[frozenset[WorkflowSurface]] = []
@@ -276,11 +283,18 @@ def test_override_only_dirty_refresh_uses_typed_override_reconciliation() -> Non
     assert "refresh" not in view.calls
     assert "canvas:project:wf-b" not in view.calls
     assert not invalidation.is_clean("wf-b")
+    assert len(scheduled) == 1
 
 
-def test_workspace_projection_with_completion_refreshes_surface_inline() -> None:
+def test_workspace_projection_with_completion_refreshes_surface_inline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Completion-dependent workflow projection should keep synchronous semantics."""
 
+    monkeypatch.setattr(
+        "substitute.presentation.shell.main_window_override_surface_adapter.QTimer.singleShot",
+        staticmethod(lambda _delay, _owner, callback: callback()),
+    )
     mod = _import_module()
     view = _build_view(active_workflow_id="wf-a")
     scheduler = _DeferredSurfaceRefreshScheduler()

@@ -175,7 +175,7 @@ class _CanvasFocusHandoff(QObject):
         if self._restore_queued:
             return
         self._restore_queued = True
-        QTimer.singleShot(0, self._restore_focus)
+        QTimer.singleShot(0, self, self._restore_focus)
 
     def _restore_focus(self) -> None:
         """Reassert focus while this route still owns the handoff."""

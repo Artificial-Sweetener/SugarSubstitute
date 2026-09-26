@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 
 class SignalConnectorProtocol(Protocol):
@@ -54,11 +54,13 @@ class SearchRefreshScheduler:
         *,
         on_pending_changed: Callable[[bool], None],
         on_refresh: Callable[[], None],
+        lifetime_owner: QObject,
     ) -> None:
         """Store callbacks and initialize without queued work."""
 
         self._on_pending_changed = on_pending_changed
         self._on_refresh = on_refresh
+        self._lifetime_owner = lifetime_owner
         self._pending = False
 
     @property
@@ -88,7 +90,7 @@ class SearchRefreshScheduler:
             return
         self._pending = True
         self._on_pending_changed(True)
-        QTimer.singleShot(0, self._run)
+        QTimer.singleShot(0, self._lifetime_owner, self._run)
 
     def _run(self) -> None:
         """Publish settlement before invoking the scheduled refresh."""

@@ -43,7 +43,7 @@ def test_bind_node_widget_state_restores_prompt_editor_manual_height(
     monkeypatch.setattr(
         prompt_state,
         "QTimer",
-        SimpleNamespace(singleShot=lambda _delay, callback: callback()),
+        SimpleNamespace(singleShot=lambda _delay, _owner, callback: callback()),
     )
 
     class _DirectPromptEditor(PromptEditorBase):
@@ -163,7 +163,7 @@ def test_prompt_editor_manual_height_clearing_removes_cube_ui_entry(
     monkeypatch.setattr(
         prompt_state,
         "QTimer",
-        SimpleNamespace(singleShot=lambda _delay, callback: callback()),
+        SimpleNamespace(singleShot=lambda _delay, _owner, callback: callback()),
     )
 
     class _DirectPromptEditor(PromptEditorBase):
@@ -217,7 +217,7 @@ def test_prompt_editor_invalid_stored_manual_height_is_ignored(
     monkeypatch.setattr(
         prompt_state,
         "QTimer",
-        SimpleNamespace(singleShot=lambda _delay, callback: callback()),
+        SimpleNamespace(singleShot=lambda _delay, _owner, callback: callback()),
     )
 
     class _DirectPromptEditor(PromptEditorBase):

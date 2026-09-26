@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import Protocol, cast
 from weakref import ref
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QCoreApplication, QObject, QTimer
 from shiboken6 import isValid
 
 from substitute.application.workflows.output_canvas_projection import (
@@ -179,7 +179,15 @@ def update_output_tabbar_container(
 
     _schedule_deferred_source_navigation_geometry(
         host,
-        scheduler=single_shot if single_shot is not None else QTimer.singleShot,
+        scheduler=(
+            single_shot
+            if single_shot is not None
+            else lambda delay_ms, callback: _schedule_for_host(
+                host,
+                delay_ms,
+                callback,
+            )
+        ),
         navigation_controller=navigation_controller,
         show_source_navigation=show_source_navigation,
         show_source_tabs=show_source_tabs,
@@ -195,6 +203,19 @@ def update_output_tabbar_container(
         gap=gap,
         force_source_selector=force_source_selector,
     )
+
+
+def _schedule_for_host(
+    host: object,
+    delay_ms: int,
+    callback: Callable[[], None],
+) -> None:
+    """Bind deferred geometry work to its live Qt host or application."""
+
+    owner = host if isinstance(host, QObject) else QCoreApplication.instance()
+    if owner is None:
+        raise RuntimeError("Output navigation scheduling requires a Qt owner")
+    QTimer.singleShot(delay_ms, owner, callback)
 
 
 def _schedule_deferred_source_navigation_geometry(

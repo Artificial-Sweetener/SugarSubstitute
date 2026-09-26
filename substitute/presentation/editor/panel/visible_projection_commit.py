@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from time import perf_counter
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
@@ -56,6 +56,7 @@ def editor_panel_is_visible(panel: object) -> bool:
 class EditorVisibleProjectionCommitPorts:
     """Group typed collaborators used by visible projection commit publication."""
 
+    lifetime_owner: QObject
     active_workflow_id: Callable[[], str]
     panel_is_visible: Callable[[], bool]
     is_projection_session_current: Callable[[ActiveProjectionSession], bool]
@@ -230,7 +231,11 @@ class EditorVisibleProjectionCommitPipeline:
             retry_attempts=self._pending_visible_projection_retry_attempts,
             retry_limit=_PENDING_VISIBLE_PROJECTION_RETRY_LIMIT,
         )
-        QTimer.singleShot(0, self.retry_pending_visible_projection_commit)
+        QTimer.singleShot(
+            0,
+            self._ports.lifetime_owner,
+            self.retry_pending_visible_projection_commit,
+        )
 
     def retry_pending_visible_projection_commit(self) -> None:
         """Commit a deferred active-panel reveal once the stacked route is visible."""

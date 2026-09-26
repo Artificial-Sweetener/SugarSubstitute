@@ -252,7 +252,7 @@ def test_cube_rename_request_uses_service_resolution_to_update_ui_and_editor() -
     actions = _stack_actions(mod, view)
 
     actions.on_cube_rename_requested(
-        "Old", "New", timer=SimpleNamespace(singleShot=lambda _ms, fn: fn())
+        "Old", "New", timer=SimpleNamespace(singleShot=lambda _ms, _owner, fn: fn())
     )
 
     assert ("rename", ("Old", "New", workflow)) in service_calls

@@ -399,6 +399,7 @@ def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=lambda: canvas_host.activate_canvas("Input"),
         refresh_mask_pickers=mask_pickers.refresh_active,
+        lifetime_owner=app,
     )
 
     interaction_controller.handle_image_changed(

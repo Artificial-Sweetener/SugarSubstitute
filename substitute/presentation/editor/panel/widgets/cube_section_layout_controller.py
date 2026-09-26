@@ -100,7 +100,7 @@ class CubeSectionLayoutController:
     def defer_height_update(self) -> None:
         """Defer a height recompute until the next event-loop turn."""
 
-        QTimer.singleShot(0, self.update_height)
+        QTimer.singleShot(0, self._section, self.update_height)
 
     def defer_string_width_sync(self) -> None:
         """Defer shared string line-edit width sync until layout has settled."""
@@ -108,7 +108,7 @@ class CubeSectionLayoutController:
         if not is_live_widget(self._section) or self._string_width_sync_pending:
             return
         self._string_width_sync_pending = True
-        QTimer.singleShot(0, self.sync_string_width_group)
+        QTimer.singleShot(0, self._section, self.sync_string_width_group)
 
     def sync_string_width_group(self) -> None:
         """Apply one shared width cap to visible single-line string inputs."""
