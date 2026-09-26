@@ -216,6 +216,24 @@ def test_frame_step_never_publishes_native_transient_playback(tmp_path: Path) ->
     adapter.close()
 
 
+def test_frame_step_waits_for_an_inflight_exact_seek(tmp_path: Path) -> None:
+    """Preserve a user's step request until libmpv finishes repositioning."""
+
+    adapter, native, _events, video = _player(tmp_path)
+    adapter.load(uuid4(), video)
+    adapter.set_output_active(True)
+    native.emit("seeking", True)
+
+    adapter.seek(0.5)
+    adapter.step_next_frame()
+
+    assert ("frame-step", ()) not in native.commands
+    native.emit("seeking", False)
+    adapter.poll_playback_state()
+    assert native.commands[-1] == ("frame-step", ())
+    adapter.close()
+
+
 def test_loop_off_eof_and_play_restart_from_beginning(tmp_path: Path) -> None:
     """Remain ended without looping and restart from zero on the next Play."""
 
@@ -421,6 +439,25 @@ def test_command_failure_is_sanitized_and_keeps_media_loaded(tmp_path: Path) -> 
     assert snapshot.state is VideoPlaybackState.ERROR
     assert snapshot.error == "Next-frame playback failed. (ValueError)"
     assert "sensitive" not in snapshot.error
+    adapter.close()
+
+
+def test_queued_frame_step_failure_is_sanitized(tmp_path: Path) -> None:
+    """Contain a decoder failure raised after an asynchronous seek settles."""
+
+    adapter, native, _events, video = _player(tmp_path)
+    adapter.load(uuid4(), video)
+    native.emit("seeking", True)
+    adapter.seek(0.5)
+    adapter.step_next_frame()
+    native.fail_command = "frame-step"
+
+    native.emit("seeking", False)
+    adapter.poll_playback_state()
+
+    snapshot = adapter.snapshot()
+    assert snapshot.state is VideoPlaybackState.ERROR
+    assert snapshot.error == "Queued frame advancement failed. (ValueError)"
     adapter.close()
 
 
