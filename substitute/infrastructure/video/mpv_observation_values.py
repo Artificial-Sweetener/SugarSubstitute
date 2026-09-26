@@ -14,13 +14,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Normalize loosely typed libmpv property observations."""
+"""Define and normalize synchronous libmpv playback observations."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from substitute.application.ports.video import VideoPlaybackState
+
+MPV_PLAYBACK_OBSERVED_PROPERTIES = (
+    "path",
+    "pause",
+    "time-pos",
+    "duration",
+    "width",
+    "height",
+    "eof-reached",
+    "seeking",
+    "core-idle",
+    "current-vo",
+    "gpu-api",
+    "gpu-context",
+    "hwdec-current",
+    "video-params/pixelformat",
+    "video-codec",
+)
 
 
 def optional_nonnegative_float(value: object) -> float | None:
@@ -66,6 +84,7 @@ def observation_matches_media(
 
 
 __all__ = [
+    "MPV_PLAYBACK_OBSERVED_PROPERTIES",
     "optional_nonnegative_float",
     "optional_positive_integer",
     "optional_string",
