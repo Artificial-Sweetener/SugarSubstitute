@@ -230,6 +230,20 @@ def test_installer_accepts_its_complete_preinstall_diagnostic_footprint(
     )
     write_file(
         install_root
+        / "launcher"
+        / "readiness"
+        / "candidate-9e29527b48ad9a0163f41d0542a646f1.json",
+        "{}\n",
+    )
+    write_file(
+        install_root
+        / "launcher"
+        / "readiness"
+        / ".ci-installer-chain.json.45764.7abedf740fb99724.tmp",
+        "{}\n",
+    )
+    write_file(
+        install_root
         / "appdata"
         / "diagnostics"
         / "runs"
@@ -267,6 +281,27 @@ def test_installer_rejects_unknown_content_inside_bootstrap_namespaces(
         )
 
     assert (install_root / "appdata" / "personal.txt").read_text(
+        encoding="utf-8"
+    ) == "do not touch"
+
+
+def test_installer_rejects_unknown_readiness_content(tmp_path: Path) -> None:
+    """Readiness exceptions must not admit arbitrary files under launcher state."""
+
+    install_root = tmp_path / "not-substitute"
+    write_file(
+        install_root / "launcher" / "readiness" / "personal.json",
+        "do not touch",
+    )
+
+    with pytest.raises(ExistingInstallationRecognitionError, match="not empty"):
+        FirstRunInstaller().install_downloaded_launcher(
+            install_root=install_root,
+            release_source=LocalFolderReleaseSource(tmp_path / "unused-release"),
+            launch_installed=False,
+        )
+
+    assert (install_root / "launcher" / "readiness" / "personal.json").read_text(
         encoding="utf-8"
     ) == "do not touch"
 
