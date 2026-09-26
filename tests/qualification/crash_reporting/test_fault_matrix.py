@@ -339,8 +339,9 @@ def test_real_unknown_external_termination_still_produces_actionable_report(
     """An unexplained job termination must retain context without inventing a crash."""
 
     layout = InstallLayout.from_root(tmp_path / "unknown-termination")
+    process_starter = synchronized_process_starter()
     owner = ApplicationCrashSupervisor(
-        process_starter=_start_child,
+        process_starter=process_starter,
         reporter_starter=lambda _layout, _incident_id, _environment: None,
         native_runtime_resolver=lambda _layout: (
             tmp_path / "unused-handler",
@@ -353,7 +354,7 @@ def test_real_unknown_external_termination_still_produces_actionable_report(
         environment=os.environ,
         command=command,
     )
-    process, _startup_output = _start_child(command, prepared.environment)
+    process, _startup_output = process_starter(command, prepared.environment)
     runtime_context = (
         prepared.context.run_root / prepared.context.run_id / "runtime-context.json"
     )
