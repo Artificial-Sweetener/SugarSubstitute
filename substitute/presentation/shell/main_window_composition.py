@@ -51,7 +51,6 @@ from substitute.application.cubes.graph_backed_cube_stack_service import (
 from substitute.presentation.editor.panel.lora_metadata_refresh_controller import (
     PanelLoraMetadataRefreshController,
 )
-from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 
 from .canvas_route_controller import canvas_route_controller_for
@@ -66,7 +65,10 @@ from .cube_stack_presentation_controller import (
     CubeStackPresentationController,
 )
 from .direct_workflow_file_actions import DirectWorkflowFileActions
-from .direct_workflow_composition import compose_direct_workflow_file_actions
+from .direct_workflow_composition import (
+    bind_nodepack_recovery,
+    compose_direct_workflow_file_actions,
+)
 from .editor_busy_coordinator import EditorBusyCoordinator
 from .editor_viewport_restore import EditorViewportRestoreController
 from .generation_interrupt_failure_presenter import (
@@ -85,6 +87,7 @@ from .initial_workspace_controller import InitialWorkspaceController
 from .main_window_signal_binder import MainWindowSignalBinder
 from .generation_feedback_sink import ShellGenerationFeedbackSink
 from .main_window_dependencies import MainWindowDependencies
+from .main_window_error_composition import error_presenter_for_shell
 from .workflow_cube_library_composition import build_workflow_cube_library_service
 from .main_window_startup_trace import startup_phase
 from .model_catalog_update_controller import ModelCatalogUpdateController
@@ -245,22 +248,6 @@ class MainWindowWorkflowLifecycleComposition:
     node_definition_refresh_controller: Any
 
 
-def _ensure_error_presenter(shell: Any) -> ErrorPresenter:
-    """Return the shell-owned error presenter, creating it before consumers."""
-
-    existing = getattr(shell, "_error_presenter", None)
-    if existing is not None:
-        return cast(ErrorPresenter, existing)
-    error_presenter = ErrorPresenter(
-        parent=shell,
-        open_console=(
-            lambda: shell.comfy_runtime_actions.set_comfy_output_panel_visible(True)
-        ),
-    )
-    shell._error_presenter = error_presenter
-    return error_presenter
-
-
 def capture_dependencies(
     shell: Any,
     dependencies: MainWindowDependencies,
@@ -388,7 +375,7 @@ def capture_dependencies(
     shell.recipe_output_sibling_discovery_service = (
         dependencies.recipe_output_sibling_discovery_service
     )
-    _ensure_error_presenter(shell)
+    error_presenter_for_shell(shell)
     workflow_surface_invalidation_service = WorkflowSurfaceInvalidationService()
     visual_authorization_service = VisualAuthorizationService()
     workflow_progress_service = WorkflowProgressService()
@@ -430,7 +417,7 @@ def capture_dependencies(
         manifest=dependencies.portable_model_manifest_service,
         add_workflow_tab=workflow_workspace.add_workflow,
         workflow_workspace=workflow_workspace,
-        error_presenter=_ensure_error_presenter(shell),
+        error_presenter=error_presenter_for_shell(shell),
     )
     direct_workflow_load_service = direct_workflows.load_service
     direct_workflow_file_actions = direct_workflows.file_actions
@@ -766,7 +753,7 @@ def compose_runtime_controllers(
     generation_interrupt_failure_presenter = GenerationInterruptFailurePresenter(
         shell._comfy_output_stream
     )
-    error_presenter = _ensure_error_presenter(shell)
+    error_presenter = error_presenter_for_shell(shell)
     cube_library_update_submitter = shell.execution_runtime.submitter(
         "cube_library_update",
         owner_id="cube_library_update_controller",
@@ -825,6 +812,7 @@ def compose_runtime_controllers(
         dependencies=dependencies,
         settings_route_controller=settings_route_controller,
     )
+    bind_nodepack_recovery(shell, dependencies, comfy_connection, error_presenter)
     composition = MainWindowRuntimeControllerComposition(
         generation_job_queue_observer=generation_job_queue_observer,
         generation_interrupt_failure_presenter=(generation_interrupt_failure_presenter),

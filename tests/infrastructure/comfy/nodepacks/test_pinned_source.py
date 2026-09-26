@@ -22,6 +22,7 @@ import io
 from pathlib import Path
 import shutil
 import ssl
+import tarfile
 from urllib.error import URLError
 import zipfile
 
@@ -352,6 +353,46 @@ def test_extract_flat_zip_returns_registry_package_root(tmp_path: Path) -> None:
     assert (source_path / "pyproject.toml").read_text(encoding="utf-8") == ("[project]")
 
 
+def test_extract_flat_registry_archive_accepts_gzip_tarballs(tmp_path: Path) -> None:
+    """Registry tarballs should materialize through the same safe flat contract."""
+
+    source = tmp_path / "source"
+    _write(source / "pyproject.toml", "[project]")
+    _write(source / "package" / "__init__.py", "content")
+    archive_path = tmp_path / "source.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        archive.add(source / "pyproject.toml", arcname="pyproject.toml")
+        archive.add(source / "package" / "__init__.py", arcname="package/__init__.py")
+
+    extracted = pinned_nodepack_source.extract_flat_registry_archive(
+        archive_path=archive_path,
+        target_path=tmp_path / "extracted",
+    )
+
+    assert (extracted / "pyproject.toml").read_text(encoding="utf-8") == "[project]"
+    assert (extracted / "package" / "__init__.py").read_text(
+        encoding="utf-8"
+    ) == "content"
+
+
+def test_extract_flat_registry_archive_rejects_tar_path_escape(tmp_path: Path) -> None:
+    """A Registry tar member must never escape its extraction transaction."""
+
+    payload = tmp_path / "payload.py"
+    payload.write_text("unsafe", encoding="utf-8")
+    archive_path = tmp_path / "unsafe.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        archive.add(payload, arcname="../escaped.py")
+
+    with pytest.raises(RuntimeError, match="unsafe path"):
+        pinned_nodepack_source.extract_flat_registry_archive(
+            archive_path=archive_path,
+            target_path=tmp_path / "extracted",
+        )
+
+    assert not (tmp_path / "escaped.py").exists()
+
+
 def _patch_archive_source(
     monkeypatch: pytest.MonkeyPatch,
     source: Path,
@@ -370,7 +411,7 @@ def _patch_archive_source(
     )
     monkeypatch.setattr(
         pinned_nodepack_source,
-        "extract_flat_zip",
+        "extract_flat_registry_archive",
         lambda **kwargs: source,
     )
 

@@ -25,6 +25,11 @@ from .cube_projection import (
     CubeGraphSegment,
 )
 from .models import DirectWorkflowState, NodeActivationStorage, ProjectedCubeDocument
+from .node_inventory import (
+    PersistedNodepackHint,
+    WorkflowNodeInventoryItem,
+    workflow_node_inventory,
+)
 from .node_classes import executable_node_classes
 from .node_roles import WorkflowNodeExecutionRole
 from .output_manifest import (
@@ -57,7 +62,10 @@ __all__ = [
     "DirectWorkflowState",
     "executable_node_classes",
     "NodeActivationStorage",
+    "PersistedNodepackHint",
     "ProjectedCubeDocument",
     "WorkflowNodeExecutionRole",
+    "WorkflowNodeInventoryItem",
+    "workflow_node_inventory",
     "is_terminal_output_sink",
 ]

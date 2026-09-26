@@ -33,7 +33,10 @@ from tests.presentation.editor.node_card.support import (
     WidgetPanel,
     ensure_qapp,
 )
-from tests.support.node_behavior import build_behavior_snapshot
+from tests.support.node_behavior import (
+    build_behavior_snapshot,
+    live_definition_for_inputs,
+)
 from tests.support.qt.lifecycle import destroy_qt_object
 
 
@@ -86,7 +89,11 @@ def create_visibility_scenario(
     """Create one deterministic card-construction scenario."""
 
     ensure_qapp()
-    active_definitions = dict(definitions or {})
+    active_definitions = dict(
+        definitions
+        if definitions is not None
+        else {node_type: live_definition_for_inputs(inputs)}
+    )
     node = dict(node_metadata or {})
     node.update({"class_type": node_type, "inputs": inputs})
     nodes = {node_name: node}

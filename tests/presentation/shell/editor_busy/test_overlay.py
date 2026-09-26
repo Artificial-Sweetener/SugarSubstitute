@@ -122,16 +122,11 @@ def test_editor_busy_overlay_animates_loading_ellipses() -> None:
 
     overlay.show_loading("Loading")
     assert message_label.text() == "Loading"
-    assert ellipsis_label.text() == ""
+    assert ellipsis_label.text() == "."
     centered_word_x = message_label.geometry().center().x()
     assert abs(centered_word_x - overlay.rect().center().x()) <= 1
     ellipsis_x = ellipsis_label.geometry().x()
 
-    overlay._advance_ellipsis()
-    assert message_label.text() == "Loading"
-    assert message_label.geometry().center().x() == centered_word_x
-    assert ellipsis_label.geometry().x() == ellipsis_x
-    assert ellipsis_label.text() == "."
     overlay._advance_ellipsis()
     assert message_label.text() == "Loading"
     assert message_label.geometry().center().x() == centered_word_x
@@ -146,7 +141,7 @@ def test_editor_busy_overlay_animates_loading_ellipses() -> None:
     assert message_label.text() == "Loading"
     assert message_label.geometry().center().x() == centered_word_x
     assert ellipsis_label.geometry().x() == ellipsis_x
-    assert ellipsis_label.text() == ""
+    assert ellipsis_label.text() == "."
 
     overlay.hide_loading()
     assert overlay.is_loading() is False
@@ -167,14 +162,14 @@ def test_editor_busy_overlay_timer_updates_visible_label() -> None:
     try:
         overlay.show_loading("Loading")
         assert message_label.text() == "Loading"
-        assert ellipsis_label.text() == ""
-
-        assert timeout_spy.wait(2_000)
-        assert message_label.text() == "Loading"
         assert ellipsis_label.text() == "."
 
         assert timeout_spy.wait(2_000)
         assert message_label.text() == "Loading"
         assert ellipsis_label.text() == ".."
+
+        assert timeout_spy.wait(2_000)
+        assert message_label.text() == "Loading"
+        assert ellipsis_label.text() == "..."
     finally:
         overlay.hide_loading()
