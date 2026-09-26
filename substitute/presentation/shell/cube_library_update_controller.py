@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.execution import TaskSubmitter
@@ -184,7 +184,7 @@ class CubeLibraryUpdateController:
         ):
             return
         self._listener_start_scheduled = True
-        QTimer.singleShot(0, self.start_listener)
+        QTimer.singleShot(0, cast(QObject, self._shell), self.start_listener)
 
     def on_updates_pending(self) -> None:
         """Defer pending Cube Library update prompts until focus is suitable."""
@@ -192,7 +192,11 @@ class CubeLibraryUpdateController:
         if self._modal_open:
             return
         if self._shell_window_is_focused():
-            QTimer.singleShot(250, self.present_pending_updates)
+            QTimer.singleShot(
+                250,
+                cast(QObject, self._shell),
+                self.present_pending_updates,
+            )
 
     def apply_follow_latest_updates(self, selections: object) -> None:
         """Apply automatic follow-latest updates requested by the coordinator."""

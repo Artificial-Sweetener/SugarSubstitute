@@ -45,7 +45,9 @@ class FixtureNodeDefinitionGateway:
     def get_node_definition(self, node_class: str) -> JsonObject:
         """Return a captured node definition or an empty mapping."""
 
-        value = self._definitions.get(node_class, {})
+        if node_class not in self._definitions:
+            return {}
+        value = self._definitions[node_class]
         if not isinstance(value, Mapping):
             return {}
         return cast(JsonObject, {node_class: dict(value)})

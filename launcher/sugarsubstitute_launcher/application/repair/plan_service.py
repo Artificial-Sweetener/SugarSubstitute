@@ -28,6 +28,9 @@ from launcher.sugarsubstitute_launcher.application.repair.models import (
 )
 from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    update_journal_paths,
+)
 from sugarsubstitute_shared.launcher_update.bundle_paths import LauncherBundlePaths
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
@@ -111,6 +114,14 @@ class RepairPlanService:
                 layout.state_path,
                 LauncherBundlePaths(root).selection,
             )
+        )
+        operations.extend(
+            self._operation(
+                path,
+                RepairDisposition.QUARANTINE,
+                "obsolete or interrupted application-update transaction",
+            )
+            for path in update_journal_paths(layout)
         )
         operations.extend(self._quarantine_unowned_root_entries(layout, operations))
         operations.extend(self._quarantine_replaceable_appdata(layout, operations))

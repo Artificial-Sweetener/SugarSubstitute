@@ -29,6 +29,7 @@ from substitute.presentation.editor.panel.field_sync_contracts import (
 from substitute.presentation.editor.panel.field_visibility_policy import (
     FieldVisibilityPolicy,
 )
+from substitute.presentation.editor.panel.node_card.variant import NodeCardVariant
 from substitute.presentation.editor.panel.widgets.node_card import (
     reconcile_node_card_body_separators,
 )
@@ -273,7 +274,8 @@ class EditorPanelFieldSyncController:
                 continue
             alias, node_name = card_key
             final_visible = self._wrapper_base_visible(wrapper) and (
-                self._wrapper_has_title_controls(wrapper)
+                self._wrapper_has_intrinsic_content(wrapper)
+                or self._wrapper_has_title_controls(wrapper)
                 or self._wrapper_has_advanced_input_action(wrapper)
                 or self._card_has_visible_fields(
                     alias=alias,
@@ -360,6 +362,14 @@ class EditorPanelFieldSyncController:
         """Return whether a card wrapper contains title-level controls."""
 
         return self._widget_property(wrapper, "has_title_controls") is True
+
+    def _wrapper_has_intrinsic_content(self, wrapper: object) -> bool:
+        """Return whether a non-field card variant owns visible body content."""
+
+        return (
+            self._widget_property(wrapper, "node_card_variant")
+            == NodeCardVariant.RUNTIME_ISSUE.value
+        )
 
     def _wrapper_has_advanced_input_action(self, wrapper: object) -> bool:
         """Return whether a card exposes advanced visibility from its menu."""

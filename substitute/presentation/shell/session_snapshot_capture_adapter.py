@@ -25,6 +25,7 @@ from substitute.presentation.workflows.workflow_tabs_view import (
 from pathlib import Path
 from typing import Any, cast
 
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workflow import (
     ComfyInputAssetRef,
     LocalFileAssetRef,
@@ -241,6 +242,8 @@ class SessionSnapshotCaptureAdapter:
             image_meta = self._shell.canvas_image_registry.metadata_for(image_id)
             if image_meta is None or not image_meta.path:
                 continue
+            if image_meta.media_kind is OutputMediaKind.VIDEO and image_meta.temporary:
+                continue
             path = Path(image_meta.path)
             references.append(
                 OutputImageReference(
@@ -271,6 +274,9 @@ class SessionSnapshotCaptureAdapter:
                         cube_execution_duration_ms=(
                             image_meta.cube_execution_duration_ms
                         ),
+                        media_kind=image_meta.media_kind,
+                        duration_seconds=image_meta.duration_seconds,
+                        mime_type=image_meta.mime_type,
                     ),
                     sequence=sequence,
                 )

@@ -31,6 +31,7 @@ from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupCandidate
 from launcher.sugarsubstitute_launcher.startup_recovery import recover_startup_candidate
 from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    update_journal_paths,
     update_journal_path,
 )
 from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
@@ -90,5 +91,41 @@ def test_repair_retires_prior_payload_update_before_commit(
         service.execute_application(request)
     assert not journal.exists()
     assert layout.runtime_python.read_bytes() == b"candidate-python"
+
+
+@pytest.mark.parametrize("helper_entry", [False, True])
+def test_repair_quarantines_incompatible_legacy_journal_and_completes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    helper_entry: bool,
+) -> None:
+    """The 0.23 repair loop must become recoverable by a current repair payload."""
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _current, legacy = update_journal_paths(layout)
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text('{"schema_version":999}', encoding="utf-8")
+    user_file = layout.user_dir / "projects" / "work.json"
+    user_before = user_file.read_bytes()
+    request = _prepared_request(layout)
+    request.save(request.request_path)
+    service = RepairExecutionService(runtime_provisioner=_RuntimeProvisioner())
+
+    if helper_entry:
+        monkeypatch.setattr(
+            "launcher.sugarsubstitute_launcher.repair_helper.build_repair_execution_service",
+            lambda **_kwargs: service,
+        )
+        result = run_prepared_repair(request.request_path)
+    else:
+        result = service.execute_application(request)
+
+    assert result.version == request.version
+    assert not legacy.exists()
+    quarantined = result.quarantine_root / legacy.relative_to(layout.root)
+    assert quarantined.read_text(encoding="utf-8") == '{"schema_version":999}'
+    assert user_file.read_bytes() == user_before
     recover_startup_candidate(LauncherStartupCandidate(layout, True))
     assert layout.runtime_python.read_bytes() == b"candidate-python"

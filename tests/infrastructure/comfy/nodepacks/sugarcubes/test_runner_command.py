@@ -361,6 +361,110 @@ def test_current_simplesyrup_still_installs_missing_implied_prompt_control(
     assert result.payload["dependencyReadiness"] == satisfied_readiness
 
 
+def test_transiently_incomplete_dependency_repair_retries_exact_remaining_pack(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Retry an approved repair once when verification still reports it missing."""
+
+    python_path = _write_maintenance_fixture(tmp_path)
+    commands: list[list[str]] = []
+    missing_readiness = {
+        "ready": False,
+        "missingCustomNodes": ["comfyui-prompt-control"],
+        "installPlan": [
+            {
+                "nodeId": "comfyui-prompt-control",
+                "installed": False,
+                "installable": True,
+            }
+        ],
+    }
+    ready_readiness = {
+        "ready": True,
+        "missingCustomNodes": [],
+        "installPlan": [
+            {
+                "nodeId": "comfyui-prompt-control",
+                "installed": True,
+                "installable": True,
+            }
+        ],
+    }
+
+    def fake_stream(
+        command: list[str],
+        **_kwargs: object,
+    ) -> tuple[int, tuple[str, ...]]:
+        """Leave the first repair incomplete and complete the retry."""
+
+        commands.append(command)
+        call_number = len(commands)
+        if call_number == 1:
+            return 2, (json.dumps({"dependencyReadiness": missing_readiness}),)
+        if call_number == 2:
+            return 2, (json.dumps({"readinessAfter": missing_readiness}),)
+        if call_number == 3:
+            return 2, (json.dumps({"dependencyReadiness": missing_readiness}),)
+        if call_number == 4:
+            return 0, (json.dumps({"readinessAfter": ready_readiness}),)
+        return 0, (json.dumps({"dependencyReadiness": ready_readiness}),)
+
+    monkeypatch.setattr(
+        sugarcubes_maintenance_runner,
+        "_stream_command_collecting_output",
+        fake_stream,
+    )
+
+    result = sugarcubes_maintenance_runner.run_sugarcubes_baseline_maintenance(tmp_path)
+
+    repair_command = [
+        str(python_path),
+        "-m",
+        "sugarcubes.maintenance",
+        "cube-deps",
+        "repair",
+        "--workspace",
+        str(tmp_path),
+        "--approve",
+        "comfyui-prompt-control",
+    ]
+    assert commands == [
+        [
+            str(python_path),
+            "-m",
+            "sugarcubes.maintenance",
+            "cube-deps",
+            "sync-and-check",
+            "--workspace",
+            str(tmp_path),
+            "--sync-enabled-repos",
+        ],
+        repair_command,
+        [
+            str(python_path),
+            "-m",
+            "sugarcubes.maintenance",
+            "cube-deps",
+            "preflight",
+            "--workspace",
+            str(tmp_path),
+        ],
+        repair_command,
+        [
+            str(python_path),
+            "-m",
+            "sugarcubes.maintenance",
+            "cube-deps",
+            "preflight",
+            "--workspace",
+            str(tmp_path),
+        ],
+    ]
+    assert result.exit_code == 0
+    assert result.payload["dependencyReadiness"] == ready_readiness
+
+
 def test_nodepack_reconciliation_facade_exports_sugarcubes_maintenance() -> None:
     """The public reconciliation facade should expose the runner entry point."""
 

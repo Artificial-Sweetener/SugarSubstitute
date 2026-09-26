@@ -120,7 +120,7 @@ def route_cube_output_event(
     ):
         return CubeOutputRouteResult()
 
-    if cube_output.media_kind != "image":
+    if cube_output.media_kind not in {"image", "video"}:
         return CubeOutputRouteResult(
             diagnostic=CubeOutputDiagnostic(
                 level="info",

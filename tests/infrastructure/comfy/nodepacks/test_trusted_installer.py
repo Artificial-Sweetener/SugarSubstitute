@@ -54,6 +54,7 @@ def test_trusted_nodepack_install_removes_partial_failed_clone(tmp_path: Path) -
     with pytest.raises(RuntimeError, match="trusted Example repository"):
         install_trusted_nodepack_repository(
             repository_url="https://example.invalid/Example.git",
+            revision="1" * 40,
             target_path=target,
             display_name="Example",
             repositories=repositories,
@@ -71,7 +72,35 @@ def test_trusted_nodepack_install_refuses_existing_target(tmp_path: Path) -> Non
     with pytest.raises(RuntimeError, match="target already exists"):
         install_trusted_nodepack_repository(
             repository_url="https://example.invalid/Example.git",
+            revision="1" * 40,
             target_path=target,
             display_name="Example",
             repositories=RecordingRepositoryService(),
         )
+
+
+def test_trusted_nodepack_install_checks_out_and_verifies_exact_revision(
+    tmp_path: Path,
+) -> None:
+    """A successful clone must finish at the revision approved by the user."""
+
+    target = tmp_path / "custom_nodes" / "Example"
+    revision = "1" * 40
+    repositories = RecordingRepositoryService(
+        clone_callback=lambda _url, path: path.mkdir(parents=True),
+        head=revision,
+    )
+
+    install_trusted_nodepack_repository(
+        repository_url="https://example.invalid/Example.git",
+        revision=revision,
+        target_path=target,
+        display_name="Example",
+        repositories=repositories,
+    )
+
+    assert repositories.calls == [
+        ("clone", ("https://example.invalid/Example.git", target)),
+        ("checkout_revision", (target, revision)),
+        ("head_commit_id", target),
+    ]

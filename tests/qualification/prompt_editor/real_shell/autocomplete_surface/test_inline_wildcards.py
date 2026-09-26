@@ -42,10 +42,12 @@ _SCENE_PROMPT = "**scene1\n1girl, , black dress, smug, narrowed eyes\n**scene2\n
 class _HairWildcardCatalog:
     """Return one deterministic wildcard while recording production requests."""
 
-    def __init__(self) -> None:
-        """Initialize the request ledger."""
+    def __init__(self, *, existing_identifiers: frozenset[str] | None = None) -> None:
+        """Initialize the request ledger and optional known-reference set."""
 
         self.search_calls: list[tuple[str, int]] = []
+        self.resolve_calls: list[tuple[str, ...]] = []
+        self.existing_identifiers = existing_identifiers
 
     def search_wildcards(
         self,
@@ -69,12 +71,16 @@ class _HairWildcardCatalog:
     ) -> tuple[PromptWildcardResolution, ...]:
         """Return existing resolutions for syntax diagnostics."""
 
+        self.resolve_calls.append(tuple(ref.identifier for ref in references))
         return tuple(
             PromptWildcardResolution(
                 identifier=reference.identifier,
                 wildcard_form=reference.wildcard_form,
                 csv_column=reference.csv_column,
-                exists=True,
+                exists=(
+                    self.existing_identifiers is None
+                    or reference.identifier in self.existing_identifiers
+                ),
             )
             for reference in references
         )
@@ -200,6 +206,122 @@ def test_mouse_expanded_wildcard_uses_exact_source_caret_for_autocomplete(
         assert field.editor.toPlainText() == expected
         assert field.editor.textCursor().position() == expected.index("}")
         assert ("hairx", 10) in catalog.search_calls
+    finally:
+        scenario.close()
+
+
+def test_decorated_wildcard_identifier_is_directly_editable(
+    tmp_path: Path,
+) -> None:
+    """Move into a rendered wildcard and change its source-backed identity."""
+
+    catalog = _HairWildcardCatalog()
+    scenario = PromptEditorRealShellScenario(
+        artifact_root=tmp_path,
+        prompt_wildcard_catalog_gateway=catalog,
+    )
+    try:
+        source = _SCENE_PROMPT.replace(", ,", ", {color},")
+        field = scenario.workflows.add_prompt_workflow(initial_text=source)
+        wildcard_start = source.index("{color}")
+        scenario.input.set_source_cursor_position(field, wildcard_start)
+        scenario.input.press_key(field, Qt.Key.Key_Right)
+        assert field.editor.textCursor().position() == wildcard_start + 1
+
+        scenario.input.type_text(field, "hair")
+        expected = source.replace("{color}", "{haircolor}")
+        assert field.editor.toPlainText() == expected
+        assert field.editor.textCursor().position() == wildcard_start + 5
+        scenario.wait_until(
+            lambda: any(
+                token.kind is PromptProjectionTokenKind.WILDCARD
+                and token.value_text == "haircolor"
+                for token in field.editor._runtime.projection.surface.projection_document().tokens  # noqa: SLF001
+            ),
+            description="edited wildcard identity projected",
+            state=lambda: (
+                field.editor._runtime.projection.surface.projection_document().projection_text,  # noqa: SLF001
+                tuple(
+                    (token.kind, token.value_text)
+                    for token in field.editor._runtime.projection.surface.projection_document().tokens  # noqa: SLF001
+                ),
+            ),
+        )
+        scenario.wait_until(
+            lambda: ("haircolor",) in catalog.resolve_calls,
+            description="edited wildcard catalog resolution",
+        )
+        assert (
+            field.editor._runtime.projection.surface._session.expanded_source_range
+            is None
+        )  # noqa: SLF001
+
+        scenario.input.undo(field)
+        assert field.editor.toPlainText() == source
+    finally:
+        scenario.close()
+
+
+def test_click_inside_decorated_tagged_wildcard_edits_only_its_identifier(
+    tmp_path: Path,
+) -> None:
+    """Pointer placement should edit visible wildcard text without disturbing its tag."""
+
+    scenario = PromptEditorRealShellScenario(
+        artifact_root=tmp_path,
+        prompt_wildcard_catalog_gateway=_HairWildcardCatalog(),
+    )
+    try:
+        source = _SCENE_PROMPT.replace(", ,", ", {color|2},")
+        field = scenario.workflows.add_prompt_workflow(initial_text=source)
+        edit_position = source.index("color") + 2
+
+        scenario.input.click_projected_source_position(field, edit_position)
+        assert field.editor.textCursor().position() == edit_position
+        scenario.input.type_text(field, "hair")
+
+        expected = source.replace("{color|2}", "{cohairlor|2}")
+        assert field.editor.toPlainText() == expected
+        scenario.wait_until(
+            lambda: any(
+                token.kind is PromptProjectionTokenKind.WILDCARD
+                and token.value_text == "cohairlor"
+                and token.wildcard_display_tag == "2"
+                for token in field.editor._runtime.projection.surface.projection_document().tokens  # noqa: SLF001
+            ),
+            description="tagged wildcard identity and tag projected",
+        )
+    finally:
+        scenario.close()
+
+
+def test_edited_unknown_wildcard_resolves_to_error_state(tmp_path: Path) -> None:
+    """Flag an edited unknown name only after its catalog lookup completes."""
+
+    catalog = _HairWildcardCatalog(existing_identifiers=frozenset({"color"}))
+    scenario = PromptEditorRealShellScenario(
+        artifact_root=tmp_path,
+        prompt_wildcard_catalog_gateway=catalog,
+    )
+    try:
+        source = _SCENE_PROMPT.replace(", ,", ", {color},")
+        field = scenario.workflows.add_prompt_workflow(initial_text=source)
+        wildcard_start = source.index("{color}")
+        scenario.input.set_source_cursor_position(field, wildcard_start + 1)
+        scenario.input.type_text(field, "hair")
+
+        scenario.wait_until(
+            lambda: any(
+                token.kind is PromptProjectionTokenKind.WILDCARD
+                and token.value_text == "haircolor"
+                and not token.exists
+                and not token.wildcard_resolution_pending
+                for token in field.editor._runtime.projection.surface.projection_document().tokens  # noqa: SLF001
+            ),
+            description="unknown edited wildcard resolved",
+        )
+        assert ("haircolor",) in catalog.resolve_calls
+        assert field.editor.toPlainText() == source.replace("{color}", "{haircolor}")
     finally:
         scenario.close()
 

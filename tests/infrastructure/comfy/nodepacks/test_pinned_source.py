@@ -22,6 +22,7 @@ import io
 from pathlib import Path
 import shutil
 import ssl
+import tarfile
 from urllib.error import URLError
 import zipfile
 
@@ -30,7 +31,7 @@ import pytest
 from substitute.infrastructure.comfy import pinned_nodepack_source
 from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
-    PinnedNodepackSourceInstaller,
+    TrustedNodepackArchiveInstaller,
 )
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
@@ -222,7 +223,7 @@ def test_fallback_install_is_registry_owned_and_preserves_mutable_data(
     _write(source / "tests" / "test_ignored.py", "ignored")
     _patch_archive_source(monkeypatch, source)
 
-    PinnedNodepackSourceInstaller().install_fallback(
+    TrustedNodepackArchiveInstaller().install_fallback(
         target_path=target,
         nodepack=nodepack,
         on_log=None,
@@ -241,6 +242,39 @@ def test_fallback_install_is_registry_owned_and_preserves_mutable_data(
     ) == "runtime"
     assert not (target / "tests").exists()
     assert not any(path.startswith(".sugarcubes/") for path in tracked)
+
+
+def test_registry_release_uses_same_transactional_owned_source_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Apply a validated Registry archive while preserving mutable local data."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    source = tmp_path / "release"
+    target = tmp_path / nodepack.expected_folder
+    _materialize_release(source, nodepack_index=0, marker="registry")
+    _write(target / "cache" / "preserved.json", "cache")
+    _write(target / ".tracking", "")
+    _patch_archive_source(monkeypatch, source)
+    logs: list[str] = []
+
+    TrustedNodepackArchiveInstaller().install_registry_release(
+        target_path=target,
+        nodepack=nodepack,
+        archive_url="https://cdn.comfy.org/publisher/node/version/node.zip",
+        on_log=logs.append,
+        env=None,
+    )
+
+    assert (target / "substitute_backend" / "__init__.py").read_text(
+        encoding="utf-8"
+    ) == "registry"
+    assert (target / "cache" / "preserved.json").read_text(encoding="utf-8") == "cache"
+    assert (target / ".tracking").is_file()
+    assert logs[0] == (
+        "[ComfyNodepacks] Downloading Substitute BackEnd from Comfy Registry."
+    )
 
 
 def test_fallback_transaction_restores_previous_owned_source_on_copy_failure(
@@ -272,7 +306,7 @@ def test_fallback_transaction_restores_previous_owned_source_on_copy_failure(
     )
 
     with pytest.raises(OSError, match="forced copy failure"):
-        PinnedNodepackSourceInstaller().install_fallback(
+        TrustedNodepackArchiveInstaller().install_fallback(
             target_path=target,
             nodepack=nodepack,
             on_log=None,
@@ -301,6 +335,64 @@ def test_extract_single_root_zip_rejects_unsafe_paths(tmp_path: Path) -> None:
         )
 
 
+def test_extract_flat_zip_returns_registry_package_root(tmp_path: Path) -> None:
+    """Treat Registry archive members as rooted directly in the package."""
+
+    archive_path = tmp_path / "source.zip"
+    with zipfile.ZipFile(archive_path, mode="w") as archive:
+        archive.writestr("pyproject.toml", "[project]")
+        archive.writestr("package/__init__.py", "content")
+    extracted_path = tmp_path / "extracted"
+
+    source_path = pinned_nodepack_source.extract_flat_zip(
+        archive_path=archive_path,
+        target_path=extracted_path,
+    )
+
+    assert source_path == extracted_path
+    assert (source_path / "pyproject.toml").read_text(encoding="utf-8") == ("[project]")
+
+
+def test_extract_flat_registry_archive_accepts_gzip_tarballs(tmp_path: Path) -> None:
+    """Registry tarballs should materialize through the same safe flat contract."""
+
+    source = tmp_path / "source"
+    _write(source / "pyproject.toml", "[project]")
+    _write(source / "package" / "__init__.py", "content")
+    archive_path = tmp_path / "source.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        archive.add(source / "pyproject.toml", arcname="pyproject.toml")
+        archive.add(source / "package" / "__init__.py", arcname="package/__init__.py")
+
+    extracted = pinned_nodepack_source.extract_flat_registry_archive(
+        archive_path=archive_path,
+        target_path=tmp_path / "extracted",
+    )
+
+    assert (extracted / "pyproject.toml").read_text(encoding="utf-8") == "[project]"
+    assert (extracted / "package" / "__init__.py").read_text(
+        encoding="utf-8"
+    ) == "content"
+
+
+def test_extract_flat_registry_archive_rejects_tar_path_escape(tmp_path: Path) -> None:
+    """A Registry tar member must never escape its extraction transaction."""
+
+    payload = tmp_path / "payload.py"
+    payload.write_text("unsafe", encoding="utf-8")
+    archive_path = tmp_path / "unsafe.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        archive.add(payload, arcname="../escaped.py")
+
+    with pytest.raises(RuntimeError, match="unsafe path"):
+        pinned_nodepack_source.extract_flat_registry_archive(
+            archive_path=archive_path,
+            target_path=tmp_path / "extracted",
+        )
+
+    assert not (tmp_path / "escaped.py").exists()
+
+
 def _patch_archive_source(
     monkeypatch: pytest.MonkeyPatch,
     source: Path,
@@ -315,6 +407,11 @@ def _patch_archive_source(
     monkeypatch.setattr(
         pinned_nodepack_source,
         "extract_single_root_zip",
+        lambda **kwargs: source,
+    )
+    monkeypatch.setattr(
+        pinned_nodepack_source,
+        "extract_flat_registry_archive",
         lambda **kwargs: source,
     )
 

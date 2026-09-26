@@ -93,10 +93,10 @@ def test_projection_builder_marks_decorations_for_accent_feedback_ranges() -> No
     assert projection.tokens[2].decoration_accented is False
 
 
-def test_projection_builder_adds_internal_emphasis_caret_stops_but_keeps_wildcards_atomic() -> (
+def test_projection_builder_exposes_internal_caret_stops_for_emphasis_and_wildcards() -> (
     None
 ):
-    """Caret-map construction should expose content stops only for emphasis tokens."""
+    """Decorated source-backed content should expose its exact caret boundaries."""
 
     projection = _build_projection(
         "(cat:1.05), {animal}",
@@ -123,7 +123,7 @@ def test_projection_builder_adds_internal_emphasis_caret_stops_but_keeps_wildcar
     ]
 
     assert [state.source_position for state in emphasis_states] == [0, 1, 2, 3, 4, 10]
-    assert [state.source_position for state in wildcard_states] == [12, 20]
+    assert [state.source_position for state in wildcard_states] == list(range(12, 21))
 
 
 def test_projection_builder_can_project_transient_neutral_emphasis_without_source_syntax() -> (

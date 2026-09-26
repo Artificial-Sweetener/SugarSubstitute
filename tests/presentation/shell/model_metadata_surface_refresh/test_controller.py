@@ -72,7 +72,12 @@ class _Timer:
     single_shots: list[tuple[int, Callable[[], None]]] = []
 
     @classmethod
-    def singleShot(cls, delay_ms: int, callback: Callable[[], None]) -> None:
+    def singleShot(
+        cls,
+        delay_ms: int,
+        _owner: object,
+        callback: Callable[[], None],
+    ) -> None:
         """Record one delayed callback."""
 
         cls.single_shots.append((delay_ms, callback))

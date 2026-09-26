@@ -14,13 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Hide direct-workflow image sinks through shared node-card behavior."""
+"""Hide direct-workflow visual sinks through shared node-card behavior."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 
-from substitute.domain.comfy_workflow import is_terminal_image_output_sink
+from substitute.domain.comfy_workflow import is_terminal_output_sink
 from substitute.domain.node_behavior import (
     CardBehaviorPatch,
     EnabledSwitchPolicy,
@@ -32,7 +32,7 @@ from .section_node_source import SectionNodeSource
 
 
 class DirectOutputBehaviorInferenceService:
-    """Translate terminal image-output semantics into editor behavior patches."""
+    """Translate terminal visual-output semantics into editor behavior patches."""
 
     def infer(
         self,
@@ -40,11 +40,11 @@ class DirectOutputBehaviorInferenceService:
         graph: Mapping[str, object],
         sources: tuple[SectionNodeSource, ...],
     ) -> Mapping[str, NodeBehaviorPatch]:
-        """Return hard-hide patches for safely replaceable terminal image sinks."""
+        """Return hard-hide patches for supported terminal visual sinks."""
 
         patches: dict[str, NodeBehaviorPatch] = {}
         for source in sources:
-            if is_terminal_image_output_sink(
+            if is_terminal_output_sink(
                 node_id=source.node_name,
                 node=source.node_data,
                 graph=graph,

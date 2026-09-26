@@ -19,12 +19,9 @@
 from __future__ import annotations
 
 
-import pytest
-
 from substitute.application.node_behavior.behavior_service import NodeBehaviorService
 from substitute.application.node_behavior import (
     FieldValueSource,
-    LiveNodeDefinitionError,
 )
 from tests.support.node_behavior import (
     build_behavior_snapshot,
@@ -33,7 +30,7 @@ from tests.support.node_behavior import (
 from tests.application.node_behavior.service.support import (
     UUID_NESTED_WRAPPER,
     UUID_WRAPPER,
-    RequiredOnlyNodeDefinitionGateway,
+    RecordingNodeDefinitionGateway,
     _nested_wrapper_definitions,
     _nested_wrapper_live_definitions,
     _nested_wrapper_subgraphs,
@@ -44,8 +41,8 @@ from tests.application.node_behavior.service.support import (
 )
 
 
-def test_wrapper_surface_missing_live_body_definition_raises() -> None:
-    """Wrapper body metadata must come from live Comfy definitions."""
+def test_wrapper_surface_missing_live_body_definition_is_degraded() -> None:
+    """A missing wrapper body definition should preserve a truthful node card."""
 
     cube = cube_state(
         nodes=_wrapper_nodes(),
@@ -53,24 +50,28 @@ def test_wrapper_surface_missing_live_body_definition_raises() -> None:
         subgraphs=_wrapper_subgraphs(),
     )
 
-    with pytest.raises(LiveNodeDefinitionError) as error_info:
-        build_behavior_snapshot(cube_states={"A": cube}, stack_order=["A"])
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={},
+    )
 
-    assert error_info.value.operation == "resolve wrapper body node metadata"
-    assert error_info.value.missing_definitions[0].class_type == "DetailerForEach"
-    assert error_info.value.missing_definitions[0].cube_aliases == ("A",)
-    assert error_info.value.missing_definitions[0].node_names == ("detailer",)
+    degraded = snapshot.degraded_nodes_by_alias["A"]["detailer"]
+    assert degraded.class_type == UUID_WRAPPER
+    assert degraded.missing_definition_classes == ("DetailerForEach",)
+    assert snapshot.field_specs_by_alias["A"]["detailer"] == {}
+    assert "detailer" in snapshot.resolved_nodes_by_alias["A"]
 
 
-def test_wrapper_body_metadata_uses_required_definition_lookup() -> None:
-    """Wrapper body metadata should synchronously require live Comfy definitions."""
+def test_wrapper_body_metadata_uses_cached_definition_lookup() -> None:
+    """Wrapper body metadata should use the prehydrated live definition cache."""
 
     cube = cube_state(
         nodes=_wrapper_nodes(),
         definitions=_wrapper_definitions(),
         subgraphs=_wrapper_subgraphs(),
     )
-    gateway = RequiredOnlyNodeDefinitionGateway(_wrapper_live_definitions())
+    gateway = RecordingNodeDefinitionGateway(_wrapper_live_definitions())
     service = NodeBehaviorService(node_definition_gateway=gateway)
 
     snapshot = service.build_snapshot(cube_states={"A": cube}, stack_order=["A"])
@@ -78,8 +79,7 @@ def test_wrapper_body_metadata_uses_required_definition_lookup() -> None:
     assert snapshot.field_specs_by_alias["A"]["detailer"]["denoise"].field_type == (
         "FLOAT"
     )
-    assert "DetailerForEach" in gateway.required_requests
-    assert "DetailerForEach" not in gateway.optional_requests
+    assert "DetailerForEach" in gateway.requests
 
 
 def test_wrapper_nested_public_input_is_exposed_from_nested_wrapper_default() -> None:

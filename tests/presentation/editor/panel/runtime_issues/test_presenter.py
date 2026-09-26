@@ -214,6 +214,8 @@ def _runtime_issue(
     *,
     severity: CubeRuntimeIssueSeverity = CubeRuntimeIssueSeverity.ERROR,
     source: CubeRuntimeIssueSource = CubeRuntimeIssueSource.PROJECTION,
+    kind: CubeRuntimeIssueKind = CubeRuntimeIssueKind.MISSING_LIVE_NODE_DEFINITION,
+    node_names: tuple[str, ...] = ("detailer",),
 ) -> CubeRuntimeIssue:
     """Build a deterministic cube runtime issue for presenter tests."""
 
@@ -221,12 +223,12 @@ def _runtime_issue(
         workflow_id="workflow-a",
         cube_alias="CubeA",
         severity=severity,
-        kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_DEFINITION,
+        kind=kind,
         message="Runtime issue",
         operation="test operation",
         source=source,
         missing_node_classes=("SimpleSyrup.DetailSEGSByScaleFactor",),
-        node_names=("detailer",),
+        node_names=node_names,
         recommended_action="Restart ComfyUI.",
     )
 
@@ -373,6 +375,40 @@ def test_cube_runtime_error_aliases_ignores_warnings() -> None:
     )
 
     assert presenter.cube_runtime_error_aliases() == ()
+
+
+def test_cube_runtime_error_aliases_preserves_node_scoped_projection() -> None:
+    """A node-scoped definition issue should not replace its entire cube."""
+
+    host = _Host()
+    presenter = EditorPanelRuntimeIssuePresenter(
+        cast(EditorPanelRuntimeIssueHost, host)
+    )
+
+    presenter.set_cube_runtime_issues("CubeA", (_runtime_issue(),))
+
+    assert presenter.cube_runtime_error_aliases() == ()
+
+
+def test_cube_runtime_error_aliases_keeps_unscoped_failures_blocking() -> None:
+    """A non-node-scoped projection failure should still replace the cube."""
+
+    host = _Host()
+    presenter = EditorPanelRuntimeIssuePresenter(
+        cast(EditorPanelRuntimeIssueHost, host)
+    )
+
+    presenter.set_cube_runtime_issues(
+        "CubeA",
+        (
+            _runtime_issue(
+                kind=CubeRuntimeIssueKind.PROJECTION_HYDRATION_FAILED,
+                node_names=(),
+            ),
+        ),
+    )
+
+    assert presenter.cube_runtime_error_aliases() == ("CubeA",)
 
 
 def test_build_error_cube_widget_passes_current_issues_to_builder() -> None:

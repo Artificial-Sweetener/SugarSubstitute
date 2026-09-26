@@ -51,7 +51,7 @@ def run_repair_execution_invocation(arguments: Sequence[str]) -> int | None:
                 run_prepared_repair,
             )
 
-            run_prepared_repair(
+            result = run_prepared_repair(
                 Path(values[0]),
                 progress_observer=lambda progress: output.send(
                     repair_progress_to_message(progress)
@@ -62,5 +62,10 @@ def run_repair_execution_invocation(arguments: Sequence[str]) -> int | None:
             _LOGGER.exception("Supervised repair execution failed")
             output.send({"kind": "failed", "details": str(error)[:4096]})
             return 1
-        output.send({"kind": "succeeded"})
+        output.send(
+            {
+                "kind": "succeeded",
+                "session_recovery": result.session_recovery.to_json(),
+            }
+        )
         return 0

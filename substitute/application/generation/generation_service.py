@@ -59,6 +59,9 @@ from substitute.application.generation.asset_staging_service import (
 from substitute.application.generation.generation_execution_dispatcher import (
     GenerationExecutionDispatcher,
 )
+from substitute.application.generation.direct_output_source_projection import (
+    project_listener_output_sources,
+)
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
@@ -342,13 +345,8 @@ class GenerationService:
                 )
                 workflow_payload = direct_projection.prompt
                 execution_targets = direct_projection.execution_targets
-                standard_output_sources = tuple(
-                    ListenerOutputSource(
-                        node_id=recovery.recovery_node_id,
-                        source_key=recovery.source_key,
-                        source_label=recovery.source_label,
-                    )
-                    for recovery in direct_projection.recovery_outputs
+                standard_output_sources = project_listener_output_sources(
+                    direct_projection
                 )
             else:
                 if request.cube_workflow is None:

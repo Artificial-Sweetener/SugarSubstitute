@@ -70,7 +70,10 @@ def test_frozen_setup_installs_in_current_window(
 
             observed_release_sources.append(release_source)
             handoff_calls.append((install_root, handoff_geometry, launch_installed))
-            return SimpleNamespace(layout=layout)
+            return SimpleNamespace(
+                layout=layout,
+                rescued_existing_installation=False,
+            )
 
         def continue_install(
             self,

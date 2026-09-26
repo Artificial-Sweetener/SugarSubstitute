@@ -22,6 +22,9 @@ from pytest import MonkeyPatch
 
 from types import SimpleNamespace
 
+from substitute.presentation.editor.panel.field_value_store import (
+    set_buffer_value_and_dirty,
+)
 
 from tests.presentation.editor.panel.field_state.support import (
     _Signal,
@@ -35,13 +38,12 @@ def test_set_buffer_value_and_dirty_respects_node_state_keys(
 ) -> None:
     """Node-state keys write to node root, not to inputs."""
     _prepare_field_state_module(monkeypatch)
-    module = field_state_controller
     cube_state = SimpleNamespace(
         buffer={"nodes": {"node": {"enabled": True, "inputs": {"steps": 20}}}},
         dirty=False,
     )
 
-    module.set_buffer_value_and_dirty(cube_state, "node", "enabled", False)
+    set_buffer_value_and_dirty(cube_state, "node", "enabled", False)
 
     assert cube_state.buffer["nodes"]["node"]["enabled"] is False
     assert cube_state.buffer["nodes"]["node"]["inputs"]["steps"] == 20
@@ -66,7 +68,7 @@ def test_wire_widget_state_restores_buffer_value_and_writes_on_change(
         dirty=False,
     )
 
-    module.wire_widget_state(
+    module.EditorPanelFieldStateController().wire_widget_state(
         widget,
         cube_state,
         get_val_func=lambda w: w.value,
@@ -98,7 +100,7 @@ def test_wire_widget_state_keeps_dirty_false_for_unchanged_value(
         dirty=False,
     )
 
-    module.wire_widget_state(
+    module.EditorPanelFieldStateController().wire_widget_state(
         widget,
         cube_state,
         get_val_func=lambda w: w.value,
@@ -137,7 +139,7 @@ def test_wire_widget_state_prefers_resolved_display_fallback_for_initial_restore
         dirty=False,
     )
 
-    module.wire_widget_state(
+    module.EditorPanelFieldStateController().wire_widget_state(
         widget,
         cube_state,
         get_val_func=lambda w: w.value,

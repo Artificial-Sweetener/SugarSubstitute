@@ -405,7 +405,7 @@ class EditorPanelScrollSurface(QAbstractScrollArea):
             self._coalesced_refresh_count += 1
             return
         self._refresh_pending = True
-        QTimer.singleShot(0, self._refresh_metrics)
+        QTimer.singleShot(0, self, self._refresh_metrics)
 
     def _refresh_metrics(self) -> None:
         """Recompute content geometry and update scroll range."""

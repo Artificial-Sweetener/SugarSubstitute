@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from substitute.application.node_behavior import (
     NodeBehaviorRuntimeState,
+    ensure_node_behavior_runtime_state,
 )
 from tests.support.node_behavior import (
     DummyNodeDefinitionGateway,
@@ -50,7 +51,14 @@ def test_build_snapshot_reveal_entries_track_revealable_hidden_nodes() -> None:
         ),
     }
 
-    snapshot = build_behavior_snapshot(cube_states=cubes, stack_order=["A", "B", "C"])
+    snapshot = build_behavior_snapshot(
+        cube_states=cubes,
+        stack_order=["A", "B", "C"],
+        definitions_by_class={
+            "VAELoader": {"input": {"required": {}}},
+            "CheckpointLoaderSimple": {"input": {"required": {}}},
+        },
+    )
 
     assert [entry.node_name for entry in snapshot.reveal_entries_by_alias["A"]] == [
         "vae"
@@ -71,10 +79,7 @@ def test_runtime_state_is_created_and_reused_on_cube_state() -> None:
     first = NodeBehaviorRuntimeState()
     cube.ui["node_behavior_runtime"] = first
 
-    from substitute.application.node_behavior import NodeBehaviorService
-
-    service = NodeBehaviorService(node_definition_gateway=DummyNodeDefinitionGateway())
-    second = service.ensure_runtime_state(cube)
+    second = ensure_node_behavior_runtime_state(cube)
 
     assert second is first
 

@@ -533,10 +533,20 @@ def test_standard_node_card_stays_collapsed_after_deferred_relayout() -> None:
         host.show()
         wait_for_queued_qt_turn()
 
-        node_card = wrapper.layout().itemAt(0).widget()
+        wrapper_layout = wrapper.layout()
+        assert wrapper_layout is not None
+        node_card_item = wrapper_layout.itemAt(0)
+        assert node_card_item is not None
+        node_card = node_card_item.widget()
         assert node_card is not None
-        title_row = node_card.layout().itemAt(0).widget()
-        content_body = node_card.layout().itemAt(1).widget()
+        node_card_layout = node_card.layout()
+        assert node_card_layout is not None
+        title_item = node_card_layout.itemAt(0)
+        content_item = node_card_layout.itemAt(1)
+        assert title_item is not None
+        assert content_item is not None
+        title_row = title_item.widget()
+        content_body = content_item.widget()
         assert title_row is not None
         assert content_body is not None
         assert content_body.maximumHeight() > 0

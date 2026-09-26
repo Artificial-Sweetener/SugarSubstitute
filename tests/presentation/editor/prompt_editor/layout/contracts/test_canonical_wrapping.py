@@ -170,6 +170,23 @@ def test_projection_layout_wraps_before_trailing_space_hides_caret() -> None:
     )
 
 
+def test_wrapped_wildcard_line_keeps_its_start_caret_stop_first() -> None:
+    """Order the wrap boundary before each editable wildcard caret stop."""
+
+    layout, _projection = _layout_for(
+        "portrait,  {lighting/day}, heart",
+        text_width=280.0,
+    )
+    lines = layout.frame.output.snapshot.lines
+
+    assert len(lines) == 2
+    assert lines[0].caret_stops[-1].projection_position == 11
+    assert lines[1].caret_stops[0].projection_position == 11
+    assert tuple(stop.projection_position for stop in lines[1].caret_stops) == tuple(
+        range(11, len("portrait,  {lighting/day}, heart") + 1)
+    )
+
+
 def test_projection_layout_paint_state_validation_skips_inline_measurements() -> None:
     """Paint-state validation should not remeasure unchanged inline objects."""
 

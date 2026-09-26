@@ -84,6 +84,7 @@ class PromptProjectionToken:
     wildcard_tag_is_explicit: bool = False
     wildcard_tag_is_numeric: bool = False
     wildcard_can_step_tag: bool = False
+    wildcard_resolution_pending: bool = False
     detail_text: str | None = None
     lora_status: PromptLoraResolutionStatus | None = None
     lora_status_reason: str | None = None

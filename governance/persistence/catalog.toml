@@ -1,0 +1,437 @@
+schema_version = 1
+reviewed_sources_sha256 = "5c622803554b5c13dc99569d289b91accfa3ebb783d24ab0794a0beae79d13d0"
+
+# Preservation and compatibility defaults are owned by classification in the
+# checker. Overrides below document formats with intentional historical readers.
+
+[[formats]]
+id = "application.session"
+owner = "substitute/domain/session/codecs.py"
+constant = "SESSION_SNAPSHOT_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "authoritative_state"
+compatibility = "migrate"
+migrations = ["1->2"]
+
+[[formats]]
+id = "application.workspace-snapshot"
+owner = "substitute/domain/workspace_snapshot/models.py"
+constant = "WORKSPACE_SNAPSHOT_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "authoritative_state"
+compatibility = "migrate"
+migrations = ["1->2"]
+
+[[formats]]
+id = "application.user-presets"
+owner = "substitute/domain/user_presets/codec.py"
+constant = "USER_PRESETS_SCHEMA_VERSION"
+current_version = "1"
+classification = "authored_document"
+
+[[formats]]
+id = "application.appearance-preferences"
+owner = "substitute/domain/appearance/models.py"
+constant = "APPEARANCE_PREFERENCES_SCHEMA_VERSION"
+current_version = "3"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.civitai-preferences"
+owner = "substitute/domain/civitai/preferences.py"
+constant = "CIVITAI_PREFERENCES_SCHEMA_VERSION"
+current_version = "3"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.control-preferences"
+owner = "substitute/domain/controls/preferences.py"
+constant = "CONTROL_BINDING_PREFERENCES_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.danbooru-preferences"
+owner = "substitute/domain/danbooru/preferences.py"
+constant = "DANBOORU_PREFERENCES_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.output-preferences"
+owner = "substitute/domain/generation/output_preferences.py"
+constant = "OUTPUT_PREFERENCES_SCHEMA_VERSION"
+current_version = "4"
+accepted_versions = ["1", "2", "3", "4"]
+classification = "authoritative_state"
+compatibility = "migrate"
+migrations = ["1->2", "2->3", "3->4"]
+
+[[formats]]
+id = "application.preview-preferences"
+owner = "substitute/domain/generation/preview_preferences.py"
+constant = "GENERATION_PREVIEW_PREFERENCES_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.generation-result"
+owner = "substitute/domain/generation/result_snapshot.py"
+constant = "GENERATION_RESULT_SNAPSHOT_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.prompt-editor-preferences"
+owner = "substitute/domain/prompt/preferences/models.py"
+constant = "PROMPT_EDITOR_PREFERENCES_SCHEMA_VERSION"
+current_version = "2"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.prompt-wildcard-preferences"
+owner = "substitute/application/prompt_wildcards/preferences.py"
+constant = "PROMPT_WILDCARD_PREFERENCES_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.canvas-layout"
+owner = "substitute/presentation/canvas/tools/layout_codec.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.portable-model-manifest"
+owner = "substitute/application/workflows/portable_model_manifest.py"
+constant = "PORTABLE_MODEL_MANIFEST_SCHEMA_VERSION"
+current_version = "1"
+classification = "authored_document"
+
+[[formats]]
+id = "application.model-catalog-change"
+owner = "substitute/domain/model_metadata/change_events.py"
+constant = "MODEL_CATALOG_CHANGE_SCHEMA_VERSION"
+current_version = "1"
+classification = "cross_version_protocol"
+
+[[formats]]
+id = "application.model-usage"
+owner = "substitute/infrastructure/model_updates/file_repository.py"
+constant = "_SCHEMA_VERSION"
+current_version = "3"
+accepted_versions = ["1", "2", "3"]
+classification = "authoritative_state"
+
+[[formats]]
+id = "application.setup-transaction"
+owner = "substitute/infrastructure/onboarding/file_setup_transaction_repository.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "recovery_journal"
+
+[[formats]]
+id = "application.setup-command"
+owner = "substitute/application/onboarding/setup_transaction_service.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "cross_version_protocol"
+
+[[formats]]
+id = "application.startup-diagnostics-ignore"
+owner = "substitute/infrastructure/persistence/file_startup_diagnostics_ignore_repository.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "diagnostic"
+
+[[formats]]
+id = "cache.thumbnail-association"
+owner = "substitute/infrastructure/persistence/file_ultralytics_thumbnail_association_repository.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.restore-projection"
+owner = "substitute/application/workspace_state/restore_projection_models.py"
+constant = "RESTORE_PROJECTION_CACHE_SCHEMA_VERSION"
+current_version = "4"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.lifecycle-generation-marker"
+owner = "substitute/infrastructure/cache_lifecycle/generation_store.py"
+constant = "_MARKER_SCHEMA_VERSION"
+current_version = "1"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.lifecycle-manifest"
+owner = "substitute/infrastructure/cache_lifecycle/manifest_store.py"
+constant = "_MANIFEST_SCHEMA_VERSION"
+current_version = "1"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.managed-setup-freshness"
+owner = "substitute/infrastructure/comfy/managed_setup_freshness_cache.py"
+constant = "_SCHEMA_VERSION"
+current_version = "5"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.comfy-localization"
+owner = "substitute/infrastructure/localization/comfy_i18n_cache.py"
+constant = "_CACHE_SCHEMA_VERSION"
+current_version = "2"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.cube-classification"
+owner = "substitute/infrastructure/persistence/sqlite_cube_classification_cache.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.cube-icon"
+owner = "substitute/infrastructure/persistence/sqlite_cube_icon_cache.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.model-catalog-snapshot"
+owner = "substitute/infrastructure/persistence/sqlite_model_catalog_snapshot_store.py"
+constant = "_SCHEMA_VERSION"
+current_version = "2"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.model-metadata"
+owner = "substitute/infrastructure/persistence/sqlite_model_metadata_store.py"
+constant = "_SCHEMA_VERSION"
+current_version = "3"
+classification = "persistent_cache"
+
+[[formats]]
+id = "cache.model-thumbnail-assets"
+owner = "substitute/infrastructure/persistence/sqlite_model_thumbnail_asset_store.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "persistent_cache"
+
+[[formats]]
+id = "release.standalone-environment-pin"
+owner = "substitute/infrastructure/comfy/standalone_environment/pinned_catalog.py"
+constant = "PIN_SCHEMA_VERSION"
+current_version = "1"
+classification = "release_contract"
+
+[[formats]]
+id = "launcher.config"
+owner = "launcher/sugarsubstitute_launcher/config.py"
+constant = "CONFIG_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "launcher.update-state"
+owner = "launcher/sugarsubstitute_launcher/update_state.py"
+constant = "UPDATE_STATE_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "launcher.update-activation-journal"
+owner = "launcher/sugarsubstitute_launcher/update_activation_journal.py"
+constant = "_JOURNAL_SCHEMA_VERSION"
+current_version = "6"
+accepted_versions = ["1", "2", "3", "4", "5", "6"]
+classification = "recovery_journal"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "launcher.repair-request"
+owner = "launcher/sugarsubstitute_launcher/application/repair/request.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "recovery_journal"
+
+[[formats]]
+id = "launcher.release-selection"
+owner = "launcher/sugarsubstitute_launcher/application_release_selection.py"
+constant = "_SELECTION_SCHEMA_VERSION"
+current_version = "1"
+classification = "recovery_journal"
+
+[[formats]]
+id = "launcher.release-generation"
+owner = "launcher/sugarsubstitute_launcher/application_release_selection.py"
+constant = "_RELEASE_SCHEMA_VERSION"
+current_version = "1"
+classification = "release_contract"
+
+[[formats]]
+id = "launcher.data-migration-ledger"
+owner = "launcher/sugarsubstitute_launcher/data_migrations.py"
+constant = "_LEDGER_SCHEMA_VERSION"
+current_version = "1"
+classification = "recovery_journal"
+
+[[formats]]
+id = "launcher.instance-recovery"
+owner = "launcher/sugarsubstitute_launcher/instance_recovery_contract.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "cross_version_protocol"
+
+[[formats]]
+id = "launcher.release-manifest"
+owner = "launcher/sugarsubstitute_launcher/manifest.py"
+constant = "MANIFEST_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "release_contract"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "launcher.trusted-metadata-envelope"
+owner = "launcher/sugarsubstitute_launcher/trusted_metadata.py"
+constant = "_ENVELOPE_SCHEMA_VERSION"
+current_version = "1"
+classification = "release_contract"
+preservation = "must_preserve"
+
+[[formats]]
+id = "launcher.trusted-metadata-state"
+owner = "launcher/sugarsubstitute_launcher/trusted_metadata.py"
+constant = "_STATE_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "launcher.update-quarantine"
+owner = "launcher/sugarsubstitute_launcher/update_quarantine.py"
+constant = "_SCHEMA_VERSION"
+current_version = "1"
+classification = "diagnostic"
+
+[[formats]]
+id = "shared.readiness-protocol"
+owner = "sugarsubstitute_shared/application_readiness.py"
+constant = "READINESS_SCHEMA_VERSION"
+current_version = "5"
+accepted_versions = ["1", "2", "3", "4", "5"]
+classification = "cross_version_protocol"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "shared.crash-incident"
+owner = "sugarsubstitute_shared/crash_reporting/model.py"
+constant = "CRASH_INCIDENT_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "diagnostic"
+
+[[formats]]
+id = "shared.crash-protocol"
+owner = "sugarsubstitute_shared/crash_reporting/protocol.py"
+constant = "CRASH_PROTOCOL_SCHEMA_VERSION"
+current_version = "1"
+classification = "cross_version_protocol"
+
+[[formats]]
+id = "shared.crash-run-context"
+owner = "sugarsubstitute_shared/crash_reporting/run_context.py"
+constant = "_RUNTIME_CONTEXT_SCHEMA_VERSION"
+current_version = "1"
+classification = "cross_version_protocol"
+
+[[formats]]
+id = "shared.installer-qualification"
+owner = "sugarsubstitute_shared/installer_qualification.py"
+constant = "_SCHEMA_VERSION"
+current_version = "3"
+accepted_versions = ["1", "2", "3"]
+classification = "cross_version_protocol"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "shared.installer-shutdown-request"
+owner = "sugarsubstitute_shared/installer_qualification.py"
+constant = "_SHUTDOWN_REQUEST_SCHEMA_VERSION"
+current_version = "1"
+classification = "cross_version_protocol"
+
+[[formats]]
+id = "shared.splash-protocol"
+owner = "sugarsubstitute_shared/launch_splash/session.py"
+constant = "CURRENT_SPLASH_PROTOCOL_VERSION"
+current_version = "3"
+accepted_versions = ["1", "2", "3"]
+classification = "cross_version_protocol"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "shared.launcher-update-attempt"
+owner = "sugarsubstitute_shared/launcher_update/attempt_status.py"
+constant = "_ATTEMPT_STATUS_SCHEMA_VERSION"
+current_version = "1"
+classification = "diagnostic"
+
+[[formats]]
+id = "shared.launcher-installation"
+owner = "sugarsubstitute_shared/launcher_update/models.py"
+constant = "LAUNCHER_INSTALLATION_SCHEMA_VERSION"
+current_version = "1"
+classification = "release_contract"
+
+[[formats]]
+id = "shared.launcher-update-request"
+owner = "sugarsubstitute_shared/launcher_update/request.py"
+constant = "LAUNCHER_UPDATE_REQUEST_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "cross_version_protocol"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "shared.localization-preference"
+owner = "sugarsubstitute_shared/localization/file_store.py"
+constant = "LOCALIZATION_PREFERENCE_SCHEMA_VERSION"
+current_version = "1"
+classification = "authoritative_state"
+
+[[formats]]
+id = "shared.localization-manifest"
+owner = "sugarsubstitute_shared/localization/manifest.py"
+constant = "_MANIFEST_SCHEMA_VERSION"
+current_version = "1"
+classification = "release_contract"
+
+[[formats]]
+id = "shared.repair-journal"
+owner = "sugarsubstitute_shared/repair_recovery/journal.py"
+constant = "REPAIR_JOURNAL_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "recovery_journal"
+compatibility = "compatible_reader"
+
+[[formats]]
+id = "shared.update-rollback-report"
+owner = "sugarsubstitute_shared/update_rollback_report.py"
+constant = "_REPORT_SCHEMA_VERSION"
+current_version = "1"
+classification = "diagnostic"
+
+[[formats]]
+id = "shared.session-recovery-result"
+owner = "sugarsubstitute_shared/session_recovery.py"
+constant = "SESSION_RECOVERY_RESULT_SCHEMA_VERSION"
+current_version = "1"
+classification = "recovery_journal"

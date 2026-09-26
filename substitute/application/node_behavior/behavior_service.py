@@ -47,6 +47,7 @@ from substitute.domain.node_behavior import (
     EditorBehaviorContext,
     FieldPresentation,
     compute_editor_behavior,
+    compute_reveal_entries,
     merge_node_behavior_patches,
     resolve_node_behavior,
 )
@@ -75,10 +76,20 @@ from .list_value_resolver import (
     resolve_live_list_value,
     unresolved_choice_options_reason,
 )
+from .degraded_node_snapshot import DegradedNodeSnapshot
 from .model_backed_node_detector import ModelBackedNodeDetector
-from .models import EditorBehaviorSnapshot, FieldValueSource, ResolvedFieldSpec
+from .models import (
+    EditorBehaviorSnapshot,
+    FieldValueSource,
+    ResolvedFieldSpec,
+)
 from .prompt_behavior_inference_service import PromptBehaviorInferenceService
-from .runtime_state import CubeStateProtocol, NodeBehaviorRuntimeState
+from .runtime_state import (
+    CubeStateProtocol,
+    NodeBehaviorRuntimeState,
+    ensure_node_behavior_runtime_state,
+    is_loaded_cube_state,
+)
 from .section_node_source import (
     SectionNodeSourceFactory,
     is_subgraph_wrapper_definition,
@@ -113,21 +124,6 @@ class NodeBehaviorService:
         )
         self._section_card_order_service = SectionCardOrderService()
 
-    @staticmethod
-    def ensure_runtime_state(cube_state: CubeStateProtocol) -> NodeBehaviorRuntimeState:
-        """Return the runtime behavior state object stored on one cube state."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if not isinstance(ui_payload, dict):
-            ui_payload = {}
-            cube_state.ui = ui_payload
-        runtime_state = ui_payload.get("node_behavior_runtime")
-        if isinstance(runtime_state, NodeBehaviorRuntimeState):
-            return runtime_state
-        runtime_state = NodeBehaviorRuntimeState()
-        ui_payload["node_behavior_runtime"] = runtime_state
-        return runtime_state
-
     def prepare_runtime_state(
         self,
         loaded_cube: LoadedCubeDefinition,
@@ -159,6 +155,7 @@ class NodeBehaviorService:
         prompt_detection_results_by_alias: dict[str, PromptDetectionResult] = {}
         prompt_contexts_by_alias: dict[str, tuple[PromptGraphContext, ...]] = {}
         baseline_order_by_alias: dict[str, tuple[str, ...]] = {}
+        degraded_snapshot = DegradedNodeSnapshot()
         node_count = 0
         field_count = 0
         node_definition_lookup_count = 0
@@ -167,9 +164,9 @@ class NodeBehaviorService:
             cube_state = cube_states.get(alias)
             if cube_state is None:
                 continue
-            is_loaded_cube = self._is_loaded_cube_state(cube_state)
+            is_loaded_cube = is_loaded_cube_state(cube_state)
             declarative_patch = None
-            runtime_state = self.ensure_runtime_state(cube_state)
+            runtime_state = ensure_node_behavior_runtime_state(cube_state)
             declarative_by_alias[alias] = declarative_patch
             buffer = getattr(cube_state, "buffer", {}) if cube_state is not None else {}
             per_node: dict[str, ResolvedNodeBehavior] = {}
@@ -209,6 +206,7 @@ class NodeBehaviorService:
                 class_type = source.class_type
                 live_definition = source.node_definition
                 input_keys = source.input_keys
+                source_degraded = degraded_snapshot.record(alias=alias, source=source)
                 instance_key = f"{alias}:{node_name}"
                 context = self._build_node_context(
                     alias=alias,
@@ -272,16 +270,20 @@ class NodeBehaviorService:
                     resolved_behavior=resolved,
                 )
                 per_node[node_name] = resolved
-                node_field_specs = self._build_field_specs(
-                    cube_state=cube_state,
-                    alias=alias,
-                    node_name=node_name,
-                    class_type=class_type,
-                    input_keys=input_keys,
-                    node_data=node_data,
-                    live_definition=live_definition,
-                    resolved_behavior=resolved,
-                    is_loaded_cube=is_loaded_cube,
+                node_field_specs = (
+                    {}
+                    if source_degraded
+                    else self._build_field_specs(
+                        cube_state=cube_state,
+                        alias=alias,
+                        node_name=node_name,
+                        class_type=class_type,
+                        input_keys=input_keys,
+                        node_data=node_data,
+                        live_definition=live_definition,
+                        resolved_behavior=resolved,
+                        is_loaded_cube=is_loaded_cube,
+                    )
                 )
                 field_count += len(node_field_specs)
                 per_node_specs[node_name] = node_field_specs
@@ -318,6 +320,8 @@ class NodeBehaviorService:
             ctx,
             declarative_by_alias=declarative_by_alias,
         )
+        card_decisions = degraded_snapshot.ensure_card_visibility(card_decisions)
+        reveal_entries = compute_reveal_entries(ctx, card_decisions)
         card_order_by_alias = self._section_card_order_service.plan(
             section_states=cube_states,
             section_order=stack_order,
@@ -337,6 +341,7 @@ class NodeBehaviorService:
             prompt_detection_results_by_alias=prompt_detection_results_by_alias,
             prompt_contexts_by_alias=prompt_contexts_by_alias,
             card_order_by_alias=card_order_by_alias,
+            degraded_nodes_by_alias=degraded_snapshot.nodes_by_alias,
         )
         log_timing(
             _LOGGER,
@@ -916,19 +921,6 @@ class NodeBehaviorService:
         inputs[field_key] = canonical_value
         if isinstance(previous_dirty, bool):
             cube_state.dirty = previous_dirty
-
-    @staticmethod
-    def _is_loaded_cube_state(cube_state: CubeStateProtocol) -> bool:
-        """Return whether a cube state came from a loaded cube document."""
-
-        ui_payload = getattr(cube_state, "ui", None)
-        if isinstance(ui_payload, Mapping) and isinstance(
-            ui_payload.get("canonical_cube"),
-            Mapping,
-        ):
-            return True
-        original_cube = getattr(cube_state, "original_cube", None)
-        return isinstance(original_cube, Mapping)
 
 
 __all__ = [

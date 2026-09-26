@@ -26,6 +26,7 @@ from typing import Protocol
 
 from PySide6.QtCore import QCoreApplication, QEvent, QObject, QTimer, Qt, Signal
 from PySide6.QtWidgets import QApplication, QWidget
+from shiboken6 import isValid
 
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInvocation,
@@ -168,7 +169,11 @@ class ApplicationInstanceControlClient(QObject):
             self._closing_windows.add(id(watched))
             self._complete_window_presentations(watched, outcome="unavailable")
             self._forget_window(watched)
-            QTimer.singleShot(0, lambda: self._restore_rejected_close(watched))
+            QTimer.singleShot(
+                0,
+                watched,
+                lambda: self._restore_rejected_close(watched),
+            )
         elif event.type() == QEvent.Type.Destroy and isinstance(watched, QWidget):
             self._complete_window_presentations(watched, outcome="unavailable")
             self._forget_window(watched)
@@ -225,6 +230,7 @@ class ApplicationInstanceControlClient(QObject):
         window.update()
         QTimer.singleShot(
             2000,
+            window,
             lambda: self._complete_window_presentations(
                 window,
                 outcome="unavailable",
@@ -247,6 +253,10 @@ class ApplicationInstanceControlClient(QObject):
     def _restore_rejected_close(self, window: QWidget) -> None:
         """Restore a surface only when its close handler kept it visible."""
 
+        if not isValid(window):
+            self._closing_windows.discard(id(window))
+            self._forget_window(window)
+            return
         if not window.isVisible():
             return
         self._closing_windows.discard(id(window))

@@ -24,10 +24,12 @@ from substitute.domain.session.codecs import (
     session_snapshot_to_json,
 )
 from substitute.domain.session.models import SessionSnapshot
+from substitute.domain.session.migrations import migrate_session_snapshot_payload
 
 __all__ = [
     "SESSION_SNAPSHOT_SCHEMA_VERSION",
     "SessionSnapshot",
     "session_snapshot_from_json",
     "session_snapshot_to_json",
+    "migrate_session_snapshot_payload",
 ]

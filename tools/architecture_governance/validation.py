@@ -83,6 +83,11 @@ def validate_repository(
     )
 
     diagnostics.extend(validate_menu_button_policy(root, policy))
+    from tools.architecture_governance.qt_lifetime_policy import (
+        validate_qt_lifetime_policy,
+    )
+
+    diagnostics.extend(validate_qt_lifetime_policy(root, policy))
     if (root / "substitute/app/bootstrap/persistent_cache_catalog.py").is_file():
         from tools.cache_governance.validation import validate_cache_governance
 
@@ -95,6 +100,12 @@ def validate_repository(
         )
 
         diagnostics.extend(validate_input_asset_governance(root))
+    if (root / "governance/persistence/catalog.toml").is_file():
+        from tools.persistence_governance.validation import (
+            validate_persistence_governance,
+        )
+
+        diagnostics.extend(validate_persistence_governance(root))
     return sorted(
         diagnostics,
         key=lambda item: (item.path, item.rule, item.severity, item.message),

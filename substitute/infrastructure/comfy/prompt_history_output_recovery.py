@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Recover final image artifacts from Comfy's authoritative prompt history."""
+"""Recover final media artifacts from Comfy's authoritative prompt history."""
 
 from __future__ import annotations
 
@@ -28,10 +28,16 @@ from substitute.domain.onboarding import ComfyEndpoint
 from substitute.infrastructure.comfy.comfy_image_artifact_parser import (
     parse_comfy_image_artifacts,
 )
+from substitute.infrastructure.comfy.comfy_video_artifact_parser import (
+    parse_comfy_video_artifacts,
+)
 from substitute.infrastructure.comfy.final_image_event import (
     FinalImageEvent,
     FinalImageScene,
     FinalImageSource,
+)
+from substitute.infrastructure.comfy.final_output_event_sink import (
+    FinalOutputEventSink,
 )
 from substitute.infrastructure.comfy.output_source_identity_resolver import (
     OutputSourceIdentity,
@@ -46,13 +52,6 @@ class PromptHistoryReader(Protocol):
 
     def read(self, prompt_id: str) -> Mapping[str, object]:
         """Return the history response for ``prompt_id``."""
-
-
-class FinalImageEventSink(Protocol):
-    """Consume transport-neutral final image events."""
-
-    def handle(self, event: FinalImageEvent) -> None:
-        """Handle one final image event."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,10 +96,11 @@ class PromptHistoryOutputRecovery:
     context: PromptHistoryRecoveryContext
     output_node_ids: frozenset[str]
     source_resolver: Callable[[str], OutputSourceIdentity]
-    final_image_handler: FinalImageEventSink
+    final_image_handler: FinalOutputEventSink
+    final_video_handler: FinalOutputEventSink
 
     def recover(self) -> None:
-        """Replay history artifacts through the ordinary final-image owner."""
+        """Replay history artifacts through the ordinary typed media owners."""
 
         payload = self.history_reader.read(self.context.prompt_id)
         entry = payload.get(self.context.prompt_id)
@@ -113,39 +113,46 @@ class PromptHistoryOutputRecovery:
             output = outputs.get(node_id)
             if output is None:
                 continue
-            artifacts = parse_comfy_image_artifacts(output)
-            if artifacts is None:
+            image_artifacts = parse_comfy_image_artifacts(output)
+            video_artifacts = parse_comfy_video_artifacts(output)
+            if image_artifacts is None or video_artifacts is None:
                 log_warning(
                     _LOGGER,
-                    "Ignored malformed image artifacts in Comfy prompt history",
+                    "Ignored malformed media artifacts in Comfy prompt history",
                     workflow_id=self.context.workflow_id,
                     generation_run_id=self.context.generation_run_id,
                     prompt_id=self.context.prompt_id,
                     node_id=node_id,
                 )
                 continue
-            if not artifacts:
+            if not image_artifacts and not video_artifacts:
                 continue
             source = self.source_resolver(node_id)
-            self.final_image_handler.handle(
-                FinalImageEvent(
-                    workflow_id=self.context.workflow_id,
-                    generation_run_id=self.context.generation_run_id,
-                    prompt_id=self.context.prompt_id,
-                    client_id=self.context.client_id,
-                    workflow_payload=self.context.workflow_payload,
-                    source=FinalImageSource(
-                        node_id=source.node_id,
-                        source_key=source.source_key,
-                        source_label=source.source_label,
-                        cube_alias=source.cube_alias,
-                    ),
-                    artifacts=artifacts,
-                    list_index=0,
-                    output_session_id=self.context.output_session_id,
-                    scene=self.context.scene,
+            for artifacts, handler in (
+                (image_artifacts, self.final_image_handler),
+                (video_artifacts, self.final_video_handler),
+            ):
+                if not artifacts:
+                    continue
+                handler.handle(
+                    FinalImageEvent(
+                        workflow_id=self.context.workflow_id,
+                        generation_run_id=self.context.generation_run_id,
+                        prompt_id=self.context.prompt_id,
+                        client_id=self.context.client_id,
+                        workflow_payload=self.context.workflow_payload,
+                        source=FinalImageSource(
+                            node_id=source.node_id,
+                            source_key=source.source_key,
+                            source_label=source.source_label,
+                            cube_alias=source.cube_alias,
+                        ),
+                        artifacts=artifacts,
+                        list_index=0,
+                        output_session_id=self.context.output_session_id,
+                        scene=self.context.scene,
+                    )
                 )
-            )
 
 
 __all__ = [

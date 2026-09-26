@@ -46,6 +46,9 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
     CORE_COMFY_NODEPACKS,
     CoreComfyNodepack,
 )
+from substitute.infrastructure.comfy.nodepack_operation_timing import (
+    measure_nodepack_operation,
+)
 from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     install_nodepack_python_dependencies,
     nodepack_python_dependencies_satisfied,
@@ -57,11 +60,8 @@ from substitute.infrastructure.comfy.nodepack_registry_installer import (
 from substitute.infrastructure.comfy.nodepack_registry_source_migrator import (
     NodepackRegistrySourceMigrator,
 )
-from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
-    ComfyNodepackRegistryUpdateSettler,
-)
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
-    PinnedNodepackSourceInstaller,
+    TrustedNodepackArchiveInstaller,
 )
 from substitute.infrastructure.comfy.manager_runtime_probe import (
     detect_workspace_manager_runtime,
@@ -83,22 +83,18 @@ class CoreNodepackReconciler:
         *,
         repositories: RepositoryService,
         registry_installer: ComfyNodepackRegistryInstaller | None = None,
-        registry_update_settler: ComfyNodepackRegistryUpdateSettler | None = None,
         source_migrator: NodepackRegistrySourceMigrator | None = None,
-        fallback_installer: PinnedNodepackSourceInstaller | None = None,
+        fallback_installer: TrustedNodepackArchiveInstaller | None = None,
         legacy_cleaner: LegacyNodepackDistributionCleaner | None = None,
     ) -> None:
         """Compose the focused owners used by nodepack reconciliation."""
 
         self._inspector = NodepackInstallationInspector(repositories)
         self._registry = registry_installer or ComfyNodepackRegistryInstaller()
-        self._registry_update_settler = (
-            registry_update_settler or ComfyNodepackRegistryUpdateSettler()
-        )
         self._source_migrator = source_migrator or NodepackRegistrySourceMigrator(
             repositories
         )
-        self._fallback = fallback_installer or PinnedNodepackSourceInstaller()
+        self._fallback = fallback_installer or TrustedNodepackArchiveInstaller()
         self._legacy_cleaner = legacy_cleaner or LegacyNodepackDistributionCleaner()
 
     def ensure(
@@ -115,15 +111,20 @@ class CoreNodepackReconciler:
         python_executable = manager_runtime.python_executable
         refresh_targets = frozenset(refresh_nodepacks)
         for nodepack in CORE_COMFY_NODEPACKS:
-            self._ensure_one(
-                manager_runtime=manager_runtime,
-                workspace=workspace,
-                python_executable=python_executable,
-                nodepack=nodepack,
-                refresh_requested=nodepack.nodepack_id in refresh_targets,
+            with measure_nodepack_operation(
+                operation="reconcile_total",
+                nodepack_id=nodepack.nodepack_id.value,
                 on_log=on_log,
-                env=env,
-            )
+            ):
+                self._ensure_one(
+                    manager_runtime=manager_runtime,
+                    workspace=workspace,
+                    python_executable=python_executable,
+                    nodepack=nodepack,
+                    refresh_requested=nodepack.nodepack_id in refresh_targets,
+                    on_log=on_log,
+                    env=env,
+                )
 
     def _ensure_one(
         self,
@@ -243,20 +244,6 @@ class CoreNodepackReconciler:
                 ),
             )
             changed = True
-        if action is CoreNodepackAction.SETTLE_REGISTRY_UPDATE:
-            self._registry_update_settler.settle(
-                manager_runtime=manager_runtime,
-                nodepack=nodepack,
-                on_log=on_log,
-                env=env,
-            )
-            snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
-            action = (
-                CoreNodepackAction.READY
-                if snapshot.management is NodepackManagementKind.REGISTRY
-                and snapshot.matches(nodepack)
-                else CoreNodepackAction.FAIL
-            )
         if action is CoreNodepackAction.INSTALL_FALLBACK:
             self._fallback.install_fallback(
                 target_path=snapshot.root,

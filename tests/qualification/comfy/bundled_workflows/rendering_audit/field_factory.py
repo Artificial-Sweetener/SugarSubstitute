@@ -25,13 +25,13 @@ from types import TracebackType
 from typing import cast
 
 from substitute.application.node_behavior import ResolvedFieldSpec
-from substitute.presentation.editor.panel import node_card_builder
 from substitute.presentation.editor.panel.factories.field_build_resolver import (
     classify_editor_field_result,
 )
 from substitute.presentation.editor.panel.factories.field_pipeline import (
     LAYOUT_HANDLED,
 )
+from substitute.presentation.editor.panel.node_card import field_factory_adapter
 from tests.qualification.comfy.bundled_workflows.rendering_audit.models import (
     FieldFactoryObservation,
 )
@@ -53,7 +53,7 @@ class ProductionFieldFactoryObserver:
             raise RuntimeError("Production field observer is already installed.")
         original = cast(
             Callable[..., object],
-            getattr(node_card_builder, "build_widget_for_field_spec"),
+            getattr(field_factory_adapter, "build_widget_for_field_spec"),
         )
         self._original = original
 
@@ -103,7 +103,7 @@ class ProductionFieldFactoryObserver:
             return result
 
         setattr(
-            node_card_builder,
+            field_factory_adapter,
             "build_widget_for_field_spec",
             observed_build_widget_for_field_spec,
         )
@@ -121,7 +121,7 @@ class ProductionFieldFactoryObserver:
         original = self._original
         self._original = None
         if original is not None:
-            setattr(node_card_builder, "build_widget_for_field_spec", original)
+            setattr(field_factory_adapter, "build_widget_for_field_spec", original)
 
     def reset(self) -> None:
         """Discard observations from the previously completed workflow."""

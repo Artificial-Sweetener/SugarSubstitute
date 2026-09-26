@@ -23,7 +23,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from substitute.presentation.shell import main_window_composition
+from substitute.presentation.shell import (
+    main_window_composition,
+    main_window_error_composition,
+)
 from substitute.presentation.shell.main_window_dependencies import (
     MainWindowDependencies,
 )
@@ -236,7 +239,6 @@ def _install_composition_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
         "WorkflowProgressService": _FakeService,
         "OutputSceneRunService": _FakeService,
         "OutputPreviewRegistry": _FakeService,
-        "ErrorPresenter": _FakeErrorPresenter,
         "WorkspaceController": _FakeWorkspaceController,
         "GenerationFeedbackCoalescer": _FakeGenerationFeedbackCoalescer,
         "GenerationFeedbackDispatcher": _FakeGenerationFeedbackDispatcher,
@@ -247,6 +249,11 @@ def _install_composition_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
     }
     for collaborator_name, replacement in replacements.items():
         monkeypatch.setattr(main_window_composition, collaborator_name, replacement)
+    monkeypatch.setattr(
+        main_window_error_composition,
+        "ErrorPresenter",
+        _FakeErrorPresenter,
+    )
 
 
 @pytest.fixture

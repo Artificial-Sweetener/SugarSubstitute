@@ -23,12 +23,13 @@ from pathlib import Path
 from typing import Protocol
 
 from substitute.application.cubes import cube_alias_body
-from substitute.application.ports import OutputImageUpdate
+from substitute.application.ports import OutputImageUpdate, OutputVideoUpdate
 from substitute.application.workflows.output_visual_events import (
     LiveFinalOutputEvent,
     OutputSceneIdentity,
 )
 from substitute.domain.generation import OutputResultPosition
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.shell.output_image_commit_pipeline import (
     OutputImageCommitRequest,
 )
@@ -166,6 +167,54 @@ class OutputImageCommitRequestBuilder:
             allow_source_fallback=True,
         )
 
+    def build_video_update(
+        self,
+        output_update: OutputVideoUpdate,
+    ) -> OutputImageCommitRequest | None:
+        """Validate and build one video-poster commit request."""
+
+        if not _video_update_has_live_identity(output_update):
+            log_warning(
+                _LOGGER,
+                "Rejected live video output before commit request construction",
+                workflow_id=output_update.workflow_id,
+                generation_run_id=output_update.generation_run_id,
+                prompt_id=output_update.prompt_id,
+                client_id=output_update.client_id,
+                node_id=output_update.node_id,
+                source_key=output_update.source_key,
+            )
+            return None
+        return self._build(
+            workflow_id=output_update.workflow_id,
+            workflow_payload=output_update.workflow_payload,
+            image_bytes=output_update.poster_bytes,
+            file_path=output_update.file_path,
+            node_id=output_update.node_id,
+            source_key=output_update.source_key,
+            source_label=output_update.source_label,
+            generation_run_id=output_update.generation_run_id,
+            prompt_id=output_update.prompt_id,
+            client_id=output_update.client_id,
+            position=_position_from_update(output_update),
+            artifact_width=output_update.artifact_width,
+            artifact_height=output_update.artifact_height,
+            output_session_id=output_update.output_session_id,
+            scene_fields=(
+                output_update.scene_run_id,
+                output_update.scene_key,
+                output_update.scene_title,
+                output_update.scene_order,
+                output_update.scene_count,
+            ),
+            live_event=None,
+            allow_source_fallback=False,
+            media_kind=OutputMediaKind.VIDEO,
+            duration_seconds=output_update.duration_seconds,
+            mime_type=output_update.mime_type,
+            temporary=output_update.temporary,
+        )
+
     def _build(
         self,
         *,
@@ -186,6 +235,10 @@ class OutputImageCommitRequestBuilder:
         scene_fields: tuple[str | None, str | None, str | None, int | None, int | None],
         live_event: LiveFinalOutputEvent | None,
         allow_source_fallback: bool,
+        media_kind: OutputMediaKind = OutputMediaKind.IMAGE,
+        duration_seconds: float | None = None,
+        mime_type: str | None = None,
+        temporary: bool = False,
     ) -> OutputImageCommitRequest:
         """Resolve presentation metadata and return one narrow request."""
 
@@ -237,6 +290,10 @@ class OutputImageCommitRequestBuilder:
                 source_key=source_key,
                 cube_alias=source_label,
             ),
+            media_kind=media_kind,
+            duration_seconds=duration_seconds,
+            mime_type=mime_type,
+            temporary=temporary,
         )
 
     def _cube_execution_duration_ms(
@@ -305,7 +362,7 @@ def _live_final_rejection_reason(output_update: OutputImageUpdate) -> str:
 
 
 def _position_from_update(
-    output_update: OutputImageUpdate,
+    output_update: OutputImageUpdate | OutputVideoUpdate,
 ) -> OutputResultPosition | None:
     """Return a typed result position when both transport coordinates exist."""
 
@@ -319,6 +376,27 @@ def _position_from_update(
     return OutputResultPosition(
         list_index=output_update.list_index,
         batch_index=output_update.batch_index,
+    )
+
+
+def _video_update_has_live_identity(output_update: OutputVideoUpdate) -> bool:
+    """Return whether a video update can enter the strict live-output lane."""
+
+    return bool(
+        output_update.generation_run_id
+        and output_update.prompt_id
+        and output_update.client_id
+        and output_update.source_key
+        and output_update.source_label
+        and output_update.node_id
+        and type(output_update.list_index) is int
+        and output_update.list_index >= 0
+        and type(output_update.batch_index) is int
+        and output_update.batch_index >= 0
+        and type(output_update.artifact_width) is int
+        and output_update.artifact_width > 0
+        and type(output_update.artifact_height) is int
+        and output_update.artifact_height > 0
     )
 
 

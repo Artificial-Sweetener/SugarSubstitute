@@ -28,7 +28,7 @@ from substitute.presentation.editor.panel.cube_section_staleness_controller impo
 from substitute.presentation.editor.panel.projection_build_registry import (
     CubeSectionBuildRegistry,
 )
-from substitute.presentation.editor.panel.projection_session import (
+from substitute.presentation.editor.panel.projection_completion_registry import (
     ProjectionCompletionRegistry,
 )
 

@@ -28,8 +28,8 @@ import pytest
 
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import manager_runtime_probe
-from substitute.infrastructure.comfy.comfy_manager_runtime import (
-    selected_comfy_environment,
+from substitute.infrastructure.comfy.manager_environment import (
+    manager_runtime_environment,
 )
 from substitute.infrastructure.comfy.manager_contract import ComfyManagerContract
 from sugarsubstitute_shared.windows_long_paths import (
@@ -63,9 +63,10 @@ def test_comfy_cli_environment_never_requires_system_git(
         uses_pygit2=entry.supports_pygit2,
     )
 
-    environment = selected_comfy_environment(
-        runtime=runtime,
-        env={"PATH": "", "GIT_PYTHON_REFRESH": "error"},
+    environment = manager_runtime_environment(
+        runtime.workspace,
+        {"PATH": "", "GIT_PYTHON_REFRESH": "error"},
+        use_pygit2=runtime.uses_pygit2,
     )
 
     assert environment["PATH"] == ""

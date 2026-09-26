@@ -54,7 +54,7 @@ def test_active_window_focus_churn_preserves_region_name_draft(
     monkeypatch.setattr(
         module,
         "QTimer",
-        SimpleNamespace(singleShot=lambda _delay, callback: callback()),
+        SimpleNamespace(singleShot=lambda _delay, _owner, callback: callback()),
     )
     viewport = QWidget()
     committed_names: list[str] = []

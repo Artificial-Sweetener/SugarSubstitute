@@ -21,19 +21,33 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from .clean_projection_refresh import EditorCleanProjectionRefreshController
+from PySide6.QtCore import QObject
+
+from .clean_projection_refresh import (
+    CleanProjectionRefreshPanelProtocol,
+    EditorCleanProjectionRefreshController,
+)
 from .cube_section_build_controller import CubeSectionBuildController
-from .cube_section_staleness_controller import CubeSectionStalenessController
-from .full_projection_load_pipeline import (
-    EditorFullProjectionLoadPipeline,
+from .cube_section_build_ports import CubeSectionBuildPanelProtocol
+from .cube_section_staleness_controller import (
+    CubeSectionStalenessController,
+    CubeSectionStalenessPanelProtocol,
+)
+from .full_projection_load_pipeline import EditorFullProjectionLoadPipeline
+from .full_projection_load_ports import (
     EditorFullProjectionLoadPorts,
+    FullProjectionLoadPanelPort,
 )
 from .hidden_build_scheduler import HiddenBuildScheduler, HiddenBuildSchedulerPorts
-from .incremental_insert_pipeline import (
-    EditorIncrementalInsertPipeline,
+from .incremental_insert_pipeline import EditorIncrementalInsertPipeline
+from .incremental_insert_ports import (
     EditorIncrementalInsertPorts,
+    IncrementalInsertPanelPort,
 )
-from .projected_widget_builder import ProjectedWidgetBuilder
+from .projected_widget_builder import (
+    ProjectedWidgetBuilder,
+    ProjectedWidgetPanelProtocol,
+)
 from .projection_active_session_controller import (
     EditorActiveProjectionSessionController,
 )
@@ -42,30 +56,42 @@ from .projection_busy_adapter import EditorProjectionBusyAdapter
 from .projection_lifecycle import (
     EditorProjectionLifecyclePipeline,
     EditorProjectionLifecyclePorts,
-    EditorProjectionRuntimeIssueIntegration,
     ProjectionBuildRegistryPort,
     ProjectionLifecyclePanelPort,
 )
-from .projection_ports import EditorRefreshPanelProtocol
+from .projection_runtime_issue_integration import (
+    EditorProjectionRuntimeIssueIntegration,
+    RuntimeIssueIntegrationPanelPort,
+)
+from .projection_reveal_motion import AnimatedProjectionReveal
 from .projection_preparation import (
     EditorProjectionPreparationController,
+    ProjectionPreparationPanelPort,
     ProjectionPromptContextPort,
     begin_behavior_refresh_transaction,
     end_behavior_refresh_transaction,
 )
-from .projection_session import (
-    ActiveProjectionSessionRegistry,
+from .projection_completion_registry import (
     ProjectionCompletionRegistry,
+    ProjectionSessionCompletionController,
+)
+from .projection_session_registry import ActiveProjectionSessionRegistry
+from .projection_surface_state import (
     ProjectionSurfaceStateController,
+    ProjectionSurfaceStateHost,
 )
 from .projection_workflow_context import EditorProjectionWorkflowContext
 from .rendering.render_reconciler import EditorPanelRenderReconciler
-from .runtime_issue_projection_adapter import RuntimeIssueProjectionAdapter
+from .runtime_issue_projection_adapter import (
+    RuntimeIssueProjectionAdapter,
+    RuntimeIssueProjectionPanelPort,
+)
 from .visible_projection_commit import (
     EditorVisibleProjectionCommitPipeline,
     EditorVisibleProjectionCommitPorts,
     editor_panel_is_visible,
 )
+from .surface_motion import EditorSurfaceMotionController
 
 
 class EditorProjectionCoordinatorPort(Protocol):
@@ -81,6 +107,7 @@ class EditorProjectionComposition:
 
     build_registry: CubeSectionBuildRegistry
     projection_completions: ProjectionCompletionRegistry
+    session_completions: ProjectionSessionCompletionController
     projection_sessions: ActiveProjectionSessionRegistry
     active_sessions: EditorActiveProjectionSessionController
     projection_state: ProjectionSurfaceStateController
@@ -102,36 +129,52 @@ class EditorProjectionComposition:
 
 
 def compose_editor_projection(
-    panel: EditorRefreshPanelProtocol,
+    panel: object,
     coordinator: EditorProjectionCoordinatorPort,
 ) -> EditorProjectionComposition:
     """Build projection collaborators and wire their narrow ports."""
 
     build_registry = CubeSectionBuildRegistry()
     projection_completions = ProjectionCompletionRegistry()
+    session_completions = ProjectionSessionCompletionController(projection_completions)
     projection_sessions = ActiveProjectionSessionRegistry()
-    projection_state = ProjectionSurfaceStateController(panel)
-    runtime_issues = EditorProjectionRuntimeIssueIntegration(panel)
+    projection_state = ProjectionSurfaceStateController(
+        cast(ProjectionSurfaceStateHost, panel)
+    )
+    runtime_issues = EditorProjectionRuntimeIssueIntegration(
+        cast(RuntimeIssueIntegrationPanelPort, panel)
+    )
+    surface_motion = getattr(panel, "_surface_motion", None)
+    if surface_motion is None:
+        surface_motion = EditorSurfaceMotionController(panel)
+        setattr(panel, "_surface_motion", surface_motion)
     render_reconciler = EditorPanelRenderReconciler(panel)
+    animated_projection_reveal = AnimatedProjectionReveal(
+        reconciler=render_reconciler,
+        motion=cast(EditorSurfaceMotionController, surface_motion),
+    )
     workflow_context = EditorProjectionWorkflowContext(panel)
     projection_busy = EditorProjectionBusyAdapter(panel)
-    clean_projection_refresh = EditorCleanProjectionRefreshController(panel)
-    cube_section_builds = CubeSectionBuildController(panel)
+    clean_projection_refresh = EditorCleanProjectionRefreshController(
+        cast(CleanProjectionRefreshPanelProtocol, panel)
+    )
+    cube_section_builds = CubeSectionBuildController(
+        cast(CubeSectionBuildPanelProtocol, panel)
+    )
     runtime_issue_projection = RuntimeIssueProjectionAdapter(
-        panel=panel,
+        panel=cast(RuntimeIssueProjectionPanelPort, panel),
         runtime_issues=runtime_issues,
     )
     visible_commits = EditorVisibleProjectionCommitPipeline(
         EditorVisibleProjectionCommitPorts(
+            lifetime_owner=cast(QObject, panel),
             active_workflow_id=workflow_context.active_workflow_id,
             panel_is_visible=lambda: editor_panel_is_visible(panel),
             is_projection_session_current=projection_sessions.is_current,
             reveal_projected_cube_builds=(
-                lambda builds, workflow_id: (
-                    render_reconciler.reveal_projected_cube_builds(
-                        builds,
-                        workflow_id=workflow_id,
-                    )
+                lambda builds, workflow_id: animated_projection_reveal.reveal(
+                    builds,
+                    workflow_id,
                 )
             ),
             mark_build_complete=build_registry.mark_complete,
@@ -140,7 +183,7 @@ def compose_editor_projection(
     )
     active_sessions = EditorActiveProjectionSessionController(
         sessions=projection_sessions,
-        completions=projection_completions,
+        completions=session_completions,
         discard_pending_visible_commit=(
             lambda reason: visible_commits.discard_pending_visible_projection_commit(
                 reason=reason
@@ -148,7 +191,7 @@ def compose_editor_projection(
         ),
     )
     projection_preparation = EditorProjectionPreparationController(
-        panel=panel,
+        panel=cast(ProjectionPreparationPanelPort, panel),
         prompt_context=cast(ProjectionPromptContextPort, panel),
         runtime_issues=runtime_issues,
         begin_behavior_transaction=(
@@ -170,13 +213,14 @@ def compose_editor_projection(
         ),
     )
     cube_section_staleness = CubeSectionStalenessController(
-        panel=panel,
+        panel=cast(CubeSectionStalenessPanelProtocol, panel),
         build_registry=build_registry,
         completion_registry=projection_completions,
         workflow_context=workflow_context,
     )
     hidden_build_scheduler = HiddenBuildScheduler(
         HiddenBuildSchedulerPorts(
+            lifetime_owner=cast(QObject, panel),
             reveal_projected_cube_builds=(
                 lambda builds, workflow_id: (
                     render_reconciler.reveal_projected_cube_builds(
@@ -196,6 +240,7 @@ def compose_editor_projection(
             projection_completions=projection_completions,
             visible_commits=visible_commits,
             render_reconciler=render_reconciler,
+            motion=cast(EditorSurfaceMotionController, surface_motion),
             active_projection_session=lambda: active_sessions.active_session,
             cancel_active_projection_session=(
                 lambda session, reason: active_sessions.cancel(
@@ -210,18 +255,20 @@ def compose_editor_projection(
     )
     incremental_inserts = EditorIncrementalInsertPipeline(
         EditorIncrementalInsertPorts(
-            panel=panel,
+            panel=cast(IncrementalInsertPanelPort, panel),
             projection_sessions=projection_sessions,
             projection_completions=projection_completions,
+            session_completions=session_completions,
             projection_preparation=projection_preparation,
             hidden_build_scheduler=hidden_build_scheduler,
             build_registry=build_registry,
             projection_lifecycle=projection_lifecycle,
             render_reconciler=render_reconciler,
+            motion=cast(EditorSurfaceMotionController, surface_motion),
         )
     )
     projected_widget_builder = ProjectedWidgetBuilder(
-        panel=panel,
+        panel=cast(ProjectedWidgetPanelProtocol, panel),
         build_registry=build_registry,
         projection_completions=projection_completions,
         projection_lifecycle=projection_lifecycle,
@@ -229,9 +276,10 @@ def compose_editor_projection(
     )
     full_projection_loads = EditorFullProjectionLoadPipeline(
         EditorFullProjectionLoadPorts(
-            panel=panel,
+            panel=cast(FullProjectionLoadPanelPort, panel),
             active_sessions=active_sessions,
             projection_completions=projection_completions,
+            session_completions=session_completions,
             runtime_issues=runtime_issues,
             projection_preparation=projection_preparation,
             projection_lifecycle=projection_lifecycle,
@@ -248,6 +296,7 @@ def compose_editor_projection(
     return EditorProjectionComposition(
         build_registry=build_registry,
         projection_completions=projection_completions,
+        session_completions=session_completions,
         projection_sessions=projection_sessions,
         active_sessions=active_sessions,
         projection_state=projection_state,
