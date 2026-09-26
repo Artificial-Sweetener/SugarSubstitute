@@ -39,9 +39,6 @@ from substitute.infrastructure.comfy.nodepack_manifest import (
 from substitute.infrastructure.comfy.nodepack_registry_installer import (
     ComfyNodepackRegistryInstaller,
 )
-from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
-    ComfyNodepackRegistryUpdateSettler,
-)
 from tests.support.version_control.repository_service_support import (
     RecordingRepositoryService,
 )
@@ -49,7 +46,6 @@ from tests.infrastructure.comfy.nodepacks.reconciler_support import (
     _FallbackInstaller,
     _LegacyCleaner,
     _RegistryInstaller,
-    _RegistryUpdateSettler,
     _materialize_nodepack,
     _patch_dependencies,
     _project_version,
@@ -133,18 +129,13 @@ def test_existing_clean_official_git_install_migrates_then_registry_updates(
         status="## main\n?? cache/user.json",
         remotes={"origin": nodepack.fallback_repository_url},
     )
-    registry = _RegistryInstaller(RegistryInstallOutcome.PENDING_STARTUP)
-    settler = _RegistryUpdateSettler()
+    registry = _RegistryInstaller(RegistryInstallOutcome.INSTALLED)
     dependency_installs: list[Path] = []
     _patch_dependencies(monkeypatch, dependency_installs, satisfied=True)
 
     CoreNodepackReconciler(
         repositories=repositories,
         registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
-        registry_update_settler=cast(
-            ComfyNodepackRegistryUpdateSettler,
-            settler,
-        ),
         legacy_cleaner=cast(LegacyNodepackDistributionCleaner, _LegacyCleaner()),
     ).ensure(
         manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
@@ -161,7 +152,6 @@ def test_existing_clean_official_git_install_migrates_then_registry_updates(
     ) == "keep"
     assert _project_version(canonical_root) == nodepack.required_version
     assert registry.calls == [(tmp_path, nodepack)]
-    assert settler.calls == [(tmp_path, nodepack)]
     assert nodepack.expected_folder.name in {
         child.name for child in canonical_root.parent.iterdir()
     }
@@ -234,28 +224,26 @@ def test_trusted_fallback_repairs_owned_install_after_registry_cli_failure(
     assert _project_version(root) == nodepack.required_version
 
 
-def test_queued_registry_update_must_reach_exact_disk_state(
+def test_registry_success_must_reach_exact_disk_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Reject a nominal Manager settlement that leaves stale nodepack source."""
+    """Reject a nominal Registry success that leaves stale nodepack source."""
 
     nodepack = CORE_COMFY_NODEPACKS[0]
     _select_nodepacks(monkeypatch, nodepack)
     root = tmp_path / nodepack.expected_folder
     _materialize_nodepack(root, nodepack, version="1.9.0", tracking=True)
-    registry = _RegistryInstaller(RegistryInstallOutcome.PENDING_STARTUP)
-    settler = _RegistryUpdateSettler(materialize=False)
+    registry = _RegistryInstaller(
+        RegistryInstallOutcome.INSTALLED,
+        materialize=False,
+    )
     _patch_dependencies(monkeypatch, [], satisfied=True)
 
     with pytest.raises(RuntimeError, match="Could not install"):
         CoreNodepackReconciler(
             repositories=RecordingRepositoryService(),
             registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
-            registry_update_settler=cast(
-                ComfyNodepackRegistryUpdateSettler,
-                settler,
-            ),
         ).ensure(
             manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
             refresh_nodepacks=(),
@@ -264,4 +252,3 @@ def test_queued_registry_update_must_reach_exact_disk_state(
         )
 
     assert _project_version(root) == "1.9.0"
-    assert settler.calls == [(tmp_path, nodepack)]

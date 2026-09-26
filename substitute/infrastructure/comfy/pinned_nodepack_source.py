@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Materialize trusted tag archives as Comfy Registry-managed nodepacks."""
+"""Materialize trusted exact archives as Comfy Registry-managed nodepacks."""
 
 from __future__ import annotations
 
@@ -56,8 +56,29 @@ _DOWNLOAD_RETRY_DELAYS_SECONDS = (2.0, 5.0)
 _sleep = time.sleep
 
 
-class PinnedNodepackSourceInstaller:
-    """Install trusted pinned releases while preserving mutable nodepack data."""
+class TrustedNodepackArchiveInstaller:
+    """Install trusted exact releases while preserving mutable nodepack data."""
+
+    def install_registry_release(
+        self,
+        *,
+        target_path: Path,
+        nodepack: CoreComfyNodepack,
+        archive_url: str,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Install one validated Comfy Registry archive transactionally."""
+
+        self._install_exact_archive(
+            target_path=target_path,
+            nodepack=nodepack,
+            archive_url=archive_url,
+            source_name="Comfy Registry",
+            archive_has_root_folder=False,
+            on_log=on_log,
+            env=env,
+        )
 
     def install_fallback(
         self,
@@ -69,9 +90,32 @@ class PinnedNodepackSourceInstaller:
     ) -> None:
         """Install one pinned tag while preserving untracked runtime and user data."""
 
+        self._install_exact_archive(
+            target_path=target_path,
+            nodepack=nodepack,
+            archive_url=nodepack.fallback_archive_url,
+            source_name="pinned fallback",
+            archive_has_root_folder=True,
+            on_log=on_log,
+            env=env,
+        )
+
+    def _install_exact_archive(
+        self,
+        *,
+        target_path: Path,
+        nodepack: CoreComfyNodepack,
+        archive_url: str,
+        source_name: str,
+        archive_has_root_folder: bool,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Replace only owned source files from one identity-checked archive."""
+
         _emit_log(
             on_log,
-            f"[ComfyNodepacks] Downloading pinned {nodepack.display_name} source.",
+            f"[ComfyNodepacks] Downloading {nodepack.display_name} from {source_name}.",
         )
         with tempfile.TemporaryDirectory(
             prefix="substitute-nodepack-fallback-",
@@ -82,13 +126,20 @@ class PinnedNodepackSourceInstaller:
             extract_path = transaction_root / "source"
             backup_path = transaction_root / "previous"
             download_file(
-                archive_url=nodepack.fallback_archive_url,
+                archive_url=archive_url,
                 target_path=archive_path,
                 on_log=on_log,
             )
-            source_path = extract_single_root_zip(
-                archive_path=archive_path,
-                target_path=extract_path,
+            source_path = (
+                extract_single_root_zip(
+                    archive_path=archive_path,
+                    target_path=extract_path,
+                )
+                if archive_has_root_folder
+                else extract_flat_zip(
+                    archive_path=archive_path,
+                    target_path=extract_path,
+                )
             )
             validate_nodepack_source_identity(
                 source_path,
@@ -111,7 +162,8 @@ class PinnedNodepackSourceInstaller:
         _emit_log(
             on_log,
             (
-                f"[ComfyNodepacks] Installed pinned {nodepack.display_name} "
+                f"[ComfyNodepacks] Installed {nodepack.display_name} from "
+                f"{source_name} at "
                 f"{nodepack.required_version} in Comfy Registry format."
             ),
         )
@@ -177,10 +229,29 @@ def _transport_reason_type(error: BaseException) -> str:
 def extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
     """Extract a zip safely and return its only top-level directory."""
 
+    roots = _extract_zip_safely(archive_path=archive_path, target_path=target_path)
+    if len(roots) != 1:
+        raise RuntimeError("Pinned source archive did not contain one root folder.")
+    source_path = target_path / next(iter(roots))
+    if not source_path.is_dir():
+        raise RuntimeError("Pinned source archive did not contain one root folder.")
+    return source_path
+
+
+def extract_flat_zip(*, archive_path: Path, target_path: Path) -> Path:
+    """Extract a flat Registry package safely and return its source root."""
+
+    _extract_zip_safely(archive_path=archive_path, target_path=target_path)
+    return target_path
+
+
+def _extract_zip_safely(*, archive_path: Path, target_path: Path) -> set[str]:
+    """Extract archive members while rejecting paths outside the destination."""
+
     target_path.mkdir(parents=True, exist_ok=True)
     resolved_target = target_path.resolve()
+    roots: set[str] = set()
     with zipfile.ZipFile(archive_path) as archive:
-        roots: set[str] = set()
         for member in archive.infolist():
             member_path = Path(member.filename)
             if not member_path.parts:
@@ -195,9 +266,7 @@ def extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
             destination.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(member) as source, destination.open("wb") as output:
                 shutil.copyfileobj(source, output)
-    if len(roots) != 1:
-        raise RuntimeError("Pinned source archive did not contain one root folder.")
-    return target_path / next(iter(roots))
+    return roots
 
 
 def temp_dir_from_env(env: Mapping[str, str] | None) -> Path | None:
@@ -304,8 +373,9 @@ def _emit_log(callback: LogCallback | None, message: str) -> None:
 
 
 __all__ = [
-    "PinnedNodepackSourceInstaller",
+    "TrustedNodepackArchiveInstaller",
     "download_file",
+    "extract_flat_zip",
     "extract_single_root_zip",
     "temp_dir_from_env",
 ]

@@ -201,11 +201,6 @@ def test_initial_plan_protects_local_work_and_prefers_registry(
         (RegistryInstallOutcome.INSTALLED, True, CoreNodepackAction.READY),
         (RegistryInstallOutcome.ALREADY_INSTALLED, True, CoreNodepackAction.READY),
         (
-            RegistryInstallOutcome.PENDING_STARTUP,
-            False,
-            CoreNodepackAction.SETTLE_REGISTRY_UPDATE,
-        ),
-        (
             RegistryInstallOutcome.VERSION_UNAVAILABLE,
             False,
             CoreNodepackAction.INSTALL_FALLBACK,
