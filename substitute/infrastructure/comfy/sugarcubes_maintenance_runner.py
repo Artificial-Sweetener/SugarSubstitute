@@ -49,6 +49,8 @@ from substitute.infrastructure.process.hidden_process_runner import (
     stream_command_collecting_output as _stream_command_collecting_output,
 )
 
+_MAX_DEPENDENCY_REPAIR_ATTEMPTS = 2
+
 
 def run_sugarcubes_baseline_maintenance(
     workspace: Path,
@@ -99,11 +101,43 @@ def run_sugarcubes_baseline_maintenance(
         node_ids = dependency_repair_node_ids(result.payload)
         if not node_ids:
             raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
+        return _repair_dependencies_until_ready(
+            workspace=workspace,
+            python_executable=python_executable,
+            sugarcubes_root=installed_sugarcubes_root,
+            preflight_command=list(preflight_command),
+            node_ids=node_ids,
+            on_log=on_log,
+            env=env,
+        )
+    _emit_log(
+        on_log,
+        "[SugarCubes] Dependency maintenance failed.",
+        operation="sugarcubes_maintenance",
+    )
+    raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
+
+
+def _repair_dependencies_until_ready(
+    *,
+    workspace: Path,
+    python_executable: Path,
+    sugarcubes_root: Path,
+    preflight_command: list[str],
+    node_ids: tuple[str, ...],
+    on_log: LogCallback | None,
+    env: Mapping[str, str] | None,
+) -> SugarCubesMaintenanceResult:
+    """Retry one transiently incomplete approved repair before failing closed."""
+
+    remaining_node_ids = node_ids
+    verification_result: SugarCubesMaintenanceResult | None = None
+    for attempt in range(1, _MAX_DEPENDENCY_REPAIR_ATTEMPTS + 1):
         _emit_log(
             on_log,
             (
                 "[SugarCubes] Reconciling cube-required node packs: "
-                f"{', '.join(node_ids)}."
+                f"{', '.join(remaining_node_ids)}."
             ),
             operation="sugarcubes_dependency_repair",
         )
@@ -112,10 +146,10 @@ def run_sugarcubes_baseline_maintenance(
                 build_sugarcubes_dependency_repair_command(
                     python_executable=python_executable,
                     workspace=workspace,
-                    approved_node_ids=node_ids,
+                    approved_node_ids=remaining_node_ids,
                 )
             ),
-            sugarcubes_root=installed_sugarcubes_root,
+            sugarcubes_root=sugarcubes_root,
             on_log=on_log,
             env=env,
         )
@@ -124,28 +158,38 @@ def run_sugarcubes_baseline_maintenance(
                 _sugarcubes_required_dependency_failure_message(repair_result)
             )
         verification_result = _run_sugarcubes_command(
-            list(preflight_command),
-            sugarcubes_root=installed_sugarcubes_root,
+            preflight_command,
+            sugarcubes_root=sugarcubes_root,
             on_log=on_log,
             env=env,
         )
-        if verification_result.exit_code != 0:
+        if verification_result.exit_code == 0:
+            if not verification_result.diagnostics:
+                _emit_log(
+                    on_log,
+                    "[SugarCubes] Cube-required node packs are ready.",
+                    operation="sugarcubes_maintenance",
+                )
+            return verification_result
+        remaining_node_ids = dependency_repair_node_ids(verification_result.payload)
+        if attempt == _MAX_DEPENDENCY_REPAIR_ATTEMPTS or not remaining_node_ids:
             raise RuntimeError(
                 _sugarcubes_required_dependency_failure_message(verification_result)
             )
-        if not verification_result.diagnostics:
-            _emit_log(
-                on_log,
-                "[SugarCubes] Cube-required node packs are ready.",
-                operation="sugarcubes_maintenance",
-            )
-        return verification_result
-    _emit_log(
-        on_log,
-        "[SugarCubes] Dependency maintenance failed.",
-        operation="sugarcubes_maintenance",
+        _emit_log(
+            on_log,
+            (
+                "[SugarCubes] Dependency repair remained incomplete; retrying "
+                f"approved node packs ({attempt + 1}/"
+                f"{_MAX_DEPENDENCY_REPAIR_ATTEMPTS})."
+            ),
+            operation="sugarcubes_dependency_repair_retry",
+        )
+    if verification_result is None:
+        raise RuntimeError("SugarCubes dependency repair did not run.")
+    raise RuntimeError(
+        _sugarcubes_required_dependency_failure_message(verification_result)
     )
-    raise RuntimeError(_sugarcubes_required_dependency_failure_message(result))
 
 
 def _run_sugarcubes_command(
