@@ -26,6 +26,7 @@ from typing import Protocol
 
 from PySide6.QtCore import QCoreApplication, QEvent, QObject, QTimer, Qt, Signal
 from PySide6.QtWidgets import QApplication, QWidget
+from shiboken6 import isValid
 
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInvocation,
@@ -247,6 +248,10 @@ class ApplicationInstanceControlClient(QObject):
     def _restore_rejected_close(self, window: QWidget) -> None:
         """Restore a surface only when its close handler kept it visible."""
 
+        if not isValid(window):
+            self._closing_windows.discard(id(window))
+            self._forget_window(window)
+            return
         if not window.isVisible():
             return
         self._closing_windows.discard(id(window))
