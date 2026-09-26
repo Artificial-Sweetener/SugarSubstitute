@@ -21,6 +21,7 @@ from tests.support.node_behavior.snapshots import (
     DummyNodeDefinitionGateway,
     build_behavior_snapshot,
     cube_state,
+    live_definition_for_inputs,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "behavior_payload",
     "build_behavior_snapshot",
     "cube_state",
+    "live_definition_for_inputs",
 ]

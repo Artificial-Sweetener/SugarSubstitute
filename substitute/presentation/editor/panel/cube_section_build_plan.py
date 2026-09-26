@@ -27,6 +27,7 @@ from substitute.application.node_behavior import ResolvedFieldSpec
 
 NodeCardBuildOutcomeKind = Literal[
     "built",
+    "degraded",
     "hidden_by_policy",
     "connection_only",
     "missing_behavior",

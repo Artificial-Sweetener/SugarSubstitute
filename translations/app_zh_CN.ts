@@ -320,7 +320,7 @@ Prompt preview:
       <translation>已完成 %1%</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section_overlays.py" line="148"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -829,7 +829,7 @@ This is taking much longer than expected</source>
       <translation>基础立方体同步失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="738"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="741"></location>
       <source>Batch %1</source>
       <translation>批次 %1</translation>
     </message>
@@ -979,7 +979,7 @@ This is taking much longer than expected</source>
       <translation>捕获立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
       <source>Change canvas resolution</source>
       <translation>更改画布分辨率</translation>
     </message>
@@ -1077,6 +1077,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="109"></location>
       <source>Checking for running ComfyUI…</source>
       <translation>正在检查运行中的 ComfyUI…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="146"></location>
+      <source>Checking model links</source>
+      <translation>正在检查模型链接</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
@@ -1279,7 +1284,7 @@ This is taking much longer than expected</source>
       <translation>选择区域蒙版像素的重采样方式。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="187"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="189"></location>
       <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
       <translation>选择输入画布及其区域遮罩适应新尺寸的方式。</translation>
     </message>
@@ -2209,7 +2214,7 @@ This is taking much longer than expected</source>
       <translation>控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="156"></location>
       <source>Copy</source>
       <translation>复制</translation>
     </message>
@@ -2409,7 +2414,7 @@ This is taking much longer than expected</source>
       <translation>修复立方体依赖项更改了目标环境。请先重启 ComfyUI，再使用修复后的立方体进行生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="48"></location>
       <source>Cube disabled</source>
       <translation>立方体已禁用</translation>
     </message>
@@ -2462,7 +2467,7 @@ Install these nodes now?</source>
       <translation>来自 OpenModelDB 的精选修复和放大模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="507"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="510"></location>
       <source>Current image</source>
       <translation>当前图像</translation>
     </message>
@@ -2485,6 +2490,16 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_status.py" line="88"></location>
       <source>Custom node %1 could not load.</source>
       <translation>无法加载自定义节点 %1。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="168"></location>
+      <source>Custom node recovery failed</source>
+      <translation>自定义节点恢复失败</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="110"></location>
+      <source>Custom nodes required by this workflow</source>
+      <translation>此工作流所需的自定义节点</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/prompt_text_menu.py" line="200"></location>
@@ -2747,7 +2762,7 @@ Install these nodes now?</source>
       <translation>下载版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="211"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="259"></location>
       <source>Downloading %1</source>
       <translation>正在下载 %1</translation>
     </message>
@@ -3058,27 +3073,27 @@ Install these nodes now?</source>
       <translation>无法将一个或多个暂存立方体加入队列。请重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="545"></location>
+      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="290"></location>
       <source>Failed to refresh editor visibility after cube load</source>
       <translation>加载立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="185"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="174"></location>
       <source>Failed to refresh editor visibility after cube removal</source>
       <translation>移除方块后刷新编辑器可见性失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="238"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="228"></location>
       <source>Failed to refresh editor visibility after cube rename</source>
       <translation>重命名立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="263"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="254"></location>
       <source>Failed to refresh editor visibility after cube reorder</source>
       <translation>重新排列立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/incremental_insert_pipeline.py" line="588"></location>
+      <location filename="../substitute/presentation/editor/panel/incremental_insert_pipeline.py" line="399"></location>
       <source>Failed to refresh editor visibility after incremental cube insert</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
@@ -3160,7 +3175,7 @@ Install these nodes now?</source>
       <translation>正在完成设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
       <source>Fit video</source>
       <translation>适应视频</translation>
     </message>
@@ -3225,7 +3240,7 @@ Install these nodes now?</source>
       <translation>新一代 GPU</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="451"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>此会话中无法重启 GUI。</translation>
     </message>
@@ -3380,7 +3395,7 @@ Install these nodes now?</source>
       <translation>硬度</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="90"></location>
       <source>Hardware video decoding was unavailable. Software decoding is active.</source>
       <translation>硬件视频解码不可用。已启用软件解码。</translation>
     </message>
@@ -3530,7 +3545,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="694"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="697"></location>
       <source>Image %1</source>
       <translation>图像 %1</translation>
     </message>
@@ -3588,6 +3603,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="227"></location>
       <source>Insert trigger words</source>
       <translation>插入触发词</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="219"></location>
+      <source>Install %1 custom node packages</source>
+      <translation>安装 %1 个自定义节点包</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="37"></location>
@@ -3658,6 +3678,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="87"></location>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>ComfyUI 运行时安装软件包或更改模型路径可能会导致其环境状态不一致。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="278"></location>
+      <source>Installing required custom nodes</source>
+      <translation>正在安装所需的自定义节点</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="202"></location>
@@ -3735,7 +3760,7 @@ Install these nodes now?</source>
       <translation>类型：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="63"></location>
       <source>Landscape</source>
       <translation>横向</translation>
     </message>
@@ -3830,7 +3855,7 @@ Install these nodes now?</source>
       <translation>可能的原因：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="325"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="324"></location>
       <source>Live Comfy node definitions unavailable</source>
       <translation>实时 Comfy 节点定义不可用</translation>
     </message>
@@ -4020,7 +4045,7 @@ Install these nodes now?</source>
       <translation>查找失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
       <source>Loop video</source>
       <translation>循环播放视频</translation>
     </message>
@@ -4205,12 +4230,12 @@ Install these nodes now?</source>
       <translation>缺少自定义节点：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="484"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="483"></location>
       <source>Missing definition: %1</source>
       <translation>缺少定义：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="489"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="488"></location>
       <source>Missing field: %1</source>
       <translation>缺少字段：%1</translation>
     </message>
@@ -4245,7 +4270,7 @@ Install these nodes now?</source>
       <translation>模型查找返回了无效结果。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="307"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="360"></location>
       <source>Model download failed</source>
       <translation>模型下载失败</translation>
     </message>
@@ -4380,7 +4405,7 @@ Install these nodes now?</source>
       <translation>上移</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
       <source>Mute video</source>
       <translation>视频静音</translation>
     </message>
@@ -4440,7 +4465,7 @@ Install these nodes now?</source>
       <translation>下一步</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
       <source>Next frame</source>
       <translation>下一帧</translation>
     </message>
@@ -4617,6 +4642,11 @@ I’ll bring my own</source>
 我会自备。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="153"></location>
+      <source>No trusted package match was found for: %1</source>
+      <translation>未找到与以下节点匹配的可信软件包：%1</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="373"></location>
       <source>No, show recommendations</source>
       <translation>否，显示推荐</translation>
@@ -4767,7 +4797,7 @@ I’ll bring my own</source>
       <translation>在 GitHub 上打开 %1 仓库</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="172"></location>
       <source>Open All in Photoshop</source>
       <translation>在 Photoshop 中打开全部</translation>
     </message>
@@ -4822,7 +4852,7 @@ I’ll bring my own</source>
       <translation>打开此本地 ComfyUI 来源的引导式设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="166"></location>
       <source>Open in Photoshop</source>
       <translation>在 Photoshop 中打开</translation>
     </message>
@@ -5092,7 +5122,7 @@ I’ll bring my own</source>
       <translation>计划更改已更新。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
       <source>Play or pause</source>
       <translation>播放或暂停</translation>
     </message>
@@ -5117,7 +5147,7 @@ I’ll bring my own</source>
       <translation>端口必须介于 1 和 65535 之间。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="64"></location>
       <source>Portrait</source>
       <translation>纵向</translation>
     </message>
@@ -5272,7 +5302,7 @@ I’ll bring my own</source>
       <translation>预览不可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
       <source>Previous frame</source>
       <translation>上一帧</translation>
     </message>
@@ -5325,6 +5355,11 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="409"></location>
       <source>Prompt: %1</source>
       <translation>提示词：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="182"></location>
+      <source>Provides: %1</source>
+      <translation>提供：%1</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/comfy/attached_install.py" line="109"></location>
@@ -5801,7 +5836,7 @@ No known extension claimant.</source>
       <translation>重置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="84"></location>
       <source>Resize canvas</source>
       <translation>调整画布尺寸</translation>
     </message>
@@ -5896,7 +5931,7 @@ No known extension claimant.</source>
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
       <source>Retry video</source>
       <translation>重试视频</translation>
     </message>
@@ -5906,12 +5941,12 @@ No known extension claimant.</source>
       <translation>返回设置并重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section_builder.py" line="126"></location>
       <source>Reveal Hidden Cards</source>
       <translation>显示隐藏的卡片</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="180"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="182"></location>
       <source>Reveal in File Manager</source>
       <translation>在文件管理器中显示</translation>
     </message>
@@ -5954,6 +5989,11 @@ No known extension claimant.</source>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="487"></location>
       <source>Review the connection details and try again.</source>
       <translation>请检查连接详细信息，然后重试。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="115"></location>
+      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
+      <translation>安装前，请检查与工作流中缺失节点匹配的自定义节点包。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="219"></location>
@@ -6014,6 +6054,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="240"></location>
       <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
       <translation>将这些完全匹配的模型下载到已连接的 ComfyUI 安装之前，请先进行检查。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="197"></location>
+      <source>Revision: %1</source>
+      <translation>修订版本：%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
@@ -6151,7 +6196,7 @@ No known extension claimant.</source>
       <translation>将当前 %1 保存为预设...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="57"></location>
       <source>Save current dimensions</source>
       <translation>保存当前尺寸</translation>
     </message>
@@ -6161,12 +6206,12 @@ No known extension claimant.</source>
       <translation>保存每个立方体的输出，或仅保存最后一个活动立方体的输出。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="241"></location>
       <source>Save for %1</source>
       <translation>为 %1 保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="60"></location>
       <source>Save globally</source>
       <translation>全局保存</translation>
     </message>
@@ -6231,7 +6276,7 @@ No known extension claimant.</source>
       <translation>正在保存您的设置选项。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="242"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="244"></location>
       <source>Scale canvas and masks</source>
       <translation>缩放画布和蒙版</translation>
     </message>
@@ -6256,7 +6301,7 @@ No known extension claimant.</source>
       <translation>正在扫描…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="577"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="580"></location>
       <source>Scene</source>
       <translation>场景</translation>
     </message>
@@ -6386,22 +6431,22 @@ No known extension claimant.</source>
       <translation>服务器端点</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="320"></location>
+      <location filename="../substitute/presentation/editor/panel/override_menu_presenter.py" line="61"></location>
       <source>Set Global Override</source>
       <translation>设置全局覆盖</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="56"></location>
       <source>Set dimensions</source>
       <translation>设置尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="62"></location>
       <source>Set ratio by Height</source>
       <translation>按高度设置宽高比</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="61"></location>
       <source>Set ratio by Width</source>
       <translation>按宽度设置宽高比</translation>
     </message>
@@ -6596,7 +6641,7 @@ No known extension claimant.</source>
       <translation>显示设置日志</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
       <source>Show video at actual size</source>
       <translation>以实际大小显示视频</translation>
     </message>
@@ -6716,6 +6761,16 @@ Then create an API key in Account Settings and paste it here.</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="73"></location>
       <source>Source: %1</source>
       <translation>来源：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="188"></location>
+      <source>Source: Comfy Registry</source>
+      <translation>来源：Comfy Registry</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="190"></location>
+      <source>Source: ComfyUI-Manager catalog</source>
+      <translation>来源：ComfyUI-Manager 目录</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="256"></location>
@@ -6953,7 +7008,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 无法确认关闭已完成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="312"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="365"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute 无法下载并验证此工作流所需的所有模型。</translation>
     </message>
@@ -6988,9 +7043,14 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 无法准备此本地 ComfyUI 安装</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="316"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="369"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute 无法读取此 ComfyUI 工作流文档。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="169"></location>
+      <source>Substitute could not recover every custom node required by this workflow.</source>
+      <translation>Substitute 无法恢复此工作流所需的所有自定义节点。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="272"></location>
@@ -7522,7 +7582,7 @@ Diagnostic evidence:
       <translation>支持者</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="55"></location>
       <source>Swap width &amp; height</source>
       <translation>交换宽度和高度</translation>
     </message>
@@ -7682,7 +7742,7 @@ Diagnostic evidence:
       <translation>已连接的 ComfyUI 环境不满足更新后的要求。请先修复该环境再继续。%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="490"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="542"></location>
       <source>The bundled video runtime is unavailable.</source>
       <translation>随附的视频运行时不可用。</translation>
     </message>
@@ -7837,7 +7897,7 @@ Diagnostic evidence:
       <translation>请求的定义不可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="92"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="93"></location>
       <source>The requested video renderer was unavailable. A safe fallback is active.</source>
       <translation>请求的视频渲染器不可用。已启用安全的回退渲染器。</translation>
     </message>
@@ -8182,7 +8242,7 @@ Diagnostic evidence:
       <translation>无法重命名资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="199"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="201"></location>
       <source>Unable to resize canvas</source>
       <translation>无法调整画布尺寸</translation>
     </message>
@@ -8322,7 +8382,7 @@ Diagnostic evidence:
       <translation>已加载的立方体有新版本可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="174"></location>
       <source>Updating</source>
       <translation>正在更新</translation>
     </message>
@@ -8577,7 +8637,7 @@ Diagnostic evidence:
       <translation>版本、项目和致谢。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="327"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="195"></location>
       <source>Version: %1</source>
       <translation>版本：%1</translation>
     </message>
@@ -8592,12 +8652,12 @@ Diagnostic evidence:
       <translation>视频硬件解码</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="494"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="546"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>视频播放不可用（%1）。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
       <source>Video position</source>
       <translation>视频位置</translation>
     </message>
@@ -8607,7 +8667,7 @@ Diagnostic evidence:
       <translation>视频渲染器</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
       <source>Video volume</source>
       <translation>视频音量</translation>
     </message>
@@ -8787,7 +8847,7 @@ Diagnostic evidence:
       <translation>工作流和提示上下文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="309"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="362"></location>
       <source>Workflow could not be loaded</source>
       <translation>无法加载工作流</translation>
     </message>
@@ -8947,12 +9007,12 @@ Diagnostic evidence:
       <translation>模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="294"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="289"></location>
       <source>node missing from cube buffer</source>
       <translation>立方体缓冲区中缺少节点</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="315"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="310"></location>
       <source>node payload is not a mapping</source>
       <translation>节点负载不是映射</translation>
     </message>

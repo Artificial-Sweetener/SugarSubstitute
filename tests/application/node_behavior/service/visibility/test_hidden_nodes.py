@@ -121,7 +121,17 @@ def test_workflow_local_definition_does_not_override_existing_hidden_policy() ->
             }
         },
     )
-    service = NodeBehaviorService(node_definition_gateway=DummyNodeDefinitionGateway())
+    service = NodeBehaviorService(
+        node_definition_gateway=DummyNodeDefinitionGateway(
+            {
+                node_class: {
+                    "input": {
+                        "required": {"positive_prompt": ["STRING", {"multiline": True}]}
+                    }
+                }
+            }
+        )
+    )
 
     snapshot = service.build_snapshot(
         cube_states={"direct": document},

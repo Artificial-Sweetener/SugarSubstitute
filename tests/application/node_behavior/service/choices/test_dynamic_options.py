@@ -168,14 +168,8 @@ def test_build_snapshot_ignores_compact_dynamic_list_marker_when_live_missing() 
         },
     )
 
-    spec = snapshot.field_specs_by_alias["A"]["ksampler"]["sampler_name"]
-
-    assert spec.field_type is None
-    assert spec.field_info is None
-    assert "options_resolved" not in spec.meta_info
-    assert "options_unavailable_reason" not in spec.meta_info
-    assert spec.value == "heun"
-    assert spec.value_source == FieldValueSource.EXPLICIT
+    assert snapshot.field_specs_by_alias["A"]["ksampler"] == {}
+    assert snapshot.degraded_nodes_by_alias["A"]["ksampler"].class_type == "KSampler"
 
 
 def test_build_snapshot_ignores_cube_authored_combo_options_when_live_missing() -> None:
@@ -202,10 +196,11 @@ def test_build_snapshot_ignores_cube_authored_combo_options_when_live_missing() 
         },
     )
 
-    snapshot = build_behavior_snapshot(cube_states={"A": cube}, stack_order=["A"])
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={},
+    )
 
-    spec = snapshot.field_specs_by_alias["A"]["ksampler"]["sampler_name"]
-    assert spec.field_type is None
-    assert spec.field_info is None
-    assert "options" not in spec.meta_info
-    assert spec.value == "cube_only"
+    assert snapshot.field_specs_by_alias["A"]["ksampler"] == {}
+    assert snapshot.degraded_nodes_by_alias["A"]["ksampler"].class_type == "KSampler"

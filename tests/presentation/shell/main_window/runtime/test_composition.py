@@ -25,6 +25,7 @@ from typing import cast
 import pytest
 
 from substitute.presentation.shell import main_window_composition
+from substitute.presentation.shell import main_window_error_composition
 from substitute.presentation.shell.main_window_dependencies import (
     MainWindowDependencies,
 )
@@ -273,6 +274,30 @@ class _ConnectionMonitor:
         """Provide monitor cleanup."""
 
 
+class _NodepackRecoveryController:
+    """Provide shell lifecycle cleanup for direct-workflow recovery."""
+
+    def close(self) -> None:
+        """Provide recovery cleanup."""
+
+
+class _NodepackRecoveryPresenter:
+    """Provide shell lifecycle cleanup for active recovery reviews."""
+
+    def close(self) -> None:
+        """Provide review cleanup."""
+
+
+class _NodepackRecoveryComposition:
+    """Carry test recovery collaborators like the production composition."""
+
+    def __init__(self) -> None:
+        """Create stable controller and presenter instances."""
+
+        self.controller = _NodepackRecoveryController()
+        self.presenter = _NodepackRecoveryPresenter()
+
+
 class _Dependencies:
     """Build the exact dependency owner with a controlled output stream."""
 
@@ -324,6 +349,8 @@ class _Shell:
         self.model_update_notification_controller: object | None = None
         self.empty_model_picker_discovery_controller: object | None = None
         self.settings_route_controller: object | None = None
+        self.direct_workflow_file_actions = object()
+        self.direct_workflow_nodepack_recovery_controller: object | None = None
         self._current_generate_mode = ""
         self._backend_state = ""
         self._last_progress_view_state: object | None = object()
@@ -342,7 +369,11 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         "GenerationInterruptFailurePresenter",
         _GenerationInterruptFailurePresenter,
     )
-    monkeypatch.setattr(main_window_composition, "ErrorPresenter", _ErrorPresenter)
+    monkeypatch.setattr(
+        main_window_error_composition,
+        "ErrorPresenter",
+        _ErrorPresenter,
+    )
     monkeypatch.setattr(
         main_window_composition,
         "CubeLibraryUpdateController",
@@ -374,6 +405,37 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
     monkeypatch.setattr(
         "substitute.presentation.shell.comfy_connection_composition.ComfyConnectionPresenter",
         _ConnectionPresenter,
+    )
+    recovery_composition = _NodepackRecoveryComposition()
+    nodepack_bindings: list[tuple[object, object, object, object]] = []
+
+    def bind_nodepack_recovery(
+        shell: _Shell,
+        dependencies: object,
+        comfy_connection: object,
+        error_presenter: object,
+    ) -> None:
+        """Record the narrowed nodepack-recovery composition boundary."""
+
+        nodepack_bindings.append(
+            (shell, dependencies, comfy_connection, error_presenter)
+        )
+        shell.shell_resource_lifecycle.register(
+            "direct_workflow_nodepack_recovery",
+            recovery_composition.controller.close,
+        )
+        shell.shell_resource_lifecycle.register(
+            "direct_workflow_nodepack_recovery_review",
+            recovery_composition.presenter.close,
+        )
+        shell.direct_workflow_nodepack_recovery_controller = (
+            recovery_composition.controller
+        )
+
+    monkeypatch.setattr(
+        main_window_composition,
+        "bind_nodepack_recovery",
+        bind_nodepack_recovery,
     )
     dispatcher = object()
     monkeypatch.setattr(
@@ -483,7 +545,16 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         "empty_model_picker_discovery",
         "comfy_connection_monitor",
         "comfy_connection_feedback",
+        "direct_workflow_nodepack_recovery",
+        "direct_workflow_nodepack_recovery_review",
     ]
+    assert nodepack_bindings == [
+        (shell, dependency_bundle, composition.comfy_connection, error_presenter)
+    ]
+    assert (
+        shell.direct_workflow_nodepack_recovery_controller
+        is recovery_composition.controller
+    )
     assert settings_controller.error_presenter_during_creation is error_presenter
     assert settings_controller.shell_error_presenter_during_creation is error_presenter
     recovery_service = cast(

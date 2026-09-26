@@ -320,7 +320,7 @@ Vista previa del prompt:
       <translation>%1% completado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section_overlays.py" line="148"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -829,7 +829,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se pudieron sincronizar los cubos base</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="738"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="741"></location>
       <source>Batch %1</source>
       <translation>Lote %1</translation>
     </message>
@@ -979,7 +979,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Capturar cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
       <source>Change canvas resolution</source>
       <translation>Cambiar la resolución del lienzo</translation>
     </message>
@@ -1077,6 +1077,11 @@ Está tardando mucho más de lo esperado</translation>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="109"></location>
       <source>Checking for running ComfyUI…</source>
       <translation>Buscando procesos de ComfyUI en ejecución…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="146"></location>
+      <source>Checking model links</source>
+      <translation>Comprobando enlaces de modelos</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
@@ -1279,7 +1284,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Elige cómo se remuestrean los píxeles de las máscaras regionales.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="187"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="189"></location>
       <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
       <translation>Elige cómo deben adaptarse el lienzo de Entrada y sus máscaras regionales al nuevo tamaño.</translation>
     </message>
@@ -2209,7 +2214,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Controles</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="156"></location>
       <source>Copy</source>
       <translation>Copiar</translation>
     </message>
@@ -2409,7 +2414,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>La reparación de las dependencias de cubos modificó el entorno de destino. Reinicia ComfyUI antes de generar con los cubos reparados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="48"></location>
       <source>Cube disabled</source>
       <translation>Cubo desactivado</translation>
     </message>
@@ -2462,7 +2467,7 @@ Install these nodes now?</source>
       <translation>Modelos seleccionados de restauración y ampliación de OpenModelDB.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="507"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="510"></location>
       <source>Current image</source>
       <translation>Imagen actual</translation>
     </message>
@@ -2485,6 +2490,16 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_status.py" line="88"></location>
       <source>Custom node %1 could not load.</source>
       <translation>No se pudo cargar el nodo personalizado %1.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="168"></location>
+      <source>Custom node recovery failed</source>
+      <translation>Falló la recuperación de nodos personalizados</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="110"></location>
+      <source>Custom nodes required by this workflow</source>
+      <translation>Nodos personalizados requeridos por este flujo de trabajo</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/prompt_text_menu.py" line="200"></location>
@@ -2747,7 +2762,7 @@ Install these nodes now?</source>
       <translation>Descargar versión</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="211"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="259"></location>
       <source>Downloading %1</source>
       <translation>Descargando %1</translation>
     </message>
@@ -3058,27 +3073,27 @@ Install these nodes now?</source>
       <translation>No se pudieron añadir a la cola uno o varios cubos preparados. Vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="545"></location>
+      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="290"></location>
       <source>Failed to refresh editor visibility after cube load</source>
       <translation>No se pudo actualizar la visibilidad del editor tras cargar el cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="185"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="174"></location>
       <source>Failed to refresh editor visibility after cube removal</source>
       <translation>No se pudo actualizar la visibilidad del editor tras eliminar el cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="238"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="228"></location>
       <source>Failed to refresh editor visibility after cube rename</source>
       <translation>No se pudo actualizar la visibilidad del editor tras cambiar el nombre del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="263"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="254"></location>
       <source>Failed to refresh editor visibility after cube reorder</source>
       <translation>No se pudo actualizar la visibilidad del editor tras reordenar el cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/incremental_insert_pipeline.py" line="588"></location>
+      <location filename="../substitute/presentation/editor/panel/incremental_insert_pipeline.py" line="399"></location>
       <source>Failed to refresh editor visibility after incremental cube insert</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
@@ -3160,7 +3175,7 @@ Install these nodes now?</source>
       <translation>Finalizando tu instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
       <source>Fit video</source>
       <translation>Ajustar vídeo</translation>
     </message>
@@ -3225,7 +3240,7 @@ Install these nodes now?</source>
       <translation>GPU de nueva generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="451"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>El reinicio de la interfaz no está disponible en esta sesión.</translation>
     </message>
@@ -3380,7 +3395,7 @@ Install these nodes now?</source>
       <translation>Dureza</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="90"></location>
       <source>Hardware video decoding was unavailable. Software decoding is active.</source>
       <translation>La decodificación de vídeo por hardware no estaba disponible. La decodificación por software está activa.</translation>
     </message>
@@ -3530,7 +3545,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="694"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="697"></location>
       <source>Image %1</source>
       <translation>Imagen %1</translation>
     </message>
@@ -3588,6 +3603,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="227"></location>
       <source>Insert trigger words</source>
       <translation>Insertar palabras de activación</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="219"></location>
+      <source>Install %1 custom node packages</source>
+      <translation>Instalar %1 paquetes de nodos personalizados</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="37"></location>
@@ -3658,6 +3678,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="87"></location>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>Instalar paquetes o cambiar las rutas de modelos mientras ComfyUI está en ejecución puede dejar su entorno en un estado incoherente.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="278"></location>
+      <source>Installing required custom nodes</source>
+      <translation>Instalando los nodos personalizados requeridos</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="202"></location>
@@ -3735,7 +3760,7 @@ Install these nodes now?</source>
       <translation>Tipo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="63"></location>
       <source>Landscape</source>
       <translation>Horizontal</translation>
     </message>
@@ -3830,7 +3855,7 @@ Install these nodes now?</source>
       <translation>Causa probable: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="325"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="324"></location>
       <source>Live Comfy node definitions unavailable</source>
       <translation>Las definiciones actuales de nodos de Comfy no están disponibles</translation>
     </message>
@@ -4020,7 +4045,7 @@ Install these nodes now?</source>
       <translation>La búsqueda ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
       <source>Loop video</source>
       <translation>Repetir vídeo</translation>
     </message>
@@ -4205,12 +4230,12 @@ Install these nodes now?</source>
       <translation>Faltan nodos personalizados: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="484"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="483"></location>
       <source>Missing definition: %1</source>
       <translation>Falta la definición: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="489"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="488"></location>
       <source>Missing field: %1</source>
       <translation>Falta el campo: %1</translation>
     </message>
@@ -4245,7 +4270,7 @@ Install these nodes now?</source>
       <translation>La búsqueda de modelos devolvió resultados no válidos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="307"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="360"></location>
       <source>Model download failed</source>
       <translation>No se pudo descargar el modelo</translation>
     </message>
@@ -4380,7 +4405,7 @@ Install these nodes now?</source>
       <translation>Subir</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
       <source>Mute video</source>
       <translation>Silenciar vídeo</translation>
     </message>
@@ -4440,7 +4465,7 @@ Install these nodes now?</source>
       <translation>Siguiente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
       <source>Next frame</source>
       <translation>Fotograma siguiente</translation>
     </message>
@@ -4617,6 +4642,11 @@ I’ll bring my own</source>
 Usaré el mío.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="153"></location>
+      <source>No trusted package match was found for: %1</source>
+      <translation>No se encontró ningún paquete de confianza para: %1</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="373"></location>
       <source>No, show recommendations</source>
       <translation>No, mostrar recomendaciones</translation>
@@ -4767,7 +4797,7 @@ Usaré el mío.</translation>
       <translation>Abrir el repositorio de %1 en GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="172"></location>
       <source>Open All in Photoshop</source>
       <translation>Abrir todo en Photoshop</translation>
     </message>
@@ -4822,7 +4852,7 @@ Usaré el mío.</translation>
       <translation>Abrir la instalación guiada para este origen local de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="166"></location>
       <source>Open in Photoshop</source>
       <translation>Abrir en Photoshop</translation>
     </message>
@@ -5092,7 +5122,7 @@ Usaré el mío.</translation>
       <translation>Se actualizaron los cambios previstos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
       <source>Play or pause</source>
       <translation>Reproducir o pausar</translation>
     </message>
@@ -5117,7 +5147,7 @@ Usaré el mío.</translation>
       <translation>El puerto debe estar entre 1 y 65535.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="64"></location>
       <source>Portrait</source>
       <translation>Vertical</translation>
     </message>
@@ -5272,7 +5302,7 @@ Usaré el mío.</translation>
       <translation>Vista previa no disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
       <source>Previous frame</source>
       <translation>Fotograma anterior</translation>
     </message>
@@ -5325,6 +5355,11 @@ Usaré el mío.</translation>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="409"></location>
       <source>Prompt: %1</source>
       <translation>Prompt n.º %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="182"></location>
+      <source>Provides: %1</source>
+      <translation>Proporciona: %1</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/comfy/attached_install.py" line="109"></location>
@@ -5801,7 +5836,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Restablecer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="84"></location>
       <source>Resize canvas</source>
       <translation>Cambiar tamaño del lienzo</translation>
     </message>
@@ -5896,7 +5931,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
       <source>Retry video</source>
       <translation>Reintentar vídeo</translation>
     </message>
@@ -5906,12 +5941,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Vuelve a la configuración e inténtalo de nuevo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section_builder.py" line="126"></location>
       <source>Reveal Hidden Cards</source>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="180"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="182"></location>
       <source>Reveal in File Manager</source>
       <translation>Mostrar en el gestor de archivos</translation>
     </message>
@@ -5954,6 +5989,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="487"></location>
       <source>Review the connection details and try again.</source>
       <translation>Revisa los detalles de la conexión y vuelve a intentarlo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="115"></location>
+      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
+      <translation>Revise los paquetes de nodos personalizados asociados con los nodos ausentes del flujo de trabajo antes de instalarlos.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="219"></location>
@@ -6014,6 +6054,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="240"></location>
       <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
       <translation>Revisa estas coincidencias exactas de modelos antes de descargarlas en la instalación de ComfyUI conectada.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="197"></location>
+      <source>Revision: %1</source>
+      <translation>Revisión: %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
@@ -6151,7 +6196,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar el valor actual de %1 como preajuste...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="57"></location>
       <source>Save current dimensions</source>
       <translation>Guardar las dimensiones actuales</translation>
     </message>
@@ -6161,12 +6206,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guarda las salidas de todos los cubos o solo la del último cubo activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="241"></location>
       <source>Save for %1</source>
       <translation>Guardar para %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="60"></location>
       <source>Save globally</source>
       <translation>Guardar globalmente</translation>
     </message>
@@ -6231,7 +6276,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardando tus opciones de instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="242"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="244"></location>
       <source>Scale canvas and masks</source>
       <translation>Escalar lienzo y máscaras</translation>
     </message>
@@ -6256,7 +6301,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Examinando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="577"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="580"></location>
       <source>Scene</source>
       <translation>Escena</translation>
     </message>
@@ -6386,22 +6431,22 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Punto de conexión del servidor</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="320"></location>
+      <location filename="../substitute/presentation/editor/panel/override_menu_presenter.py" line="61"></location>
       <source>Set Global Override</source>
       <translation>Establecer reemplazo global</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="56"></location>
       <source>Set dimensions</source>
       <translation>Establecer dimensiones</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="62"></location>
       <source>Set ratio by Height</source>
       <translation>Establecer proporción según la altura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="61"></location>
       <source>Set ratio by Width</source>
       <translation>Establecer proporción según la anchura</translation>
     </message>
@@ -6596,7 +6641,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar registro de configuración</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
       <source>Show video at actual size</source>
       <translation>Mostrar vídeo a tamaño real</translation>
     </message>
@@ -6716,6 +6761,16 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="73"></location>
       <source>Source: %1</source>
       <translation>Origen: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="188"></location>
+      <source>Source: Comfy Registry</source>
+      <translation>Origen: Registro de Comfy</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="190"></location>
+      <source>Source: ComfyUI-Manager catalog</source>
+      <translation>Origen: catálogo de ComfyUI-Manager</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="256"></location>
@@ -6953,7 +7008,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute no pudo confirmar que el cierre hubiera terminado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="312"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="365"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute no pudo descargar y verificar todos los modelos que necesita este flujo de trabajo.</translation>
     </message>
@@ -6988,9 +7043,14 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute no pudo preparar esta instalación local de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="316"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="369"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute no pudo leer este documento de flujo de trabajo de ComfyUI.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="169"></location>
+      <source>Substitute could not recover every custom node required by this workflow.</source>
+      <translation>Substitute no pudo recuperar todos los nodos personalizados requeridos por este flujo de trabajo.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="272"></location>
@@ -7522,7 +7582,7 @@ Evidencia de diagnóstico:
       <translation>Colaboradores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="55"></location>
       <source>Swap width &amp; height</source>
       <translation>Intercambiar anchura y altura</translation>
     </message>
@@ -7682,7 +7742,7 @@ Evidencia de diagnóstico:
       <translation>El entorno de ComfyUI conectado no cumple los requisitos actualizados. Repara ese entorno antes de continuar. %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="490"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="542"></location>
       <source>The bundled video runtime is unavailable.</source>
       <translation>El entorno de ejecución de vídeo incluido no está disponible.</translation>
     </message>
@@ -7837,7 +7897,7 @@ Evidencia de diagnóstico:
       <translation>La definición solicitada no está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="92"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="93"></location>
       <source>The requested video renderer was unavailable. A safe fallback is active.</source>
       <translation>El renderizador de vídeo solicitado no estaba disponible. Se ha activado una alternativa segura.</translation>
     </message>
@@ -8182,7 +8242,7 @@ Evidencia de diagnóstico:
       <translation>No se pudo cambiar el nombre del recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="199"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="201"></location>
       <source>Unable to resize canvas</source>
       <translation>No se puede cambiar el tamaño del lienzo</translation>
     </message>
@@ -8322,7 +8382,7 @@ Evidencia de diagnóstico:
       <translation>Hay versiones actualizadas disponibles para los cubos cargados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="174"></location>
       <source>Updating</source>
       <translation>Actualizando</translation>
     </message>
@@ -8577,7 +8637,7 @@ Evidencia de diagnóstico:
       <translation>Versión, proyecto y agradecimientos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="327"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="195"></location>
       <source>Version: %1</source>
       <translation>Versión: %1</translation>
     </message>
@@ -8592,12 +8652,12 @@ Evidencia de diagnóstico:
       <translation>Decodificación de vídeo por hardware</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="494"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="546"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>La reproducción de vídeo no está disponible (%1).</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
       <source>Video position</source>
       <translation>Posición del vídeo</translation>
     </message>
@@ -8607,7 +8667,7 @@ Evidencia de diagnóstico:
       <translation>Renderizador de vídeo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
       <source>Video volume</source>
       <translation>Volumen del vídeo</translation>
     </message>
@@ -8787,7 +8847,7 @@ Evidencia de diagnóstico:
       <translation>Contexto del flujo de trabajo y del prompt</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="309"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="362"></location>
       <source>Workflow could not be loaded</source>
       <translation>No se pudo cargar el flujo de trabajo</translation>
     </message>
@@ -8947,12 +9007,12 @@ Evidencia de diagnóstico:
       <translation>modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="294"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="289"></location>
       <source>node missing from cube buffer</source>
       <translation>falta el nodo en el búfer del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="315"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="310"></location>
       <source>node payload is not a mapping</source>
       <translation>la carga útil del nodo no es una asignación</translation>
     </message>

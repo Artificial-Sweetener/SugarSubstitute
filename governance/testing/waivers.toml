@@ -1517,3 +1517,16 @@ fingerprint = "sha256:193985aa5f5dfe4e11efedb5b3d712b4bbb9662af51152e251402724fa
 rationale = "This native Qt module exercises Output document identity, immutable composition state, presentations, replacement, previews, and cleanup across one application process. Its primary ownership contract failed during the same Windows commit-exhausted reused-worker run as the wide process-family and multi-megapixel tiling contracts, while the exact case passed immediately alone and concurrently with both affected cases. All images, execution state, and Qt objects are process-local. Fresh-process isolation gives the document graph an explicit native lifetime, preserves every state assertion, and remains safely concurrent."
 issue = "chore:SS-TEST-WAIVER-C0294"
 review_by = 2026-12-18
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0298"
+owner = "Windows update-activation process admission contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/update_activation/transaction/test_detachment_admission.py|isolated-module"]
+paths = ["tests/launcher/update_activation/transaction/test_detachment_admission.py"]
+fingerprint = "sha256:96277de7540876e7541786acb08b5ff1783755289a1e0a11a3b6d38daff48054"
+rationale = "This Windows native module exercises production update-helper admission through real suspended-process creation, Job Object membership inspection, breakaway decisions, handle ownership, resume, and child completion. In a complete xdist run, its one-line Python child remained valid but was not scheduled until two seconds after the ten-second completion deadline; the marker and empty output log proved successful admission rather than a product deadlock, and the complete module passed immediately in a fresh process. Each test owns its tmp_path, child process, environment copy, and native handles. Fresh-process isolation preserves the real kernel boundary and bounded completion assertion, makes failures attributable to this process-family owner, and remains safely concurrent without increasing or retrying the deadline."
+issue = "chore:SS-TEST-WAIVER-C0298"
+review_by = 2026-12-18
