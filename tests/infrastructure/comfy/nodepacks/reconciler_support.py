@@ -41,11 +41,8 @@ from substitute.infrastructure.comfy.nodepack_registry_installer import (
     ComfyNodepackRegistryInstaller,
     RegistryInstallResult,
 )
-from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
-    RegistryUpdateSettlement,
-)
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
-    PinnedNodepackSourceInstaller,
+    TrustedNodepackArchiveInstaller,
 )
 from tests.support.version_control.repository_service_support import (
     RecordingRepositoryService,
@@ -55,10 +52,16 @@ from tests.support.version_control.repository_service_support import (
 class _RegistryInstaller:
     """Provide deterministic CNR install effects for orchestration tests."""
 
-    def __init__(self, outcome: RegistryInstallOutcome) -> None:
+    def __init__(
+        self,
+        outcome: RegistryInstallOutcome,
+        *,
+        materialize: bool = True,
+    ) -> None:
         """Store the requested result and initialize observed calls."""
 
         self.outcome = outcome
+        self.materialize = materialize
         self.calls: list[tuple[Path, CoreComfyNodepack]] = []
 
     def install_exact(
@@ -74,7 +77,7 @@ class _RegistryInstaller:
         workspace = manager_runtime.workspace
         _ = on_log, env
         self.calls.append((workspace, nodepack))
-        if self.outcome in {
+        if self.materialize and self.outcome in {
             RegistryInstallOutcome.INSTALLED,
             RegistryInstallOutcome.ALREADY_INSTALLED,
         }:
@@ -118,34 +121,6 @@ class _FallbackInstaller:
         raise AssertionError("test should not adopt a plain source")
 
 
-class _RegistryUpdateSettler:
-    """Provide deterministic Manager pre-startup effects for orchestration tests."""
-
-    def __init__(self, *, materialize: bool = True) -> None:
-        """Configure whether Manager's queued switch reaches exact disk state."""
-
-        self.materialize = materialize
-        self.calls: list[tuple[Path, CoreComfyNodepack]] = []
-
-    def settle(
-        self,
-        *,
-        manager_runtime: ComfyManagerRuntime,
-        nodepack: CoreComfyNodepack,
-        on_log: object | None,
-        env: object | None,
-    ) -> RegistryUpdateSettlement:
-        """Apply the queued Registry fixture when configured to succeed."""
-
-        workspace = manager_runtime.workspace
-        _ = on_log, env
-        self.calls.append((workspace, nodepack))
-        if self.materialize:
-            root = _existing_or_canonical_root(workspace, nodepack)
-            _materialize_nodepack(root, nodepack, tracking=True)
-        return RegistryUpdateSettlement(self.materialize, ())
-
-
 class _LegacyCleaner:
     """Record completion-time duplicate cleanup requests."""
 
@@ -174,7 +149,7 @@ def _reconciler(
         repositories=RecordingRepositoryService(),
         registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
         fallback_installer=(
-            cast(PinnedNodepackSourceInstaller, fallback)
+            cast(TrustedNodepackArchiveInstaller, fallback)
             if fallback is not None
             else None
         ),
