@@ -103,7 +103,7 @@ class VideoOpenGLSurface(QOpenGLWidget):
     def complete_window_transition(self) -> None:
         """Request renderer binding after the replacement window becomes live."""
 
-        QTimer.singleShot(0, self._resume_renderer_after_window_transition)
+        QTimer.singleShot(0, self, self._resume_renderer_after_window_transition)
 
     def initializeGL(self) -> None:  # noqa: N802
         """Initialize libmpv after Qt makes the surface context current."""

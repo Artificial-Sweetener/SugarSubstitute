@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from PySide6.QtCore import QObject
 
 import substitute.presentation.editor.panel.hidden_build_scheduler as hidden_build_scheduler
 from substitute.presentation.editor.panel.hidden_build_scheduler import (
@@ -133,6 +134,7 @@ def _scheduler(
 
     return HiddenBuildScheduler(
         HiddenBuildSchedulerPorts(
+            lifetime_owner=QObject(),
             reveal_projected_cube_builds=reveal,
             mark_build_complete=mark_complete,
             mark_build_failed=mark_failed,
@@ -373,7 +375,7 @@ def test_schedule_cube_build_session_reports_first_usable_once(
     session = _StepSession([False, True], first_usable_after=1)
     calls: list[str] = []
 
-    HiddenBuildScheduler.schedule_cube_build_session(
+    _scheduler().schedule_cube_build_session(
         session,
         on_first_usable=lambda: calls.append("first"),
         on_complete=lambda: calls.append("complete"),
@@ -395,7 +397,7 @@ def test_schedule_cube_build_session_cancels_before_step(
     session = _StepSession([True])
     calls: list[str] = []
 
-    HiddenBuildScheduler.schedule_cube_build_session(
+    _scheduler().schedule_cube_build_session(
         session,
         on_complete=lambda: calls.append("complete"),
         is_current=lambda: False,
@@ -417,7 +419,7 @@ def test_schedule_cube_build_session_cancels_deleted_owner_before_step(
     session = _StepSession([True], alive=False)
     calls: list[str] = []
 
-    HiddenBuildScheduler.schedule_cube_build_session(
+    _scheduler().schedule_cube_build_session(
         session,
         on_complete=lambda: calls.append("complete"),
         is_current=lambda: True,
@@ -440,6 +442,7 @@ def test_schedule_projected_builds_cancel_deleted_owner_before_step(
     calls: list[str] = []
     HiddenBuildScheduler(
         HiddenBuildSchedulerPorts(
+            lifetime_owner=QObject(),
             reveal_projected_cube_builds=lambda _builds, _workflow_id: None,
             mark_build_complete=lambda _alias, _token: None,
             mark_build_failed=lambda _alias, _token, _error: None,

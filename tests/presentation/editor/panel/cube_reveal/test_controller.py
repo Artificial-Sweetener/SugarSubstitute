@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import cast
 
 from _pytest.monkeypatch import MonkeyPatch
-from PySide6.QtCore import QPropertyAnimation
+from PySide6.QtCore import QPropertyAnimation, QTimer
 
 import substitute.presentation.editor.panel.cube_reveal_controller as mod
 import substitute.presentation.editor.panel.cube_reveal_scroll_driver as scroll_mod
@@ -302,6 +302,11 @@ def test_reveal_when_layout_ready_waits_for_repeated_geometry(
     """Non-forced reveal should wait for metrics and stable repeated geometry."""
 
     monkeypatch.setattr(mod, "isValid", lambda _widget: True)
+    monkeypatch.setattr(
+        QTimer,
+        "singleShot",
+        staticmethod(lambda _delay, _owner, _callback: None),
+    )
     host = _Host(
         cube_sections={"CubeA": _CubeWidget(top=0, height=200)},
         stack_order=["CubeA"],

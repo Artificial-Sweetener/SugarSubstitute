@@ -93,7 +93,7 @@ class _FakeTimer:
     single_shots: list[tuple[int, object]] = []
 
     @classmethod
-    def singleShot(cls, delay_ms: int, callback: object) -> None:
+    def singleShot(cls, delay_ms: int, _owner: object, callback: object) -> None:
         """Record one delayed callback."""
 
         cls.single_shots.append((delay_ms, callback))

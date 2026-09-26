@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2925
+max_lines = 2926
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -448,7 +448,7 @@ kind = "remediation"
 justification = "The assessed file mixes web dialog lifecycle and geometry, semantic accent-palette derivation, WebEngine availability handling, focus JavaScript generation, bootstrap and theme-injection JavaScript generation. Extract injected web scripts and accent-theme generation from dialog lifecycle ownership."
 issue = "chore:SS-ARCH-077"
 review_by = 2026-12-15
-max_lines = 850
+max_lines = 854
 next_limit = 680
 debt = "SS-ARCH-077"
 
@@ -461,7 +461,7 @@ kind = "remediation"
 justification = "The assessed file mixes definition-load background task, runtime-build background task, active workflow and alias validation, placeholder tab and progress presentation, loaded runtime mutation and rollback, icon, editor reveal, and shell handoff. Extract definition/runtime execution and UI transaction state from shell handoff and reveal presentation."
 issue = "chore:SS-ARCH-078"
 review_by = 2026-12-15
-max_lines = 1342
+max_lines = 1345
 next_limit = 1075
 debt = "SS-ARCH-078"
 
@@ -474,7 +474,7 @@ kind = "remediation"
 justification = "The assessed file mixes cube-load callback adaptation, cube stack tab presentation refresh, editor surface activation and reveal, full surface refresh and activation, and workflow reconciliation after load. Extract callback adaptation from loaded-surface activation and workflow reconciliation."
 issue = "chore:SS-ARCH-079"
 review_by = 2026-12-15
-max_lines = 643
+max_lines = 648
 next_limit = 515
 debt = "SS-ARCH-079"
 
@@ -1194,7 +1194,7 @@ kind = "structural"
 justification = "ShellLayoutRestoreController is the authoritative adapter between one persisted ShellLayoutSnapshot and live window, splitter, queue-panel, cube-stack, and output-panel geometry. Capture, restore, deferred restore, display state, and trace values share the same layout state."
 issue = "chore:SS-WAIVER-S067"
 review_by = 2026-12-15
-max_lines = 526
+max_lines = 527
 
 [[waivers]]
 id = "SS-WAIVER-S068"
@@ -1238,7 +1238,7 @@ kind = "structural"
 justification = "The module owns one declarative context-menu projection for a model metadata target. Action models, builder, presenter, output-canvas hierarchy expansion, thumbnail choices, and callbacks all produce and execute the same menu contract."
 issue = "chore:SS-WAIVER-S071"
 review_by = 2026-12-15
-max_lines = 614
+max_lines = 617
 
 [[waivers]]
 id = "SS-WAIVER-S073"

@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
@@ -45,6 +45,7 @@ _PROJECTED_CUBE_BUILD_STEP_DELAY_MS = 8
 class HiddenBuildSchedulerPorts:
     """Group collaborators required to publish and track hidden build results."""
 
+    lifetime_owner: QObject
     reveal_projected_cube_builds: Callable[[Sequence[ProjectedCubeBuild], str], None]
     mark_build_complete: Callable[[str, object], object]
     mark_build_failed: Callable[[str, object, object], object]
@@ -192,8 +193,8 @@ class HiddenBuildScheduler:
             )
         return True
 
-    @staticmethod
     def schedule_cube_build_session(
+        self,
         build_session: object,
         *,
         on_first_usable: Callable[[], None] | None = None,
@@ -263,12 +264,12 @@ class HiddenBuildScheduler:
                 maybe_complete_first_usable()
                 on_complete()
                 return
-            QTimer.singleShot(0, run_next)
+            QTimer.singleShot(0, self._ports.lifetime_owner, run_next)
 
-        QTimer.singleShot(0, run_next)
+        QTimer.singleShot(0, self._ports.lifetime_owner, run_next)
 
-    @staticmethod
     def _schedule_next_projected_build_step(
+        self,
         *,
         workflow_id: str,
         pending_build_count: int,
@@ -284,6 +285,7 @@ class HiddenBuildScheduler:
         )
         QTimer.singleShot(
             _PROJECTED_CUBE_BUILD_STEP_DELAY_MS,
+            self._ports.lifetime_owner,
             callback,
         )
 

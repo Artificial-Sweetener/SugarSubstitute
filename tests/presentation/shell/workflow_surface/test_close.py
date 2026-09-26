@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import pytest
 
 from substitute.application.workflows import (
     ClosedWorkflowBuffer,
@@ -33,9 +34,15 @@ from tests.presentation.shell.workflow_surface.workflow_action_support import (
 )
 
 
-def test_active_workflow_close_projects_successor_without_final_toolbar_clear() -> None:
+def test_active_workflow_close_projects_successor_without_final_toolbar_clear(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Closing active workflow should project successor once without clearing it after."""
 
+    monkeypatch.setattr(
+        "substitute.presentation.shell.main_window_override_surface_adapter.QTimer.singleShot",
+        staticmethod(lambda _delay, _owner, callback: callback()),
+    )
     mod = _import_module()
     view = _build_view(active_workflow_id="wf-b")
 

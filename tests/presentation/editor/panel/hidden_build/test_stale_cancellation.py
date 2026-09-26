@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 from _pytest.monkeypatch import MonkeyPatch
 
 import substitute.presentation.editor.panel.hidden_build_scheduler as mod
@@ -51,7 +51,9 @@ def test_hidden_projection_build_cancels_stale_batch_without_stepping(
     monkeypatch.setattr(
         QTimer,
         "singleShot",
-        staticmethod(lambda _delay, callback: scheduled_callbacks.append(callback)),
+        staticmethod(
+            lambda _delay, _owner, callback: scheduled_callbacks.append(callback)
+        ),
     )
     build_session = _BuildSession()
     projected_build = ProjectedCubeBuild(
@@ -65,6 +67,7 @@ def test_hidden_projection_build_cancels_stale_batch_without_stepping(
     cancel_calls: list[str] = []
     scheduler = mod.HiddenBuildScheduler(
         mod.HiddenBuildSchedulerPorts(
+            lifetime_owner=QObject(),
             reveal_projected_cube_builds=lambda _builds, _workflow_id: None,
             mark_build_complete=lambda _alias, _token: None,
             mark_build_failed=lambda _alias, _token, _reason: None,

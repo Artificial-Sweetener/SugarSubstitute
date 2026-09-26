@@ -23,6 +23,7 @@ from collections.abc import Mapping
 from time import perf_counter
 from typing import TypeVar, cast
 
+from substitute.presentation.qt.execution.owned_callback import schedule_on_next_turn
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
     CubeStackProtocol,
@@ -210,6 +211,10 @@ def build_cube_load_ui_callbacks_for_view(
         refresh_workflow_after_cube_load_async=refresh_workflow_after_cube_load_async,
         refresh_loaded_cube_surface_async=refresh_loaded_cube_surface_async,
         cube_load_execution_route_factory=cube_load_execution_route_factory,
+        schedule_next_gui_turn=lambda callback: schedule_on_next_turn(
+            cube_view,
+            callback,
+        ),
     )
 
 

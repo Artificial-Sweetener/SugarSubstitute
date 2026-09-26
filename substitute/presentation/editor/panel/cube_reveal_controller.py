@@ -261,7 +261,11 @@ class EditorPanelCubeRevealController:
         if callable(schedule_refresh):
             schedule_refresh()
             return
-        QTimer.singleShot(0, self.complete_pending_cube_reveal)
+        QTimer.singleShot(
+            0,
+            cast(QObject, self._host),
+            self.complete_pending_cube_reveal,
+        )
 
     def complete_pending_cube_reveal(self) -> None:
         """Finish a pending cube reveal after layout and metrics have refreshed."""
@@ -277,7 +281,11 @@ class EditorPanelCubeRevealController:
         if not ready_for_reveal:
             self._pending_reveal_attempts += 1
             if self._pending_reveal_attempts <= self._layout_attempt_limit:
-                QTimer.singleShot(0, self.schedule_pending_cube_reveal_metrics_refresh)
+                QTimer.singleShot(
+                    0,
+                    cast(QObject, self._host),
+                    self.schedule_pending_cube_reveal_metrics_refresh,
+                )
             else:
                 log_debug(
                     _LOGGER,

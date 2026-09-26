@@ -77,7 +77,7 @@ class QFluentSubmenuClickOpener(QObject):
         """Consume submenu row clicks and open the child menu."""
 
         if event.type() == QEvent.Type.MouseButtonPress:
-            QTimer.singleShot(0, self._open_submenu)
+            QTimer.singleShot(0, self, self._open_submenu)
             return True
         if event.type() == QEvent.Type.MouseButtonRelease:
             return True

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -55,6 +55,7 @@ class ModelMetadataSurfaceRefreshController:
         """Create LoRA snapshot refresh state for one shell."""
 
         self._shell = shell
+        self._lifetime_owner = parent or cast(QObject, shell)
         self._initial_lora_refresh_requested = False
         self._initial_lora_refresh_retry_attempt = 0
         self._retry_delays_ms = retry_delays_ms
@@ -219,6 +220,7 @@ class ModelMetadataSurfaceRefreshController:
         retry_reason = f"initial_lora_model_catalog_retry_{attempt + 1}"
         QTimer.singleShot(
             delay_ms,
+            self._lifetime_owner,
             lambda reason=retry_reason: self._retry_initial_lora_model_catalog_refresh(
                 reason
             ),

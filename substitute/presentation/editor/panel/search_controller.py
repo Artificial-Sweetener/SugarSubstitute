@@ -22,6 +22,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol, cast
 
+from PySide6.QtCore import QObject
+
 from substitute.application.editor_search import (
     EditorSearchResult,
     TextSearchMatch,
@@ -115,6 +117,7 @@ class EditorPanelSearchController:
         self._refresh_scheduler = SearchRefreshScheduler(
             on_pending_changed=self._publish_refresh_pending,
             on_refresh=self.refresh_editor_search_result_after_text_change,
+            lifetime_owner=cast(QObject, host),
         )
         self._publish_search_state()
 

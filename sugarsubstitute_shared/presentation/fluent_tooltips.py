@@ -160,6 +160,7 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
             focused_widget.setFocus(Qt.FocusReason.OtherFocusReason)
             QTimer.singleShot(
                 0,
+                focused_widget,
                 lambda focused_ref=ref(focused_widget): (
                     _restore_focus_after_tooltip_show(focused_ref)
                 ),
