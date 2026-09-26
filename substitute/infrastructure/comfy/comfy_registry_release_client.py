@@ -29,6 +29,7 @@ from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 _REGISTRY_API_ROOT = "https://api.comfy.org"
 _REGISTRY_ARCHIVE_HOST = "cdn.comfy.org"
+_ACTIVE_RELEASE_STATUS = "NodeVersionStatusActive"
 _REGISTRY_REQUEST_TIMEOUT_SECONDS = 30
 _MAX_DESCRIPTOR_BYTES = 64 * 1024
 
@@ -54,7 +55,7 @@ class ComfyRegistryReleaseClient:
     """Fetch bounded exact-release metadata from fixed Registry infrastructure."""
 
     def resolve_exact(self, nodepack: CoreComfyNodepack) -> ComfyRegistryRelease:
-        """Return one exact release only after validating identity and archive origin."""
+        """Return one active exact release after validating identity and origin."""
 
         node_id = urllib.parse.quote(nodepack.registry_id, safe="")
         query = urllib.parse.urlencode({"version": nodepack.required_version})
@@ -92,7 +93,6 @@ class ComfyRegistryReleaseClient:
             )
         observed_node_id = _required_text(payload, "node_id")
         observed_version = _required_text(payload, "version")
-        archive_url = _required_text(payload, "downloadUrl")
         if observed_node_id.casefold() != nodepack.registry_id.casefold():
             raise InvalidRegistryReleaseError(
                 "Comfy Registry exact-release metadata changed nodepack identity."
@@ -101,6 +101,13 @@ class ComfyRegistryReleaseClient:
             raise InvalidRegistryReleaseError(
                 "Comfy Registry exact-release metadata changed the requested version."
             )
+        observed_status = _required_text(payload, "status")
+        if observed_status != _ACTIVE_RELEASE_STATUS:
+            raise RegistryReleaseUnavailableError(
+                f"Comfy Registry {nodepack.registry_id} "
+                f"{nodepack.required_version} release is not active."
+            )
+        archive_url = _required_text(payload, "downloadUrl")
         _validate_archive_url(archive_url)
         return ComfyRegistryRelease(
             node_id=observed_node_id,
