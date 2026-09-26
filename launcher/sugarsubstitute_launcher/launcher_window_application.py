@@ -107,7 +107,7 @@ def run_launcher_window(
             window.accept_installed_application(
                 pending_runtime_application(startup_plan.layout)
             )
-            QTimer.singleShot(0, window.start_runtime_setup)
+            QTimer.singleShot(0, window, window.start_runtime_setup)
         if owns_application:
             window.handoff_completed.connect(application.quit)
         presenter = None

@@ -112,7 +112,7 @@ def _schedule_focus_cleanup(
     monkeypatch.setattr(
         module,
         "QTimer",
-        SimpleNamespace(singleShot=lambda _delay, callback: callback()),
+        SimpleNamespace(singleShot=lambda _delay, _owner, callback: callback()),
     )
     monkeypatch.setattr(module, "qt_object_is_alive", lambda _host: host_alive)
     cleanup_calls: list[bool] = []

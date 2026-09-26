@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 from _pytest.monkeypatch import MonkeyPatch
 from substitute.presentation.editor.panel.projection_models import ProjectedCubeBuild
 from substitute.presentation.editor.panel.projection_session_models import (
@@ -62,6 +62,7 @@ def test_visible_projection_commit_rejects_stale_session_without_revealing() -> 
     session = _projection_session()
     projected_build = _projected_build()
     ports = mod.EditorVisibleProjectionCommitPorts(
+        lifetime_owner=QObject(),
         active_workflow_id=lambda: "workflow",
         panel_is_visible=lambda: True,
         is_projection_session_current=lambda _session: False,
@@ -101,7 +102,7 @@ def test_visible_projection_commit_defers_until_panel_is_active(
         QTimer,
         "singleShot",
         staticmethod(
-            lambda delay, _callback: scheduled_retries.append(
+            lambda delay, _owner, _callback: scheduled_retries.append(
                 ("visible_commit_retry", delay)
             )
         ),
@@ -114,6 +115,7 @@ def test_visible_projection_commit_defers_until_panel_is_active(
     session = _projection_session()
     projected_build = _projected_build()
     ports = mod.EditorVisibleProjectionCommitPorts(
+        lifetime_owner=QObject(),
         active_workflow_id=lambda: "workflow",
         panel_is_visible=lambda: visible,
         is_projection_session_current=lambda _session: True,

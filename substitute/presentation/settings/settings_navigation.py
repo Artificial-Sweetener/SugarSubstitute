@@ -381,7 +381,7 @@ class SettingsNavigationPane(QWidget):
         if self._indicator_realign_pending:
             return
         self._indicator_realign_pending = True
-        QTimer.singleShot(0, self._complete_indicator_realign)
+        QTimer.singleShot(0, self, self._complete_indicator_realign)
 
     def _complete_indicator_realign(self) -> None:
         """Complete pending indicator alignment."""

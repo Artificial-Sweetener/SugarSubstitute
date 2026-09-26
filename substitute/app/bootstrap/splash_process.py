@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
 
     splash.firstFramePainted.connect(
         lambda: schedule_splash_theme(
-            theme_mode=args.theme_mode, accent_color=args.accent_color
+            owner=splash, theme_mode=args.theme_mode, accent_color=args.accent_color
         )
     )
     splash.cancelRequested.connect(

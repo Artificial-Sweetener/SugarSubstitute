@@ -44,7 +44,7 @@ def test_insert_cube_builds_new_widget_and_repopulates_layout_in_stack_order(
     monkeypatch.setattr(
         cast(Any, getattr(hidden_build_scheduler, "QTimer")),
         "singleShot",
-        staticmethod(lambda _msec, callback: callback()),
+        staticmethod(lambda _msec, _owner, callback: callback()),
     )
 
     existing_widget = _Widget()
@@ -190,7 +190,7 @@ def test_insert_cube_honors_reordered_placeholder_stack_order(
     monkeypatch.setattr(
         cast(Any, getattr(hidden_build_scheduler, "QTimer")),
         "singleShot",
-        staticmethod(lambda _msec, callback: callback()),
+        staticmethod(lambda _msec, _owner, callback: callback()),
     )
 
     existing_widget = _Widget()
@@ -265,7 +265,7 @@ def test_insert_cube_adds_silent_batch_insert_visible(
     monkeypatch.setattr(
         cast(Any, getattr(hidden_build_scheduler, "QTimer")),
         "singleShot",
-        staticmethod(lambda _msec, callback: callback()),
+        staticmethod(lambda _msec, _owner, callback: callback()),
     )
 
     new_widget = _Widget()

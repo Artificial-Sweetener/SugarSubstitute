@@ -22,7 +22,7 @@ from collections.abc import Callable, Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.application.prompt_editor.scenes.workflow_analysis import (
@@ -169,7 +169,11 @@ class EditorPanelPromptSceneDiagnosticsController:
         if self._refresh_pending:
             return
         self._refresh_pending = True
-        QTimer.singleShot(0, self.refresh_scheduled_prompt_scene_diagnostics)
+        QTimer.singleShot(
+            0,
+            cast(QObject, self._host),
+            self.refresh_scheduled_prompt_scene_diagnostics,
+        )
 
     def refresh_scheduled_prompt_scene_diagnostics(self) -> None:
         """Apply one deferred prompt-scene diagnostics refresh."""

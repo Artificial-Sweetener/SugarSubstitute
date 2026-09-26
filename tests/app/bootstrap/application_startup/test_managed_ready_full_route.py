@@ -289,7 +289,7 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
             calls.append("timer_stop")
 
         @staticmethod
-        def singleShot(_interval_ms: int, callback: object) -> None:
+        def singleShot(_interval_ms: int, _owner: object, callback: object) -> None:
             calls.append("single_shot")
             queued_callbacks.append(cast(Callable[[], None], callback))
 

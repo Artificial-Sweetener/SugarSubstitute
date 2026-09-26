@@ -169,7 +169,11 @@ class ApplicationInstanceControlClient(QObject):
             self._closing_windows.add(id(watched))
             self._complete_window_presentations(watched, outcome="unavailable")
             self._forget_window(watched)
-            QTimer.singleShot(0, lambda: self._restore_rejected_close(watched))
+            QTimer.singleShot(
+                0,
+                watched,
+                lambda: self._restore_rejected_close(watched),
+            )
         elif event.type() == QEvent.Type.Destroy and isinstance(watched, QWidget):
             self._complete_window_presentations(watched, outcome="unavailable")
             self._forget_window(watched)
@@ -226,6 +230,7 @@ class ApplicationInstanceControlClient(QObject):
         window.update()
         QTimer.singleShot(
             2000,
+            window,
             lambda: self._complete_window_presentations(
                 window,
                 outcome="unavailable",

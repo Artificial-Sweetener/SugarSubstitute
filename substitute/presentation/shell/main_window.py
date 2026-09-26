@@ -246,7 +246,11 @@ class MainWindow(QMainWindow):
         connect_shell_signals(
             self,
             startup_timer,
-            single_shot=QTimer.singleShot,
+            single_shot=lambda delay_ms, callback: QTimer.singleShot(
+                delay_ms,
+                self,
+                callback,
+            ),
         )
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:

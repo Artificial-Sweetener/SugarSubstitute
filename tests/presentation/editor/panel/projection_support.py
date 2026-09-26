@@ -272,7 +272,12 @@ class _TimerQueue:
 
         self.callbacks: list[Callable[[], None]] = []
 
-    def singleShot(self, _msec: int, callback: Callable[[], None]) -> None:
+    def singleShot(
+        self,
+        _msec: int,
+        _owner: object,
+        callback: Callable[[], None],
+    ) -> None:
         """Record one scheduled callback instead of running it immediately."""
 
         self.callbacks.append(callback)
