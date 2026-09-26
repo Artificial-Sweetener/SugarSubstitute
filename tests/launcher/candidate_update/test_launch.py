@@ -20,6 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+import json
+import os
+
+import pytest
+
+from launcher.sugarsubstitute_launcher import application_readiness_supervisor
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
 )
@@ -41,6 +47,14 @@ from launcher.sugarsubstitute_launcher.supervised_termination import (
 from sugarsubstitute_shared.application_runtime_mode import (
     APPLICATION_RUNTIME_MODE_ENV,
     PACKAGED_APPLICATION_RUNTIME_MODE,
+)
+from sugarsubstitute_shared.application_readiness import (
+    ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
+    READINESS_PATH_ENV,
+    READINESS_SCHEMA_ENV,
+    READINESS_SCHEMA_VERSION,
+    READINESS_TOKEN_ENV,
 )
 from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
 from sugarsubstitute_shared.update_rollback_report import (
@@ -226,6 +240,68 @@ def test_ready_candidate_commits_without_fallback(tmp_path: Path) -> None:
         }
     ]
     assert crash_supervisor.adopted == [supervisor.process]
+    assert UpdateRollbackReportStore(layout.root).load() is None
+
+
+def test_painted_onboarding_candidate_commits_fresh_install_update(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Treat the application-owned first-run route as successful update readiness."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    activation = _Activation()
+    crash_supervisor = _CrashSupervisor(tmp_path / "diagnostics")
+    process = _ReadyProcess()
+    outer_receipt_path = tmp_path / "outer-readiness.json"
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[CandidateProcess, Path]:
+        """Publish the real onboarding surface through the readiness contract."""
+
+        receipt_path = Path(environment[READINESS_PATH_ENV])
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_path.write_text(
+            json.dumps(
+                ApplicationReadinessReceipt(
+                    pid=process.pid,
+                    token=environment[READINESS_TOKEN_ENV],
+                    surface=ApplicationReadinessSurface.ONBOARDING,
+                    parent_pid=os.getpid(),
+                ).to_json()
+            ),
+            encoding="utf-8",
+        )
+        return process, tmp_path / "startup.log"
+
+    monkeypatch.setattr(
+        application_readiness_supervisor,
+        "_start_candidate_process",
+        start,
+    )
+
+    launch_prepared_update(
+        layout=layout,
+        command=["python", "main.py"],
+        attempted_version="0.27.0.359",
+        environment={
+            READINESS_PATH_ENV: str(outer_receipt_path),
+            READINESS_TOKEN_ENV: "outer-token",
+            READINESS_SCHEMA_ENV: str(READINESS_SCHEMA_VERSION),
+        },
+        activation=activation,
+        crash_supervisor=crash_supervisor,
+    )
+
+    outer_receipt = ApplicationReadinessReceipt.from_json(
+        json.loads(outer_receipt_path.read_text(encoding="utf-8"))
+    )
+    assert activation.transitions == ["commit"]
+    assert crash_supervisor.adopted == [process]
+    assert outer_receipt.surface is ApplicationReadinessSurface.ONBOARDING
+    assert outer_receipt.token == "outer-token"
     assert UpdateRollbackReportStore(layout.root).load() is None
 
 
