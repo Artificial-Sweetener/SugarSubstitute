@@ -304,6 +304,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
             )
         ),
         refresh_mask_pickers=input_presentation.pickers.refresh_active,
+        lifetime_owner=input_canvas,
     )
     input_mask_visual_opacity_controller = InputMaskVisualOpacityController(
         active_workflow=shell.get_active_workflow,

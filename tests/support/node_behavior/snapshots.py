@@ -71,6 +71,26 @@ def cube_state(
     )
 
 
+def live_definition_for_inputs(
+    inputs: Mapping[str, object],
+) -> dict[str, object]:
+    """Build minimal live metadata for card tests whose concern is not hydration."""
+
+    required: dict[str, object] = {}
+    for field_key, value in inputs.items():
+        field_type = (
+            "BOOLEAN"
+            if isinstance(value, bool)
+            else "INT"
+            if isinstance(value, int)
+            else "FLOAT"
+            if isinstance(value, float)
+            else "STRING"
+        )
+        required[field_key] = [field_type, {}]
+    return {"input": {"required": required}}
+
+
 def build_behavior_snapshot(
     *,
     cube_states: Mapping[str, Any],
@@ -81,10 +101,14 @@ def build_behavior_snapshot(
     node_search_text: str | None = None,
     search_matching_nodes: set[tuple[str, str]] | None = None,
 ) -> EditorBehaviorSnapshot:
-    """Build one editor behavior snapshot for focused test assertions."""
+    """Build one snapshot with live definitions unless a test overrides them."""
 
     service = NodeBehaviorService(
-        node_definition_gateway=DummyNodeDefinitionGateway(definitions_by_class)
+        node_definition_gateway=DummyNodeDefinitionGateway(
+            _scenario_live_definitions(cube_states)
+            if definitions_by_class is None
+            else definitions_by_class
+        )
     )
     return service.build_snapshot(
         cube_states=cube_states,
@@ -96,8 +120,67 @@ def build_behavior_snapshot(
     )
 
 
+def _scenario_live_definitions(
+    cube_states: Mapping[str, Any],
+) -> dict[str, Mapping[str, object]]:
+    """Derive the live-definition baseline for unrelated behavior scenarios."""
+
+    definitions: dict[str, Mapping[str, object]] = {}
+    for state in cube_states.values():
+        buffer = state if isinstance(state, Mapping) else getattr(state, "buffer", {})
+        if not isinstance(buffer, Mapping):
+            continue
+        authored = buffer.get("definitions", {})
+        authored_definitions = authored if isinstance(authored, Mapping) else {}
+        _record_node_definitions(
+            definitions,
+            buffer.get("nodes", {}),
+            authored_definitions,
+            class_key="class_type",
+        )
+        subgraphs = buffer.get("subgraphs", ())
+        if not isinstance(subgraphs, list):
+            continue
+        for subgraph in subgraphs:
+            if not isinstance(subgraph, Mapping):
+                continue
+            _record_node_definitions(
+                definitions,
+                subgraph.get("nodes", ()),
+                authored_definitions,
+                class_key="type",
+            )
+    return definitions
+
+
+def _record_node_definitions(
+    target: dict[str, Mapping[str, object]],
+    nodes: object,
+    authored_definitions: Mapping[object, object],
+    *,
+    class_key: str,
+) -> None:
+    """Record available node classes with authored schema when present."""
+
+    values = nodes.values() if isinstance(nodes, Mapping) else nodes
+    if not isinstance(values, (list, tuple)) and not hasattr(values, "__iter__"):
+        return
+    for node in values:
+        if not isinstance(node, Mapping):
+            continue
+        class_type = node.get(class_key)
+        if not isinstance(class_type, str) or not class_type:
+            continue
+        authored = authored_definitions.get(class_type)
+        target.setdefault(
+            class_type,
+            dict(authored) if isinstance(authored, Mapping) else {"input": {}},
+        )
+
+
 __all__ = [
     "DummyNodeDefinitionGateway",
     "build_behavior_snapshot",
     "cube_state",
+    "live_definition_for_inputs",
 ]

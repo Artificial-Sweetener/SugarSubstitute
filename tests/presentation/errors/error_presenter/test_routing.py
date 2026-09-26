@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contract tests for modal error presentation routing."""
+"""Contract tests for non-blocking modal error presentation routing."""
 
 from __future__ import annotations
 
@@ -29,19 +29,44 @@ from substitute.presentation.errors import ErrorPresenter
 
 
 class _Dialog:
-    """Test dialog double that records modal execution."""
+    """Test dialog double that records non-blocking presentation."""
 
     def __init__(self, calls: list[str]) -> None:
         self._calls = calls
+        self.finished = _Signal()
 
-    def exec(self) -> None:
-        """Record modal execution."""
+    def open(self) -> None:
+        """Record non-blocking presentation."""
 
-        self._calls.append("exec")
+        self._calls.append("open")
+
+    def deleteLater(self) -> None:
+        """Record deterministic cleanup without requiring Qt."""
+
+        self._calls.append("delete")
 
 
-def test_error_presenter_renders_and_executes_modal_dialog() -> None:
-    """Structured reports should be presented through a modal dialog factory."""
+class _Signal:
+    """Record and emit callbacks for one dialog completion signal."""
+
+    def __init__(self) -> None:
+        self._callbacks: list[Callable[[int], None]] = []
+
+    def connect(self, callback: Callable[[int], None]) -> object:
+        """Retain one completion callback."""
+
+        self._callbacks.append(callback)
+        return object()
+
+    def emit(self, result: int) -> None:
+        """Deliver one completion result to connected callbacks."""
+
+        for callback in tuple(self._callbacks):
+            callback(result)
+
+
+def test_error_presenter_renders_and_opens_modal_dialog_without_blocking() -> None:
+    """Structured reports should open without entering a nested event loop."""
 
     dialog_calls: list[str] = []
     factory_calls: list[tuple[object | None, ErrorReport, str, object | None]] = []
@@ -66,7 +91,7 @@ def test_error_presenter_renders_and_executes_modal_dialog() -> None:
 
     presenter.show_error_report(report)
 
-    assert dialog_calls == ["exec"]
+    assert dialog_calls == ["open"]
     assert factory_calls[0][0] == "main"
     assert factory_calls[0][1] is report
     assert "CUDA out of memory" in factory_calls[0][2]
@@ -93,6 +118,36 @@ def test_error_presenter_deduplicates_active_report() -> None:
     presenter.show_error_report(report)
 
     assert dialog_calls == []
+
+
+def test_error_presenter_releases_report_after_dialog_finishes() -> None:
+    """A closed report should be presentable again without retaining its dialog."""
+
+    dialog_calls: list[str] = []
+    dialogs: list[_Dialog] = []
+    report = ErrorReport(
+        kind=ErrorReportKind.EXECUTION,
+        title="KSampler failed",
+        message="CUDA out of memory",
+        stage="listen",
+        prompt_id="pid-1",
+    )
+
+    def _factory(*_args: object) -> _Dialog:
+        dialog = _Dialog(dialog_calls)
+        dialogs.append(dialog)
+        return dialog
+
+    presenter = ErrorPresenter(dialog_factory=_factory)
+
+    presenter.show_error_report(report)
+    presenter.show_error_report(report)
+    dialogs[0].finished.emit(0)
+    presenter.show_error_report(report)
+
+    assert dialog_calls == ["open", "delete", "open"]
+    assert len(dialogs) == 2
+    assert len(presenter._active_dialogs) == 1
 
 
 def test_error_presenter_builds_substitute_exception_report() -> None:
@@ -127,7 +182,7 @@ def test_error_presenter_builds_substitute_exception_report() -> None:
             ),
         )
 
-    assert dialog_calls == ["exec"]
+    assert dialog_calls == ["open"]
     assert factory_calls[0][1].kind is ErrorReportKind.SUBSTITUTE_INTERNAL
     assert factory_calls[0][1].exception_type == "RuntimeError"
     assert "Operation: export_workflow_json" in factory_calls[0][2]
@@ -162,7 +217,7 @@ def test_error_presenter_builds_comfy_connection_report() -> None:
         ),
     )
 
-    assert dialog_calls == ["exec"]
+    assert dialog_calls == ["open"]
     assert factory_calls[0][1].kind is ErrorReportKind.COMFY_CONNECTION
     assert "Kind: comfy_connection" in factory_calls[0][2]
     assert "Operation: start_generation" in factory_calls[0][2]

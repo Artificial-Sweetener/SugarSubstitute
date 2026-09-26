@@ -125,7 +125,7 @@ def test_related_prompt_names_stay_identical_through_restore_undo_and_redo(
     panel.show()
     panel.load_all_cubes(
         [("Region", workflow.cubes["Region"])],
-        cube_states=workflow.cubes,
+        cube_states=cast(dict[str, object], workflow.cubes),
         stack_order=workflow.stack_order,
     )
     panel.reveal_loaded_cube("Region")

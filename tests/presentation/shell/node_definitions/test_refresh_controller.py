@@ -99,7 +99,12 @@ class _Timer:
     scheduled_callbacks: list[Callable[[], None]] = []
 
     @classmethod
-    def singleShot(cls, _delay_ms: int, callback: Callable[[], None]) -> None:
+    def singleShot(
+        cls,
+        _delay_ms: int,
+        _owner: object,
+        callback: Callable[[], None],
+    ) -> None:
         """Record a delayed callback."""
 
         cls.scheduled_callbacks.append(callback)

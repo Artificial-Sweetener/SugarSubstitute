@@ -43,6 +43,7 @@ from substitute.presentation.canvas.output.output_document import OutputCanvasDo
 from substitute.presentation.canvas.output.output_transfer_resolver import (
     OutputTransferResolver,
 )
+from substitute.presentation.canvas.shared.types import OutputImageMeta
 
 TResult = TypeVar("TResult")
 
@@ -171,6 +172,8 @@ def build_transfer_resolver(
     document: OutputCanvasDocument,
     root: Path,
     authorized: set[UUID],
+    *,
+    metadata_for: Callable[[UUID], OutputImageMeta | None] | None = None,
 ) -> OutputTransferResolver:
     """Build a resolver restricted to current authorized document content."""
 
@@ -181,6 +184,7 @@ def build_transfer_resolver(
         ),
         artifact_store=OutputTransferArtifactStore(root / "transfers"),
         is_image_authorized=authorized.__contains__,
+        metadata_for=metadata_for,
     )
 
 

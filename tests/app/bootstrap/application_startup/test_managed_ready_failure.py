@@ -145,7 +145,7 @@ class _FakeTimer:
         self.calls.append("timer_stop")
 
     @staticmethod
-    def singleShot(_interval_ms: int, callback: object) -> None:
+    def singleShot(_interval_ms: int, _owner: object, callback: object) -> None:
         """Queue startup work for the fake event loop."""
 
         _FakeTimer.calls.append("single_shot")

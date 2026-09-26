@@ -22,15 +22,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from substitute.domain.output_media import OutputMediaKind
+
 if TYPE_CHECKING:
     from substitute.domain.workflow import WorkflowState
 
-WORKSPACE_SNAPSHOT_SCHEMA_VERSION = "1"
+WORKSPACE_SNAPSHOT_SCHEMA_VERSION = "2"
+SUPPORTED_WORKSPACE_SNAPSHOT_SCHEMA_VERSIONS = frozenset({"1", "2"})
 
 
 @dataclass(frozen=True, slots=True)
 class ImageMetaSnapshot:
-    """Store generated-image origin facts in JSON-friendly form."""
+    """Store generated-media origin facts in JSON-friendly form."""
 
     workflow_name: str
     cube_name: str
@@ -54,6 +57,9 @@ class ImageMetaSnapshot:
     width: int | None = None
     height: int | None = None
     cube_execution_duration_ms: float | None = None
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE
+    duration_seconds: float | None = None
+    mime_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +83,7 @@ class InputMaskReference:
 
 @dataclass(frozen=True, slots=True)
 class OutputImageReference:
-    """Describe one output image and the metadata needed to restore it."""
+    """Describe one durable output artifact and its restore metadata."""
 
     image_id: str
     path: Path
@@ -174,6 +180,7 @@ class WorkspaceSnapshot:
 
 __all__ = [
     "WORKSPACE_SNAPSHOT_SCHEMA_VERSION",
+    "SUPPORTED_WORKSPACE_SNAPSHOT_SCHEMA_VERSIONS",
     "CanvasLayoutSnapshot",
     "FloatingCanvasWindowSnapshot",
     "ImageMetaSnapshot",

@@ -266,7 +266,11 @@ class ComfySettingsWebViewDialog(QDialog):
         if not loaded:
             set_localized_text(self._loading_overlay, "ComfyUI did not finish loading.")
             return
-        QTimer.singleShot(_LOADING_OVERLAY_RELEASE_DELAY_MS, self._hide_loading_overlay)
+        QTimer.singleShot(
+            _LOADING_OVERLAY_RELEASE_DELAY_MS,
+            self,
+            self._hide_loading_overlay,
+        )
 
     def _hide_loading_overlay(self) -> None:
         """Reveal the webview once the settings bootstrap has had a chance to run."""

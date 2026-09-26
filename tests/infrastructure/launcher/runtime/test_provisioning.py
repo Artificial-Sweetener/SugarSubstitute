@@ -123,7 +123,11 @@ def test_uv_runtime_provisioner_preserves_matching_existing_venv(
     write_file(layout.runtime_python, "python")
     write_file(
         layout.runtime_dir / ".venv" / "pyvenv.cfg",
-        (f"implementation = CPython\nversion_info = {DEFAULT_PYTHON_VERSION}\n"),
+        (
+            "implementation = CPython\n"
+            f"version_info = {DEFAULT_PYTHON_VERSION}\n"
+            f"home = {layout.runtime_dir / 'python' / 'cpython'}\n"
+        ),
     )
     runner = RecordingRuntimeRunner()
 

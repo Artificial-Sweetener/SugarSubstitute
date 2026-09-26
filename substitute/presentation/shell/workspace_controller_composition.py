@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 from uuid import uuid4
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.generation import (
     SeedRandomizationResult,
@@ -199,8 +199,16 @@ def compose_workspace_controller_collaborators(
         cube_view=views.cube,
         workflow_workspace_view=views.workflow_workspace,
         workflow_workspace=workflow_workspace,
-        schedule_deferred_rebuild=lambda callback: QTimer.singleShot(0, callback),
-        schedule_indicator_realign=lambda callback: QTimer.singleShot(0, callback),
+        schedule_deferred_rebuild=lambda callback: QTimer.singleShot(
+            0,
+            cast(QObject, host),
+            callback,
+        ),
+        schedule_indicator_realign=lambda callback: QTimer.singleShot(
+            0,
+            cast(QObject, host),
+            callback,
+        ),
     )
     error_presenter = cast(
         ErrorReportPresenterProtocol | None,

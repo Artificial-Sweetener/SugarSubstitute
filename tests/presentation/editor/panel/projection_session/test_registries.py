@@ -22,12 +22,17 @@ import ast
 from pathlib import Path
 from typing import cast
 
-import substitute.presentation.editor.panel.projection_session as projection_session
-from substitute.presentation.editor.panel.projection_session import (
-    ActiveProjectionSession,
-    ActiveProjectionSessionRegistry,
-    PendingInsertCompletion,
+from substitute.presentation.editor.panel.projection_completion_registry import (
     ProjectionCompletionRegistry,
+    ProjectionSessionCompletionController,
+)
+from substitute.presentation.editor.panel.projection_session_models import (
+    ActiveProjectionSession,
+    PendingInsertCompletion,
+    ProjectionCompletionTransferResult,
+)
+from substitute.presentation.editor.panel.projection_session_registry import (
+    ActiveProjectionSessionRegistry,
 )
 
 
@@ -303,6 +308,7 @@ def test_projection_completion_registry_claims_and_attaches_insert_completions()
     """Insert completions should move from pending map to active session ownership."""
 
     registry = ProjectionCompletionRegistry()
+    session_completions = ProjectionSessionCompletionController(registry)
     token = object()
     session = ActiveProjectionSession(
         workflow_id="workflow-a",
@@ -341,7 +347,7 @@ def test_projection_completion_registry_claims_and_attaches_insert_completions()
     assert claimed.superseded_reason == "stale_projection"
     assert registry.pending_insert_completions == {}
 
-    registry.attach_insert_to_active_projection(
+    session_completions.attach_insert(
         session=session,
         workflow_id="workflow-a",
         cube_alias="B",
@@ -360,6 +366,7 @@ def test_projection_completion_registry_transfers_and_resolves_session_callbacks
     """Superseded projection callbacks should transfer only when identity matches."""
 
     registry = ProjectionCompletionRegistry()
+    session_completions = ProjectionSessionCompletionController(registry)
     calls: list[str] = []
     old_session = ActiveProjectionSession(
         workflow_id="workflow-a",
@@ -410,15 +417,15 @@ def test_projection_completion_registry_transfers_and_resolves_session_callbacks
         reason="restore",
     )
 
-    result = registry.transfer_from_superseded_session(
+    result = session_completions.transfer(
         old_session,
         replacement_session=replacement_session,
         reason="replacement",
     )
-    registry.resolve_session(replacement_session, reason="complete")
-    registry.resolve_session(replacement_session, reason="complete_again")
+    session_completions.resolve(replacement_session, reason="complete")
+    session_completions.resolve(replacement_session, reason="complete_again")
 
-    assert result == projection_session.ProjectionCompletionTransferResult(
+    assert result == ProjectionCompletionTransferResult(
         transferred_insert_count=1,
         cancelled_insert_count=1,
         transferred_projection_count=1,
@@ -432,8 +439,14 @@ def test_projection_completion_registry_transfers_and_resolves_session_callbacks
 def test_projection_session_registries_remain_qt_free() -> None:
     """Projection session registries must not import Qt or concrete panel widgets."""
 
-    module_path = Path("substitute/presentation/editor/panel/projection_session.py")
-    tree = ast.parse(module_path.read_text(encoding="utf-8"))
+    module_paths = (
+        Path("substitute/presentation/editor/panel/projection_session_models.py"),
+        Path("substitute/presentation/editor/panel/projection_session_registry.py"),
+        Path("substitute/presentation/editor/panel/projection_completion_registry.py"),
+        Path(
+            "substitute/presentation/editor/panel/projection_completion_resolution.py"
+        ),
+    )
     forbidden_import_roots = {
         "PySide6",
         "qfluentwidgets",
@@ -444,21 +457,24 @@ def test_projection_session_registries_remain_qt_free() -> None:
         "node_card",
     }
 
-    for node in ast.walk(tree):
-        imported_name = ""
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                imported_name = alias.name
+    for module_path in module_paths:
+        tree = ast.parse(module_path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            imported_name = ""
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_name = alias.name
+                    assert imported_name.split(".")[0] not in forbidden_import_roots
+                    assert not any(
+                        part in imported_name.split(".")
+                        for part in forbidden_import_parts
+                    )
+            elif isinstance(node, ast.ImportFrom):
+                imported_name = node.module or ""
                 assert imported_name.split(".")[0] not in forbidden_import_roots
                 assert not any(
                     part in imported_name.split(".") for part in forbidden_import_parts
                 )
-        elif isinstance(node, ast.ImportFrom):
-            imported_name = node.module or ""
-            assert imported_name.split(".")[0] not in forbidden_import_roots
-            assert not any(
-                part in imported_name.split(".") for part in forbidden_import_parts
-            )
 
 
 def test_projection_coordinator_no_longer_defines_pending_insert_wrappers() -> None:

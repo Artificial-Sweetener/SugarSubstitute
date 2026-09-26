@@ -19,10 +19,13 @@
 from collections.abc import Callable
 
 from pathlib import Path
+import sys
 
 from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtGui import QCloseEvent, QGuiApplication
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QFileDialog, QWidget
+from pytest import MonkeyPatch
+from shiboken6 import delete, isValid
 
 from sugarsubstitute_shared.qt_application_instance_control import (
     ApplicationInstanceControlClient,
@@ -316,6 +319,31 @@ def test_accepted_close_cannot_acknowledge_a_rapid_relaunch(
     ]
     window.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_deleted_file_dialog_cancels_deferred_close_restoration(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A native picker may die before the queued rejected-close check runs."""
+
+    application = ensure_qt_application()
+    client = _RecordingSupervisorClient()
+    control = ApplicationInstanceControlClient(client)
+    dialog = QFileDialog()
+    reported: list[BaseException] = []
+    monkeypatch.setattr(
+        sys,
+        "excepthook",
+        lambda _type, exception, _traceback: reported.append(exception),
+    )
+
+    control.eventFilter(dialog, QCloseEvent())
+    delete(dialog)
+    assert not isValid(dialog)
+    application.processEvents()
+
+    assert reported == []
+    control.close()
 
 
 def test_control_bridge_recovers_an_entirely_offscreen_window(tmp_path: Path) -> None:

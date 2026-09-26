@@ -22,8 +22,9 @@ websocket-client==1.9.2  # Provides the `websocket` import; do NOT add the legac
 keyring==25.7.0
 jeepney==0.9.0; sys_platform == "linux"
 
-# Imaging
+# Imaging and generated-video playback
 Pillow==12.3.0
+python-mpv[screenshot-raw]==1.0.8
 
 photoshop==0.21.9; sys_platform == "win32"
 comtypes==1.4.16; sys_platform == "win32"

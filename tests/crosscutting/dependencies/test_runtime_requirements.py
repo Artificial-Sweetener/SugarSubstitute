@@ -41,6 +41,7 @@ _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
         "pyobjc-core",
         "pyobjc-framework-cocoa",
         "psutil",
+        "python-mpv",
         "pyside6",
         "pyside6-fluent-widgets",
         "pysidesix-frameless-window",

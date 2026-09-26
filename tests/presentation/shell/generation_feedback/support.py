@@ -34,6 +34,7 @@ from substitute.application.ports import (
     ListenerCompleted,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -58,6 +59,7 @@ class RecordingFeedbackSink(QObject):
         self.model_load: list[ModelLoadProgressUpdate] = []
         self.previews: list[LivePreviewEvent] = []
         self.outputs: list[LiveFinalOutputEvent] = []
+        self.videos: list[OutputVideoUpdate] = []
         self.timing: list[GenerationExecutionTiming] = []
         self.failures: list[GenerationFailure] = []
         self.completed: list[ListenerCompleted] = []
@@ -102,6 +104,12 @@ class RecordingFeedbackSink(QObject):
 
         self.outputs.append(update)
         self._record_delivery("output")
+
+    def apply_generation_output_video(self, update: OutputVideoUpdate) -> None:
+        """Record one output video update."""
+
+        self.videos.append(update)
+        self._record_delivery("video")
 
     def apply_generation_timing(self, update: GenerationExecutionTiming) -> None:
         """Record one generation timing update."""
@@ -165,6 +173,27 @@ def output_update(path: Path) -> OutputImageUpdate:
         list_index=0,
         artifact_width=640,
         artifact_height=480,
+    )
+
+
+def output_video_update(path: Path) -> OutputVideoUpdate:
+    """Build one final output video update."""
+
+    return OutputVideoUpdate(
+        workflow_id="wf",
+        workflow_payload={"N1": {"class_type": "SaveVideo"}},
+        file_path=path,
+        node_id="N1",
+        poster_bytes=b"poster",
+        temporary=False,
+        generation_run_id="run-1",
+        prompt_id="pid-1",
+        client_id="client-1",
+        source_key="wf:N1",
+        source_label="Cube",
+        list_index=0,
+        artifact_width=640,
+        artifact_height=360,
     )
 
 

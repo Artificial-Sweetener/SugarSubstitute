@@ -18,12 +18,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from types import SimpleNamespace
-from typing import cast
 
 from substitute.application.node_behavior import NodeDisplayDecision, TitleControl
-import substitute.presentation.editor.panel.node_card_builder as node_card_builder
+from substitute.presentation.editor.panel.node_card.activation_control import (
+    activation_override_for_switch_state,
+)
 from tests.presentation.editor.node_card.support import Panel
 from tests.support.node_behavior import build_behavior_snapshot
 
@@ -107,9 +107,4 @@ def test_disabling_revealed_default_disabled_node_keeps_explicit_override() -> N
         explicit_override=True,
         explicit_revealed=True,
     )
-    switch_override_for_next_state = cast(
-        Callable[[NodeDisplayDecision, bool], bool],
-        getattr(node_card_builder, "_switch_override_for_next_state"),
-    )
-
-    assert switch_override_for_next_state(decision, False) is False
+    assert activation_override_for_switch_state(decision, False) is False

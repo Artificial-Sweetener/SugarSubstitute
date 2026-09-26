@@ -25,6 +25,7 @@ from substitute.application.ports.comfy_gateway import (
     ListenerOutputSource,
     OutputImageUpdate,
 )
+from substitute.domain.output_media import OutputMediaKind
 from substitute.infrastructure.comfy.final_image_event import (
     FinalImageEvent,
     FinalImageScene,
@@ -41,9 +42,9 @@ from substitute.infrastructure.comfy.prompt_history_output_recovery import (
     PromptHistoryOutputRecovery,
     PromptHistoryRecoveryContext,
 )
-from substitute.infrastructure.comfy.standard_executed_image_handler import (
-    StandardExecutedImageContext,
-    StandardExecutedImageHandler,
+from substitute.infrastructure.comfy.standard_executed_output_handler import (
+    StandardExecutedOutputContext,
+    StandardExecutedOutputHandler,
 )
 
 
@@ -87,14 +88,36 @@ class _Persistence:
         return _Persisted(Path(f"{len(self.calls)}.png"))
 
 
+@dataclass
+class _DiscardSink:
+    """Discard final-output events outside the behavior under test."""
+
+    def handle(self, event: FinalImageEvent) -> None:
+        """Accept one event without side effects."""
+
+        del event
+
+
+@dataclass
+class _RecordingSink:
+    """Record neutral final-output events for routing assertions."""
+
+    events: list[FinalImageEvent]
+
+    def handle(self, event: FinalImageEvent) -> None:
+        """Record one typed-media event."""
+
+        self.events.append(event)
+
+
 def test_standard_executed_images_share_final_handler_and_keep_batch_indices() -> None:
     """One PreviewImage event should publish every batch artifact independently."""
 
     fetched: list[ComfyImageArtifact] = []
     persisted: list[tuple[bytes, OutputSourceIdentity]] = []
     updates: list[OutputImageUpdate] = []
-    handler = StandardExecutedImageHandler(
-        context=StandardExecutedImageContext(
+    handler = StandardExecutedOutputHandler(
+        context=StandardExecutedOutputContext(
             workflow_id="wf",
             generation_run_id="run",
             prompt_id="prompt",
@@ -120,6 +143,7 @@ def test_standard_executed_images_share_final_handler_and_keep_batch_indices() -
             output_persistence=_Persistence(persisted),
             on_output_image=updates.append,
         ),
+        final_video_handler=_DiscardSink(),
     )
 
     handled = handler.handle(
@@ -147,8 +171,8 @@ def test_standard_handler_ignores_foreign_nodes_and_prompts() -> None:
     """Only the exact recovery node and prompt may become final output."""
 
     updates: list[OutputImageUpdate] = []
-    handler = StandardExecutedImageHandler(
-        context=StandardExecutedImageContext(
+    handler = StandardExecutedOutputHandler(
+        context=StandardExecutedOutputContext(
             workflow_id="wf",
             generation_run_id="run",
             prompt_id="prompt",
@@ -162,11 +186,61 @@ def test_standard_handler_ignores_foreign_nodes_and_prompts() -> None:
             output_persistence=_Persistence([]),
             on_output_image=updates.append,
         ),
+        final_video_handler=_DiscardSink(),
     )
 
     assert handler.handle({"prompt_id": "prompt", "node": "other"}) is False
     assert handler.handle({"prompt_id": "other", "node": "recover"}) is False
     assert updates == []
+
+
+def test_standard_executed_video_routes_only_to_video_handler() -> None:
+    """Parse a declared video envelope without treating its poster as an image."""
+
+    image_events: list[FinalImageEvent] = []
+    video_events: list[FinalImageEvent] = []
+    handler = StandardExecutedOutputHandler(
+        context=StandardExecutedOutputContext(
+            workflow_id="wf",
+            generation_run_id="run",
+            prompt_id="prompt",
+            client_id="client",
+            workflow_payload={},
+            scene=FinalImageScene(),
+        ),
+        sources_by_node={
+            "video": ListenerOutputSource(
+                "video",
+                "direct:7:0",
+                "Motion",
+                OutputMediaKind.VIDEO,
+            )
+        },
+        final_image_handler=_RecordingSink(image_events),
+        final_video_handler=_RecordingSink(video_events),
+    )
+
+    handled = handler.handle(
+        {
+            "prompt_id": "prompt",
+            "node": "video",
+            "output": {
+                "videos": [
+                    {
+                        "filename": "motion.webm",
+                        "subfolder": "generated",
+                        "type": "output",
+                    }
+                ]
+            },
+        }
+    )
+
+    assert handled
+    assert image_events == []
+    assert len(video_events) == 1
+    assert video_events[0].artifacts[0].media_kind == "video"
+    assert video_events[0].artifacts[0].filename == "motion.webm"
 
 
 def test_shared_final_handler_deduplicates_transport_replays() -> None:
@@ -180,8 +254,8 @@ def test_shared_final_handler_deduplicates_transport_replays() -> None:
         output_persistence=_Persistence(persisted),
         on_output_image=updates.append,
     )
-    handler = StandardExecutedImageHandler(
-        context=StandardExecutedImageContext(
+    handler = StandardExecutedOutputHandler(
+        context=StandardExecutedOutputContext(
             workflow_id="wf",
             generation_run_id="run",
             prompt_id="prompt",
@@ -193,6 +267,7 @@ def test_shared_final_handler_deduplicates_transport_replays() -> None:
             "recover": ListenerOutputSource("recover", "cube:cube-a", "Cube A")
         },
         final_image_handler=final_handler,
+        final_video_handler=_DiscardSink(),
     )
     event = {
         "prompt_id": "prompt",
@@ -266,8 +341,8 @@ def test_live_and_history_delivery_share_one_artifact_identity() -> None:
         on_output_image=updates.append,
     )
     source = ListenerOutputSource("recover", "cube:cube-a", "Cube A")
-    handler = StandardExecutedImageHandler(
-        context=StandardExecutedImageContext(
+    handler = StandardExecutedOutputHandler(
+        context=StandardExecutedOutputContext(
             workflow_id="wf",
             generation_run_id="run",
             prompt_id="prompt",
@@ -277,6 +352,7 @@ def test_live_and_history_delivery_share_one_artifact_identity() -> None:
         ),
         sources_by_node={"recover": source},
         final_image_handler=final_handler,
+        final_video_handler=_DiscardSink(),
     )
     output = {"images": [{"filename": "same.png", "subfolder": "", "type": "temp"}]}
 
@@ -300,6 +376,7 @@ def test_live_and_history_delivery_share_one_artifact_identity() -> None:
             cube_alias=source.source_label,
         ),
         final_image_handler=final_handler,
+        final_video_handler=_DiscardSink(),
     ).recover()
 
     assert len(fetched) == 1

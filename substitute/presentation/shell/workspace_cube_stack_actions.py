@@ -26,7 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.workflows import CubeDuplicationService
 from substitute.domain.workflow import WorkflowState
@@ -332,6 +332,7 @@ class WorkspaceCubeStackActions:
         active_panel.rename_cube(old_key, resolved_alias)
         timer.singleShot(
             0,
+            cast(QObject, active_panel),
             lambda: active_panel.scroll_to_cube(resolved_alias, animated=True),
         )
 

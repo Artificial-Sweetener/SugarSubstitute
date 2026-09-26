@@ -42,7 +42,10 @@ def create_startup_qtimer() -> Any:
 def startup_single_shot(delay_ms: int, callback: Callable[[], None]) -> None:
     """Schedule one startup callback on the Qt event loop."""
 
-    QtCore.QTimer.singleShot(delay_ms, callback)
+    application = QtCore.QCoreApplication.instance()
+    if application is None:
+        raise RuntimeError("Startup scheduling requires a live Qt application")
+    QtCore.QTimer.singleShot(delay_ms, application, callback)
 
 
 def schedule_visible_startup_summary(callback: Callable[[], None]) -> None:

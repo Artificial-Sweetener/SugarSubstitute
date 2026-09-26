@@ -33,12 +33,13 @@ from substitute.infrastructure.comfy.nodepack_reconciliation_logger import LogCa
 def install_trusted_nodepack_repository(
     *,
     repository_url: str,
+    revision: str,
     target_path: Path,
     display_name: str,
     on_log: LogCallback | None = None,
     repositories: RepositoryService | None = None,
 ) -> None:
-    """Clone one application-owned trusted nodepack into an empty target path."""
+    """Clone one application-owned trusted nodepack at an exact revision."""
 
     if target_path.exists():
         raise RuntimeError(
@@ -46,11 +47,17 @@ def install_trusted_nodepack_repository(
         )
     target_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        (repositories or repository_service()).clone(
+        repository_operations = repositories or repository_service()
+        repository_operations.clone(
             repository_url,
             target_path,
             on_progress=on_log,
         )
+        repository_operations.checkout_revision(target_path, revision)
+        if repository_operations.head_commit_id(target_path) != revision.casefold():
+            raise RepositoryOperationError(
+                "Repository checkout did not reach the approved revision."
+            )
     except RepositoryOperationError as error:
         _remove_partial_clone(target_path)
         raise RuntimeError(

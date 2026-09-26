@@ -27,6 +27,9 @@ from substitute.domain.generation import (
     OutputPreferences,
     OutputTransferFormat,
     OutputTransferSettings,
+    VideoHardwareDecoding,
+    VideoPlaybackSettings,
+    VideoRenderer,
 )
 from substitute.infrastructure.persistence import (
     FileOutputPreferenceRepository,
@@ -110,3 +113,51 @@ def test_file_repository_preserves_null_output_root(tmp_path: Path) -> None:
 
     assert loaded.organization.output_root is None
     assert loaded.organization.path_pattern == "{workflow}\\{run}_{source}"
+
+
+def test_file_repository_migrates_and_round_trips_video_preferences(
+    tmp_path: Path,
+) -> None:
+    """Legacy files should default safely while current video choices persist."""
+
+    path = tmp_path / "output_organization.json"
+    path.write_text(json.dumps({"schema_version": "3"}), encoding="utf-8")
+    repository = FileOutputPreferenceRepository(tmp_path)
+
+    migrated = repository.load()
+    assert migrated.video == VideoPlaybackSettings()
+
+    repository.save(
+        OutputPreferences(
+            video=VideoPlaybackSettings(
+                hardware_decoding=VideoHardwareDecoding.OFF,
+                renderer=VideoRenderer.GPU,
+            )
+        )
+    )
+
+    loaded = repository.load()
+    assert loaded.schema_version == "4"
+    assert loaded.video.hardware_decoding is VideoHardwareDecoding.OFF
+    assert loaded.video.renderer is VideoRenderer.GPU
+
+
+def test_file_repository_defaults_invalid_video_preferences(tmp_path: Path) -> None:
+    """Unknown persisted policy values should recover to safe automatic choices."""
+
+    (tmp_path / "output_organization.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "4",
+                "video": {
+                    "hardware_decoding": "unsafe",
+                    "renderer": "removed-renderer",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = FileOutputPreferenceRepository(tmp_path).load()
+
+    assert loaded.video == VideoPlaybackSettings()

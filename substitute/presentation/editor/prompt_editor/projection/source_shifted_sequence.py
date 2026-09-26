@@ -156,8 +156,9 @@ def remap_source_sequence(
     delta: int,
     source_range: SourceRange[TSourceItem],
     shift_item: SourceShift[TSourceItem],
+    remap_overlap: Callable[[TSourceItem, int], TSourceItem | None] | None = None,
 ) -> Sequence[TSourceItem]:
-    """Drop edit overlaps and lazily shift the unchanged sorted suffix."""
+    """Remap validated overlaps and lazily shift the unchanged sorted suffix."""
 
     wrapped_items = source_sequence(items, shift_item=shift_item)
     segments: list[_SourceSegment[TSourceItem]] = []
@@ -183,6 +184,18 @@ def remap_source_sequence(
                 )
             )
             return PromptSourceShiftedSequence(segments)
+        if remap_overlap is not None:
+            remapped_item = remap_overlap(item, delta)
+            if remapped_item is not None:
+                segments.append(
+                    _SourceSegment(
+                        base=(remapped_item,),
+                        start=0,
+                        length=1,
+                        delta=0,
+                        shift_item=shift_item,
+                    )
+                )
         unchanged_start = index + 1
     segments.extend(
         _segments_for_range(

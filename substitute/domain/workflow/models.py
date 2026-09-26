@@ -30,6 +30,7 @@ from substitute.domain.common import (
 )
 from substitute.domain.cube_library import CubeUpdatePolicy, WorkflowCubeClassification
 from substitute.domain.generation.seed_control import SeedControlState
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.comfy_workflow.models import DirectWorkflowState
 from substitute.domain.workflow.canvas_models import WorkflowCanvasState
 from substitute.domain.workflow.document_kind import WorkflowDocumentKind
@@ -337,7 +338,7 @@ class WorkflowState:
 
 @dataclass
 class ImageMeta:
-    """Store origin metadata required to label and route generated images."""
+    """Store origin metadata required to label and route generated media."""
 
     workflow_name: str
     cube_name: str
@@ -361,6 +362,10 @@ class ImageMeta:
     list_index: int | None = None
     batch_index: int | None = None
     cube_execution_duration_ms: float | None = None
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE
+    duration_seconds: float | None = None
+    mime_type: str | None = None
+    temporary: bool = False
 
     def __post_init__(self) -> None:
         """Default source display text to the generated cube label."""

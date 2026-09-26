@@ -30,19 +30,15 @@ from .projection_models import (
     EditorFullProjectionLoadRequest,
     EditorIncrementalInsertRequest,
 )
-from .projection_ports import (
-    EditorRefreshPanelProtocol,
-)
-from .projection_session import (
-    EditorSurfaceProjectionSignature,
-    InsertCompletionPhase,
-)
+from .projection_ports import ProjectionCoordinatorPanelPort
+from .projection_session_models import InsertCompletionPhase
+from .projection_surface_state import EditorSurfaceProjectionSignature
 
 
 class EditorPanelProjectionCoordinator:
     """Own panel projection sessions, layout commits, and deferred refresh scheduling."""
 
-    def __init__(self, panel: EditorRefreshPanelProtocol) -> None:
+    def __init__(self, panel: ProjectionCoordinatorPanelPort) -> None:
         """Store the live editor panel used for widget refresh operations."""
 
         self._panel = panel
@@ -212,6 +208,7 @@ class EditorPanelProjectionCoordinator:
         stack_order: Sequence[str] | None,
         on_complete: Callable[[], None] | None = None,
         completion_phase: InsertCompletionPhase = "first_usable",
+        motion_requested: bool = False,
     ) -> None:
         """Insert one cube widget without rebuilding existing cube sections."""
 
@@ -230,5 +227,6 @@ class EditorPanelProjectionCoordinator:
                     list(panel._stack_order) if panel._stack_order else None
                 ),
                 started_at=perf_counter(),
+                motion_requested=motion_requested,
             )
         )

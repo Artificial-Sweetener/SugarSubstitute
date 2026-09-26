@@ -286,7 +286,7 @@ def test_terminal_onboarding_action_runs_on_outer_event_loop(
             cast(QAbstractButton, candidate),
         )
 
-    def schedule_terminal(_delay: int, callback: object) -> None:
+    def schedule_terminal(_delay: int, _owner: object, callback: object) -> None:
         """Run the captured callback after recording its event-loop handoff."""
 
         assert callable(callback)

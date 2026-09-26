@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from substitute.domain.links import NodeLinkEndpoint, NodeLinkEndpointIndex
 from substitute.domain.node_behavior import (
+    ActivationDefault,
     CardBehavior,
     CardDecision,
     EnabledSwitchPolicy,
@@ -293,3 +294,60 @@ def test_compute_editor_behavior_hides_linked_vectorscope_value_fields() -> None
     assert ("B", "vectorscopecc", "brightness") in hidden_keys["B"]
     assert ("B", "vectorscopecc", "contrast") in hidden_keys["B"]
     assert ("A", "vectorscopecc", "brightness") not in hidden_keys["A"]
+
+
+def test_linked_hidden_infrastructure_inherits_activation_without_becoming_visible() -> (
+    None
+):
+    """Node links must not disable hidden infrastructure that is active by policy."""
+
+    behavior = ResolvedNodeBehavior(
+        node_name="schedule",
+        class_type="SimpleSyrup.ScheduleAndEncodePromptsWithPromptControl",
+        card=CardBehavior(
+            activation_default=ActivationDefault.ENABLED,
+            enabled_switch_policy=EnabledSwitchPolicy.NEVER,
+            hidden=True,
+        ),
+        fields={},
+    )
+    ctx = EditorBehaviorContext(
+        stack_order=("A", "B"),
+        cubes={
+            "A": cube(
+                {
+                    "schedule": {
+                        "class_type": behavior.class_type,
+                        "inputs": {},
+                    }
+                }
+            ),
+            "B": cube(
+                {
+                    "schedule": {
+                        "class_type": behavior.class_type,
+                        "inputs": {},
+                        "node_link": {
+                            "from_cube": "A",
+                            "from_node": "schedule",
+                        },
+                    }
+                }
+            ),
+        },
+        behaviors_by_alias={"A": {"schedule": behavior}, "B": {"schedule": behavior}},
+        workflow_overrides={},
+        search_hidden_keys=frozenset(),
+    )
+
+    decisions, _hidden_keys, _entries = compute_editor_behavior(
+        ctx,
+        declarative_by_alias={"A": PackageBehaviorPatch(), "B": PackageBehaviorPatch()},
+    )
+
+    assert decisions["A"]["schedule"].visible is False
+    assert decisions["A"]["schedule"].enabled is True
+    assert decisions["B"]["schedule"].visible is False
+    assert decisions["B"]["schedule"].enabled is True
+    assert decisions["B"]["schedule"].node_link_active is True
+    assert decisions["B"]["schedule"].reason == "node-link:inherited-enabled"

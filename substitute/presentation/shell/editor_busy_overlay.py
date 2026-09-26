@@ -91,7 +91,7 @@ if not TYPE_CHECKING:
 
 
 _ELLIPSIS_INTERVAL_MS = 400
-_ELLIPSIS_STATES = ("", ".", "..", "...")
+_ELLIPSIS_STATES = (".", "..", "...")
 _ELLIPSIS_SLOT_TEXT = "..."
 
 

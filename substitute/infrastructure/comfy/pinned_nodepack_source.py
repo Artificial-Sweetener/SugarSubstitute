@@ -14,13 +14,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Materialize trusted tag archives as Comfy Registry-managed nodepacks."""
+"""Materialize trusted exact archives as Comfy Registry-managed nodepacks."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 import shutil
+import tarfile
 import tempfile
 import time
 from urllib.error import URLError
@@ -56,8 +58,69 @@ _DOWNLOAD_RETRY_DELAYS_SECONDS = (2.0, 5.0)
 _sleep = time.sleep
 
 
-class PinnedNodepackSourceInstaller:
-    """Install trusted pinned releases while preserving mutable nodepack data."""
+@dataclass(frozen=True, slots=True)
+class RegistryArchiveIdentity:
+    """Describe one exact Registry package independently of core ownership."""
+
+    registry_id: str
+    display_name: str
+    version: str
+
+
+class TrustedNodepackArchiveInstaller:
+    """Install trusted exact releases while preserving mutable nodepack data."""
+
+    def install_registry_release(
+        self,
+        *,
+        target_path: Path,
+        nodepack: CoreComfyNodepack,
+        archive_url: str,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Install one validated Comfy Registry archive transactionally."""
+
+        self._install_exact_archive(
+            target_path=target_path,
+            identity=RegistryArchiveIdentity(
+                registry_id=nodepack.registry_id,
+                display_name=nodepack.display_name,
+                version=nodepack.required_version,
+            ),
+            archive_url=archive_url,
+            source_name="Comfy Registry",
+            archive_has_root_folder=False,
+            validate_source=lambda source_path: validate_nodepack_source_identity(
+                source_path,
+                nodepack,
+                require_version=True,
+            ),
+            on_log=on_log,
+            env=env,
+        )
+
+    def install_workflow_registry_release(
+        self,
+        *,
+        target_path: Path,
+        identity: RegistryArchiveIdentity,
+        archive_url: str,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Install an exact arbitrary Registry package into an unowned CNR folder."""
+
+        self._install_exact_archive(
+            target_path=target_path,
+            identity=identity,
+            archive_url=archive_url,
+            source_name="Comfy Registry",
+            archive_has_root_folder=False,
+            validate_source=None,
+            on_log=on_log,
+            env=env,
+        )
 
     def install_fallback(
         self,
@@ -69,32 +132,69 @@ class PinnedNodepackSourceInstaller:
     ) -> None:
         """Install one pinned tag while preserving untracked runtime and user data."""
 
+        self._install_exact_archive(
+            target_path=target_path,
+            identity=RegistryArchiveIdentity(
+                registry_id=nodepack.registry_id,
+                display_name=nodepack.display_name,
+                version=nodepack.required_version,
+            ),
+            archive_url=nodepack.fallback_archive_url,
+            source_name="pinned fallback",
+            archive_has_root_folder=True,
+            validate_source=lambda source_path: validate_nodepack_source_identity(
+                source_path,
+                nodepack,
+                require_version=True,
+            ),
+            on_log=on_log,
+            env=env,
+        )
+
+    def _install_exact_archive(
+        self,
+        *,
+        target_path: Path,
+        identity: RegistryArchiveIdentity,
+        archive_url: str,
+        source_name: str,
+        archive_has_root_folder: bool,
+        validate_source: Callable[[Path], None] | None,
+        on_log: LogCallback | None,
+        env: Mapping[str, str] | None,
+    ) -> None:
+        """Replace only owned source files from one identity-checked archive."""
+
         _emit_log(
             on_log,
-            f"[ComfyNodepacks] Downloading pinned {nodepack.display_name} source.",
+            f"[ComfyNodepacks] Downloading {identity.display_name} from {source_name}.",
         )
         with tempfile.TemporaryDirectory(
             prefix="substitute-nodepack-fallback-",
             dir=temp_dir_from_env(env),
         ) as temporary_directory:
             transaction_root = Path(temporary_directory)
-            archive_path = transaction_root / "source.zip"
+            archive_path = transaction_root / "source.archive"
             extract_path = transaction_root / "source"
             backup_path = transaction_root / "previous"
             download_file(
-                archive_url=nodepack.fallback_archive_url,
+                archive_url=archive_url,
                 target_path=archive_path,
                 on_log=on_log,
             )
-            source_path = extract_single_root_zip(
-                archive_path=archive_path,
-                target_path=extract_path,
+            source_path = (
+                extract_single_root_zip(
+                    archive_path=archive_path,
+                    target_path=extract_path,
+                )
+                if archive_has_root_folder
+                else extract_flat_registry_archive(
+                    archive_path=archive_path,
+                    target_path=extract_path,
+                )
             )
-            validate_nodepack_source_identity(
-                source_path,
-                nodepack,
-                require_version=True,
-            )
+            if validate_source is not None:
+                validate_source(source_path)
             new_tracked_files = tracked_source_files(source_path)
             old_tracked_files = read_registry_tracking_file(target_path)
             if target_path.exists() and old_tracked_files is None:
@@ -111,8 +211,9 @@ class PinnedNodepackSourceInstaller:
         _emit_log(
             on_log,
             (
-                f"[ComfyNodepacks] Installed pinned {nodepack.display_name} "
-                f"{nodepack.required_version} in Comfy Registry format."
+                f"[ComfyNodepacks] Installed {identity.display_name} from "
+                f"{source_name} at "
+                f"{identity.version} in Comfy Registry format."
             ),
         )
 
@@ -177,10 +278,67 @@ def _transport_reason_type(error: BaseException) -> str:
 def extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
     """Extract a zip safely and return its only top-level directory."""
 
+    roots = _extract_zip_safely(archive_path=archive_path, target_path=target_path)
+    if len(roots) != 1:
+        raise RuntimeError("Pinned source archive did not contain one root folder.")
+    source_path = target_path / next(iter(roots))
+    if not source_path.is_dir():
+        raise RuntimeError("Pinned source archive did not contain one root folder.")
+    return source_path
+
+
+def extract_flat_zip(*, archive_path: Path, target_path: Path) -> Path:
+    """Extract a flat Registry package safely and return its source root."""
+
+    _extract_zip_safely(archive_path=archive_path, target_path=target_path)
+    return target_path
+
+
+def extract_flat_registry_archive(*, archive_path: Path, target_path: Path) -> Path:
+    """Extract one Registry ZIP or gzip tarball without trusting member paths."""
+
+    if zipfile.is_zipfile(archive_path):
+        return extract_flat_zip(archive_path=archive_path, target_path=target_path)
+    if tarfile.is_tarfile(archive_path):
+        _extract_tar_safely(archive_path=archive_path, target_path=target_path)
+        return target_path
+    raise RuntimeError("Comfy Registry package is not a supported archive.")
+
+
+def _extract_tar_safely(*, archive_path: Path, target_path: Path) -> None:
+    """Extract regular tarball files while rejecting links and path escapes."""
+
     target_path.mkdir(parents=True, exist_ok=True)
     resolved_target = target_path.resolve()
+    with tarfile.open(archive_path, mode="r:*") as archive:
+        for member in archive.getmembers():
+            destination = (target_path / member.name).resolve()
+            if not path_is_relative_to(destination, resolved_target):
+                raise RuntimeError("Registry source archive contains an unsafe path.")
+            if member.isdir():
+                destination.mkdir(parents=True, exist_ok=True)
+                continue
+            if not member.isfile():
+                raise RuntimeError(
+                    "Registry source archive contains an unsupported member."
+                )
+            source = archive.extractfile(member)
+            if source is None:
+                raise RuntimeError(
+                    "Registry source archive contains an unreadable file."
+                )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with source, destination.open("wb") as output:
+                shutil.copyfileobj(source, output)
+
+
+def _extract_zip_safely(*, archive_path: Path, target_path: Path) -> set[str]:
+    """Extract archive members while rejecting paths outside the destination."""
+
+    target_path.mkdir(parents=True, exist_ok=True)
+    resolved_target = target_path.resolve()
+    roots: set[str] = set()
     with zipfile.ZipFile(archive_path) as archive:
-        roots: set[str] = set()
         for member in archive.infolist():
             member_path = Path(member.filename)
             if not member_path.parts:
@@ -195,9 +353,7 @@ def extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
             destination.parent.mkdir(parents=True, exist_ok=True)
             with archive.open(member) as source, destination.open("wb") as output:
                 shutil.copyfileobj(source, output)
-    if len(roots) != 1:
-        raise RuntimeError("Pinned source archive did not contain one root folder.")
-    return target_path / next(iter(roots))
+    return roots
 
 
 def temp_dir_from_env(env: Mapping[str, str] | None) -> Path | None:
@@ -304,8 +460,11 @@ def _emit_log(callback: LogCallback | None, message: str) -> None:
 
 
 __all__ = [
-    "PinnedNodepackSourceInstaller",
+    "RegistryArchiveIdentity",
+    "TrustedNodepackArchiveInstaller",
     "download_file",
+    "extract_flat_registry_archive",
+    "extract_flat_zip",
     "extract_single_root_zip",
     "temp_dir_from_env",
 ]

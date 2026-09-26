@@ -129,6 +129,58 @@ def test_reorder_placement_hit_testing_prefers_active_overlap() -> None:
     assert selected == second
 
 
+def test_reorder_placement_hit_testing_uses_nearest_anchor_without_active_overlap() -> (
+    None
+):
+    """Fully overlapping targets should remain reachable by their distinct anchors."""
+
+    first_target = PromptLineDropTarget(row_index=0, insertion_index=0)
+    second_target = PromptLineDropTarget(row_index=0, insertion_index=1)
+    shared_hit_rect = QRectF(0.0, 0.0, 100.0, 30.0)
+    first = PromptReorderPlacementGeometry(
+        placement_id=reorder_placement_id_for_target(
+            first_target,
+            visual_line_index=0,
+            ordinal=0,
+        ),
+        target=first_target,
+        hit_rect=shared_hit_rect,
+        insertion_anchor_rect=QRectF(5.0, 0.0, 1.0, 30.0),
+        visual_line_rect=shared_hit_rect,
+        expected_landing_rect=None,
+        source_before=None,
+        source_after=0,
+    )
+    second = PromptReorderPlacementGeometry(
+        placement_id=reorder_placement_id_for_target(
+            second_target,
+            visual_line_index=0,
+            ordinal=1,
+        ),
+        target=second_target,
+        hit_rect=shared_hit_rect,
+        insertion_anchor_rect=QRectF(95.0, 0.0, 1.0, 30.0),
+        visual_line_rect=shared_hit_rect,
+        expected_landing_rect=None,
+        source_before=4,
+        source_after=8,
+    )
+    snapshot = PromptReorderPlacementSnapshot(
+        placements=(first, second),
+        visual_line_count=1,
+        layout_width=100.0,
+        content_height=30.0,
+    )
+
+    selected = placement_for_drag_rect(
+        snapshot,
+        QRectF(88.0, 5.0, 10.0, 10.0),
+        active_placement_id=None,
+    )
+
+    assert selected == second
+
+
 def test_reorder_placement_hit_testing_uses_nearest_anchor_on_selected_line() -> None:
     """A drag outside hit rects should resolve by nearest anchor on the nearest line."""
 

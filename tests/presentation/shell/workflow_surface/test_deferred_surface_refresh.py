@@ -50,7 +50,7 @@ def test_deferred_override_presentation_rebuild_skips_stale_workflow(
     monkeypatch.setattr(
         QTimer,
         "singleShot",
-        staticmethod(lambda _msec, callback: scheduled.append(callback)),
+        staticmethod(lambda _msec, _owner, callback: scheduled.append(callback)),
     )
 
     ActiveWorkflowSurfaceRefresher(shell).schedule_active_override_presentation_rebuild(
@@ -63,6 +63,7 @@ def test_deferred_override_presentation_rebuild_skips_stale_workflow(
 
 def test_active_surface_refresh_success_emits_no_info_logs(
     caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Successful active surface maintenance should not spam INFO logs."""
 
@@ -150,6 +151,11 @@ def test_active_surface_refresh_success_emits_no_info_logs(
     caplog.set_level(
         logging.INFO,
         logger="sugarsubstitute.presentation.shell.workflow_surface_reconciler",
+    )
+    monkeypatch.setattr(
+        QTimer,
+        "singleShot",
+        staticmethod(lambda _delay, _owner, callback: callback()),
     )
 
     ActiveWorkflowSurfaceRefresher(view).refresh_active_workflow_surface()

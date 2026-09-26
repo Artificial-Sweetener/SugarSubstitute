@@ -18,24 +18,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
-from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.editor_search import EditorSearchResult
 from substitute.application.node_behavior import (
-    EditorBehaviorSnapshot,
-    LiveNodeDefinitionError,
-    NodeDisplayDecision,
     NodeBehaviorService,
-    ResolvedFieldSpec,
 )
 from substitute.application.localization import NodePresentationService
 from substitute.application.workflows import (
-    CubeRuntimeIssue,
-    CubeRuntimeIssueSource,
     WorkflowIssueState,
 )
 from substitute.application.danbooru import (
@@ -60,13 +51,10 @@ from substitute.application.prompt_editor.lora.catalog_models import (
 )
 from substitute.application.prompt_editor.lora.effective_provider import (
     ScheduledLoraProvider,
-    WorkflowPromptContext,
 )
 from substitute.application.prompt_editor.lora.scheduled import (
-    PromptScheduledLora,
     PromptScheduledLoraService,
 )
-from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.domain.prompt.preferences.models import (
     PromptWheelAdjustmentMode,
 )
@@ -89,16 +77,32 @@ from .context.active_model_snapshot import (
 )
 from .dimension_presets import EditorDimensionPresetCatalogSource
 from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
-from .choice_field_surface_reconciler import ChoiceFieldSurfaceReconciliationResult
-from .projection_preparation import BehaviorRefreshReason
-from .projection_session import EditorSurfaceProjectionSignature
 from .prompt.context import EditorPanelPromptContextController
-from .prompt.profile_policy import PanelPromptFieldProfileDecision
 from .prompt.scene_diagnostics import EditorPanelPromptSceneDiagnosticsController
 from .service_bundle import EditorPanelExecutionFactories
 from .node_card.body_contribution import NodeCardBodyContributor
+from .behavior_context_host import EditorPanelBehaviorContextHost
+from .behavior_surface_host import EditorPanelBehaviorSurfaceHost
+from .field_presentation_controller import EditorPanelFieldPresentationController
+from .link_synchronization import EditorPanelLinkSynchronization
+from .navigation_search_host import EditorPanelNavigationSearchHost
+from .node_card_host import EditorPanelNodeCardHost
+from .node_definition_runtime import EditorPanelNodeDefinitionRuntime
+from .projection_host import EditorPanelProjectionHost
+from .prompt_interaction import EditorPanelPromptInteraction
+from .surface_motion import EditorSurfaceMotionController
 
-class EditorPanel(QWidget):
+class EditorPanel(
+    EditorPanelPromptInteraction,
+    EditorPanelNodeDefinitionRuntime,
+    EditorPanelLinkSynchronization,
+    EditorPanelBehaviorContextHost,
+    EditorPanelProjectionHost,
+    EditorPanelBehaviorSurfaceHost,
+    EditorPanelNodeCardHost,
+    EditorPanelNavigationSearchHost,
+    QWidget,
+):
     CUBE_SPACING: int
     currentCubeVisibleChanged: Any
     inputImageChanged: Any
@@ -118,6 +122,8 @@ class EditorPanel(QWidget):
     _stack_order: list[str] | None
     _prompt_context_controller: EditorPanelPromptContextController
     _prompt_scene_diagnostics_controller: EditorPanelPromptSceneDiagnosticsController
+    field_presentation: EditorPanelFieldPresentationController
+    _surface_motion: EditorSurfaceMotionController
 
     def __init__(
         self,
@@ -152,7 +158,6 @@ class EditorPanel(QWidget):
     ) -> None: ...
     def set_cube_stack_unavailable_progress(self, progress: float) -> None: ...
     def content_horizontal_gutters(self) -> tuple[int, int]: ...
-    def clear_search_filters(self) -> None: ...
     def refresh_mask_picker(
         self,
         cube_alias: str,
@@ -176,217 +181,3 @@ class EditorPanel(QWidget):
     def clear_model_field_load_progress(self) -> None: ...
     def mark_lora_metadata_dirty(self) -> None: ...
     def refresh_visible_lora_metadata(self) -> int: ...
-    def current_behavior_snapshot(self) -> EditorBehaviorSnapshot | None: ...
-    def set_current_behavior_snapshot(
-        self, snapshot: EditorBehaviorSnapshot | None
-    ) -> None: ...
-    def workflow_prompt_context(self) -> WorkflowPromptContext: ...
-    def _prompt_workflow_context_for_feature_profiles(self) -> Any: ...
-    def begin_projection_prompt_context(
-        self,
-        *,
-        cube_states: Mapping[str, Any] | None,
-        stack_order: Sequence[str] | None,
-        reason: str,
-    ) -> None: ...
-    def clear_projection_prompt_context(self, *, reason: str) -> None: ...
-    def scheduled_lora_resolver_for_prompt(
-        self,
-        cube_alias: str | None,
-        prompt_node_name: str,
-        prompt_field_key: str,
-    ) -> Callable[[str], tuple[PromptScheduledLora, ...]] | None: ...
-    def prompt_feature_profile_for_prompt(
-        self,
-        cube_alias: str | None,
-        prompt_node_name: str,
-        prompt_field_key: str,
-        field_style: Mapping[str, object],
-    ) -> PromptEditorFeatureProfile | None: ...
-    def prompt_field_profile_for_prompt(
-        self,
-        cube_alias: str | None,
-        prompt_node_name: str,
-        prompt_field_key: str,
-        field_style: Mapping[str, object],
-    ) -> PanelPromptFieldProfileDecision: ...
-    def current_projection_signature(
-        self,
-        *,
-        workflow_id: str,
-        cube_entries: Sequence[tuple[str, object]],
-        cube_states: Mapping[str, object] | None,
-        stack_order: Sequence[str] | None,
-    ) -> EditorSurfaceProjectionSignature: ...
-    def is_projection_clean(
-        self,
-        signature: EditorSurfaceProjectionSignature,
-    ) -> bool: ...
-    def mark_projection_clean(
-        self,
-        signature: EditorSurfaceProjectionSignature,
-    ) -> None: ...
-    def invalidate_projection(self, *, reason: str) -> None: ...
-    def refresh_clean_projection(
-        self,
-        *,
-        cube_states: Mapping[str, object] | None,
-        stack_order: Sequence[str] | None,
-    ) -> None: ...
-    def reorder_cube_widgets(self) -> None: ...
-    def load_all_cubes(
-        self,
-        cube_entries: Sequence[tuple[str, Any]],
-        cube_states: Mapping[str, Any] | None = ...,
-        stack_order: Sequence[str] | None = ...,
-        projection_signature: EditorSurfaceProjectionSignature | None = ...,
-        on_complete: Callable[[], None] | None = ...,
-    ) -> None: ...
-    def insert_cube_section(
-        self,
-        cube_alias: str,
-        cube_state: Any,
-        cube_states: Mapping[str, Any] | None = ...,
-        stack_order: Sequence[str] | None = ...,
-        on_complete: Callable[[], None] | None = ...,
-        completion_phase: str = ...,
-    ) -> None: ...
-    def mark_cube_sections_stale(
-        self,
-        cube_aliases: Sequence[str],
-        *,
-        reason: str,
-    ) -> bool: ...
-    def rename_cube(self, old_key: str, new_key: str) -> None: ...
-    def refresh_cube_header(self, alias: str) -> None: ...
-    def remove_cube(self, route_key: str) -> None: ...
-    def clear_layout(self) -> None: ...
-    def has_pending_visible_projection_commit(self) -> bool: ...
-    def finalize_pending_visible_projection(self) -> bool: ...
-    def is_projection_active(self) -> bool: ...
-    def scroll_to_cube(
-        self,
-        cube_alias: str,
-        animated: bool = ...,
-        duration: int | None = ...,
-        *,
-        only_if_needed: bool = ...,
-        on_finished: Callable[[], None] | None = ...,
-    ) -> None: ...
-    def reveal_loaded_cube(self, route_key: str) -> None: ...
-    def reveal_new_cube(self, route_key: str) -> None: ...
-    def reveal_cube_when_layout_ready(self, route_key: str) -> None: ...
-    def handle_external_wheel(self, event: QWheelEvent) -> None: ...
-    def scroll_to_input_widget(
-        self,
-        widget: QWidget,
-        animated: bool = ...,
-        duration: int | None = ...,
-    ) -> None: ...
-    def set_stack_order(self, stack_order: list[str]) -> None: ...
-    def search_and_select(self, search_text: str, direction: str = ...) -> None: ...
-    def focus_current_search_match(self) -> None: ...
-    def build_search_corpus_snapshot(self) -> EditorBehaviorSnapshot | None: ...
-    def highlight_inputs_matching(self, text: str) -> None: ...
-    def apply_search_result(self, result: EditorSearchResult) -> None: ...
-    def filter_node_cards_by_search(self, search_text: str) -> None: ...
-    def randomize_all_seed_boxes(self) -> None: ...
-    def configure_wheel_intent_for_widget(self, widget: QWidget) -> None: ...
-    def build_node_card(
-        self,
-        node_name: str,
-        inputs: dict[str, Any],
-        node_type: str,
-        field_specs: Mapping[str, ResolvedFieldSpec],
-        cube_state: dict[str, Any],
-        resolved_behavior: Any,
-        display_decision: NodeDisplayDecision | None = ...,
-        alias: str | None = ...,
-        parent: Any | None = ...,
-    ) -> Any: ...
-    def register_card_wrapper(
-        self,
-        cube_alias: str,
-        node_name: str,
-        wrapper: object,
-    ) -> None: ...
-    def remove_card_wrapper_if_current(
-        self,
-        cube_alias: str,
-        node_name: str,
-        wrapper: object,
-    ) -> None: ...
-    def sync_prompt_editor_values_from_buffers(self) -> None: ...
-    def sync_prompt_editor_values_for_cube(self, cube_alias: str) -> None: ...
-    def update_all_hidden_fields(
-        self,
-        overrides: Any = ...,
-        search_hidden_keys: set[Any] | None = ...,
-    ) -> None: ...
-    def set_hidden_field_keys(self, hidden_keys: set[Any]) -> None: ...
-    def set_search_field_match_keys(
-        self,
-        match_keys: set[tuple[str, str, str]] | None,
-        *,
-        active: bool,
-    ) -> None: ...
-    def sanitize_prompt_link_state(self) -> None: ...
-    def reconcile_prompt_link_state(
-        self,
-        *,
-        previous_cube_states: Mapping[str, object] | None,
-        previous_stack_order: list[str] | None,
-        cube_states: Mapping[str, object] | None,
-        stack_order: list[str] | None,
-    ) -> None: ...
-    def refresh_link_widgets_for_cube(self, cube_alias: str) -> None: ...
-    def refresh_node_behavior_state(
-        self,
-        search_hidden_keys: set[Any] | None = ...,
-        override_hidden_field_keys: set[Any] | None = ...,
-        node_search_text: str | None = ...,
-        search_matching_nodes: set[tuple[str, str]] | None = ...,
-        *,
-        reason: BehaviorRefreshReason = ...,
-        use_cached_snapshot: bool = ...,
-    ) -> None: ...
-    def hydrate_node_definitions_for_projection(self, *, reason: str) -> None: ...
-    def begin_live_node_definition_report_projection(self) -> None: ...
-    def register_projection_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-        source: CubeRuntimeIssueSource,
-    ) -> bool: ...
-    def present_recoverable_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None: ...
-    def clear_projection_runtime_issues(self) -> None: ...
-    def set_cube_runtime_issues(
-        self,
-        cube_alias: str,
-        issues: Sequence[CubeRuntimeIssue],
-    ) -> None: ...
-    def clear_cube_runtime_issues(self, cube_alias: str) -> None: ...
-    def cube_runtime_issues(
-        self,
-        cube_alias: str,
-    ) -> tuple[CubeRuntimeIssue, ...]: ...
-    def cube_runtime_error_aliases(self) -> tuple[str, ...]: ...
-    def refresh_projection_after_node_definition_update(
-        self,
-        *,
-        refreshed_node_classes: Sequence[str],
-    ) -> bool: ...
-    def reconcile_choice_fields_after_node_definition_update(
-        self,
-        *,
-        refreshed_node_classes: Sequence[str],
-    ) -> ChoiceFieldSurfaceReconciliationResult: ...
-    def begin_behavior_refresh_transaction(self, *, reason: str) -> None: ...
-    def end_behavior_refresh_transaction(self, *, reason: str) -> None: ...
-    def invalidate_behavior_refresh_transaction(self, *, reason: str) -> None: ...

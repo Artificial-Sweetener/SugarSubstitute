@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import SimpleNamespace
-from typing import cast
 
 import pytest
 from PySide6.QtWidgets import QWidget
@@ -142,7 +141,7 @@ class _FieldDependencyScenario:
             return QWidget(self.panel)
 
         monkeypatch.setattr(
-            "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+            "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
             capture_factory,
         )
 
@@ -168,24 +167,21 @@ class _FieldDependencyScenario:
             cube_states={"A": cube_state},
             stack_order=["A"],
         )
-        wrapper = cast(
-            QWidget | None,
-            self.builder.build_node_card(
-                node_name="node",
-                inputs=inputs,
-                node_type="TestNode",
-                field_specs={
-                    field_key: resolved_field_spec(
-                        presentation=field_presentation,
-                        value=value,
-                    )
-                },
-                cube_state=cube_state,
-                resolved_behavior=snapshot.resolved_nodes_by_alias["A"]["node"],
-                display_decision=snapshot.card_decisions_by_alias["A"]["node"],
-                alias="A",
-                prompt_field_inputs=prompt_field_inputs,
-            ),
+        wrapper = self.builder.build_node_card(
+            node_name="node",
+            inputs=inputs,
+            node_type="TestNode",
+            field_specs={
+                field_key: resolved_field_spec(
+                    presentation=field_presentation,
+                    value=value,
+                )
+            },
+            cube_state=cube_state,
+            resolved_behavior=snapshot.resolved_nodes_by_alias["A"]["node"],
+            display_decision=snapshot.card_decisions_by_alias["A"]["node"],
+            alias="A",
+            prompt_field_inputs=prompt_field_inputs,
         )
         if wrapper is None:
             raise AssertionError("Field dependency scenario did not produce a card.")

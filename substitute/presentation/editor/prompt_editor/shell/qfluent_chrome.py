@@ -190,7 +190,11 @@ class PromptShellQFluentChrome:
     def schedule_focus_out_cleanup(self, reason: Qt.FocusReason) -> None:
         """Defer focus-out interaction cleanup until Qt focus routing settles."""
 
-        QTimer.singleShot(0, lambda: self._resolve_focus_out_cleanup(reason))
+        QTimer.singleShot(
+            0,
+            self._shell_viewport,
+            lambda: self._resolve_focus_out_cleanup(reason),
+        )
 
     def _resolve_focus_out_cleanup(self, reason: Qt.FocusReason) -> None:
         """Clean up only after focus has conclusively left the editor flow."""

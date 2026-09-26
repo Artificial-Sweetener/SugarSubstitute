@@ -22,6 +22,8 @@ from types import SimpleNamespace
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from PySide6.QtCore import QObject
+
 from substitute.domain.workflow import WorkflowCanvasState
 from substitute.presentation.canvas.input.input_node_interaction_controller import (
     InputNodeInteractionController,
@@ -94,6 +96,7 @@ def test_mask_click_activates_its_owning_image_and_mask() -> None:
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=activate_input,
         refresh_mask_pickers=lambda: None,
+        lifetime_owner=QObject(),
     )
 
     controller.handle_mask_clicked("CubeA", "MaskNode", "")

@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import cast
 
 import pytest
 from PySide6.QtWidgets import QWidget
@@ -34,7 +33,10 @@ from tests.presentation.editor.node_card.support import (
     WidgetPanel,
     ensure_qapp,
 )
-from tests.support.node_behavior import build_behavior_snapshot
+from tests.support.node_behavior import (
+    build_behavior_snapshot,
+    live_definition_for_inputs,
+)
 from tests.support.qt.lifecycle import destroy_qt_object
 
 
@@ -53,22 +55,17 @@ class VisibilityScenario:
     def build(self) -> QWidget | None:
         """Build the configured card through its public boundary."""
 
-        return cast(
-            QWidget | None,
-            self.builder.build_node_card(
-                node_name=self.node_name,
-                inputs=self.inputs,
-                node_type=self.node_type,
-                field_specs=self.snapshot.field_specs_by_alias["A"][self.node_name],
-                cube_state=self.cube_state,
-                resolved_behavior=self.snapshot.resolved_nodes_by_alias["A"][
-                    self.node_name
-                ],
-                display_decision=self.snapshot.card_decisions_by_alias["A"][
-                    self.node_name
-                ],
-                alias="A",
-            ),
+        return self.builder.build_node_card(
+            node_name=self.node_name,
+            inputs=self.inputs,
+            node_type=self.node_type,
+            field_specs=self.snapshot.field_specs_by_alias["A"][self.node_name],
+            cube_state=self.cube_state,
+            resolved_behavior=self.snapshot.resolved_nodes_by_alias["A"][
+                self.node_name
+            ],
+            display_decision=self.snapshot.card_decisions_by_alias["A"][self.node_name],
+            alias="A",
         )
 
     def destroy(self, wrapper: QWidget | None) -> None:
@@ -92,7 +89,11 @@ def create_visibility_scenario(
     """Create one deterministic card-construction scenario."""
 
     ensure_qapp()
-    active_definitions = dict(definitions or {})
+    active_definitions = dict(
+        definitions
+        if definitions is not None
+        else {node_type: live_definition_for_inputs(inputs)}
+    )
     node = dict(node_metadata or {})
     node.update({"class_type": node_type, "inputs": inputs})
     nodes = {node_name: node}
@@ -112,7 +113,7 @@ def create_visibility_scenario(
     builder = build_node_card_builder(panel, DefinitionGateway(active_definitions))
     if use_minimal_field_widget:
         monkeypatch.setattr(
-            "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+            "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
             lambda **_kwargs: QWidget(panel),
         )
     return VisibilityScenario(

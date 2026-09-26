@@ -20,16 +20,20 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from pytest import MonkeyPatch
 
-import substitute.presentation.editor.panel.cube_reveal_controller as cube_reveal_controller
+import substitute.presentation.editor.panel.cube_visibility_menu_controller as cube_visibility_menu_controller
 from substitute.presentation.editor.panel.cube_reveal_controller import (
-    EditorPanelCubeRevealController,
     RevealScrollSurfaceProtocol,
     ScrollBarProtocol,
     SignalEmitterProtocol,
     ViewportProtocol,
+)
+from substitute.presentation.editor.panel.cube_visibility_menu_controller import (
+    CubeVisibilityMenuController,
+    CubeVisibilityMenuHost,
     VisibilityButtonProtocol,
 )
 
@@ -300,10 +304,10 @@ class _PanelDouble:
         self.refresh_calls.append({"reason": reason})
 
 
-def _controller(panel: _PanelDouble) -> EditorPanelCubeRevealController:
-    """Create the real reveal controller through its typed host boundary."""
+def _controller(panel: _PanelDouble) -> CubeVisibilityMenuController:
+    """Create the real visibility-menu controller through its host boundary."""
 
-    return EditorPanelCubeRevealController(panel)
+    return CubeVisibilityMenuController(cast(CubeVisibilityMenuHost, panel))
 
 
 def test_rebuild_cube_visibility_menu_hides_button_without_entries() -> None:
@@ -317,7 +321,7 @@ def test_rebuild_cube_visibility_menu_hides_button_without_entries() -> None:
         buttons={"CubeA": button},
     )
 
-    _controller(panel).rebuild_cube_visibility_menu("CubeA")
+    _controller(panel).rebuild("CubeA")
 
     assert menu.cleared == 1
     assert button.enabled is False
@@ -329,7 +333,7 @@ def test_rebuild_cube_visibility_menu_builds_checked_actions(
 ) -> None:
     """Reveal menu rebuild should materialize checked actions with alias payloads."""
 
-    monkeypatch.setattr(cube_reveal_controller, "QAction", _Action)
+    monkeypatch.setattr(cube_visibility_menu_controller, "QAction", _Action)
     menu = _Menu()
     button = _Button()
     panel = _PanelDouble(
@@ -340,7 +344,7 @@ def test_rebuild_cube_visibility_menu_builds_checked_actions(
         buttons={"CubeA": button},
     )
 
-    _controller(panel).rebuild_cube_visibility_menu("CubeA")
+    _controller(panel).rebuild("CubeA")
 
     assert button.enabled is True
     assert button.visible is True
@@ -355,7 +359,7 @@ def test_rebuild_cube_visibility_menu_actions_persist_new_checked_state(
 ) -> None:
     """Reveal actions should dispatch the new toggled state, not triggered state."""
 
-    monkeypatch.setattr(cube_reveal_controller, "QAction", _Action)
+    monkeypatch.setattr(cube_visibility_menu_controller, "QAction", _Action)
     menu = _Menu()
     button = _Button()
     cube_state = object()
@@ -373,12 +377,12 @@ def test_rebuild_cube_visibility_menu_actions_persist_new_checked_state(
     )
     builder = _controller(panel)
     rebuilt: list[str] = []
-    original_rebuild = builder.rebuild_cube_visibility_menu
+    original_rebuild = builder.rebuild
 
     def _recording_rebuild(alias: str) -> None:
         rebuilt.append(alias)
 
-    monkeypatch.setattr(builder, "rebuild_cube_visibility_menu", _recording_rebuild)
+    monkeypatch.setattr(builder, "rebuild", _recording_rebuild)
     original_rebuild("CubeA")
 
     action = menu.actions[0]
@@ -404,10 +408,10 @@ def test_on_cube_visibility_menu_triggered_resolves_alias_from_sender(
 
         calls.append((alias, action))
 
-    monkeypatch.setattr(builder, "on_cube_visibility_menu_toggled", _record_toggle)
+    monkeypatch.setattr(builder, "route_toggled_action", _record_toggle)
     action = _Action("unused", None)
 
-    builder.on_cube_visibility_menu_triggered(action)
+    builder.route_triggered_action(action)
 
     assert calls == [("CubeA", action)]
 
@@ -431,12 +435,12 @@ def test_on_cube_visibility_menu_toggled_uses_service_command_and_refreshes(
 
         rebuilt.append(alias)
 
-    monkeypatch.setattr(builder, "rebuild_cube_visibility_menu", _record_rebuild)
+    monkeypatch.setattr(builder, "rebuild", _record_rebuild)
     action = _Action("KSampler", None)
     action.setData({"node_name": "ksampler"})
     action.setChecked(True)
 
-    builder.on_cube_visibility_menu_toggled("CubeA", action)
+    builder.route_toggled_action("CubeA", action)
 
     assert behavior_service.visibility_calls == [(cube_state, "ksampler", True)]
     assert behavior_service.activation_calls == []
@@ -462,11 +466,11 @@ def test_on_cube_visibility_menu_toggled_clears_override_when_unchecked(
 
         del alias
 
-    monkeypatch.setattr(builder, "rebuild_cube_visibility_menu", _ignore_rebuild)
+    monkeypatch.setattr(builder, "rebuild", _ignore_rebuild)
     action = _Action("KSampler", None)
     action.setData({"node_name": "ksampler"})
     action.setChecked(False)
 
-    builder.on_cube_visibility_menu_toggled("CubeA", action)
+    builder.route_toggled_action("CubeA", action)
 
     assert behavior_service.visibility_calls == [(cube_state, "ksampler", None)]

@@ -178,6 +178,17 @@ class PromptDeletionResolver:
                 min(adjacent_state.source_position, context.cursor_position),
                 max(adjacent_state.source_position, context.cursor_position),
             )
+        if (
+            direction is PromptDeletionDirection.BACKWARD
+            and context.cursor_state.placement
+            is PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE
+            and adjacent_state.placement is PromptProjectionCaretPlacement.PLAIN_TEXT
+            and adjacent_state.source_position < context.cursor_position
+        ):
+            return PromptDeletionIntent.delete_range(
+                adjacent_state.source_position,
+                context.cursor_position,
+            )
         if token is not None and not context.focused_token_expanded:
             return PromptDeletionIntent.expand_token(token)
         adjacent_position = adjacent_state.source_position

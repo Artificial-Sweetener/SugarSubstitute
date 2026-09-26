@@ -45,6 +45,9 @@ from substitute.presentation.canvas.output.output_transfer_clipboard_publisher i
     publish_output_transfer_mime_data,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
+from substitute.infrastructure.comfy.session_video_artifact_store import (
+    close_default_session_video_store,
+)
 
 _LOGGER = get_logger("presentation.shell.main_window_output_composition")
 
@@ -65,7 +68,13 @@ def compose_output_canvas_controllers(shell: Any) -> MainWindowOutputCanvasCompo
     if output_canvas is None:
         raise RuntimeError("Canvas tabs must include an Output canvas.")
     shell.shell_resource_lifecycle.register(
+        "session_video_artifacts", close_default_session_video_store
+    )
+    shell.shell_resource_lifecycle.register(
         "output_document", output_canvas.document.close
+    )
+    shell.shell_resource_lifecycle.register(
+        "output_video_player", output_canvas.video_presentation.close
     )
 
     preparation_dispatcher = _output_image_preparation_dispatcher(shell)
@@ -133,6 +142,7 @@ def _compose_output_transfer_lifecycle(shell: Any) -> OutputTransferLifecycle:
     lifecycle = compose_output_transfer_lifecycle(
         document=output_canvas.document,
         is_image_authorized=output_canvas.route_projector.is_image_allowed_for_transfer,
+        metadata_for=output_canvas.final_output_metadata,
         preference_service=shell.output_preference_service,
         drag_submitter=drag_submitter,
         close_drag_submitter=drag_submitter.close,
