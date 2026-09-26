@@ -107,6 +107,50 @@ def test_sweep_pointer_reports_a_genuinely_unreachable_target() -> None:
         )
 
 
+def test_sweep_pointer_reaches_fully_overlapping_target_by_distinct_anchor() -> None:
+    """The planner should exercise each target when insertion anchors distinguish it."""
+
+    rect = QRectF(0, 36, 100, 16)
+    line = _placement(
+        PromptLineDropTarget(row_index=1, insertion_index=2), rect, ordinal=5
+    )
+    blank_target = PromptGapBlankLineDropTarget(gap_index=1, blank_line_index=1)
+    blank = PromptReorderPlacementGeometry(
+        placement_id=reorder_placement_id_for_target(
+            blank_target,
+            visual_line_index=2,
+            ordinal=17,
+        ),
+        target=blank_target,
+        hit_rect=rect,
+        insertion_anchor_rect=QRectF(4, 36, 1, 16),
+        visual_line_rect=rect,
+        expected_landing_rect=None,
+        source_before=None,
+        source_after=None,
+    )
+    snapshot = _snapshot(line, blank)
+
+    pointer = pointer_for_reorder_sweep_placement(
+        snapshot,
+        blank,
+        drag_intent_size=QSizeF(10, 10),
+        drag_grab_offset=QPointF(5, 5),
+        pointer_bounds=QRect(0, 0, 100, 100),
+        active_placement_id=None,
+    )
+
+    assert pointer.x() < 50
+    assert (
+        placement_for_drag_rect(
+            snapshot,
+            QRectF(pointer.x() - 5, pointer.y() - 5, 10, 10),
+            active_placement_id=None,
+        )
+        == blank
+    )
+
+
 def test_sweep_pointer_can_plan_before_queued_moves_publish_active_state() -> None:
     """Queued forward moves use neutral precedence until their single publish."""
 
