@@ -46,6 +46,7 @@ def test_resolves_exact_identity_from_fixed_registry_and_cdn(
     payload = {
         "node_id": nodepack.registry_id,
         "version": nodepack.required_version,
+        "status": "NodeVersionStatusActive",
         "downloadUrl": "https://cdn.comfy.org/publisher/node/version/node.zip",
     }
 
@@ -81,17 +82,25 @@ def test_resolves_exact_identity_from_fixed_registry_and_cdn(
         {
             "node_id": "different-node",
             "version": "1.10.0",
+            "status": "NodeVersionStatusActive",
             "downloadUrl": "https://cdn.comfy.org/publisher/node/version/node.zip",
         },
         {
             "node_id": "substitute-backend",
             "version": "0.0.1",
+            "status": "NodeVersionStatusActive",
             "downloadUrl": "https://cdn.comfy.org/publisher/node/version/node.zip",
         },
         {
             "node_id": "substitute-backend",
             "version": "1.10.0",
+            "status": "NodeVersionStatusActive",
             "downloadUrl": "https://attacker.example/node.zip",
+        },
+        {
+            "node_id": "substitute-backend",
+            "version": "1.10.0",
+            "downloadUrl": "https://cdn.comfy.org/publisher/node/version/node.zip",
         },
     ),
 )
@@ -108,6 +117,32 @@ def test_rejects_identity_version_or_archive_origin_changes(
 
     with pytest.raises(InvalidRegistryReleaseError):
         ComfyRegistryReleaseClient().resolve_exact(CORE_COMFY_NODEPACKS[0])
+
+
+@pytest.mark.parametrize(
+    "status",
+    ("NodeVersionStatusFlagged", "NodeVersionStatusPending"),
+)
+def test_classifies_non_active_exact_release_as_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+) -> None:
+    """Route non-active releases through the trusted pinned-source fallback."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    payload = {
+        "node_id": nodepack.registry_id,
+        "version": nodepack.required_version,
+        "status": status,
+        "downloadUrl": "https://cdn.comfy.org/publisher/node/version/node.zip",
+    }
+    monkeypatch.setattr(
+        "urllib.request.urlopen",
+        lambda *args, **kwargs: io.BytesIO(json.dumps(payload).encode("utf-8")),
+    )
+
+    with pytest.raises(RegistryReleaseUnavailableError, match="is not active"):
+        ComfyRegistryReleaseClient().resolve_exact(nodepack)
 
 
 def test_classifies_missing_exact_release(
