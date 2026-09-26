@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.comfy_connection import ComfyConnectionRecoveryService
 from substitute.domain.comfy_connection import (
@@ -63,6 +63,7 @@ def compose_comfy_connection_runtime(
         set_dispatch_available=shell.generation_job_queue_service.set_dispatch_available,
         schedule_delay=lambda delay_ms, callback: QTimer.singleShot(
             delay_ms,
+            cast(QObject, shell),
             callback,
         ),
         restart_requester=dependencies.managed_comfy_restart_requester,

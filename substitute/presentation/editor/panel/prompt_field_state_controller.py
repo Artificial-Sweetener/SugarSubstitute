@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.domain.generation.seed_control import SeedControlState
 from substitute.presentation.editor.panel.current_field_state_resolver import (
@@ -169,7 +169,11 @@ class PromptFieldStateController:
                 set_manual_height(stored_height)
             connect_manual_height_persistence()
 
-        QTimer.singleShot(0, apply_restored_manual_height)
+        QTimer.singleShot(
+            0,
+            cast(QObject, prompt_editor),
+            apply_restored_manual_height,
+        )
 
     def _prompt_editors_in(self, cube_widget: object) -> tuple[object, ...]:
         """Return prompt-editor children from one cube widget-like object."""

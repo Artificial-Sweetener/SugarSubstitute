@@ -144,7 +144,7 @@ class _NodeCardSurface(QWidget):
         if not self._model_picker_width_group_fields():
             return
         self._model_picker_width_sync_pending = True
-        QTimer.singleShot(0, self.sync_model_picker_width_group)
+        QTimer.singleShot(0, self, self.sync_model_picker_width_group)
 
     def sync_model_picker_width_group(self) -> None:
         """Apply one shared width cap to visible model pickers in this node card."""

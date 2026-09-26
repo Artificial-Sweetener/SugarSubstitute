@@ -2925,13 +2925,14 @@ def _request_shell_activation(frame: QWidget) -> None:
         "shell.activation.delayed",
         delay_ms=0,
     )
-    QTimer.singleShot(0, lambda: _activate_shell_window(frame))
+    QTimer.singleShot(0, frame, lambda: _activate_shell_window(frame))
     trace_mark(
         "shell.attention.scheduled",
         delay_ms=_SHELL_ATTENTION_DELAY_MS,
     )
     QTimer.singleShot(
         _SHELL_ATTENTION_DELAY_MS,
+        frame,
         lambda: _request_shell_attention_if_inactive(frame),
     )
 
@@ -3253,7 +3254,7 @@ def show_built_main_window(
             "shell.geometry.default.delayed_apply",
             delay_ms=0,
         )
-        QTimer.singleShot(0, lambda: _apply_main_window_geometry(frame))
+        QTimer.singleShot(0, frame, lambda: _apply_main_window_geometry(frame))
     _request_shell_activation(frame)
     trace_mark("shell.show_built.end", **_widget_geometry_fields(frame))
     return frame

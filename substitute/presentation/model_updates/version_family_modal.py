@@ -249,7 +249,7 @@ class ModelVersionFamilyModal(QDialog):
             self._cards.get(installed_id) if installed_id is not None else None
         )
         if installed_card is not None:
-            QTimer.singleShot(0, self._scroll_to_installed)
+            QTimer.singleShot(0, self, self._scroll_to_installed)
         self.busy_ring.stop()
         self.busy_ring.hide()
         if self._versions:

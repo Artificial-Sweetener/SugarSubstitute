@@ -126,7 +126,11 @@ def test_prompt_scene_diagnostics_scheduling_coalesces_until_refresh(
 
     scheduled_callbacks: list[Callable[[], None]] = []
 
-    def record_single_shot(_delay: int, callback: Callable[[], None]) -> None:
+    def record_single_shot(
+        _delay: int,
+        _owner: object,
+        callback: Callable[[], None],
+    ) -> None:
         """Record one deferred callback instead of scheduling through Qt."""
 
         scheduled_callbacks.append(callback)

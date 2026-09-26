@@ -1112,7 +1112,7 @@ class ModelPickerField(QWidget):
         popup.show_attached_to(anchor_rect)
         popup.set_search_text("")
         self._clear_inline_completion()
-        QTimer.singleShot(0, self._focus_search_surface)
+        QTimer.singleShot(0, self, self._focus_search_surface)
 
     def refresh_metadata(self) -> None:
         """Refresh backing metadata and live-update the field surface."""
@@ -1182,7 +1182,7 @@ class ModelPickerField(QWidget):
     def keep_search_focus_for_popup_interaction(self) -> None:
         """Restore field-owned search focus after a popup child interaction."""
 
-        QTimer.singleShot(0, self._restore_search_focus_after_popup_interaction)
+        QTimer.singleShot(0, self, self._restore_search_focus_after_popup_interaction)
 
     def handle_popup_search_key(self, event: QKeyEvent) -> bool:
         """Route popup-descendant text editing keys to the field search surface."""

@@ -21,6 +21,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import cast
 
+from PySide6.QtCore import QObject
+
 from substitute.presentation.editor.panel.projection_session_models import (
     ActiveProjectionSession,
 )
@@ -59,6 +61,7 @@ def test_visible_projection_commit_marks_failed_builds_on_reveal_error() -> None
         projection_completions=[],
     )
     ports = EditorVisibleProjectionCommitPorts(
+        lifetime_owner=QObject(),
         active_workflow_id=lambda: "workflow",
         panel_is_visible=lambda: True,
         is_projection_session_current=lambda _session: True,
@@ -114,6 +117,7 @@ def test_partial_visible_projection_commit_publishes_without_finishing_session()
     )
     pipeline = EditorVisibleProjectionCommitPipeline(
         EditorVisibleProjectionCommitPorts(
+            lifetime_owner=QObject(),
             active_workflow_id=lambda: "workflow",
             panel_is_visible=lambda: True,
             is_projection_session_current=lambda _session: True,

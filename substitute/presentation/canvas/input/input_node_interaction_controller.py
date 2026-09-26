@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol, TypeGuard
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.workflows.input_route_projection_service import (
     InputRouteProjectionService,
@@ -72,6 +72,7 @@ class InputNodeInteractionController:
         ],
         activate_input_canvas: Callable[[], bool],
         refresh_mask_pickers: Callable[[], None],
+        lifetime_owner: QObject,
     ) -> None:
         """Store the single owners participating in Input-node interactions."""
 
@@ -84,6 +85,7 @@ class InputNodeInteractionController:
         self._handle_ordered_mask_action = handle_ordered_mask_action
         self._activate_input_canvas = activate_input_canvas
         self._refresh_mask_pickers = refresh_mask_pickers
+        self._lifetime_owner = lifetime_owner
 
     def handle_image_changed(
         self,
@@ -146,7 +148,11 @@ class InputNodeInteractionController:
                     workflow,
                     mask_entry.mask_id,
                 )
-        QTimer.singleShot(0, self._refresh_mask_pickers)
+        QTimer.singleShot(
+            0,
+            self._lifetime_owner,
+            self._refresh_mask_pickers,
+        )
         self._activate_input_canvas()
 
     def handle_mask_clicked(

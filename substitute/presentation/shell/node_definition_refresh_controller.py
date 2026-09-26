@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.ports import (
     NodeDefinitionRefreshEvent,
@@ -77,7 +77,7 @@ class NodeDefinitionRefreshController:
             "main_window.drain_node_definition_refresh_events",
             delay_ms=0,
         )
-        QTimer.singleShot(0, self.drain_refreshes)
+        QTimer.singleShot(0, cast(QObject, self._shell), self.drain_refreshes)
 
     def drain_refreshes(self) -> None:
         """Refresh active behavior and override presentation for coalesced classes."""

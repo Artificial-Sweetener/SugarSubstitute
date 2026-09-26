@@ -57,7 +57,7 @@ class InstallerQualificationDriver(QObject):
     def schedule(self) -> None:
         """Queue automation after the installer has entered the Qt event loop."""
 
-        QTimer.singleShot(0, self._accept_language)
+        QTimer.singleShot(0, self, self._accept_language)
 
     @Slot()
     def _accept_language(self) -> None:
@@ -81,7 +81,7 @@ class InstallerQualificationDriver(QObject):
                 Qt.MouseButton.LeftButton,
                 pos=button.rect().center(),
             )
-            QTimer.singleShot(0, self._click_install)
+            QTimer.singleShot(0, self, self._click_install)
         except Exception as error:
             self._record_driver_failure(error)
 
@@ -113,7 +113,11 @@ class InstallerQualificationDriver(QObject):
                 title=self._window.windowTitle(),
                 primary_action=button.text(),
             )
-            QTimer.singleShot(0, lambda: self._activate_install_action(button))
+            QTimer.singleShot(
+                0,
+                button,
+                lambda: self._activate_install_action(button),
+            )
         except Exception as error:
             self._record_driver_failure(error)
 

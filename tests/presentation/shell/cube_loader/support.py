@@ -44,7 +44,11 @@ class _FakeQTimer:
         _FakeQTimer.queue.clear()
 
     @staticmethod
-    def singleShot(_msec: int, callback: Callable[[], None]) -> None:
+    def singleShot(
+        _msec: int,
+        _owner: object,
+        callback: Callable[[], None],
+    ) -> None:
         _FakeQTimer.queue.append(callback)
 
     @staticmethod
