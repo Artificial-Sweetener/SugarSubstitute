@@ -46,6 +46,12 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # This Windows update-activation contract launches a real detached
+        # Python child across native Job Object boundaries. Under full xdist
+        # process pressure the child can remain admission-ready but unscheduled
+        # beyond its bounded completion deadline; a fresh worker keeps that
+        # native process-family contract attributable and deterministic.
+        "tests/launcher/update_activation/transaction/test_detachment_admission.py",
         # This shutdown owner exercises real worker-to-Qt queued delivery and
         # repeatedly creates QObject timer cycles. PySide can segfault while a
         # reused Linux xdist worker collects an earlier coordinator during a
