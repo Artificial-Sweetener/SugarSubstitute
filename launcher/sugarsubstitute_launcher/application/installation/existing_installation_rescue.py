@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+import re
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairOperation,
@@ -51,6 +52,11 @@ _BOOTSTRAP_RUN_FILES = frozenset(
 )
 _BOOTSTRAP_INCIDENT_FILES = _BOOTSTRAP_RUN_FILES | frozenset(
     {"incident.json", "launcher-tail.log"}
+)
+_CANDIDATE_READINESS_NAME = re.compile(r"candidate-[0-9a-f]{32}\.json")
+_READINESS_TEMPORARY_NAME = re.compile(
+    r"\.(?:ci-installer-chain|candidate-[0-9a-f]{32})\.json\."
+    r"[1-9][0-9]*\.[0-9a-f]{16}\.tmp"
 )
 
 
@@ -159,10 +165,6 @@ class ExistingInstallationRescueService:
 
         if path.name != "launcher" or not path.is_dir() or path.is_symlink():
             return False
-        allowed_files = {
-            Path("logs", "launcher.log"),
-            Path("readiness", "ci-installer-chain.json"),
-        }
         allowed_directories = {Path("logs"), Path("readiness")}
         for entry in path.rglob("*"):
             if entry.is_symlink():
@@ -170,10 +172,28 @@ class ExistingInstallationRescueService:
             relative = entry.relative_to(path)
             if entry.is_dir() and relative in allowed_directories:
                 continue
-            if entry.is_file() and relative in allowed_files:
+            if entry.is_file() and (
+                relative == Path("logs", "launcher.log")
+                or ExistingInstallationRescueService._is_bootstrap_readiness_file(
+                    relative
+                )
+            ):
                 continue
             return False
         return True
+
+    @staticmethod
+    def _is_bootstrap_readiness_file(relative: Path) -> bool:
+        """Recognize bounded supervisor receipts written before installation."""
+
+        if relative.parent != Path("readiness"):
+            return False
+        name = relative.name
+        return (
+            name == "ci-installer-chain.json"
+            or _CANDIDATE_READINESS_NAME.fullmatch(name) is not None
+            or _READINESS_TEMPORARY_NAME.fullmatch(name) is not None
+        )
 
     @staticmethod
     def _is_bootstrap_appdata_tree(path: Path) -> bool:
