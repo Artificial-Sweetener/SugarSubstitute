@@ -68,6 +68,32 @@ def test_backend_absence_overrules_stale_frontend_catalog_match() -> None:
         resolver.resolve(_legacy_script(sha256))
 
 
+def test_backend_transport_failure_falls_back_to_cached_hash_evidence() -> None:
+    """Keep loading from cached hashes when the BackEnd cannot answer."""
+
+    sha256 = "B" * 64
+    backend = _UnavailableBackendHashLookup()
+    resolver = RecipeModelLoadResolver(
+        RecipeModelResolutionIndex(
+            (
+                LocalRecipeModel(
+                    kind="checkpoints",
+                    backend_value="Installed/cached.safetensors",
+                    display_name="cached",
+                    relative_path="Installed/cached.safetensors",
+                    sha256=sha256,
+                ),
+            )
+        ),
+        backend=backend,
+    )
+
+    resolved = resolver.resolve(_legacy_script(sha256))
+
+    assert _checkpoint_value(resolved.parsed_script) == "Installed/cached.safetensors"
+    assert backend.lookups == [("checkpoints", sha256)]
+
+
 def test_real_legacy_sugarscript_hash_resolves_through_backend() -> None:
     """Resolve an old SugarScript hash even without portable workflow metadata."""
 
@@ -171,6 +197,26 @@ class _BackendHashLookup:
             matches=matches,
             job_id=None,
         )
+
+
+class _UnavailableBackendHashLookup:
+    """Represent a configured BackEnd whose transport is unavailable."""
+
+    def __init__(self) -> None:
+        """Create an empty lookup record."""
+
+        self.lookups: list[tuple[str, str]] = []
+
+    def lookup_model_by_hash(
+        self,
+        *,
+        kind: str,
+        sha256: str,
+    ) -> BackendHashLookupResult | None:
+        """Return transport unavailability after recording the request."""
+
+        self.lookups.append((kind, sha256))
+        return None
 
 
 class _CivitaiLookup:

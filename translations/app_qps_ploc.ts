@@ -822,6 +822,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Chëckïng för rünnïng CömfyÜÏ… ···⟧</translation>
     </message>
     <message>
+      <source>Checking model links</source>
+      <translation>⟦Chëckïng mödël lïnks ···⟧</translation>
+    </message>
+    <message>
       <source>Checking model links…</source>
       <translation>⟦Chëckïng mödël lïnks… ···⟧</translation>
     </message>
@@ -1950,6 +1954,14 @@ Install these nodes now?</source>
       <translation>⟦Cüstöm nödë %1 cöüld nöt löàd. ···⟧</translation>
     </message>
     <message>
+      <source>Custom node recovery failed</source>
+      <translation>⟦Cüstöm nödë rëcövëry fàïlëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Custom nodes required by this workflow</source>
+      <translation>⟦Cüstöm nödës rëqüïrëd by thïs wörkflöw ···⟧</translation>
+    </message>
+    <message>
       <source>Cut</source>
       <translation>⟦Cüt ···⟧</translation>
     </message>
@@ -2830,6 +2842,10 @@ Install these nodes now?</source>
       <translation>⟦Ïnsërt trïggër wörds ···⟧</translation>
     </message>
     <message>
+      <source>Install %1 custom node packages</source>
+      <translation>⟦Ïnstàll %1 cüstöm nödë pàckàgës ···⟧</translation>
+    </message>
+    <message>
       <source>Install and enable GNOME Keyring, KWallet, or another Secret Service-compatible keyring through your distribution's package manager, then sign in or unlock it and restart Substitute.</source>
       <translation>⟦Ïnstàll ànd ënàblë GNÖMË Këyrïng, KWàllët, ör ànöthër Sëcrët Sërvïcë-cömpàtïblë këyrïng thröügh yöür dïstrïbütïön's pàckàgë mànàgër, thën sïgn ïn ör ünlöck ït ànd rëstàrt Sübstïtütë. ···⟧</translation>
     </message>
@@ -2884,6 +2900,10 @@ Install these nodes now?</source>
     <message>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>⟦Ïnstàllïng pàckàgës ör chàngïng mödël pàths whïlë CömfyÜÏ ïs rünnïng càn lëàvë ïts ënvïrönmënt ïn àn ïncönsïstënt stàtë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Installing required custom nodes</source>
+      <translation>⟦Ïnstàllïng rëqüïrëd cüstöm nödës ···⟧</translation>
     </message>
     <message>
       <source>Interaction</source>
@@ -3652,6 +3672,10 @@ I’ll bring my own</source>
 Ï’ll brïng my öwn ···⟧</translation>
     </message>
     <message>
+      <source>No trusted package match was found for: %1</source>
+      <translation>⟦Nö trüstëd pàckàgë màtch wàs föünd för: %1 ···⟧</translation>
+    </message>
+    <message>
       <source>No, show recommendations</source>
       <translation>⟦Nö, shöw rëcömmëndàtïöns ···⟧</translation>
     </message>
@@ -4220,6 +4244,10 @@ I’ll bring my own</source>
       <translation>⟦Prömpt: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Provides: %1</source>
+      <translation>⟦Prövïdës: %1 ···⟧</translation>
+    </message>
+    <message>
       <source>Provisioning ComfyUI-Manager.</source>
       <translation>⟦Prövïsïönïng CömfyÜÏ-Mànàgër. ···⟧</translation>
     </message>
@@ -4724,6 +4752,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëvïëw thë cönnëctïön dëtàïls ànd try àgàïn. ···⟧</translation>
     </message>
     <message>
+      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
+      <translation>⟦Rëvïëw thë cüstöm nödë pàckàgës màtchëd tö mïssïng wörkflöw nödës bëförë ïnstàllïng thëm. ···⟧</translation>
+    </message>
+    <message>
       <source>Review the details below and continue through repair to finish setting things up.</source>
       <translation>⟦Rëvïëw thë dëtàïls bëlöw ànd cöntïnüë thröügh rëpàïr tö fïnïsh sëttïng thïngs üp. ···⟧</translation>
     </message>
@@ -4770,6 +4802,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
       <translation>⟦Rëvïëw thësë ëxàct mödël màtchës bëförë döwnlöàdïng thëm tö thë cönnëctëd CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Revision: %1</source>
+      <translation>⟦Rëvïsïön: %1 ···⟧</translation>
     </message>
     <message>
       <source>Rich prompt rendering</source>
@@ -5334,6 +5370,14 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
       <translation>⟦Söürcë: %1 ···⟧</translation>
     </message>
     <message>
+      <source>Source: Comfy Registry</source>
+      <translation>⟦Söürcë: Cömfy Rëgïstry ···⟧</translation>
+    </message>
+    <message>
+      <source>Source: ComfyUI-Manager catalog</source>
+      <translation>⟦Söürcë: CömfyÜÏ-Mànàgër càtàlög ···⟧</translation>
+    </message>
+    <message>
       <source>Special thanks</source>
       <translation>⟦Spëcïàl thànks ···⟧</translation>
     </message>
@@ -5552,6 +5596,10 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
     <message>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>⟦Sübstïtütë cöüld nöt rëàd thïs CömfyÜÏ wörkflöw döcümënt. ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute could not recover every custom node required by this workflow.</source>
+      <translation>⟦Sübstïtütë cöüld nöt rëcövër ëvëry cüstöm nödë rëqüïrëd by thïs wörkflöw. ···⟧</translation>
     </message>
     <message>
       <source>Substitute could not update this cube from the Cube Library: %1</source>

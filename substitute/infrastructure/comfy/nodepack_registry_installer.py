@@ -91,7 +91,10 @@ class ComfyNodepackRegistryInstaller:
                 nodepack_id=nodepack.nodepack_id.value,
                 on_log=on_log,
             ):
-                release = self._release_client.resolve_exact(nodepack)
+                release = self._release_client.resolve_exact(
+                    registry_id=nodepack.registry_id,
+                    version=nodepack.required_version,
+                )
                 self._archive_installer.install_registry_release(
                     target_path=manager_runtime.workspace / nodepack.expected_folder,
                     nodepack=nodepack,

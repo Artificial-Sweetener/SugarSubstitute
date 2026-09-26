@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.presentation.localization import app_text
 
-import weakref
 from collections.abc import Mapping
 from time import perf_counter
 from typing import cast
@@ -28,12 +27,11 @@ from typing import cast
 from PySide6.QtWidgets import QWidget
 from shiboken6 import isValid
 
-from substitute.application.node_behavior import ResolvedFieldSpec
+from substitute.application.node_behavior import DegradedNodeBehavior, ResolvedFieldSpec
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
     log_timing,
-    log_warning,
     log_warning_exception,
 )
 
@@ -46,13 +44,10 @@ from .cube_section_build_plan import (
     node_card_build_outcome,
 )
 from .cube_section_build_ports import CubeSectionBuildSessionPanelProtocol
-from .node_card.variant import (
-    column_span_for_node_card_variant,
-    resolve_node_card_variant,
-)
+from .node_card.variant import resolve_node_card_variant
+from .node_card_attachment import attach_degraded_node_card, attach_node_card
 from .projection_observability import log_panel_projection_event
 from .projection_ports import CubeSectionSessionWidgetProtocol
-from .rendering.render_transaction import EditorRenderTransaction
 from .widgets.masonry_grid_layout import MasonryGridLayout
 
 _LOGGER = get_logger("presentation.editor.panel.cube_section_build_session")
@@ -334,6 +329,12 @@ class CubeSectionBuildSession:
         )
         resolved_behavior = resolved_nodes.get(self._route_key, {}).get(node_name)
         node_field_specs = self._field_specs_by_node.get(node_name, {})
+        degraded_nodes = getattr(
+            self._behavior_snapshot,
+            "degraded_nodes_by_alias",
+            {},
+        )
+        degraded_node = degraded_nodes.get(self._route_key, {}).get(node_name)
         log_debug(
             _LOGGER,
             "Cube load detail",
@@ -344,7 +345,11 @@ class CubeSectionBuildSession:
             input_count=len(inputs),
             field_spec_count=len(node_field_specs),
             resolved_behavior_present=resolved_behavior is not None,
+            degraded_node_present=degraded_node is not None,
         )
+        if isinstance(degraded_node, DegradedNodeBehavior):
+            self._build_degraded_node(degraded_node)
+            return
         if resolved_behavior is None:
             self._skipped_card_count += 1
             self._record_node_outcome(
@@ -476,6 +481,16 @@ class CubeSectionBuildSession:
                 skipped_card_count=self._skipped_card_count,
             )
             return
+        node_card_widget = cast(QWidget, node_card)
+        node_card_variant = resolve_node_card_variant(resolved_behavior)
+        span = attach_node_card(
+            panel=self._panel,
+            cube_alias=self._route_key,
+            node_name=node_name,
+            card=node_card_widget,
+            variant=node_card_variant,
+            grid_layout=self._grid_layout,
+        )
         self._built_card_count += 1
         self._record_node_outcome(
             node_name=node_name,
@@ -483,49 +498,6 @@ class CubeSectionBuildSession:
             kind="built",
             field_spec_count=len(node_field_specs),
         )
-        node_card_widget = cast(QWidget, node_card)
-        setattr(node_card_widget, "_current_cube_alias", self._route_key)
-        self._panel.register_card_wrapper(
-            self._route_key,
-            node_name,
-            node_card_widget,
-        )
-        try:
-            panel = self._panel
-            cube_alias = self._route_key
-            current_node_name = node_name
-            wrapper_ref = weakref.ref(node_card_widget)
-
-            def cleanup_card_wrapper(*_args: object) -> None:
-                """Remove the wrapper only if it still owns the registry entry."""
-
-                current_node_card = wrapper_ref()
-                if current_node_card is None:
-                    return
-                panel.remove_card_wrapper_if_current(
-                    cube_alias,
-                    current_node_name,
-                    current_node_card,
-                )
-
-            node_card_widget.destroyed.connect(cleanup_card_wrapper)
-        except (AttributeError, RuntimeError, TypeError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to connect cube-section card cleanup",
-                cube_alias=self._route_key,
-                node_name=node_name,
-                error_type=type(error).__name__,
-            )
-
-        node_card_variant = resolve_node_card_variant(resolved_behavior)
-        span = column_span_for_node_card_variant(node_card_variant)
-        node_card_widget.setProperty("column_span", span)
-        node_card_widget.setProperty("node_card_variant", node_card_variant.value)
-        self._grid_layout.addWidget(node_card_widget)
-        if isinstance(self._panel, QWidget):
-            with EditorRenderTransaction(self._panel) as transaction:
-                transaction.attach_node_card(node_card_widget)
         self._widget.defer_update_cube_height()
         log_debug(
             _LOGGER,
@@ -628,6 +600,26 @@ class CubeSectionBuildSession:
             ),
             level="debug",
         )
+
+    def _build_degraded_node(self, node: DegradedNodeBehavior) -> None:
+        """Render one saved node without fabricating unavailable controls."""
+
+        attach_degraded_node_card(
+            panel=self._panel,
+            cube_alias=self._route_key,
+            node=node,
+            grid_layout=self._grid_layout,
+            parent=cast(QWidget, self._widget),
+        )
+        self._built_card_count += 1
+        self._record_node_outcome(
+            node_name=node.node_name,
+            node_class_type=node.class_type,
+            kind="degraded",
+            field_spec_count=0,
+            message=",".join(node.missing_definition_classes),
+        )
+        self._widget.defer_update_cube_height()
 
 
 def _is_live_qt_owner(owner: object) -> bool:

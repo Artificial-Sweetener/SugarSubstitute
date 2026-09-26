@@ -237,12 +237,16 @@ def test_build_snapshot_ignores_cube_authored_tooltips_when_live_missing() -> No
         },
     )
 
-    snapshot = build_behavior_snapshot(cube_states={"A": cube}, stack_order=["A"])
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class={},
+    )
 
     resolved = snapshot.resolved_nodes_by_alias["A"]["sampler"]
-    field_spec = snapshot.field_specs_by_alias["A"]["sampler"]["steps"]
     assert resolved.card.tooltip is None
-    assert "tooltip" not in field_spec.meta_info
+    assert snapshot.field_specs_by_alias["A"]["sampler"] == {}
+    assert snapshot.degraded_nodes_by_alias["A"]["sampler"].class_type == "KSampler"
 
 
 def test_build_snapshot_orders_fields_from_definition_before_persisted_extras() -> None:

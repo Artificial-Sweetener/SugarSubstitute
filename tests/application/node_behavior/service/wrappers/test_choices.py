@@ -31,7 +31,7 @@ from tests.support.node_behavior import (
     cube_state,
 )
 from tests.application.node_behavior.service.support import (
-    RequiredOnlyNodeDefinitionGateway,
+    RecordingNodeDefinitionGateway,
 )
 
 
@@ -134,7 +134,7 @@ def test_build_snapshot_renders_wrapper_combo_without_default_or_input() -> None
 
     wrapper_id = "de2c84e5-02a8-4c50-831d-3c169dee4820"
     service = NodeBehaviorService(
-        node_definition_gateway=RequiredOnlyNodeDefinitionGateway(
+        node_definition_gateway=RecordingNodeDefinitionGateway(
             {
                 "UpscaleModelLoader": {
                     "input": {
@@ -223,7 +223,7 @@ def test_build_snapshot_preserves_wrapper_combo_widget_default() -> None:
 
     wrapper_id = "de2c84e5-02a8-4c50-831d-3c169dee4820"
     service = NodeBehaviorService(
-        node_definition_gateway=RequiredOnlyNodeDefinitionGateway(
+        node_definition_gateway=RecordingNodeDefinitionGateway(
             {
                 "UpscaleModelLoader": {
                     "input": {

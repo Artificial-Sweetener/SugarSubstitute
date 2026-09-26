@@ -26,10 +26,12 @@ from substitute.domain.cubes import (
     is_subgraph_wrapper_class_type,
 )
 from substitute.domain.comfy_workflow.editor_definitions import (
-    workflow_local_editor_definition,
     workflow_node_execution_role,
 )
-from substitute.domain.comfy_workflow.node_roles import WorkflowNodeExecutionRole
+from substitute.domain.comfy_workflow.node_roles import (
+    WorkflowNodeExecutionRole,
+    known_execution_role,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,9 +50,9 @@ def required_node_definition_classes_for_editor_projection(
 ) -> tuple[str, ...]:
     """Return live node classes needed before editor projection builds widgets.
 
-    Editor projection requires live metadata for visible top-level nodes and for
-    hidden body nodes that back public wrapper fields. Other hidden subgraph
-    implementation nodes are execution details, not editor control definitions.
+    Editor projection requires live metadata for visible top-level nodes and every
+    executable body node inside a rendered wrapper. Hidden execution dependencies
+    must be available before the wrapper can be represented truthfully.
     """
 
     requirements = required_node_definition_requirements_for_editor_projection(buffers)
@@ -128,7 +130,6 @@ def _node_requirements_from_mapping(
                     cube_alias=cube_alias,
                     node_name=str(node_name),
                     source="top_level",
-                    live_required=(workflow_local_editor_definition(node_data) is None),
                 )
             )
     return requirements
@@ -156,7 +157,8 @@ def _concrete_wrapper_body_classes(
                 )
             )
             continue
-        body_classes.add(body_class)
+        if known_execution_role(body_class) is WorkflowNodeExecutionRole.EXECUTABLE:
+            body_classes.add(body_class)
     return tuple(sorted(body_classes))
 
 

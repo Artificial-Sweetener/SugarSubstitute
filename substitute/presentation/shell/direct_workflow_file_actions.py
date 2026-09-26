@@ -51,6 +51,9 @@ from .workflow_surface_invalidation import (
 from .direct_workflow_model_resolution import (
     DirectWorkflowModelResolutionController,
 )
+from .direct_workflow_nodepack_recovery import (
+    DirectWorkflowNodepackRecoveryController,
+)
 
 _LOGGER = get_logger("presentation.shell.direct_workflow_file_actions")
 
@@ -88,6 +91,9 @@ class DirectWorkflowFileActions:
         model_resolution_controller_provider: (
             Callable[[], DirectWorkflowModelResolutionController | None] | None
         ) = None,
+        nodepack_recovery_controller_provider: (
+            Callable[[], DirectWorkflowNodepackRecoveryController | None] | None
+        ) = None,
     ) -> None:
         """Store document loading and shell projection collaborators."""
 
@@ -100,6 +106,9 @@ class DirectWorkflowFileActions:
         self._target_resolver = target_resolver or WorkflowDocumentTargetResolver()
         self._model_resolution_controller_provider = (
             model_resolution_controller_provider
+        )
+        self._nodepack_recovery_controller_provider = (
+            nodepack_recovery_controller_provider
         )
 
     def load_document(self, source_path: Path) -> str | None:
@@ -184,6 +193,8 @@ class DirectWorkflowFileActions:
         document: DirectWorkflowState,
         *,
         target_workflow_id: str,
+        start_nodepack_recovery: bool = True,
+        mark_saved: bool = True,
     ) -> str:
         """Mount one fully resolved direct workflow into its document target."""
 
@@ -199,9 +210,9 @@ class DirectWorkflowFileActions:
         self._rename_target_tab(path.stem, target_workflow_id)
         self._mark_surfaces_dirty(target_workflow_id)
         unsaved_work_service = getattr(self._view, "unsaved_work_service", None)
-        mark_saved = getattr(unsaved_work_service, "mark_saved", None)
-        if callable(mark_saved):
-            mark_saved(target_workflow_id, path)
+        mark_saved_workflow = getattr(unsaved_work_service, "mark_saved", None)
+        if mark_saved and callable(mark_saved_workflow):
+            mark_saved_workflow(target_workflow_id, path)
         if target_workflow_id == session.active_workflow_id:
             self._refresh_active_workflow()
             if self._materialize_loaded_section is not None:
@@ -217,7 +228,49 @@ class DirectWorkflowFileActions:
             source_path=path,
             node_count=len(nodes) if isinstance(nodes, Mapping) else 0,
         )
+        if start_nodepack_recovery:
+            controller = (
+                self._nodepack_recovery_controller_provider()
+                if self._nodepack_recovery_controller_provider is not None
+                else None
+            )
+            if controller is not None:
+                controller.recover(
+                    workflow=document.source_workflow,
+                    target_workflow_id=target_workflow_id,
+                )
         return target_workflow_id
+
+    def rehydrate_node_definitions(self, workflow_id: str) -> None:
+        """Rebuild one direct editor from its current canonical workflow after restart."""
+
+        session = self._view.workflow_session_service
+        workflows = getattr(session, "workflows", None)
+        workflow = (
+            workflows.get(workflow_id) if isinstance(workflows, Mapping) else None
+        )
+        current = getattr(workflow, "direct_workflow", None)
+        if not isinstance(current, DirectWorkflowState):
+            raise RuntimeError("Recovered workflow is no longer available.")
+        document = self._load_service.materialize(
+            current.source_path,
+            current.source_workflow,
+        )
+        document.dirty = current.dirty
+        document.ui = {
+            key: value
+            for key, value in current.ui.items()
+            if key != "node_behavior_runtime"
+        }
+        document.cube_projection_state = current.cube_projection_state
+        document.field_control_states = current.field_control_states
+        self._materialize_document(
+            current.source_path,
+            document,
+            target_workflow_id=workflow_id,
+            start_nodepack_recovery=False,
+            mark_saved=False,
+        )
 
     def _resolve_target_workflow_id(self) -> str:
         """Reserve the stable workflow target before asynchronous model work."""

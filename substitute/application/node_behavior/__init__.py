@@ -19,7 +19,10 @@
 from __future__ import annotations
 
 from .behavior_service import NodeBehaviorService
-from .runtime_state import NodeBehaviorRuntimeState
+from .runtime_state import (
+    NodeBehaviorRuntimeState,
+    ensure_node_behavior_runtime_state,
+)
 from .advanced_input_state import AdvancedInputStateService
 from .field_classification import NodeFieldKind, classify_node_field
 from .list_value_resolver import (
@@ -45,7 +48,12 @@ from .live_definition_authority import (
     MissingLiveNodeDefinition,
 )
 from .model_backed_node_detector import ModelBackedNodeDetector
-from .models import EditorBehaviorSnapshot, FieldValueSource, ResolvedFieldSpec
+from .models import (
+    DegradedNodeBehavior,
+    EditorBehaviorSnapshot,
+    FieldValueSource,
+    ResolvedFieldSpec,
+)
 from .node_card_order import downstream_node_graph, node_reaches, wired_node_order
 from .node_card_order_planner import (
     NodeCardOrderPlanner,
@@ -121,6 +129,7 @@ __all__ = [
     "choice_inventory",
     "CollapseMode",
     "DimensionFieldPair",
+    "DegradedNodeBehavior",
     "EnabledSwitchPolicy",
     "EditorBehaviorSnapshot",
     "EditorNodeDefinitionHydrationService",
@@ -150,6 +159,7 @@ __all__ = [
     "OverrideBehaviorPatch",
     "OverridePinPolicy",
     "NodeBehaviorRuntimeState",
+    "ensure_node_behavior_runtime_state",
     "NodeBehaviorService",
     "downstream_node_graph",
     "ModelBackedNodeDetector",

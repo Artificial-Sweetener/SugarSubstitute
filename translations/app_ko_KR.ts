@@ -265,7 +265,7 @@ Prompt preview:
       <translation>%1% 완료</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section_overlays.py" line="148"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -774,7 +774,7 @@ This is taking much longer than expected</source>
       <translation>Base-Cubes 동기화 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="738"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="741"></location>
       <source>Batch %1</source>
       <translation>배치 %1</translation>
     </message>
@@ -924,7 +924,7 @@ This is taking much longer than expected</source>
       <translation>큐브 캡처</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
       <source>Change canvas resolution</source>
       <translation>캔버스 해상도 변경</translation>
     </message>
@@ -1022,6 +1022,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="109"></location>
       <source>Checking for running ComfyUI…</source>
       <translation>실행 중인 ComfyUI 확인 중�</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="146"></location>
+      <source>Checking model links</source>
+      <translation>모델 링크 확인 중</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
@@ -1224,7 +1229,7 @@ This is taking much longer than expected</source>
       <translation>영역 마스크 픽셀의 리샘플링 방식을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="187"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="189"></location>
       <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
       <translation>입력 캔버스와 영역 마스크를 새 크기에 맞추는 방법을 선택하세요.</translation>
     </message>
@@ -2154,7 +2159,7 @@ This is taking much longer than expected</source>
       <translation>컨트롤</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="158"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="156"></location>
       <source>Copy</source>
       <translation>복사</translation>
     </message>
@@ -2354,7 +2359,7 @@ This is taking much longer than expected</source>
       <translation>큐브 종속성 복구로 대상 환경이 변경되었습니다. 복구된 큐브로 생성하기 전에 ComfyUI를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="48"></location>
       <source>Cube disabled</source>
       <translation>큐브 비활성화됨</translation>
     </message>
@@ -2407,7 +2412,7 @@ Install these nodes now?</source>
       <translation>OpenModelDB에서 엄선한 복원 및 확대 모델입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="507"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="510"></location>
       <source>Current image</source>
       <translation>현재 이미지</translation>
     </message>
@@ -2430,6 +2435,16 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_status.py" line="88"></location>
       <source>Custom node %1 could not load.</source>
       <translation>사용자 지정 노드 %1을(를) 불러오지 못했습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="168"></location>
+      <source>Custom node recovery failed</source>
+      <translation>커스텀 노드 복구 실패</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="110"></location>
+      <source>Custom nodes required by this workflow</source>
+      <translation>이 워크플로에 필요한 커스텀 노드</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/prompt_text_menu.py" line="200"></location>
@@ -2692,7 +2707,7 @@ Install these nodes now?</source>
       <translation>버전 다운로드</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="211"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="259"></location>
       <source>Downloading %1</source>
       <translation>%1 다운로드 중</translation>
     </message>
@@ -3003,27 +3018,27 @@ Install these nodes now?</source>
       <translation>준비된 큐브 하나 이상을 대기열에 넣지 못했습니다. 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="545"></location>
+      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="290"></location>
       <source>Failed to refresh editor visibility after cube load</source>
       <translation>큐브를 불러온 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="185"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="174"></location>
       <source>Failed to refresh editor visibility after cube removal</source>
       <translation>큐브를 제거한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="238"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="228"></location>
       <source>Failed to refresh editor visibility after cube rename</source>
       <translation>큐브 이름을 바꾼 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="263"></location>
+      <location filename="../substitute/presentation/editor/panel/projection_lifecycle.py" line="254"></location>
       <source>Failed to refresh editor visibility after cube reorder</source>
       <translation>큐브 순서를 바꾼 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/incremental_insert_pipeline.py" line="588"></location>
+      <location filename="../substitute/presentation/editor/panel/incremental_insert_pipeline.py" line="399"></location>
       <source>Failed to refresh editor visibility after incremental cube insert</source>
       <translation>큐브를 증분 삽입한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
@@ -3105,7 +3120,7 @@ Install these nodes now?</source>
       <translation>설정 마무리 중</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
       <source>Fit video</source>
       <translation>동영상 맞춤</translation>
     </message>
@@ -3170,7 +3185,7 @@ Install these nodes now?</source>
       <translation>차세대 GPU</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="447"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="451"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>이 세션에서는 GUI를 다시 시작할 수 없습니다.</translation>
     </message>
@@ -3325,7 +3340,7 @@ Install these nodes now?</source>
       <translation>경도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="90"></location>
       <source>Hardware video decoding was unavailable. Software decoding is active.</source>
       <translation>하드웨어 비디오 디코딩을 사용할 수 없습니다. 소프트웨어 디코딩이 활성화되었습니다.</translation>
     </message>
@@ -3475,7 +3490,7 @@ Install these nodes now?</source>
       <translation>Illustrious SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="694"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="697"></location>
       <source>Image %1</source>
       <translation>이미지 %1</translation>
     </message>
@@ -3533,6 +3548,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="227"></location>
       <source>Insert trigger words</source>
       <translation>트리거 단어 삽입</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="219"></location>
+      <source>Install %1 custom node packages</source>
+      <translation>커스텀 노드 패키지 %1개 설치</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="37"></location>
@@ -3603,6 +3623,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="87"></location>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>ComfyUI가 실행 중일 때 패키지를 설치하거나 모델 경로를 변경하면 환경이 일관되지 않은 상태가 될 수 있습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="278"></location>
+      <source>Installing required custom nodes</source>
+      <translation>필요한 커스텀 노드 설치 중</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="202"></location>
@@ -3680,7 +3705,7 @@ Install these nodes now?</source>
       <translation>종류: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="63"></location>
       <source>Landscape</source>
       <translation>가로</translation>
     </message>
@@ -3775,7 +3800,7 @@ Install these nodes now?</source>
       <translation>가능성 높은 원인: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="325"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="324"></location>
       <source>Live Comfy node definitions unavailable</source>
       <translation>실시간 Comfy 노드 정의를 사용할 수 없음</translation>
     </message>
@@ -3965,7 +3990,7 @@ Install these nodes now?</source>
       <translation>검색 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
       <source>Loop video</source>
       <translation>동영상 반복</translation>
     </message>
@@ -4150,12 +4175,12 @@ Install these nodes now?</source>
       <translation>누락된 사용자 지정 노드: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="484"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="483"></location>
       <source>Missing definition: %1</source>
       <translation>누락된 정의: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="489"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="488"></location>
       <source>Missing field: %1</source>
       <translation>누락된 필드: %1</translation>
     </message>
@@ -4190,7 +4215,7 @@ Install these nodes now?</source>
       <translation>모델 검색에서 잘못된 결과를 반환했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="307"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="360"></location>
       <source>Model download failed</source>
       <translation>모델 다운로드 실패</translation>
     </message>
@@ -4325,7 +4350,7 @@ Install these nodes now?</source>
       <translation>위로 이동</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
       <source>Mute video</source>
       <translation>동영상 음소거</translation>
     </message>
@@ -4385,7 +4410,7 @@ Install these nodes now?</source>
       <translation>다음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="82"></location>
       <source>Next frame</source>
       <translation>다음 프레임</translation>
     </message>
@@ -4562,6 +4587,11 @@ I’ll bring my own</source>
 직접 준비하겠습니다</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="153"></location>
+      <source>No trusted package match was found for: %1</source>
+      <translation>다음 노드와 일치하는 신뢰할 수 있는 패키지를 찾지 못했습니다: %1</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="373"></location>
       <source>No, show recommendations</source>
       <translation>아니요, 추천 보기</translation>
@@ -4712,7 +4742,7 @@ I’ll bring my own</source>
       <translation>GitHub에서 %1 저장소 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="170"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="172"></location>
       <source>Open All in Photoshop</source>
       <translation>Photoshop에서 모두 열기</translation>
     </message>
@@ -4767,7 +4797,7 @@ I’ll bring my own</source>
       <translation>이 로컬 ComfyUI 소스에 대한 설정 마법사를 엽니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="164"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="166"></location>
       <source>Open in Photoshop</source>
       <translation>Photoshop에서 열기</translation>
     </message>
@@ -5037,7 +5067,7 @@ I’ll bring my own</source>
       <translation>예정된 변경 사항을 업데이트했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="79"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
       <source>Play or pause</source>
       <translation>재생 또는 일시 정지</translation>
     </message>
@@ -5062,7 +5092,7 @@ I’ll bring my own</source>
       <translation>포트는 1에서 65535 사이여야 합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="64"></location>
       <source>Portrait</source>
       <translation>세로</translation>
     </message>
@@ -5217,7 +5247,7 @@ I’ll bring my own</source>
       <translation>미리 보기를 사용할 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="80"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="81"></location>
       <source>Previous frame</source>
       <translation>이전 프레임</translation>
     </message>
@@ -5270,6 +5300,11 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="409"></location>
       <source>Prompt: %1</source>
       <translation>프롬프트: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="182"></location>
+      <source>Provides: %1</source>
+      <translation>제공 노드: %1</translation>
     </message>
     <message>
       <location filename="../substitute/infrastructure/comfy/attached_install.py" line="109"></location>
@@ -5746,7 +5781,7 @@ No known extension claimant.</source>
       <translation>초기화</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="84"></location>
       <source>Resize canvas</source>
       <translation>캔버스 크기 변경</translation>
     </message>
@@ -5841,7 +5876,7 @@ No known extension claimant.</source>
       <translation>다시 시도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="87"></location>
       <source>Retry video</source>
       <translation>동영상 다시 시도</translation>
     </message>
@@ -5851,12 +5886,12 @@ No known extension claimant.</source>
       <translation>설정으로 돌아가 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section_builder.py" line="126"></location>
       <source>Reveal Hidden Cards</source>
       <translation>숨겨진 카드 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="180"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_context_menu.py" line="182"></location>
       <source>Reveal in File Manager</source>
       <translation>파일 관리자에서 보기</translation>
     </message>
@@ -5899,6 +5934,11 @@ No known extension claimant.</source>
       <location filename="../substitute/application/onboarding/failure_classifier.py" line="487"></location>
       <source>Review the connection details and try again.</source>
       <translation>연결 세부 정보를 검토하고 다시 시도하세요.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="115"></location>
+      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
+      <translation>누락된 워크플로 노드와 일치하는 커스텀 노드 패키지를 설치하기 전에 검토하세요.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="219"></location>
@@ -5959,6 +5999,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/dialogs/model_acquisition_dialog.py" line="240"></location>
       <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
       <translation>연결된 ComfyUI 설치에 다운로드하기 전에 정확히 일치하는 모델을 검토하세요.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="197"></location>
+      <source>Revision: %1</source>
+      <translation>리비전: %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
@@ -6096,7 +6141,7 @@ No known extension claimant.</source>
       <translation>현재 %1을(를) 프리셋으로 저장...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="57"></location>
       <source>Save current dimensions</source>
       <translation>현재 크기 저장</translation>
     </message>
@@ -6106,12 +6151,12 @@ No known extension claimant.</source>
       <translation>모든 큐브 출력 또는 마지막 활성 큐브만 저장합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="241"></location>
       <source>Save for %1</source>
       <translation>%1에 저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="60"></location>
       <source>Save globally</source>
       <translation>전역으로 저장</translation>
     </message>
@@ -6176,7 +6221,7 @@ No known extension claimant.</source>
       <translation>설정 선택 사항을 저장하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="242"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="244"></location>
       <source>Scale canvas and masks</source>
       <translation>캔버스 및 마스크 크기 조정</translation>
     </message>
@@ -6201,7 +6246,7 @@ No known extension claimant.</source>
       <translation>검사 중…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="577"></location>
+      <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="580"></location>
       <source>Scene</source>
       <translation>장면</translation>
     </message>
@@ -6331,22 +6376,22 @@ No known extension claimant.</source>
       <translation>서버 엔드포인트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="320"></location>
+      <location filename="../substitute/presentation/editor/panel/override_menu_presenter.py" line="61"></location>
       <source>Set Global Override</source>
       <translation>전역 재정의 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="56"></location>
       <source>Set dimensions</source>
       <translation>크기 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="62"></location>
       <source>Set ratio by Height</source>
       <translation>높이 기준 비율 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="61"></location>
       <source>Set ratio by Width</source>
       <translation>너비 기준 비율 설정</translation>
     </message>
@@ -6541,7 +6586,7 @@ No known extension claimant.</source>
       <translation>설정 로그 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="88"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="89"></location>
       <source>Show video at actual size</source>
       <translation>동영상을 실제 크기로 표시</translation>
     </message>
@@ -6661,6 +6706,16 @@ Then create an API key in Account Settings and paste it here.</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="73"></location>
       <source>Source: %1</source>
       <translation>소스: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="188"></location>
+      <source>Source: Comfy Registry</source>
+      <translation>출처: Comfy Registry</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="190"></location>
+      <source>Source: ComfyUI-Manager catalog</source>
+      <translation>출처: ComfyUI-Manager 카탈로그</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/about_page.py" line="256"></location>
@@ -6898,7 +6953,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute에서 종료가 완료되었는지 확인하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="312"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="365"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute가 이 워크플로에 필요한 모든 모델을 다운로드하고 검증하지 못했습니다.</translation>
     </message>
@@ -6933,9 +6988,14 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>이 로컬 ComfyUI 설정을 준비하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="316"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="369"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>이 ComfyUI 워크플로 문서를 읽지 못했습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="169"></location>
+      <source>Substitute could not recover every custom node required by this workflow.</source>
+      <translation>Substitute에서 이 워크플로에 필요한 모든 커스텀 노드를 복구하지 못했습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/workspace_cube_update_actions.py" line="272"></location>
@@ -7467,7 +7527,7 @@ Diagnostic evidence:
       <translation>후원자</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_menu_projection.py" line="55"></location>
       <source>Swap width &amp; height</source>
       <translation>너비와 높이 바꾸기</translation>
     </message>
@@ -7627,7 +7687,7 @@ Diagnostic evidence:
       <translation>연결된 ComfyUI 환경이 업데이트된 요구 사항을 충족하지 않습니다. 계속하기 전에 해당 환경을 복구하세요. %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="490"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="542"></location>
       <source>The bundled video runtime is unavailable.</source>
       <translation>포함된 비디오 런타임을 사용할 수 없습니다.</translation>
     </message>
@@ -7782,7 +7842,7 @@ Diagnostic evidence:
       <translation>요청한 정의를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="92"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="93"></location>
       <source>The requested video renderer was unavailable. A safe fallback is active.</source>
       <translation>요청한 비디오 렌더러를 사용할 수 없습니다. 안전한 대체 렌더러가 활성화되었습니다.</translation>
     </message>
@@ -8127,7 +8187,7 @@ Diagnostic evidence:
       <translation>자산의 이름을 바꿀 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="199"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="201"></location>
       <source>Unable to resize canvas</source>
       <translation>캔버스 크기를 변경할 수 없음</translation>
     </message>
@@ -8267,7 +8327,7 @@ Diagnostic evidence:
       <translation>불러온 큐브의 업데이트된 버전을 사용할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="174"></location>
       <source>Updating</source>
       <translation>업데이트 중</translation>
     </message>
@@ -8522,7 +8582,7 @@ Diagnostic evidence:
       <translation>버전, 프로젝트 및 감사의 말입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="327"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="195"></location>
       <source>Version: %1</source>
       <translation>버전: %1</translation>
     </message>
@@ -8537,12 +8597,12 @@ Diagnostic evidence:
       <translation>비디오 하드웨어 디코딩</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="494"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_controller.py" line="546"></location>
       <source>Video playback is unavailable (%1).</source>
       <translation>동영상 재생을 사용할 수 없습니다(%1).</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="86"></location>
       <source>Video position</source>
       <translation>동영상 위치</translation>
     </message>
@@ -8552,7 +8612,7 @@ Diagnostic evidence:
       <translation>비디오 렌더러</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="84"></location>
+      <location filename="../substitute/presentation/canvas/output/video_playback_page.py" line="85"></location>
       <source>Video volume</source>
       <translation>동영상 볼륨</translation>
     </message>
@@ -8732,7 +8792,7 @@ Diagnostic evidence:
       <translation>워크플로 및 프롬프트 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="309"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="362"></location>
       <source>Workflow could not be loaded</source>
       <translation>워크플로를 불러오지 못했습니다</translation>
     </message>
@@ -8892,12 +8952,12 @@ Diagnostic evidence:
       <translation>모델</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="294"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="289"></location>
       <source>node missing from cube buffer</source>
       <translation>큐브 버퍼에 노드가 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="315"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="310"></location>
       <source>node payload is not a mapping</source>
       <translation>노드 페이로드가 매핑이 아님</translation>
     </message>
