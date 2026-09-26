@@ -32,6 +32,8 @@ def parse_comfy_image_artifacts(
         return ()
     if not isinstance(output, Mapping):
         return None
+    if output.get("animated") is True:
+        return ()
     raw_images = output.get("images")
     if raw_images is None:
         return ()

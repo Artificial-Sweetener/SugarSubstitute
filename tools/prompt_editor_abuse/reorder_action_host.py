@@ -41,12 +41,13 @@ from substitute.domain.prompt.reorder.mutations import (
 )
 from substitute.presentation.editor.prompt_editor.projection.reorder_placement_geometry import (
     PromptReorderPlacementGeometry,
+    PromptReorderPlacementId,
     PromptReorderPlacementSnapshot,
 )
 
 from .action_host import PromptAbuseActionHost
 from .models import PromptAbuseAction
-from .reorder_sweep_targeting import pointer_for_reorder_sweep_placement
+from . import reorder_sweep_targeting as sweep_targeting
 from tests.support.prompt_editor.runtime_owners import segment_overlay
 
 
@@ -144,14 +145,17 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         del editor
         source_chip = self._require_active_drag()
         overlay = cast(Any, source_chip.overlay)
-        placement_snapshot = overlay._runtime.geometry.state.placement_snapshot
-        if placement_snapshot is None or not placement_snapshot.placements:
-            raise RuntimeError("Reorder drag sweep has no prepared placements.")
+        drag_state = overlay._runtime.gesture.state
+        geometry = overlay._runtime.geometry
+        sweep_plan = sweep_targeting.wait_for_reorder_sweep_pointer_plan(
+            snapshot_supplier=lambda: geometry.state.placement_snapshot,
+            drag_intent_size=drag_state.drag_intent_size,
+            drag_grab_offset=drag_state.drag_grab_offset,
+            pointer_bounds=overlay.rect(),
+        )
+        placement_snapshot, forward_pointers = sweep_plan
         measured_steps: list[tuple[str, float]] = []
-        for placement_index, placement in enumerate(placement_snapshot.placements):
-            pointer = _pointer_point_for_placement(
-                overlay, placement_snapshot, placement
-            )
+        for placement_index, pointer in enumerate(forward_pointers):
             started_at = perf_counter()
             QTest.mouseMove(source_chip.overlay, pointer, delay=0)
             measured_steps.append(
@@ -168,8 +172,14 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
         for placement_index, placement in reversed(
             tuple(enumerate(placement_snapshot.placements))
         ):
+            active_placement = overlay._runtime.geometry.state.active_placement
             pointer = _pointer_point_for_placement(
-                overlay, placement_snapshot, placement
+                overlay,
+                placement_snapshot,
+                placement,
+                active_placement_id=(
+                    None if active_placement is None else active_placement.placement_id
+                ),
             )
             started_at = perf_counter()
             QTest.mouseMove(source_chip.overlay, pointer, delay=0)
@@ -418,24 +428,23 @@ def _pointer_point_for_placement(
     overlay: Any,
     snapshot: PromptReorderPlacementSnapshot,
     placement: PromptReorderPlacementGeometry,
+    *,
+    active_placement_id: PromptReorderPlacementId | None,
 ) -> QPoint:
-    """Return a reachable pointer selecting one production drop placement."""
+    """Return a reachable pointer under the caller's event-delivery state."""
 
     drag_state = overlay._runtime.gesture.state
     size = drag_state.drag_intent_size
     grab_offset = drag_state.drag_grab_offset
     if size is None or size.isEmpty() or grab_offset is None:
         raise RuntimeError("Reorder drag sweep has no captured drag intent geometry.")
-    active_placement = overlay._runtime.geometry.state.active_placement
-    return pointer_for_reorder_sweep_placement(
+    return sweep_targeting.pointer_for_reorder_sweep_placement(
         snapshot,
         placement,
         drag_intent_size=size,
         drag_grab_offset=grab_offset,
         pointer_bounds=overlay.rect(),
-        active_placement_id=(
-            None if active_placement is None else active_placement.placement_id
-        ),
+        active_placement_id=active_placement_id,
     )
 
 

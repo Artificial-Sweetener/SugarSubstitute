@@ -438,7 +438,10 @@ def _wait_for_readiness_receipt(
             try:
                 payload = json.loads(readiness_path.read_text(encoding="utf-8"))
                 receipt = ApplicationReadinessReceipt.from_json(payload)
-            except (OSError, json.JSONDecodeError, ValueError) as error:
+            except OSError:
+                sleep(0.1)
+                continue
+            except (json.JSONDecodeError, ValueError) as error:
                 raise InstallerLifecycleError(
                     f"Application wrote an invalid readiness receipt: {readiness_path}."
                 ) from error

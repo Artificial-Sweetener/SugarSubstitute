@@ -34,6 +34,7 @@ from substitute.application.generation.job_queue_service import (
 )
 from substitute.application.ports import (
     OutputImageUpdate,
+    OutputVideoUpdate,
 )
 
 from ..queue_service_test_support import (
@@ -329,6 +330,42 @@ def test_removed_terminal_job_drops_live_replay_records() -> None:
 
     assert service.output_records_for_job(job.job_id) == ()
     assert service.job_for_result_replay(job.job_id) is None
+
+
+def test_video_output_counts_and_retains_media_replay_metadata() -> None:
+    """Video callbacks should participate in queue counts and result replay."""
+
+    dispatcher = _FakeDispatcher()
+    service = _service(dispatcher)
+    service.enqueue_snapshot(_snapshot("Video"), _callbacks())
+    output = OutputVideoUpdate(
+        workflow_id="wf-live",
+        workflow_payload={},
+        file_path=Path("live.webm"),
+        node_id="VideoCombine",
+        poster_bytes=b"poster",
+        temporary=False,
+        source_key="cube:VideoCombine",
+        source_label="Video Combine",
+        duration_seconds=2.5,
+        mime_type="video/webm",
+    )
+
+    dispatcher.callbacks[0].on_output_video(output)
+
+    assert service.jobs()[0].output_count == 1
+    records = service.output_records_for_job("job-1")
+    assert [record.output_path for record in records] == [Path("live.webm")]
+    assert records[0].metadata == {
+        "list_index": None,
+        "batch_index": 0,
+        "width": None,
+        "height": None,
+        "media_kind": "video",
+        "duration_seconds": 2.5,
+        "mime_type": "video/webm",
+        "temporary": False,
+    }
 
 
 def test_failed_active_job_stores_summary_and_detail() -> None:

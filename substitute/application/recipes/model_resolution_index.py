@@ -19,8 +19,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
-from substitute.application.model_metadata import ModelCatalogLookup
+from substitute.application.model_metadata import ModelCatalogItem
+
+
+class CachedRecipeModelCatalog(Protocol):
+    """Expose already-loaded model records without triggering backend work."""
+
+    def cached_models(self, kind: str) -> tuple[ModelCatalogItem, ...] | None:
+        """Return an in-memory model snapshot when one is already available."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,17 +58,17 @@ class RecipeModelResolutionIndex:
         }
 
     @classmethod
-    def from_catalog(
+    def from_cached_catalog(
         cls,
-        catalog: ModelCatalogLookup,
+        catalog: CachedRecipeModelCatalog,
         *,
         kinds: tuple[str, ...],
     ) -> RecipeModelResolutionIndex:
-        """Build a local model resolution index for the requested model kinds."""
+        """Build an index without synchronously loading backend catalog data."""
 
         models: list[LocalRecipeModel] = []
         for kind in kinds:
-            for item in catalog.list_models(kind):
+            for item in catalog.cached_models(kind) or ():
                 models.append(
                     LocalRecipeModel(
                         kind=item.kind,
@@ -83,4 +91,8 @@ class RecipeModelResolutionIndex:
         return self._by_hash.get((kind, sha256.upper()))
 
 
-__all__ = ["LocalRecipeModel", "RecipeModelResolutionIndex"]
+__all__ = [
+    "CachedRecipeModelCatalog",
+    "LocalRecipeModel",
+    "RecipeModelResolutionIndex",
+]

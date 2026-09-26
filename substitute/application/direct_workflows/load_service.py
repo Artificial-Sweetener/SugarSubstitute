@@ -31,6 +31,8 @@ from substitute.domain.comfy_workflow import (
 from substitute.domain.common import JsonObject
 from substitute.shared.logging.logger import get_logger, log_info
 
+from .node_compatibility import DirectWorkflowNodeCompatibilityService
+
 _LOGGER = get_logger("application.direct_workflows.load_service")
 
 
@@ -60,6 +62,7 @@ class DirectWorkflowLoadService:
         cube_workflow_analyzer: CubeWorkflowAnalyzer,
         converter: ComfyWorkflowConverter | None = None,
         node_definition_gateway: NodeDefinitionGateway | None = None,
+        node_compatibility: DirectWorkflowNodeCompatibilityService | None = None,
     ) -> None:
         """Store filesystem and pure graph conversion collaborators."""
 
@@ -67,6 +70,11 @@ class DirectWorkflowLoadService:
         self._cube_workflow_analyzer = cube_workflow_analyzer
         self._converter = converter or ComfyWorkflowConverter()
         self._node_definition_gateway = node_definition_gateway
+        self._node_compatibility = node_compatibility or (
+            DirectWorkflowNodeCompatibilityService(node_definition_gateway)
+            if node_definition_gateway is not None
+            else None
+        )
 
     def load(self, path: Path) -> DirectWorkflowState:
         """Load, validate, normalize, and detach one Comfy workflow document."""
@@ -94,7 +102,12 @@ class DirectWorkflowLoadService:
         """Normalize and convert one already-decoded canonical workflow."""
 
         resolved_source_path = source_path.resolve()
-        analysis = self._cube_workflow_analyzer.analyze(loaded_workflow)
+        compatible_workflow = (
+            self._node_compatibility.normalize(loaded_workflow)
+            if self._node_compatibility is not None
+            else loaded_workflow
+        )
+        analysis = self._cube_workflow_analyzer.analyze(compatible_workflow)
         workflow = analysis.workflow
         buffer = self._converter.convert(
             workflow,

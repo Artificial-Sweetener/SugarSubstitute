@@ -60,17 +60,21 @@ from substitute.presentation.editor.panel.projection_composition import (
 )
 from substitute.presentation.editor.panel.projection_lifecycle import (
     EditorProjectionLifecyclePipeline,
-    EditorProjectionRuntimeIssueIntegration,
 )
-from substitute.presentation.editor.panel.projection_ports import (
-    EditorRefreshPanelProtocol,
+from substitute.presentation.editor.panel.projection_runtime_issue_integration import (
+    EditorProjectionRuntimeIssueIntegration,
 )
 from substitute.presentation.editor.panel.projection_preparation import (
     EditorProjectionPreparationController,
 )
-from substitute.presentation.editor.panel.projection_session import (
-    ActiveProjectionSessionRegistry,
+from substitute.presentation.editor.panel.projection_completion_registry import (
     ProjectionCompletionRegistry,
+    ProjectionSessionCompletionController,
+)
+from substitute.presentation.editor.panel.projection_session_registry import (
+    ActiveProjectionSessionRegistry,
+)
+from substitute.presentation.editor.panel.projection_surface_state import (
     ProjectionSurfaceStateController,
 )
 from substitute.presentation.editor.panel.projection_workflow_context import (
@@ -186,13 +190,17 @@ class _Coordinator:
 def test_compose_editor_projection_builds_projection_collaborators() -> None:
     """Projection construction should live in the composition owner."""
 
-    panel = cast(EditorRefreshPanelProtocol, _Panel())
+    panel = _Panel()
     coordinator = cast(EditorProjectionCoordinatorPort, _Coordinator())
 
     composition = compose_editor_projection(panel, coordinator)
 
     assert isinstance(composition.build_registry, CubeSectionBuildRegistry)
     assert isinstance(composition.projection_completions, ProjectionCompletionRegistry)
+    assert isinstance(
+        composition.session_completions,
+        ProjectionSessionCompletionController,
+    )
     assert isinstance(composition.projection_sessions, ActiveProjectionSessionRegistry)
     assert isinstance(
         composition.active_sessions,

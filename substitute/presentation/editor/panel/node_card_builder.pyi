@@ -30,6 +30,9 @@ from substitute.presentation.editor.panel.service_bundle import EditorPanelServi
 from substitute.presentation.editor.panel.prompt.field_inputs import (
     NodeCardPromptFieldInputs,
 )
+from substitute.presentation.editor.panel.node_card.body_contribution import (
+    NodeCardBodyContributor,
+)
 
 class NodePanelSnapshot:
     cube_id: str | None
@@ -75,6 +78,7 @@ class NodeCardBuilder:
         dimension_preset_source: Any | None = ...,
         node_input_preset_source: Any | None = ...,
         prompt_segment_preset_source: Any | None = ...,
+        body_contributors: tuple[NodeCardBodyContributor, ...] = ...,
     ) -> None: ...
     def build_node_card(
         self,
@@ -89,7 +93,7 @@ class NodeCardBuilder:
         alias: str | None = ...,
         parent: QWidget | None = ...,
         prompt_field_inputs: Mapping[str, NodeCardPromptFieldInputs] | None = ...,
-    ) -> Any: ...
+    ) -> QWidget | None: ...
     def _create_title_row(self, *args: Any, **kwargs: Any) -> Any: ...
 
 __all__: list[str]

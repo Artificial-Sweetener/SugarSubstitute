@@ -42,6 +42,10 @@ from sugarsubstitute_shared.presentation.installer_surface import expose_native_
 from sugarsubstitute_shared.presentation.activity_progress_bar import (
     ActivityProgressBar,
 )
+from sugarsubstitute_shared.session_recovery import (
+    SessionRecoveryResult,
+    SessionRecoveryState,
+)
 
 
 class RepairProgressView(QWidget):
@@ -148,7 +152,13 @@ class RepairProgressView(QWidget):
         self._close.setEnabled(False)
         self._primary.hide()
 
-    def show_result(self, *, succeeded: bool, details: str = "") -> None:
+    def show_result(
+        self,
+        *,
+        succeeded: bool,
+        details: str = "",
+        session_recovery: SessionRecoveryResult | None = None,
+    ) -> None:
         """Present an explicit next action after execution reaches a terminal state."""
         self._bar.set_activity_enabled(False)
         self._stage.clear()
@@ -159,9 +169,26 @@ class RepairProgressView(QWidget):
         if succeeded:
             self._bar.set_progress(1, 1)
             self._title.setText(launcher_text("Repair complete"))
-            self._description.setText(
-                launcher_text("SugarSubstitute is ready to open.")
-            )
+            if (
+                session_recovery is not None
+                and session_recovery.state
+                is SessionRecoveryState.PRESERVED_NOT_RESTORED
+            ):
+                recovery_path = (
+                    str(session_recovery.recovery_root)
+                    if session_recovery.recovery_root is not None
+                    else launcher_text("the repair recovery folder")
+                )
+                self._description.setText(
+                    launcher_text(
+                        "SugarSubstitute is repaired. Your files were preserved, but the previous session could not be restored. Recovery copies are in %1.",
+                        recovery_path,
+                    )
+                )
+            else:
+                self._description.setText(
+                    launcher_text("SugarSubstitute is ready to open.")
+                )
             self._primary.setText(launcher_text("Open SugarSubstitute"))
         else:
             self._title.setText(launcher_text("Repair needs attention"))

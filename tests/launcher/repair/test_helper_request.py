@@ -92,7 +92,7 @@ def test_helper_keeps_another_prepared_attempt_intact(
             """Retain the exact installation selected by the request worker."""
             self.root = layout.root
 
-        def recover(
+        def recover_for_repair(
             self, *, ownership: InstallationMutationOwnership | None = None
         ) -> bool:
             """Observe admission to mutation before the request executor runs."""

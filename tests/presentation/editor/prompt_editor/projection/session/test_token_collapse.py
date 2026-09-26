@@ -39,7 +39,7 @@ def test_token_collapse_decision_refuses_caret_inside_expanded_token() -> None:
     )
 
     assert decision.collapsed is False
-    assert decision.reason == "selection_inside_or_on_boundary"
+    assert decision.reason == "selection_inside_or_on_trailing_boundary"
     assert decision.matching_syntax_span_present is True
 
 
@@ -59,6 +59,27 @@ def test_token_collapse_decision_collapses_when_caret_moves_before_token() -> No
 
     assert collapsed is True
     assert session.expanded_source_range is None
+
+
+def test_token_collapse_decision_collapses_at_opening_syntax_boundary() -> None:
+    """Treat a caret before the opening delimiter as outside the raw token."""
+
+    document_view = PromptDocumentService().build_document_view(
+        "x (red ornaments:1.10)"
+    )
+    token_start = document_view.source_text.index("(red ornaments:1.10)")
+    session = PromptProjectionSession(
+        expanded_source_range=(token_start, len(document_view.source_text))
+    )
+
+    decision = session.collapse_decision(
+        document_view,
+        selection_start=token_start,
+        selection_end=token_start,
+    )
+
+    assert decision.collapsed is True
+    assert decision.matching_syntax_span_present is True
 
 
 def test_token_collapse_decision_collapses_when_caret_moves_after_token() -> None:
@@ -94,5 +115,5 @@ def test_token_collapse_decision_refuses_caret_on_token_end_boundary() -> None:
     )
 
     assert decision.collapsed is False
-    assert decision.reason == "selection_inside_or_on_boundary"
+    assert decision.reason == "selection_inside_or_on_trailing_boundary"
     assert decision.matching_syntax_span_present is True

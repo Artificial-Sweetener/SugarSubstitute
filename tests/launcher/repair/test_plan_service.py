@@ -32,6 +32,9 @@ from launcher.sugarsubstitute_launcher.application.repair.plan_service import (
 )
 from launcher.sugarsubstitute_launcher.application.repair.models import RepairPlan
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    update_journal_paths,
+)
 
 
 def _touch_directory(path: Path) -> None:
@@ -111,6 +114,23 @@ def test_application_repair_quarantines_unknown_root_content(tmp_path: Path) -> 
     operation = plan.operation_for(layout.root / "mystery-tool" / "content.txt")
     assert operation is not None
     assert operation.disposition is RepairDisposition.QUARANTINE
+
+
+def test_application_repair_quarantines_every_pending_update_journal(
+    tmp_path: Path,
+) -> None:
+    """Repair must break legacy update-recovery loops before relaunching."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    current, legacy = update_journal_paths(layout)
+    current.parent.mkdir(parents=True)
+    current.write_text('{"schema_version": 6}', encoding="utf-8")
+    legacy.write_text('{"schema_version": 6}', encoding="utf-8")
+
+    plan = RepairPlanService().build_application_plan(layout=layout)
+
+    assert _disposition(plan, current) is RepairDisposition.QUARANTINE
+    assert _disposition(plan, legacy) is RepairDisposition.QUARANTINE
 
 
 @pytest.mark.parametrize(

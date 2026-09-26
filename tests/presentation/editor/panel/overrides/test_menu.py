@@ -30,7 +30,7 @@ from substitute.application.node_behavior import (
     ResolvedFieldSpec,
 )
 from substitute.application.overrides import PinnedOverrideService
-from substitute.presentation.editor.panel import overrides_controller
+from substitute.presentation.editor.panel import override_menu_presenter
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
@@ -139,7 +139,7 @@ def _install_override_menu_renderer(monkeypatch: pytest.MonkeyPatch) -> None:
                 menu.addAction(action)
 
     monkeypatch.setattr(
-        overrides_controller,
+        override_menu_presenter,
         "QFluentMenuRenderer",
         _QFluentMenuRenderer,
     )
@@ -186,7 +186,7 @@ def test_rebuild_override_menu_uses_behavior_snapshot_candidates(
     _install_override_menu_renderer(monkeypatch)
 
     monkeypatch.setattr(
-        overrides_controller,
+        override_menu_presenter,
         "set_localized_tooltip",
         lambda target, text: target.setToolTip(str(text)),
     )

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import io
+import mimetypes
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,8 +63,8 @@ class OutputTransferArtifact:
 
     path: Path
     mime_type: str
-    data: bytes
-    image: QImage
+    data: bytes | None
+    image: QImage | None
     staged: bool
     lease: OutputTransferArtifactLease | None = None
 
@@ -71,8 +72,10 @@ class OutputTransferArtifact:
         """Detach mutable Qt pixels and normalized byte/path values."""
 
         object.__setattr__(self, "path", Path(self.path))
-        object.__setattr__(self, "data", bytes(self.data))
-        object.__setattr__(self, "image", QImage(self.image))
+        if self.data is not None:
+            object.__setattr__(self, "data", bytes(self.data))
+        if self.image is not None:
+            object.__setattr__(self, "image", QImage(self.image))
 
     def release(self) -> None:
         """Release the staged path after its native transfer consumer retires."""
@@ -128,6 +131,30 @@ class OutputTransferArtifactStore:
         if _is_cancelled(cancellation_requested):
             return None
         return self._stage(data, transfer_format, cancellation_requested)
+
+    def reference_file(
+        self,
+        path: Path | None,
+        *,
+        mime_type: str | None,
+    ) -> OutputTransferArtifact | None:
+        """Reference one authorized durable file without loading it into memory."""
+
+        if path is None:
+            return None
+        normalized_path = Path(path)
+        try:
+            if not normalized_path.is_file():
+                return None
+        except OSError:
+            return None
+        return OutputTransferArtifact(
+            path=normalized_path,
+            mime_type=_file_mime_type(normalized_path, mime_type),
+            data=None,
+            image=None,
+            staged=False,
+        )
 
     def close(self) -> None:
         """Delete only staged files created and retained by this store."""
@@ -305,6 +332,22 @@ def _mime_type(transfer_format: OutputTransferFormat) -> str:
         if transfer_format is OutputTransferFormat.CANONICAL_PNG
         else "image/jpeg"
     )
+
+
+def _file_mime_type(path: Path, declared_mime_type: str | None) -> str:
+    """Return a valid declared or inferred MIME type for one durable file."""
+
+    declared = (declared_mime_type or "").strip().casefold()
+    major_type, separator, subtype = declared.partition("/")
+    if (
+        major_type
+        and separator
+        and subtype
+        and not any(character.isspace() for character in declared)
+    ):
+        return declared
+    inferred, _encoding = mimetypes.guess_type(path.name)
+    return inferred or "application/octet-stream"
 
 
 def _suffix(transfer_format: OutputTransferFormat) -> str:

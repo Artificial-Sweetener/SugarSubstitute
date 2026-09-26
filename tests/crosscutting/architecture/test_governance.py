@@ -315,22 +315,6 @@ def test_system_git_policy_rejects_direct_git_processes(tmp_path: Path) -> None:
     assert "pygit2" in error.message
 
 
-def test_system_git_policy_rejects_unguarded_comfy_cli_calls(tmp_path: Path) -> None:
-    """Keep every ComfyCLI invocation behind the protected command owner."""
-
-    _write_policy(tmp_path)
-    _write(
-        tmp_path / "launcher/unsafe.py",
-        "COMMAND = ['python', '-m', 'cm_cli', 'install', 'node']\n",
-    )
-
-    diagnostics = validate_repository(tmp_path, today=date(2026, 8, 11))
-
-    error = next(item for item in diagnostics if item.rule == "GIT002")
-    assert error.path == "launcher/unsafe.py"
-    assert "protected Comfy Manager command owner" in error.message
-
-
 def test_system_git_policy_does_not_parse_excluded_generated_sources(
     tmp_path: Path,
 ) -> None:

@@ -37,11 +37,11 @@ from substitute.presentation.editor.panel.node_card.body_contribution import (
     NodeCardBodyContribution,
     NodeCardBodyContributionContext,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
-    BuiltFieldRow,
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_HEIGHT,
     make_grouped_field_divider,
 )
+from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 
 
 class SyntheticCanvasResolutionRoleResolver(Protocol):

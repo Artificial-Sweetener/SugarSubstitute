@@ -33,7 +33,7 @@ from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 from .choice_items import prepare_choice_items, selected_choice_label
 from .field_registry import EditorFieldIdentity, EditorFieldRegistry
-from .field_state_controller import EditorFieldBinding
+from .field_state_binding import EditorFieldBinding
 from .model_choice_snapshots import (
     PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotRequest,

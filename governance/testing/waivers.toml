@@ -34,7 +34,7 @@ disposition = "intentional_real_time"
 rule = "WAIT001"
 candidates = ["WAIT001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._wait_until_ready:wait:time.sleep:1"]
 paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
-fingerprint = "sha256:65f8513a76e1d80e41a40d9a353c02d493e7b7ed27ede534f2fef8780bfc9f03"
+fingerprint = "sha256:aae7492571cdde5c580ef936c60753dc63239f213f1452bd30762953e79b2608"
 rationale = "tests/qualification/comfy/managed_runtime/direct_output_harness.py drives a real external application or managed Comfy process whose lifecycle is intentionally outside the in-process scheduler. The bounded polling delay belongs to qualification orchestration, returns immediately when the external state appears, and preserves timeout diagnostics."
 issue = "chore:SS-TEST-WAIVER-C0173"
 review_by = 2026-12-15
@@ -89,7 +89,7 @@ candidates = [
   "POLL001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._wait_until_ready:wall-clock-poll:1",
 ]
 paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
-fingerprint = "sha256:65f8513a76e1d80e41a40d9a353c02d493e7b7ed27ede534f2fef8780bfc9f03"
+fingerprint = "sha256:aae7492571cdde5c580ef936c60753dc63239f213f1452bd30762953e79b2608"
 rationale = "This qualification harness starts and communicates with a real isolated Comfy process over HTTP and WebSocket boundaries. Its clock bounds external startup and response failure, while each loop returns immediately on the required protocol or readiness state."
 issue = "chore:SS-TEST-WAIVER-C0183"
 review_by = 2026-12-15
@@ -1201,7 +1201,7 @@ disposition = "framework_infrastructure"
 rule = "PROCESS001"
 candidates = ["PROCESS001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>:unscoped-child-process:1"]
 paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
-fingerprint = "sha256:65f8513a76e1d80e41a40d9a353c02d493e7b7ed27ede534f2fef8780bfc9f03"
+fingerprint = "sha256:aae7492571cdde5c580ef936c60753dc63239f213f1452bd30762953e79b2608"
 rationale = "The context-managed qualification harness retains one real managed Comfy process while exercising HTTP, WebSocket, and output contracts. Its __exit__ owner terminates the child on every path, waits with a fifteen-second bound, escalates to kill with a second bound, closes its log, and cleans the temporary workspace."
 issue = "chore:SS-TEST-WAIVER-C0272"
 review_by = 2026-12-15
@@ -1516,4 +1516,17 @@ paths = ["tests/presentation/canvas/output/document/test_document_state.py"]
 fingerprint = "sha256:193985aa5f5dfe4e11efedb5b3d712b4bbb9662af51152e251402724fa5c13bd"
 rationale = "This native Qt module exercises Output document identity, immutable composition state, presentations, replacement, previews, and cleanup across one application process. Its primary ownership contract failed during the same Windows commit-exhausted reused-worker run as the wide process-family and multi-megapixel tiling contracts, while the exact case passed immediately alone and concurrently with both affected cases. All images, execution state, and Qt objects are process-local. Fresh-process isolation gives the document graph an explicit native lifetime, preserves every state assertion, and remains safely concurrent."
 issue = "chore:SS-TEST-WAIVER-C0294"
+review_by = 2026-12-18
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0298"
+owner = "Windows update-activation process admission contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/update_activation/transaction/test_detachment_admission.py|isolated-module"]
+paths = ["tests/launcher/update_activation/transaction/test_detachment_admission.py"]
+fingerprint = "sha256:96277de7540876e7541786acb08b5ff1783755289a1e0a11a3b6d38daff48054"
+rationale = "This Windows native module exercises production update-helper admission through real suspended-process creation, Job Object membership inspection, breakaway decisions, handle ownership, resume, and child completion. In a complete xdist run, its one-line Python child remained valid but was not scheduled until two seconds after the ten-second completion deadline; the marker and empty output log proved successful admission rather than a product deadlock, and the complete module passed immediately in a fresh process. Each test owns its tmp_path, child process, environment copy, and native handles. Fresh-process isolation preserves the real kernel boundary and bounded completion assertion, makes failures attributable to this process-family owner, and remains safely concurrent without increasing or retrying the deadline."
+issue = "chore:SS-TEST-WAIVER-C0298"
 review_by = 2026-12-18

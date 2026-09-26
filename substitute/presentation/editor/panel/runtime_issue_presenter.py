@@ -33,6 +33,7 @@ from substitute.application.errors import SubstituteOperationContext
 from substitute.application.node_behavior import LiveNodeDefinitionError
 from substitute.application.workflows import (
     CubeRuntimeIssue,
+    CubeRuntimeIssueKind,
     CubeRuntimeIssueSeverity,
     CubeRuntimeIssueSource,
     WorkflowIssueState,
@@ -233,9 +234,7 @@ class EditorPanelRuntimeIssuePresenter:
             sorted(
                 alias
                 for alias, issues in self._cube_runtime_issues.items()
-                if any(
-                    issue.severity == CubeRuntimeIssueSeverity.ERROR for issue in issues
-                )
+                if any(_requires_cube_replacement(issue) for issue in issues)
             )
         )
 
@@ -492,3 +491,15 @@ def _issue_display_lines(issues: Sequence[CubeRuntimeIssue]) -> tuple[str, ...]:
         if issue.recommended_action:
             lines.append(render_application_text(issue.recommended_action))
     return tuple(dict.fromkeys(lines))
+
+
+def _requires_cube_replacement(issue: CubeRuntimeIssue) -> bool:
+    """Return whether an issue prevents truthful node-level projection."""
+
+    return bool(
+        issue.severity == CubeRuntimeIssueSeverity.ERROR
+        and not (
+            issue.kind == CubeRuntimeIssueKind.MISSING_LIVE_NODE_DEFINITION
+            and issue.node_names
+        )
+    )

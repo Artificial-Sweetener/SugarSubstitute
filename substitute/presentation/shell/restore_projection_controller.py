@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.application.workspace_state import (
     RestoredEditorProjectionCacheExtractor,
@@ -266,6 +266,7 @@ class RestoreProjectionController:
             )
             QTimer.singleShot(
                 0,
+                cast(QObject, self._shell),
                 lambda: editor_viewport_restore_controller_for(
                     self._shell
                 ).restore_editor_viewport_for_workflow(snapshot),

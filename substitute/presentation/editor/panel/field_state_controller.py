@@ -14,41 +14,41 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own editor-panel workflow field state, widget binding, and dirty marking."""
+"""Route editor field widgets to focused state owners."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from copy import deepcopy
-from dataclasses import dataclass
 import sys
-from typing import Any, Literal, Protocol, cast, runtime_checkable
-
-from PySide6.QtCore import QTimer
+from typing import cast
 
 try:
     from qfluentwidgets import CheckBox, LineEdit  # type: ignore[import-untyped]
-except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
+except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class CheckBox:  # type: ignore[no-redef]
-        """Fallback checkbox type used only when tests stub qfluentwidgets."""
+        """Fallback checkbox type used by lightweight import tests."""
 
     class LineEdit:  # type: ignore[no-redef]
-        """Fallback line-edit type used only when tests stub qfluentwidgets."""
+        """Fallback line-edit type used by lightweight import tests."""
 
 
-from substitute.application.overrides.link_policy import apply_choice_selection
-from substitute.domain.generation.seed_control import SeedControlState
 from substitute.presentation.editor.panel.current_field_state_resolver import (
     CurrentEditorFieldStateResolver,
 )
-from substitute.presentation.editor.panel.prompt_editor_field_preferences import (
-    PromptEditorFieldPreferences,
+from substitute.presentation.editor.panel.field_state_binding import EditorFieldBinding
+from substitute.presentation.editor.panel.field_value_store import EditorFieldValueStore
+from substitute.presentation.editor.panel.field_widget_state_controller import (
+    BufferValueCast,
+    FieldWidgetStateController,
+    GetValueFunc,
+    SetValueFunc,
 )
-from substitute.presentation.editor.panel.seed_field_state_controller import (
-    SeedFieldStateController,
+from substitute.presentation.editor.panel.prompt_field_state_controller import (
+    EditorPanelFieldStateHost,
+    PromptFieldStateController,
+    set_prompt_editor_source_text,
 )
-from substitute.shared.logging.logger import get_logger, log_warning
 
 _QTGUI_MODULE = sys.modules.get("PySide6.QtGui")
 _QTGUI_LIGHTWEIGHT_STUB = _QTGUI_MODULE is not None and not hasattr(
@@ -63,161 +63,57 @@ try:
         SeedBox,
         SpinBox,
     )
-except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
+except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class ComboBox:  # type: ignore[no-redef]
-        """Fallback combo-box type used only when tests stub Qt modules."""
+        """Fallback combo-box type used by lightweight import tests."""
 
     class DoubleSpinBox:  # type: ignore[no-redef]
-        """Fallback double-spinbox type used only when tests stub Qt modules."""
+        """Fallback double-spinbox type used by lightweight import tests."""
 
     class SeedBox:  # type: ignore[no-redef]
-        """Fallback seedbox type used only when tests stub Qt modules."""
+        """Fallback seedbox type used by lightweight import tests."""
 
     class SpinBox:  # type: ignore[no-redef]
-        """Fallback spinbox type used only when tests stub Qt modules."""
+        """Fallback spinbox type used by lightweight import tests."""
 
 
 try:
     if _QTGUI_LIGHTWEIGHT_STUB:
         raise ImportError
     from substitute.presentation.widgets.model_picker import ModelPickerField
-except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
+except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class ModelPickerField:  # type: ignore[no-redef]
-        """Fallback model-picker type used only when tests stub Qt modules."""
+        """Fallback model-picker type used by lightweight import tests."""
 
 
 try:
     from substitute.presentation.editor.prompt_editor import PromptEditor
-except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
+except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class PromptEditor:  # type: ignore[no-redef]
-        """Fallback prompt-editor type used only when tests stub Qt modules."""
+        """Fallback prompt-editor type used by lightweight import tests."""
 
 
 try:
     from .widgets.fields.load_image import ImagePicker
-except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
+except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class ImagePicker:  # type: ignore[no-redef]
-        """Fallback image-picker type used only when tests stub Qt modules."""
+        """Fallback image-picker type used by lightweight import tests."""
 
 
 try:
     from .widgets.fields.load_mask import MaskPicker
-except ImportError:  # pragma: no cover - exercised by lightweight import stubs.
+except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class MaskPicker:  # type: ignore[no-redef]
-        """Fallback mask-picker type used only when tests stub Qt modules."""
-
-
-_LOGGER = get_logger("presentation.editor.panel.field_state_controller")
-NODE_STATE_KEYS = frozenset({"enabled"})
-_DISPLAY_FALLBACK_VALUE_SOURCES = frozenset({"first_option", "live_default"})
-
-FieldStorageKind = Literal["input", "node"]
-GetValueFunc = Callable[[Any], Any]
-SetValueFunc = Callable[[Any, Any], None]
-BufferValueCast = Callable[[Any], Any]
-
-
-class FieldStateCubeStateProtocol(Protocol):
-    """Describe cube-state payload access used by field-state persistence."""
-
-    buffer: dict[str, Any]
-    dirty: bool
-    field_control_states: dict[str, dict[str, SeedControlState]]
-
-
-class EditorPanelFieldStateHost(Protocol):
-    """Describe panel state required for prompt field-state restoration."""
-
-    cube_widgets: Mapping[str, object]
-    _cube_states: Mapping[str, FieldStateCubeStateProtocol] | None
-
-    def refresh_prompt_scene_diagnostics(self) -> None:
-        """Refresh scene diagnostics after prompt state restoration."""
-
-
-@runtime_checkable
-class _ValueWritable(Protocol):
-    """Describe lightweight widgets that accept a numeric/object value."""
-
-    def setValue(self, value: object) -> None:  # noqa: N802
-        """Set the current widget value."""
-
-
-@dataclass(frozen=True, slots=True)
-class EditorFieldBinding:
-    """Identify one editor field and how its value is stored."""
-
-    cube_alias: str | None
-    node_name: str | None
-    field_key: str
-    storage_kind: FieldStorageKind
-    value_source: str | None
-    resolved_display_value: object | None
-    prompt_field_identity: str | None
-    node_type: str | None = None
-    field_type: str | None = None
-    native_widget_type: str | None = None
-
-    @classmethod
-    def from_metadata(cls, metadata: object) -> EditorFieldBinding | None:
-        """Create a typed field binding from sanitized Qt input metadata."""
-
-        if not isinstance(metadata, Mapping):
-            return None
-        raw_key = metadata.get("key")
-        if not isinstance(raw_key, str) or not raw_key.strip():
-            return None
-        raw_node_name = metadata.get("node_name")
-        node_name = raw_node_name if isinstance(raw_node_name, str) else None
-        raw_cube_alias = metadata.get("cube_alias")
-        cube_alias = raw_cube_alias if isinstance(raw_cube_alias, str) else None
-        value_source = metadata.get("value_source")
-        node_type = metadata.get("node_type")
-        field_type = metadata.get("type")
-        meta_info = metadata.get("meta_info")
-        native_widget_type = (
-            meta_info.get("native_widget_type")
-            if isinstance(meta_info, Mapping)
-            else None
-        )
-        field_key = raw_key.strip()
-        prompt_identity = (
-            f"{node_name.strip()}.{field_key}"
-            if isinstance(node_name, str) and node_name.strip()
-            else None
-        )
-        return cls(
-            cube_alias=cube_alias,
-            node_name=node_name,
-            field_key=field_key,
-            storage_kind="node" if field_key in NODE_STATE_KEYS else "input",
-            value_source=value_source if isinstance(value_source, str) else None,
-            resolved_display_value=metadata.get("resolved_value"),
-            prompt_field_identity=prompt_identity,
-            node_type=node_type if isinstance(node_type, str) else None,
-            field_type=field_type if isinstance(field_type, str) else None,
-            native_widget_type=(
-                native_widget_type if isinstance(native_widget_type, str) else None
-            ),
-        )
-
-    @classmethod
-    def from_widget(cls, widget: object) -> EditorFieldBinding | None:
-        """Create a typed binding from one widget's Qt metadata."""
-
-        property_getter = getattr(widget, "property", None)
-        if not callable(property_getter):
-            return None
-        return cls.from_metadata(property_getter("input_metadata"))
+        """Fallback mask-picker type used by lightweight import tests."""
 
 
 class EditorPanelFieldStateController:
-    """Coordinate editor field value persistence and widget state binding."""
+    """Coordinate widget dispatch across focused editor field-state owners."""
 
     def __init__(
         self,
@@ -225,14 +121,19 @@ class EditorPanelFieldStateController:
         *,
         field_value_changed: Callable[[EditorFieldBinding, object], None] | None = None,
     ) -> None:
-        """Store the optional panel host used for prompt field refreshes."""
+        """Compose value, prompt, and widget-family state owners."""
 
-        self._host = host
-        self._field_value_changed = field_value_changed
-        self._seed_field_state = SeedFieldStateController(self._mark_cube_state_dirty)
+        self._value_store = EditorFieldValueStore(field_value_changed)
         self._current_state_resolver = CurrentEditorFieldStateResolver(host)
-        self._prompt_preferences = PromptEditorFieldPreferences(
-            self._mark_cube_state_dirty
+        self._widget_state = FieldWidgetStateController(
+            self._value_store,
+            self._current_state_resolver,
+        )
+        self._prompt_state = PromptFieldStateController(
+            host,
+            self._value_store,
+            self._current_state_resolver,
+            PromptEditor,
         )
 
     def bind_node_widget_state(
@@ -243,19 +144,15 @@ class EditorPanelFieldStateController:
         *,
         manual_prompt_height_changed: Callable[[], None] | None = None,
     ) -> None:
-        """Wire one node widget to authoritative cube field state."""
+        """Route one node widget to its concrete state adapter."""
 
         self._ensure_widget_metadata(widget, metadata)
         if hasattr(widget, "spinbox"):
             spinbox = cast(object, getattr(widget, "spinbox"))
             self._ensure_widget_metadata(spinbox, metadata)
-            if isinstance(spinbox, DoubleSpinBox):
-                self.wire_doublespinbox_state(spinbox, cube_state)
+            if isinstance(spinbox, (DoubleSpinBox, SpinBox)):
+                self._widget_state.wire_numeric_state(spinbox, cube_state)
                 return
-            if isinstance(spinbox, SpinBox):
-                self.wire_spinbox_state(spinbox, cube_state)
-                return
-
         if isinstance(widget, PromptEditor):
             self.wire_prompt_editor_state(
                 widget,
@@ -264,43 +161,144 @@ class EditorPanelFieldStateController:
             )
             return
         if isinstance(widget, SeedBox):
-            self.wire_seedbox_state(widget, cube_state)
+            self._widget_state.wire_seed_state(widget, cube_state)
             return
-        if isinstance(widget, DoubleSpinBox):
-            self.wire_doublespinbox_state(widget, cube_state)
-            return
-        if isinstance(widget, SpinBox):
-            self.wire_spinbox_state(widget, cube_state)
+        if isinstance(widget, (DoubleSpinBox, SpinBox)):
+            self._widget_state.wire_numeric_state(widget, cube_state)
             return
         if isinstance(widget, ModelPickerField):
-            self.wire_model_picker_state(widget, cube_state)
+            self._widget_state.wire_text_choice_state(widget, cube_state)
             return
         if isinstance(widget, ComboBox):
-            self.wire_combobox_state(widget, cube_state)
+            self._widget_state.wire_combo_state(widget, cube_state)
             return
         if isinstance(widget, LineEdit):
-            self.wire_lineedit_state(widget, cube_state)
+            self._widget_state.wire_line_edit_state(widget, cube_state)
             return
         if isinstance(widget, CheckBox):
-            self.wire_checkbox_state(widget, cube_state)
+            self._widget_state.wire_checked_state(widget, cube_state)
             return
         if isinstance(widget, ImagePicker):
-            self.wire_imagepicker_state(widget, cube_state)
+            self._widget_state.restore_image_picker(widget, cube_state)
             return
         if isinstance(widget, MaskPicker):
-            self.wire_maskpicker_state(widget, cube_state)
+            self._widget_state.wire_mask_picker_state(widget, cube_state)
             return
         if self._wire_semantic_value_widget_state(widget, cube_state):
             return
         if widget.__class__.__name__ == "SwitchButton":
-            self.wire_switchbutton_state(widget, cube_state)
+            self._widget_state.wire_checked_state(widget, cube_state)
+
+    def sync_prompt_editor_values_from_buffers(self) -> None:
+        """Restore all prompt editors from authoritative buffers."""
+
+        self._prompt_state.sync_all_from_buffers()
+
+    def sync_prompt_editor_values_for_cube(self, cube_alias: str) -> None:
+        """Restore prompt editors for one cube alias."""
+
+        self._prompt_state.sync_cube_from_buffers(cube_alias)
+
+    def sync_prompt_editor_values_for_widget(self, cube_widget: object) -> None:
+        """Restore prompt editors mounted under one cube widget."""
+
+        self._prompt_state.sync_widget_from_buffers(cube_widget)
+
+    def wire_widget_state(
+        self,
+        widget: object,
+        cube_state: object,
+        get_val_func: GetValueFunc,
+        set_val_func: SetValueFunc,
+        signal: object,
+        buffer_val_cast: BufferValueCast | None = None,
+    ) -> None:
+        """Bind a generic value widget through the widget-state owner."""
+
+        self._widget_state.wire_widget_state(
+            widget,
+            cube_state,
+            get_val_func,
+            set_val_func,
+            signal,
+            buffer_val_cast,
+        )
+
+    def field_value(self, cube_state: object, binding: EditorFieldBinding) -> object:
+        """Return one persisted field value."""
+
+        return self._value_store.field_value(cube_state, binding)
+
+    def display_value(self, cube_state: object, binding: EditorFieldBinding) -> object:
+        """Return one field's initial display value."""
+
+        return self._value_store.display_value(cube_state, binding)
+
+    def set_field_value(
+        self,
+        cube_state: object,
+        binding: EditorFieldBinding,
+        value: object,
+    ) -> bool:
+        """Persist one field value through the value-store owner."""
+
+        return self._value_store.set_field_value(cube_state, binding, value)
+
+    def wire_prompt_editor_state(
+        self,
+        prompt_editor: object,
+        cube_state: object,
+        *,
+        manual_height_changed: Callable[[], None] | None = None,
+    ) -> None:
+        """Bind prompt text and its presentation preferences."""
+
+        binding = EditorFieldBinding.from_widget(prompt_editor)
+        if binding is not None:
+            self._prompt_state.bind_preferences(
+                prompt_editor,
+                cube_state,
+                binding,
+                manual_height_changed=manual_height_changed,
+            )
+        self._widget_state.wire_widget_state(
+            prompt_editor,
+            cube_state,
+            get_val_func=lambda widget: widget.toPlainText(),
+            set_val_func=lambda widget, value: set_prompt_editor_source_text(
+                widget,
+                str(value),
+            ),
+            signal=getattr(prompt_editor, "textChanged"),
+            buffer_val_cast=str,
+        )
+
+    def wire_combobox_state(self, combo: object, cube_state: object) -> None:
+        """Bind one combo box through choice-state policy."""
+
+        self._widget_state.wire_combo_state(combo, cube_state)
+
+    def wire_model_picker_state(self, model_picker: object, cube_state: object) -> None:
+        """Bind one model picker through text-choice state."""
+
+        self._widget_state.wire_text_choice_state(model_picker, cube_state)
+
+    def wire_imagepicker_state(self, image_picker: object, cube_state: object) -> None:
+        """Restore one image picker through the widget-state owner."""
+
+        self._widget_state.restore_image_picker(image_picker, cube_state)
+
+    def wire_lineedit_state(self, line_edit: object, cube_state: object) -> None:
+        """Bind one line edit through scalar widget-state policy."""
+
+        self._widget_state.wire_line_edit_state(line_edit, cube_state)
 
     def _wire_semantic_value_widget_state(
         self,
         widget: object,
         cube_state: object,
     ) -> bool:
-        """Wire a custom field exposing the shared value/setValue/valueChanged API."""
+        """Bind a custom field exposing value, setValue, and valueChanged."""
 
         value_reader = getattr(widget, "value", None)
         value_writer = getattr(widget, "setValue", None)
@@ -312,525 +310,7 @@ class EditorPanelFieldStateController:
             or not hasattr(value_changed, "connect")
         ):
             return False
-        self.wire_widget_state(
-            widget,
-            cube_state,
-            get_val_func=lambda field: field.value(),
-            set_val_func=lambda field, value: field.setValue(value),
-            signal=value_changed,
-        )
-        return True
-
-    def sync_prompt_editor_values_from_buffers(self) -> None:
-        """Restore all prompt-editor widgets from authoritative workflow buffers."""
-
-        host = self._host
-        if host is None or not host._cube_states:
-            return
-        for cube_widget in host.cube_widgets.values():
-            self.sync_prompt_editor_values_for_widget(cube_widget)
-        host.refresh_prompt_scene_diagnostics()
-
-    def sync_prompt_editor_values_for_cube(self, cube_alias: str) -> None:
-        """Restore prompt-editor widget values for one cube alias."""
-
-        host = self._host
-        if host is None or not host._cube_states:
-            return
-        cube_widget = host.cube_widgets.get(cube_alias)
-        if cube_widget is None:
-            return
-        self.sync_prompt_editor_values_for_widget(cube_widget)
-        host.refresh_prompt_scene_diagnostics()
-
-    def sync_prompt_editor_values_for_widget(self, cube_widget: object) -> None:
-        """Restore prompt-editor widget values hosted by one cube widget."""
-
-        host = self._host
-        if host is None or not host._cube_states:
-            return
-        for prompt_editor in self._prompt_editors_in(cube_widget):
-            binding = EditorFieldBinding.from_widget(prompt_editor)
-            if binding is None or binding.cube_alias is None:
-                continue
-            cube_state = host._cube_states.get(binding.cube_alias)
-            if cube_state is None:
-                continue
-            text_value = self.field_value(cube_state, binding)
-            text = text_value if isinstance(text_value, str) else ""
-            if prompt_editor.toPlainText() != text:
-                self._set_prompt_editor_source_text(prompt_editor, text)
-
-    def wire_widget_state(
-        self,
-        widget: object,
-        cube_state: object,
-        get_val_func: GetValueFunc,
-        set_val_func: SetValueFunc,
-        signal: object,
-        buffer_val_cast: BufferValueCast | None = None,
-    ) -> None:
-        """Bind one widget's display value and change signal to cube field state."""
-
-        binding = EditorFieldBinding.from_widget(widget)
-        if binding is None:
-            log_warning(
-                _LOGGER,
-                "Skipping widget wiring without input metadata",
-                widget_type=widget.__class__.__name__,
-            )
-            return
-
-        try:
-            buffer_value = self.display_value(cube_state, binding)
-            if buffer_value is not None:
-                if buffer_val_cast is not None:
-                    buffer_value = buffer_val_cast(buffer_value)
-                if get_val_func(widget) != buffer_value:
-                    set_val_func(widget, buffer_value)
-        except (KeyError, TypeError, ValueError, AttributeError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to restore widget value from buffer",
-                node_name=binding.node_name or "",
-                field_key=binding.field_key,
-                error_type=type(error).__name__,
-            )
-
-        def on_changed(*args: object) -> None:
-            """Persist one changed widget value."""
-
-            out_value = args[0] if args else get_val_func(widget)
-            try:
-                if buffer_val_cast is not None:
-                    out_value = buffer_val_cast(out_value)
-            except (TypeError, ValueError):
-                log_warning(
-                    _LOGGER,
-                    "Rejected invalid widget value",
-                    node_name=binding.node_name or "",
-                    field_key=binding.field_key,
-                    widget_type=widget.__class__.__name__,
-                )
-                return
-            self.set_field_value(
-                self._current_state_resolver.resolve(cube_state, binding.cube_alias),
-                binding,
-                out_value,
-            )
-
-        self._connect_signal(signal, on_changed)
-
-    def field_value(self, cube_state: object, binding: EditorFieldBinding) -> object:
-        """Return the persisted value for one field binding."""
-
-        node = self._node_payload(cube_state, binding)
-        if node is None:
-            return None
-        if binding.storage_kind == "node":
-            return node.get(binding.field_key)
-        inputs = node.get("inputs")
-        if not isinstance(inputs, dict):
-            return None
-        return inputs.get(binding.field_key)
-
-    def display_value(
-        self,
-        cube_state: object,
-        binding: EditorFieldBinding,
-    ) -> object:
-        """Return the initial widget display value for one field binding."""
-
-        if binding.value_source in _DISPLAY_FALLBACK_VALUE_SOURCES:
-            return binding.resolved_display_value
-        return self.field_value(cube_state, binding)
-
-    def set_field_value(
-        self,
-        cube_state: object,
-        binding: EditorFieldBinding,
-        value: object,
-    ) -> bool:
-        """Persist one field value and mark the cube dirty only on change."""
-
-        canonical_setter = getattr(cube_state, "set_editor_value", None)
-        if callable(canonical_setter):
-            changed = bool(
-                canonical_setter(
-                    binding.node_name,
-                    field_key=binding.field_key,
-                    value=value,
-                    storage_kind=binding.storage_kind,
-                )
-            )
-            if changed:
-                self._notify_field_value_changed(binding, value)
-            return changed
-        node = self._mutable_node_payload(cube_state, binding)
-        if node is None:
-            return False
-        if binding.storage_kind == "node":
-            previous = node.get(binding.field_key)
-            if previous == value:
-                return False
-            node[binding.field_key] = value
-            self._mark_cube_state_dirty(cube_state)
-            self._notify_field_value_changed(binding, value)
-            return True
-
-        inputs = node.get("inputs")
-        if not isinstance(inputs, dict):
-            inputs = {}
-            node["inputs"] = inputs
-        previous = inputs.get(binding.field_key)
-        if previous == value:
-            return False
-        inputs[binding.field_key] = value
-        self._mark_cube_state_dirty(cube_state)
-        self._notify_field_value_changed(binding, value)
-        return True
-
-    def wire_prompt_editor_state(
-        self,
-        prompt_editor: PromptEditor,
-        cube_state: object,
-        *,
-        manual_height_changed: Callable[[], None] | None = None,
-    ) -> None:
-        """Bind a prompt editor to prompt text and prompt UI state."""
-
-        binding = EditorFieldBinding.from_widget(prompt_editor)
-        if binding is not None and binding.prompt_field_identity is not None:
-            self._restore_prompt_editor_rich_rendering(
-                prompt_editor,
-                cube_state,
-                binding.prompt_field_identity,
-            )
-        self.wire_widget_state(
-            prompt_editor,
-            cube_state,
-            get_val_func=lambda widget: widget.toPlainText(),
-            set_val_func=lambda widget, value: self._set_prompt_editor_source_text(
-                widget, str(value)
-            ),
-            signal=prompt_editor.textChanged,
-            buffer_val_cast=str,
-        )
-        if binding is None or binding.prompt_field_identity is None:
-            return
-        self._connect_rich_rendering_persistence(
-            prompt_editor,
-            cube_state,
-            binding.prompt_field_identity,
-            changed_callback=manual_height_changed,
-        )
-        stored_height = self._prompt_preferences.manual_height(
-            cube_state,
-            binding.prompt_field_identity,
-        )
-
-        def connect_manual_height_persistence() -> None:
-            """Persist future user-owned prompt height changes for this field."""
-
-            height_changed = getattr(prompt_editor, "manualScrollHeightChanged", None)
-            if height_changed is None:
-                return
-
-            def persist_manual_height(height: object) -> None:
-                """Store one changed prompt height and notify the shell."""
-
-                changed = self._prompt_preferences.store_manual_height(
-                    self._current_state_resolver.resolve(
-                        cube_state,
-                        binding.cube_alias,
-                    ),
-                    binding.prompt_field_identity or "",
-                    height,
-                )
-                if changed and manual_height_changed is not None:
-                    manual_height_changed()
-
-            self._connect_signal(height_changed, persist_manual_height)
-
-        if stored_height is None:
-            connect_manual_height_persistence()
-            return
-
-        def apply_restored_manual_height() -> None:
-            """Apply restored height after prompt text layout has settled."""
-
-            set_manual_height = getattr(prompt_editor, "setManualScrollHeight", None)
-            if callable(set_manual_height):
-                set_manual_height(stored_height)
-            connect_manual_height_persistence()
-
-        QTimer.singleShot(0, apply_restored_manual_height)
-
-    def wire_spinbox_state(self, spinbox: SpinBox, cube_state: object) -> None:
-        """Bind a spinbox value to cube field state."""
-
-        self.wire_widget_state(
-            spinbox,
-            cube_state,
-            get_val_func=lambda widget: widget.value(),
-            set_val_func=lambda widget, value: widget.setValue(value),
-            signal=spinbox.valueChanged,
-        )
-
-    def wire_doublespinbox_state(
-        self,
-        doublespinbox: DoubleSpinBox,
-        cube_state: object,
-    ) -> None:
-        """Bind a double-spinbox value to cube field state."""
-
-        self.wire_widget_state(
-            doublespinbox,
-            cube_state,
-            get_val_func=lambda widget: widget.value(),
-            set_val_func=lambda widget, value: widget.setValue(value),
-            signal=doublespinbox.valueChanged,
-        )
-
-    def wire_combobox_state(self, combo: ComboBox, cube_state: object) -> None:
-        """Bind a combo-box selection to cube field state."""
-
-        binding = EditorFieldBinding.from_widget(combo)
-        if binding is None:
-            log_warning(
-                _LOGGER,
-                "Skipping combo wiring without input metadata",
-                widget_type=combo.__class__.__name__,
-            )
-            return
-        if self._bind_linked_choice_combo(combo, cube_state, binding):
-            return
-        self.wire_widget_state(
-            combo,
-            cube_state,
-            get_val_func=lambda widget: widget.currentText(),
-            set_val_func=lambda widget, value: widget.setCurrentText(str(value)),
-            signal=self._string_signal(combo.currentTextChanged),
-            buffer_val_cast=str,
-        )
-
-    def wire_model_picker_state(
-        self,
-        model_picker: ModelPickerField,
-        cube_state: object,
-    ) -> None:
-        """Bind a model-picker backend value to cube field state."""
-
-        self.wire_widget_state(
-            model_picker,
-            cube_state,
-            get_val_func=lambda widget: widget.currentText(),
-            set_val_func=lambda widget, value: widget.setCurrentText(str(value)),
-            signal=self._string_signal(model_picker.currentTextChanged),
-            buffer_val_cast=str,
-        )
-
-    def wire_lineedit_state(self, lineedit: LineEdit, cube_state: object) -> None:
-        """Bind a line-edit value to cube field state."""
-
-        binding = EditorFieldBinding.from_widget(lineedit)
-        is_integer_field = binding is not None and binding.field_type == "INT"
-        self.wire_widget_state(
-            lineedit,
-            cube_state,
-            get_val_func=lambda widget: widget.text(),
-            set_val_func=lambda widget, value: widget.setText(str(value)),
-            signal=lineedit.editingFinished
-            if is_integer_field
-            else lineedit.textChanged,
-            buffer_val_cast=int if is_integer_field else str,
-        )
-
-    def wire_checkbox_state(self, checkbox: CheckBox, cube_state: object) -> None:
-        """Bind a checkbox value to cube field state."""
-
-        self.wire_widget_state(
-            checkbox,
-            cube_state,
-            get_val_func=lambda widget: bool(widget.isChecked()),
-            set_val_func=lambda widget, value: widget.setChecked(bool(value)),
-            signal=checkbox.stateChanged,
-            buffer_val_cast=bool,
-        )
-
-    def wire_switchbutton_state(self, switch: object, cube_state: object) -> None:
-        """Bind a switch-style button value to cube field state."""
-
-        self.wire_widget_state(
-            switch,
-            cube_state,
-            get_val_func=lambda widget: bool(widget.isChecked()),
-            set_val_func=lambda widget, value: widget.setChecked(bool(value)),
-            signal=getattr(switch, "checkedChanged"),
-            buffer_val_cast=bool,
-        )
-
-    def wire_seedbox_state(self, seedbox: SeedBox, cube_state: object) -> None:
-        """Bind a seedbox value to cube field state."""
-
-        self.wire_widget_state(
-            seedbox,
-            cube_state,
-            get_val_func=lambda widget: widget.value(),
-            set_val_func=lambda widget, value: widget.setValue(value),
-            signal=seedbox.valueChanged,
-        )
-        binding = EditorFieldBinding.from_widget(seedbox)
-        if binding is None or binding.node_name is None:
-            return
-        self._seed_field_state.bind_mode(
-            seedbox,
-            cube_state,
-            binding,
-            state_resolver=lambda: self._current_state_resolver.resolve(
-                cube_state,
-                binding.cube_alias,
-            ),
-        )
-
-    def wire_imagepicker_state(
-        self,
-        imagepicker: ImagePicker,
-        cube_state: object,
-    ) -> None:
-        """Restore image-picker thumbnails while writes route through panel actions."""
-
-        binding = EditorFieldBinding.from_widget(imagepicker)
-        if binding is None:
-            log_warning(
-                _LOGGER,
-                "Skipping image picker restore without input metadata",
-                widget_type=imagepicker.__class__.__name__,
-            )
-            return
-        try:
-            buffer_value = self.field_value(cube_state, binding)
-            if (
-                isinstance(buffer_value, str)
-                and buffer_value
-                and imagepicker.current_file_path() != buffer_value
-            ):
-                imagepicker.set_thumbnail(buffer_value)
-        except (KeyError, TypeError, ValueError, AttributeError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to restore image picker value from buffer",
-                node_name=binding.node_name or "",
-                field_key=binding.field_key,
-                error_type=type(error).__name__,
-            )
-
-    def wire_maskpicker_state(self, maskpicker: MaskPicker, cube_state: object) -> None:
-        """Bind a mask-picker path to cube field state."""
-
-        binding = EditorFieldBinding.from_widget(maskpicker)
-        if binding is None:
-            log_warning(
-                _LOGGER,
-                "Skipping mask picker wiring without input metadata",
-                widget_type=maskpicker.__class__.__name__,
-            )
-            return
-        current = self.display_value(cube_state, binding)
-        if isinstance(current, str) and current:
-            set_mask_path = getattr(maskpicker, "set_mask_path", None)
-            if callable(set_mask_path):
-                set_mask_path(current)
-
-        def on_mask_selected(*args: object) -> None:
-            """Persist the selected mask path from the picker signal."""
-
-            path = args[-1] if args else maskpicker.current_file_path()
-            self.set_field_value(
-                self._current_state_resolver.resolve(cube_state, binding.cube_alias),
-                binding,
-                str(path),
-            )
-
-        self._connect_signal(maskpicker.maskSelected, on_mask_selected)
-
-    def _bind_linked_choice_combo(
-        self,
-        combo: ComboBox,
-        cube_state: object,
-        binding: EditorFieldBinding,
-    ) -> bool:
-        """Bind sampler/scheduler link-aware combo selections when applicable."""
-
-        link_key = (
-            "sampler_link"
-            if binding.field_key == "sampler_name"
-            else "scheduler_link"
-            if binding.field_key == "scheduler"
-            else None
-        )
-        if link_key is None:
-            return False
-        node = self._node_payload(cube_state, binding)
-        if node is None:
-            return False
-        label_to_value = getattr(combo, "_editor_choice_values_by_label", None)
-        if not isinstance(label_to_value, Mapping):
-            if not isinstance(node.get(link_key), dict):
-                return False
-
-            def on_literal_changed(text: str) -> None:
-                """Persist a literal selection and clear the active link."""
-
-                current_state = self._current_state_resolver.resolve(
-                    cube_state,
-                    binding.cube_alias,
-                )
-                current_node = self._mutable_node_payload(current_state, binding)
-                if (
-                    current_node is not None
-                    and not text.startswith("🔗 ")
-                    and link_key in current_node
-                ):
-                    del current_node[link_key]
-                self.set_field_value(current_state, binding, text)
-
-            self._connect_signal(
-                self._string_signal(combo.currentTextChanged), on_literal_changed
-            )
-            return True
-
-        if not isinstance(node.get(link_key), dict):
-            current = self.field_value(cube_state, binding)
-            if current is not None and combo.currentText() != str(current):
-                combo.setCurrentText(str(current))
-
-        def on_changed(text: str) -> None:
-            """Persist the selected literal or link through the field-state owner."""
-
-            current_state = self._current_state_resolver.resolve(
-                cube_state,
-                binding.cube_alias,
-            )
-            current_node = self._mutable_node_payload(current_state, binding)
-            if current_node is None:
-                return
-            selected_value = label_to_value.get(text)
-            before = deepcopy(current_node)
-            apply_choice_selection(
-                current_node,
-                literal_key=binding.field_key,
-                link_key=link_key,
-                selected_value=selected_value,
-            )
-            if current_node != before:
-                self._mark_cube_state_dirty(current_state)
-                self._notify_field_value_changed(
-                    binding,
-                    self.field_value(current_state, binding),
-                )
-
-        self._connect_signal(self._string_signal(combo.currentTextChanged), on_changed)
+        self._widget_state.wire_numeric_state(widget, cube_state)
         return True
 
     @staticmethod
@@ -851,336 +331,8 @@ class EditorPanelFieldStateController:
             return
         set_property(
             "input_metadata",
-            {
-                "node_name": metadata.get("node_name"),
-                "key": metadata.get("key"),
-            },
+            {"node_name": metadata.get("node_name"), "key": metadata.get("key")},
         )
 
-    @staticmethod
-    def _prompt_editors_in(cube_widget: object) -> tuple[PromptEditor, ...]:
-        """Return prompt-editor children from one cube widget-like object."""
 
-        find_children = getattr(cube_widget, "findChildren", None)
-        if not callable(find_children):
-            return ()
-        return tuple(
-            editor
-            for editor in find_children(PromptEditor)
-            if isinstance(editor, PromptEditor)
-        )
-
-    @staticmethod
-    def _set_prompt_editor_source_text(prompt_editor: object, text: str) -> None:
-        """Restore prompt source text exactly when the editor exposes that API."""
-
-        replace_baseline_source_text = getattr(
-            prompt_editor,
-            "replaceBaselineSourceText",
-            None,
-        )
-        if callable(replace_baseline_source_text):
-            replace_baseline_source_text(text)
-            return
-        set_source_text = getattr(prompt_editor, "setSourceText", None)
-        if callable(set_source_text):
-            set_source_text(text)
-            return
-        set_plain_text = getattr(prompt_editor, "setPlainText")
-        set_plain_text(text)
-
-    def _restore_prompt_editor_rich_rendering(
-        self,
-        prompt_editor: object,
-        cube_state: object,
-        field_identity: str,
-    ) -> None:
-        """Apply stored rich-rendering state without marking the cube dirty."""
-
-        stored_enabled = self._prompt_preferences.rich_rendering_enabled(
-            cube_state,
-            field_identity,
-        )
-        if stored_enabled is None:
-            return
-        set_enabled = getattr(prompt_editor, "setRichPromptRenderingEnabled", None)
-        if callable(set_enabled):
-            set_enabled(stored_enabled)
-
-    def _connect_rich_rendering_persistence(
-        self,
-        prompt_editor: object,
-        cube_state: object,
-        field_identity: str,
-        *,
-        changed_callback: Callable[[], None] | None,
-    ) -> None:
-        """Persist future prompt rich-rendering preference changes for this field."""
-
-        rich_rendering_changed = getattr(
-            prompt_editor,
-            "richPromptRenderingEnabledChanged",
-            None,
-        )
-        if rich_rendering_changed is None:
-            return
-
-        def persist_rich_rendering(enabled: object) -> None:
-            """Store one changed prompt rich-rendering preference."""
-
-            changed = self._prompt_preferences.store_rich_rendering_enabled(
-                self._current_state_resolver.resolve_for_field_identity(
-                    cube_state,
-                    field_identity,
-                ),
-                field_identity,
-                enabled,
-            )
-            if changed and changed_callback is not None:
-                changed_callback()
-
-        self._connect_signal(rich_rendering_changed, persist_rich_rendering)
-
-    @staticmethod
-    def _mark_cube_state_dirty(cube_state: object) -> None:
-        """Mark cube state dirty when the object supports that attribute."""
-
-        if hasattr(cube_state, "dirty"):
-            setattr(cube_state, "dirty", True)
-
-    def _notify_field_value_changed(
-        self,
-        binding: EditorFieldBinding,
-        value: object,
-    ) -> None:
-        """Notify the host about persisted field changes after buffer mutation."""
-
-        if self._field_value_changed is None:
-            return
-        try:
-            self._field_value_changed(binding, value)
-        except Exception as error:
-            log_warning(
-                _LOGGER,
-                "Field value change callback failed",
-                node_name=binding.node_name or "",
-                field_key=binding.field_key,
-                error_type=type(error).__name__,
-            )
-
-    @staticmethod
-    def _node_payload(
-        cube_state: object,
-        binding: EditorFieldBinding,
-    ) -> dict[str, Any] | None:
-        """Return one node payload from cube state when present."""
-
-        buffer = getattr(cube_state, "buffer", None)
-        if not isinstance(buffer, dict):
-            return None
-        nodes = buffer.get("nodes")
-        if not isinstance(nodes, dict):
-            return None
-        node = nodes.get(binding.node_name)
-        return cast(dict[str, Any], node) if isinstance(node, dict) else None
-
-    @staticmethod
-    def _mutable_node_payload(
-        cube_state: object,
-        binding: EditorFieldBinding,
-    ) -> dict[str, Any] | None:
-        """Return a mutable node payload from cube state when possible."""
-
-        buffer = getattr(cube_state, "buffer", None)
-        if not isinstance(buffer, dict):
-            return None
-        nodes = buffer.get("nodes")
-        if not isinstance(nodes, dict):
-            nodes = {}
-            buffer["nodes"] = nodes
-        node = nodes.get(binding.node_name)
-        if not isinstance(node, dict):
-            node = {}
-            nodes[binding.node_name] = node
-        return cast(dict[str, Any], node)
-
-    @staticmethod
-    def _connect_signal(signal: object, slot: Callable[..., None]) -> None:
-        """Connect one Qt-like signal when it exposes a connect method."""
-
-        connect = getattr(signal, "connect", None)
-        if callable(connect):
-            connect(slot)
-
-    @staticmethod
-    def _string_signal(signal: object) -> object:
-        """Return a string overload signal where Qt exposes one."""
-
-        try:
-            return signal[str]  # type: ignore[index]
-        except (KeyError, TypeError, AttributeError):
-            return signal
-
-
-def set_buffer_value_and_dirty(
-    cube_state: object,
-    node_name: str,
-    key: str,
-    value: object,
-) -> None:
-    """Persist one field value through the field-state owner."""
-
-    binding = EditorFieldBinding(
-        cube_alias=None,
-        node_name=node_name,
-        field_key=key,
-        storage_kind="node" if key in NODE_STATE_KEYS else "input",
-        value_source=None,
-        resolved_display_value=None,
-        prompt_field_identity=f"{node_name}.{key}" if node_name else None,
-    )
-    EditorPanelFieldStateController().set_field_value(cube_state, binding, value)
-
-
-def write_live_widget_value(widget: object, value: object) -> bool:
-    """Write a value to one supported live field widget."""
-
-    target = getattr(widget, "spinbox", widget)
-    if isinstance(target, DoubleSpinBox):
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            return False
-        target.setValue(float(value))
-        return True
-    if isinstance(target, (SeedBox, SpinBox)):
-        if not isinstance(value, int) or isinstance(value, bool):
-            return False
-        target.setValue(value)
-        return True
-    if isinstance(target, _ValueWritable):
-        target.setValue(value)
-        return True
-    if isinstance(target, (ComboBox, ModelPickerField)):
-        target.setCurrentText(str(value))
-        return True
-    if isinstance(target, LineEdit):
-        target.setText(str(value))
-        return True
-    if isinstance(target, CheckBox):
-        target.setChecked(bool(value))
-        return True
-    if isinstance(target, PromptEditor):
-        EditorPanelFieldStateController._set_prompt_editor_source_text(
-            target,
-            str(value),
-        )
-        return True
-    if target.__class__.__name__ == "SwitchButton":
-        set_checked = getattr(target, "setChecked", None)
-        if callable(set_checked):
-            set_checked(bool(value))
-            return True
-    return False
-
-
-def wire_widget_state(
-    widget: object,
-    cube_state: object,
-    get_val_func: GetValueFunc,
-    set_val_func: SetValueFunc,
-    signal: object,
-    buffer_val_cast: BufferValueCast | None = None,
-) -> None:
-    """Bind one widget through the field-state owner."""
-
-    EditorPanelFieldStateController().wire_widget_state(
-        widget,
-        cube_state,
-        get_val_func,
-        set_val_func,
-        signal,
-        buffer_val_cast,
-    )
-
-
-def wire_any_widget_state(widget: object, cube_state: object) -> None:
-    """Bind any supported widget through the field-state owner."""
-
-    metadata = EditorFieldBinding.from_widget(widget)
-    if metadata is None:
-        raise TypeError(f"Cannot wire unknown widget type: {widget.__class__.__name__}")
-    EditorPanelFieldStateController().bind_node_widget_state(
-        widget,
-        cube_state,
-        {
-            "node_name": metadata.node_name,
-            "key": metadata.field_key,
-        },
-    )
-
-
-def bind_node_widget_state(
-    widget: object,
-    cube_state: object,
-    metadata: Mapping[str, object],
-    *,
-    manual_prompt_height_changed: Callable[[], None] | None = None,
-) -> None:
-    """Bind one node widget through the field-state owner."""
-
-    EditorPanelFieldStateController().bind_node_widget_state(
-        widget,
-        cube_state,
-        metadata,
-        manual_prompt_height_changed=manual_prompt_height_changed,
-    )
-
-
-def wire_prompt_editor_state(
-    prompt_editor: PromptEditor,
-    cube_state: object,
-    *,
-    manual_height_changed: Callable[[], None] | None = None,
-) -> None:
-    """Bind a prompt editor through the field-state owner."""
-
-    EditorPanelFieldStateController().wire_prompt_editor_state(
-        prompt_editor,
-        cube_state,
-        manual_height_changed=manual_height_changed,
-    )
-
-
-def wire_combobox_state(combo: ComboBox, cube_state: object) -> None:
-    """Bind a combo box through the field-state owner."""
-
-    EditorPanelFieldStateController().wire_combobox_state(combo, cube_state)
-
-
-def wire_model_picker_state(model_picker: ModelPickerField, cube_state: object) -> None:
-    """Bind a model picker through the field-state owner."""
-
-    EditorPanelFieldStateController().wire_model_picker_state(model_picker, cube_state)
-
-
-def wire_imagepicker_state(imagepicker: ImagePicker, cube_state: object) -> None:
-    """Restore an image picker through the field-state owner."""
-
-    EditorPanelFieldStateController().wire_imagepicker_state(imagepicker, cube_state)
-
-
-__all__ = [
-    "bind_node_widget_state",
-    "EditorFieldBinding",
-    "EditorPanelFieldStateController",
-    "EditorPanelFieldStateHost",
-    "FieldStateCubeStateProtocol",
-    "NODE_STATE_KEYS",
-    "set_buffer_value_and_dirty",
-    "write_live_widget_value",
-    "wire_any_widget_state",
-    "wire_combobox_state",
-    "wire_imagepicker_state",
-    "wire_model_picker_state",
-    "wire_prompt_editor_state",
-    "wire_widget_state",
-]
+__all__ = ["EditorPanelFieldStateController"]

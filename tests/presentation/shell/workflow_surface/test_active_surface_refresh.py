@@ -84,7 +84,7 @@ def test_active_surface_refresher_defers_override_presentation_after_editor_comp
     monkeypatch.setattr(
         QTimer,
         "singleShot",
-        staticmethod(lambda _msec, callback: scheduled.append(callback)),
+        staticmethod(lambda _msec, _owner, callback: scheduled.append(callback)),
     )
     caplog.set_level(
         logging.DEBUG,
@@ -350,7 +350,7 @@ def test_active_surface_refresher_disables_generation_without_cubes(
     monkeypatch.setattr(
         QTimer,
         "singleShot",
-        staticmethod(lambda _msec, callback: scheduled.append(callback)),
+        staticmethod(lambda _msec, _owner, callback: scheduled.append(callback)),
     )
 
     ActiveWorkflowSurfaceRefresher(shell).refresh_active_workflow_surface()

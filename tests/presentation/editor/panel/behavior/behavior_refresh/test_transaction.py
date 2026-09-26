@@ -25,12 +25,23 @@ from typing import Any
 
 from _pytest.logging import LogCaptureFixture
 from _pytest.monkeypatch import MonkeyPatch
+from substitute.presentation.editor.panel.prompt.context import (
+    EditorPanelPromptContextController,
+)
 
 
 def _panel_module() -> ModuleType:
     """Return the production editor-panel module."""
 
     return importlib.import_module("substitute.presentation.editor.panel.view")
+
+
+def _behavior_surface_module() -> ModuleType:
+    """Return the production behavior-surface host module."""
+
+    return importlib.import_module(
+        "substitute.presentation.editor.panel.behavior_surface_host"
+    )
 
 
 def test_behavior_refresh_transaction_reuses_matching_snapshot(
@@ -60,7 +71,7 @@ def test_behavior_refresh_transaction_reuses_matching_snapshot(
         _workflow_overrides=lambda: {"seed": {"value": 7}},
         current_behavior_snapshot=lambda: None,
     )
-    panel._prompt_context_controller = module.EditorPanelPromptContextController(panel)
+    panel._prompt_context_controller = EditorPanelPromptContextController(panel)
     caplog.set_level(
         logging.INFO,
         logger="sugarsubstitute.presentation.editor.panel.prompt.context",
@@ -123,7 +134,7 @@ def test_behavior_refresh_transaction_builds_fresh_after_link_change() -> None:
         current_behavior_snapshot=lambda: None,
         refresh_prompt_scene_diagnostics=lambda: None,
     )
-    panel._prompt_context_controller = module.EditorPanelPromptContextController(panel)
+    panel._prompt_context_controller = EditorPanelPromptContextController(panel)
 
     module.EditorPanel.begin_behavior_refresh_transaction(panel, reason="cube_added")
     module.EditorPanel._build_behavior_snapshot(panel)
@@ -141,6 +152,7 @@ def test_model_option_refresh_invalidates_behavior_without_projection(
     """Fresh model values should not mark the rendered editor structure stale."""
 
     module = _panel_module()
+    behavior_surface = _behavior_surface_module()
     calls: list[tuple[str, object]] = []
     snapshot = SimpleNamespace(
         card_decisions_by_alias={},
@@ -156,17 +168,17 @@ def test_model_option_refresh_invalidates_behavior_without_projection(
         refresh_prompt_scene_diagnostics=lambda: None,
     )
     monkeypatch.setattr(
-        module.EditorPanel,
+        behavior_surface.EditorPanelBehaviorContextHost,
         "invalidate_behavior_refresh_transaction",
         lambda _panel, *, reason: calls.append(("behavior", reason)),
     )
     monkeypatch.setattr(
-        module.EditorPanel,
+        behavior_surface.EditorPanelProjectionHost,
         "invalidate_projection",
         lambda _panel, *, reason: calls.append(("projection", reason)),
     )
     monkeypatch.setattr(
-        module,
+        behavior_surface,
         "behavior_applier_for_panel",
         lambda _panel: SimpleNamespace(
             apply_snapshot=lambda applied: calls.append(("applied", applied)),

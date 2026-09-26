@@ -1635,6 +1635,7 @@ pillow==12.3.0 \
     #   -r requirements.txt
     #   colorthief
     #   pyside6-fluent-widgets
+    #   python-mpv
     #   torchvision
 pip==26.2.1 \
     --hash=sha256:71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e \
@@ -3832,6 +3833,10 @@ python-discovery==1.5.3 \
     --hash=sha256:8305296358f1aa2ed302a25b84be7df84fef8ca47c7dce2da63cb7325333044e \
     --hash=sha256:e500eb24025fb7c4876c1fdcfbafd9028a10c71b661aee38cb6fb0de594518c1
     # via virtualenv
+python-mpv==1.0.8 \
+    --hash=sha256:017fa359da059c831a94c419083491903e6d2f7c81b9841c33c196cabf4b3fe3 \
+    --hash=sha256:b5296403e990fb7348df4ca2211937a030f524bf638657bda7e45a00bc2df0cd
+    # via -r requirements.txt
 pywin32==312 ; sys_platform == 'win32' \
     --hash=sha256:02ebca0f0242b75292e218065004310d6a477407c09fa449bfe4f6022bc0c0fc \
     --hash=sha256:17948aeadbdb091f0ced6ef0841620794e68327b94ee415571c1203594b7215c \

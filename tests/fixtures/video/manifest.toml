@@ -1,0 +1,30 @@
+schema_version = "1"
+license = "GPL-3.0-or-later"
+copyright = "2026 Artificial Sweetener and contributors"
+generator = "FFmpeg 2023-04-06-git-b564ad8eac"
+source = "Synthetic testsrc2 video and sine-wave audio"
+
+[[fixture]]
+path = "cfr-h264-silent.mp4"
+sha256 = "677e9e3966458103e32fa78da03d65415d4f283b60af946e59a32746d5253503"
+purpose = "constant-frame-rate baseline H.264 without audio"
+
+[[fixture]]
+path = "vfr-vp9-silent.webm"
+sha256 = "2baba18d5c4ad48aa6168bf8b5e62601bf52b6428e2d1c32d3aca257900100e8"
+purpose = "variable-frame-rate VP9 without audio"
+
+[[fixture]]
+path = "bframes-h264-silent.mp4"
+sha256 = "b0dc60b87549a7a8ff56c7aba71e51f55ff250ce6414bd95d53fa6a938895d4d"
+purpose = "H.264 with B-frames for backward frame stepping"
+
+[[fixture]]
+path = "h264-aac.mp4"
+sha256 = "257462b837099d41a791a7ea1f52b7115c86d276355705198c3af267969be8d7"
+purpose = "H.264 with AAC audio"
+
+[[fixture]]
+path = "rotated-h264-silent.mp4"
+sha256 = "c3e68e2b50b10b9b877490698e7b0f7e516baf19f7e108a9dbec1b88e137d60d"
+purpose = "H.264 with a 90-degree display rotation matrix"
