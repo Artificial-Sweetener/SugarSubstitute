@@ -30,6 +30,7 @@ from substitute.application.ports import (
     ListenerCompleted,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -75,6 +76,9 @@ class GenerationFeedbackSink(Protocol):
     def apply_generation_output_image(self, update: LiveFinalOutputEvent) -> None:
         """Apply one final output image update on the GUI thread."""
 
+    def apply_generation_output_video(self, update: OutputVideoUpdate) -> None:
+        """Apply one final output video update on the GUI thread."""
+
     def apply_generation_timing(self, update: GenerationExecutionTiming) -> None:
         """Apply one generation timing update on the GUI thread."""
 
@@ -92,6 +96,7 @@ class GenerationFeedbackDispatcher(QObject):
     _model_load_progress_submitted = Signal(object)
     _preview_submitted = Signal(object)
     _output_image_submitted = Signal(object)
+    _output_video_submitted = Signal(object)
     _timing_submitted = Signal(object)
     _failure_submitted = Signal(object)
     _completed_submitted = Signal(object)
@@ -174,6 +179,11 @@ class GenerationFeedbackDispatcher(QObject):
 
         self._output_image_submitted.emit(update)
 
+    def on_output_video(self, update: OutputVideoUpdate) -> None:
+        """Queue one output video update for GUI-thread delivery."""
+
+        self._output_video_submitted.emit(update)
+
     def on_timing(self, update: GenerationExecutionTiming) -> None:
         """Queue one timing update for GUI-thread delivery."""
 
@@ -228,6 +238,7 @@ class GenerationFeedbackDispatcher(QObject):
         )
         self._preview_submitted.connect(self._receive_preview, connection)
         self._output_image_submitted.connect(self._receive_output_image, connection)
+        self._output_video_submitted.connect(self._receive_output_video, connection)
         self._timing_submitted.connect(self._receive_timing, connection)
         self._failure_submitted.connect(self._receive_failure, connection)
         self._completed_submitted.connect(self._receive_completed, connection)
@@ -273,6 +284,13 @@ class GenerationFeedbackDispatcher(QObject):
         typed_update = cast(OutputImageUpdate, update)
         intent = self._coalescer.submit_output_image(typed_update)
         self._handle_intent(intent)
+
+    @Slot(object)
+    def _receive_output_video(self, update: object) -> None:
+        """Receive output video feedback on the GUI thread without dropping it."""
+
+        typed_update = cast(OutputVideoUpdate, update)
+        self._handle_intent(self._coalescer.submit_output_video(typed_update))
 
     @Slot(object)
     def _receive_timing(self, update: object) -> None:
@@ -349,6 +367,8 @@ class GenerationFeedbackDispatcher(QObject):
             self._sink.apply_generation_preview(preview_update)
         for output_image_update in batch.output_image_updates:
             self._sink.apply_generation_output_image(output_image_update)
+        for output_video_update in batch.output_video_updates:
+            self._sink.apply_generation_output_video(output_video_update)
         for timing_update in batch.timing_updates:
             self._sink.apply_generation_timing(timing_update)
         for failure in batch.failures:

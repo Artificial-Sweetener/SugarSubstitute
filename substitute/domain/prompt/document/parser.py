@@ -446,7 +446,7 @@ def _parse_wildcard_group(
     if "{" in raw_content or "}" in raw_content:
         return None
 
-    wildcard_form, identifier, csv_column, tag = _parse_wildcard_content(raw_content)
+    wildcard_form, identifier, csv_column, tag = parse_wildcard_content(raw_content)
     if wildcard_form is None or identifier is None:
         return None
 
@@ -551,7 +551,7 @@ def _parse_lora_weight_field(
     return SourceRange(weight_start, field_end), weight
 
 
-def _parse_wildcard_content(
+def parse_wildcard_content(
     raw_content: str,
 ) -> tuple[WildcardForm | None, str | None, str | None, str | None]:
     """Parse wildcard placeholder content into one normalized wildcard description."""
@@ -653,9 +653,7 @@ def _find_delimited_wildcard_spans(
         if close_index < 0:
             break
         raw_content = text[content_start:close_index]
-        wildcard_form, identifier, csv_column, tag = _parse_wildcard_content(
-            raw_content
-        )
+        wildcard_form, identifier, csv_column, tag = parse_wildcard_content(raw_content)
         outer_end = close_index + len(suffix)
         if wildcard_form is not None and identifier is not None:
             spans.append(
@@ -797,4 +795,4 @@ def _build_syntax_spans(
     )
 
 
-__all__ = ["parse_prompt_document"]
+__all__ = ["parse_prompt_document", "parse_wildcard_content"]

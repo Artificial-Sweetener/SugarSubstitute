@@ -22,6 +22,10 @@ import importlib
 from pathlib import Path
 from types import SimpleNamespace
 
+from pytest import MonkeyPatch
+
+from substitute.application.node_behavior import DegradedNodeBehavior
+
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 SESSION_SOURCE = (
     PROJECT_ROOT
@@ -181,6 +185,117 @@ def test_cube_section_build_session_skips_failed_node_and_continues() -> None:
     assert session.node_outcomes[0].kind == "build_error"
     assert session.node_outcomes[1].kind == "built"
     assert len(added_widgets) == 1
+
+
+def test_cube_section_build_session_renders_degraded_and_healthy_siblings(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A missing definition card should not suppress a healthy sibling card."""
+
+    mod = importlib.import_module(
+        "substitute.presentation.editor.panel.cube_section_build_session"
+    )
+    attachment_mod = importlib.import_module(
+        "substitute.presentation.editor.panel.node_card_attachment"
+    )
+    added_cards: list[str] = []
+    normal_builds: list[str] = []
+    degraded_parents: list[object] = []
+
+    class _Card:
+        """Expose the Qt-like surface used by the attachment owner."""
+
+        def __init__(self, identity: str) -> None:
+            """Store the visible card identity."""
+
+            self.identity = identity
+            self.destroyed = SimpleNamespace(connect=lambda _slot: None)
+
+        def setProperty(self, _key: str, _value: object) -> None:
+            """Accept dynamic card properties."""
+
+    class _Panel:
+        """Build only normal cards while accepting wrapper bookkeeping."""
+
+        def build_node_card(
+            self,
+            node_name: str,
+            *_args: object,
+            **_kwargs: object,
+        ) -> _Card:
+            """Build and record one healthy card."""
+
+            normal_builds.append(node_name)
+            return _Card(f"normal:{node_name}")
+
+        def register_card_wrapper(self, *_args: object) -> None:
+            """Accept wrapper registration."""
+
+        def remove_card_wrapper_if_current(self, *_args: object) -> None:
+            """Accept wrapper cleanup."""
+
+    def build_degraded_card(
+        node: DegradedNodeBehavior,
+        *,
+        parent: object,
+    ) -> _Card:
+        """Record that degraded cards belong to the staged cube section."""
+
+        degraded_parents.append(parent)
+        return _Card(f"degraded:{node.node_name}")
+
+    monkeypatch.setattr(
+        attachment_mod,
+        "build_degraded_node_card",
+        build_degraded_card,
+    )
+    behavior = SimpleNamespace(
+        card=SimpleNamespace(card_mode=SimpleNamespace(value="standard"))
+    )
+    staged_widget = SimpleNamespace(defer_update_cube_height=lambda: None)
+    session = mod.CubeSectionBuildSession(
+        panel=_Panel(),
+        route_key="Cube",
+        cube_state={"buffer": {}},
+        cube={
+            "nodes": {
+                "missing": {"class_type": "MissingNode", "inputs": {}},
+                "healthy": {"class_type": "HealthyNode", "inputs": {"value": 1}},
+            }
+        },
+        behavior_snapshot=SimpleNamespace(
+            resolved_nodes_by_alias={
+                "Cube": {"missing": behavior, "healthy": behavior}
+            },
+            degraded_nodes_by_alias={
+                "Cube": {
+                    "missing": DegradedNodeBehavior(
+                        node_name="missing",
+                        class_type="MissingNode",
+                        title="Saved Missing Node",
+                        missing_definition_classes=("MissingNode",),
+                    )
+                }
+            },
+            card_decisions_by_alias={"Cube": {}},
+        ),
+        field_specs_by_node={"missing": {}, "healthy": {}},
+        node_order=["missing", "healthy"],
+        grid_layout=SimpleNamespace(
+            addWidget=lambda card: added_cards.append(card.identity)
+        ),
+        widget=staged_widget,
+    )
+
+    session.finish()
+
+    assert added_cards == ["degraded:missing", "normal:healthy"]
+    assert degraded_parents == [staged_widget]
+    assert normal_builds == ["healthy"]
+    assert [outcome.kind for outcome in session.node_outcomes] == [
+        "degraded",
+        "built",
+    ]
 
 
 def test_cube_section_build_session_preserves_successful_masonry_insertion_order() -> (

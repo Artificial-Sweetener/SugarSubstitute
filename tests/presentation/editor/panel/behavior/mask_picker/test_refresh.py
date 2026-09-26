@@ -59,6 +59,25 @@ def _panel_module() -> ModuleType:
     return importlib.import_module("substitute.presentation.editor.panel.view")
 
 
+def _field_presentation_module() -> ModuleType:
+    """Return the production field-presentation controller module."""
+
+    return importlib.import_module(
+        "substitute.presentation.editor.panel.field_presentation_controller"
+    )
+
+
+def _install_field_presentation(panel: SimpleNamespace) -> None:
+    """Install the production field-presentation owner on a panel double."""
+
+    module = _field_presentation_module()
+    panel.field_presentation = module.EditorPanelFieldPresentationController(
+        panel,
+        field_registry=SimpleNamespace(),
+        preset_context_refresh=SimpleNamespace(),
+    )
+
+
 def test_refresh_mask_picker_updates_matching_picker() -> None:
     """Editor panel should refresh the picker matching cube alias and node name."""
 
@@ -78,6 +97,7 @@ def test_refresh_mask_picker_updates_matching_picker() -> None:
         }
     )
     panel = SimpleNamespace(findChildren=lambda _type: [other, matching])
+    _install_field_presentation(panel)
 
     module.EditorPanel.refresh_mask_picker(
         panel,
@@ -103,10 +123,11 @@ def test_refresh_mask_picker_logs_when_no_picker_matches(
         }
     )
     panel = SimpleNamespace(findChildren=lambda _type: [picker])
+    _install_field_presentation(panel)
 
     with caplog.at_level(
         logging.WARNING,
-        logger="sugarsubstitute.presentation.editor.panel.view",
+        logger="sugarsubstitute.presentation.editor.panel.field_presentation_controller",
     ):
         module.EditorPanel.refresh_mask_picker(
             panel,

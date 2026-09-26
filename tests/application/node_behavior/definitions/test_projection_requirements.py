@@ -70,8 +70,8 @@ def test_required_node_definition_classes_include_nested_wrapper_body_nodes() ->
     assert classes == ("PrimitiveFloat",)
 
 
-def test_required_node_definition_classes_skip_hidden_implementation_nodes() -> None:
-    """Projection requirements should ignore body nodes not backing wrapper fields."""
+def test_required_node_definition_classes_include_hidden_execution_nodes() -> None:
+    """Projection requirements should include every executable wrapper dependency."""
 
     classes = required_node_definition_classes_for_editor_projection(
         {
@@ -97,7 +97,7 @@ def test_required_node_definition_classes_skip_hidden_implementation_nodes() -> 
         }
     )
 
-    assert classes == ("KSampler",)
+    assert classes == ("KSampler", "PrimitiveStringMultiline", "RegexExtract")
 
 
 def test_required_node_definition_classes_deduplicate_sort_and_exclude_wrappers() -> (

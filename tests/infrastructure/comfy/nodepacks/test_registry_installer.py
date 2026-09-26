@@ -14,12 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for exact-version Comfy Registry nodepack installation."""
+"""Tests for targeted exact-version Comfy Registry nodepack installation."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import cast
+from urllib.error import URLError
 
 import pytest
 
@@ -27,259 +28,171 @@ from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan im
     RegistryInstallOutcome,
 )
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
-from substitute.infrastructure.comfy.nodepack_manifest import (
-    CORE_COMFY_NODEPACKS,
-    CoreComfyNodepack,
+from substitute.infrastructure.comfy.comfy_registry_release_client import (
+    ComfyRegistryRelease,
+    ComfyRegistryReleaseClient,
+    RegistryReleaseUnavailableError,
 )
+from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.nodepack_registry_installer import (
     ComfyNodepackRegistryInstaller,
 )
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from substitute.infrastructure.comfy.pinned_nodepack_source import (
+    TrustedNodepackArchiveInstaller,
+)
 
 
-def test_integrated_cli_installs_exact_registry_release_without_manager_deps(
-    monkeypatch: pytest.MonkeyPatch,
+class _ReleaseClient:
+    """Return or raise one deterministic Registry resolution result."""
+
+    def __init__(self, result: ComfyRegistryRelease | BaseException) -> None:
+        """Store the result and initialize observed manifests."""
+
+        self.result = result
+        self.calls: list[tuple[str, str]] = []
+
+    def resolve_exact(
+        self,
+        *,
+        registry_id: str,
+        version: str,
+    ) -> ComfyRegistryRelease:
+        """Return the configured release or raise its configured failure."""
+
+        self.calls.append((registry_id, version))
+        if isinstance(self.result, BaseException):
+            raise self.result
+        return self.result
+
+
+class _ArchiveInstaller:
+    """Record one transactional Registry archive installation."""
+
+    def __init__(self, error: RuntimeError | None = None) -> None:
+        """Initialize observed arguments and an optional transaction failure."""
+
+        self.calls: list[dict[str, object]] = []
+        self.error = error
+
+    def install_registry_release(self, **kwargs: object) -> None:
+        """Record the exact trusted archive installation request."""
+
+        self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
+
+
+def test_installs_targeted_exact_release_without_manager_catalog_reload(
     tmp_path: Path,
 ) -> None:
-    """Invoke Comfy-owned CNR acquisition while retaining dependency ownership."""
+    """Resolve one exact descriptor and install it into the canonical folder."""
 
-    python = tmp_path / ".venv" / "Scripts" / "python.exe"
-    observed: dict[str, object] = {}
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
-        lambda self, module_name: True,
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    release = ComfyRegistryRelease(
+        node_id=nodepack.registry_id,
+        version=nodepack.required_version,
+        archive_url="https://cdn.comfy.org/publisher/node/version/node.zip",
     )
-
-    def fake_stream(command: list[str], **kwargs: Any) -> tuple[int, tuple[str, ...]]:
-        """Capture the complete Registry process contract."""
-
-        observed["command"] = command
-        observed.update(kwargs)
-        return 0, ("[INSTALLED] substitute-backend [1.10.0]",)
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
-        fake_stream,
-    )
-
-    result = ComfyNodepackRegistryInstaller().install_exact(
-        manager_runtime=_runtime(tmp_path, python),
-        nodepack=CORE_COMFY_NODEPACKS[0],
-        on_log=None,
-        env={"VIRTUAL_ENV": "wrong", "CONDA_PREFIX": "also-wrong"},
-    )
-
-    assert result.outcome is RegistryInstallOutcome.INSTALLED
-    assert observed["command"] == [
-        subprocess_path(python),
-        "-m",
-        "comfy_cli",
-        "--workspace",
-        subprocess_path(tmp_path),
-        "--skip-prompt",
-        "node",
-        "install",
-        "--exit-on-fail",
-        "--no-deps",
-        "substitute-backend@1.10.0",
-        "--mode",
-        "remote",
-    ]
-    selected_env = observed["env"]
-    assert isinstance(selected_env, dict)
-    assert selected_env["VIRTUAL_ENV"] == str(python.parent.parent)
-    assert selected_env["COMFYUI_PATH"] == str(tmp_path.resolve())
-    assert selected_env["COMFYUI_FOLDERS_BASE_PATH"] == str(tmp_path.resolve())
-    assert selected_env["GIT_PYTHON_REFRESH"] == "quiet"
-    assert "CONDA_PREFIX" not in selected_env
-
-
-def test_integrated_manager_module_is_used_when_comfy_cli_is_absent(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Support existing Comfy installs that expose Manager without comfy-cli."""
-
-    probe_results = iter((False, True))
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
-        lambda self, module_name: next(probe_results),
-    )
-    observed: list[str] = []
-
-    def fake_stream(
-        command: list[str],
-        **kwargs: Any,
-    ) -> tuple[int, tuple[str, ...]]:
-        """Capture the direct Manager command."""
-
-        _ = kwargs
-        observed.extend(command)
-        return 0, ("[INSTALLED] substitute-backend [1.9.1]",)
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
-        fake_stream,
-    )
-
-    result = ComfyNodepackRegistryInstaller().install_exact(
-        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
-        nodepack=CORE_COMFY_NODEPACKS[0],
-        on_log=None,
-        env={},
-    )
-
-    assert result.outcome is RegistryInstallOutcome.INSTALLED
-    assert observed[1:5] == ["-m", "cm_cli", "install", "--exit-on-fail"]
-
-
-@pytest.mark.parametrize("nodepack", CORE_COMFY_NODEPACKS)
-def test_silent_registry_install_reports_named_elapsed_progress(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    nodepack: CoreComfyNodepack,
-) -> None:
-    """Keep both first-party Registry waits visibly alive during child silence."""
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
-        lambda self, module_name: True,
-    )
-    observed_interval: list[float] = []
-
-    def fake_stream(
-        command: list[str],
-        **kwargs: Any,
-    ) -> tuple[int, tuple[str, ...]]:
-        """Drive two long-wait samples through the production callback."""
-
-        _ = command
-        observed_interval.append(kwargs["silence_notification_interval_seconds"])
-        on_silence = kwargs["on_silence"]
-        on_silence(30.0)
-        on_silence(150.0)
-        return 0, (f"[INSTALLED] {nodepack.registry_id}",)
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
-        fake_stream,
-    )
+    client = _ReleaseClient(release)
+    archive_installer = _ArchiveInstaller()
     logs: list[str] = []
+    runtime = _runtime(tmp_path, tmp_path / "python.exe")
 
-    ComfyNodepackRegistryInstaller().install_exact(
-        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
+    result = ComfyNodepackRegistryInstaller(
+        release_client=cast(ComfyRegistryReleaseClient, client),
+        archive_installer=cast(TrustedNodepackArchiveInstaller, archive_installer),
+    ).install_exact(
+        manager_runtime=runtime,
         nodepack=nodepack,
         on_log=logs.append,
-        env={},
+        env={"TEMP": str(tmp_path / "temp")},
     )
 
-    node_spec = f"{nodepack.registry_id}@{nodepack.required_version}"
-    assert observed_interval == [30.0]
-    assert logs == [
-        f"[ComfyNodepacks] Asking Comfy Registry for {node_spec}.",
-        f"[ComfyNodepacks] Registry install still running for {node_spec} "
-        "(elapsed=30s).",
-        f"[ComfyNodepacks] Registry install still running for {node_spec} "
-        "(elapsed=2m 30s).",
+    assert result.outcome is RegistryInstallOutcome.INSTALLED
+    assert client.calls == [(nodepack.registry_id, nodepack.required_version)]
+    assert archive_installer.calls == [
+        {
+            "target_path": tmp_path / nodepack.expected_folder,
+            "nodepack": nodepack,
+            "archive_url": release.archive_url,
+            "on_log": logs.append,
+            "env": {"TEMP": str(tmp_path / "temp")},
+        }
     ]
+    assert logs[0] == (
+        f"[ComfyNodepacks] Asking Comfy Registry for "
+        f"{nodepack.registry_id}@{nodepack.required_version}."
+    )
+    assert logs[-1].startswith(
+        "[ComfyNodepacks][Timing] operation=registry_install_exact "
+        f"nodepack={nodepack.nodepack_id.value} outcome=completed elapsed_ms="
+    )
 
 
 @pytest.mark.parametrize(
-    ("output", "expected"),
+    ("error", "expected"),
     (
         (
-            ("[   SKIP  ] node => Already installed",),
-            RegistryInstallOutcome.ALREADY_INSTALLED,
+            RegistryReleaseUnavailableError("release unavailable"),
+            RegistryInstallOutcome.VERSION_UNAVAILABLE,
         ),
-        (
-            ("Installation reserved: substitute-backend",),
-            RegistryInstallOutcome.PENDING_STARTUP,
-        ),
-        (("Available version of 'node'",), RegistryInstallOutcome.VERSION_UNAVAILABLE),
-        (
-            ("Cannot connect to ComfyRegistry",),
-            RegistryInstallOutcome.REGISTRY_UNREACHABLE,
-        ),
-        (("unexpected manager failure",), RegistryInstallOutcome.FAILED),
+        (URLError("offline"), RegistryInstallOutcome.REGISTRY_UNREACHABLE),
+        (RuntimeError("invalid descriptor"), RegistryInstallOutcome.FAILED),
     ),
 )
-def test_registry_failures_are_classified_for_safe_fallback_policy(
-    monkeypatch: pytest.MonkeyPatch,
+def test_classifies_targeted_registry_failures_for_safe_fallback(
     tmp_path: Path,
-    output: tuple[str, ...],
+    error: BaseException,
     expected: RegistryInstallOutcome,
 ) -> None:
-    """Distinguish availability failures from arbitrary Manager failures."""
+    """Keep GitHub fallback policy deterministic for targeted acquisition failures."""
 
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
-        lambda self, module_name: True,
-    )
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
-        lambda *args, **kwargs: (
-            0 if expected is RegistryInstallOutcome.PENDING_STARTUP else 1,
-            output,
-        ),
-    )
+    client = _ReleaseClient(error)
+    archive_installer = _ArchiveInstaller()
 
-    result = ComfyNodepackRegistryInstaller().install_exact(
+    result = ComfyNodepackRegistryInstaller(
+        release_client=cast(ComfyRegistryReleaseClient, client),
+        archive_installer=cast(TrustedNodepackArchiveInstaller, archive_installer),
+    ).install_exact(
         manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
-        env={},
+        env=None,
     )
 
     assert result.outcome is expected
+    assert archive_installer.calls == []
 
 
-def test_missing_manager_cli_is_an_availability_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Allow pinned fallback when an existing Comfy lacks callable Manager tooling."""
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
-        lambda self, module_name: False,
-    )
-
-    result = ComfyNodepackRegistryInstaller().install_exact(
-        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
-        nodepack=CORE_COMFY_NODEPACKS[0],
-        on_log=None,
-        env={},
-    )
-
-    assert result.outcome is RegistryInstallOutcome.REGISTRY_UNREACHABLE
-
-
-def test_unknown_registry_failure_is_written_to_durable_diagnostics(
-    monkeypatch: pytest.MonkeyPatch,
+def test_archive_validation_failure_is_durable_without_remote_url(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Retain bounded Manager output when an unknown failure needs fallback."""
+    """Record bounded failure identity while keeping descriptor URLs out of logs."""
 
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
-        lambda self, module_name: True,
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    release = ComfyRegistryRelease(
+        node_id=nodepack.registry_id,
+        version=nodepack.required_version,
+        archive_url="https://cdn.comfy.org/private-token/node.zip",
     )
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
-        lambda *args, **kwargs: (1, ("first detail", "final manager failure")),
+    archive_installer = _ArchiveInstaller(
+        RuntimeError("archive source identity mismatch")
     )
 
-    result = ComfyNodepackRegistryInstaller().install_exact(
+    result = ComfyNodepackRegistryInstaller(
+        release_client=cast(ComfyRegistryReleaseClient, _ReleaseClient(release)),
+        archive_installer=cast(TrustedNodepackArchiveInstaller, archive_installer),
+    ).install_exact(
         manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
-        nodepack=CORE_COMFY_NODEPACKS[0],
+        nodepack=nodepack,
         on_log=None,
-        env={},
+        env=None,
     )
 
     assert result.outcome is RegistryInstallOutcome.FAILED
-    assert "exit_code=1" in caplog.text
-    assert "output_tail=first detail | final manager failure" in caplog.text
+    assert "reason_type=RuntimeError" in caplog.text
+    assert release.archive_url not in caplog.text
 
 
 def _runtime(workspace: Path, python: Path) -> ComfyManagerRuntime:
@@ -289,5 +202,5 @@ def _runtime(workspace: Path, python: Path) -> ComfyManagerRuntime:
         kind=ComfyManagerKind.INTEGRATED,
         workspace=workspace,
         python_executable=python,
-        version="4.1",
+        version="4.2.2",
     )

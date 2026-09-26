@@ -281,7 +281,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         self._first_frame_painted = True
         self.firstFramePainted.emit()
         if self._defer_animation_until_first_paint:
-            QTimer.singleShot(0, self._finish_deferred_animation)
+            QTimer.singleShot(0, self, self._finish_deferred_animation)
 
     def resizeEvent(self, event: object) -> None:
         """Keep the splash content pinned close to the window edges."""

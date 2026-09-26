@@ -14,41 +14,59 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Install exact core nodepack versions through the selected Comfy CLI."""
+"""Install exact core nodepack releases from targeted Registry descriptors."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
+from urllib.error import HTTPError, URLError
 
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
     RegistryInstallOutcome,
 )
 from substitute.domain.comfy_manager import ComfyManagerRuntime
-from substitute.infrastructure.comfy.comfy_manager_runtime import (
-    ComfyManagerCommandRunner,
+from substitute.infrastructure.comfy.comfy_registry_release_client import (
+    ComfyRegistryReleaseClient,
+    RegistryReleaseUnavailableError,
 )
-from substitute.infrastructure.comfy.nodepack_manifest import (
-    CLI_INSTALL_TIMEOUT_SECONDS,
-    CoreComfyNodepack,
+from substitute.infrastructure.comfy.nodepack_manifest import CoreComfyNodepack
+from substitute.infrastructure.comfy.nodepack_operation_timing import (
+    measure_nodepack_operation,
+)
+from substitute.infrastructure.comfy.nodepack_reconciliation_logger import LogCallback
+from substitute.infrastructure.comfy.pinned_nodepack_source import (
+    TrustedNodepackArchiveInstaller,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
+from sugarsubstitute_shared.startup_remote_access import (
+    is_startup_connectivity_failure,
+)
 
-LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.nodepack_registry_installer")
-_REGISTRY_SILENCE_FEEDBACK_SECONDS = 30.0
 
 
 @dataclass(frozen=True, slots=True)
 class RegistryInstallResult:
-    """Return a classified Comfy CLI outcome with its diagnostic evidence."""
+    """Return a classified targeted Registry acquisition outcome."""
 
     outcome: RegistryInstallOutcome
     output: tuple[str, ...]
 
 
 class ComfyNodepackRegistryInstaller:
-    """Execute exact-version Registry installation through Comfy-owned tooling."""
+    """Install exact Registry archives without enumerating the global catalog."""
+
+    def __init__(
+        self,
+        *,
+        release_client: ComfyRegistryReleaseClient | None = None,
+        archive_installer: TrustedNodepackArchiveInstaller | None = None,
+    ) -> None:
+        """Compose targeted metadata resolution with transactional installation."""
+
+        self._release_client = release_client or ComfyRegistryReleaseClient()
+        self._archive_installer = archive_installer or TrustedNodepackArchiveInstaller()
 
     def install_exact(
         self,
@@ -58,12 +76,8 @@ class ComfyNodepackRegistryInstaller:
         on_log: LogCallback | None,
         env: Mapping[str, str] | None,
     ) -> RegistryInstallResult:
-        """Ask Comfy Manager to install one exact Registry nodepack release."""
+        """Resolve and install one exact release without a full Registry reload."""
 
-        command_runner = ComfyManagerCommandRunner(
-            runtime=manager_runtime,
-            env=env,
-        )
         self._emit(
             on_log,
             (
@@ -71,40 +85,72 @@ class ComfyNodepackRegistryInstaller:
                 f"{nodepack.registry_id}@{nodepack.required_version}."
             ),
         )
-        process_result = command_runner.install_registry_nodepack(
-            node_spec=f"{nodepack.registry_id}@{nodepack.required_version}",
-            on_line=on_log,
-            on_silence=lambda elapsed_seconds: self._emit(
-                on_log,
-                _registry_wait_message(
+        try:
+            with measure_nodepack_operation(
+                operation="registry_install_exact",
+                nodepack_id=nodepack.nodepack_id.value,
+                on_log=on_log,
+            ):
+                release = self._release_client.resolve_exact(
+                    registry_id=nodepack.registry_id,
+                    version=nodepack.required_version,
+                )
+                self._archive_installer.install_registry_release(
+                    target_path=manager_runtime.workspace / nodepack.expected_folder,
                     nodepack=nodepack,
-                    elapsed_seconds=elapsed_seconds,
-                ),
-            ),
-            silence_notification_interval_seconds=(_REGISTRY_SILENCE_FEEDBACK_SECONDS),
-            timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
-        )
-        if process_result is None:
-            output: tuple[str, ...] = (
-                "The selected Comfy environment exposes no supported Manager CLI.",
-            )
-            self._emit(on_log, output[0])
+                    archive_url=release.archive_url,
+                    on_log=on_log,
+                    env=env,
+                )
+        except RegistryReleaseUnavailableError as error:
             return RegistryInstallResult(
-                RegistryInstallOutcome.REGISTRY_UNREACHABLE,
-                output,
+                RegistryInstallOutcome.VERSION_UNAVAILABLE,
+                (str(error),),
             )
-        exit_code, output = process_result
-        outcome = _classify_registry_result(exit_code=exit_code, output=output)
-        if outcome is RegistryInstallOutcome.FAILED:
-            log_warning(
-                _LOGGER,
-                "Comfy Registry exact install failed",
-                nodepack=nodepack.registry_id,
-                required_version=nodepack.required_version,
-                exit_code=exit_code,
-                output_tail=_bounded_output_tail(output),
+        except (HTTPError, URLError, TimeoutError) as error:
+            return self._failed_result(
+                nodepack=nodepack,
+                error=error,
+                outcome=RegistryInstallOutcome.REGISTRY_UNREACHABLE,
             )
-        return RegistryInstallResult(outcome, output)
+        except OSError as error:
+            outcome = (
+                RegistryInstallOutcome.REGISTRY_UNREACHABLE
+                if is_startup_connectivity_failure(error)
+                else RegistryInstallOutcome.FAILED
+            )
+            return self._failed_result(
+                nodepack=nodepack,
+                error=error,
+                outcome=outcome,
+            )
+        except (RuntimeError, ValueError) as error:
+            return self._failed_result(
+                nodepack=nodepack,
+                error=error,
+                outcome=RegistryInstallOutcome.FAILED,
+            )
+        return RegistryInstallResult(RegistryInstallOutcome.INSTALLED, ())
+
+    @staticmethod
+    def _failed_result(
+        *,
+        nodepack: CoreComfyNodepack,
+        error: BaseException,
+        outcome: RegistryInstallOutcome,
+    ) -> RegistryInstallResult:
+        """Record bounded failure identity without exposing remote URL details."""
+
+        reason = type(error).__name__
+        log_warning(
+            _LOGGER,
+            "Comfy Registry exact install failed",
+            nodepack=nodepack.registry_id,
+            required_version=nodepack.required_version,
+            outcome=outcome.value,
+            reason_type=reason,
+        )
+        return RegistryInstallResult(outcome, (reason,))
 
     @staticmethod
     def _emit(callback: LogCallback | None, message: str) -> None:
@@ -113,72 +159,6 @@ class ComfyNodepackRegistryInstaller:
         log_info(_LOGGER, message)
         if callback is not None:
             callback(message)
-
-
-def _classify_registry_result(
-    *,
-    exit_code: int,
-    output: tuple[str, ...],
-) -> RegistryInstallOutcome:
-    """Classify known Comfy CLI outcomes without treating arbitrary errors as absence."""
-
-    combined = "\n".join(output).casefold()
-    if exit_code == 0 and "installation reserved:" in combined:
-        return RegistryInstallOutcome.PENDING_STARTUP
-    if "already installed" in combined or "[   skip" in combined:
-        return RegistryInstallOutcome.ALREADY_INSTALLED
-    if exit_code == 0 and "[installed]" in combined:
-        return RegistryInstallOutcome.INSTALLED
-    unavailable_markers = (
-        "not available node:",
-        "available version of",
-        "node version not found",
-        "version does not exist",
-    )
-    if any(marker in combined for marker in unavailable_markers):
-        return RegistryInstallOutcome.VERSION_UNAVAILABLE
-    unreachable_markers = (
-        "cannot connect to comfyregistry",
-        "failed to fetch",
-        "connection refused",
-        "connection timed out",
-        "read timed out",
-        "name resolution",
-    )
-    if any(marker in combined for marker in unreachable_markers):
-        return RegistryInstallOutcome.REGISTRY_UNREACHABLE
-    return RegistryInstallOutcome.FAILED
-
-
-def _bounded_output_tail(output: tuple[str, ...]) -> str:
-    """Return bounded Registry diagnostics suitable for durable failure logs."""
-
-    combined = " | ".join(line.strip() for line in output[-5:] if line.strip())
-    return combined[-2_000:] or "<no output>"
-
-
-def _registry_wait_message(
-    *,
-    nodepack: CoreComfyNodepack,
-    elapsed_seconds: float,
-) -> str:
-    """Describe one still-running silent Registry operation."""
-
-    return (
-        "[ComfyNodepacks] Registry install still running for "
-        f"{nodepack.registry_id}@{nodepack.required_version} "
-        f"(elapsed={_format_elapsed(elapsed_seconds)})."
-    )
-
-
-def _format_elapsed(elapsed_seconds: float) -> str:
-    """Format elapsed process time as compact diagnostic output."""
-
-    whole_seconds = max(0, round(elapsed_seconds))
-    minutes, seconds = divmod(whole_seconds, 60)
-    if minutes == 0:
-        return f"{seconds}s"
-    return f"{minutes}m {seconds:02d}s"
 
 
 __all__ = ["ComfyNodepackRegistryInstaller", "RegistryInstallResult"]

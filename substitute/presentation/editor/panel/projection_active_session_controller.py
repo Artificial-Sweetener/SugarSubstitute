@@ -22,11 +22,9 @@ from collections.abc import Callable, Sequence
 
 from substitute.shared.logging.logger import get_logger, log_debug
 
-from .projection_session import (
-    ActiveProjectionSession,
-    ActiveProjectionSessionRegistry,
-    ProjectionCompletionRegistry,
-)
+from .projection_completion_registry import ProjectionSessionCompletionController
+from .projection_session_models import ActiveProjectionSession
+from .projection_session_registry import ActiveProjectionSessionRegistry
 
 _LOGGER = get_logger("presentation.editor.panel.projection_active_session_controller")
 
@@ -38,7 +36,7 @@ class EditorActiveProjectionSessionController:
         self,
         *,
         sessions: ActiveProjectionSessionRegistry,
-        completions: ProjectionCompletionRegistry,
+        completions: ProjectionSessionCompletionController,
         discard_pending_visible_commit: Callable[[str], None],
     ) -> None:
         """Store session registries and visible-commit cancellation port."""
@@ -116,7 +114,7 @@ class EditorActiveProjectionSessionController:
     ) -> None:
         """Transfer still-owned callbacks into a newer full projection."""
 
-        transfer_result = self._completions.transfer_from_superseded_session(
+        transfer_result = self._completions.transfer(
             session,
             replacement_session=replacement_session,
             reason=reason,
@@ -175,7 +173,7 @@ class EditorActiveProjectionSessionController:
             claimed_completion_count=len(session.claimed_completions),
             projection_completion_count=len(session.projection_completions),
         )
-        self._completions.resolve_session(session, reason=reason)
+        self._completions.resolve(session, reason=reason)
 
     def _cancel_session_callbacks(
         self,
@@ -194,4 +192,4 @@ class EditorActiveProjectionSessionController:
             claimed_completion_count=len(session.claimed_completions),
             projection_completion_count=len(session.projection_completions),
         )
-        self._completions.cancel_session(session, reason=reason)
+        self._completions.cancel(session, reason=reason)

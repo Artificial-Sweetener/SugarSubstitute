@@ -167,7 +167,7 @@ def test_show_built_main_window_applies_initial_shell_placement_pre_show(
         ("activate",),
     ]
     assert len(scheduled) == 2
-    callback = cast(Callable[[], None], scheduled[0][1])
+    callback = cast(Callable[[], None], scheduled[0][2])
     callback()
     assert calls == [
         ("geometry", 11, 22, 1234, 700),

@@ -199,7 +199,7 @@ def test_editor_hydration_error_can_register_cube_runtime_issue() -> None:
     )
     assert context.values["cube_aliases"] == ("Automask Detailer",)
     assert context.values["node_names"] == ("detailer",)
-    assert errored_aliases == ("Automask Detailer",)
+    assert errored_aliases == ()
     assert issues[0].missing_node_classes == ("SimpleSyrup.DetailSEGSByScaleFactor",)
 
 

@@ -42,7 +42,7 @@ from substitute.application.ports.comfy_gateway import (
     OutputSavePlan,
 )
 from substitute.domain.comfy_workflow import (
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     DirectWorkflowGenerationPlan,
 )
 from substitute.domain.common import JsonObject
@@ -56,9 +56,9 @@ from substitute.infrastructure.comfy.final_image_event_handler import (
 from substitute.infrastructure.comfy.output_image_persistence import (
     OutputImagePersistence,
 )
-from substitute.infrastructure.comfy.standard_executed_image_handler import (
-    StandardExecutedImageContext,
-    StandardExecutedImageHandler,
+from substitute.infrastructure.comfy.standard_executed_output_handler import (
+    StandardExecutedOutputContext,
+    StandardExecutedOutputHandler,
 )
 from tests.qualification.comfy.managed_runtime.layout import ManagedComfyHarnessLayout
 from tools.ci.loopback_port_lease import LoopbackPortLease
@@ -188,7 +188,7 @@ class ManagedComfyDirectOutputHarness:
 
         root = self._required_root()
         definitions = self.node_definitions()
-        manifest = ComfyImageOutputDiscovery().discover(
+        manifest = ComfyOutputDiscovery().discover(
             graph,
             node_definitions=definitions,
         )
@@ -218,8 +218,13 @@ class ManagedComfyDirectOutputHarness:
             cube_numbers_by_alias={},
         )
         client_id = f"substitute-harness-{uuid4().hex}"
-        handler = StandardExecutedImageHandler(
-            context=StandardExecutedImageContext(
+        final_handler = FinalImageEventHandler(
+            artifact_fetcher=ComfyArtifactFetcher(endpoint=self._endpoint),
+            output_persistence=persistence,
+            on_output_image=updates.append,
+        )
+        handler = StandardExecutedOutputHandler(
+            context=StandardExecutedOutputContext(
                 workflow_id=f"workflow-{name}",
                 generation_run_id=f"run-{name}",
                 prompt_id="pending",
@@ -228,18 +233,16 @@ class ManagedComfyDirectOutputHarness:
                 scene=FinalImageScene(),
             ),
             sources_by_node={
-                recovery.recovery_node_id: ListenerOutputSource(
-                    recovery.recovery_node_id,
-                    recovery.source_key,
-                    recovery.source_label,
+                source.node_id: ListenerOutputSource(
+                    source.node_id,
+                    source.source_key,
+                    source.source_label,
+                    source.media_kind,
                 )
-                for recovery in projection.recovery_outputs
+                for source in projection.output_sources
             },
-            final_image_handler=FinalImageEventHandler(
-                artifact_fetcher=ComfyArtifactFetcher(endpoint=self._endpoint),
-                output_persistence=persistence,
-                on_output_image=updates.append,
-            ),
+            final_image_handler=final_handler,
+            final_video_handler=final_handler,
         )
         prompt_id = self._queue_and_receive(
             client_id=client_id,
@@ -318,7 +321,7 @@ class ManagedComfyDirectOutputHarness:
         client_id: str,
         projection: JsonObject,
         execution_targets: tuple[str, ...],
-        handler: StandardExecutedImageHandler,
+        handler: StandardExecutedOutputHandler,
     ) -> str | None:
         """Queue one prompt and route its real websocket image events."""
 

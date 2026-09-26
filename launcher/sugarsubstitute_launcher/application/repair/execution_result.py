@@ -20,6 +20,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from sugarsubstitute_shared.session_recovery import (
+    SessionRecoveryResult,
+    SessionRecoveryState,
+)
+
 
 class RepairExecutionError(RuntimeError):
     """Report a prepared repair that cannot be executed or validated safely."""
@@ -33,3 +38,6 @@ class CompletedRepair:
     quarantine_root: Path
     repaired_managed_comfy_nodes: bool
     comfy_quarantine_root: Path | None = None
+    session_recovery: SessionRecoveryResult = SessionRecoveryResult(
+        SessionRecoveryState.NO_SESSION
+    )

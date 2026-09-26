@@ -533,6 +533,7 @@ def _tokens_have_shifted_semantics(
         and current.wildcard_tag_is_explicit is previous.wildcard_tag_is_explicit
         and current.wildcard_tag_is_numeric is previous.wildcard_tag_is_numeric
         and current.wildcard_can_step_tag is previous.wildcard_can_step_tag
+        and current.wildcard_resolution_pending is previous.wildcard_resolution_pending
         and current.detail_text == previous.detail_text
         and current.lora_status is previous.lora_status
         and current.lora_status_reason == previous.lora_status_reason

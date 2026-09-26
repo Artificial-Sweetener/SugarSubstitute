@@ -14,13 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Coordinate modal presentation for structured application error reports."""
+"""Coordinate non-blocking modal presentation for application error reports."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, cast
 
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import render_application_text
@@ -37,6 +37,25 @@ from substitute.application.errors import (
 DialogFactory = Callable[
     [object | None, ErrorReport, str, Callable[[], None] | None], object
 ]
+
+
+class _DialogFinishedSignal(Protocol):
+    """Describe the completion signal exposed by a presented error dialog."""
+
+    def connect(self, slot: Callable[[int], None]) -> object:
+        """Connect one completion callback."""
+
+
+class _PresentedErrorDialog(Protocol):
+    """Describe the non-blocking dialog boundary owned by the presenter."""
+
+    finished: _DialogFinishedSignal
+
+    def open(self) -> None:
+        """Show the dialog without entering a nested event loop."""
+
+    def deleteLater(self) -> None:
+        """Schedule Qt-owned dialog cleanup after signal delivery."""
 
 
 class ErrorReportPresenterProtocol(Protocol):
@@ -70,7 +89,7 @@ class ErrorReportPresenterProtocol(Protocol):
 
 @dataclass
 class ErrorPresenter:
-    """Present structured errors through Substitute's modal error surface."""
+    """Present structured errors without nesting the active Qt event loop."""
 
     parent: object | None = None
     open_console: Callable[[], None] | None = None
@@ -84,9 +103,12 @@ class ErrorPresenter:
         default_factory=set,
         init=False,
     )
+    _active_dialogs: dict[
+        tuple[str, str, str | None, str | None], _PresentedErrorDialog
+    ] = field(default_factory=dict, init=False)
 
     def show_error_report(self, report: ErrorReport) -> None:
-        """Show a modal error report for a blocking or report-worthy failure."""
+        """Open a modal report while allowing the current Qt event to unwind."""
 
         report_key = (
             report.severity.value,
@@ -98,13 +120,27 @@ class ErrorPresenter:
             return
         self._active_report_keys.add(report_key)
         report_text = self.report_builder.render(report)
-        dialog = self._create_dialog(report, report_text)
-        try:
-            exec_method = getattr(dialog, "exec", None)
-            if callable(exec_method):
-                exec_method()
-        finally:
-            self._active_report_keys.discard(report_key)
+        dialog = cast(_PresentedErrorDialog, self._create_dialog(report, report_text))
+        self._active_dialogs[report_key] = dialog
+
+        def release_dialog(_result: int) -> None:
+            """Release this report after Qt finishes closing its dialog."""
+
+            self._release_dialog(report_key)
+
+        dialog.finished.connect(release_dialog)
+        dialog.open()
+
+    def _release_dialog(
+        self,
+        report_key: tuple[str, str, str | None, str | None],
+    ) -> None:
+        """Release presenter ownership after the non-blocking dialog closes."""
+
+        dialog = self._active_dialogs.pop(report_key, None)
+        self._active_report_keys.discard(report_key)
+        if dialog is not None:
+            dialog.deleteLater()
 
     def show_exception_report(
         self,

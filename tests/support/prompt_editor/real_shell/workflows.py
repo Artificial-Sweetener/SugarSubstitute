@@ -193,7 +193,7 @@ class PromptWorkflowMounts:
         panel = self._shell.editor_panels[workflow_id]
         panel.load_all_cubes(
             [(cube_alias, cube_states[cube_alias]) for cube_alias in stack_order],
-            cube_states=cube_states,
+            cube_states=cast(dict[str, object], cube_states),
             stack_order=stack_order,
         )
         self._shell.editor_panel_container.setCurrentWidget(panel)

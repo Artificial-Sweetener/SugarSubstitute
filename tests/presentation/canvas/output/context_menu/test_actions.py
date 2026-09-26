@@ -37,6 +37,7 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
 )
 from substitute.domain.workflow import ImageMeta
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.canvas.output.output_canvas_context_menu import (
     OutputCanvasContextMenu,
 )
@@ -281,6 +282,29 @@ def test_output_menu_disables_pathless_reveal_and_labels_redock() -> None:
     }
     assert actions["output_canvas.reveal_current_asset"].enabled is False
     assert actions["output_canvas.dock_action"].label == "Redock canvas"
+
+
+def test_video_output_menu_keeps_native_file_actions() -> None:
+    """Video detail keeps copy and file actions while excluding image-only actions."""
+
+    image_id = uuid4()
+    metadata = _metadata(image_id, path="E:/outputs/clip.webm")
+    metadata.media_kind = OutputMediaKind.VIDEO
+    model = _output_menu(
+        current_image_id=image_id,
+        projection=_projection(image_id, uuid4()),
+        metadata=metadata,
+    ).menu_model()
+
+    assert model is not None
+    action_ids = tuple(
+        entry.action_id for entry in model.entries if isinstance(entry, MenuItem)
+    )
+    assert action_ids == (
+        "output_canvas.copy",
+        "output_canvas.reveal_current_asset",
+        "output_canvas.dock_action",
+    )
 
 
 def test_context_router_uses_addressed_copy_only_for_grid_targets() -> None:

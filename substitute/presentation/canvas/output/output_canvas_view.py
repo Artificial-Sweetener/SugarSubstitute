@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QVBoxLayout, QWidget
-from cutecanvas import ExecutionRuntime, OutboundMimeProvider
+from cutecanvas import CanvasPresentation, ExecutionRuntime, OutboundMimeProvider
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
@@ -34,14 +34,9 @@ from substitute.application.workflows.output_canvas_route_scope import (
 )
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
-    OutputCanvasSourceGroup,
-)
-from substitute.application.workflows.output_automatic_frontier_projection import (
-    automatic_frontier_image_ids,
 )
 from substitute.application.workflows.output_canvas_session import (
     OutputCanvasSession,
-    output_route_identity_for_projection,
 )
 from substitute.application.workflows.output_compare_state import OutputCompareState
 from substitute.application.workflows.output_canvas_state_service import (
@@ -49,7 +44,6 @@ from substitute.application.workflows.output_canvas_state_service import (
 )
 from substitute.application.workflows.output_compare_resolution import (
     reconcile_output_compare_state,
-    resolve_output_compare_selection,
 )
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
@@ -57,7 +51,6 @@ from substitute.application.workflows.output_preview_registry import (
 from substitute.application.workflows.output_preview_results import (
     OutputPreviewAcceptance,
 )
-from substitute.domain.workflow import OutputFocusMode
 from substitute.presentation.canvas.output.output_canvas_chrome import (
     install_output_navigation_chrome_theme_refresh,
 )
@@ -90,10 +83,17 @@ from substitute.presentation.canvas.output.output_projection_content_synchronize
 )
 from substitute.presentation.canvas.output.output_preview_navigation_presenter import (
     OutputPreviewNavigationPresenter,
-    scene_overview_image_ids,
+)
+from substitute.presentation.canvas.output.output_projection_presenter import (
+    OutputProjectionPresenter,
 )
 from substitute.presentation.canvas.output.output_canvas_zoom_indicators import (
     OutputCanvasZoomIndicators,
+)
+from substitute.application.ports.video import VideoPlaybackEvent, VideoPlayerPort
+from substitute.domain.generation import VideoPlaybackSettings
+from substitute.presentation.canvas.output.output_video_presentation_coordinator import (
+    OutputVideoPresentationCoordinator,
 )
 from substitute.presentation.canvas.output.output_compare_material_gap import (
     OutputCompareMaterialGapCoordinator,
@@ -109,6 +109,8 @@ _SOURCE_SELECTOR_MIN_WIDTH = 58
 
 class OutputCanvas(QWidget):
     """Host one read-only CuteCanvas Output document and its navigation chrome."""
+
+    tabbar_container: QWidget
 
     activeOutputChanged = Signal(str)
     activeOutputGridChanged = Signal(str)
@@ -134,6 +136,11 @@ class OutputCanvas(QWidget):
             Callable[[UUID], OutputImageMeta | None] | None
         ) = None,
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
+        video_player_factory: Callable[
+            [Callable[[VideoPlaybackEvent], None]], VideoPlayerPort
+        ]
+        | None = None,
+        video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
     ) -> None:
         """Create the one Output document workspace and host-owned chrome."""
 
@@ -189,7 +196,18 @@ class OutputCanvas(QWidget):
         workspace_layout = QVBoxLayout(self)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
         workspace_layout.setSpacing(0)
-        workspace_layout.addWidget(self.workspace)
+        self.video_presentation = OutputVideoPresentationCoordinator(
+            parent=self,
+            workspace=self.workspace,
+            document=self.document,
+            metadata_for=self._asset_lookup.final_output_metadata,
+            player_factory=video_player_factory,
+            video_settings_provider=video_settings_provider,
+        )
+        self.video_presentation.contextMenuRequested.connect(
+            self._forward_video_context_request
+        )
+        workspace_layout.addWidget(self.video_presentation.widget)
         self._compare_material_gap = OutputCompareMaterialGapCoordinator(self.workspace)
         self._zoom_indicators = OutputCanvasZoomIndicators(self.workspace)
 
@@ -230,6 +248,12 @@ class OutputCanvas(QWidget):
         )
         self._document_navigation = OutputDocumentNavigation(self)
         self._preview_navigation = OutputPreviewNavigationPresenter(self)
+        self._projection_presenter = OutputProjectionPresenter(
+            document=self.document,
+            document_navigation=self._document_navigation,
+            preview_navigation=self._preview_navigation,
+            route_projector=self._route_projector,
+        )
         self._preview_presenter = OutputDocumentPreviewPresenter(
             preview_registry=lambda: self._preview_registry,
             document=self.document,
@@ -307,6 +331,7 @@ class OutputCanvas(QWidget):
             payload_lookup=payload_lookup,
             metadata_lookup=metadata_lookup,
         )
+        self.video_presentation.refresh_badges()
 
     def install_transfer_drag_provider(self, provider: OutboundMimeProvider) -> None:
         """Install one composed outbound MIME provider on every workspace target."""
@@ -329,6 +354,20 @@ class OutputCanvas(QWidget):
             )
         self.workspace.contentContextRequested.connect(handler)
         self._transfer_context_handler = handler
+
+    def _forward_video_context_request(self, global_position: object) -> None:
+        """Address the active video through the established Output menu route."""
+
+        handler = self._transfer_context_handler
+        composition_id = self.document.session.active_composition_id
+        if handler is None or composition_id is None:
+            return
+        image_id = self.document.image_id_for_composition(composition_id)
+        if image_id is None:
+            return
+        reference = self.document.content_reference_for(image_id)
+        if reference is not None:
+            handler(reference, global_position)
 
     def create_projection_content_synchronizer(
         self,
@@ -390,6 +429,17 @@ class OutputCanvas(QWidget):
 
         self._canvas_detached = detached
 
+    def prepare_for_window_transition(self) -> None:
+        """Release native video rendering before this canvas changes windows."""
+
+        self.video_presentation.prepare_for_window_transition()
+
+    def complete_window_transition(self) -> None:
+        """Resume native video rendering in this canvas's settled window."""
+
+        self.video_presentation.complete_window_transition()
+        update_output_tabbar_container(self)
+
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Apply one authorized projection through the Output document workspace."""
 
@@ -438,7 +488,13 @@ class OutputCanvas(QWidget):
         )
         self._visible_compare_state = compare_state
         self._document_navigation.synchronize_projection()
-        self._present_projection(projection, compare_state=compare_state)
+        self._projection_presenter.present(
+            projection,
+            compare_state=compare_state,
+            active_scene_overview=self.active_scene_overview,
+            active_source_key=self.active_source_key,
+            active_set_index=self.active_set_index,
+        )
 
     def discard_workflow_detail_groups(self, workflow_id: str) -> None:
         """Release retained Output inspection state for a closed workflow."""
@@ -457,67 +513,6 @@ class OutputCanvas(QWidget):
         if event.type() == QEvent.Type.LanguageChange:
             retranslate_output_canvas(self)
         super().changeEvent(event)
-
-    def _present_projection(
-        self,
-        projection: OutputCanvasProjection,
-        *,
-        compare_state: OutputCompareState,
-    ) -> None:
-        """Choose exactly one document presentation for the current projection."""
-
-        if compare_state.enabled and compare_state.base and compare_state.comparison:
-            base = resolve_output_compare_selection(projection, compare_state.base)
-            comparison = resolve_output_compare_selection(
-                projection,
-                compare_state.comparison,
-            )
-            if base is not None and comparison is not None:
-                if self.document.present_comparison(
-                    base.image_id,
-                    comparison.image_id,
-                    split_position=compare_state.split_position,
-                    orientation=compare_state.orientation,
-                ):
-                    return
-        if self.active_scene_overview:
-            self.document.present_grid(
-                scene_overview_image_ids(
-                    projection,
-                    preview_scenes=self._document_navigation.scene_groups(),
-                )
-            )
-            return
-        sources = tuple(self._document_navigation.visible_sources().values())
-        if self.active_set_index == 0:
-            source = next(
-                (
-                    source
-                    for source in sources
-                    if source.source_key == self.active_source_key
-                ),
-                None,
-            )
-            if source is not None:
-                image_ids = (
-                    automatic_frontier_image_ids(
-                        sources,
-                        source_key=source.source_key,
-                    )
-                    if projection.focus_mode is OutputFocusMode.AUTOMATIC
-                    else _source_image_ids(source)
-                )
-                self.document.present_grid(image_ids)
-                return
-        if self._preview_navigation.present_active_item(projection):
-            return
-        if projection.active_uuid is not None:
-            self._route_projector.apply_final_image_route(
-                output_route_identity_for_projection(projection),
-                projection.active_uuid,
-            )
-            return
-        self.document.clear_presentation()
 
     def _bind_preview_scope(self) -> None:
         """Refresh authorized document members after preview registry mutation."""
@@ -563,16 +558,10 @@ class OutputCanvas(QWidget):
     def _handle_workspace_presentation_change(self, presentation: object) -> None:
         """Forward public CuteCanvas divider changes to persisted compare state."""
 
-        from cutecanvas import CanvasPresentation
-
         if isinstance(presentation, CanvasPresentation):
             self._document_navigation.handle_workspace_presentation(presentation)
-
-
-def _source_image_ids(source: OutputCanvasSourceGroup) -> tuple[UUID, ...]:
-    """Return ordered image identities for one source-grid presentation."""
-
-    return tuple(item.image_id for _index, item in sorted(source.images_by_set.items()))
+            self.video_presentation.synchronize(presentation)
+            update_output_tabbar_container(self)
 
 
 __all__ = ["OutputCanvas"]

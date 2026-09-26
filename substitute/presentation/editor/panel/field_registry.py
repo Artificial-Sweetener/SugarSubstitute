@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from typing import TypeAlias
 
-from .field_state_controller import EditorFieldBinding
+from .field_state_binding import EditorFieldBinding
 
 EditorFieldIdentity: TypeAlias = tuple[str, str, str]
 

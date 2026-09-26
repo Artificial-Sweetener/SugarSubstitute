@@ -25,10 +25,12 @@ from types import SimpleNamespace
 from substitute.domain.workflow import CubeState
 from substitute.presentation.shell.loaded_cube_surface_controller import (
     mark_loaded_cube_surface_stale,
-    refresh_incremental_loaded_cube_surface,
     refresh_loaded_cube_surface_for_view,
     refresh_loaded_cube_surface_for_view_async,
     refresh_workflow_after_cube_load_for_view,
+)
+from substitute.presentation.shell.loaded_cube_incremental_refresh import (
+    refresh_incremental_loaded_cube_surface,
     schedule_deferred_incremental_override_presentation_rebuild,
 )
 
@@ -106,7 +108,7 @@ def test_deferred_incremental_override_rebuild_schedules_rebuild() -> None:
     scheduled: list[Callable[[], None]] = []
     manager_calls: list[str] = []
     manager = SimpleNamespace(
-        _global_override_controls={"a": object(), "b": object()},
+        mounted_control_count=lambda: 2,
         rebuild_override_menu=lambda: manager_calls.append("menu"),
         rebuild_active_override_controls=lambda: manager_calls.append("controls"),
     )
@@ -207,6 +209,7 @@ def test_refresh_incremental_loaded_cube_surface_uses_editor_insert_path() -> No
                 "stack_order": workflow.stack_order,
                 "on_complete": inserted[0][1]["on_complete"],
                 "completion_phase": "first_usable",
+                "motion_requested": True,
             },
         )
     ]

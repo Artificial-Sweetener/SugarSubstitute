@@ -142,7 +142,7 @@ def test_restore_uses_historical_release_and_requires_installed_identity(
 
     monkeypatch.setattr(
         "tools.ci.historical_nodepack_fixture."
-        "PinnedNodepackSourceInstaller.install_fallback",
+        "TrustedNodepackArchiveInstaller.install_fallback",
         _install,
     )
     monkeypatch.setattr(

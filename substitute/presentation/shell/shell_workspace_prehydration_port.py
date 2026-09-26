@@ -105,13 +105,15 @@ class ShellWorkspacePrehydrationPort:
             self._shell.workspace_restore_image_adapter.restore_input_mask(reference)
         )
 
-    def load_restored_output_image(self, path: Path) -> object | None:
-        """Load one output image payload for restore."""
+    def load_restored_output_image(
+        self, reference: OutputImageReference
+    ) -> object | None:
+        """Load one output media tile payload for restore."""
 
         return cast(
             object | None,
             self._shell.workspace_restore_image_adapter.load_restored_output_image(
-                path
+                reference
             ),
         )
 

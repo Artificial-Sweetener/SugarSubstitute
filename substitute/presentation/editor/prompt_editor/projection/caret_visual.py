@@ -177,6 +177,7 @@ class PromptSurfaceCaretVisualController:
             return
         QTimer.singleShot(
             0,
+            self._surface,
             lambda: self.sync_caret_blink_state(
                 reset_cycle=reset_cycle,
                 cursor_flash_time_ms=cursor_flash_time_ms(),

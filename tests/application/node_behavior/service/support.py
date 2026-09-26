@@ -46,31 +46,6 @@ class RecordingNodeDefinitionGateway(DummyNodeDefinitionGateway):
         return super().get_node_definition(node_class)
 
 
-class RequiredOnlyNodeDefinitionGateway(DummyNodeDefinitionGateway):
-    """Return definitions only from the required lookup path."""
-
-    def __init__(
-        self, definitions: Mapping[str, Mapping[str, object]] | None = None
-    ) -> None:
-        """Initialize the gateway with optional required definitions."""
-
-        super().__init__(definitions)
-        self.optional_requests: list[str] = []
-        self.required_requests: list[str] = []
-
-    def get_node_definition(self, node_class: str) -> dict[str, object]:
-        """Record optional lookups and simulate an empty cache miss."""
-
-        self.optional_requests.append(node_class)
-        return {}
-
-    def get_required_node_definition(self, node_class: str) -> dict[str, object]:
-        """Record required lookups and return the configured definition."""
-
-        self.required_requests.append(node_class)
-        return super().get_required_node_definition(node_class)
-
-
 def _wrapper_subgraphs() -> list[dict[str, object]]:
     """Return one wrapper subgraph plus an internal body node for behavior tests."""
 
@@ -362,7 +337,6 @@ __all__ = [
     "UUID_NESTED_WRAPPER",
     "UUID_WRAPPER",
     "RecordingNodeDefinitionGateway",
-    "RequiredOnlyNodeDefinitionGateway",
     "_model_detector",
     "_model_item",
     "_nested_wrapper_definitions",

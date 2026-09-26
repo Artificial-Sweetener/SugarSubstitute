@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
+from PySide6.QtCore import QCoreApplication, QTimer
 from sugarsubstitute_shared.localization import app_text
 
 from substitute.application.direct_workflows import (
@@ -86,6 +87,13 @@ class _ActiveDownload:
     busy_token: object
 
 
+@dataclass(frozen=True, slots=True)
+class _ResolutionReview:
+    """Carry an expected missing-model review through a successful task outcome."""
+
+    pending: PendingPortableWorkflowResolution
+
+
 class DirectWorkflowModelResolutionController:
     """Resolve and acquire canonical workflow models before materialization."""
 
@@ -99,6 +107,7 @@ class DirectWorkflowModelResolutionController:
         ],
         resolution_route_factory: ModelResolutionRouteFactory,
         download_route_factory: ModelDownloadRouteFactory,
+        defer_to_owner: Callable[[Callable[[], None]], None] | None = None,
     ) -> None:
         """Store application, user-decision, progress, and execution owners."""
 
@@ -107,6 +116,7 @@ class DirectWorkflowModelResolutionController:
         self._prompt_for_download = prompt_for_download
         self._resolution_route_factory = resolution_route_factory
         self._download_route_factory = download_route_factory
+        self._defer_to_owner = defer_to_owner or _defer_to_owner_thread
         self._request_id = 0
         self._resolutions: list[_ActiveResolution] = []
         self._downloads: list[_ActiveDownload] = []
@@ -133,7 +143,7 @@ class DirectWorkflowModelResolutionController:
         )
         busy_token = self._editor_busy.begin(
             target_workflow_id,
-            message=app_text("Checking model links…"),
+            message=app_text("Checking model links"),
         )
         active = _ActiveResolution(scope, route, busy_token)
         self._resolutions.append(active)
@@ -149,7 +159,7 @@ class DirectWorkflowModelResolutionController:
                 lane="recipe_model_resolution",
                 safe_fields=(("workflow_id", target_workflow_id),),
             ),
-            work=lambda _token: self._service.resolve(workflow),
+            work=lambda _token: self._resolve_for_review(workflow),
         )
 
         def receive(outcome: TaskOutcome[object]) -> None:
@@ -160,22 +170,21 @@ class DirectWorkflowModelResolutionController:
                 cancelled()
                 return
             if outcome.status == "failed":
-                error = outcome.error
-                if isinstance(error, PortableWorkflowModelResolutionRequired):
-                    deferred = self._prompt_for_download(error.pending.required)
-                    if deferred is None:
-                        cancelled()
-                        return
-                    self._download(
-                        pending=error.pending,
-                        request=deferred,
+                failed(
+                    outcome.error or RuntimeError("Workflow model resolution failed.")
+                )
+                return
+            if isinstance(outcome.result, _ResolutionReview):
+                pending = outcome.result.pending
+                self._defer_to_owner(
+                    lambda: self._review_missing_models(
+                        pending=pending,
                         target_workflow_id=target_workflow_id,
                         completed=completed,
                         cancelled=cancelled,
                         failed=failed,
                     )
-                    return
-                failed(error or RuntimeError("Workflow model resolution failed."))
+                )
                 return
             resolved = cast(ResolvedPortableWorkflow, outcome.result)
             completed(resolved.workflow)
@@ -186,6 +195,45 @@ class DirectWorkflowModelResolutionController:
         except Exception:
             self._finish_resolution(active)
             raise
+
+    def _resolve_for_review(
+        self,
+        workflow: JsonObject,
+    ) -> ResolvedPortableWorkflow | _ResolutionReview:
+        """Translate expected missing-model review into a successful task result."""
+
+        try:
+            return self._service.resolve(workflow)
+        except PortableWorkflowModelResolutionRequired as error:
+            return _ResolutionReview(error.pending)
+
+    def _review_missing_models(
+        self,
+        *,
+        pending: PendingPortableWorkflowResolution,
+        target_workflow_id: str,
+        completed: Callable[[JsonObject], None],
+        cancelled: Callable[[], None],
+        failed: Callable[[BaseException], None],
+    ) -> None:
+        """Open model review after the resolution callback and busy paint complete."""
+
+        try:
+            request = self._prompt_for_download(pending.required)
+        except Exception as error:
+            failed(error)
+            return
+        if request is None:
+            cancelled()
+            return
+        self._download(
+            pending=pending,
+            request=request,
+            target_workflow_id=target_workflow_id,
+            completed=completed,
+            cancelled=cancelled,
+            failed=failed,
+        )
 
     def _download(
         self,
@@ -317,6 +365,16 @@ class DirectWorkflowModelResolutionController:
 
         self._request_id += 1
         return self._request_id
+
+
+def _defer_to_owner_thread(callback: Callable[[], None]) -> None:
+    """Run a continuation after the current Qt owner event fully unwinds."""
+
+    application = QCoreApplication.instance()
+    if application is None:
+        callback()
+        return
+    QTimer.singleShot(0, application, callback)
 
 
 __all__ = ["DirectWorkflowModelResolutionController"]

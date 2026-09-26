@@ -38,6 +38,7 @@ def test_generation_bindings_route_feedback_through_dispatcher(
         on_model_load_progress=lambda _progress: None,
         on_preview=lambda _preview: None,
         on_output_image=lambda _output: None,
+        on_output_video=lambda _output: None,
         on_failure=lambda _failure: None,
         on_timing=lambda _timing: None,
         on_completed=lambda _workflow_id: None,
@@ -64,6 +65,7 @@ def test_generation_bindings_route_feedback_through_dispatcher(
     assert bindings.on_model_load_progress is dispatcher.on_model_load_progress
     assert bindings.on_preview is dispatcher.on_preview
     assert bindings.on_output_image is dispatcher.on_output_image
+    assert bindings.on_output_video is dispatcher.on_output_video
     assert bindings.on_failure is dispatcher.on_failure
     assert bindings.on_completed is dispatcher.on_completed
 
@@ -80,6 +82,7 @@ def test_generation_bindings_use_registry_batch_count_when_available(
         on_model_load_progress=lambda _progress: None,
         on_preview=lambda _preview: None,
         on_output_image=lambda _output: None,
+        on_output_video=lambda _output: None,
         on_failure=lambda _failure: None,
         on_timing=lambda _timing: None,
         on_completed=lambda _workflow_id: None,

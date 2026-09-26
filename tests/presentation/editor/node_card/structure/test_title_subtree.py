@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import cast
 
 import pytest
 from PySide6.QtWidgets import QWidget
@@ -85,21 +84,18 @@ def test_title_widgets_are_born_inside_card_subtree(
     )
     builder = build_node_card_builder(panel, Gateway())
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
-    wrapper = cast(
-        QWidget | None,
-        builder.build_node_card(
-            node_name=node_name,
-            inputs={"steps": 20},
-            node_type="KSampler",
-            field_specs=snapshot.field_specs_by_alias["A"][node_name],
-            cube_state=cube_state,
-            resolved_behavior=resolved_behavior,
-            display_decision=display_decision,
-            alias="A",
-        ),
+    wrapper = builder.build_node_card(
+        node_name=node_name,
+        inputs={"steps": 20},
+        node_type="KSampler",
+        field_specs=snapshot.field_specs_by_alias["A"][node_name],
+        cube_state=cube_state,
+        resolved_behavior=resolved_behavior,
+        display_decision=display_decision,
+        alias="A",
     )
     try:
         assert wrapper is not None

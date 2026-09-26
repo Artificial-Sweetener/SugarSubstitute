@@ -122,7 +122,7 @@ class GenerationCubeExecutionDuration:
 
 @dataclass(frozen=True)
 class GenerationJobOutputRecord:
-    """Describe one output image produced by a live generation job."""
+    """Describe one output artifact produced by a live generation job."""
 
     job_id: str
     output_path: Path

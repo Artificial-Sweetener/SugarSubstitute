@@ -173,6 +173,9 @@ class MainWindow(QMainWindow):
                 configure_output_thumbnail_context=(
                     dependencies.configure_output_thumbnail_context
                 ),
+                video_settings_provider=(
+                    lambda: self.output_preference_service.load_preferences().video
+                ),
             )
         self.workflow_tab_service = workspace_parts.workflow_tab_service
         self.workflow_session_service = workspace_parts.workflow_session_service
@@ -243,7 +246,11 @@ class MainWindow(QMainWindow):
         connect_shell_signals(
             self,
             startup_timer,
-            single_shot=QTimer.singleShot,
+            single_shot=lambda delay_ms, callback: QTimer.singleShot(
+                delay_ms,
+                self,
+                callback,
+            ),
         )
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:

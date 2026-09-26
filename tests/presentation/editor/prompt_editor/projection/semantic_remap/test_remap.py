@@ -36,6 +36,7 @@ from substitute.application.prompt_editor.document.views import (
     PromptSyntaxSpanView,
     PromptWildcardView,
 )
+from substitute.application.prompt_editor.document.service import PromptDocumentService
 from substitute.application.prompt_editor.lora.resolution import (
     PromptLoraResolutionStatus,
 )
@@ -297,6 +298,85 @@ def test_semantic_remapper_drops_intersecting_semantic_ranges() -> None:
     assert next_document_view.emphasis_spans == document_view.emphasis_spans
 
 
+def test_semantic_remapper_retains_emphasis_content_after_plain_insertion() -> None:
+    """Keep document and renderer ranges aligned for an escaped content edit."""
+
+    previous_text = r"(casshern \(series\):1.25)"
+    document_view = PromptDocumentService().build_document_view(previous_text)
+    render_plan = PromptSyntaxRenderPlan(
+        syntax_spans=document_view.syntax_spans,
+        renderer_views=(
+            PromptEmphasisRendererView(
+                kind="emphasis",
+                syntax_spans=document_view.syntax_spans,
+                emphasis_spans=document_view.emphasis_spans,
+            ),
+        ),
+    )
+    start = previous_text.index(r"\)")
+    next_text = previous_text[:start] + "f" + previous_text[start:]
+
+    result = PromptProjectionSemanticRemapper().optimistic_prompt_state_for_edit(
+        current_document_view=document_view,
+        current_render_plan=render_plan,
+        previous_text=previous_text,
+        next_text=next_text,
+        start=start,
+        end=start,
+        replacement_text="f",
+    )
+
+    assert result is not None
+    next_document_view, next_render_plan = result
+    next_span = next_document_view.emphasis_spans[0]
+    original_span = document_view.emphasis_spans[0]
+    assert next_span.outer_end == original_span.outer_end + 1
+    assert next_span.content_end == original_span.content_end + 1
+    assert next_span.weight_start == original_span.weight_start + 1
+    assert next_document_view.syntax_spans[0].end == next_span.outer_end
+    assert next_render_plan.syntax_spans == next_document_view.syntax_spans
+    renderer = next_render_plan.renderer_view_for_kind("emphasis")
+    assert isinstance(renderer, PromptEmphasisRendererView)
+    assert renderer.emphasis_spans == next_document_view.emphasis_spans
+
+
+def test_semantic_remapper_drops_emphasis_after_syntax_sensitive_insertion() -> None:
+    """Never retain an emphasis token when its syntax may have changed."""
+
+    previous_text = r"(casshern \(series\):1.25)"
+    document_view = PromptDocumentService().build_document_view(previous_text)
+    render_plan = PromptSyntaxRenderPlan(
+        syntax_spans=document_view.syntax_spans,
+        renderer_views=(
+            PromptEmphasisRendererView(
+                kind="emphasis",
+                syntax_spans=document_view.syntax_spans,
+                emphasis_spans=document_view.emphasis_spans,
+            ),
+        ),
+    )
+    start = previous_text.index(r"\)")
+    next_text = previous_text[:start] + "(" + previous_text[start:]
+
+    result = PromptProjectionSemanticRemapper().optimistic_prompt_state_for_edit(
+        current_document_view=document_view,
+        current_render_plan=render_plan,
+        previous_text=previous_text,
+        next_text=next_text,
+        start=start,
+        end=start,
+        replacement_text="(",
+    )
+
+    assert result is not None
+    next_document_view, next_render_plan = result
+    assert next_document_view.emphasis_spans == ()
+    assert next_render_plan.syntax_spans == ()
+    renderer = next_render_plan.renderer_view_for_kind("emphasis")
+    assert isinstance(renderer, PromptEmphasisRendererView)
+    assert renderer.emphasis_spans == ()
+
+
 def test_semantic_remapper_drops_outer_span_without_duplicating_nested_prefix() -> None:
     """An edit after a child invalidates its parent but leaves the child in place."""
 
@@ -446,6 +526,19 @@ def test_semantic_remapper_remaps_expanded_ranges() -> None:
     assert remapper.remap_expanded_source_range_for_edit(
         (10, 20), start=25, end=25, delta=2
     ) == (10, 20)
+
+
+def test_insertion_before_expanded_token_shifts_its_entire_range() -> None:
+    """Keep text inserted before opening syntax outside the expanded token."""
+
+    remapper = PromptProjectionSemanticRemapper()
+
+    assert remapper.remap_expanded_source_range_for_edit(
+        (10, 20), start=10, end=10, delta=2
+    ) == (12, 22)
+    assert remapper.remap_expanded_source_range_for_edit(
+        (10, 20), start=20, end=20, delta=2
+    ) == (10, 22)
 
 
 def test_semantic_remapper_remaps_diagnostics_and_drops_overlaps() -> None:

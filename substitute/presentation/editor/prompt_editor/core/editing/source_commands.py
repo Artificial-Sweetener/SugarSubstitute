@@ -291,6 +291,7 @@ class PromptSourceEditSession(Generic[TPayload]):
             next_parenthesis_intents=next_intents,
             next_generated_emphases=next_generated_emphases,
             transitions=normalization.transitions,
+            preserve_requested_edit=True,
         )
 
     def synchronize_source_text(
@@ -324,6 +325,7 @@ class PromptSourceEditSession(Generic[TPayload]):
         next_parenthesis_intents: tuple[PromptParenthesisIntent, ...],
         next_generated_emphases: tuple[PromptGeneratedEmphasis, ...],
         transitions: tuple[PromptParenthesisTransition, ...],
+        preserve_requested_edit: bool = False,
     ) -> PromptSourceEditResult[TPayload]:
         """Apply one already-normalized source replacement."""
 
@@ -353,6 +355,25 @@ class PromptSourceEditSession(Generic[TPayload]):
             generated_emphases=next_generated_emphases,
         )
         next_snapshot = self._source_buffer.snapshot()
+        requested_edit = PromptSourceTextEdit(
+            start=requested_start,
+            end=requested_end,
+            replacement_text=requested_replacement_text,
+        )
+        source_edit = (
+            requested_edit
+            if preserve_requested_edit
+            and (
+                previous_snapshot.source_text[:requested_start]
+                + requested_replacement_text
+                + previous_snapshot.source_text[requested_end:]
+                == next_text
+            )
+            else source_text_edit_between(
+                previous_snapshot.source_text,
+                next_snapshot.source_text,
+            )
+        )
         return PromptSourceEditResult(
             previous_snapshot=previous_snapshot,
             next_snapshot=next_snapshot,
@@ -363,10 +384,7 @@ class PromptSourceEditSession(Generic[TPayload]):
             requested_start=requested_start,
             requested_end=requested_end,
             requested_replacement_text=requested_replacement_text,
-            source_edit=source_text_edit_between(
-                previous_snapshot.source_text,
-                next_snapshot.source_text,
-            ),
+            source_edit=source_edit,
             transitions=transitions,
             undo_availability_change=availability_change,
         )

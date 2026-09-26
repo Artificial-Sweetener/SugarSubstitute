@@ -75,7 +75,7 @@ class InputSelectionAuthoringObserver(QObject):
             ):
                 self._set_active(True)
         elif event.type() is QEvent.Type.MouseButtonRelease and self._active:
-            QTimer.singleShot(0, self._finish_gesture)
+            QTimer.singleShot(0, self, self._finish_gesture)
         elif event.type() in {QEvent.Type.Hide, QEvent.Type.FocusOut}:
             self._set_active(False)
         return False

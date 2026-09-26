@@ -246,7 +246,7 @@ def test_panel_render_reconciler_reveals_builds_and_cleans_stale_widgets() -> No
 
     assert panel.cube_widgets == {"Managed": managed, "Final": final}
     assert panel.cube_sections == {"Final": final}
-    assert managed.parents == [None]
+    assert managed.parents == []
     assert stale.deleted == 1
     assert panel._layout.added[-2:] == [("spacing", 8), ("widget", final)]
     assert final.visible == [True]

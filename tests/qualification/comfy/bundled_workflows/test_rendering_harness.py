@@ -26,10 +26,10 @@ import pytest
 
 from substitute.application.node_behavior import FieldValueSource, ResolvedFieldSpec
 from substitute.domain.node_behavior import FieldBehavior
-from substitute.presentation.editor.panel import node_card_builder
 from substitute.presentation.editor.panel.cube_section_build_plan import (
     node_card_build_outcome,
 )
+from substitute.presentation.editor.panel.node_card import field_factory_adapter
 from tests.qualification.comfy.bundled_workflows.catalog import (
     BundledWorkflowCatalogEntry,
 )
@@ -127,7 +127,7 @@ def test_factory_observer_records_a_real_pipeline_decline(
         return None
 
     monkeypatch.setattr(
-        node_card_builder,
+        field_factory_adapter,
         "build_widget_for_field_spec",
         production_decline,
     )
@@ -136,13 +136,14 @@ def test_factory_observer_records_a_real_pipeline_decline(
     with observer:
         observed_factory = cast(
             Callable[..., object],
-            getattr(node_card_builder, "build_widget_for_field_spec"),
+            getattr(field_factory_adapter, "build_widget_for_field_spec"),
         )
         result = observed_factory(field_spec=_field_spec())
 
     assert result is None
     assert (
-        getattr(node_card_builder, "build_widget_for_field_spec") is production_decline
+        getattr(field_factory_adapter, "build_widget_for_field_spec")
+        is production_decline
     )
     observation = observer.observations()[0]
     assert observation.result == "unsupported"
@@ -161,7 +162,7 @@ def test_factory_observer_preserves_exception_traceback(
         raise ValueError("broken options")
 
     monkeypatch.setattr(
-        node_card_builder,
+        field_factory_adapter,
         "build_widget_for_field_spec",
         production_failure,
     )
@@ -170,7 +171,7 @@ def test_factory_observer_preserves_exception_traceback(
     with observer, pytest.raises(ValueError, match="broken options"):
         observed_factory = cast(
             Callable[..., object],
-            getattr(node_card_builder, "build_widget_for_field_spec"),
+            getattr(field_factory_adapter, "build_widget_for_field_spec"),
         )
         observed_factory(field_spec=_field_spec())
 

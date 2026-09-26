@@ -25,6 +25,7 @@ from substitute.application.node_behavior import (
     FieldPresentation,
     NodeBehaviorPatch,
     PackageBehaviorPatch,
+    ensure_node_behavior_runtime_state,
 )
 from tests.support.node_behavior import (
     DummyNodeDefinitionGateway,
@@ -182,7 +183,7 @@ def test_build_snapshot_adds_model_icon_for_explicit_model_picker_field() -> Non
             }
         },
     )
-    runtime_state = service.ensure_runtime_state(cube)
+    runtime_state = ensure_node_behavior_runtime_state(cube)
     runtime_state.node_instance_patch = PackageBehaviorPatch(
         by_node_instance={
             "A:checkpoint": NodeBehaviorPatch(
