@@ -348,6 +348,7 @@ class GenerationExecutionDispatcher:
             on_model_load_progress=callbacks.on_model_load_progress,
             on_preview=callbacks.on_preview,
             on_output_image=callbacks.on_output_image,
+            on_output_video=callbacks.on_output_video,
             on_failed=on_listener_failed,
             on_timing=callbacks.on_timing,
             on_completed=on_listener_completed,

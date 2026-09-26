@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Project wildcard syntax into atomic semantic tokens."""
+"""Project wildcard syntax with source-backed editable identifier content."""
 
 from __future__ import annotations
 
@@ -52,6 +52,10 @@ def build_wildcard_collapse_candidates(
     wildcard_view = wildcard_renderer_view_for_plan(render_plan)
     for index, span in enumerate(wildcard_view.wildcard_spans):
         token_range = (span.outer_start, span.outer_end)
+        content_start = span.content_start + (4 if span.wildcard_form == "csv" else 0)
+        content_end = span.content_end - (
+            len(span.tag) + 1 if span.tag is not None else 0
+        )
         if session.expanded_source_range == token_range:
             continue
         if contains_nested_supported_range(token_range, all_supported_ranges):
@@ -72,12 +76,13 @@ def build_wildcard_collapse_candidates(
                     wildcard_tag_is_explicit=span.tag_is_explicit,
                     wildcard_tag_is_numeric=span.tag_is_numeric,
                     wildcard_can_step_tag=span.can_step_tag,
+                    wildcard_resolution_pending=span.resolution_pending,
                     exists=span.exists,
                     active=active_span_range == token_range,
                     decoration_accented=token_range in decoration_accent_ranges,
-                    content_start=span.content_start,
-                    content_end=span.content_end,
-                    navigation_mode=PromptProjectionTokenNavigationMode.ATOMIC,
+                    content_start=content_start,
+                    content_end=content_end,
+                    navigation_mode=PromptProjectionTokenNavigationMode.TEXT_CONTENT,
                 ),
             )
         )

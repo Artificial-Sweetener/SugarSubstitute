@@ -26,7 +26,9 @@ from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
 
 from substitute.application.localization import NodePresentationService
 from substitute.domain.localization import NodePresentationRequest
-from substitute.presentation.editor.panel.widgets.field_row import FieldRowTextTarget
+from substitute.presentation.editor.panel.widgets.field_row_models import (
+    FieldRowTextTarget,
+)
 from substitute.presentation.qt_label_text import literal_label_text
 from substitute.presentation.widgets.tooltips import bind_fluent_tooltip
 

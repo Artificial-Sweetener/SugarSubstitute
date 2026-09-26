@@ -24,9 +24,12 @@ from pathlib import Path
 from substitute.presentation.editor.panel.projection_active_session_controller import (
     EditorActiveProjectionSessionController,
 )
-from substitute.presentation.editor.panel.projection_session import (
-    ActiveProjectionSessionRegistry,
+from substitute.presentation.editor.panel.projection_completion_registry import (
     ProjectionCompletionRegistry,
+    ProjectionSessionCompletionController,
+)
+from substitute.presentation.editor.panel.projection_session_registry import (
+    ActiveProjectionSessionRegistry,
 )
 
 
@@ -73,11 +76,12 @@ def test_active_projection_session_controller_resolves_session_callbacks() -> No
 
     sessions = ActiveProjectionSessionRegistry()
     completions = ProjectionCompletionRegistry()
+    session_completions = ProjectionSessionCompletionController(completions)
     discarded: list[str] = []
     completed: list[str] = []
     controller = EditorActiveProjectionSessionController(
         sessions=sessions,
-        completions=completions,
+        completions=session_completions,
         discard_pending_visible_commit=discarded.append,
     )
 
@@ -105,9 +109,10 @@ def test_active_projection_session_controller_transfers_superseded_callbacks() -
 
     sessions = ActiveProjectionSessionRegistry()
     completions = ProjectionCompletionRegistry()
+    session_completions = ProjectionSessionCompletionController(completions)
     controller = EditorActiveProjectionSessionController(
         sessions=sessions,
-        completions=completions,
+        completions=session_completions,
         discard_pending_visible_commit=lambda _reason: None,
     )
     completed: list[str] = []

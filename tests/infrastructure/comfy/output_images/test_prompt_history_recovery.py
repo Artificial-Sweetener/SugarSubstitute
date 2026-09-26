@@ -113,6 +113,7 @@ def test_history_recovery_replays_only_declared_output_nodes() -> None:
             cube_alias="Diffusion Upscale",
         ),
         final_image_handler=final_handler,
+        final_video_handler=final_handler,
     )
 
     recovery.recover()
@@ -151,8 +152,59 @@ def test_history_recovery_treats_absent_prompt_as_no_outputs() -> None:
             cube_alias=node_id,
         ),
         final_image_handler=final_handler,
+        final_video_handler=final_handler,
     )
 
     recovery.recover()
 
     assert final_handler.events == []
+
+
+def test_history_recovery_routes_animated_images_as_video_only() -> None:
+    """Recover core animated output without duplicating it as a still image."""
+
+    image_handler = _FinalHandler()
+    video_handler = _FinalHandler()
+    recovery = PromptHistoryOutputRecovery(
+        history_reader=_HistoryReader(
+            {
+                "prompt-2": {
+                    "outputs": {
+                        "animated": {
+                            "animated": True,
+                            "images": [
+                                {
+                                    "filename": "animation.webp",
+                                    "subfolder": "generated",
+                                    "type": "output",
+                                }
+                            ],
+                        }
+                    }
+                }
+            }
+        ),
+        context=PromptHistoryRecoveryContext(
+            workflow_id="workflow-1",
+            generation_run_id="run-2",
+            prompt_id="prompt-2",
+            client_id="client-3",
+            workflow_payload={},
+        ),
+        output_node_ids=frozenset({"animated"}),
+        source_resolver=lambda node_id: OutputSourceIdentity(
+            node_id=node_id,
+            source_key="direct:7:0",
+            source_label="Animation",
+            cube_alias="Animation",
+        ),
+        final_image_handler=image_handler,
+        final_video_handler=video_handler,
+    )
+
+    recovery.recover()
+
+    assert image_handler.events == []
+    assert len(video_handler.events) == 1
+    assert video_handler.events[0].artifacts[0].media_kind == "video"
+    assert video_handler.events[0].artifacts[0].filename == "animation.webp"

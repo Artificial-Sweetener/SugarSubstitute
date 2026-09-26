@@ -48,6 +48,7 @@ if TYPE_CHECKING:
         ListenerStartResult,
         ModelLoadProgressUpdate,
         OutputImageUpdate,
+        OutputVideoUpdate,
         OutputSavePlan,
         PreviewImageUpdate,
         ProgressUpdate,
@@ -240,6 +241,7 @@ _LAZY_EXPORTS = {
         "substitute.application.ports.node_definition_gateway"
     ),
     "OutputImageUpdate": "substitute.application.ports.comfy_gateway",
+    "OutputVideoUpdate": "substitute.application.ports.comfy_gateway",
     "OutputPreferenceRepository": (
         "substitute.application.ports.output_preference_repository"
     ),
@@ -352,6 +354,7 @@ __all__ = [
     "ListenerStartRequest",
     "ListenerStartResult",
     "OutputImageUpdate",
+    "OutputVideoUpdate",
     "OutputPreferenceRepository",
     "OutputRunNumberAllocator",
     "OutputSavePlan",

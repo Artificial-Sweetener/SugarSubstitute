@@ -412,7 +412,12 @@ class PromptProjectionLineLayoutBuilder:
                 line_break_start=source_span.line_break_start,
                 line_break_end=source_span.line_break_end,
                 fragments=tuple(realized_fragments),
-                caret_stops=tuple(realized_caret_stops),
+                caret_stops=tuple(
+                    sorted(
+                        realized_caret_stops,
+                        key=lambda stop: stop.projection_position,
+                    )
+                ),
             )
             lines.append(completed_line)
             line_top += line_height

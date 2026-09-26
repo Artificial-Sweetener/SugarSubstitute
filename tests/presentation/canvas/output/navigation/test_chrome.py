@@ -342,6 +342,51 @@ def test_source_tabs_collapse_and_expand_on_width() -> None:
     assert source_selector.visible is False
 
 
+def test_video_detail_forces_selector_and_shares_its_navigation_row() -> None:
+    """Video controls should occupy the row beside the compact source picker."""
+
+    placements: list[dict[str, int | None]] = []
+    tabbar = _Widget(size_hint_width=180)
+    tabbar.items = {"image": object(), "video": object()}
+    source_selector = _Widget(width=72)
+    fake = SimpleNamespace(
+        tabbar=tabbar,
+        set_selector_button=_Widget(width=34),
+        source_selector_button=source_selector,
+        tabbar_container=_Widget(),
+        tabbar_bg=_Widget(),
+        comparison_nav_container=_Widget(),
+        video_presentation=SimpleNamespace(
+            video_detail_active=True,
+            place_control_bar=lambda **geometry: placements.append(geometry),
+        ),
+        set_count=1,
+        scene_count=1,
+        active_source_key="video",
+        active_scene_overview=False,
+        source_groups={},
+        preview_ids_by_source_key={},
+        height=lambda: 400,
+        width=lambda: 600,
+    )
+
+    _refresh_tabbar_container(fake)
+
+    assert fake._source_tabs_collapsed is True
+    assert tabbar.visible is False
+    assert source_selector.visible is True
+    assert placements == [
+        {
+            "navigation_right": 88,
+            "row_y": 356,
+            "row_height": 36,
+            "host_width": 600,
+            "horizontal_gap": 4,
+            "right_margin": 8,
+        }
+    ]
+
+
 def test_source_collapse_decision_uses_full_tab_width() -> None:
     """Collapsed picker width must not make source tabs re-expand early."""
 

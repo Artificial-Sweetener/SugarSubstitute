@@ -143,12 +143,17 @@ def apply_plain_text_document_edit(
                 )
             )
         ):
-            edited_stops = PromptProjectionPlainEditCaretStopSequence(
-                previous_document.caret_map,
-                edited_run=next_edited_run,
-                coordinates=coordinates,
+            edited_stops = (
+                PromptProjectionPlainEditCaretStopSequence.for_plain_text_pivot(
+                    previous_document.caret_map,
+                    edited_run=next_edited_run,
+                    coordinates=coordinates,
+                )
             )
-            if edited_stops.transform_depth <= MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH:
+            if (
+                edited_stops is not None
+                and edited_stops.transform_depth <= MAX_PLAIN_EDIT_CARET_TRANSFORM_DEPTH
+            ):
                 next_caret_map = PromptProjectionCaretMap(
                     stops=edited_stops,
                     tokens=next_tokens,

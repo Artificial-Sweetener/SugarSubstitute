@@ -21,8 +21,9 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workflow import (
     ImageMeta,
     ProjectAssetRef,
@@ -320,6 +321,45 @@ def test_adapter_captures_output_image_metadata_snapshot(tmp_path: Path) -> None
     assert references[0].sequence == 1
     assert references[0].metadata.workflow_name == "Recipe"
     assert references[0].metadata.cube_execution_duration_ms == 12.5
+
+
+def test_adapter_captures_only_durable_video_references(tmp_path: Path) -> None:
+    """Session-leased videos must never enter authoritative workspace state."""
+
+    durable_id = uuid4()
+    temporary_id = uuid4()
+    workflow = WorkflowState(output_image_uuids=[durable_id, temporary_id])
+    paths = {
+        durable_id: tmp_path / "durable.webm",
+        temporary_id: tmp_path / "temporary.webm",
+    }
+
+    def metadata_for(media_id: UUID) -> ImageMeta:
+        """Return video metadata with identity-specific durability."""
+
+        return ImageMeta(
+            workflow_name="Recipe",
+            cube_name="Combine",
+            image_number=1,
+            suffix=".webm",
+            path=str(paths[media_id]),
+            media_kind=OutputMediaKind.VIDEO,
+            duration_seconds=2.5,
+            mime_type="video/webm",
+            temporary=media_id == temporary_id,
+        )
+
+    adapter = SessionSnapshotCaptureAdapter(
+        SimpleNamespace(
+            canvas_image_registry=SimpleNamespace(metadata_for=metadata_for)
+        )
+    )
+
+    references = adapter.output_image_references("wf-a", workflow)
+
+    assert [reference.image_id for reference in references] == [str(durable_id)]
+    assert references[0].metadata.media_kind is OutputMediaKind.VIDEO
+    assert references[0].metadata.duration_seconds == 2.5
 
 
 def test_adapter_factory_reuses_existing_shell_adapter() -> None:

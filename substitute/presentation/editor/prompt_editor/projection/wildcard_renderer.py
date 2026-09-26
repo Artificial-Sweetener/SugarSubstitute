@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Render wildcard syntax as one interactive inline object."""
+"""Render wildcard decorations around source-backed editable content."""
 
 from __future__ import annotations
 
@@ -28,16 +28,18 @@ from substitute.presentation.editor.prompt_editor.core.projection.caret import (
 )
 from substitute.presentation.editor.prompt_editor.core.projection.runs import (
     PromptProjectionRun,
+    PromptProjectionRunRole,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
 )
+from substitute.presentation.semantic_colors import semantic_error_color
 
 _WILDCARD_CHIP_RENDERER_KEY = "wildcard_chip"
 
 
 class PromptWildcardInlineObjectRenderer:
-    """Render one wildcard placeholder as inline decorated prompt syntax."""
+    """Render the braces and optional tag surrounding wildcard content."""
 
     renderer_key = _WILDCARD_CHIP_RENDERER_KEY
     _BRACE_GAP = 1.0
@@ -50,23 +52,23 @@ class PromptWildcardInlineObjectRenderer:
         *,
         base_font: QFont,
     ) -> QSizeF:
-        """Measure the inline wildcard syntax plus optional italic tag text."""
+        """Measure one wildcard decoration without duplicating body width."""
 
         metrics = QFontMetricsF(base_font)
         brace_metrics = QFontMetricsF(self._brace_font(base_font))
         tag_metrics = QFontMetricsF(self._tag_font(base_font))
+        if run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
+            return QSizeF(
+                brace_metrics.horizontalAdvance("{") + self._BRACE_GAP,
+                metrics.height(),
+            )
         tag_width = 0.0
         if token.wildcard_display_tag:
             tag_width = self._TAG_GAP + tag_metrics.horizontalAdvance(
                 token.wildcard_display_tag
             )
         return QSizeF(
-            brace_metrics.horizontalAdvance("{")
-            + self._BRACE_GAP
-            + metrics.horizontalAdvance(run.display_text)
-            + self._BRACE_GAP
-            + brace_metrics.horizontalAdvance("}")
-            + tag_width,
+            self._BRACE_GAP + brace_metrics.horizontalAdvance("}") + tag_width,
             max(metrics.height(), tag_metrics.height()),
         )
 
@@ -81,17 +83,10 @@ class PromptWildcardInlineObjectRenderer:
         palette: QPalette,
         selected: bool = False,
     ) -> None:
-        """Paint wildcard braces, body text, and optional inline italic group tag."""
+        """Paint the source shell and display-only group tag around body text."""
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        body_color = QColor(
-            palette.color(
-                QPalette.ColorRole.HighlightedText
-                if selected
-                else QPalette.ColorRole.Text
-            )
-        )
         accent_color = (
             QColor(palette.color(QPalette.ColorRole.HighlightedText))
             if selected
@@ -110,16 +105,12 @@ class PromptWildcardInlineObjectRenderer:
 
         painter.setFont(brace_font)
         painter.setPen(accent_color)
-        painter.drawText(QPointF(x, baseline), "{")
-        x += brace_metrics.horizontalAdvance("{") + self._BRACE_GAP
+        if run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
+            painter.drawText(QPointF(x, baseline), "{")
+            painter.restore()
+            return
 
-        painter.setFont(base_font)
-        painter.setPen(body_color)
-        painter.drawText(QPointF(x, baseline), run.display_text)
-        x += metrics.horizontalAdvance(run.display_text) + self._BRACE_GAP
-
-        painter.setFont(brace_font)
-        painter.setPen(accent_color)
+        x += self._BRACE_GAP
         painter.drawText(QPointF(x, baseline), "}")
         x += brace_metrics.horizontalAdvance("}")
 
@@ -144,6 +135,8 @@ class PromptWildcardInlineObjectRenderer:
     ) -> QRectF | None:
         """Return the tag rect used for numeric wildcard controls."""
 
+        if run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
+            return None
         return self.weight_text_rect(run, token, rect, base_font=base_font)
 
     def weight_text_rect(
@@ -156,7 +149,11 @@ class PromptWildcardInlineObjectRenderer:
     ) -> QRectF | None:
         """Return the viewport-local tag rect when the wildcard tag is numeric."""
 
-        if not token.wildcard_can_step_tag or not token.wildcard_display_tag:
+        if (
+            run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION
+            or not token.wildcard_can_step_tag
+            or not token.wildcard_display_tag
+        ):
             return None
         return self._tag_text_rect(run, token, rect, base_font=base_font)
 
@@ -169,22 +166,36 @@ class PromptWildcardInlineObjectRenderer:
         *,
         base_font: QFont,
     ) -> PromptProjectionCaretState:
-        """Resolve one wildcard-local point into its leading or trailing edge."""
+        """Map braces and tag clicks to adjacent editable caret boundaries."""
 
-        _ = (run, base_font)
+        _ = base_font
+        if run.role is PromptProjectionRunRole.TOKEN_LEADING_DECORATION:
+            return PromptProjectionCaretState(
+                source_position=token.source_start,
+                placement=PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE,
+                token_id=token.token_id,
+            )
+        assert token.content_end is not None
         placement = (
             PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
             if position.x() >= rect.center().x()
-            else PromptProjectionCaretPlacement.TOKEN_LEADING_EDGE
+            else PromptProjectionCaretPlacement.TOKEN_CONTENT
         )
         return PromptProjectionCaretState(
             source_position=(
                 token.source_end
                 if placement is PromptProjectionCaretPlacement.TOKEN_TRAILING_EDGE
-                else token.source_start
+                else token.content_end
             ),
             placement=placement,
             token_id=token.token_id,
+            token_slot=(
+                token.content_end - token.content_start
+                if placement is PromptProjectionCaretPlacement.TOKEN_CONTENT
+                and token.content_start is not None
+                and token.content_end is not None
+                else None
+            ),
         )
 
     def selection_rects(
@@ -197,10 +208,10 @@ class PromptWildcardInlineObjectRenderer:
         selection_end: int,
         base_font: QFont,
     ) -> tuple[QRectF, ...]:
-        """Return the whole wildcard syntax rect whenever selection overlaps it."""
+        """Return decorated selection only when its outer shell is selected."""
 
         _ = (run, base_font)
-        if token.source_start < selection_end and selection_start < token.source_end:
+        if selection_start <= token.source_start and token.source_end <= selection_end:
             return (QRectF(rect),)
         return ()
 
@@ -213,7 +224,12 @@ class PromptWildcardInlineObjectRenderer:
         """Return the brace and tag accent color for one wildcard token."""
 
         if not token.decoration_accented:
+            if not token.exists and not token.wildcard_resolution_pending:
+                return semantic_error_color()
             return QColor(palette.color(QPalette.ColorRole.Text))
+
+        if not token.exists and not token.wildcard_resolution_pending:
+            return semantic_error_color()
 
         color = QColor(themeColor())
         color.setAlpha(204 if isDarkTheme() else 182)
@@ -263,9 +279,6 @@ class PromptWildcardInlineObjectRenderer:
         )
         x = (
             rect.left()
-            + brace_metrics.horizontalAdvance("{")
-            + self._BRACE_GAP
-            + metrics.horizontalAdvance(run.display_text)
             + self._BRACE_GAP
             + brace_metrics.horizontalAdvance("}")
             + self._TAG_GAP

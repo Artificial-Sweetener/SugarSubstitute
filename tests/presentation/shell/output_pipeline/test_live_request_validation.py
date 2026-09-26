@@ -25,7 +25,8 @@ from typing import Any, cast
 
 import pytest
 
-from substitute.application.ports import OutputImageUpdate
+from substitute.application.ports import OutputImageUpdate, OutputVideoUpdate
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.shell.canvas_projection_scheduler import (
     CanvasProjectionScheduler,
 )
@@ -126,6 +127,66 @@ def test_pipeline_builds_strict_live_request_without_retaining_payload() -> None
         }
     ]
     assert not hasattr(request, "workflow_payload")
+
+
+def test_pipeline_builds_video_poster_request_with_media_metadata() -> None:
+    """Validated video events should enter the shared commit path as posters."""
+
+    dispatcher = PreparationDispatcherSpy()
+    pipeline = OutputImagePipeline(
+        workflow_session_service=SimpleNamespace(
+            active_workflow_id="wf",
+            workflows={"wf": object()},
+            get_workflow=lambda _workflow_id: SimpleNamespace(metadata={}),
+        ),
+        canvas_io_service=SimpleNamespace(
+            resolve_node_meta_title=lambda _node_data: "Cube.Video",
+            resolve_workflow_label=lambda _metadata: "Workflow",
+        ),
+        output_commit_handler=SimpleNamespace(
+            commit_prepared_output_image=lambda _prepared: None,
+        ),
+        output_preparation_failure_handler=SimpleNamespace(
+            handle_output_image_preparation_failed=lambda _failure: None,
+        ),
+        output_canvas_projection_coordinator=ProjectionCoordinatorSpy(),
+        canvas_host=SimpleNamespace(),
+        preparation_dispatcher=dispatcher,  # type: ignore[arg-type]
+        commit_queue=CommitQueueSpy(),  # type: ignore[arg-type]
+        projection_scheduler=CanvasProjectionScheduler(
+            project_workflow=noop_project_workflow,
+            active_workflow_id=lambda: "wf",
+            output_canvas_visible=lambda: True,
+        ),
+    )
+
+    pipeline.submit_video_update(
+        OutputVideoUpdate(
+            workflow_id="wf",
+            workflow_payload={"save": {"_meta": {"title": "Cube.Video"}}},
+            file_path=Path("E:/out/clip.webm"),
+            node_id="save",
+            poster_bytes=b"png-poster",
+            temporary=True,
+            generation_run_id="run-1",
+            prompt_id="prompt-1",
+            client_id="client-1",
+            source_key="wf:save",
+            source_label="Video",
+            list_index=0,
+            artifact_width=320,
+            artifact_height=180,
+            duration_seconds=2.5,
+            mime_type="video/webm",
+        )
+    )
+
+    request = dispatcher.submitted[0]
+    assert request.image_bytes == b"png-poster"
+    assert request.media_kind is OutputMediaKind.VIDEO
+    assert request.duration_seconds == 2.5
+    assert request.mime_type == "video/webm"
+    assert request.temporary is True
 
 
 def test_pipeline_preserves_backend_list_index_for_prepared_output_metadata() -> None:

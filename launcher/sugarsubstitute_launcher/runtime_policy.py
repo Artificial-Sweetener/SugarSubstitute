@@ -102,7 +102,30 @@ def managed_venv_matches(
     return (
         config.get("implementation", "").casefold() == "cpython"
         and config.get("version_info") == python_version
+        and _venv_home_is_generation_local(
+            config.get("home", ""),
+            managed_python_root=layout.runtime_dir / "python",
+        )
     )
+
+
+def _venv_home_is_generation_local(
+    configured_home: str,
+    *,
+    managed_python_root: Path,
+) -> bool:
+    """Reject copied venv launchers that still target a previous generation."""
+
+    if not configured_home:
+        return False
+    try:
+        return (
+            Path(configured_home)
+            .resolve()
+            .is_relative_to(managed_python_root.resolve())
+        )
+    except OSError:
+        return False
 
 
 def verify_runtime_imports(

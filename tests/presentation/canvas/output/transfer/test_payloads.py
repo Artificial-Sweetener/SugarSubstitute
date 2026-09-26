@@ -59,6 +59,31 @@ def test_drag_and_clipboard_represent_the_same_selected_jpeg(tmp_path: Path) -> 
     assert clipboard.urls()[0].toLocalFile().endswith("selected.jpg")
 
 
+def test_video_transfer_publishes_only_the_original_file_url(tmp_path: Path) -> None:
+    """Large video media must remain file-backed in drag and clipboard payloads."""
+
+    video_path = tmp_path / "selected.webm"
+    video_path.write_bytes(b"original-video-bytes")
+    artifact = OutputTransferArtifact(
+        path=video_path,
+        mime_type="video/webm",
+        data=None,
+        image=None,
+        staged=False,
+    )
+    resolved = ResolvedOutputTransfer(uuid4(), _reference(), artifact)
+
+    drag = drag_payload_for_transfer(resolved)
+    clipboard = mime_data_for_transfer(resolved)
+
+    assert drag.items == ()
+    assert drag.preview is None
+    assert Path(drag.urls[0].toLocalFile()) == video_path
+    assert Path(clipboard.urls()[0].toLocalFile()) == video_path
+    assert clipboard.hasImage() is False
+    assert bytes(clipboard.data("video/webm").data()) == b""
+
+
 def _reference() -> CanvasContentReference:
     """Return a structurally valid immutable composition reference."""
 

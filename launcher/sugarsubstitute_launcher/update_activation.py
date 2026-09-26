@@ -22,7 +22,6 @@ from dataclasses import replace
 import logging
 import secrets
 from pathlib import Path
-import shutil
 from launcher.sugarsubstitute_launcher.payload_models import (
     StagedAppPayload,
     AppPayloadInstallResult,
@@ -65,6 +64,9 @@ from launcher.sugarsubstitute_launcher.update_activation_cleanup import (
 from launcher.sugarsubstitute_launcher.update_runtime_configuration import (
     RuntimeConfigurationSnapshot,
     select_candidate_runtime_configuration,
+)
+from launcher.sugarsubstitute_launcher.runtime_generation_copy import (
+    copy_reusable_runtime,
 )
 from sugarsubstitute_shared.installation_mutation import (
     InstallationMutationOwnership,
@@ -233,7 +235,7 @@ class PendingUpdateActivation:
         )
 
     def prepare_runtime(self, *, preserve_existing: bool = False) -> None:
-        """Prepare a clean or byte-preserving candidate runtime generation."""
+        """Prepare a clean candidate runtime with reusable immutable assets."""
 
         if self._finished or self._runtime_prepared:
             raise RuntimeError("Update activation is already finished.")
@@ -246,7 +248,10 @@ class PendingUpdateActivation:
         else:
             candidate_runtime = self.preparation_layout.runtime_dir
             if preserve_existing and self._layout.runtime_dir.is_dir():
-                shutil.copytree(self._layout.runtime_dir, candidate_runtime)
+                copy_reusable_runtime(
+                    source=self._layout.runtime_dir,
+                    destination=candidate_runtime,
+                )
             else:
                 candidate_runtime.mkdir(parents=True, exist_ok=False)
         self._runtime_prepared = True

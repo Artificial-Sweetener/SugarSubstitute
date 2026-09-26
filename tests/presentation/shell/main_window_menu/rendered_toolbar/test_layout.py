@@ -24,8 +24,8 @@ import pytest
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from substitute.application.node_behavior import FieldPresentation
-from substitute.presentation.editor.panel.overrides_controller import (
-    GlobalOverridesManager,
+from substitute.presentation.editor.panel.override_control_realizer import (
+    OverrideControlRealizer,
 )
 from substitute.presentation.widgets import SeedBox
 from tests.presentation.shell.main_window_menu.rendered_toolbar.support import (
@@ -66,8 +66,8 @@ def test_seed_aliases_preserve_seedbox_owned_toolbar_geometry() -> None:
     )
 
     try:
-        GlobalOverridesManager._apply_toolbar_widget_size(seed_spec, seed)
-        GlobalOverridesManager._apply_toolbar_widget_size(noise_seed_spec, noise_seed)
+        OverrideControlRealizer.apply_toolbar_widget_size(seed_spec, seed)
+        OverrideControlRealizer.apply_toolbar_widget_size(noise_seed_spec, noise_seed)
 
         assert seed.height() == 33
         assert noise_seed.height() == seed.height()
@@ -109,11 +109,15 @@ def test_cached_toolbar_seed_control_rebuilds_equally_across_alias_switches() ->
     try:
         _show_workflow_without_restart(harness)
         cube_geometry = _seed_override_geometry(harness)
-        _old_label, old_control = harness.manager._global_override_controls["seed"]
+        _old_label, old_control = harness.manager._toolbar_controller.registry.controls[
+            "seed"
+        ]
 
         harness.snapshot_source.set_snapshot(_override_snapshot("noise_seed"))
         direct_geometry = _seed_override_geometry(harness)
-        _new_label, direct_control = harness.manager._global_override_controls["seed"]
+        _new_label, direct_control = (
+            harness.manager._toolbar_controller.registry.controls["seed"]
+        )
 
         assert direct_control is not old_control
         assert direct_geometry == cube_geometry

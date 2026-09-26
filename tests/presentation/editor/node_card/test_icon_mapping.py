@@ -18,14 +18,16 @@
 
 from __future__ import annotations
 
-from substitute.presentation.editor.panel.node_card_builder import NodeCardBuilder
+from substitute.presentation.editor.panel.node_card.title_composer import (
+    NodeCardTitleComposer,
+)
 from substitute.presentation.resources.app_icon import AppIcon
 
 
 def test_node_card_model_icon_uses_brain_circuit_app_icon() -> None:
     """Resolve model-backed node cards to the held Brain Circuit icon."""
 
-    icon_map = getattr(NodeCardBuilder, "_ICON_MAP")
+    icon_map = NodeCardTitleComposer.ICONS
 
     assert icon_map["model"] is AppIcon.BRAIN_CIRCUIT_20_REGULAR
 
@@ -33,6 +35,6 @@ def test_node_card_model_icon_uses_brain_circuit_app_icon() -> None:
 def test_node_card_eraser_icon_uses_regular_eraser_app_icon() -> None:
     """Resolve negative-prompt cards to the held regular Eraser icon."""
 
-    icon_map = getattr(NodeCardBuilder, "_ICON_MAP")
+    icon_map = NodeCardTitleComposer.ICONS
 
     assert icon_map["eraser"] is AppIcon.ERASER_20_REGULAR

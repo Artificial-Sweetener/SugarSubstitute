@@ -27,6 +27,9 @@ from launcher.sugarsubstitute_launcher.application.installation.progress import 
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
+from launcher.sugarsubstitute_launcher.application.repair.session_recovery import (
+    SubprocessSessionRescuer,
+)
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
 from launcher.sugarsubstitute_launcher.payload_staging import AppPayloadStager
@@ -96,4 +99,5 @@ def build_installation_workflow(
         process_starter=process_starter,
         progress_observer=progress_observer,
         admit_installation=admit_installation,
+        session_rescuer=SubprocessSessionRescuer(),
     )

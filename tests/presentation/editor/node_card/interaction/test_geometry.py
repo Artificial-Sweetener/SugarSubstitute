@@ -29,7 +29,7 @@ import substitute.presentation.editor.panel.widgets.node_card as node_card_view
 from substitute.presentation.editor.panel.node_card.accordion_motion import (
     AccordionChevronWidget,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FIELD_ROW_HEIGHT,
     EDITOR_ROW_BODY_SPACING,
 )
@@ -80,7 +80,7 @@ def test_node_card_title_row_uses_shared_editor_row_geometry(
     )
 
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
 

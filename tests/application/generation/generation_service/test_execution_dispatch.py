@@ -29,7 +29,7 @@ from substitute.application.ports import (
     QueuePromptResult,
 )
 from substitute.domain.comfy_workflow import (
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     DirectWorkflowGenerationPlan,
     DirectWorkflowOutputManifest,
 )
@@ -391,7 +391,7 @@ def test_direct_plan_queues_recovery_node_as_partial_execution_target() -> None:
             "inputs": {"images": ["1", 0]},
         },
     }
-    manifest = ComfyImageOutputDiscovery().discover(
+    manifest = ComfyOutputDiscovery().discover(
         graph,
         node_definitions={
             "EmptyImage": {"output_node": False, "input": {}},

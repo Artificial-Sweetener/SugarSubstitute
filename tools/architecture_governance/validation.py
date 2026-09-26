@@ -95,6 +95,12 @@ def validate_repository(
         )
 
         diagnostics.extend(validate_input_asset_governance(root))
+    if (root / "governance/persistence/catalog.toml").is_file():
+        from tools.persistence_governance.validation import (
+            validate_persistence_governance,
+        )
+
+        diagnostics.extend(validate_persistence_governance(root))
     return sorted(
         diagnostics,
         key=lambda item: (item.path, item.rule, item.severity, item.message),

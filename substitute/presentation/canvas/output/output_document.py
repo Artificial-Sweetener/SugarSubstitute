@@ -71,6 +71,7 @@ class OutputDocumentImage:
     path: Path | None
     payload: QImage
     payload_cache_key: int
+    source_payload_cache_key: int
 
 
 class OutputCanvasDocument(QObject):
@@ -167,6 +168,7 @@ class OutputCanvasDocument(QObject):
             path=normalized_path,
             payload=QImage(image),
             payload_cache_key=image.cacheKey(),
+            source_payload_cache_key=image.cacheKey(),
         )
         if existing is not None:
             self._publish_detail_groups()
@@ -224,6 +226,30 @@ class OutputCanvasDocument(QObject):
 
         record = self._images.get(image_id)
         return None if record is None else QImage(record.payload)
+
+    def replace_representative_image(self, image_id: UUID, image: QImage) -> bool:
+        """Replace transient representative pixels under stable Output identity."""
+
+        if image.isNull() or (record := self._images.get(image_id)) is None:
+            return False
+        if record.payload_cache_key == image.cacheKey():
+            return False
+        self._document.replace_composition_image(record.composition_id, image)
+        self._images[image_id] = OutputDocumentImage(
+            image_id=image_id,
+            composition_id=record.composition_id,
+            path=record.path,
+            payload=QImage(image),
+            payload_cache_key=image.cacheKey(),
+            source_payload_cache_key=record.source_payload_cache_key,
+        )
+        log_debug(
+            _LOGGER,
+            "Output representative image replaced",
+            image_id=str(image_id),
+            composition_id=str(record.composition_id),
+        )
+        return True
 
     def image_path(self, image_id: UUID) -> Path | None:
         """Return the authorized canonical asset path for one Output image."""
@@ -377,7 +403,9 @@ class OutputCanvasDocument(QObject):
     ) -> bool:
         """Compare host payload identity without inspecting document resources."""
 
-        return record.payload_cache_key == image.cacheKey() and record.path == path
+        return (
+            record.source_payload_cache_key == image.cacheKey() and record.path == path
+        )
 
     def _composition_ids_for(self, image_ids: tuple[UUID, ...]) -> tuple[UUID, ...]:
         """Resolve ordered unique application identities to live composition IDs."""

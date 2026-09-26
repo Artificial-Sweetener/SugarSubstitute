@@ -95,13 +95,13 @@ def test_rebuild_active_override_controls_removes_inactive_controls(
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
-    removed_label, removed_widget = manager._global_override_controls["cfg"]
+    removed_label, removed_widget = manager._toolbar_controller.registry.controls["cfg"]
 
     workflow.global_overrides = {"seed": {"value": 7, "mode": "global"}}
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
 
-    assert set(manager._global_override_controls) == {"seed"}
+    assert set(manager._toolbar_controller.registry.controls) == {"seed"}
     assert removed_label.deleted is True
     assert removed_widget.deleted is True
     assert removed_label not in layout.widgets
@@ -162,8 +162,8 @@ def test_rebuild_active_override_controls_reorders_reused_controls(
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
-    seed_control = manager._global_override_controls["seed"]
-    cfg_control = manager._global_override_controls["cfg"]
+    seed_control = manager._toolbar_controller.registry.controls["seed"]
+    cfg_control = manager._toolbar_controller.registry.controls["cfg"]
 
     source.snapshot = _snapshot(
         _field_spec(
@@ -182,8 +182,8 @@ def test_rebuild_active_override_controls_reorders_reused_controls(
     )
     manager.rebuild_active_override_controls()
 
-    assert manager._global_override_controls["seed"] == seed_control
-    assert manager._global_override_controls["cfg"] == cfg_control
+    assert manager._toolbar_controller.registry.controls["seed"] == seed_control
+    assert manager._toolbar_controller.registry.controls["cfg"] == cfg_control
     assert layout.widgets == [
         override_button,
         cfg_control[0],
@@ -241,7 +241,7 @@ def test_rebuild_active_override_controls_inserts_after_layout_anchor(
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
 
-    seed_label, seed_widget = manager._global_override_controls["seed"]
+    seed_label, seed_widget = manager._toolbar_controller.registry.controls["seed"]
     assert layout.widgets == [anchor, seed_label, seed_widget]
 
 
@@ -296,7 +296,7 @@ def test_rebuild_active_override_controls_replaces_changed_field_contract(
     manager.override_dropdown_btn = override_button
     manager.sync_state_from_workflow()
     manager.rebuild_active_override_controls()
-    old_label, old_widget = manager._global_override_controls["seed"]
+    old_label, old_widget = manager._toolbar_controller.registry.controls["seed"]
 
     source.snapshot = _snapshot(
         _field_spec(
@@ -312,6 +312,9 @@ def test_rebuild_active_override_controls_replaces_changed_field_contract(
     manager.rebuild_active_override_controls()
 
     assert build_calls == ["STRING", "INT"]
-    assert manager._global_override_controls["seed"] != (old_label, old_widget)
+    assert manager._toolbar_controller.registry.controls["seed"] != (
+        old_label,
+        old_widget,
+    )
     assert old_label.deleted is True
     assert old_widget.deleted is True

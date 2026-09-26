@@ -237,7 +237,7 @@ def test_refresh_prompt_scene_diagnostics_scopes_errors_and_autocomplete() -> No
         current_behavior_snapshot=lambda: behavior_snapshot,
     )
     panel._prompt_scene_diagnostics_controller = (
-        panel_module.EditorPanelPromptSceneDiagnosticsController(panel)
+        mod.EditorPanelPromptSceneDiagnosticsController(panel)
     )
 
     panel_module.EditorPanel.refresh_prompt_scene_diagnostics(panel)
@@ -293,7 +293,7 @@ def test_prompt_scene_queue_request_forwards_only_runnable_scene_keys() -> None:
         current_behavior_snapshot=lambda: behavior_snapshot,
     )
     panel._prompt_scene_diagnostics_controller = (
-        panel_module.EditorPanelPromptSceneDiagnosticsController(panel)
+        mod.EditorPanelPromptSceneDiagnosticsController(panel)
     )
 
     panel_module.EditorPanel._handle_prompt_scene_queue_requested(panel, "portrait")
@@ -315,7 +315,7 @@ def test_prompt_scene_queue_request_without_analysis_is_suppressed() -> None:
         current_behavior_snapshot=lambda: None,
     )
     panel._prompt_scene_diagnostics_controller = (
-        panel_module.EditorPanelPromptSceneDiagnosticsController(panel)
+        mod.EditorPanelPromptSceneDiagnosticsController(panel)
     )
 
     panel_module.EditorPanel._handle_prompt_scene_queue_requested(panel, "portrait")

@@ -26,17 +26,19 @@ from substitute.domain.comfy_workflow.output_manifest import (
     DirectWorkflowGenerationPlan,
 )
 from substitute.domain.common import JsonObject
+from substitute.domain.output_media import OutputMediaKind
 
 
 @dataclass(frozen=True, slots=True)
-class RecoveryOutputIdentity:
-    """Bind one execution-only recovery node to its authored source socket."""
+class ProjectedOutputIdentity:
+    """Bind one executable output node to its authored visual source."""
 
-    recovery_node_id: str
+    node_id: str
     source_socket: ComfyOutputSocket
     source_key: str
     source_label: str
     order: int
+    media_kind: OutputMediaKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,11 +47,11 @@ class DirectWorkflowExecutionProjection:
 
     prompt: JsonObject
     execution_targets: tuple[str, ...]
-    recovery_outputs: tuple[RecoveryOutputIdentity, ...]
+    output_sources: tuple[ProjectedOutputIdentity, ...]
 
 
 class DirectWorkflowExecutionProjector:
-    """Inject standard temporary image recovery nodes without mutating a plan."""
+    """Project typed visual sources without mutating the authored plan."""
 
     def project(
         self,
@@ -59,8 +61,20 @@ class DirectWorkflowExecutionProjector:
 
         prompt = deepcopy(plan.authored_api_graph)
         occupied_ids = {str(node_id) for node_id in prompt}
-        recoveries: list[RecoveryOutputIdentity] = []
+        output_sources: list[ProjectedOutputIdentity] = []
         for source in plan.output_manifest.sources:
+            if not source.requires_image_recovery:
+                output_sources.append(
+                    ProjectedOutputIdentity(
+                        node_id=source.output_node_id,
+                        source_socket=source.socket,
+                        source_key=source.source_key,
+                        source_label=source.label,
+                        order=source.order,
+                        media_kind=source.media_kind,
+                    )
+                )
+                continue
             recovery_node_id = _allocate_recovery_node_id(
                 order=source.order,
                 occupied_ids=occupied_ids,
@@ -76,22 +90,27 @@ class DirectWorkflowExecutionProjector:
                 },
                 "_meta": {"title": source.label},
             }
-            recoveries.append(
-                RecoveryOutputIdentity(
-                    recovery_node_id=recovery_node_id,
+            output_sources.append(
+                ProjectedOutputIdentity(
+                    node_id=recovery_node_id,
                     source_socket=source.socket,
                     source_key=source.source_key,
                     source_label=source.label,
                     order=source.order,
+                    media_kind=source.media_kind,
                 )
             )
         return DirectWorkflowExecutionProjection(
             prompt=prompt,
             execution_targets=(
                 *plan.output_manifest.preserved_output_node_ids,
-                *(recovery.recovery_node_id for recovery in recoveries),
+                *(
+                    source.node_id
+                    for source in output_sources
+                    if source.media_kind is OutputMediaKind.IMAGE
+                ),
             ),
-            recovery_outputs=tuple(recoveries),
+            output_sources=tuple(output_sources),
         )
 
 
@@ -114,5 +133,5 @@ def _allocate_recovery_node_id(
 __all__ = [
     "DirectWorkflowExecutionProjection",
     "DirectWorkflowExecutionProjector",
-    "RecoveryOutputIdentity",
+    "ProjectedOutputIdentity",
 ]

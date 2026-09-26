@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from dataclasses import dataclass
 
 from substitute.application.prompt_editor.autocomplete.queries import (
@@ -29,6 +30,10 @@ from substitute.application.prompt_editor.document.selection import (
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptSegmentView,
+)
+from substitute.application.prompt_editor.document.visible_source import (
+    PromptVisibleSource,
+    map_prompt_source_for_display,
 )
 from substitute.application.prompt_editor.editing.text_ranges import (
     line_end_within_bounds,
@@ -91,14 +96,23 @@ def autocomplete_tag_range_at_cursor(
     if cursor_position < tag_start:
         return None
 
-    prefix = text[tag_start:cursor_position]
+    visible_source = map_prompt_source_for_display(
+        text[tag_start:active_tag_end], source_start=tag_start
+    )
+    visible_cursor_index = bisect_left(visible_source.source_positions, cursor_position)
+    if (
+        visible_cursor_index >= len(visible_source.source_positions)
+        or visible_source.source_positions[visible_cursor_index] != cursor_position
+    ):
+        return None
+    prefix = visible_source.display_text[:visible_cursor_index]
     if len(prefix) < minimum_prefix_length:
         return None
 
     fallback_query = _autocomplete_suffix_fallback_query(
         text=text,
         prefix=prefix,
-        prefix_start=tag_start,
+        visible_source=visible_source,
         cursor_position=cursor_position,
         active_tag_end=active_tag_end,
         minimum_prefix_length=minimum_prefix_length,
@@ -116,7 +130,7 @@ def _autocomplete_suffix_fallback_query(
     *,
     text: str,
     prefix: str,
-    prefix_start: int,
+    visible_source: PromptVisibleSource,
     cursor_position: int,
     active_tag_end: int,
     minimum_prefix_length: int,
@@ -131,7 +145,7 @@ def _autocomplete_suffix_fallback_query(
         return None
     return PromptAutocompleteFallbackQuery(
         prefix=suffix,
-        word_start=prefix_start + suffix_start,
+        word_start=visible_source.source_positions[suffix_start],
         word_end=cursor_position,
         active_tag_end=_autocomplete_local_token_end(
             text,

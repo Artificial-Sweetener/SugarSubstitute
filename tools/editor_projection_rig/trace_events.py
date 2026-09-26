@@ -73,6 +73,25 @@ class ProjectionTraceRecorder:
             )
         )
 
+    def record_elapsed_between(
+        self,
+        timing_name: str,
+        *,
+        start_event: str,
+        end_event: str,
+    ) -> float | None:
+        """Record elapsed time from one event start through another event end."""
+
+        start = next(
+            (event for event in self.events if event.name == start_event), None
+        )
+        end = next((event for event in self.events if event.name == end_event), None)
+        if start is None or end is None:
+            return None
+        elapsed_ms = max(0.0, end.at_ms + (end.duration_ms or 0.0) - start.at_ms)
+        self.timings_ms[timing_name] = round(elapsed_ms, 3)
+        return elapsed_ms
+
     @contextmanager
     def timed(self, name: str, **details: Any) -> Iterator[None]:
         """Record elapsed time for a named phase and emit an ordered event."""

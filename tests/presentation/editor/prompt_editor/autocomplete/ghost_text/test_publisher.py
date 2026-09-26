@@ -144,6 +144,36 @@ def test_autocomplete_ghost_text_publisher_trims_existing_right_text() -> None:
     assert editor.autocomplete_preview_state is None
 
 
+def test_autocomplete_ghost_text_trims_escaped_parenthesis_right_text() -> None:
+    """Treat storage escapes as invisible when comparing an existing suffix."""
+
+    mod = import_autocomplete_ghost_text_module()
+    source_text = r"cat \(animal\)"
+    word_end = source_text.index("animal")
+    editor = TextAutocompleteEditorDouble(source_text)
+    editor.cursor_position = word_end
+    publisher = mod.PromptAutocompleteGhostTextPublisher(
+        publish_preview_state=editor.set_autocomplete_preview_state
+    )
+
+    publisher.publish_for_session(
+        AutocompleteSession(
+            mode="tag",
+            suggestions=(PromptAutocompleteSuggestion("cat_(animal)", 100),),
+            selected_index=0,
+            word_start=0,
+            word_end=word_end,
+            active_tag_end=len(source_text),
+            prefix="cat (",
+        ),
+        source_snapshot=autocomplete_ghost_text_source_snapshot(
+            mod, source_text, cursor_position=word_end
+        ),
+    )
+
+    assert editor.autocomplete_preview_state is None
+
+
 def test_autocomplete_ghost_text_publisher_publishes_wildcard_preview() -> None:
     """Publish wildcard completion with the closing brace."""
 

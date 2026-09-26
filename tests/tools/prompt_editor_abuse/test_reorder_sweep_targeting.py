@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import pytest
 from PySide6.QtCore import QPointF, QRect, QRectF, QSizeF
 
@@ -34,6 +35,7 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_placement_g
 )
 from tools.prompt_editor_abuse.reorder_sweep_targeting import (
     pointer_for_reorder_sweep_placement,
+    wait_for_reorder_sweep_pointer_plan,
 )
 
 
@@ -103,6 +105,90 @@ def test_sweep_pointer_reports_a_genuinely_unreachable_target() -> None:
             pointer_bounds=QRect(0, 0, 100, 100),
             active_placement_id=line.placement_id,
         )
+
+
+def test_sweep_pointer_can_plan_before_queued_moves_publish_active_state() -> None:
+    """Queued forward moves use neutral precedence until their single publish."""
+
+    rect = QRectF(0, 36, 100, 16)
+    blank = _placement(
+        PromptGapBlankLineDropTarget(gap_index=1, blank_line_index=1),
+        rect,
+        ordinal=17,
+    )
+    line = _placement(
+        PromptLineDropTarget(row_index=1, insertion_index=2), rect, ordinal=5
+    )
+    snapshot = PromptReorderPlacementSnapshot(
+        placements=(blank, line),
+        visual_line_count=3,
+        layout_width=100,
+        content_height=100,
+    )
+
+    pointer = pointer_for_reorder_sweep_placement(
+        snapshot,
+        blank,
+        drag_intent_size=QSizeF(50, 10),
+        drag_grab_offset=QPointF(25, 5),
+        pointer_bounds=QRect(0, 0, 100, 100),
+        active_placement_id=None,
+    )
+
+    assert (
+        placement_for_drag_rect(
+            snapshot,
+            QRectF(pointer.x() - 25, pointer.y() - 5, 50, 10),
+            active_placement_id=None,
+        )
+        == blank
+    )
+
+
+def test_forward_sweep_waits_for_a_coherent_published_topology() -> None:
+    """A provisional covered lane must be replaced before pointer measurement."""
+
+    rect = QRectF(0, 36, 100, 16)
+    line = _placement(
+        PromptLineDropTarget(row_index=1, insertion_index=2), rect, ordinal=5
+    )
+    blank = _placement(
+        PromptGapBlankLineDropTarget(gap_index=1, blank_line_index=1),
+        rect,
+        ordinal=17,
+    )
+    settled_blank = _placement(
+        blank.target,
+        QRectF(0, 60, 100, 16),
+        ordinal=17,
+    )
+    provisional = _snapshot(line, blank)
+    settled = _snapshot(line, settled_blank)
+    published = provisional
+
+    def current_snapshot() -> PromptReorderPlacementSnapshot:
+        """Return the topology currently published by the fake geometry owner."""
+
+        return published
+
+    def publish_settled_topology(predicate: Callable[[], bool]) -> bool:
+        """Prove the first observation rejects before publishing the next frame."""
+
+        nonlocal published
+        assert predicate() is False
+        published = settled
+        return bool(predicate())
+
+    snapshot, pointers = wait_for_reorder_sweep_pointer_plan(
+        snapshot_supplier=current_snapshot,
+        drag_intent_size=QSizeF(50, 10),
+        drag_grab_offset=QPointF(25, 5),
+        pointer_bounds=QRect(0, 0, 100, 100),
+        wait=publish_settled_topology,
+    )
+
+    assert snapshot is settled
+    assert len(pointers) == len(settled.placements)
 
 
 def _placement(

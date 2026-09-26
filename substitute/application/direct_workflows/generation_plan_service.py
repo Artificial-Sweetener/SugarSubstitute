@@ -31,7 +31,7 @@ from substitute.domain.comfy_workflow.editor_definitions import (
 )
 from substitute.domain.comfy_workflow.node_roles import WorkflowNodeExecutionRole
 from substitute.domain.comfy_workflow.output_manifest import (
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     DirectWorkflowGenerationPlan,
 )
 
@@ -43,19 +43,19 @@ class DirectWorkflowGenerationPlanService:
         self,
         builder: ComfyApiGraphBuilder | None = None,
         *,
-        output_discovery: ComfyImageOutputDiscovery | None = None,
+        output_discovery: ComfyOutputDiscovery | None = None,
         node_definition_hydrator: NodeDefinitionHydrator | None = None,
         node_definition_gateway: NodeDefinitionGateway | None = None,
     ) -> None:
         """Store focused graph-planning collaborators."""
 
         self._builder = builder or ComfyApiGraphBuilder()
-        self._output_discovery = output_discovery or ComfyImageOutputDiscovery()
+        self._output_discovery = output_discovery or ComfyOutputDiscovery()
         self._node_definition_hydrator = node_definition_hydrator
         self._node_definition_gateway = node_definition_gateway
 
     def build(self, document: DirectWorkflowState) -> DirectWorkflowGenerationPlan:
-        """Return an authored graph and immutable image-output manifest."""
+        """Return an authored graph and immutable visual-output manifest."""
 
         buffer = document.buffer
         if not isinstance(buffer, Mapping):

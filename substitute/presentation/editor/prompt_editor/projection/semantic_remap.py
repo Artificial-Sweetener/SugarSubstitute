@@ -25,19 +25,14 @@ from substitute.application.prompt_editor.diagnostics.models import PromptDiagno
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptEmphasisView,
-    PromptLoraView,
     PromptRegionStructureView,
-    PromptSegmentView,
     PromptSyntaxSpanView,
-    PromptWildcardView,
 )
 from substitute.application.prompt_editor.projection.syntax_models import (
     PromptEmphasisRendererView,
-    PromptLoraRendererSpanView,
     PromptLoraRendererView,
     PromptSyntaxRendererView,
     PromptSyntaxRenderPlan,
-    PromptWildcardRendererSpanView,
     PromptWildcardRendererView,
 )
 from substitute.application.prompt_editor.editing.region_structure_edits import (
@@ -47,7 +42,19 @@ from substitute.application.prompt_editor.editing.region_structure_edits import 
 )
 
 from .diagnostic_remap import remap_diagnostics_after_source_edit
+from .lora_semantic_remap import (
+    remap_lora_renderer_spans_for_edit,
+    remap_lora_views_for_edit,
+)
+from .segment_semantic_remap import remap_segment_views_for_edit
+from .source_edit_syntax import SYNTAX_SENSITIVE_CHARACTERS
 from .source_shifted_sequence import remap_source_sequence
+from .wildcard_semantic_remap import (
+    EditedWildcardIdentity,
+    edited_wildcard_identity,
+    remap_wildcard_renderer_spans_for_edit,
+    remap_wildcard_views_for_edit,
+)
 
 type PromptProjectionOptimisticPromptState = tuple[
     PromptDocumentView, PromptSyntaxRenderPlan
@@ -122,6 +129,20 @@ class PromptProjectionSemanticRemapper:
                 end=end,
             )
         delta = len(replacement_text) - (end - start)
+        preserved_emphasis_ranges = _preserved_emphasis_content_ranges(
+            current_document_view,
+            previous_text=previous_text,
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+        )
+        edited_wildcard = edited_wildcard_identity(
+            current_document_view.wildcard_spans,
+            next_text=next_text,
+            start=start,
+            end=end,
+            delta=delta,
+        )
         region_structure = (
             rebuild_region_structure_after_edit(
                 previous_text,
@@ -140,12 +161,16 @@ class PromptProjectionSemanticRemapper:
             end=end,
             delta=delta,
             region_structure=region_structure,
+            preserved_emphasis_ranges=preserved_emphasis_ranges,
+            edited_wildcard=edited_wildcard,
         )
         render_plan = _optimistic_render_plan_for_edit(
             current_render_plan,
             start=start,
             end=end,
             delta=delta,
+            preserved_emphasis_ranges=preserved_emphasis_ranges,
+            edited_wildcard=edited_wildcard,
         )
         return document_view, render_plan
 
@@ -199,14 +224,14 @@ class PromptProjectionSemanticRemapper:
         end: int,
         delta: int,
     ) -> tuple[int, int] | None:
-        """Return an expanded raw-token range aligned across one source edit."""
+        """Shift an expanded token past insertions before its opening boundary."""
 
         if expanded_source_range is None:
             return None
 
         range_start, range_end = expanded_source_range
         insertion = start == end
-        if end <= range_start and not (insertion and start == range_start):
+        if end <= range_start:
             return range_start + delta, range_end + delta
         if start >= range_end and not (insertion and start == range_end):
             return expanded_source_range
@@ -235,6 +260,34 @@ class PromptProjectionSemanticRemapper:
         )
 
 
+def _preserved_emphasis_content_ranges(
+    document_view: PromptDocumentView,
+    *,
+    previous_text: str,
+    start: int,
+    end: int,
+    replacement_text: str,
+) -> frozenset[tuple[int, int]]:
+    """Identify emphasis containers unchanged by one ordinary content insertion."""
+
+    if (
+        start != end
+        or len(replacement_text) != 1
+        or not replacement_text.isprintable()
+        or replacement_text in SYNTAX_SENSITIVE_CHARACTERS
+        or replacement_text in ",[]"
+        or (start > 0 and previous_text[start - 1] == "\\")
+    ):
+        return frozenset()
+    preserved_ranges: set[tuple[int, int]] = set()
+    for span in document_view.emphasis_spans:
+        if span.outer_start >= start:
+            break
+        if span.content_start <= start <= span.content_end:
+            preserved_ranges.add((span.outer_start, span.outer_end))
+    return frozenset(preserved_ranges)
+
+
 def _optimistic_document_view_for_edit(
     document_view: PromptDocumentView,
     *,
@@ -243,12 +296,14 @@ def _optimistic_document_view_for_edit(
     end: int,
     delta: int,
     region_structure: PromptRegionStructureView | None = None,
+    preserved_emphasis_ranges: frozenset[tuple[int, int]] = frozenset(),
+    edited_wildcard: EditedWildcardIdentity | None = None,
 ) -> PromptDocumentView:
-    """Return a document view with non-overlapping semantic spans remapped."""
+    """Return a document view with safe content spans retained across edits."""
 
     return PromptDocumentView(
         source_text=next_text,
-        segments=_remap_segment_views_for_edit(
+        segments=remap_segment_views_for_edit(
             document_view.segments,
             start=start,
             end=end,
@@ -259,14 +314,16 @@ def _optimistic_document_view_for_edit(
             start=start,
             end=end,
             delta=delta,
+            preserved_emphasis_ranges=preserved_emphasis_ranges,
         ),
-        wildcard_spans=_remap_wildcard_views_for_edit(
+        wildcard_spans=remap_wildcard_views_for_edit(
             document_view.wildcard_spans,
             start=start,
             end=end,
             delta=delta,
+            edited_wildcard=edited_wildcard,
         ),
-        lora_spans=_remap_lora_views_for_edit(
+        lora_spans=remap_lora_views_for_edit(
             document_view.lora_spans,
             start=start,
             end=end,
@@ -277,6 +334,8 @@ def _optimistic_document_view_for_edit(
             start=start,
             end=end,
             delta=delta,
+            preserved_emphasis_ranges=preserved_emphasis_ranges,
+            edited_wildcard=edited_wildcard,
         ),
         region_structure=(
             region_structure
@@ -298,6 +357,8 @@ def _optimistic_render_plan_for_edit(
     start: int,
     end: int,
     delta: int,
+    preserved_emphasis_ranges: frozenset[tuple[int, int]] = frozenset(),
+    edited_wildcard: EditedWildcardIdentity | None = None,
 ) -> PromptSyntaxRenderPlan:
     """Return a render plan with non-overlapping renderer spans remapped."""
 
@@ -307,6 +368,8 @@ def _optimistic_render_plan_for_edit(
             start=start,
             end=end,
             delta=delta,
+            preserved_emphasis_ranges=preserved_emphasis_ranges,
+            edited_wildcard=edited_wildcard,
         ),
         renderer_views=tuple(
             _remap_renderer_view_for_edit(
@@ -314,6 +377,8 @@ def _optimistic_render_plan_for_edit(
                 start=start,
                 end=end,
                 delta=delta,
+                preserved_emphasis_ranges=preserved_emphasis_ranges,
+                edited_wildcard=edited_wildcard,
             )
             for renderer_view in render_plan.renderer_views
         ),
@@ -327,6 +392,8 @@ def _remap_renderer_view_for_edit(
     start: int,
     end: int,
     delta: int,
+    preserved_emphasis_ranges: frozenset[tuple[int, int]] = frozenset(),
+    edited_wildcard: EditedWildcardIdentity | None = None,
 ) -> PromptSyntaxRendererView:
     """Return one renderer view remapped across a source edit."""
 
@@ -335,6 +402,8 @@ def _remap_renderer_view_for_edit(
         start=start,
         end=end,
         delta=delta,
+        preserved_emphasis_ranges=preserved_emphasis_ranges,
+        edited_wildcard=edited_wildcard,
     )
     if isinstance(renderer_view, PromptEmphasisRendererView):
         return replace(
@@ -345,24 +414,26 @@ def _remap_renderer_view_for_edit(
                 start=start,
                 end=end,
                 delta=delta,
+                preserved_emphasis_ranges=preserved_emphasis_ranges,
             ),
         )
     if isinstance(renderer_view, PromptWildcardRendererView):
         return replace(
             renderer_view,
             syntax_spans=syntax_spans,
-            wildcard_spans=_remap_wildcard_renderer_spans_for_edit(
+            wildcard_spans=remap_wildcard_renderer_spans_for_edit(
                 renderer_view.wildcard_spans,
                 start=start,
                 end=end,
                 delta=delta,
+                edited_wildcard=edited_wildcard,
             ),
         )
     if isinstance(renderer_view, PromptLoraRendererView):
         return replace(
             renderer_view,
             syntax_spans=syntax_spans,
-            lora_spans=_remap_lora_renderer_spans_for_edit(
+            lora_spans=remap_lora_renderer_spans_for_edit(
                 renderer_view.lora_spans,
                 start=start,
                 end=end,
@@ -372,33 +443,34 @@ def _remap_renderer_view_for_edit(
     return replace(renderer_view, syntax_spans=syntax_spans)
 
 
-def _remap_segment_views_for_edit(
-    segments: Sequence[PromptSegmentView],
-    *,
-    start: int,
-    end: int,
-    delta: int,
-) -> Sequence[PromptSegmentView]:
-    """Return segment ranges that remain valid after one source edit."""
-
-    return remap_source_sequence(
-        segments,
-        start=start,
-        end=end,
-        delta=delta,
-        source_range=_segment_source_range,
-        shift_item=_shift_segment_view,
-    )
-
-
 def _remap_syntax_spans_for_edit(
     spans: Sequence[PromptSyntaxSpanView],
     *,
     start: int,
     end: int,
     delta: int,
+    preserved_emphasis_ranges: frozenset[tuple[int, int]] = frozenset(),
+    edited_wildcard: EditedWildcardIdentity | None = None,
 ) -> Sequence[PromptSyntaxSpanView]:
     """Return syntax spans that remain valid after one source edit."""
+
+    def remap_preserved_emphasis(
+        span: PromptSyntaxSpanView, offset: int
+    ) -> PromptSyntaxSpanView | None:
+        """Extend a validated decorated container across its content edit."""
+
+        if (
+            edited_wildcard is not None
+            and span.kind == "wildcard"
+            and (span.start, span.end) == edited_wildcard[0]
+        ):
+            return replace(span, end=span.end + offset)
+        if (
+            span.kind != "emphasis"
+            or (span.start, span.end) not in preserved_emphasis_ranges
+        ):
+            return None
+        return replace(span, end=span.end + offset)
 
     return remap_source_sequence(
         spans,
@@ -407,6 +479,11 @@ def _remap_syntax_spans_for_edit(
         delta=delta,
         source_range=_syntax_span_source_range,
         shift_item=_shift_syntax_span,
+        remap_overlap=(
+            remap_preserved_emphasis
+            if preserved_emphasis_ranges or edited_wildcard is not None
+            else None
+        ),
     )
 
 
@@ -416,8 +493,24 @@ def _remap_emphasis_views_for_edit(
     start: int,
     end: int,
     delta: int,
+    preserved_emphasis_ranges: frozenset[tuple[int, int]] = frozenset(),
 ) -> Sequence[PromptEmphasisView]:
     """Return emphasis spans that remain valid after one source edit."""
+
+    def remap_preserved_emphasis(
+        span: PromptEmphasisView, offset: int
+    ) -> PromptEmphasisView | None:
+        """Extend a validated emphasis span across its content insertion."""
+
+        if (span.outer_start, span.outer_end) not in preserved_emphasis_ranges:
+            return None
+        return replace(
+            span,
+            outer_end=span.outer_end + offset,
+            content_end=span.content_end + offset,
+            weight_start=span.weight_start + offset,
+            weight_end=span.weight_end + offset,
+        )
 
     return remap_source_sequence(
         spans,
@@ -426,82 +519,7 @@ def _remap_emphasis_views_for_edit(
         delta=delta,
         source_range=_emphasis_source_range,
         shift_item=_shift_emphasis_view,
-    )
-
-
-def _remap_wildcard_views_for_edit(
-    spans: Sequence[PromptWildcardView],
-    *,
-    start: int,
-    end: int,
-    delta: int,
-) -> Sequence[PromptWildcardView]:
-    """Return wildcard spans that remain valid after one source edit."""
-
-    return remap_source_sequence(
-        spans,
-        start=start,
-        end=end,
-        delta=delta,
-        source_range=_wildcard_source_range,
-        shift_item=_shift_wildcard_view,
-    )
-
-
-def _remap_lora_views_for_edit(
-    spans: Sequence[PromptLoraView],
-    *,
-    start: int,
-    end: int,
-    delta: int,
-) -> Sequence[PromptLoraView]:
-    """Return LoRA spans that remain valid after one source edit."""
-
-    return remap_source_sequence(
-        spans,
-        start=start,
-        end=end,
-        delta=delta,
-        source_range=_lora_source_range,
-        shift_item=_shift_lora_view,
-    )
-
-
-def _remap_wildcard_renderer_spans_for_edit(
-    spans: Sequence[PromptWildcardRendererSpanView],
-    *,
-    start: int,
-    end: int,
-    delta: int,
-) -> Sequence[PromptWildcardRendererSpanView]:
-    """Return wildcard renderer spans that remain valid after one source edit."""
-
-    return remap_source_sequence(
-        spans,
-        start=start,
-        end=end,
-        delta=delta,
-        source_range=_wildcard_renderer_source_range,
-        shift_item=_shift_wildcard_renderer_span,
-    )
-
-
-def _remap_lora_renderer_spans_for_edit(
-    spans: Sequence[PromptLoraRendererSpanView],
-    *,
-    start: int,
-    end: int,
-    delta: int,
-) -> Sequence[PromptLoraRendererSpanView]:
-    """Return LoRA renderer spans that remain valid after one source edit."""
-
-    return remap_source_sequence(
-        spans,
-        start=start,
-        end=end,
-        delta=delta,
-        source_range=_lora_renderer_source_range,
-        shift_item=_shift_lora_renderer_span,
+        remap_overlap=remap_preserved_emphasis if preserved_emphasis_ranges else None,
     )
 
 
@@ -547,31 +565,6 @@ def _remap_optional_position_after_edit(
     )
 
 
-def _segment_source_range(segment: PromptSegmentView) -> tuple[int, int]:
-    """Return one segment's selection range for lazy remapping."""
-
-    return segment.selection_start, segment.selection_end
-
-
-def _shift_segment_view(
-    segment: PromptSegmentView,
-    delta: int,
-) -> PromptSegmentView:
-    """Return one unchanged segment shifted by a uniform source delta."""
-
-    return PromptSegmentView(
-        index=segment.index,
-        text=segment.text,
-        display_text=segment.display_text,
-        display_source_start=segment.display_source_start + delta,
-        display_source_end=segment.display_source_end + delta,
-        selection_start=segment.selection_start + delta,
-        selection_end=segment.selection_end + delta,
-        separator_text_after=segment.separator_text_after,
-        has_separator_after=segment.has_separator_after,
-    )
-
-
 def _syntax_span_source_range(span: PromptSyntaxSpanView) -> tuple[int, int]:
     """Return one syntax span's source range for lazy remapping."""
 
@@ -598,18 +591,6 @@ def _emphasis_source_range(span: PromptEmphasisView) -> tuple[int, int]:
     return span.outer_start, span.outer_end
 
 
-def _wildcard_source_range(span: PromptWildcardView) -> tuple[int, int]:
-    """Return one wildcard span's outer source range."""
-
-    return span.outer_start, span.outer_end
-
-
-def _lora_source_range(span: PromptLoraView) -> tuple[int, int]:
-    """Return one LoRA span's outer source range."""
-
-    return span.outer_start, span.outer_end
-
-
 def _shift_emphasis_view(span: PromptEmphasisView, delta: int) -> PromptEmphasisView:
     """Return one emphasis view shifted by a uniform source delta."""
 
@@ -622,92 +603,6 @@ def _shift_emphasis_view(span: PromptEmphasisView, delta: int) -> PromptEmphasis
         weight_start=span.weight_start + delta,
         weight_end=span.weight_end + delta,
     )
-
-
-def _shift_wildcard_view(span: PromptWildcardView, delta: int) -> PromptWildcardView:
-    """Return one wildcard view shifted by a uniform source delta."""
-
-    return replace(
-        span,
-        outer_start=span.outer_start + delta,
-        outer_end=span.outer_end + delta,
-        content_start=span.content_start + delta,
-        content_end=span.content_end + delta,
-    )
-
-
-def _shift_lora_view(span: PromptLoraView, delta: int) -> PromptLoraView:
-    """Return one LoRA view shifted by a uniform source delta."""
-
-    return replace(
-        span,
-        outer_start=span.outer_start + delta,
-        outer_end=span.outer_end + delta,
-        name_start=span.name_start + delta,
-        name_end=span.name_end + delta,
-        first_weight_start=span.first_weight_start + delta,
-        first_weight_end=span.first_weight_end + delta,
-        second_weight_start=_shift_optional(span.second_weight_start, delta),
-        second_weight_end=_shift_optional(span.second_weight_end, delta),
-        block_weights_start=_shift_optional(span.block_weights_start, delta),
-        block_weights_end=_shift_optional(span.block_weights_end, delta),
-    )
-
-
-def _wildcard_renderer_source_range(
-    span: PromptWildcardRendererSpanView,
-) -> tuple[int, int]:
-    """Return one wildcard renderer span's outer source range."""
-
-    return span.outer_start, span.outer_end
-
-
-def _shift_wildcard_renderer_span(
-    span: PromptWildcardRendererSpanView,
-    delta: int,
-) -> PromptWildcardRendererSpanView:
-    """Return one wildcard renderer span shifted uniformly."""
-
-    return replace(
-        span,
-        outer_start=span.outer_start + delta,
-        outer_end=span.outer_end + delta,
-        content_start=span.content_start + delta,
-        content_end=span.content_end + delta,
-    )
-
-
-def _lora_renderer_source_range(
-    span: PromptLoraRendererSpanView,
-) -> tuple[int, int]:
-    """Return one LoRA renderer span's outer source range."""
-
-    return span.outer_start, span.outer_end
-
-
-def _shift_lora_renderer_span(
-    span: PromptLoraRendererSpanView,
-    delta: int,
-) -> PromptLoraRendererSpanView:
-    """Return one LoRA renderer span shifted uniformly."""
-
-    return replace(
-        span,
-        outer_start=span.outer_start + delta,
-        outer_end=span.outer_end + delta,
-        name_start=span.name_start + delta,
-        name_end=span.name_end + delta,
-        first_weight_start=span.first_weight_start + delta,
-        first_weight_end=span.first_weight_end + delta,
-        second_weight_start=_shift_optional(span.second_weight_start, delta),
-        second_weight_end=_shift_optional(span.second_weight_end, delta),
-    )
-
-
-def _shift_optional(position: int | None, delta: int) -> int | None:
-    """Return one optional downstream position shifted uniformly."""
-
-    return None if position is None else position + delta
 
 
 def _range_overlaps_edit(

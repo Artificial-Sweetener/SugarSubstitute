@@ -173,6 +173,9 @@ class MainWindow(QMainWindow):
                 configure_output_thumbnail_context=(
                     dependencies.configure_output_thumbnail_context
                 ),
+                video_settings_provider=(
+                    lambda: self.output_preference_service.load_preferences().video
+                ),
             )
         self.workflow_tab_service = workspace_parts.workflow_tab_service
         self.workflow_session_service = workspace_parts.workflow_session_service
