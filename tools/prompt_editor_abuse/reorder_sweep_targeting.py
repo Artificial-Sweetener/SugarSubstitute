@@ -113,7 +113,15 @@ def pointer_for_reorder_sweep_placement(
     x_samples = _axis_samples(
         placement.hit_rect.left(),
         placement.hit_rect.right(),
-        (rect.left() for rect in competing_rects),
+        (
+            *(rect.left() for rect in competing_rects),
+            placement.insertion_anchor_rect.center().x(),
+            *(
+                candidate.insertion_anchor_rect.center().x()
+                for candidate in snapshot.placements
+                if candidate.placement_id != placement.placement_id
+            ),
+        ),
         (rect.right() for rect in competing_rects),
     )
     y_samples = _axis_samples(
