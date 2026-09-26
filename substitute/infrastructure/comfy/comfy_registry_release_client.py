@@ -24,7 +24,6 @@ from urllib.error import HTTPError
 import urllib.parse
 import urllib.request
 
-from substitute.infrastructure.comfy.nodepack_manifest import CoreComfyNodepack
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 _REGISTRY_API_ROOT = "https://api.comfy.org"
@@ -54,11 +53,18 @@ class ComfyRegistryRelease:
 class ComfyRegistryReleaseClient:
     """Fetch bounded exact-release metadata from fixed Registry infrastructure."""
 
-    def resolve_exact(self, nodepack: CoreComfyNodepack) -> ComfyRegistryRelease:
+    def resolve_exact(
+        self,
+        *,
+        registry_id: str,
+        version: str,
+    ) -> ComfyRegistryRelease:
         """Return one active exact release after validating identity and origin."""
 
-        node_id = urllib.parse.quote(nodepack.registry_id, safe="")
-        query = urllib.parse.urlencode({"version": nodepack.required_version})
+        requested_id = _required_request_text(registry_id, "Registry nodepack id")
+        requested_version = _required_request_text(version, "Registry version")
+        node_id = urllib.parse.quote(requested_id, safe="")
+        query = urllib.parse.urlencode({"version": requested_version})
         request = urllib.request.Request(
             f"{_REGISTRY_API_ROOT}/nodes/{node_id}/install?{query}",
             headers={"Accept": "application/json", "User-Agent": "SugarSubstitute"},
@@ -73,8 +79,7 @@ class ComfyRegistryReleaseClient:
         except HTTPError as error:
             if error.code == 404:
                 raise RegistryReleaseUnavailableError(
-                    f"Comfy Registry has no {nodepack.registry_id} "
-                    f"{nodepack.required_version} release."
+                    f"Comfy Registry has no {requested_id} {requested_version} release."
                 ) from error
             raise
         if len(raw_payload) > _MAX_DESCRIPTOR_BYTES:
@@ -93,19 +98,19 @@ class ComfyRegistryReleaseClient:
             )
         observed_node_id = _required_text(payload, "node_id")
         observed_version = _required_text(payload, "version")
-        if observed_node_id.casefold() != nodepack.registry_id.casefold():
+        if observed_node_id.casefold() != requested_id.casefold():
             raise InvalidRegistryReleaseError(
                 "Comfy Registry exact-release metadata changed nodepack identity."
             )
-        if observed_version != nodepack.required_version:
+        if observed_version != requested_version:
             raise InvalidRegistryReleaseError(
                 "Comfy Registry exact-release metadata changed the requested version."
             )
         observed_status = _required_text(payload, "status")
         if observed_status != _ACTIVE_RELEASE_STATUS:
             raise RegistryReleaseUnavailableError(
-                f"Comfy Registry {nodepack.registry_id} "
-                f"{nodepack.required_version} release is not active."
+                f"Comfy Registry {requested_id} "
+                f"{requested_version} release is not active."
             )
         archive_url = _required_text(payload, "downloadUrl")
         _validate_archive_url(archive_url)
@@ -125,6 +130,15 @@ def _required_text(payload: dict[object, object], key: str) -> str:
             f"Comfy Registry exact-release metadata has no valid {key}."
         )
     return value.strip()
+
+
+def _required_request_text(value: str, label: str) -> str:
+    """Return one non-empty exact-release request value."""
+
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{label} must not be empty.")
+    return normalized
 
 
 def _validate_archive_url(archive_url: str) -> None:

@@ -33,10 +33,7 @@ from substitute.infrastructure.comfy.comfy_registry_release_client import (
     ComfyRegistryReleaseClient,
     RegistryReleaseUnavailableError,
 )
-from substitute.infrastructure.comfy.nodepack_manifest import (
-    CORE_COMFY_NODEPACKS,
-    CoreComfyNodepack,
-)
+from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.nodepack_registry_installer import (
     ComfyNodepackRegistryInstaller,
 )
@@ -52,12 +49,17 @@ class _ReleaseClient:
         """Store the result and initialize observed manifests."""
 
         self.result = result
-        self.calls: list[CoreComfyNodepack] = []
+        self.calls: list[tuple[str, str]] = []
 
-    def resolve_exact(self, nodepack: CoreComfyNodepack) -> ComfyRegistryRelease:
+    def resolve_exact(
+        self,
+        *,
+        registry_id: str,
+        version: str,
+    ) -> ComfyRegistryRelease:
         """Return the configured release or raise its configured failure."""
 
-        self.calls.append(nodepack)
+        self.calls.append((registry_id, version))
         if isinstance(self.result, BaseException):
             raise self.result
         return self.result
@@ -107,7 +109,7 @@ def test_installs_targeted_exact_release_without_manager_catalog_reload(
     )
 
     assert result.outcome is RegistryInstallOutcome.INSTALLED
-    assert client.calls == [nodepack]
+    assert client.calls == [(nodepack.registry_id, nodepack.required_version)]
     assert archive_installer.calls == [
         {
             "target_path": tmp_path / nodepack.expected_folder,

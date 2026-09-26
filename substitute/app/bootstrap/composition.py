@@ -2479,7 +2479,7 @@ def _build_main_window_dependencies(
         graph_section_service=graph_section_service,
         recipe_io_service=recipe_io_service,
         create_recipe_model_load_resolver=lambda: RecipeModelLoadResolver(
-            RecipeModelResolutionIndex.from_catalog(
+            RecipeModelResolutionIndex.from_cached_catalog(
                 model_catalog_service,
                 kinds=(
                     "checkpoints",

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from sugarsubstitute_shared.presentation.localization import app_text
 from substitute.presentation.editor.panel.widgets.field_row_geometry import (
@@ -30,7 +30,10 @@ from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_ROW_ICON_SIZE,
     EDITOR_ROW_SPACING,
 )
-from substitute.presentation.localization import LocalizedLabel
+from substitute.presentation.localization import (
+    LocalizedBodyLabel,
+    LocalizedStrongBodyLabel,
+)
 from substitute.presentation.shell.chrome_style import (
     connect_theme_refresh,
     resolved_backdrop_mode,
@@ -42,10 +45,16 @@ _CORNER_RADIUS = 4.0
 _ERROR_COLOR = QColor(210, 48, 58)
 
 
-def build_runtime_issue_card(issue_lines: tuple[str, ...]) -> QWidget:
+def build_runtime_issue_card(
+    issue_lines: tuple[str, ...],
+    *,
+    title_text: str = app_text("Cube disabled"),
+    object_name: str = "CubeRuntimeIssueNodeCard",
+    parent: QWidget | None = None,
+) -> QWidget:
     """Build the visible inline error details for one cube section."""
 
-    card = _RuntimeIssueNodeCard()
+    card = _RuntimeIssueNodeCard(object_name=object_name, parent=parent)
     card_layout = QVBoxLayout(card)
     card_layout.setContentsMargins(0, 0, 0, 0)
     card_layout.setSpacing(0)
@@ -65,7 +74,7 @@ def build_runtime_issue_card(issue_lines: tuple[str, ...]) -> QWidget:
     glyph = _RuntimeIssueGlyph(header)
     glyph.setFixedSize(EDITOR_ROW_ICON_SIZE, EDITOR_ROW_ICON_SIZE)
     header_layout.addWidget(glyph)
-    title = LocalizedLabel(app_text("Cube disabled"), header)
+    title = LocalizedStrongBodyLabel(title_text, header)
     title.setObjectName("CubeRuntimeIssueTitle")
     title_font = title.font()
     title_font.setPointSize(14)
@@ -96,7 +105,7 @@ def build_runtime_issue_card(issue_lines: tuple[str, ...]) -> QWidget:
             EDITOR_ROW_BODY_SPACING,
         )
         detail_layout.setSpacing(EDITOR_ROW_SPACING)
-        detail = QLabel(line, detail_row)
+        detail = LocalizedBodyLabel(line, detail_row)
         detail.setWordWrap(True)
         detail.setObjectName(
             "CubeRuntimeIssueAction"
@@ -112,11 +121,16 @@ def build_runtime_issue_card(issue_lines: tuple[str, ...]) -> QWidget:
 class _RuntimeIssueNodeCard(QWidget):
     """Compose issue header and body surfaces like an editor node card."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        object_name: str,
+        parent: QWidget | None = None,
+    ) -> None:
         """Create the transparent issue-card root."""
 
         super().__init__(parent)
-        self.setObjectName("CubeRuntimeIssueNodeCard")
+        self.setObjectName(object_name)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 

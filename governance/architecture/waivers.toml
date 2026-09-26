@@ -152,7 +152,7 @@ kind = "remediation"
 justification = "The assessed file mixes runtime behavior-state preparation, behavior snapshot and endpoint-index construction, activation and visibility mutation, field definition and live metadata resolution, node tooltip and icon enrichment. Extract field metadata enrichment and override mutation from behavior snapshot construction."
 issue = "chore:SS-ARCH-015"
 review_by = 2026-12-15
-max_lines = 855
+max_lines = 851
 next_limit = 695
 debt = "SS-ARCH-015"
 
@@ -181,19 +181,6 @@ review_by = 2026-12-15
 max_lines = 697
 next_limit = 557
 debt = "SS-ARCH-017"
-
-[[waivers]]
-id = "SS-WAIVER-R021"
-owner = "recipe model resolution"
-rule = "STRUCT003"
-path = "substitute/application/recipes/model_load_resolution.py"
-kind = "remediation"
-justification = "The assessed file mixes workflow model-field resolution and replacement, inline prompt LoRA resolution and replacement, BackEnd hash lookup and fingerprint-job polling, and CivitAI missing-model lookup orchestration and unresolved reporting. Extract prompt-LoRA traversal and replacement from model-field resolution and external lookup orchestration."
-issue = "chore:SS-ARCH-021"
-review_by = 2026-12-15
-max_lines = 523
-next_limit = 500
-debt = "SS-ARCH-021"
 
 [[waivers]]
 id = "SS-WAIVER-R022"
@@ -487,7 +474,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Extract editor composition behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 882
+max_lines = 873
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -699,7 +686,7 @@ kind = "structural"
 justification = "The module implements one pure graph transformation from Comfy subgraph metadata to a virtual node definition. Interface projection, linked-body input recovery, type inference, and trace details are coupled stages whose shared invariant is that the virtual definition faithfully represents the same wrapper graph."
 issue = "chore:SS-WAIVER-S013"
 review_by = 2026-12-15
-max_lines = 818
+max_lines = 797
 
 [[waivers]]
 id = "SS-WAIVER-S014"
@@ -864,7 +851,7 @@ kind = "structural"
 justification = "CubeSectionBuildSession is one incremental state machine over a single cube-section build. Step, node outcome, first-usable, cancellation/liveness, deferred count, and finish state jointly enforce exactly-once construction and completion for that session."
 issue = "chore:SS-WAIVER-S030"
 review_by = 2026-12-15
-max_lines = 580
+max_lines = 574
 
 [[waivers]]
 id = "SS-WAIVER-S034"

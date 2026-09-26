@@ -31,7 +31,10 @@ from tests.presentation.editor.node_card.support import (
     WidgetPanel,
     ensure_qapp,
 )
-from tests.support.node_behavior import build_behavior_snapshot
+from tests.support.node_behavior import (
+    build_behavior_snapshot,
+    live_definition_for_inputs,
+)
 from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 
@@ -66,7 +69,11 @@ def mount_body_card(
     """Build and visibly mount one card with simple field widgets."""
 
     ensure_qapp()
-    active_definitions = dict(definitions or {})
+    active_definitions = dict(
+        definitions
+        if definitions is not None
+        else {node_type: live_definition_for_inputs(inputs)}
+    )
     node_payload: dict[str, object] = {"class_type": node_type, "inputs": inputs}
     node_payload.update(node_metadata or {})
     nodes: dict[str, dict[str, object]] = {node_name: node_payload}

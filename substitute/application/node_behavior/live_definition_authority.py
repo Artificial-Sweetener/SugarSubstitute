@@ -112,6 +112,31 @@ class LiveNodeDefinitionAuthority:
             ),
         )
 
+    def get_available_definition(
+        self,
+        class_type: str,
+        *,
+        operation: str,
+        cube_aliases: Sequence[str] = (),
+        node_names: Sequence[str] = (),
+    ) -> Mapping[str, object]:
+        """Return cached live metadata or raise while refresh continues asynchronously."""
+
+        payload = self._node_definition_gateway.get_node_definition(class_type)
+        definition = payload.get(class_type) if isinstance(payload, Mapping) else None
+        if isinstance(definition, Mapping):
+            return deepcopy(dict(definition))
+        raise LiveNodeDefinitionError(
+            operation=operation,
+            missing_definitions=(
+                MissingLiveNodeDefinition(
+                    class_type=class_type,
+                    cube_aliases=tuple(cube_aliases),
+                    node_names=tuple(node_names),
+                ),
+            ),
+        )
+
     def get_required_field(
         self,
         class_type: str,

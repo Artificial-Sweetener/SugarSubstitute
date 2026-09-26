@@ -42,11 +42,7 @@ from substitute.application.recipes.model_resolution_index import (
     RecipeModelResolutionIndex,
 )
 from substitute.domain.model_metadata import (
-    BackendHashLookupMatch,
-    BackendHashLookupStatus,
-    CivitaiLookupStatus,
     CivitaiThumbnailPolicy,
-    JobStatus,
 )
 from substitute.domain.recipes import ParsedSugarScript, SugarBufferMap
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
@@ -54,9 +50,10 @@ from substitute.domain.workflow.override_keys import canonicalize_global_overrid
 from .model_download_candidate import (
     RecipeModelDownloadCandidate,
     RecipeModelRecoveryGateway,
-    candidate_from_recovery_gateways,
-    candidate_from_civitai_version,
-    civitai_download_access,
+)
+from .model_missing_reference_resolution import (
+    MissingRecipeModelReference,
+    RecipeModelMissingReferenceResolver,
 )
 from .model_resolution_models import (
     RecipeModelCivitaiState,
@@ -65,6 +62,9 @@ from .model_resolution_models import (
     RecipeModelUnresolvedReference,
     ResolvedRecipeModelScript,
 )
+from .model_hash_resolution_session import RecipeModelHashResolutionSession
+
+_INTERACTIVE_HASH_POLL_TIMEOUT_SECONDS = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +82,7 @@ class _PromptLoraResolutionResult:
 
     literal_matches: int
     hash_matches: int
-    unresolved: tuple[RecipeModelUnresolvedReference, ...]
+    unresolved: tuple[MissingRecipeModelReference, ...]
 
 
 class RecipeModelLoadResolver:
@@ -99,8 +99,9 @@ class RecipeModelLoadResolver:
         thumbnail_policy_provider: Callable[[], CivitaiThumbnailPolicy] | None = None,
         recovery_gateways: tuple[RecipeModelRecoveryGateway, ...] = (),
         sleep: Callable[[float], None] = time.sleep,
+        monotonic: Callable[[], float] = time.monotonic,
         fingerprint_poll_interval_seconds: float = 0.5,
-        fingerprint_poll_timeout_seconds: float = 120.0,
+        fingerprint_poll_timeout_seconds: float = _INTERACTIVE_HASH_POLL_TIMEOUT_SECONDS,
     ) -> None:
         """Store the fast local model index."""
 
@@ -114,6 +115,7 @@ class RecipeModelLoadResolver:
         self._thumbnail_policy_provider = thumbnail_policy_provider
         self._recovery_gateways = recovery_gateways
         self._sleep = sleep
+        self._monotonic = monotonic
         self._fingerprint_poll_interval_seconds = fingerprint_poll_interval_seconds
         self._fingerprint_poll_timeout_seconds = fingerprint_poll_timeout_seconds
 
@@ -124,7 +126,16 @@ class RecipeModelLoadResolver:
         global_overrides = deepcopy(parsed_script.global_overrides)
         literal_matches = 0
         hash_matches = 0
-        unresolved: list[RecipeModelUnresolvedReference] = []
+        missing_references: list[MissingRecipeModelReference] = []
+        hash_resolution = RecipeModelHashResolutionSession(
+            index=self._index,
+            backend=self._backend,
+            fingerprint_jobs=self._fingerprint_jobs,
+            sleep=self._sleep,
+            monotonic=self._monotonic,
+            poll_interval_seconds=self._fingerprint_poll_interval_seconds,
+            poll_timeout_seconds=self._fingerprint_poll_timeout_seconds,
+        )
         for alias, node_name, input_key, kind, value in _model_fields(buffers):
             literal_model = self._index.find_literal(kind=kind, value=value)
             sha256 = parsed_script.model_hashes_by_field.get(
@@ -136,10 +147,10 @@ class RecipeModelLoadResolver:
                     continue
             if sha256 is None:
                 continue
-            hash_model = self._authoritative_hash_model(kind=kind, sha256=sha256)
+            hash_model = hash_resolution.resolve(kind=kind, sha256=sha256)
             if hash_model is None:
-                unresolved.append(
-                    self._unresolved_reference(
+                missing_references.append(
+                    MissingRecipeModelReference(
                         alias=alias,
                         node_name=node_name,
                         input_key=input_key,
@@ -165,10 +176,17 @@ class RecipeModelLoadResolver:
         prompt_lora_result = self._resolve_inline_prompt_loras(
             parsed_script=parsed_script,
             buffers=buffers,
+            hash_resolution=hash_resolution,
         )
         literal_matches += prompt_lora_result.literal_matches
         hash_matches += prompt_lora_result.hash_matches
-        unresolved.extend(prompt_lora_result.unresolved)
+        missing_references.extend(prompt_lora_result.unresolved)
+        unresolved = RecipeModelMissingReferenceResolver(
+            civitai=self._civitai,
+            civitai_lookup_enabled=self._is_civitai_lookup_enabled(),
+            thumbnail_policy=self._thumbnail_policy(),
+            recovery_gateways=self._recovery_gateways,
+        ).resolve(tuple(missing_references))
         summary = RecipeModelResolutionSummary(
             literal_matches=literal_matches,
             hash_matches=hash_matches,
@@ -194,100 +212,6 @@ class RecipeModelLoadResolver:
             summary=summary,
         )
 
-    def _unresolved_reference(
-        self,
-        *,
-        alias: str,
-        node_name: str,
-        input_key: str,
-        kind: str,
-        value: str,
-        sha256: str,
-    ) -> RecipeModelUnresolvedReference:
-        """Build one unresolved reference with optional CivitAI by-hash state."""
-
-        normalized_sha256 = sha256.upper()
-        recovery_candidate = candidate_from_recovery_gateways(
-            self._recovery_gateways,
-            kind=kind,
-            sha256=normalized_sha256,
-        )
-        if recovery_candidate is not None:
-            return RecipeModelUnresolvedReference(
-                alias=alias,
-                node_name=node_name,
-                input_key=input_key,
-                kind=kind,
-                value=value,
-                sha256=normalized_sha256,
-                civitai_state=RecipeModelCivitaiState.FOUND,
-                candidate=recovery_candidate,
-            )
-        if not self._is_civitai_lookup_enabled():
-            return RecipeModelUnresolvedReference(
-                alias=alias,
-                node_name=node_name,
-                input_key=input_key,
-                kind=kind,
-                value=value,
-                sha256=normalized_sha256,
-                civitai_state=RecipeModelCivitaiState.DISABLED,
-            )
-        civitai = self._civitai
-        if civitai is None:
-            return RecipeModelUnresolvedReference(
-                alias=alias,
-                node_name=node_name,
-                input_key=input_key,
-                kind=kind,
-                value=value,
-                sha256=normalized_sha256,
-                civitai_state=RecipeModelCivitaiState.UNAVAILABLE,
-                civitai_status=CivitaiLookupStatus.UNAVAILABLE,
-            )
-        result = civitai.lookup_model_version_by_hash(normalized_sha256)
-        if result.status is not CivitaiLookupStatus.FOUND or result.version is None:
-            return RecipeModelUnresolvedReference(
-                alias=alias,
-                node_name=node_name,
-                input_key=input_key,
-                kind=kind,
-                value=value,
-                sha256=normalized_sha256,
-                civitai_state=(
-                    RecipeModelCivitaiState.NOT_FOUND
-                    if result.status is CivitaiLookupStatus.NOT_FOUND
-                    else RecipeModelCivitaiState.UNAVAILABLE
-                ),
-                civitai_status=result.status,
-                civitai_error=result.error,
-            )
-        candidate = candidate_from_civitai_version(
-            kind=kind,
-            sha256=normalized_sha256,
-            version=result.version,
-            thumbnail_policy=self._thumbnail_policy(),
-            download_access=civitai_download_access(
-                civitai,
-                result.version.model_version_id,
-            ),
-        )
-        return RecipeModelUnresolvedReference(
-            alias=alias,
-            node_name=node_name,
-            input_key=input_key,
-            kind=kind,
-            value=value,
-            sha256=normalized_sha256,
-            civitai_state=(
-                RecipeModelCivitaiState.FOUND
-                if candidate is not None
-                else RecipeModelCivitaiState.NO_SAFE_FILE
-            ),
-            civitai_status=result.status,
-            candidate=candidate,
-        )
-
     def _is_civitai_lookup_enabled(self) -> bool:
         """Return whether missing-model CivitAI lookup may run."""
 
@@ -300,63 +224,18 @@ class RecipeModelLoadResolver:
         provider = self._thumbnail_policy_provider
         return CivitaiThumbnailPolicy() if provider is None else provider()
 
-    def _resolve_hash_from_backend(
-        self,
-        *,
-        kind: str,
-        sha256: str,
-    ) -> LocalRecipeModel | None:
-        """Ask Substitute BackEnd for current local hash evidence."""
-
-        backend = self._backend
-        if backend is None:
-            return None
-        deadline = time.monotonic() + self._fingerprint_poll_timeout_seconds
-        while time.monotonic() < deadline:
-            result = backend.lookup_model_by_hash(kind=kind, sha256=sha256)
-            if result is None:
-                return None
-            if result.status is BackendHashLookupStatus.COMPLETE:
-                return (
-                    _model_from_backend_match(result.matches[0], sha256)
-                    if result.matches
-                    else None
-                )
-            if result.status not in {
-                BackendHashLookupStatus.HASHING_REQUIRED,
-                BackendHashLookupStatus.HASHING_RUNNING,
-            }:
-                return None
-            if result.job_id is None:
-                return None
-            if self._fingerprint_jobs is None:
-                return None
-            self._wait_for_backend_hash_job(result.job_id, deadline=deadline)
-        return None
-
-    def _wait_for_backend_hash_job(self, job_id: str, *, deadline: float) -> None:
-        """Wait for a targeted backend fingerprint job to settle."""
-
-        fingerprint_jobs = self._fingerprint_jobs
-        if fingerprint_jobs is None:
-            return
-        while time.monotonic() < deadline:
-            job = fingerprint_jobs.get_fingerprint_job(job_id)
-            if job is None or job.status not in {JobStatus.QUEUED, JobStatus.RUNNING}:
-                return
-            self._sleep(self._fingerprint_poll_interval_seconds)
-
     def _resolve_inline_prompt_loras(
         self,
         *,
         parsed_script: ParsedSugarScript,
         buffers: OrderedDict[str, object],
+        hash_resolution: RecipeModelHashResolutionSession,
     ) -> "_PromptLoraResolutionResult":
         """Resolve inline prompt LoRA tokens by literal value or adjacent hashes."""
 
         literal_matches = 0
         hash_matches = 0
-        unresolved: list[RecipeModelUnresolvedReference] = []
+        unresolved: list[MissingRecipeModelReference] = []
         unresolved_keys: set[tuple[str, str, str, str]] = set()
         for alias, node_name, input_key, prompt_text in _prompt_lora_fields(buffers):
             raw_hashes = parsed_script.prompt_lora_hashes_by_field.get(
@@ -380,7 +259,7 @@ class RecipeModelLoadResolver:
                 if hash_entry is None:
                     continue
                 _, sha256 = hash_entry
-                hash_model = self._authoritative_hash_model(
+                hash_model = hash_resolution.resolve(
                     kind="loras",
                     sha256=sha256,
                 )
@@ -389,7 +268,7 @@ class RecipeModelLoadResolver:
                     if unresolved_key not in unresolved_keys:
                         unresolved_keys.add(unresolved_key)
                         unresolved.append(
-                            self._unresolved_reference(
+                            MissingRecipeModelReference(
                                 alias=alias,
                                 node_name=node_name,
                                 input_key=input_key,
@@ -422,18 +301,6 @@ class RecipeModelLoadResolver:
             hash_matches=hash_matches,
             unresolved=tuple(unresolved),
         )
-
-    def _authoritative_hash_model(
-        self,
-        *,
-        kind: str,
-        sha256: str,
-    ) -> LocalRecipeModel | None:
-        """Use BackEnd hash evidence when available, otherwise use cached evidence."""
-
-        if self._backend is not None:
-            return self._resolve_hash_from_backend(kind=kind, sha256=sha256)
-        return self._index.find_hash(kind=kind, sha256=sha256)
 
 
 def _model_fields(
@@ -567,21 +434,6 @@ def _set_global_override_value(
     if not isinstance(override, dict) or "value" not in override:
         return
     override["value"] = value
-
-
-def _model_from_backend_match(
-    match: BackendHashLookupMatch,
-    sha256: str,
-) -> LocalRecipeModel:
-    """Convert a backend hash match into a local recipe model."""
-
-    return LocalRecipeModel(
-        kind=match.kind,
-        backend_value=match.value,
-        display_name=match.display_name,
-        relative_path=match.source.relative_path,
-        sha256=sha256.upper(),
-    )
 
 
 __all__ = [

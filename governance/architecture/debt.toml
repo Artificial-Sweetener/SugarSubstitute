@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-fingerprint = "sha256:942c7de8195f25666761db0e9b9da511b6ba78060392fb687c17aec8b6e67eaf"
+fingerprint = "sha256:2a73ba349f65935500bfbec47577b40607afb1b3fb7423a24aa70864efd1491f"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -170,7 +170,7 @@ next_extraction = "Extract pure picker-record projection from catalog loading, c
 id = "SS-ARCH-015"
 owner = "node behavior"
 paths = ["substitute/application/node_behavior/behavior_service.py"]
-fingerprint = "sha256:c5f30e9d8f07a0b60662ffa8a4ec8a4296c567a4596dea7b17a0faa2061571e4"
+fingerprint = "sha256:cb196a38becc15db59c07e83ecc966bfca5e04002239d463649251ddd2a43b90"
 issue = "chore:SS-ARCH-015"
 review_by = 2026-12-15
 responsibilities = [
@@ -211,21 +211,6 @@ responsibilities = [
   "workflow projection application",
 ]
 next_extraction = "Extract toolbar and serialization projections from override mutation and workflow application."
-
-[[debts]]
-id = "SS-ARCH-021"
-owner = "recipe model resolution"
-paths = ["substitute/application/recipes/model_load_resolution.py"]
-fingerprint = "sha256:15a822db7a70a8ecaf5cb184f38b39c5db194aabb38e070d452b65acc21a8405"
-issue = "chore:SS-ARCH-021"
-review_by = 2026-12-15
-responsibilities = [
-  "workflow model-field resolution and replacement",
-  "inline prompt LoRA resolution and replacement",
-  "BackEnd hash lookup and fingerprint-job polling",
-  "CivitAI missing-model lookup orchestration and unresolved reporting",
-]
-next_extraction = "Extract prompt-LoRA traversal and replacement from model-field resolution and external lookup orchestration."
 
 [[debts]]
 id = "SS-ARCH-022"
@@ -555,7 +540,7 @@ next_extraction = "Extract callback adaptation from loaded-surface activation an
 id = "SS-ARCH-080"
 owner = "main window composition"
 paths = ["substitute/presentation/shell/main_window_composition.py"]
-fingerprint = "sha256:03da30f39d944b0f039716ae2d90939066eff36b2c8a88a070911fe27d4ffd5a"
+fingerprint = "sha256:b6a109fb0f83fd887b9007259a65b8d2ac40892fbd6bb470957822e6b542471c"
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
 responsibilities = [

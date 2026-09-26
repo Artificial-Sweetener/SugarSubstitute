@@ -64,7 +64,10 @@ def test_resolves_exact_identity_from_fixed_registry_and_cdn(
     monkeypatch.setattr(SystemTrustTlsContext, "create", lambda: tls_context)
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
-    release = ComfyRegistryReleaseClient().resolve_exact(nodepack)
+    release = ComfyRegistryReleaseClient().resolve_exact(
+        registry_id=nodepack.registry_id,
+        version=nodepack.required_version,
+    )
 
     request = observed["request"]
     assert getattr(request, "full_url") == (
@@ -116,7 +119,10 @@ def test_rejects_identity_version_or_archive_origin_changes(
     )
 
     with pytest.raises(InvalidRegistryReleaseError):
-        ComfyRegistryReleaseClient().resolve_exact(CORE_COMFY_NODEPACKS[0])
+        ComfyRegistryReleaseClient().resolve_exact(
+            registry_id=CORE_COMFY_NODEPACKS[0].registry_id,
+            version=CORE_COMFY_NODEPACKS[0].required_version,
+        )
 
 
 @pytest.mark.parametrize(
@@ -142,7 +148,10 @@ def test_classifies_non_active_exact_release_as_unavailable(
     )
 
     with pytest.raises(RegistryReleaseUnavailableError, match="is not active"):
-        ComfyRegistryReleaseClient().resolve_exact(nodepack)
+        ComfyRegistryReleaseClient().resolve_exact(
+            registry_id=nodepack.registry_id,
+            version=nodepack.required_version,
+        )
 
 
 def test_classifies_missing_exact_release(
@@ -159,4 +168,7 @@ def test_classifies_missing_exact_release(
     monkeypatch.setattr("urllib.request.urlopen", missing)
 
     with pytest.raises(RegistryReleaseUnavailableError):
-        ComfyRegistryReleaseClient().resolve_exact(CORE_COMFY_NODEPACKS[0])
+        ComfyRegistryReleaseClient().resolve_exact(
+            registry_id=CORE_COMFY_NODEPACKS[0].registry_id,
+            version=CORE_COMFY_NODEPACKS[0].required_version,
+        )
