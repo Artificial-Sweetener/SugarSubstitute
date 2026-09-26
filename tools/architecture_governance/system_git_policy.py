@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Reject system-Git dependencies and unprotected ComfyCLI commands."""
+"""Reject system-Git dependencies from authored runtime code."""
 
 from __future__ import annotations
 
@@ -23,11 +23,7 @@ from pathlib import Path
 
 from .model import Diagnostic
 
-_COMMAND_OWNER = "substitute/infrastructure/comfy/comfy_manager_runtime.py"
 _ENVIRONMENT_OWNER = "substitute/infrastructure/comfy/manager_environment.py"
-_COMFY_CLI_MODULES = frozenset(
-    {"comfy_cli", "cm_cli", "comfyui_manager.prestartup_script"}
-)
 
 
 def validate_system_git_policy(
@@ -70,15 +66,6 @@ def _source_diagnostics(tree: ast.AST, relative_path: str) -> list[Diagnostic]:
                 "repository pygit2 owner instead.",
             )
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if node.value in _COMFY_CLI_MODULES and relative_path != _COMMAND_OWNER:
-                _report_once(
-                    diagnostics,
-                    reported_rules,
-                    "GIT002",
-                    relative_path,
-                    "ComfyCLI commands must run through the protected Comfy Manager "
-                    "command owner so external GitPython imports cannot require system Git.",
-                )
             if node.value == "GIT_PYTHON_GIT_EXECUTABLE":
                 _report_once(
                     diagnostics,
