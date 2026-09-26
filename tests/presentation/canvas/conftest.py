@@ -20,9 +20,27 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+import psutil  # type: ignore[import-untyped]
 import pytest
 from cutecanvas import ExecutionRuntime
 from qpane import create_default_execution_runtime
+
+
+_DETERMINISTIC_TOTAL_MEMORY_BYTES = 2 * 1024**3
+_DETERMINISTIC_AVAILABLE_MEMORY_BYTES = 1024**3
+
+
+@pytest.fixture(autouse=True)
+def deterministic_canvas_cache_headroom(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep QPane auto-cache budgets independent of concurrent host memory use."""
+
+    memory = psutil.virtual_memory()._replace(
+        total=_DETERMINISTIC_TOTAL_MEMORY_BYTES,
+        available=_DETERMINISTIC_AVAILABLE_MEMORY_BYTES,
+    )
+    monkeypatch.setattr(psutil, "virtual_memory", lambda: memory)
 
 
 @pytest.fixture
