@@ -144,11 +144,6 @@ class _Manager:
         self._workflow_id = workflow_id
         self._calls = calls
 
-    def _clear_all_override_widgets(self) -> None:
-        """Record toolbar clearing."""
-
-        self._calls.append(f"{self._workflow_id}:clear")
-
     def detach_override_widgets(self) -> None:
         """Record toolbar detachment."""
 

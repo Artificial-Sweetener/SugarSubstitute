@@ -74,10 +74,10 @@ class WorkflowMaterializationTabBar(Protocol):
 
 
 class WorkflowMaterializationOverrideManager(Protocol):
-    """Describe outgoing override cleanup before workflow activation."""
+    """Describe outgoing override detachment before workflow activation."""
 
-    def _clear_all_override_widgets(self) -> None:
-        """Clear live override toolbar controls."""
+    def detach_override_widgets(self) -> None:
+        """Detach cached controls from the shared toolbar."""
 
 
 class WorkspaceSnapshotHydrator(Protocol):
@@ -159,7 +159,7 @@ class WorkflowWorkspaceMaterializer:
         """Create, register, activate, and project a new workflow."""
 
         view = self._view
-        self._clear_outgoing_override_widgets()
+        self._detach_outgoing_override_widgets()
         planned_tab = view.workflow_tab_service.plan_new_workflow_tab(
             base_name=DEFAULT_WORKFLOW_TAB_LABEL,
             existing_labels={
@@ -235,7 +235,7 @@ class WorkflowWorkspaceMaterializer:
                 base_label=base_label,
             )
             return None
-        self._clear_outgoing_override_widgets()
+        self._detach_outgoing_override_widgets()
 
         planned_tab = view.workflow_tab_service.plan_new_workflow_tab(
             base_name=base_label,
@@ -374,7 +374,7 @@ class WorkflowWorkspaceMaterializer:
                 snapshot,
                 new_workflow_id=workflow_id,
             )
-        self._clear_outgoing_override_widgets()
+        self._detach_outgoing_override_widgets()
         generation_feedback_presenter_for(view).clear_all_model_field_load_progress()
         try:
             transition = view.workflow_session_service.add_existing_workflow(
@@ -448,15 +448,15 @@ class WorkflowWorkspaceMaterializer:
             return preferred_workflow_id
         return self._view.workflow_tab_service.generate_workflow_id(existing_ids)
 
-    def _clear_outgoing_override_widgets(self) -> None:
-        """Clear controls belonging to the workflow being deactivated."""
+    def _detach_outgoing_override_widgets(self) -> None:
+        """Detach controls belonging to the workflow being deactivated."""
 
         view = self._view
         outgoing_manager = view.override_managers.get(
             view.workflow_session_service.active_workflow_id
         )
         if outgoing_manager is not None:
-            outgoing_manager._clear_all_override_widgets()
+            outgoing_manager.detach_override_widgets()
 
 
 __all__ = [
