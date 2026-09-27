@@ -196,7 +196,7 @@ class RestoredWorkflowMaterializer:
                 str(getattr(transition, "previous_active_workflow_id", ""))
             )
             if outgoing_manager is not None:
-                outgoing_manager._clear_all_override_widgets()
+                outgoing_manager.detach_override_widgets()
             clear_model_load_progress = getattr(
                 self._shell,
                 "_clear_all_model_field_load_progress",

@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import zipfile
 from collections.abc import Iterable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import tomllib
 
 from tools.release_assets.zip_support import iter_directory_entries, write_path_to_zip
 from sugarsubstitute_shared.presentation.installer_resources import (
@@ -151,6 +152,48 @@ def validate_repo_root(repo_root: Path) -> None:
     if missing_roots:
         raise FileNotFoundError(
             f"Repository root is missing payload roots: {', '.join(missing_roots)}"
+        )
+    validate_declared_runtime_files(repo_root)
+
+
+def validate_declared_runtime_files(repo_root: Path) -> None:
+    """Require every manifest-declared runtime file before archiving the app."""
+
+    manifest_path = repo_root / "third_party" / "manifest.toml"
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    components = manifest.get("component", ())
+    if not isinstance(components, list):
+        raise ValueError("Third-party manifest components must be a list.")
+
+    missing_files: list[str] = []
+    for component in components:
+        if not isinstance(component, dict):
+            raise ValueError("Third-party manifest component must be a table.")
+        if "runtime_files" not in component:
+            continue
+        runtime_files = component["runtime_files"]
+        if not isinstance(runtime_files, list):
+            raise ValueError("Third-party runtime_files must be a list.")
+        for raw_path in runtime_files:
+            if not isinstance(raw_path, str):
+                raise ValueError("Third-party runtime file paths must be strings.")
+            relative_path = PurePosixPath(raw_path)
+            if (
+                relative_path.is_absolute()
+                or ".." in relative_path.parts
+                or not relative_path.parts
+                or relative_path.parts[0] != "third_party"
+            ):
+                raise ValueError(
+                    f"Third-party runtime file is outside the payload: {raw_path}"
+                )
+            source_path = repo_root.joinpath(*relative_path.parts)
+            if not source_path.is_file():
+                missing_files.append(relative_path.as_posix())
+    if missing_files:
+        raise FileNotFoundError(
+            "Repository root is missing declared runtime files: "
+            + ", ".join(sorted(missing_files))
         )
 
 

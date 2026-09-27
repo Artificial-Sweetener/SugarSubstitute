@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from substitute.infrastructure.comfy.comfy_animated_output import is_animated_output
 from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 
 
@@ -32,7 +33,7 @@ def parse_comfy_image_artifacts(
         return ()
     if not isinstance(output, Mapping):
         return None
-    if output.get("animated") is True:
+    if is_animated_output(output.get("animated")):
         return ()
     raw_images = output.get("images")
     if raw_images is None:
