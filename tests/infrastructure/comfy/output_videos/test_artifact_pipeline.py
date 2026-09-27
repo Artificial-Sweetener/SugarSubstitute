@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+import errno
 import os
 from pathlib import Path
+from typing import BinaryIO
 
 import pytest
 
@@ -179,6 +181,84 @@ def test_video_handler_promotes_durable_artifact_atomically(tmp_path: Path) -> N
     assert updates[0].file_path == tmp_path / "output" / "001_main_1.webm"
     assert updates[0].file_path.read_bytes() == b"video-data"
     assert not tuple(store.root.glob("*.partial"))
+    store.close()
+
+
+def test_durable_video_promotion_stays_atomic_across_volumes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Copy into the output volume before renaming when session temp is elsewhere."""
+
+    store = SessionVideoArtifactStore(tmp_path / "session")
+    original_replace = Path.replace
+    renames: list[tuple[Path, Path]] = []
+
+    def same_volume_replace(source: Path, target: Path) -> Path:
+        """Model Windows rejecting a rename across volume boundaries."""
+
+        renames.append((source, target))
+        if source.parent != target.parent:
+            raise OSError(errno.EXDEV, "Cross-device link")
+        return original_replace(source, target)
+
+    monkeypatch.setattr(Path, "replace", same_volume_replace)
+    updates: list[OutputVideoUpdate] = []
+    handler = FinalVideoEventHandler(
+        artifact_streamer=_Streamer(b"video-data"),
+        output_persistence=OutputVideoPersistence(
+            destination_allocator=_allocator(tmp_path, persisted_aliases=None),
+            session_store=store,
+        ),
+        video_probe=_Probe(),
+        on_output_video=updates.append,
+    )
+
+    handler.handle(_event())
+
+    assert updates[0].file_path.read_bytes() == b"video-data"
+    assert renames and all(source.parent == target.parent for source, target in renames)
+    assert not tuple(store.root.glob("*.partial"))
+    assert not tuple((tmp_path / "output").glob("*.partial"))
+    store.close()
+
+
+def test_failed_cross_volume_copy_removes_both_partial_files(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Keep the destination absent when copying a validated video fails."""
+
+    store = SessionVideoArtifactStore(tmp_path / "session")
+
+    def incomplete_copy(source: BinaryIO, staged: BinaryIO, *, length: int) -> None:
+        """Leave partial destination bytes before simulating an I/O failure."""
+
+        del source, length
+        staged.write(b"partial")
+        raise OSError("Destination volume unavailable")
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.output_video_persistence.shutil.copyfileobj",
+        incomplete_copy,
+    )
+    updates: list[OutputVideoUpdate] = []
+    handler = FinalVideoEventHandler(
+        artifact_streamer=_Streamer(b"video-data"),
+        output_persistence=OutputVideoPersistence(
+            destination_allocator=_allocator(tmp_path, persisted_aliases=None),
+            session_store=store,
+        ),
+        video_probe=_Probe(),
+        on_output_video=updates.append,
+    )
+
+    with pytest.raises(OSError, match="Destination volume unavailable"):
+        handler.handle(_event())
+
+    assert updates == []
+    assert not tuple(store.root.glob("*.partial"))
+    assert not tuple((tmp_path / "output").iterdir())
     store.close()
 
 
