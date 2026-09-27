@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from substitute.infrastructure.comfy.comfy_animated_output import is_animated_output
 from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 
 _VIDEO_COLLECTION_KEYS = ("videos", "gifs")
@@ -81,7 +82,7 @@ def _video_collection(output: Mapping[str, object]) -> object | None:
     for key in _VIDEO_COLLECTION_KEYS:
         if key in output:
             return output[key]
-    if output.get("animated") is True:
+    if is_animated_output(output.get("animated")):
         return output.get("images")
     video = output.get("video")
     if isinstance(video, Mapping):

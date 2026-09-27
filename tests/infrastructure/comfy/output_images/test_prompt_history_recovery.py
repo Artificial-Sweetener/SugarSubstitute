@@ -171,7 +171,7 @@ def test_history_recovery_routes_animated_images_as_video_only() -> None:
                 "prompt-2": {
                     "outputs": {
                         "animated": {
-                            "animated": True,
+                            "animated": [True],
                             "images": [
                                 {
                                     "filename": "animation.webp",

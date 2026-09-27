@@ -37,6 +37,7 @@ def test_parser_accepts_generic_vhs_and_core_animated_shapes() -> None:
         {"videos": [artifact]},
         {"gifs": [artifact]},
         {"images": [artifact], "animated": True},
+        {"images": [artifact], "animated": [True]},
         {"video": artifact},
     ):
         parsed = parse_comfy_video_artifacts(payload)
@@ -52,3 +53,4 @@ def test_parser_rejects_malformed_collections_without_claiming_images() -> None:
     assert parse_comfy_video_artifacts({"images": [{"filename": "image.png"}]}) == ()
     assert parse_comfy_video_artifacts({"videos": "movie.webm"}) is None
     assert parse_comfy_video_artifacts({"videos": [{"filename": "movie.webm"}]}) is None
+    assert parse_comfy_video_artifacts({"images": [], "animated": [1]}) == ()
