@@ -14,27 +14,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define core Comfy custom nodepack identifiers managed by Substitute."""
+"""Project authored Cube order into stable Output canvas source identities."""
 
 from __future__ import annotations
 
-from enum import Enum
-
-SUBSTITUTE_BACKEND_REQUIRED_VERSION = "1.10.0"
-SUGARCUBES_REQUIRED_VERSION = "0.15.2"
+from substitute.domain.workflow import WorkflowState
 
 
-class CoreNodepackId(str, Enum):
-    """Identify core Comfy nodepacks that Substitute can install or refresh."""
+def authored_output_source_keys(workflow: WorkflowState) -> tuple[str, ...]:
+    """Return source keys for visible Cubes in the current authored stack."""
 
-    SUBSTITUTE_BACKEND = "substitute-backend"
-    SUGARCUBES = "SugarCubes"
+    document = workflow.direct_workflow
+    analysis = document.cube_analysis if document is not None else None
+    if analysis is None:
+        return tuple(f"cube:{alias}" for alias in workflow.stack_order)
+    instance_by_alias = {instance.alias: instance for instance in analysis.instances}
+    return tuple(
+        f"cube:{instance_by_alias[alias].instance_id}"
+        for alias in workflow.stack_order
+        if alias in instance_by_alias
+    )
 
 
-class NodepackManagementKind(str, Enum):
-    """Identify how Comfy owns an installed custom-node package."""
-
-    MISSING = "missing"
-    REGISTRY = "registry"
-    GIT = "git"
-    PLAIN = "plain"
+__all__ = ["authored_output_source_keys"]

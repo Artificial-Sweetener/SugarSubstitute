@@ -44,13 +44,15 @@ from substitute.application.generation.dispatch_availability import (
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
-    GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
 )
 from substitute.application.generation.generation_job_output_store import (
     GenerationJobOutputStore,
     GenerationOutputUpdate,
+)
+from substitute.application.generation.generation_queue_callback_router import (
+    wrap_generation_queue_callbacks,
 )
 from substitute.application.generation.queued_generation_request_factory import (
     prepared_request_from_queue_snapshot,
@@ -70,10 +72,6 @@ from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
     InterruptResult,
     ListenerCompleted,
-    ModelLoadProgressUpdate,
-    OutputImageUpdate,
-    OutputVideoUpdate,
-    PreviewImageUpdate,
     ProgressUpdate,
 )
 from substitute.application.ports.output_run_number_allocator import (
@@ -1084,89 +1082,7 @@ class GenerationJobQueueService:
         callbacks: GenerationCallbacks,
     ) -> GenerationCallbacks:
         """Wrap generation callbacks so queue state follows execution events."""
-
-        def on_output_image(event: OutputImageUpdate) -> None:
-            def handle_output() -> None:
-                self._handle_generation_output(job_id, event)
-                callbacks.on_output_image(event)
-
-            self._transition_scheduler(handle_output)
-
-        def on_output_video(event: OutputVideoUpdate) -> None:
-            def handle_output() -> None:
-                self._handle_generation_output(job_id, event)
-                callbacks.on_output_video(event)
-
-            self._transition_scheduler(handle_output)
-
-        def on_progress(event: ProgressUpdate) -> None:
-            def handle_progress() -> None:
-                if self._handle_generation_progress(job_id, event):
-                    callbacks.on_progress(event)
-
-            self._transition_scheduler(handle_progress)
-
-        def on_timing(event: GenerationExecutionTiming) -> None:
-            def handle_timing() -> None:
-                self._handle_generation_timing(job_id, event)
-                callbacks.on_timing(event)
-
-            self._transition_scheduler(handle_timing)
-
-        def on_model_load_progress(event: ModelLoadProgressUpdate) -> None:
-            def handle_model_load_progress() -> None:
-                callbacks.on_model_load_progress(event)
-
-            self._transition_scheduler(handle_model_load_progress)
-
-        def on_preview(event: PreviewImageUpdate) -> None:
-            def handle_preview() -> None:
-                callbacks.on_preview(event)
-
-            self._transition_scheduler(handle_preview)
-
-        def on_run_started(event: GenerationRunStarted) -> None:
-            def handle_run_started() -> None:
-                self._replace_job(
-                    job_id,
-                    prompt_id=event.prompt_id,
-                    generation_run_id=event.generation_run_id,
-                    client_id=event.client_id,
-                )
-                if callbacks.on_run_started is not None:
-                    callbacks.on_run_started(event)
-
-            self._transition_scheduler(handle_run_started)
-
-        def on_failure(failure: GenerationFailure) -> None:
-            self._transition_scheduler(
-                lambda: self._handle_generation_failure_profiled(
-                    job_id,
-                    failure,
-                    callbacks,
-                )
-            )
-
-        def on_completed(event: ListenerCompleted) -> None:
-            self._transition_scheduler(
-                lambda: self._handle_generation_completed_profiled(
-                    job_id,
-                    event,
-                    callbacks,
-                )
-            )
-
-        return GenerationCallbacks(
-            on_run_started=on_run_started,
-            on_progress=on_progress,
-            on_model_load_progress=on_model_load_progress,
-            on_preview=on_preview,
-            on_output_image=on_output_image,
-            on_output_video=on_output_video,
-            on_failure=on_failure,
-            on_timing=on_timing,
-            on_completed=on_completed,
-        )
+        return wrap_generation_queue_callbacks(self, job_id, callbacks)
 
     def _handle_generation_output(
         self,
