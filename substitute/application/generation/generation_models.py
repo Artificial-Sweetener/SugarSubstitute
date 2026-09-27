@@ -154,6 +154,7 @@ class GenerationCallbacks:
     on_timing: Callable[[GenerationExecutionTiming], None]
     on_run_started: Callable[[GenerationRunStarted], None] | None = None
     on_completed: Callable[[ListenerCompleted], None] | None = None
+    request_stage_advance: Callable[[Callable[[], None]], None] | None = None
 
 
 __all__ = [

@@ -83,6 +83,7 @@ class NativeCubeExecutionClient:
         workflow: JsonObject,
         client_id: str,
         visual_context: QueueVisualRunContext,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         persistence_sugar_script: str | None = None,
     ) -> NativeCubeQueueResult:
@@ -119,6 +120,7 @@ class NativeCubeExecutionClient:
                     workflow=workflow,
                     client_id=client_id,
                     visual_context=visual_context,
+                    execution_targets=execution_targets,
                     preview_method=preview_method,
                     persistence_sugar_script=persistence_sugar_script,
                 ),
@@ -200,6 +202,7 @@ def _queue_body(
     workflow: JsonObject,
     client_id: str,
     visual_context: QueueVisualRunContext,
+    execution_targets: tuple[str, ...] | None,
     preview_method: str | None,
     persistence_sugar_script: str | None,
 ) -> JsonObject:
@@ -215,10 +218,13 @@ def _queue_body(
     if persistence_sugar_script is not None:
         persistence["sugar_script"] = persistence_sugar_script
     extra_data["extra_pnginfo"] = persistence
+    queue: JsonObject = {"client_id": client_id, "atomic": True}
+    if execution_targets is not None:
+        queue["partial_execution_targets"] = list(execution_targets)
     return {
         "schema_version": 1,
         "workflow": workflow,
-        "queue": {"client_id": client_id, "atomic": True},
+        "queue": queue,
         "optimization": {"enabled": True},
         "extra_data": extra_data,
     }

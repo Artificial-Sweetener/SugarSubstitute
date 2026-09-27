@@ -208,12 +208,14 @@ class _FakeGateway:
         preview_method: str | None = None,
         visual_context: QueueVisualRunContext,
         persistence_sugar_script: str | None = None,
+        execution_targets: tuple[str, ...] | None = None,
     ) -> QueuePromptResult:
         """Capture native Cube dispatch through the existing queue call shape."""
 
         return self.queue_prompt(
             workflow_payload,
             client_id=client_id,
+            execution_targets=execution_targets,
             preview_method=preview_method,
             sugar_script=persistence_sugar_script,
             visual_context=visual_context,
