@@ -312,6 +312,42 @@ def test_windows_release_build_qualifies_packaged_single_instance_behavior() -> 
     )
 
 
+def test_release_candidate_prepares_and_qualifies_packaged_video_runtime() -> None:
+    """Block candidate staging unless its application ZIP can play real video."""
+
+    workflow = yaml.safe_load(
+        workflow_path("release-candidate.yml").read_text(encoding="utf-8")
+    )
+    steps = workflow["jobs"]["stage"]["steps"]
+    names = [step["name"] for step in steps]
+
+    python_setup = next(
+        step for step in steps if step["name"] == "Set up verified Python toolchain"
+    )
+    assert python_setup["uses"] == "./.github/actions/setup-python-toolchain"
+    assert python_setup["with"]["python-version"] == "${{ env.PYTHON_VERSION }}"
+    assert names.index("Prepare pinned Windows video runtime") < names.index(
+        "Prepare private release candidate assets"
+    )
+    assert names.index("Prepare private release candidate assets") < names.index(
+        "Qualify packaged Windows video runtime"
+    )
+    qualification = next(
+        step
+        for step in steps
+        if step["name"] == "Qualify packaged Windows video runtime"
+    )
+    assert "tools.qualify_packaged_video_runtime" in qualification["run"]
+    assert "SugarSubstitute-app-v${{ inputs.version }}.zip" in qualification["run"]
+    evidence = next(
+        step
+        for step in steps
+        if step["name"] == "Upload packaged video qualification evidence"
+    )
+    assert evidence["with"]["path"] == "build/qualification/packaged-video-runtime"
+    assert evidence["with"]["retention-days"] == 1
+
+
 def test_windows_release_build_qualifies_model_lifecycle() -> None:
     """Block release inputs unless discovery and update lifecycles pass."""
 
