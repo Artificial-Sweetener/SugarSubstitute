@@ -6,10 +6,10 @@ owner = "application bootstrap"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/composition.py"
 kind = "remediation"
-justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
+justification = "The assessed file still mixes other lazy infrastructure adapters, application service graph composition, shell construction and geometry, and runtime readiness probing. The Comfy gateway adapter now has its own owner; extract the remaining adapters and shell construction next."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2926
+max_lines = 2817
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -105,28 +105,15 @@ next_limit = 500
 debt = "SS-ARCH-010"
 
 [[waivers]]
-id = "SS-WAIVER-R012"
-owner = "generation execution"
-rule = "STRUCT003"
-path = "substitute/application/generation/generation_service.py"
-kind = "remediation"
-justification = "The assessed file now mixes single and prepared request orchestration, native and direct payload projection, input asset staging, and output save-plan preparation. Listener lifecycle and output routing have moved to their own owner; extract output save-plan preparation next."
-issue = "chore:SS-ARCH-012"
-review_by = 2026-12-15
-max_lines = 550
-next_limit = 450
-debt = "SS-ARCH-012"
-
-[[waivers]]
 id = "SS-WAIVER-R013"
 owner = "generation job queue"
 rule = "STRUCT003"
 path = "substitute/application/generation/job_queue_service.py"
 kind = "remediation"
-justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
+justification = "The assessed file still mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Listener callback routing now has its own owner; extract output-run allocation and live-result projection next."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1534
+max_lines = 1467
 next_limit = 1261
 debt = "SS-ARCH-013"
 
