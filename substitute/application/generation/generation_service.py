@@ -20,14 +20,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from datetime import datetime
 from inspect import signature
 from pathlib import Path
 from typing import Any, Callable, Protocol, cast
 
 from sugarsubstitute_shared.localization import app_text
 
-from substitute.application.cubes import cube_alias_body
 from substitute.application.direct_workflows import (
     DirectWorkflowExecutionProjector,
     DirectWorkflowGenerationPlanService,
@@ -39,7 +37,6 @@ from substitute.application.ports.comfy_gateway import (
     InterruptResult,
     ListenerHandle,
     ListenerOutputSource,
-    OutputSavePlan,
 )
 from substitute.application.recipes.recipe_io_service import (
     RecipeIoService,
@@ -52,7 +49,10 @@ from substitute.application.workflows.input_asset_diagnostics import (
     log_generation_payload_assets,
 )
 from substitute.domain.common import WorkflowId
-from substitute.domain.workflow import active_cube_aliases
+from substitute.domain.workflow import WorkflowState
+from substitute.application.generation.cube_execution_stage_plan import (
+    cube_execution_stages,
+)
 from substitute.application.generation.asset_staging_service import (
     ComfyAssetStagingResult,
 )
@@ -76,11 +76,17 @@ from substitute.application.generation.generation_document_routing import (
 from substitute.application.generation.native_cube_workflow_builder import (
     NativeCubeWorkflowBuilder,
 )
+from substitute.application.generation.native_cube_stage_coordinator import (
+    NativeCubeStageCoordinator,
+)
 from substitute.application.generation.preview_preference_service import (
     GenerationPreviewMethodResolver,
 )
 from substitute.application.generation.output_preference_service import (
     OutputPreferenceService,
+)
+from substitute.application.generation.output_save_plan_factory import (
+    OutputSavePlanFactory,
 )
 from substitute.application.generation.output_seed_resolver import resolve_output_seed
 from substitute.application.generation.visual_run_context_builder import (
@@ -174,7 +180,9 @@ class GenerationService:
         resolved_preview_method = (
             preview_method_resolver or _DefaultGenerationPreviewMethodResolver()
         )
-        self._output_preference_service = output_preference_service
+        self._output_save_plan_factory = OutputSavePlanFactory(
+            output_dir=output_dir, preferences=output_preference_service
+        )
         self._direct_workflow_graph_service = (
             direct_workflow_graph_service or DirectWorkflowGenerationPlanService()
         )
@@ -187,7 +195,6 @@ class GenerationService:
         self._native_cube_workflow_builder = (
             native_cube_workflow_builder or NativeCubeWorkflowBuilder()
         )
-        self._output_dir = output_dir
         self._execution_dispatcher = GenerationExecutionDispatcher(
             comfy_gateway=comfy_gateway,
             preview_method_resolver=resolved_preview_method,
@@ -195,6 +202,9 @@ class GenerationService:
             output_dir=output_dir,
             client_id=client_id,
             model_usage_recorder=model_usage_recorder,
+        )
+        self._native_cube_stage_coordinator = NativeCubeStageCoordinator(
+            self._execution_dispatcher
         )
 
     @property
@@ -228,6 +238,7 @@ class GenerationService:
 
     def interrupt_generation(self) -> InterruptResult:
         """Interrupt active generation through transport gateway."""
+        self._native_cube_stage_coordinator.cancel_active_runs()
         return self._comfy_gateway.interrupt()
 
     def get_comfy_queue_snapshot(self) -> ComfyQueueSnapshot:
@@ -443,7 +454,7 @@ class GenerationService:
                 workflow=request.workflow,
                 workflow_payload=workflow_payload,
             )
-            output_save_plan = self._create_output_save_plan(
+            output_save_plan = self._output_save_plan_factory.create(
                 request,
                 seed=output_seed,
                 explicit_output_aliases=tuple(
@@ -467,6 +478,30 @@ class GenerationService:
                 ),
             )
 
+        if (
+            request.direct_workflow_plan is None
+            and isinstance(request.workflow, WorkflowState)
+            and request.workflow.is_graph_backed_cube_workflow
+        ):
+            try:
+                stages = cube_execution_stages(request.workflow)
+            except ValueError as error:
+                return self._notify_failure(
+                    callbacks=callbacks,
+                    failure=GenerationFailure(
+                        stage="build",
+                        workflow_id=request.workflow_id,
+                        message=str(error),
+                    ),
+                )
+            return self._native_cube_stage_coordinator.dispatch(
+                request=request,
+                workflow_payload=workflow_payload,
+                output_save_plan=output_save_plan,
+                callbacks=callbacks,
+                stages=stages,
+            )
+
         return self._execution_dispatcher.dispatch(
             request=request,
             workflow_payload=workflow_payload,
@@ -475,38 +510,6 @@ class GenerationService:
             native_cube_execution=request.direct_workflow_plan is None,
             execution_targets=execution_targets,
             standard_output_sources=standard_output_sources,
-        )
-
-    def _create_output_save_plan(
-        self,
-        request: PreparedGenerationRequest,
-        *,
-        seed: str,
-        explicit_output_aliases: tuple[str, ...] = (),
-    ) -> OutputSavePlan:
-        """Create immutable output organization settings for one queued prompt."""
-
-        job_started_at = request.output_job_started_at or datetime.now().astimezone()
-        if self._output_preference_service is not None:
-            return self._output_preference_service.create_save_plan(
-                workflow_name=request.workflow_name,
-                output_run_number=request.output_run_number,
-                job_started_at=job_started_at,
-                seed=seed,
-                cube_numbers_by_alias=_cube_numbers_by_alias(request),
-                active_cube_aliases=(
-                    explicit_output_aliases or _active_cube_aliases_for_request(request)
-                ),
-                muted_cube_aliases=_muted_cube_aliases_for_request(request),
-            )
-        return OutputSavePlan(
-            output_root=self._output_dir,
-            path_pattern="{date}\\{run}_{cube#}_{workflow}_{source}",
-            workflow_name=request.workflow_name,
-            output_run_number=request.output_run_number,
-            job_started_at=job_started_at,
-            seed=seed,
-            cube_numbers_by_alias=_cube_numbers_by_alias(request),
         )
 
     @staticmethod
@@ -538,77 +541,6 @@ def find_unresolved_uuid_class_types(workflow_payload: dict[str, object]) -> lis
         if _UUID_CLASS_RE.match(class_type):
             unresolved.add(class_type)
     return sorted(unresolved)
-
-
-def _cube_numbers_by_alias(request: PreparedGenerationRequest) -> dict[str, int]:
-    """Return lookup keys for cube order from detached workflow state."""
-
-    aliases = _ordered_cube_aliases_from_workflow(request.workflow)
-    if aliases is None:
-        aliases = ()
-    numbers: dict[str, int] = {}
-    for index, alias in enumerate(aliases, start=1):
-        _add_cube_number_aliases(numbers, alias, index)
-    return numbers
-
-
-def _active_cube_aliases_for_request(
-    request: PreparedGenerationRequest,
-) -> tuple[str, ...]:
-    """Return topology-ordered active cube aliases for persistence policy."""
-
-    aliases = _ordered_cube_aliases_from_workflow(request.workflow)
-    if aliases is not None:
-        return aliases
-    return ()
-
-
-def _muted_cube_aliases_for_request(
-    request: PreparedGenerationRequest,
-) -> frozenset[str]:
-    """Return workflow-local cube aliases whose outputs are memory-only."""
-
-    workflow = request.workflow
-    cubes = getattr(workflow, "cubes", None)
-    if isinstance(cubes, Mapping):
-        return frozenset(
-            alias
-            for alias, cube in cubes.items()
-            if isinstance(alias, str)
-            and getattr(cube, "output_persistence_enabled", True) is False
-        )
-    return frozenset()
-
-
-def _ordered_cube_aliases_from_workflow(
-    workflow: object | None,
-) -> tuple[str, ...] | None:
-    """Return stack-order aliases from a live workflow-like object when available."""
-
-    stack_order = getattr(workflow, "stack_order", None)
-    if not isinstance(stack_order, list | tuple):
-        return None
-    cubes = getattr(workflow, "cubes", None)
-    if isinstance(cubes, Mapping):
-        aliases = active_cube_aliases(cast(Any, workflow))
-    else:
-        aliases = tuple(
-            alias for alias in stack_order if isinstance(alias, str) and alias
-        )
-    return aliases if aliases else None
-
-
-def _add_cube_number_aliases(
-    numbers: dict[str, int],
-    alias: str,
-    cube_number: int,
-) -> None:
-    """Index raw and display-form aliases for save-time source lookup."""
-
-    for key in {alias, cube_alias_body(alias)}:
-        cleaned = key.strip()
-        if cleaned and cleaned not in numbers:
-            numbers[cleaned] = cube_number
 
 
 __all__ = [

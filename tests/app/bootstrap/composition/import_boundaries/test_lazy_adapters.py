@@ -154,10 +154,10 @@ def test_lazy_comfy_gateway_defers_prompt_transport_imports() -> None:
         import json
         import sys
 
-        from substitute.app.bootstrap.composition import _LazyComfyGateway
+        from substitute.app.bootstrap.lazy_comfy_gateway import LazyComfyGateway
         from substitute.domain.onboarding import ComfyEndpoint
 
-        gateway = _LazyComfyGateway(ComfyEndpoint(host="127.0.0.1", port=8188))
+        gateway = LazyComfyGateway(ComfyEndpoint(host="127.0.0.1", port=8188))
         prefixes = (
             "substitute.infrastructure.comfy.gateway_adapter",
             "substitute.infrastructure.comfy.prompt_gateway",
@@ -175,7 +175,7 @@ def test_lazy_comfy_gateway_defers_prompt_transport_imports() -> None:
 
     completed = run_isolated_import_probe(code)
 
-    assert completed.stdout.strip() == '["_LazyComfyGateway", []]'
+    assert completed.stdout.strip() == '["LazyComfyGateway", []]'
 
 
 def test_lazy_scheduled_lora_provider_defers_effective_lora_imports() -> None:

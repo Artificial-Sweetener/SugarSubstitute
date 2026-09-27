@@ -110,6 +110,7 @@ class _QueueRecorderGateway:
         workflow: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         visual_context: QueueVisualRunContext,
         persistence_sugar_script: str | None = None,
@@ -120,6 +121,7 @@ class _QueueRecorderGateway:
         return self.queue_prompt(
             workflow,
             client_id=client_id,
+            execution_targets=execution_targets,
             preview_method=preview_method,
             visual_context=visual_context,
         )

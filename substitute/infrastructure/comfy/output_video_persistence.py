@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
+from uuid import uuid4
 
 from substitute.application.ports.video import VideoProbeResult
 from substitute.infrastructure.comfy.output_destination_allocator import (
@@ -89,7 +91,7 @@ class OutputVideoPersistence:
                     temporary=True,
                     probe=probe_result,
                 )
-            partial_path.replace(durable_path)
+            _promote_durable_video(partial_path, durable_path)
             self._session_store.release(partial_path)
             return PersistedOutputVideo(
                 file_path=durable_path,
@@ -99,6 +101,18 @@ class OutputVideoPersistence:
         except Exception:
             self._session_store.release(partial_path)
             raise
+
+
+def _promote_durable_video(partial_path: Path, durable_path: Path) -> None:
+    """Stage on the destination volume before atomically publishing the video."""
+
+    staged_path = durable_path.with_name(f".{durable_path.name}.{uuid4().hex}.partial")
+    try:
+        with partial_path.open("rb") as source, staged_path.open("xb") as staged:
+            shutil.copyfileobj(source, staged, length=1024 * 1024)
+        staged_path.replace(durable_path)
+    finally:
+        staged_path.unlink(missing_ok=True)
 
 
 __all__ = ["OutputVideoPersistence", "PersistedOutputVideo"]

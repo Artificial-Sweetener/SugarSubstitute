@@ -459,6 +459,7 @@ class ComfyGateway(Protocol):
         workflow: JsonObject,
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         visual_context: QueueVisualRunContext,
         persistence_sugar_script: str | None = None,

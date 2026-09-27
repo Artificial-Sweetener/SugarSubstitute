@@ -210,6 +210,31 @@ def test_client_negotiates_and_queues_canonical_workflow_with_context() -> None:
     }
 
 
+def test_client_targets_one_cube_for_ordered_execution_stage() -> None:
+    """Forward a Cube identity to SugarCubes without changing its workflow."""
+
+    http = _Http(_capabilities())
+    workflow = {"version": 0.4, "nodes": [], "links": []}
+
+    result = _client(http).queue(
+        workflow=workflow,
+        client_id="client-1",
+        visual_context=_context(),
+        execution_targets=("cube-a",),
+    )
+
+    assert result.prompt_id == "native-prompt"
+    assert len(http.posts) == 1
+    _url, body = http.posts[0]
+    assert isinstance(body, dict)
+    assert body["workflow"] is workflow
+    assert body["queue"] == {
+        "client_id": "client-1",
+        "atomic": True,
+        "partial_execution_targets": ["cube-a"],
+    }
+
+
 def test_client_rejects_incompatible_native_execution_capabilities() -> None:
     """Generate must fail before queueing when the native contract is incompatible."""
 
