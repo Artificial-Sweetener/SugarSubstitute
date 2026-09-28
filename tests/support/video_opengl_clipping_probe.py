@@ -69,10 +69,19 @@ def main() -> int:
         )
         video.update()
         application.processEvents()
-        image = root.grab().toImage()
+        screenshot = root.grab()
+        image = screenshot.toImage()
+        pixel_ratio = screenshot.devicePixelRatio()
+        panel_centers = {
+            "cube": cube.mapTo(root, cube.rect().center()),
+            "editor": editor.mapTo(root, editor.rect().center()),
+        }
         samples = {
-            "cube": image.pixelColor(100, 150),
-            "editor": image.pixelColor(300, 150),
+            name: image.pixelColor(
+                round(center.x() * pixel_ratio),
+                round(center.y() * pixel_ratio),
+            )
+            for name, center in panel_centers.items()
         }
         expected = {"cube": cube_color, "editor": editor_color}
         failures = {

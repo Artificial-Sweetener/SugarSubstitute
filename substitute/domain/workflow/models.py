@@ -147,12 +147,21 @@ class WorkflowState:
 
     @property
     def document_kind(self) -> WorkflowDocumentKind:
-        """Return the mutually exclusive authoring model owned by this tab."""
+        """Keep an empty canonical Cube graph editable after its last removal."""
 
         if self.direct_workflow is not None:
+            graph = self.direct_workflow.source_workflow
+            nodes = graph.get("nodes")
+            definitions = graph.get("definitions")
+            empty_canonical_graph = (
+                isinstance(nodes, list)
+                and not nodes
+                and isinstance(definitions, Mapping)
+                and isinstance(definitions.get("subgraphs"), list)
+            )
             return (
                 WorkflowDocumentKind.COMFY_CUBE_GRAPH
-                if self.cubes
+                if self.cubes or empty_canonical_graph
                 else WorkflowDocumentKind.DIRECT_COMFY
             )
         return WorkflowDocumentKind.CUBE_STACK
