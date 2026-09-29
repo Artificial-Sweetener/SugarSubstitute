@@ -16,6 +16,8 @@
 
 import { spawnSync } from "node:child_process";
 
+import { isUnloadedBundledNpmUndiciFinding } from "./release-dependency-audit-policy.mjs";
+
 const ignoredAdvisoryIds = new Set([1124334]);
 const ignoredAdvisoryUrls = new Set([
   // These affect the embedded npm runtime of @semantic-release/npm, which the
@@ -49,7 +51,8 @@ const unresolvedFindings = Object.values(report.vulnerabilities ?? []).flatMap(
         typeof finding === "object" &&
         ["high", "critical"].includes(finding.severity) &&
         !ignoredAdvisoryIds.has(finding.source) &&
-        !ignoredAdvisoryUrls.has(finding.url),
+        !ignoredAdvisoryUrls.has(finding.url) &&
+        !isUnloadedBundledNpmUndiciFinding(vulnerability, finding),
     ),
 );
 
