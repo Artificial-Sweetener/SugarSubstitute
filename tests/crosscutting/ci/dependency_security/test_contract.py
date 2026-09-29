@@ -18,10 +18,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
 
 import yaml  # type: ignore[import-untyped]
+
+from tests.support.execution.node_runtime import run_node
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -87,6 +90,7 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
         "GHSA-mwp4-54f8-5fhr",
     } <= set(re.findall(r"GHSA-[a-z0-9-]+", audit_source))
     assert "!ignoredAdvisoryUrls.has(finding.url)" in audit_source
+    assert "!isUnloadedBundledNpmUndiciFinding(vulnerability, finding)" in audit_source
     release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
         encoding="utf-8"
     )
@@ -97,6 +101,42 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
         "CVE-2026-24049"
     )
     assert "--ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}" in platform_script
+
+
+def test_dormant_npm_bundle_exception_never_masks_active_undici() -> None:
+    """Allow the unused npm bundle only when every vulnerable node is inside it."""
+
+    script = """
+import { isUnloadedBundledNpmUndiciFinding } from './scripts/release-dependency-audit-policy.mjs';
+const finding = {url: 'https://github.com/advisories/GHSA-rfgv-xxqx-mfg5'};
+const bundle = 'node_modules/npm/node_modules/undici';
+const active = 'node_modules/@semantic-release/github/node_modules/undici';
+const matches = (nodes, url = finding.url) => isUnloadedBundledNpmUndiciFinding(
+  {name: 'undici', nodes}, {url},
+);
+process.stdout.write(JSON.stringify({
+  dormantOnly: matches([bundle]),
+  activeAlsoAffected: matches([bundle, active]),
+  activeOnly: matches([active]),
+  empty: matches([]),
+  unrelatedAdvisory: matches([bundle], 'https://github.com/advisories/other'),
+}));
+"""
+    result = run_node(
+        ("--input-type=module", "-e", script),
+        cwd=PROJECT_ROOT,
+        timeout_seconds=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "dormantOnly": True,
+        "activeAlsoAffected": False,
+        "activeOnly": False,
+        "empty": False,
+        "unrelatedAdvisory": False,
+    }
 
 
 def test_python_audit_exception_remains_tied_to_photoshop_constraint() -> None:
