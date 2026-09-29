@@ -110,6 +110,7 @@ class _QueueRecorderGateway:
         workflow: dict[str, object],
         *,
         client_id: str,
+        execution_targets: tuple[str, ...] | None = None,
         preview_method: str | None = None,
         visual_context: QueueVisualRunContext,
         persistence_sugar_script: str | None = None,
@@ -120,6 +121,7 @@ class _QueueRecorderGateway:
         return self.queue_prompt(
             workflow,
             client_id=client_id,
+            execution_targets=execution_targets,
             preview_method=preview_method,
             visual_context=visual_context,
         )
@@ -434,6 +436,7 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
             on_model_load_progress=lambda _event: None,
             on_preview=lambda _event: None,
             on_output_image=lambda _event: None,
+            on_output_video=lambda _event: None,
             on_failure=lambda failure: failures.append(failure),
             on_timing=lambda _event: None,
         ),

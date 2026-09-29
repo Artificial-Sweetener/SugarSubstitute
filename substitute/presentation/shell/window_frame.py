@@ -20,8 +20,14 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QColor, QPalette, QResizeEvent, QShowEvent
+from PySide6.QtCore import QEvent, QTimer
+from PySide6.QtGui import (
+    QColor,
+    QPalette,
+    QPlatformSurfaceEvent,
+    QResizeEvent,
+    QShowEvent,
+)
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
 from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
@@ -342,6 +348,21 @@ class SubstituteWindowFrame(AcrylicWindow):  # type: ignore[misc]
 
         event.accept()
         super().closeEvent(event)
+
+    def event(self, event: QEvent) -> bool:
+        """Restore the native backdrop when Qt recreates the window surface."""
+
+        handled = bool(super().event(event))
+        if (
+            event.type() == QEvent.Type.PlatformSurface
+            and isinstance(event, QPlatformSurfaceEvent)
+            and event.surfaceEventType()
+            is QPlatformSurfaceEvent.SurfaceEventType.SurfaceCreated
+        ):
+            timer = getattr(self, "_deferred_backdrop_timer", None)
+            if timer is not None:
+                timer.start(0)
+        return handled
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Keep frame-owned overlays aligned after shell geometry changes."""

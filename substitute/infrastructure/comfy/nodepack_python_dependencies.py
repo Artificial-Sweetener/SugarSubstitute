@@ -25,6 +25,9 @@ import tomllib
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
 )
+from substitute.infrastructure.comfy.nodepack_operation_timing import (
+    measure_nodepack_operation,
+)
 from substitute.infrastructure.process.hidden_process_runner import (
     run_command,
     stream_command_collecting_output,
@@ -66,13 +69,18 @@ def install_nodepack_python_dependencies(
         "install",
         *dependencies,
     ]
-    exit_code, output_lines = stream_command_collecting_output(
-        command,
-        cwd=nodepack_root,
-        on_line=on_log,
-        timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
-        env=env,
-    )
+    with measure_nodepack_operation(
+        operation="python_dependencies_install",
+        nodepack_id=nodepack_root.name,
+        on_log=on_log,
+    ):
+        exit_code, output_lines = stream_command_collecting_output(
+            command,
+            cwd=nodepack_root,
+            on_line=on_log,
+            timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
+            env=env,
+        )
     if exit_code == 0:
         return
     raise_pip_path_compatibility_error(
@@ -181,12 +189,17 @@ def nodepack_python_dependencies_satisfied(
         "    if requirement.specifier and installed not in requirement.specifier:\n"
         "        raise SystemExit(2)\n"
     )
-    result = run_command(
-        [subprocess_path(python_executable), "-c", script],
-        cwd=nodepack_root,
-        check=False,
-        env=env,
-    )
+    with measure_nodepack_operation(
+        operation="python_dependencies_probe",
+        nodepack_id=nodepack_root.name,
+        on_log=None,
+    ):
+        result = run_command(
+            [subprocess_path(python_executable), "-c", script],
+            cwd=nodepack_root,
+            check=False,
+            env=env,
+        )
     return result.returncode == 0
 
 

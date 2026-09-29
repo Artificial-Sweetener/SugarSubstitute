@@ -51,6 +51,9 @@ from substitute.application.workflows.output_canvas_result_selection import (
     ordered_projected_position_items,
     output_projection_items,
 )
+from substitute.application.workflows.output_canvas_source_order import (
+    authored_output_source_keys,
+)
 
 
 def build_output_canvas_projection(
@@ -60,14 +63,17 @@ def build_output_canvas_projection(
     """Return grouped output-canvas presentation state for a workflow."""
 
     projection_items = output_projection_items(workflow, image_meta_map)
+    source_order = authored_output_source_keys(workflow)
     preferred_image_id = _manually_selected_image_id(workflow, image_meta_map)
     sources, set_count, _items_by_uuid = _source_groups_for_items(
         projection_items,
         preferred_image_id=preferred_image_id,
+        source_order=source_order,
     )
     scene_groups = _scene_groups_for_items(
         projection_items,
         preferred_image_id=preferred_image_id,
+        source_order=source_order,
     )
     route = resolve_output_canvas_route(
         workflow,
@@ -96,6 +102,7 @@ def _source_groups_for_items(
     image_items: tuple[tuple[UUID, ImageMeta], ...],
     *,
     preferred_image_id: UUID | None = None,
+    source_order: tuple[str, ...] = (),
 ) -> tuple[
     tuple[OutputCanvasSourceGroup, ...],
     int,
@@ -128,6 +135,11 @@ def _source_groups_for_items(
                 source_entries,
                 key=lambda entry: _direct_source_order(source_labels.get(entry[0], "")),
             )
+        )
+    elif source_order:
+        rank = {source_key: index for index, source_key in enumerate(source_order)}
+        source_entries = tuple(
+            sorted(source_entries, key=lambda entry: rank.get(entry[0], len(rank)))
         )
 
     for source_key, source_image_items in source_entries:
@@ -238,6 +250,7 @@ def _scene_groups_for_items(
     image_items: tuple[tuple[UUID, ImageMeta], ...],
     *,
     preferred_image_id: UUID | None = None,
+    source_order: tuple[str, ...] = (),
 ) -> tuple[OutputCanvasSceneGroup, ...]:
     """Return prompt-scene groups in scene order for output items."""
 
@@ -262,6 +275,7 @@ def _scene_groups_for_items(
         sources, _set_count, _items_by_uuid = _source_groups_for_items(
             tuple(grouped_scene_items),
             preferred_image_id=preferred_image_id,
+            source_order=source_order,
         )
         representative_source_key, representative_set_index, primary_image_id = (
             _scene_representative_for_sources(sources)

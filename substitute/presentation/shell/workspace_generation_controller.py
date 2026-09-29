@@ -52,6 +52,7 @@ from substitute.application.ports import (
     ListenerCompleted,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -101,6 +102,7 @@ class GenerationUiBindings:
     on_model_load_progress: Callable[[ModelLoadProgressUpdate], None]
     on_preview: Callable[[PreviewImageUpdate], None]
     on_output_image: Callable[[OutputImageUpdate], None]
+    on_output_video: Callable[[OutputVideoUpdate], None]
     on_failure: Callable[[GenerationFailure], None]
     on_timing: Callable[[GenerationExecutionTiming], None]
     on_completed: Callable[[ListenerCompleted], None]
@@ -413,6 +415,7 @@ class WorkspaceGenerationController:
             on_model_load_progress=bindings.on_model_load_progress,
             on_preview=bindings.on_preview,
             on_output_image=bindings.on_output_image,
+            on_output_video=bindings.on_output_video,
             on_failure=bindings.on_failure,
             on_timing=bindings.on_timing,
             on_completed=bindings.on_completed,
@@ -752,6 +755,7 @@ class WorkspaceGenerationController:
             on_model_load_progress=bindings.on_model_load_progress,
             on_preview=bindings.on_preview,
             on_output_image=bindings.on_output_image,
+            on_output_video=bindings.on_output_video,
             on_failure=lambda failure: self._handle_continuous_failure(
                 bindings,
                 failure,

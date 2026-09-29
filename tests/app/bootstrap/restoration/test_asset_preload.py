@@ -24,6 +24,7 @@ from substitute.app.bootstrap.workspace_restore_asset_preload import (
     WorkspaceRestoreAssetPreloadHandle,
 )
 from tests.support.execution import ImmediateTaskSubmitter
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot import (
     ImageMetaSnapshot,
@@ -110,7 +111,36 @@ def test_workspace_restore_asset_preload_prepares_editable_document(
     assert handle.prepared_editable_document() is prepared
 
 
-def _workspace(*, input_path: Path, output_path: Path) -> WorkspaceSnapshot:
+def test_workspace_restore_asset_preload_does_not_buffer_video_files(
+    tmp_path: Path,
+) -> None:
+    """Startup preload should leave large videos to the bounded media probe."""
+
+    input_path = tmp_path / "input.png"
+    video_path = tmp_path / "output.webm"
+    input_path.write_bytes(b"input-bytes")
+    video_path.write_bytes(b"video-bytes")
+    handle = WorkspaceRestoreAssetPreloadHandle(
+        _workspace(
+            input_path=input_path,
+            output_path=video_path,
+            media_kind=OutputMediaKind.VIDEO,
+        ),
+        submitter=ImmediateTaskSubmitter(),
+    )
+
+    handle.start()
+
+    assert handle.image_bytes(input_path) == b"input-bytes"
+    assert handle.image_bytes(video_path) is None
+
+
+def _workspace(
+    *,
+    input_path: Path,
+    output_path: Path,
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE,
+) -> WorkspaceSnapshot:
     """Build a workspace with input and output image references."""
 
     return WorkspaceSnapshot(
@@ -137,6 +167,7 @@ def _workspace(*, input_path: Path, output_path: Path) -> WorkspaceSnapshot:
                             image_number=1,
                             suffix="",
                             path=output_path,
+                            media_kind=media_kind,
                         ),
                         sequence=0,
                     ),

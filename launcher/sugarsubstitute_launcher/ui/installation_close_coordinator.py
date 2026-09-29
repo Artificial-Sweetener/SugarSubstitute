@@ -80,7 +80,7 @@ class InstallationCloseCoordinator(QObject):
             self._handoff_requested = False
             self._handoff_completed()
         _LOGGER.info("Installer reached its requested safe close boundary")
-        QTimer.singleShot(0, self._window.close)
+        QTimer.singleShot(0, self._window, self._window.close)
         return True
 
     def request_handoff(self) -> None:

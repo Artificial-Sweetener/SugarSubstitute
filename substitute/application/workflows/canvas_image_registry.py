@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -36,10 +36,15 @@ class CanvasImageRecord:
 class CanvasImageRegistry:
     """Own canvas image records without workflow membership or display policy."""
 
-    def __init__(self) -> None:
-        """Initialize empty UUID-keyed image records."""
+    def __init__(
+        self,
+        *,
+        on_record_removed: Callable[[UUID, CanvasImageRecord], None] | None = None,
+    ) -> None:
+        """Initialize records and the optional artifact-lifetime callback."""
 
         self._records: dict[UUID, CanvasImageRecord] = {}
+        self._on_record_removed = on_record_removed or (lambda _image_id, _record: None)
 
     def store(
         self,
@@ -125,7 +130,11 @@ class CanvasImageRegistry:
     def remove(self, image_id: UUID) -> bool:
         """Remove one image record and return whether it existed."""
 
-        return self._records.pop(image_id, None) is not None
+        record = self._records.pop(image_id, None)
+        if record is None:
+            return False
+        self._on_record_removed(image_id, record)
+        return True
 
     def __contains__(self, image_id: object) -> bool:
         """Return whether the registry owns a record for image_id."""

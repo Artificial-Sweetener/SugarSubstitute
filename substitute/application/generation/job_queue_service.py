@@ -44,9 +44,15 @@ from substitute.application.generation.dispatch_availability import (
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
-    GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
+)
+from substitute.application.generation.generation_job_output_store import (
+    GenerationJobOutputStore,
+    GenerationOutputUpdate,
+)
+from substitute.application.generation.generation_queue_callback_router import (
+    wrap_generation_queue_callbacks,
 )
 from substitute.application.generation.queued_generation_request_factory import (
     prepared_request_from_queue_snapshot,
@@ -66,9 +72,6 @@ from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
     InterruptResult,
     ListenerCompleted,
-    ModelLoadProgressUpdate,
-    OutputImageUpdate,
-    PreviewImageUpdate,
     ProgressUpdate,
 )
 from substitute.application.ports.output_run_number_allocator import (
@@ -188,7 +191,7 @@ class GenerationJobQueueService:
         self._projected_jobs_cache: tuple[GenerationQueueJob, ...] | None = None
         self._projected_jobs_cache_key: QueueProjectionCacheKey | None = None
         self._callbacks_by_job_id: dict[str, GenerationCallbacks] = {}
-        self._outputs_by_job_id: dict[str, list[GenerationJobOutputRecord]] = {}
+        self._output_store = GenerationJobOutputStore(self._clock)
         self._reserved_output_numbers_by_bucket: dict[str, set[int]] = {}
         self._observers: list[QueueObserver] = []
         self._lifecycle_observers: list[GenerationJobLifecycleObserver] = []
@@ -331,7 +334,7 @@ class GenerationJobQueueService:
 
         self._jobs.append(job)
         self._callbacks_by_job_id[job.job_id] = callbacks
-        self._outputs_by_job_id[job.job_id] = []
+        self._output_store.prepare_job(job.job_id)
 
     @staticmethod
     def _batch_context_for_entries(
@@ -475,7 +478,7 @@ class GenerationJobQueueService:
         if index is None:
             return
         self._callbacks_by_job_id.pop(job_id, None)
-        self._outputs_by_job_id.pop(job_id, None)
+        self._output_store.remove_job(job_id)
         del self._jobs[index]
         log_info(
             _LOGGER,
@@ -691,7 +694,7 @@ class GenerationJobQueueService:
 
         if self._job_by_id(job_id) is None:
             return ()
-        return tuple(self._outputs_by_job_id.get(job_id, ()))
+        return self._output_store.records_for_job(job_id)
 
     def has_active_job(self) -> bool:
         """Return whether the queue currently owns active cancellable work."""
@@ -1079,86 +1082,12 @@ class GenerationJobQueueService:
         callbacks: GenerationCallbacks,
     ) -> GenerationCallbacks:
         """Wrap generation callbacks so queue state follows execution events."""
-
-        def on_output_image(event: OutputImageUpdate) -> None:
-            def handle_output() -> None:
-                self._handle_generation_output(job_id, event)
-                callbacks.on_output_image(event)
-
-            self._transition_scheduler(handle_output)
-
-        def on_progress(event: ProgressUpdate) -> None:
-            def handle_progress() -> None:
-                if self._handle_generation_progress(job_id, event):
-                    callbacks.on_progress(event)
-
-            self._transition_scheduler(handle_progress)
-
-        def on_timing(event: GenerationExecutionTiming) -> None:
-            def handle_timing() -> None:
-                self._handle_generation_timing(job_id, event)
-                callbacks.on_timing(event)
-
-            self._transition_scheduler(handle_timing)
-
-        def on_model_load_progress(event: ModelLoadProgressUpdate) -> None:
-            def handle_model_load_progress() -> None:
-                callbacks.on_model_load_progress(event)
-
-            self._transition_scheduler(handle_model_load_progress)
-
-        def on_preview(event: PreviewImageUpdate) -> None:
-            def handle_preview() -> None:
-                callbacks.on_preview(event)
-
-            self._transition_scheduler(handle_preview)
-
-        def on_run_started(event: GenerationRunStarted) -> None:
-            def handle_run_started() -> None:
-                self._replace_job(
-                    job_id,
-                    prompt_id=event.prompt_id,
-                    generation_run_id=event.generation_run_id,
-                    client_id=event.client_id,
-                )
-                if callbacks.on_run_started is not None:
-                    callbacks.on_run_started(event)
-
-            self._transition_scheduler(handle_run_started)
-
-        def on_failure(failure: GenerationFailure) -> None:
-            self._transition_scheduler(
-                lambda: self._handle_generation_failure_profiled(
-                    job_id,
-                    failure,
-                    callbacks,
-                )
-            )
-
-        def on_completed(event: ListenerCompleted) -> None:
-            self._transition_scheduler(
-                lambda: self._handle_generation_completed_profiled(
-                    job_id,
-                    event,
-                    callbacks,
-                )
-            )
-
-        return GenerationCallbacks(
-            on_run_started=on_run_started,
-            on_progress=on_progress,
-            on_model_load_progress=on_model_load_progress,
-            on_preview=on_preview,
-            on_output_image=on_output_image,
-            on_failure=on_failure,
-            on_timing=on_timing,
-            on_completed=on_completed,
-        )
+        return wrap_generation_queue_callbacks(self, job_id, callbacks)
 
     def _handle_generation_output(
         self,
         job_id: str,
-        event: OutputImageUpdate,
+        event: GenerationOutputUpdate,
     ) -> None:
         """Record latest output metadata for one queued job."""
 
@@ -1171,49 +1100,13 @@ class GenerationJobQueueService:
             last_output_node_id=event.node_id,
             output_count=job.output_count + 1,
         )
-        self._append_live_output_record(
+        self._output_store.append(
             job_id=job_id,
             event=event,
             sequence=job.output_count + 1,
         )
         self._notify_structural_observers(changed_job_id=job_id)
         self._notify_lifecycle(job_id, "output")
-
-    def _append_live_output_record(
-        self,
-        *,
-        job_id: str,
-        event: OutputImageUpdate,
-        sequence: int,
-    ) -> None:
-        """Retain one output record for current-session queue replay."""
-
-        if event.file_path is None:
-            return
-        records = self._outputs_by_job_id.setdefault(job_id, [])
-        records.append(
-            GenerationJobOutputRecord(
-                job_id=job_id,
-                output_path=event.file_path,
-                node_id=event.node_id,
-                created_at=self._clock(),
-                sequence=sequence,
-                source_key=event.source_key,
-                source_label=event.source_label,
-                scene_run_id=event.scene_run_id,
-                scene_key=event.scene_key,
-                scene_title=event.scene_title,
-                scene_order=event.scene_order,
-                scene_count=event.scene_count,
-                node_title=None,
-                metadata={
-                    "list_index": event.list_index,
-                    "batch_index": event.batch_index,
-                    "width": event.artifact_width,
-                    "height": event.artifact_height,
-                },
-            )
-        )
 
     def _handle_generation_progress(
         self,
@@ -1707,7 +1600,7 @@ class GenerationJobQueueService:
         ]
         for job_id in pruned_job_ids:
             self._callbacks_by_job_id.pop(job_id, None)
-            self._outputs_by_job_id.pop(job_id, None)
+            self._output_store.remove_job(job_id)
         log_info(
             _LOGGER,
             "Pruned terminal generation queue history",

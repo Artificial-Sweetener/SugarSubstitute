@@ -18,9 +18,17 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import cast
 
+from substitute.application.workflows import (
+    CubeRuntimeIssue,
+    CubeRuntimeIssueKind,
+    CubeRuntimeIssueSeverity,
+    CubeRuntimeIssueSource,
+    WorkflowIssueState,
+)
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.cube_library import (
     WorkflowCubeAccess,
@@ -75,6 +83,7 @@ class _CubeStack:
         self.bypassed: dict[int, bool] = {}
         self.capture_available: dict[int, bool] = {}
         self.current_index = -1
+        self.issue_severities: dict[str, str | None] = {}
 
     def clear(self) -> None:
         """Clear all recorded tab state."""
@@ -87,6 +96,7 @@ class _CubeStack:
         self.bypassed.clear()
         self.capture_available.clear()
         self.current_index = -1
+        self.issue_severities.clear()
 
     def count(self) -> int:
         """Return the current tab count."""
@@ -147,10 +157,73 @@ class _CubeStack:
 
         self.capture_available[index] = available
 
+    def setTabIssueSeverity(self, route_key: str, severity: str | None) -> None:
+        """Record the issue severity assigned to one cube tab."""
+
+        self.issue_severities[route_key] = severity
+
     def tabItem(self, index: int) -> _TabItem:
         """Return one tab item."""
 
         return self.items[index]
+
+
+def test_node_failure_does_not_wash_cube_stack_tab() -> None:
+    """Rebuilding a stack must reserve red for cube-wide failures."""
+
+    presenter = CubeStackPresenter(
+        icon_resolver=CubeIconResolver(cube_icon_factory=None)
+    )
+    stack = _CubeStack()
+    issue_state = WorkflowIssueState()
+    node_issue = CubeRuntimeIssue(
+        workflow_id="wf-a",
+        cube_alias="Alias",
+        severity=CubeRuntimeIssueSeverity.ERROR,
+        kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_DEFINITION,
+        message="Missing definition",
+        operation="projection",
+        source=CubeRuntimeIssueSource.PROJECTION,
+        missing_node_classes=("ApplyKrea2NegPiP",),
+        node_names=("apply_krea2_negpip",),
+    )
+    issue_state.add_issues((node_issue,))
+    cube = CubeState(
+        cube_id="Org/Base-Cubes/Base.cube",
+        version="1.0.0",
+        alias="Alias",
+        original_cube={},
+        buffer={},
+    )
+
+    presenter.rebuild_stack(
+        cast(CubeStackProtocol, stack),
+        workflow_id="wf-a",
+        workflow=WorkflowState(cubes={"Alias": cube}, stack_order=["Alias"]),
+        active_cube_alias="Alias",
+        issue_state=issue_state,
+    )
+
+    assert stack.issue_severities == {"Alias": None}
+
+    issue_state.add_issues(
+        (
+            replace(
+                node_issue,
+                kind=CubeRuntimeIssueKind.PROJECTION_HYDRATION_FAILED,
+                node_names=(),
+            ),
+        )
+    )
+    presenter.rebuild_stack(
+        cast(CubeStackProtocol, stack),
+        workflow_id="wf-a",
+        workflow=WorkflowState(cubes={"Alias": cube}, stack_order=["Alias"]),
+        active_cube_alias="Alias",
+        issue_state=issue_state,
+    )
+
+    assert stack.issue_severities == {"Alias": "error"}
 
 
 def test_rebuild_stack_applies_complete_tab_presentation() -> None:

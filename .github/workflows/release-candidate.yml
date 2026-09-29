@@ -60,6 +60,7 @@ permissions:
 
 env:
   NODE_VERSION: "22.22.2"
+  PYTHON_VERSION: "3.12.10"
 
 jobs:
   stage:
@@ -86,6 +87,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           install-dependencies: ${{ inputs.channel == 'stable' }}
+
+      - name: Set up verified Python toolchain
+        if: inputs.existing_candidate_run_id == ''
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download Windows release inputs
         if: inputs.existing_candidate_run_id == ''
@@ -116,6 +123,11 @@ jobs:
           run-id: ${{ inputs.release_input_run_id || github.run_id }}
           github-token: ${{ github.token }}
 
+      - name: Prepare pinned Windows video runtime
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe tools\prepare_mpv_runtime.py
+
       - name: Prepare private release candidate assets
         if: inputs.existing_candidate_run_id == ''
         shell: pwsh
@@ -123,6 +135,24 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           SUGAR_SUBSTITUTE_RELEASE_CHANNEL: ${{ inputs.channel }}
         run: node scripts\prepare-release-assets.mjs ${{ inputs.version }}
+
+      - name: Qualify packaged Windows video runtime
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $appRoot = Join-Path $env:RUNNER_TEMP "qualified-video-app"
+          Expand-Archive -LiteralPath ".local-release-channel\SugarSubstitute-app-v${{ inputs.version }}.zip" -DestinationPath $appRoot -Force
+          .\.venv\Scripts\python.exe -m tools.qualify_packaged_video_runtime --application-root $appRoot --fixture-root tests\fixtures\video --evidence-dir build\qualification\packaged-video-runtime
+
+      - name: Upload packaged video qualification evidence
+        if: always() && inputs.existing_candidate_run_id == ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packaged-video-runtime-qualification${{ inputs.release_input_artifact_suffix }}
+          path: build/qualification/packaged-video-runtime
+          if-no-files-found: warn
+          retention-days: 1
 
       - name: Sign immutable release metadata
         if: inputs.existing_candidate_run_id == ''

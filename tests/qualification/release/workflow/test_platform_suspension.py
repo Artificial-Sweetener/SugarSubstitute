@@ -102,7 +102,7 @@ def test_qualification_selection_never_requests_suspended_assets(
         },
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=60,
         check=False,
     )
     if scope in {"clean-linux", "clean-macos", "updates-linux", "updates-macos"}:

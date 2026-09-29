@@ -23,12 +23,29 @@ from time import perf_counter
 from typing import Mapping
 
 from substitute.application.ports import NodeDefinitionGateway
+from substitute.domain.comfy_workflow.editor_definitions import (
+    workflow_node_execution_role,
+)
+from substitute.domain.comfy_workflow.node_roles import WorkflowNodeExecutionRole
 from substitute.domain.cubes import SubgraphWrapperDefinitionIndex
-from substitute.shared.logging.logger import get_logger, log_timing
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_timing,
+    log_warning,
+)
 
 from .editor_definition_resolver import EditorNodeDefinitionResolver
 from .list_value_resolver import extract_live_list_options
+from .live_definition_authority import (
+    LiveNodeDefinitionAuthority,
+    LiveNodeDefinitionError,
+    MissingLiveNodeDefinition,
+)
 from .node_card_order import wired_node_order
+from .node_definition_requirements import (
+    NodeDefinitionRequirement,
+    required_node_definition_requirements_for_editor_projection,
+)
 
 _LOGGER = get_logger("application.node_behavior.section_node_source")
 
@@ -43,6 +60,7 @@ class SectionNodeSource:
     node_title: str | None
     node_definition: Mapping[str, object] | None
     input_keys: tuple[str, ...]
+    definition_error: LiveNodeDefinitionError | None = None
 
 
 class SectionNodeSourceFactory:
@@ -52,6 +70,9 @@ class SectionNodeSourceFactory:
         """Store the shared editor-definition authority."""
 
         self._definition_resolver = EditorNodeDefinitionResolver(
+            node_definition_gateway
+        )
+        self._live_definition_authority = LiveNodeDefinitionAuthority(
             node_definition_gateway
         )
 
@@ -68,6 +89,7 @@ class SectionNodeSourceFactory:
             return ()
         layout_nodes = _layout_nodes(buffer)
         wrapper_definitions = SubgraphWrapperDefinitionIndex.from_runtime_graph(buffer)
+        requirements_by_node = _requirements_by_node(alias=alias, buffer=buffer)
         sources: list[SectionNodeSource] = []
         for node_name in wired_node_order(nodes):
             node_data = nodes.get(node_name)
@@ -76,13 +98,6 @@ class SectionNodeSourceFactory:
             class_type = node_data.get("class_type")
             if not isinstance(class_type, str):
                 continue
-            node_definition = self._lookup_node_definition(
-                class_type=class_type,
-                node_data=node_data,
-                wrapper_definitions=wrapper_definitions,
-                cube_alias=alias,
-                node_name=node_name,
-            )
             wrapper_title = wrapper_definitions.display_name_for_class_type(class_type)
             node_title = (
                 _node_title(
@@ -92,6 +107,52 @@ class SectionNodeSourceFactory:
                 )
                 or wrapper_title
             )
+            definition_error: LiveNodeDefinitionError | None = None
+            try:
+                self._require_live_definitions(
+                    alias=alias,
+                    node_name=node_name,
+                    requirements=requirements_by_node.get(node_name, ()),
+                )
+                node_definition = self._lookup_node_definition(
+                    class_type=class_type,
+                    node_data=node_data,
+                    wrapper_definitions=wrapper_definitions,
+                    cube_alias=alias,
+                    node_name=node_name,
+                )
+                if (
+                    node_definition is None
+                    and workflow_node_execution_role(node_data)
+                    == WorkflowNodeExecutionRole.EXECUTABLE.value
+                ):
+                    definition_error = LiveNodeDefinitionError(
+                        operation="resolve editor node metadata",
+                        missing_definitions=(
+                            MissingLiveNodeDefinition(
+                                class_type=class_type,
+                                cube_aliases=(alias,),
+                                node_names=(node_name,),
+                            ),
+                        ),
+                    )
+            except LiveNodeDefinitionError as error:
+                definition_error = error
+                node_definition = None
+                log_warning(
+                    _LOGGER,
+                    "Preserved node source with unavailable live definition",
+                    cube_alias=alias,
+                    node_name=node_name,
+                    node_class_type=class_type,
+                    missing_node_classes=",".join(
+                        item.class_type for item in error.missing_definitions
+                    ),
+                    missing_fields=",".join(
+                        f"{item.class_type}.{item.field_key}"
+                        for item in error.missing_fields
+                    ),
+                )
             sources.append(
                 SectionNodeSource(
                     node_name=node_name,
@@ -105,9 +166,36 @@ class SectionNodeSourceFactory:
                             resolved_definition=node_definition,
                         )
                     ),
+                    definition_error=definition_error,
                 )
             )
         return tuple(sources)
+
+    def _require_live_definitions(
+        self,
+        *,
+        alias: str,
+        node_name: str,
+        requirements: tuple[NodeDefinitionRequirement, ...],
+    ) -> None:
+        """Require every executable live definition owned by one saved node."""
+
+        missing: list[MissingLiveNodeDefinition] = []
+        for requirement in requirements:
+            try:
+                self._live_definition_authority.get_available_definition(
+                    requirement.class_type,
+                    operation="resolve editor node metadata",
+                    cube_aliases=(alias,),
+                    node_names=(node_name,),
+                )
+            except LiveNodeDefinitionError as error:
+                missing.extend(error.missing_definitions)
+        if missing:
+            raise LiveNodeDefinitionError(
+                operation="resolve editor node metadata",
+                missing_definitions=tuple(missing),
+            )
 
     def _lookup_node_definition(
         self,
@@ -149,6 +237,27 @@ def is_subgraph_wrapper_definition(
         isinstance(resolved_definition, Mapping)
         and resolved_definition.get("subgraph_wrapper") is True
     )
+
+
+def _requirements_by_node(
+    *,
+    alias: str,
+    buffer: Mapping[str, object],
+) -> dict[str, tuple[NodeDefinitionRequirement, ...]]:
+    """Group authoritative live-definition requirements by saved surface node."""
+
+    grouped: dict[str, list[NodeDefinitionRequirement]] = {}
+    for requirement in required_node_definition_requirements_for_editor_projection(
+        {alias: buffer}
+    ):
+        if requirement.live_required:
+            grouped.setdefault(requirement.node_name, []).append(requirement)
+    return {
+        node_name: tuple(
+            sorted(requirements, key=lambda requirement: requirement.class_type)
+        )
+        for node_name, requirements in grouped.items()
+    }
 
 
 def _ordered_input_keys(

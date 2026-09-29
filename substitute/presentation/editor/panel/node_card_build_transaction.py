@@ -32,7 +32,7 @@ from substitute.shared.logging.logger import (
 )
 
 from .field_registry import EditorFieldRegistry
-from .field_state_controller import EditorFieldBinding
+from .field_state_binding import EditorFieldBinding
 
 _LOGGER = get_logger("presentation.editor.panel.node_card_build_transaction")
 

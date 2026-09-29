@@ -59,7 +59,7 @@ def test_create_editor_panel_passes_shell_dependencies_and_wires_panel(
         shell.node_presentation_service
     )
     assert fake_panel.kwargs["wheel_adjustment_mode"] == "precise"
-    assert fake_panel.kwargs["error_presenter"] is shell._error_presenter
+    assert "error_presenter" not in fake_panel.kwargs
     assert fake_panel.kwargs["editor_panel_execution_factories"] is (
         shell.editor_panel_execution_factories
     )

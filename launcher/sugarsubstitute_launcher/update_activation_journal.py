@@ -265,13 +265,19 @@ def update_journal_path(layout: InstallLayout) -> Path:
     return layout.launcher_dir / _JOURNAL_NAME
 
 
-def _existing_update_journal_path(layout: InstallLayout) -> Path | None:
-    """Select one current or legacy journal without accepting ambiguous ownership."""
+def update_journal_paths(layout: InstallLayout) -> tuple[Path, Path]:
+    """Return every current or historical pending-update journal location."""
 
-    paths = (
+    return (
         update_journal_path(layout),
         layout.launcher_dir / _LEGACY_JOURNAL_NAME,
     )
+
+
+def _existing_update_journal_path(layout: InstallLayout) -> Path | None:
+    """Select one current or legacy journal without accepting ambiguous ownership."""
+
+    paths = update_journal_paths(layout)
     existing = tuple(path for path in paths if path.exists())
     if len(existing) > 1:
         raise UpdateRecoveryError(
@@ -349,10 +355,7 @@ def _valid_sha256(value: object) -> bool:
 def remove_update_journal(layout: InstallLayout) -> None:
     """Remove current and legacy journals after one terminal transition."""
 
-    for path in (
-        update_journal_path(layout),
-        layout.launcher_dir / _LEGACY_JOURNAL_NAME,
-    ):
+    for path in update_journal_paths(layout):
         try:
             path.unlink()
         except FileNotFoundError:

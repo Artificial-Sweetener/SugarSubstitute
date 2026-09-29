@@ -19,13 +19,17 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSizeF
 import pytest
 
 from substitute.application.prompt_editor.reorder.views import PromptLineDropTarget
+from substitute.presentation.editor.prompt_editor.projection.reorder_placement_geometry import (
+    PromptReorderPlacementSnapshot,
+)
 from tools.prompt_editor_abuse import reorder_action_host
+from tools.prompt_editor_abuse import reorder_sweep_targeting
 from tools.prompt_editor_abuse.reorder_action_host import (
     PromptReorderAbuseActionHost,
 )
@@ -145,3 +149,64 @@ def test_reorder_host_resolves_destination_after_drag_start_settles_geometry(
     host.reorder_drag_threshold(editor)
 
     assert host._target == QPoint(410, 60)
+
+
+def test_reorder_sweep_wait_observes_republished_geometry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A provisional drag topology must not remain captured while waiting."""
+
+    provisional = PromptReorderPlacementSnapshot(
+        placements=(),
+        visual_line_count=0,
+        layout_width=640.0,
+        content_height=240.0,
+    )
+    settled = PromptReorderPlacementSnapshot(
+        placements=(),
+        visual_line_count=1,
+        layout_width=640.0,
+        content_height=240.0,
+    )
+    overlay = SimpleNamespace(
+        _runtime=SimpleNamespace(
+            geometry=SimpleNamespace(
+                state=SimpleNamespace(placement_snapshot=provisional)
+            ),
+            gesture=SimpleNamespace(
+                state=SimpleNamespace(
+                    drag_intent_size=QSizeF(40.0, 20.0),
+                    drag_grab_offset=QPointF(20.0, 10.0),
+                )
+            ),
+        ),
+        rect=lambda: QRect(0, 0, 640, 240),
+    )
+
+    def wait_for_republished_geometry(**kwargs: Any) -> object:
+        """Replace the immutable owner state while the planner is waiting."""
+
+        snapshot_supplier = kwargs["snapshot_supplier"]
+        assert snapshot_supplier() is provisional
+        overlay._runtime.geometry.state = SimpleNamespace(placement_snapshot=settled)
+        assert snapshot_supplier() is settled
+        return settled, ()
+
+    monkeypatch.setattr(
+        reorder_sweep_targeting,
+        "wait_for_reorder_sweep_pointer_plan",
+        wait_for_republished_geometry,
+    )
+    monkeypatch.setattr(
+        reorder_action_host,
+        "QApplication",
+        SimpleNamespace(processEvents=lambda *_args: None),
+    )
+    host = PromptReorderAbuseActionHost()
+    cast(Any, host)._source_chip = SimpleNamespace(overlay=overlay)
+
+    measured_steps = host.reorder_drag_sweep(object())
+
+    assert [label for label, _elapsed in measured_steps] == [
+        "reorder:sweep-forward-publish"
+    ]

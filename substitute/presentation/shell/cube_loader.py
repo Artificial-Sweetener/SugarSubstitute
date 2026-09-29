@@ -25,7 +25,7 @@ from time import perf_counter
 from typing import Any, Callable, Protocol, cast
 from uuid import uuid4
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QCoreApplication, QTimer
 
 from substitute.application.execution import (
     ExecutionContext,
@@ -66,7 +66,10 @@ CubePayload = dict[str, Any]
 def _schedule_next_gui_turn(callback: Callable[[], None]) -> None:
     """Schedule one callback in the next GUI event-loop turn."""
 
-    QTimer.singleShot(0, callback)
+    application = QCoreApplication.instance()
+    if application is None:
+        raise RuntimeError("GUI-turn scheduling requires a live Qt application")
+    QTimer.singleShot(0, application, callback)
 
 
 class TabItemView(Protocol):

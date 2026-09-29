@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 from substitute.presentation.editor.panel.field_registry import EditorFieldRegistry
-from substitute.presentation.editor.panel.field_state_controller import (
-    EditorFieldBinding,
-)
+from substitute.presentation.editor.panel.field_state_binding import EditorFieldBinding
 
 
 class _Widget:

@@ -37,7 +37,7 @@ from .projection_observability import (
     log_panel_projection_timing,
     panel_projection_observability_started_at,
 )
-from .projection_session import (
+from .projection_session_models import (
     ActiveProjectionSession,
     PendingInsertCompletion,
 )

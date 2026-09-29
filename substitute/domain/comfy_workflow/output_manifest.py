@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Discover authored image-output sinks in executable Comfy graphs."""
+"""Discover authored visual-output sinks in executable Comfy graphs."""
 
 from __future__ import annotations
 
@@ -23,6 +23,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from substitute.domain.common import JsonObject
+from substitute.domain.output_media import OutputMediaKind
+
+_IMAGE_RECOVERY_MEDIA_KIND = OutputMediaKind.IMAGE
+_VIDEO_SINK_CLASSES = frozenset(
+    {"PreviewVideo", "SaveVideo", "SaveWEBM", "VHS_VideoCombine"}
+)
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -34,30 +40,44 @@ class ComfyOutputSocket:
 
 
 @dataclass(frozen=True, slots=True)
-class AuthoredImageSink:
-    """Describe one authored terminal output declaration for an image socket."""
+class AuthoredOutputSink:
+    """Describe one authored terminal visual-output declaration."""
 
     node_id: str
     input_name: str
     title: str
+    media_kind: OutputMediaKind
 
 
 @dataclass(frozen=True, slots=True)
-class DirectImageOutputSource:
-    """Group authored image sinks that consume the same upstream socket."""
+class DirectOutputSource:
+    """Group authored sinks represented by one output navigation source."""
 
     socket: ComfyOutputSocket
-    sinks: tuple[AuthoredImageSink, ...]
+    sinks: tuple[AuthoredOutputSink, ...]
     source_key: str
     label: str
     order: int
+    media_kind: OutputMediaKind
+
+    @property
+    def requires_image_recovery(self) -> bool:
+        """Return whether execution needs a temporary PreviewImage target."""
+
+        return self.media_kind is _IMAGE_RECOVERY_MEDIA_KIND
+
+    @property
+    def output_node_id(self) -> str:
+        """Return the authored node that emits non-recovered media."""
+
+        return self.sinks[0].node_id
 
 
 @dataclass(frozen=True, slots=True)
 class DirectWorkflowOutputManifest:
-    """Describe image takeover sources and preserved output-node targets."""
+    """Describe visual-output sources and preserved execution targets."""
 
-    sources: tuple[DirectImageOutputSource, ...]
+    sources: tuple[DirectOutputSource, ...]
     hijacked_sink_node_ids: frozenset[str]
     preserved_output_node_ids: tuple[str, ...]
 
@@ -70,8 +90,8 @@ class DirectWorkflowGenerationPlan:
     output_manifest: DirectWorkflowOutputManifest
 
 
-class ComfyImageOutputDiscovery:
-    """Find safely replaceable terminal image sinks using live definitions."""
+class ComfyOutputDiscovery:
+    """Find terminal image and video sinks using live definitions."""
 
     def discover(
         self,
@@ -79,12 +99,13 @@ class ComfyImageOutputDiscovery:
         *,
         node_definitions: Mapping[str, Mapping[str, object]],
     ) -> DirectWorkflowOutputManifest:
-        """Return deduplicated image sources and untouched output targets."""
+        """Return typed visual sources and untouched output targets."""
 
         downstream_node_ids = _linked_source_node_ids(graph)
-        grouped_sinks: OrderedDict[ComfyOutputSocket, list[AuthoredImageSink]] = (
+        grouped_images: OrderedDict[ComfyOutputSocket, list[AuthoredOutputSink]] = (
             OrderedDict()
         )
+        video_sources: list[tuple[ComfyOutputSocket, AuthoredOutputSink]] = []
         all_output_node_ids: list[str] = []
         hijacked_node_ids: set[str] = set()
 
@@ -98,29 +119,63 @@ class ComfyImageOutputDiscovery:
             all_output_node_ids.append(node_id)
             if node_id in downstream_node_ids:
                 continue
-            image_inputs = _connected_image_inputs(raw_node, definition)
-            if not image_inputs:
+            media_inputs = _connected_media_inputs(raw_node, definition)
+            if not media_inputs:
                 continue
-            hijacked_node_ids.add(node_id)
             title = _node_title(raw_node, fallback=node_id)
-            for input_name, socket in image_inputs:
-                grouped_sinks.setdefault(socket, []).append(
-                    AuthoredImageSink(
-                        node_id=node_id,
-                        input_name=input_name,
-                        title=title,
-                    )
+            for input_name, socket, media_kind in media_inputs:
+                sink = AuthoredOutputSink(
+                    node_id=node_id,
+                    input_name=input_name,
+                    title=title,
+                    media_kind=media_kind,
                 )
+                if media_kind is OutputMediaKind.IMAGE:
+                    hijacked_node_ids.add(node_id)
+                    grouped_images.setdefault(socket, []).append(sink)
+                else:
+                    video_sources.append((socket, sink))
 
-        sources = tuple(
-            DirectImageOutputSource(
+        unordered_sources = [
+            DirectOutputSource(
                 socket=socket,
                 sinks=tuple(sinks),
                 source_key=f"direct:{socket.node_id}:{socket.output_index}",
+                label="",
+                order=0,
+                media_kind=OutputMediaKind.IMAGE,
+            )
+            for socket, sinks in grouped_images.items()
+        ]
+        unordered_sources.extend(
+            DirectOutputSource(
+                socket=socket,
+                sinks=(sink,),
+                source_key=f"direct:{sink.node_id}",
+                label="",
+                order=0,
+                media_kind=OutputMediaKind.VIDEO,
+            )
+            for socket, sink in video_sources
+        )
+        source_order = {str(node_id): index for index, node_id in enumerate(graph)}
+        ordered_sources = sorted(
+            unordered_sources,
+            key=lambda source: min(
+                source_order.get(sink.node_id, len(source_order))
+                for sink in source.sinks
+            ),
+        )
+        sources = tuple(
+            DirectOutputSource(
+                socket=source.socket,
+                sinks=source.sinks,
+                source_key=source.source_key,
                 label=str(order + 1),
                 order=order,
+                media_kind=source.media_kind,
             )
-            for order, (socket, sinks) in enumerate(grouped_sinks.items())
+            for order, source in enumerate(ordered_sources)
         )
         return DirectWorkflowOutputManifest(
             sources=sources,
@@ -133,19 +188,19 @@ class ComfyImageOutputDiscovery:
         )
 
 
-def is_terminal_image_output_sink(
+def is_terminal_output_sink(
     *,
     node_id: str,
     node: Mapping[str, object],
     graph: Mapping[str, object],
     node_definition: Mapping[str, object] | None,
 ) -> bool:
-    """Return whether one node is a safely replaceable image-output sink."""
+    """Return whether one node is a terminal supported visual-output sink."""
 
     return bool(
         _is_output_node(node_definition)
         and str(node_id) not in _linked_source_node_ids(graph)
-        and _connected_image_inputs(node, node_definition)
+        and _connected_media_inputs(node, node_definition)
     )
 
 
@@ -167,11 +222,11 @@ def _is_output_node(definition: Mapping[str, object] | None) -> bool:
     return isinstance(definition, Mapping) and definition.get("output_node") is True
 
 
-def _connected_image_inputs(
+def _connected_media_inputs(
     node: Mapping[str, object],
     definition: Mapping[str, object] | None,
-) -> tuple[tuple[str, ComfyOutputSocket], ...]:
-    """Return connected canonical IMAGE inputs in definition order."""
+) -> tuple[tuple[str, ComfyOutputSocket, OutputMediaKind], ...]:
+    """Return connected visual inputs in live-definition order."""
 
     if not isinstance(definition, Mapping):
         return ()
@@ -181,30 +236,49 @@ def _connected_image_inputs(
         definition_input, Mapping
     ):
         return ()
-    connected: list[tuple[str, ComfyOutputSocket]] = []
+    class_type = node.get("class_type")
+    connected: list[tuple[str, ComfyOutputSocket, OutputMediaKind]] = []
     for section_name in ("required", "optional"):
         section = definition_input.get(section_name)
         if not isinstance(section, Mapping):
             continue
         for raw_name, field_definition in section.items():
             input_name = str(raw_name)
-            if not _is_canonical_image_field(field_definition):
+            media_kind = _field_media_kind(
+                field_definition,
+                class_type=class_type if isinstance(class_type, str) else "",
+            )
+            if media_kind is None:
                 continue
             socket = _linked_output_socket(node_inputs.get(input_name))
             if socket is not None:
-                connected.append((input_name, socket))
+                connected.append((input_name, socket, media_kind))
     return tuple(connected)
 
 
-def _is_canonical_image_field(field_definition: object) -> bool:
-    """Return whether a Comfy input definition declares canonical IMAGE data."""
+def _field_media_kind(
+    field_definition: object,
+    *,
+    class_type: str,
+) -> OutputMediaKind | None:
+    """Classify one live input definition, including known video adapters."""
 
-    return bool(
-        isinstance(field_definition, Sequence)
-        and not isinstance(field_definition, str | bytes)
-        and field_definition
-        and field_definition[0] == "IMAGE"
-    )
+    if (
+        not isinstance(field_definition, Sequence)
+        or isinstance(field_definition, str | bytes)
+        or not field_definition
+    ):
+        return None
+    declared_type = field_definition[0]
+    if declared_type == "VIDEO":
+        return OutputMediaKind.VIDEO
+    if declared_type == "IMAGE":
+        return (
+            OutputMediaKind.VIDEO
+            if class_type in _VIDEO_SINK_CLASSES
+            else OutputMediaKind.IMAGE
+        )
+    return None
 
 
 def _linked_output_socket(value: object) -> ComfyOutputSocket | None:
@@ -252,11 +326,11 @@ def _node_title(node: Mapping[str, object], *, fallback: str) -> str:
 
 
 __all__ = [
-    "AuthoredImageSink",
-    "ComfyImageOutputDiscovery",
+    "AuthoredOutputSink",
+    "ComfyOutputDiscovery",
     "ComfyOutputSocket",
-    "DirectImageOutputSource",
+    "DirectOutputSource",
     "DirectWorkflowGenerationPlan",
     "DirectWorkflowOutputManifest",
-    "is_terminal_image_output_sink",
+    "is_terminal_output_sink",
 ]

@@ -226,6 +226,9 @@ def test_restore_initial_workspace_snapshot_hydrates_materializes_and_marks_runn
         _pending_restored_shell_layout=None,
         _startup_timer=None,
         _pending_restore_projection_cache_capture_workflow_id="wf-a",
+        restore_finalized=SimpleNamespace(
+            emit=lambda: events.append("restore_finalized")
+        ),
     )
     controller = WorkspaceRestoreController(shell)
     monkeypatch.setattr(controller, "hydrate_restored_workspace_snapshot", hydrate)
@@ -236,7 +239,7 @@ def test_restore_initial_workspace_snapshot_hydrates_materializes_and_marks_runn
     result = controller.restore_initial_workspace_snapshot(snapshot)
 
     assert result is True
-    assert events == ["hydrate", "materialize"]
+    assert events == ["hydrate", "materialize", "restore_finalized"]
     assert shell._shell_restore_lifecycle == "running"
     assert shell._pending_restore_projection_cache_capture_workflow_id == ""
 

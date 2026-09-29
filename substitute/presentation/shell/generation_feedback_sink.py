@@ -26,6 +26,7 @@ from substitute.application.ports import (
     GenerationExecutionTiming,
     ListenerCompleted,
     ModelLoadProgressUpdate,
+    OutputVideoUpdate,
     ProgressUpdate,
 )
 from substitute.application.workflows import LiveFinalOutputEvent, LivePreviewEvent
@@ -83,6 +84,13 @@ class ShellGenerationFeedbackSink:
         """Apply one final-output update through the feedback presenter."""
 
         generation_feedback_presenter_for(self._shell).apply_generation_output_image(
+            update
+        )
+
+    def apply_generation_output_video(self, update: OutputVideoUpdate) -> None:
+        """Apply one video output through the feedback presenter."""
+
+        generation_feedback_presenter_for(self._shell).apply_generation_output_video(
             update
         )
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
@@ -45,6 +45,7 @@ _PROJECTED_CUBE_BUILD_STEP_DELAY_MS = 8
 class HiddenBuildSchedulerPorts:
     """Group collaborators required to publish and track hidden build results."""
 
+    lifetime_owner: QObject
     reveal_projected_cube_builds: Callable[[Sequence[ProjectedCubeBuild], str], None]
     mark_build_complete: Callable[[str, object], object]
     mark_build_failed: Callable[[str, object, object], object]
@@ -67,8 +68,10 @@ class HiddenBuildScheduler:
         workflow_id: str,
         is_current: Callable[[], bool] | None = None,
         visible_commit: Callable[[Sequence[ProjectedCubeBuild]], bool] | None = None,
+        partial_visible_commit: Callable[[Sequence[ProjectedCubeBuild]], bool]
+        | None = None,
     ) -> None:
-        """Build hidden projected cube sections and reveal them in one layout commit."""
+        """Build hidden cube sections and publish eligible cubes progressively."""
 
         pending_builds = list(projected_builds)
         completed_builds: list[ProjectedCubeBuild] = []
@@ -111,15 +114,16 @@ class HiddenBuildScheduler:
                     )
                     if is_done:
                         pending_builds.pop(0)
-                        completed_builds.append(
-                            replace(
-                                current_build,
-                                build_elapsed_ms=elapsed_ms_since(
-                                    current_build.started_at
-                                ),
-                                completed_at=panel_projection_observability_started_at(),
-                            )
+                        completed_build = replace(
+                            current_build,
+                            build_elapsed_ms=elapsed_ms_since(current_build.started_at),
+                            completed_at=panel_projection_observability_started_at(),
                         )
+                        published = partial_visible_commit is not None and bool(
+                            partial_visible_commit((completed_build,))
+                        )
+                        if not published:
+                            completed_builds.append(completed_build)
             except (RuntimeError, TypeError, ValueError) as error:
                 if current_build is not None:
                     self._ports.mark_build_failed(
@@ -189,8 +193,8 @@ class HiddenBuildScheduler:
             )
         return True
 
-    @staticmethod
     def schedule_cube_build_session(
+        self,
         build_session: object,
         *,
         on_first_usable: Callable[[], None] | None = None,
@@ -260,12 +264,12 @@ class HiddenBuildScheduler:
                 maybe_complete_first_usable()
                 on_complete()
                 return
-            QTimer.singleShot(0, run_next)
+            QTimer.singleShot(0, self._ports.lifetime_owner, run_next)
 
-        QTimer.singleShot(0, run_next)
+        QTimer.singleShot(0, self._ports.lifetime_owner, run_next)
 
-    @staticmethod
     def _schedule_next_projected_build_step(
+        self,
         *,
         workflow_id: str,
         pending_build_count: int,
@@ -281,6 +285,7 @@ class HiddenBuildScheduler:
         )
         QTimer.singleShot(
             _PROJECTED_CUBE_BUILD_STEP_DELAY_MS,
+            self._ports.lifetime_owner,
             callback,
         )
 
