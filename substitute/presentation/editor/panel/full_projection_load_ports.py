@@ -86,13 +86,6 @@ class FullProjectionSessionCompletionPort(Protocol):
         """Claim superseded incremental insert completions."""
 
 
-class FullProjectionRuntimeIssuePort(Protocol):
-    """Describe runtime issue projection setup used by full loads."""
-
-    def begin_live_node_definition_report_projection(self) -> None:
-        """Start live node definition report projection."""
-
-
 class FullProjectionPreparationPort(Protocol):
     """Describe projection preparation operations used by full loads."""
 
@@ -282,7 +275,6 @@ class EditorFullProjectionLoadPorts:
     active_sessions: FullProjectionActiveSessionPort
     projection_completions: FullProjectionCompletionPort
     session_completions: FullProjectionSessionCompletionPort
-    runtime_issues: FullProjectionRuntimeIssuePort
     projection_preparation: FullProjectionPreparationPort
     projection_lifecycle: FullProjectionLifecyclePort
     projected_widget_builder: FullProjectionWidgetBuilderPort

@@ -40,9 +40,9 @@ class WorkflowNodepackRecoveryPlan:
 
     @property
     def requires_review(self) -> bool:
-        """Return whether any missing nodes need user-visible recovery details."""
+        """Offer acquisition only when a trustworthy package match exists."""
 
-        return bool(self.assessment.missing)
+        return bool(self.resolution.candidates)
 
 
 class WorkflowNodepackRecoveryPlanService:

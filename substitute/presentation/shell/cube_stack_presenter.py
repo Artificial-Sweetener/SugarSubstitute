@@ -509,7 +509,7 @@ class CubeStackPresenter:
         severity = (
             "error"
             if issue_state is not None
-            and issue_state.has_error(workflow_id, cube_alias)
+            and issue_state.has_cube_scoped_error(workflow_id, cube_alias)
             else None
         )
         set_issue(cube_alias, severity)

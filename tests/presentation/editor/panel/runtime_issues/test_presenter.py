@@ -18,12 +18,13 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import cast
 
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
-from substitute.application.errors import SubstituteOperationContext
 from substitute.application.node_behavior import (
+    DegradedNodeBehavior,
     LiveNodeDefinitionError,
     MissingLiveNodeDefinition,
 )
@@ -38,6 +39,17 @@ from substitute.presentation.editor.panel.runtime_issue_presenter import (
     EditorPanelRuntimeIssueHost,
     EditorPanelRuntimeIssuePresenter,
 )
+from substitute.presentation.editor.panel.widgets.cube_section import CubeSectionView
+from substitute.presentation.editor.panel.widgets.cube_section_overlays import (
+    CubeSectionIssueOverlay,
+)
+from substitute.presentation.editor.panel.widgets.degraded_node_card import (
+    build_degraded_node_card,
+)
+from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
+    MasonryGridLayout,
+)
+from tests.support.qt.lifecycle import destroy_qt_object
 
 
 class _IssueWidget:
@@ -119,67 +131,12 @@ class _Host:
         """Initialize host state with one cube section and cube stack."""
 
         self._workflow_id: str | None = workflow_id
+        self._cube_states: dict[str, object] | None = None
         self._stack_order: tuple[str, ...] | None = stack_order
         self.cube_sections: dict[str, _IssueWidget] = {"CubeA": _IssueWidget()}
         self._cube_section_builder = _Builder()
         self.cube_stack = _CubeStack()
         self.mainwindow = _MainWindow(workflow_id, self.cube_stack)
-
-
-class _RecordingErrorPresenter:
-    """Record structured error reports requested by the runtime issue presenter."""
-
-    def __init__(self) -> None:
-        """Initialize the recorded call list."""
-
-        self.comfy_reports: list[dict[str, object]] = []
-
-    def show_error_report(self, report: object) -> None:
-        """Record a prepared report when a caller uses the generic surface."""
-
-        self.comfy_reports.append({"report": report})
-
-    def show_exception_report(
-        self,
-        *,
-        title: str,
-        message: str,
-        stage: str,
-        error: BaseException,
-        context: SubstituteOperationContext,
-    ) -> None:
-        """Record an exception report when a caller uses the exception surface."""
-
-        self.comfy_reports.append(
-            {
-                "title": title,
-                "message": message,
-                "stage": stage,
-                "error": error,
-                "context": context,
-            }
-        )
-
-    def show_comfy_connection_report(
-        self,
-        *,
-        title: str,
-        message: str,
-        stage: str,
-        context: SubstituteOperationContext,
-        error: BaseException | None = None,
-    ) -> None:
-        """Record the Comfy metadata report shown by the presenter."""
-
-        self.comfy_reports.append(
-            {
-                "title": title,
-                "message": message,
-                "stage": stage,
-                "error": error,
-                "context": context,
-            }
-        )
 
 
 def _ensure_qapp() -> QApplication:
@@ -234,7 +191,7 @@ def _runtime_issue(
 
 
 def test_register_projection_live_node_definition_error_projects_cube_issue() -> None:
-    """Cube-attributed live-node errors update state, section, and stack display."""
+    """A missing node stays in issue state without washing its healthy cube."""
 
     _ensure_qapp()
     issue_state = WorkflowIssueState()
@@ -254,18 +211,30 @@ def test_register_projection_live_node_definition_error_projects_cube_issue() ->
     issues = presenter.cube_runtime_issues("CubeA")
     assert issues == issue_state.issues_for_cube("workflow-a", "CubeA")
     assert issues[0].missing_node_classes == ("SimpleSyrup.DetailSEGSByScaleFactor",)
-    assert host.cube_sections["CubeA"].severity == "error"
+    assert host.cube_sections["CubeA"].severity is None
     assert "Missing definition: SimpleSyrup.DetailSEGSByScaleFactor" in (
         host.cube_sections["CubeA"].messages
     )
-    assert host.cube_stack.issue_severities[-1] == ("CubeA", "error")
+    assert host.cube_stack.issue_severities[-1] == ("CubeA", None)
 
 
-def test_register_projection_live_node_definition_error_rejects_unowned_error() -> None:
-    """Unowned live-node errors stay fatal instead of becoming inline cube issues."""
+def test_register_projection_live_node_definition_error_attributes_saved_node() -> None:
+    """A missing class without supplied aliases still marks its saved cube node."""
 
     issue_state = WorkflowIssueState()
     host = _Host()
+    host._cube_states = {
+        "CubeA": SimpleNamespace(
+            buffer={
+                "nodes": {
+                    "detailer": {
+                        "class_type": "SimpleSyrup.DetailSEGSByScaleFactor",
+                        "inputs": {},
+                    }
+                }
+            }
+        )
+    }
     presenter = EditorPanelRuntimeIssuePresenter(
         cast(EditorPanelRuntimeIssueHost, host),
         workflow_issue_state=issue_state,
@@ -277,47 +246,31 @@ def test_register_projection_live_node_definition_error_rejects_unowned_error() 
         source=CubeRuntimeIssueSource.PROJECTION,
     )
 
-    assert handled is False
-    assert presenter.cube_runtime_issues("CubeA") == ()
-    assert issue_state.issues_for_cube("workflow-a", "CubeA") == ()
+    assert handled is True
+    assert presenter.cube_runtime_issues("CubeA")[0].node_names == ("detailer",)
+    assert presenter.cube_runtime_error_aliases() == ()
+    assert issue_state.issues_for_cube("workflow-a", "CubeA")
     assert host.cube_sections["CubeA"].severity is None
-    assert host.cube_stack.issue_severities == []
+    assert host.cube_stack.issue_severities[-1] == ("CubeA", None)
 
 
-def test_recoverable_live_node_definition_report_dedupes_until_projection_reset() -> (
-    None
-):
-    """Recoverable reports are suppressed within one projection window only."""
+def test_cube_attributed_metadata_failure_stays_inline_without_modal() -> None:
+    """An attributed missing node belongs to its cube, not a modal report."""
 
-    error_presenter = _RecordingErrorPresenter()
     host = _Host()
     presenter = EditorPanelRuntimeIssuePresenter(
         cast(EditorPanelRuntimeIssueHost, host),
-        error_presenter=error_presenter,
     )
     error = _missing_live_node_error()
 
-    presenter.present_recoverable_live_node_definition_error(
+    handled = presenter.register_projection_live_node_definition_error(
         error,
         reason="projection_refresh",
-    )
-    presenter.present_recoverable_live_node_definition_error(
-        error,
-        reason="projection_refresh",
-    )
-    presenter.begin_live_node_definition_report_projection()
-    presenter.present_recoverable_live_node_definition_error(
-        error,
-        reason="projection_refresh",
+        source=CubeRuntimeIssueSource.PROJECTION,
     )
 
-    assert len(error_presenter.comfy_reports) == 2
-    first_context = cast(
-        SubstituteOperationContext,
-        error_presenter.comfy_reports[0]["context"],
-    )
-    assert first_context.values["cube_aliases"] == ("CubeA",)
-    assert first_context.values["node_names"] == ("detailer",)
+    assert handled
+    assert presenter.cube_runtime_issues("CubeA")
 
 
 def test_clear_projection_runtime_issues_preserves_other_sources() -> None:
@@ -325,7 +278,11 @@ def test_clear_projection_runtime_issues_preserves_other_sources() -> None:
 
     issue_state = WorkflowIssueState()
     projection_issue = _runtime_issue(source=CubeRuntimeIssueSource.PROJECTION)
-    library_issue = _runtime_issue(source=CubeRuntimeIssueSource.CUBE_LIBRARY)
+    library_issue = _runtime_issue(
+        source=CubeRuntimeIssueSource.CUBE_LIBRARY,
+        kind=CubeRuntimeIssueKind.PROJECTION_HYDRATION_FAILED,
+        node_names=(),
+    )
     issue_state.add_issues((projection_issue, library_issue))
     host = _Host()
     presenter = EditorPanelRuntimeIssuePresenter(
@@ -349,7 +306,10 @@ def test_set_and_clear_cube_runtime_issues_updates_widget_and_stack() -> None:
         cast(EditorPanelRuntimeIssueHost, host)
     )
 
-    presenter.set_cube_runtime_issues("CubeA", (_runtime_issue(),))
+    presenter.set_cube_runtime_issues(
+        "CubeA",
+        (_runtime_issue(kind=CubeRuntimeIssueKind.PROJECTION_HYDRATION_FAILED),),
+    )
     presenter.clear_cube_runtime_issues("CubeA")
 
     assert presenter.cube_runtime_issues("CubeA") == ()
@@ -378,7 +338,7 @@ def test_cube_runtime_error_aliases_ignores_warnings() -> None:
 
 
 def test_cube_runtime_error_aliases_preserves_node_scoped_projection() -> None:
-    """A node-scoped definition issue should not replace its entire cube."""
+    """A node-scoped definition issue should not wash or replace its cube."""
 
     host = _Host()
     presenter = EditorPanelRuntimeIssuePresenter(
@@ -388,6 +348,60 @@ def test_cube_runtime_error_aliases_preserves_node_scoped_projection() -> None:
     presenter.set_cube_runtime_issues("CubeA", (_runtime_issue(),))
 
     assert presenter.cube_runtime_error_aliases() == ()
+    assert host.cube_sections["CubeA"].severity is None
+    assert host.cube_stack.issue_severities[-1] == ("CubeA", None)
+
+
+def test_missing_node_only_washes_its_card_in_real_cube_section() -> None:
+    """A node failure clears cube overlay while retaining its degraded card."""
+
+    app = _ensure_qapp()
+    grid = MasonryGridLayout()
+    healthy_card = QWidget()
+    healthy_card.setObjectName("HealthyNodeCard")
+    grid.addWidget(healthy_card)
+    degraded_card = build_degraded_node_card(
+        DegradedNodeBehavior(
+            node_name="detailer",
+            class_type="SimpleSyrup.DetailSEGSByScaleFactor",
+            title="Detailer",
+            missing_definition_classes=("SimpleSyrup.DetailSEGSByScaleFactor",),
+        )
+    )
+    grid.addWidget(degraded_card)
+    section = CubeSectionView(
+        header_bar=QWidget(),
+        prompt_area=QVBoxLayout(),
+        grid_layout=grid,
+    )
+    host = _Host()
+    host.cube_sections["CubeA"] = cast(_IssueWidget, section)
+    presenter = EditorPanelRuntimeIssuePresenter(
+        cast(EditorPanelRuntimeIssueHost, host)
+    )
+    try:
+        section.show()
+        app.processEvents()
+        overlay = section.findChild(CubeSectionIssueOverlay)
+        assert overlay is not None
+
+        presenter.set_cube_runtime_issues(
+            "CubeA",
+            (_runtime_issue(kind=CubeRuntimeIssueKind.PROJECTION_HYDRATION_FAILED),),
+        )
+        assert section.issueSeverity() == "error"
+        assert overlay.isVisible()
+
+        presenter.set_cube_runtime_issues("CubeA", (_runtime_issue(),))
+        assert section.issueSeverity() is None
+        assert not overlay.isVisible()
+        assert healthy_card.objectName() == "HealthyNodeCard"
+        assert degraded_card.objectName() == "DegradedNodeCard"
+        assert healthy_card.isVisible()
+        assert degraded_card.isVisible()
+    finally:
+        section.close()
+        destroy_qt_object(section)
 
 
 def test_cube_runtime_error_aliases_keeps_unscoped_failures_blocking() -> None:

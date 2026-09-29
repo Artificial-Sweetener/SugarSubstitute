@@ -22,22 +22,21 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 from sugarsubstitute_shared.launch_splash.progress import SplashProgress
-from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 
 import pytest
-from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QWidget
 
 from substitute.app.bootstrap import (
     ready_shell_reveal,
     startup_warmup_controller,
 )
+from substitute.app.bootstrap.splash_surface_handoff import SplashHandoffError
 
 from ..support.restore_signals import _Signal
 from ..support.shell_surfaces import _CloseSplash
 from ..support.timing import _Timer
 from ..support.trace import _patch_trace
-from tests.support.qt.lifecycle import ensure_qt_application
+from tests.support.qt.lifecycle import destroy_widget_roots, ensure_qt_application
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 READY_SHELL_CONTROLLER_SOURCE = (
@@ -67,10 +66,60 @@ FORBIDDEN_READY_SHELL_CONTROLLER_IMPORT_PREFIXES = (
 )
 
 
+class _VisibleSplash(QWidget):
+    """Expose the real top-level visibility contract during shell reveal."""
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Accept the final splash status without changing visibility."""
+
+        _ = progress, status
+
+
+def test_main_shell_never_appears_alongside_visible_splash() -> None:
+    """Close the previous top-level surface before showing its replacement."""
+
+    ensure_qt_application()
+    splash = _VisibleSplash()
+    main_window = QWidget()
+    splash.show()
+    calls: list[str] = []
+
+    def show(frame: object, **_kwargs: object) -> QWidget:
+        """Reject any replacement reveal while the splash remains visible."""
+
+        assert frame is main_window
+        assert not splash.isVisible()
+        main_window.show()
+        calls.append("main_shown")
+        return main_window
+
+    try:
+        ready_shell_reveal.reveal_ready_shell_main_window(
+            splash=splash,
+            shell_frame=main_window,
+            initial_shell_placement=None,
+            comfy_http_ready=True,
+            startup_timer=_Timer(calls),
+            show_built_main_window=show,
+            set_current_shell=lambda _frame: None,
+            update_backend_state=lambda _state: None,
+            connect_restore_finalized_warmups=lambda: None,
+            request_startup_diagnostics_update=lambda: None,
+            schedule_post_show_hydration=lambda: None,
+            trace_fields=lambda: {},
+        )
+
+        assert calls.index("mark:splash_closed") < calls.index("main_shown")
+        assert main_window.isVisible()
+        assert not splash.isVisible()
+    finally:
+        destroy_widget_roots((main_window, splash))
+
+
 def test_reveal_ready_shell_main_window_sequences_post_show_work(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ready-shell reveal should show before closing splash and fan out work."""
+    """Ready-shell reveal should close splash before showing and fan out work."""
 
     events: list[tuple[str, dict[str, object]]] = []
     _patch_trace(monkeypatch, events)
@@ -130,8 +179,14 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
     )
 
     assert result.shell_frame is shown_shell_frame
-    assert result.splash is not None
+    assert result.splash is None
     assert calls == [
+        "phase:start:startup.close_launch_splash",
+        "span:start:launch_splash.close",
+        "splash:close",
+        "span:end:launch_splash.close",
+        "phase:end:startup.close_launch_splash",
+        "mark:splash_closed",
         "phase:start:startup.show_main_window",
         "span:start:main_shell.show",
         "show",
@@ -145,17 +200,11 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         "diagnostics",
         "schedule_hydration",
     ]
-    assert events == [("main_shell.shown", {"route": "ready"})]
-    paint_callbacks.pop(0)()
-    assert calls[-6:] == [
-        "phase:start:startup.close_launch_splash",
-        "span:start:launch_splash.close",
-        "splash:close",
-        "span:end:launch_splash.close",
-        "phase:end:startup.close_launch_splash",
-        "mark:splash_closed",
+    assert events == [
+        ("launch_splash.closed", {"route": "ready"}),
+        ("main_shell.shown", {"route": "ready"}),
     ]
-    assert events[-1] == ("launch_splash.closed", {"route": "ready"})
+    assert paint_callbacks == []
     assert logs == [
         {
             "message": "Main shell revealed",
@@ -164,94 +213,54 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
     ]
 
 
-def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
+def test_reveal_ready_shell_main_window_blocks_on_splash_close_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Splash close failures should be logged without blocking shell reveal."""
+    """Splash close failure must block shell reveal and leave the old surface."""
 
     events: list[tuple[str, dict[str, object]]] = []
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
-    exceptions: list[str] = []
-    paint_callbacks: list[Callable[[], None]] = []
-    monkeypatch.setattr(
-        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
-        lambda _window, callback: paint_callbacks.append(callback),
-    )
-    monkeypatch.setattr(
-        ready_shell_reveal,
-        "log_exception",
-        lambda _logger, message, **_fields: exceptions.append(message),
-    )
     monkeypatch.setattr(
         ready_shell_reveal,
         "log_info",
         lambda _logger, _message, **_fields: None,
     )
     shell_frame = object()
-    shown_shell_frame = object()
     splash = _CloseSplash(calls, fail=True)
 
-    result = ready_shell_reveal.reveal_ready_shell_main_window(
-        splash=splash,
-        shell_frame=shell_frame,
-        initial_shell_placement=None,
-        comfy_http_ready=False,
-        startup_timer=_Timer(calls),
-        show_built_main_window=lambda _frame, **_kwargs: shown_shell_frame,
-        set_current_shell=lambda _frame: calls.append("set_current"),
-        update_backend_state=lambda state: calls.append(f"backend:{state}"),
-        connect_restore_finalized_warmups=lambda: calls.append("connect_warmups"),
-        request_startup_diagnostics_update=lambda: calls.append("diagnostics"),
-        schedule_post_show_hydration=lambda: calls.append("schedule_hydration"),
-        trace_fields=lambda: {"route": "ready"},
-    )
+    with pytest.raises(RuntimeError, match="splash close failed"):
+        ready_shell_reveal.reveal_ready_shell_main_window(
+            splash=splash,
+            shell_frame=shell_frame,
+            initial_shell_placement=None,
+            comfy_http_ready=False,
+            startup_timer=_Timer(calls),
+            show_built_main_window=lambda _frame, **_kwargs: calls.append("show"),
+            set_current_shell=lambda _frame: calls.append("set_current"),
+            update_backend_state=lambda state: calls.append(f"backend:{state}"),
+            connect_restore_finalized_warmups=lambda: calls.append("connect_warmups"),
+            request_startup_diagnostics_update=lambda: calls.append("diagnostics"),
+            schedule_post_show_hydration=lambda: calls.append("schedule_hydration"),
+            trace_fields=lambda: {"route": "ready"},
+        )
 
-    assert result.shell_frame is shown_shell_frame
-    assert result.splash is splash
     assert calls == [
-        "phase:start:startup.show_main_window",
-        "span:start:main_shell.show",
-        "span:end:main_shell.show",
-        "phase:end:startup.show_main_window",
-        "set_current",
-        "mark:main_shell_shown",
-        "backend:starting",
-        "connect_warmups",
-        "diagnostics",
-        "schedule_hydration",
-    ]
-    paint_callbacks.pop(0)()
-    assert "Failed to close splash after shell paint" in exceptions
-    assert calls[-3:] == [
         "phase:start:startup.close_launch_splash",
         "span:start:launch_splash.close",
         "splash:close",
     ]
-    assert events == [
-        ("main_shell.shown", {"route": "ready"}),
-    ]
+    assert events == []
 
 
 def test_reveal_retains_splash_when_close_is_not_acknowledged(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An attempted close must not be reported as confirmed splash disposal."""
+    """An unconfirmed close must prevent shell reveal."""
 
     events: list[tuple[str, dict[str, object]]] = []
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
-    warnings: list[str] = []
-    paint_callbacks: list[Callable[[], None]] = []
-    monkeypatch.setattr(
-        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
-        lambda _window, callback: paint_callbacks.append(callback),
-    )
-    monkeypatch.setattr(
-        ready_shell_reveal,
-        "log_warning",
-        lambda _logger, message, **_fields: warnings.append(message),
-    )
     monkeypatch.setattr(
         ready_shell_reveal,
         "log_info",
@@ -259,26 +268,25 @@ def test_reveal_retains_splash_when_close_is_not_acknowledged(
     )
     splash = _CloseSplash(calls, acknowledged=False)
 
-    result = ready_shell_reveal.reveal_ready_shell_main_window(
-        splash=splash,
-        shell_frame=object(),
-        initial_shell_placement=None,
-        comfy_http_ready=True,
-        startup_timer=_Timer(calls),
-        show_built_main_window=lambda frame, **_kwargs: frame,
-        set_current_shell=lambda _frame: None,
-        update_backend_state=lambda _state: None,
-        connect_restore_finalized_warmups=lambda: None,
-        request_startup_diagnostics_update=lambda: None,
-        schedule_post_show_hydration=lambda: None,
-        trace_fields=lambda: {"route": "ready"},
-    )
+    with pytest.raises(SplashHandoffError, match="not confirmed"):
+        ready_shell_reveal.reveal_ready_shell_main_window(
+            splash=splash,
+            shell_frame=object(),
+            initial_shell_placement=None,
+            comfy_http_ready=True,
+            startup_timer=_Timer(calls),
+            show_built_main_window=lambda frame, **_kwargs: calls.append("show"),
+            set_current_shell=lambda _frame: None,
+            update_backend_state=lambda _state: None,
+            connect_restore_finalized_warmups=lambda: None,
+            request_startup_diagnostics_update=lambda: None,
+            schedule_post_show_hydration=lambda: None,
+            trace_fields=lambda: {"route": "ready"},
+        )
 
-    assert result.splash is splash
-    paint_callbacks.pop(0)()
     assert "mark:splash_closed" not in calls
-    assert events == [("main_shell.shown", {"route": "ready"})]
-    assert warnings == ["Launch splash did not acknowledge closure after shell paint"]
+    assert "show" not in calls
+    assert events == []
 
 
 def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
@@ -289,11 +297,6 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
     events: list[tuple[str, dict[str, object]]] = []
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
-    paint_callbacks: list[Callable[[], None]] = []
-    monkeypatch.setattr(
-        "sugarsubstitute_shared.qt_surface_readiness.run_after_surface_paint",
-        lambda _window, callback: paint_callbacks.append(callback),
-    )
     monkeypatch.setattr(
         ready_shell_reveal,
         "log_info",
@@ -355,9 +358,15 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
     assert result.shell_frame is shown_shell_frame
     assert result.splash is splash_state[0]
     assert shell_state == [shown_shell_frame]
-    assert splash_state[0] is not None
+    assert splash_state[0] is None
     assert recorded_shell_frames == [shown_shell_frame]
     assert calls == [
+        "phase:start:startup.close_launch_splash",
+        "span:start:launch_splash.close",
+        "splash:close",
+        "span:end:launch_splash.close",
+        "phase:end:startup.close_launch_splash",
+        "mark:splash_closed",
         "phase:start:startup.show_main_window",
         "span:start:main_shell.show",
         "show",
@@ -369,18 +378,17 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
         "diagnostics",
         "schedule_hydration",
     ]
-    paint_callbacks.pop(0)()
     assert splash_state == [None]
     callback = cast(Callable[[], None], main_window.restore_finalized.callbacks[0])
     callback()
     assert calls[-1] == "warmups:restore_finalized"
     assert events == [
+        ("launch_splash.closed", {"route": "ready"}),
         ("main_shell.shown", {"route": "ready"}),
         (
             "post_comfy.nonessential_warmups.wait_restore_finalized",
             {"route": "ready"},
         ),
-        ("launch_splash.closed", {"route": "ready"}),
         (
             "post_comfy.nonessential_warmups.restore_finalized",
             {"route": "ready"},
@@ -413,11 +421,11 @@ def test_create_ready_shell_reveal_task_returns_task() -> None:
 
 
 @pytest.mark.parametrize("progress_fails", [False, True])
-def test_real_shell_keeps_splash_until_replacement_surface_paints(
+def test_real_shell_closes_splash_before_replacement_surface_paints(
     monkeypatch: pytest.MonkeyPatch,
     progress_fails: bool,
 ) -> None:
-    """Reveal the painted shell even when the optional completion update fails."""
+    """Close splash before show even when its optional progress update fails."""
 
     application = ensure_qt_application()
     monkeypatch.setattr(
@@ -444,17 +452,6 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
         calls.append("show")
         return window
 
-    def schedule_readiness(
-        window: object,
-        *,
-        before_publish: Callable[[], None] | None = None,
-    ) -> bool:
-        """Schedule only the ordered handoff needed by this paint test."""
-
-        if before_publish is not None:
-            run_after_surface_paint(window, before_publish)
-        return True
-
     ready_shell_reveal.reveal_ready_shell_main_window(
         splash=splash,
         shell_frame=window,
@@ -468,15 +465,11 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
         request_startup_diagnostics_update=lambda: None,
         schedule_post_show_hydration=lambda: None,
         trace_fields=lambda: {},
-        schedule_readiness_receipt=schedule_readiness,
+        schedule_readiness_receipt=lambda _window: True,
     )
 
-    assert splash.progress == []
-    assert "splash:close" not in calls
-    QCoreApplication.processEvents()
-    QCoreApplication.processEvents()
     assert splash.progress == ([] if progress_fails else [SplashProgress(1, 1)])
-    assert "splash:close" in calls
+    assert calls.index("splash:close") < calls.index("show")
     window.close()
     application.processEvents()
 

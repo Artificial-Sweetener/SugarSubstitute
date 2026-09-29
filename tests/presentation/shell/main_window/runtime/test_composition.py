@@ -407,19 +407,16 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         _ConnectionPresenter,
     )
     recovery_composition = _NodepackRecoveryComposition()
-    nodepack_bindings: list[tuple[object, object, object, object]] = []
+    nodepack_bindings: list[tuple[object, object, object]] = []
 
     def bind_nodepack_recovery(
         shell: _Shell,
         dependencies: object,
         comfy_connection: object,
-        error_presenter: object,
     ) -> None:
         """Record the narrowed nodepack-recovery composition boundary."""
 
-        nodepack_bindings.append(
-            (shell, dependencies, comfy_connection, error_presenter)
-        )
+        nodepack_bindings.append((shell, dependencies, comfy_connection))
         shell.shell_resource_lifecycle.register(
             "direct_workflow_nodepack_recovery",
             recovery_composition.controller.close,
@@ -549,7 +546,7 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         "direct_workflow_nodepack_recovery_review",
     ]
     assert nodepack_bindings == [
-        (shell, dependency_bundle, composition.comfy_connection, error_presenter)
+        (shell, dependency_bundle, composition.comfy_connection)
     ]
     assert (
         shell.direct_workflow_nodepack_recovery_controller
@@ -580,3 +577,20 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         )
     )
     assert settings_controller.runtime_refreshes == 1
+    restart_ready_observer(
+        ComfyConnectionStateChange(
+            previous=ComfyConnectionState(
+                phase=ComfyConnectionPhase.RECONNECTING,
+                target_mode=ComfyTargetMode.MANAGED_LOCAL,
+                can_restart=True,
+                revision=4,
+            ),
+            current=ComfyConnectionState(
+                phase=ComfyConnectionPhase.READY,
+                target_mode=ComfyTargetMode.MANAGED_LOCAL,
+                can_restart=True,
+                revision=5,
+            ),
+        )
+    )
+    assert settings_controller.runtime_refreshes == 2

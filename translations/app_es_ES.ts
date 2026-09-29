@@ -464,7 +464,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Se conserva una copia de recuperación, pero los guardados explícitos son el archivo de proyecto duradero.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="279"></location>
+      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="310"></location>
       <source>A required live Comfy field definition is unavailable.</source>
       <translation>No está disponible una definición de campo de Comfy necesaria y actualizada.</translation>
     </message>
@@ -949,7 +949,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>Cancelar tarea</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="428"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="439"></location>
       <source>Cancel loading</source>
       <translation>Cancelar la carga</translation>
     </message>
@@ -1087,6 +1087,11 @@ Está tardando mucho más de lo esperado</translation>
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
       <source>Checking model links…</source>
       <translation>Comprobando enlaces de modelos…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="220"></location>
+      <source>Checking required custom nodes in restarted ComfyUI</source>
+      <translation>Comprobando los nodos personalizados necesarios en ComfyUI reiniciado</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="413"></location>
@@ -2259,6 +2264,11 @@ Está tardando mucho más de lo esperado</translation>
       <translation>No se puede comprobar este enlace de modelo en este momento</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="48"></location>
+      <source>Could not install %1 (%2/%3)</source>
+      <translation>No se pudo instalar %1 (%2/%3)</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="621"></location>
       <source>Could not install required Cube Library nodes.</source>
       <translation>No se pudieron instalar los nodos necesarios de la biblioteca de cubos.</translation>
@@ -2414,7 +2424,7 @@ Está tardando mucho más de lo esperado</translation>
       <translation>La reparación de las dependencias de cubos modificó el entorno de destino. Reinicia ComfyUI antes de generar con los cubos reparados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="48"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="51"></location>
       <source>Cube disabled</source>
       <translation>Cubo desactivado</translation>
     </message>
@@ -2492,12 +2502,12 @@ Install these nodes now?</source>
       <translation>No se pudo cargar el nodo personalizado %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="168"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="192"></location>
       <source>Custom node recovery failed</source>
       <translation>Falló la recuperación de nodos personalizados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="110"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="111"></location>
       <source>Custom nodes required by this workflow</source>
       <translation>Nodos personalizados requeridos por este flujo de trabajo</translation>
     </message>
@@ -2762,7 +2772,7 @@ Install these nodes now?</source>
       <translation>Descargar versión</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="259"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="261"></location>
       <source>Downloading %1</source>
       <translation>Descargando %1</translation>
     </message>
@@ -3027,7 +3037,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="877"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -3037,7 +3047,7 @@ Install these nodes now?</source>
       <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="155"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="156"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="510"></location>
       <source>Failed to connect generation listener session</source>
       <translation>No se pudo conectar la sesión de escucha de generación</translation>
@@ -3073,7 +3083,7 @@ Install these nodes now?</source>
       <translation>No se pudieron añadir a la cola uno o varios cubos preparados. Vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="290"></location>
+      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="289"></location>
       <source>Failed to refresh editor visibility after cube load</source>
       <translation>No se pudo actualizar la visibilidad del editor tras cargar el cubo</translation>
     </message>
@@ -3098,13 +3108,13 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="436"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="403"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="405"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
@@ -3280,7 +3290,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1061"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -3343,6 +3353,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>Las integraciones de instantáneas de la cola de generación no están disponibles.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="40"></location>
+      <source>Getting source for %1 (%2/%3)</source>
+      <translation>Obteniendo el código de %1 (%2/%3)</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
@@ -3435,7 +3450,7 @@ Install these nodes now?</source>
       <translation>Oculto por las preferencias de contenido</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="455"></location>
       <source>Hide Comfy output</source>
       <translation>Ocultar la salida de Comfy</translation>
     </message>
@@ -3605,14 +3620,14 @@ Install these nodes now?</source>
       <translation>Insertar palabras de activación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="219"></location>
-      <source>Install %1 custom node packages</source>
-      <translation>Instalar %1 paquetes de nodos personalizados</translation>
-    </message>
-    <message>
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="37"></location>
       <source>Install and enable GNOME Keyring, KWallet, or another Secret Service-compatible keyring through your distribution's package manager, then sign in or unlock it and restart Substitute.</source>
       <translation>Instala y activa GNOME Keyring, KWallet u otro llavero compatible con Secret Service mediante el gestor de paquetes de tu distribución. Después, inicia sesión o desbloquéalo y reinicia Substitute.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="246"></location>
+      <source>Install and restart</source>
+      <translation>Instalar y reiniciar</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="546"></location>
@@ -3638,6 +3653,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="186"></location>
       <source>Install support</source>
       <translation>Compatibilidad de instalación</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="46"></location>
+      <source>Installed %1 (%2/%3)</source>
+      <translation>%1 instalado (%2/%3)</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="695"></location>
@@ -3670,6 +3690,11 @@ Install these nodes now?</source>
       <translation>Instalando los paquetes de nodos de Comfy para Substitute.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="42"></location>
+      <source>Installing dependencies for %1 (%2/%3)</source>
+      <translation>Instalando las dependencias de %1 (%2/%3)</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/comfy_startup_status.py" line="43"></location>
       <source>Installing dependencies for %1.</source>
       <translation>Instalando las dependencias de %1.</translation>
@@ -3680,9 +3705,14 @@ Install these nodes now?</source>
       <translation>Instalar paquetes o cambiar las rutas de modelos mientras ComfyUI está en ejecución puede dejar su entorno en un estado incoherente.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="278"></location>
+      <location filename="../substitute/app/bootstrap/nodepack_recovery_handoff.py" line="112"></location>
       <source>Installing required custom nodes</source>
       <translation>Instalando los nodos personalizados requeridos</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="116"></location>
+      <source>Installing these custom node packages will restart ComfyUI and reload Substitute. Your workflow will reopen when they are ready.</source>
+      <translation>Al instalar estos paquetes de nodos personalizados, se reiniciará ComfyUI y se recargará Substitute. Tu flujo de trabajo se volverá a abrir cuando estén listos.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="202"></location>
@@ -3853,11 +3883,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="84"></location>
       <source>Likely cause: %1</source>
       <translation>Causa probable: %1</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="324"></location>
-      <source>Live Comfy node definitions unavailable</source>
-      <translation>Las definiciones actuales de nodos de Comfy no están disponibles</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="215"></location>
@@ -4230,12 +4255,12 @@ Install these nodes now?</source>
       <translation>Faltan nodos personalizados: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="483"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="307"></location>
       <source>Missing definition: %1</source>
       <translation>Falta la definición: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="488"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="312"></location>
       <source>Missing field: %1</source>
       <translation>Falta el campo: %1</translation>
     </message>
@@ -4270,7 +4295,7 @@ Install these nodes now?</source>
       <translation>La búsqueda de modelos devolvió resultados no válidos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="360"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="329"></location>
       <source>Model download failed</source>
       <translation>No se pudo descargar el modelo</translation>
     </message>
@@ -4642,7 +4667,7 @@ I’ll bring my own</source>
 Usaré el mío.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="153"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="154"></location>
       <source>No trusted package match was found for: %1</source>
       <translation>No se encontró ningún paquete de confianza para: %1</translation>
     </message>
@@ -5247,7 +5272,7 @@ Usaré el mío.</translation>
       <translation>Preparando tu configuración existente de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/startup_bootstrap_feedback.py" line="60"></location>
+      <location filename="../substitute/app/bootstrap/nodepack_recovery_handoff.py" line="141"></location>
       <source>Preparing your saved workspace.</source>
       <translation>Preparando tu espacio de trabajo guardado.</translation>
     </message>
@@ -5357,7 +5382,7 @@ Usaré el mío.</translation>
       <translation>Prompt n.º %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="182"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="209"></location>
       <source>Provides: %1</source>
       <translation>Proporciona: %1</translation>
     </message>
@@ -5612,7 +5637,7 @@ Usaré el mío.</translation>
       <translation>Vuelve a instalar la dependencia nativa que falla para esta configuración de Python, PyTorch, CUDA y Windows.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="343"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="365"></location>
       <source>Reload GUI</source>
       <translation>Recargar la interfaz</translation>
     </message>
@@ -5921,7 +5946,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reiniciando Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/application/comfy_startup_status.py" line="55"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="447"></location>
       <source>Restarting ComfyUI to apply updated dependencies.</source>
       <translation>Reiniciando ComfyUI para aplicar las dependencias actualizadas.</translation>
     </message>
@@ -5991,11 +6016,6 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa los detalles de la conexión y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="115"></location>
-      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
-      <translation>Revise los paquetes de nodos personalizados asociados con los nodos ausentes del flujo de trabajo antes de instalarlos.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="219"></location>
       <source>Review the details below and continue through repair to finish setting things up.</source>
       <translation>Revisa los detalles siguientes y continúa con la reparación para terminar la instalación.</translation>
@@ -6056,7 +6076,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa estas coincidencias exactas de modelos antes de descargarlas en la instalación de ComfyUI conectada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="197"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="224"></location>
       <source>Revision: %1</source>
       <translation>Revisión: %1</translation>
     </message>
@@ -6571,7 +6591,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Acorta el nombre de archivo o carpeta en %1 y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="455"></location>
       <source>Show Comfy output</source>
       <translation>Mostrar la salida de Comfy</translation>
     </message>
@@ -6763,12 +6783,12 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Origen: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="188"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="215"></location>
       <source>Source: Comfy Registry</source>
       <translation>Origen: Registro de Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="190"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="217"></location>
       <source>Source: ComfyUI-Manager catalog</source>
       <translation>Origen: catálogo de ComfyUI-Manager</translation>
     </message>
@@ -7008,7 +7028,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute no pudo confirmar que el cierre hubiera terminado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="365"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="334"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute no pudo descargar y verificar todos los modelos que necesita este flujo de trabajo.</translation>
     </message>
@@ -7043,12 +7063,12 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>Substitute no pudo preparar esta instalación local de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="369"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="338"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute no pudo leer este documento de flujo de trabajo de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="169"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="194"></location>
       <source>Substitute could not recover every custom node required by this workflow.</source>
       <translation>Substitute no pudo recuperar todos los nodos personalizados requeridos por este flujo de trabajo.</translation>
     </message>
@@ -7293,7 +7313,7 @@ Después, crea una clave API en Configuración de la cuenta y pégala aquí.</tr
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2790"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2658"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -8057,7 +8077,7 @@ Evidencia de diagnóstico:
       <translation>La primera vez puede tardar un poco.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="256"></location>
+      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="284"></location>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>Este cubo no se puede mostrar porque los metadatos actuales de Comfy no están disponibles.</translation>
     </message>
@@ -8637,7 +8657,7 @@ Evidencia de diagnóstico:
       <translation>Versión, proyecto y agradecimientos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="195"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="222"></location>
       <source>Version: %1</source>
       <translation>Versión: %1</translation>
     </message>
@@ -8847,7 +8867,7 @@ Evidencia de diagnóstico:
       <translation>Contexto del flujo de trabajo y del prompt</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="362"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="331"></location>
       <source>Workflow could not be loaded</source>
       <translation>No se pudo cargar el flujo de trabajo</translation>
     </message>
@@ -9007,12 +9027,12 @@ Evidencia de diagnóstico:
       <translation>modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="289"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="287"></location>
       <source>node missing from cube buffer</source>
       <translation>falta el nodo en el búfer del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="310"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="308"></location>
       <source>node payload is not a mapping</source>
       <translation>la carga útil del nodo no es una asignación</translation>
     </message>
@@ -9022,7 +9042,7 @@ Evidencia de diagnóstico:
       <translation>ninguno</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="204"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="206"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="556"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt no devolvió prompt_id</translation>

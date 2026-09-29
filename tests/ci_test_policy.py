@@ -46,6 +46,13 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # These offscreen visual proofs register a native Windows font because
+        # Qt's headless font catalog is empty. Removing that font does not
+        # reliably invalidate Qt's fallback metrics after repeated registration
+        # in one worker; a fresh process preserves screenshot and later text tests.
+        "tests/presentation/dialogs/test_workflow_nodepack_recovery_dialog.py",
+        "tests/presentation/shell/splash/test_nodepack_recovery_feedback.py",
+        "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_open_nodepack_reassessment.py",
         # This Windows update-activation contract launches a real detached
         # Python child across native Job Object boundaries. Under full xdist
         # process pressure the child can remain admission-ready but unscheduled

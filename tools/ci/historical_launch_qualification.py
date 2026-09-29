@@ -30,7 +30,7 @@ from launcher.sugarsubstitute_launcher.install_layout import (
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_evidence_verification import (
-    assert_startup_trace_sequence,
+    assert_historical_startup_trace_sequence,
     diagnostic_tail,
 )
 from tools.ci.installer_ui_qualification import (
@@ -91,7 +91,7 @@ def wait_for_historical_main_shell(
                 f"{terminal_event}.\n{_historical_diagnostics(layout, launch)}"
             )
         if _MAIN_SHELL_EVENT in events:
-            assert_startup_trace_sequence(trace_path)
+            assert_historical_startup_trace_sequence(trace_path)
             main_pid = _live_launch_owner_pid(layout)
             if main_pid is not None:
                 return main_pid

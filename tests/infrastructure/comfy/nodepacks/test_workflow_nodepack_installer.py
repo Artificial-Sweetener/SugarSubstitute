@@ -40,6 +40,8 @@ from substitute.infrastructure.comfy.pinned_nodepack_source import (
 from substitute.infrastructure.comfy.workflow_nodepack_installer import (
     WorkflowNodepackInstaller,
     WorkflowNodepackInstallStatus,
+    WorkflowNodepackInstallStage,
+    WorkflowNodepackInstallProgress,
 )
 
 _GIT_REVISION = "3740add9dbdc9f254a2befda30e95ba95e3b115d"
@@ -137,6 +139,7 @@ def test_installs_exact_release_with_requirements_manifest_precedence(
     release_client = _ReleaseClient()
     archive_installer = _ArchiveInstaller()
     dependency_calls: list[tuple[str, Path, Path]] = []
+    progress: list[WorkflowNodepackInstallProgress] = []
     module = "substitute.infrastructure.comfy.workflow_nodepack_installer"
     monkeypatch.setattr(
         f"{module}.install_nodepack_requirements",
@@ -166,6 +169,7 @@ def test_installs_exact_release_with_requirements_manifest_precedence(
         (_candidate("comfyui-impact-pack"),),
         workspace=tmp_path,
         python_executable=tmp_path / "python.exe",
+        on_progress=progress.append,
     )
 
     target = tmp_path / "custom_nodes" / "comfyui-impact-pack"
@@ -179,6 +183,13 @@ def test_installs_exact_release_with_requirements_manifest_precedence(
     ]
     assert target.is_dir()
     assert not any(target.parent.glob(".substitute-workflow-nodepack-*"))
+    assert [event.stage for event in progress] == [
+        WorkflowNodepackInstallStage.SOURCE,
+        WorkflowNodepackInstallStage.DEPENDENCIES,
+        WorkflowNodepackInstallStage.INSTALLED,
+    ]
+    assert all(event.display_name == "comfyui-impact-pack" for event in progress)
+    assert all(event.package_index == event.package_count == 1 for event in progress)
 
 
 def test_uses_pyproject_dependencies_when_requirements_are_absent(
@@ -228,6 +239,7 @@ def test_retains_partial_results_and_rejects_unsafe_target_names(
         f"{module}.install_nodepack_python_dependencies", lambda **_kwargs: None
     )
 
+    progress: list[WorkflowNodepackInstallProgress] = []
     result = WorkflowNodepackInstaller(
         release_client=cast(ComfyRegistryReleaseClient, release_client),
         archive_installer=cast(TrustedNodepackArchiveInstaller, archive_installer),
@@ -239,6 +251,7 @@ def test_retains_partial_results_and_rejects_unsafe_target_names(
         ),
         workspace=tmp_path,
         python_executable=tmp_path / "python.exe",
+        on_progress=progress.append,
     )
 
     assert [item.status for item in result.items] == [
@@ -248,6 +261,17 @@ def test_retains_partial_results_and_rejects_unsafe_target_names(
     ]
     assert result.installed_package_ids == ("healthy-pack",)
     assert result.failed
+    assert [
+        (event.display_name, event.package_index, event.stage) for event in progress
+    ] == [
+        ("healthy-pack", 1, WorkflowNodepackInstallStage.SOURCE),
+        ("healthy-pack", 1, WorkflowNodepackInstallStage.DEPENDENCIES),
+        ("healthy-pack", 1, WorkflowNodepackInstallStage.INSTALLED),
+        ("missing-pack", 2, WorkflowNodepackInstallStage.SOURCE),
+        ("missing-pack", 2, WorkflowNodepackInstallStage.FAILED),
+        ("../escape", 3, WorkflowNodepackInstallStage.SOURCE),
+        ("../escape", 3, WorkflowNodepackInstallStage.FAILED),
+    ]
     assert not (tmp_path / "escape").exists()
 
 

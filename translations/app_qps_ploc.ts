@@ -830,6 +830,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Chëckïng mödël lïnks… ···⟧</translation>
     </message>
     <message>
+      <source>Checking required custom nodes in restarted ComfyUI</source>
+      <translation>⟦Chëckïng rëqüïrëd cüstöm nödës ïn rëstàrtëd CömfyÜÏ ···⟧</translation>
+    </message>
+    <message>
       <source>Checking that ComfyUI is ready.</source>
       <translation>⟦Chëckïng thàt CömfyÜÏ ïs rëàdy. ···⟧</translation>
     </message>
@@ -1766,6 +1770,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cöüld nöt chëck thïs mödël lïnk rïght nöw ···⟧</translation>
     </message>
     <message>
+      <source>Could not install %1 (%2/%3)</source>
+      <translation>⟦Cöüld nöt ïnstàll %1 (%2/%3) ···⟧</translation>
+    </message>
+    <message>
       <source>Could not install required Cube Library nodes.</source>
       <translation>⟦Cöüld nöt ïnstàll rëqüïrëd Cübë Lïbràry nödës. ···⟧</translation>
     </message>
@@ -2634,6 +2642,10 @@ Install these nodes now?</source>
       <translation>⟦Gënëràtïön qüëüë snàpshöt bïndïngs àrë ünàvàïlàblë. ···⟧</translation>
     </message>
     <message>
+      <source>Getting source for %1 (%2/%3)</source>
+      <translation>⟦Gëttïng söürcë för %1 (%2/%3) ···⟧</translation>
+    </message>
+    <message>
       <source>GitHub URL needed</source>
       <translation>⟦GïtHüb ÜRL nëëdëd ···⟧</translation>
     </message>
@@ -2842,12 +2854,12 @@ Install these nodes now?</source>
       <translation>⟦Ïnsërt trïggër wörds ···⟧</translation>
     </message>
     <message>
-      <source>Install %1 custom node packages</source>
-      <translation>⟦Ïnstàll %1 cüstöm nödë pàckàgës ···⟧</translation>
-    </message>
-    <message>
       <source>Install and enable GNOME Keyring, KWallet, or another Secret Service-compatible keyring through your distribution's package manager, then sign in or unlock it and restart Substitute.</source>
       <translation>⟦Ïnstàll ànd ënàblë GNÖMË Këyrïng, KWàllët, ör ànöthër Sëcrët Sërvïcë-cömpàtïblë këyrïng thröügh yöür dïstrïbütïön's pàckàgë mànàgër, thën sïgn ïn ör ünlöck ït ànd rëstàrt Sübstïtütë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Install and restart</source>
+      <translation>⟦Ïnstàll ànd rëstàrt ···⟧</translation>
     </message>
     <message>
       <source>Install missing custom nodes required by enabled cubes.</source>
@@ -2868,6 +2880,10 @@ Install these nodes now?</source>
     <message>
       <source>Install support</source>
       <translation>⟦Ïnstàll süppört ···⟧</translation>
+    </message>
+    <message>
+      <source>Installed %1 (%2/%3)</source>
+      <translation>⟦Ïnstàllëd %1 (%2/%3) ···⟧</translation>
     </message>
     <message>
       <source>Installed Python packages</source>
@@ -2894,6 +2910,10 @@ Install these nodes now?</source>
       <translation>⟦Ïnstàllïng Sübstïtütë Cömfy nödëpàcks. ···⟧</translation>
     </message>
     <message>
+      <source>Installing dependencies for %1 (%2/%3)</source>
+      <translation>⟦Ïnstàllïng dëpëndëncïës för %1 (%2/%3) ···⟧</translation>
+    </message>
+    <message>
       <source>Installing dependencies for %1.</source>
       <translation>⟦Ïnstàllïng dëpëndëncïës för %1. ···⟧</translation>
     </message>
@@ -2904,6 +2924,10 @@ Install these nodes now?</source>
     <message>
       <source>Installing required custom nodes</source>
       <translation>⟦Ïnstàllïng rëqüïrëd cüstöm nödës ···⟧</translation>
+    </message>
+    <message>
+      <source>Installing these custom node packages will restart ComfyUI and reload Substitute. Your workflow will reopen when they are ready.</source>
+      <translation>⟦Ïnstàllïng thësë cüstöm nödë pàckàgës wïll rëstàrt CömfyÜÏ ànd rëlöàd Sübstïtütë. Yöür wörkflöw wïll rëöpën whën thëy àrë rëàdy. ···⟧</translation>
     </message>
     <message>
       <source>Interaction</source>
@@ -3040,10 +3064,6 @@ Install these nodes now?</source>
     <message>
       <source>Likely cause: %1</source>
       <translation>⟦Lïkëly càüsë: %1 ···⟧</translation>
-    </message>
-    <message>
-      <source>Live Comfy node definitions unavailable</source>
-      <translation>⟦Lïvë Cömfy nödë dëfïnïtïöns ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
       <source>LoRA</source>
@@ -4750,10 +4770,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Review the connection details and try again.</source>
       <translation>⟦Rëvïëw thë cönnëctïön dëtàïls ànd try àgàïn. ···⟧</translation>
-    </message>
-    <message>
-      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
-      <translation>⟦Rëvïëw thë cüstöm nödë pàckàgës màtchëd tö mïssïng wörkflöw nödës bëförë ïnstàllïng thëm. ···⟧</translation>
     </message>
     <message>
       <source>Review the details below and continue through repair to finish setting things up.</source>

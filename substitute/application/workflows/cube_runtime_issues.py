@@ -30,6 +30,9 @@ from substitute.application.cube_library.update_detection import (
 from substitute.application.node_behavior.live_definition_authority import (
     LiveNodeDefinitionError,
 )
+from substitute.application.node_behavior.node_definition_requirements import (
+    NodeDefinitionRequirement,
+)
 
 
 class CubeRuntimeIssueSeverity(StrEnum):
@@ -74,6 +77,19 @@ class CubeRuntimeIssue:
     node_names: tuple[str, ...] = ()
     recommended_action: ApplicationText = ""
     update_candidate: LoadedCubeUpdateCandidate | None = None
+
+    @property
+    def is_cube_scoped_error(self) -> bool:
+        """Reserve cube-wide failure presentation for issues without a saved node."""
+
+        return self.severity == CubeRuntimeIssueSeverity.ERROR and not (
+            self.kind
+            in {
+                CubeRuntimeIssueKind.MISSING_LIVE_NODE_DEFINITION,
+                CubeRuntimeIssueKind.MISSING_LIVE_NODE_FIELD,
+            }
+            and self.node_names
+        )
 
 
 class WorkflowIssueState:
@@ -133,6 +149,14 @@ class WorkflowIssueState:
 
         return any(
             issue.severity == CubeRuntimeIssueSeverity.ERROR
+            for issue in self.issues_for_cube(workflow_id, cube_alias)
+        )
+
+    def has_cube_scoped_error(self, workflow_id: str, cube_alias: str) -> bool:
+        """Return whether an issue belongs to the cube rather than one node."""
+
+        return any(
+            issue.is_cube_scoped_error
             for issue in self.issues_for_cube(workflow_id, cube_alias)
         )
 
@@ -238,14 +262,18 @@ def live_node_definition_error_to_cube_issues(
     *,
     workflow_id: str,
     source: CubeRuntimeIssueSource,
+    requirements: Sequence[NodeDefinitionRequirement] = (),
 ) -> tuple[CubeRuntimeIssue, ...]:
-    """Convert a cube-attributed live metadata failure into runtime issues."""
+    """Attribute missing live metadata to saved cube nodes without inventing owners."""
 
     issues: list[CubeRuntimeIssue] = []
     for missing in error.missing_definitions:
-        if not missing.cube_aliases:
-            continue
-        for cube_alias in missing.cube_aliases:
+        owners = (
+            {alias: missing.node_names for alias in missing.cube_aliases}
+            if missing.cube_aliases
+            else _requirement_owners(requirements, missing.class_type)
+        )
+        for cube_alias, node_names in owners.items():
             issues.append(
                 CubeRuntimeIssue(
                     workflow_id=workflow_id,
@@ -261,7 +289,7 @@ def live_node_definition_error_to_cube_issues(
                     operation=error.operation,
                     source=source,
                     missing_node_classes=(missing.class_type,),
-                    node_names=missing.node_names,
+                    node_names=node_names,
                     recommended_action=(
                         "Update this cube from the Cube Library, or start or "
                         "restart ComfyUI and confirm required custom nodes loaded."
@@ -270,24 +298,45 @@ def live_node_definition_error_to_cube_issues(
             )
     for missing_field in error.missing_fields:
         field_name = f"{missing_field.class_type}.{missing_field.field_key}"
-        issues.append(
-            CubeRuntimeIssue(
-                workflow_id=workflow_id,
-                cube_alias="",
-                severity=CubeRuntimeIssueSeverity.ERROR,
-                kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_FIELD,
-                message=app_text(
-                    "A required live Comfy field definition is unavailable."
-                ),
-                operation=error.operation,
-                source=source,
-                missing_fields=(field_name,),
-                recommended_action=(
-                    "Start or restart ComfyUI and confirm required custom nodes loaded."
-                ),
+        for cube_alias, node_names in _requirement_owners(
+            requirements, missing_field.class_type
+        ).items():
+            issues.append(
+                CubeRuntimeIssue(
+                    workflow_id=workflow_id,
+                    cube_alias=cube_alias,
+                    severity=CubeRuntimeIssueSeverity.ERROR,
+                    kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_FIELD,
+                    message=app_text(
+                        "A required live Comfy field definition is unavailable."
+                    ),
+                    operation=error.operation,
+                    source=source,
+                    missing_fields=(field_name,),
+                    node_names=node_names,
+                    recommended_action=(
+                        "Start or restart ComfyUI and confirm required custom nodes loaded."
+                    ),
+                )
             )
-        )
-    return tuple(issue for issue in issues if issue.cube_alias)
+    return tuple(issues)
+
+
+def _requirement_owners(
+    requirements: Sequence[NodeDefinitionRequirement], class_type: str
+) -> dict[str, tuple[str, ...]]:
+    """Find saved cube nodes that actually require one live Comfy class."""
+
+    by_alias: dict[str, set[str]] = {}
+    for requirement in requirements:
+        if requirement.class_type == class_type:
+            by_alias.setdefault(requirement.cube_alias, set()).add(
+                requirement.node_name
+            )
+    return {
+        alias: tuple(sorted(node_names))
+        for alias, node_names in sorted(by_alias.items())
+    }
 
 
 __all__ = [
