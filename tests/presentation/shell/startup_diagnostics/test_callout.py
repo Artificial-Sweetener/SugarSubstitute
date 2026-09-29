@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from PySide6.QtCore import QPoint
-from PySide6.QtGui import QColor, QCursor
+from PySide6.QtGui import QColor, QCursor, QGuiApplication
 from PySide6.QtWidgets import QApplication, QWidget
 import pytest
 
@@ -114,6 +114,29 @@ def test_startup_diagnostics_callout_dismiss_hides_widget() -> None:
         callout.dismiss()
 
         assert callout.is_visible() is False
+    finally:
+        callout.dismiss()
+        destroy_qt_object(callout)
+        destroy_widget_roots([anchor])
+
+
+def test_startup_diagnostics_callout_skips_cursor_without_a_screen(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A disconnected cursor location must not crash the diagnostics indicator."""
+
+    app = _app()
+    anchor = QWidget()
+    anchor.resize(54, 32)
+    anchor.show()
+    app.processEvents()
+    monkeypatch.setattr(QGuiApplication, "screenAt", staticmethod(lambda _point: None))
+    callout = StartupDiagnosticsCallout(auto_dismiss_ms=0)
+
+    try:
+        callout.show_for(anchor, "ComfyUI reported errors", has_errors=True)
+        assert callout.is_visible() is False
+        assert callout.message() == "ComfyUI reported errors"
     finally:
         callout.dismiss()
         destroy_qt_object(callout)

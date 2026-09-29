@@ -18,10 +18,18 @@
 
 from __future__ import annotations
 
+import logging
 from typing import cast
 
 from PySide6.QtCore import QEvent, QPoint, QPointF, QObject
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPolygonF
+from PySide6.QtGui import (
+    QColor,
+    QCursor,
+    QGuiApplication,
+    QPainter,
+    QPainterPath,
+    QPolygonF,
+)
 from PySide6.QtWidgets import QLabel, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     TeachingTip,
@@ -41,6 +49,7 @@ from sugarsubstitute_shared.presentation.localization import (
 )
 
 _AUTO_DISMISS_MS = 6000
+_LOGGER = logging.getLogger(__name__)
 
 
 class StartupDiagnosticsCallout(QObject):
@@ -79,6 +88,13 @@ class StartupDiagnosticsCallout(QObject):
         self._message_text = message
         self._message = render_application_text(message)
         self._has_errors = has_errors
+        if QGuiApplication.screenAt(QCursor.pos()) is None:
+            _LOGGER.warning(
+                "Skipped startup diagnostics callout because the cursor has no screen "
+                "| has_errors=%s",
+                has_errors,
+            )
+            return
         duration = self._auto_dismiss_ms if self._auto_dismiss_ms > 0 else -1
         target_bottom_center = anchor.mapToGlobal(
             QPoint(anchor.width() // 2, anchor.height())
