@@ -211,6 +211,21 @@ def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
     assert "process.env.SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL" in release_config
 
 
+def test_stable_release_commits_are_attributed_to_daisy() -> None:
+    """Keep generated release authorship independent of deploy-key authentication."""
+
+    publication_workflow = workflow_text("release-publication.yml")
+    publish_step = publication_workflow.split(
+        "      - name: Publish exact qualified Stable release with semantic release",
+        maxsplit=1,
+    )[1].split("      - name:", maxsplit=1)[0]
+
+    assert "GIT_AUTHOR_NAME: Daisy" in publish_step
+    assert "GIT_AUTHOR_EMAIL: daisy@artificialsweetener.ai" in publish_step
+    assert "GIT_COMMITTER_NAME: Daisy" in publish_step
+    assert "GIT_COMMITTER_EMAIL: daisy@artificialsweetener.ai" in publish_step
+
+
 def test_failed_qualification_cannot_leave_a_public_stable_prerelease() -> None:
     """Keep every Stable tag and release mutation after successful qualification."""
 
