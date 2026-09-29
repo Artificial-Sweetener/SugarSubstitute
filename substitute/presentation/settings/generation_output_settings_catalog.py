@@ -28,6 +28,10 @@ from substitute.presentation.settings.settings_catalog import (
     SettingsControlEntry,
     SettingsSectionEntry,
 )
+from substitute.presentation.settings.video_playback_settings import (
+    create_video_hardware_decoding_row,
+    create_video_renderer_row,
+)
 
 _PATH_KEYWORDS = ("folder", "directory", "path", "save", "location")
 _IMAGE_KEYWORDS = ("image", "thumbnail", "preview", "picture")
@@ -92,6 +96,22 @@ def build_generation_output_settings_section(
                 ("drag", "copy", "jpeg", "jpg", "png", "clipboard"),
                 60,
                 rows.transfer,
+            ),
+            SettingsControlEntry(
+                "generation.output.video-hardware-decoding",
+                app_text("Video hardware decoding"),
+                app_text("Choose automatic hardware decoding or software decoding."),
+                ("video", "hardware", "decode", "gpu", "software"),
+                70,
+                lambda parent: create_video_hardware_decoding_row(service, parent),
+            ),
+            SettingsControlEntry(
+                "generation.output.video-renderer",
+                app_text("Video renderer"),
+                app_text("Choose the renderer used for generated video playback."),
+                ("video", "renderer", "gpu", "playback", "mpv"),
+                80,
+                lambda parent: create_video_renderer_row(service, parent),
             ),
         ),
     )

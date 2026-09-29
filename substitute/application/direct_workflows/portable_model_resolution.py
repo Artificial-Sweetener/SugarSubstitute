@@ -132,6 +132,21 @@ class PortableWorkflowModelResolutionService:
             ),
         )
 
+    def continue_without_download(
+        self,
+        pending: PendingPortableWorkflowResolution,
+    ) -> ResolvedPortableWorkflow:
+        """Load a detached graph without its unresolved portable model links."""
+
+        graph = deepcopy(pending.workflow)
+        resolved = pending.required.continue_without_download()
+        self._manifest.apply_resolved_script(
+            graph,
+            projection=pending.projection,
+            parsed_script=resolved.parsed_script,
+        )
+        return ResolvedPortableWorkflow(workflow=graph, summary=resolved.summary)
+
 
 __all__ = [
     "PendingPortableWorkflowResolution",

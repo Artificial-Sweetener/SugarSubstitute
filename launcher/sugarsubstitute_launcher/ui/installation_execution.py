@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import logging
 from threading import Event
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -28,11 +29,17 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
     ReleaseManifestSource,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.ui.installation_workers import (
     InitialInstallWorker,
     InstallationWorkflowFactory,
     SetupWorker,
 )
+from launcher.sugarsubstitute_launcher.ui.installer_errors import (
+    launcher_failure_detail,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class QtInstallationExecutor(QObject):
@@ -63,6 +70,8 @@ class QtInstallationExecutor(QObject):
         self._initial_worker: InitialInstallWorker | None = None
         self._setup_thread: QThread | None = None
         self._setup_worker: SetupWorker | None = None
+        self._setup_provisioned = False
+        self._setup_command: tuple[str, ...] = ()
         self._cancellation = Event()
 
     @property
@@ -125,10 +134,11 @@ class QtInstallationExecutor(QObject):
         if self._initial_thread is not None or self._setup_thread is not None:
             return False
         self._cancellation.clear()
+        self._setup_provisioned = False
+        self._setup_command = tuple(setup_command)
         thread = QThread(self)
         worker = SetupWorker(
             application=application,
-            setup_command=setup_command,
             workflow_factory=self._workflow_factory,
             cancellation=self._cancellation,
         )
@@ -138,7 +148,7 @@ class QtInstallationExecutor(QObject):
         worker.progress.connect(self.progress.emit)
         worker.activity.connect(self.activity.emit)
         worker.failed.connect(self.setup_failed.emit)
-        worker.succeeded.connect(self.setup_succeeded.emit)
+        worker.provisioned.connect(self._record_setup_provisioned)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
         thread.finished.connect(self._finish_setup)
@@ -165,10 +175,37 @@ class QtInstallationExecutor(QObject):
 
     @Slot()
     def _finish_setup(self) -> None:
-        """Join deferred native destruction before publishing setup completion."""
+        """Launch the handoff only after the installer worker has stopped."""
 
         if self._setup_thread is not None:
             self._setup_thread.wait()
         self._setup_thread = None
         self._setup_worker = None
+        provisioned = self._setup_provisioned
+        self._setup_provisioned = False
+        command = self._setup_command
+        self._setup_command = ()
+        if provisioned and not self._cancellation.is_set():
+            self.log.emit(launcher_text("Starting SugarSubstitute setup."))
+            try:
+                workflow = self._workflow_factory(
+                    self.log.emit,
+                    self.progress.emit,
+                    self.activity.emit,
+                    self._cancellation,
+                )
+                workflow.start_setup(command)
+            except Exception as error:
+                _LOGGER.exception("Installed setup handoff failed")
+                self.setup_failed.emit("setup", launcher_failure_detail(error))
+            else:
+                self.log.emit(launcher_text("Started SugarSubstitute setup."))
+                self.log.emit(launcher_text("Waiting for the setup window to open."))
+                self.setup_succeeded.emit()
         self.setup_finished.emit()
+
+    @Slot()
+    def _record_setup_provisioned(self) -> None:
+        """Remember successful provisioning until its worker has stopped."""
+
+        self._setup_provisioned = True

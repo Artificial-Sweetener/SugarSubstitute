@@ -59,7 +59,11 @@ def test_show_cube_picker_queue_failure_reports_through_error_presenter() -> Non
         """Capture the report payload used by the standard copy-report dialog."""
 
         presented.append((report, report_text))
-        return SimpleNamespace(exec=lambda: None)
+        return SimpleNamespace(
+            finished=SimpleNamespace(connect=lambda _slot: None),
+            open=lambda: None,
+            deleteLater=lambda: None,
+        )
 
     view = SimpleNamespace(
         active_cube_stack=stack,

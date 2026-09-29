@@ -250,6 +250,7 @@ def _callbacks(recorder: _CallbackRecorder | None = None) -> GenerationCallbacks
         on_model_load_progress=lambda _event: None,
         on_preview=lambda _event: None,
         on_output_image=lambda event: sink.outputs.append(event),
+        on_output_video=lambda _event: None,
         on_failure=lambda failure: sink.failures.append(failure),
         on_timing=lambda event: sink.timing.append(event),
         on_completed=lambda event: sink.completed.append(event),

@@ -49,7 +49,7 @@
       <translation>취소</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="128"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="132"></location>
       <source>Cancel repair</source>
       <translation>복구 취소</translation>
     </message>
@@ -59,7 +59,7 @@
       <translation>SugarSubstitute 업데이트를 확인하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="124"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="128"></location>
       <source>Checking repair files</source>
       <translation>복구 파일 확인 중</translation>
     </message>
@@ -104,7 +104,7 @@
       <translation>언어 선택</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="156"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="166"></location>
       <source>Close</source>
       <translation>닫기</translation>
     </message>
@@ -129,12 +129,12 @@
       <translation>SugarSubstitute 설정을 시작하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="182"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="194"></location>
       <source>Created install root: %1</source>
       <translation>설치 루트를 만들었습니다: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="73"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="77"></location>
       <source>Details</source>
       <translation>세부 정보</translation>
     </message>
@@ -204,7 +204,7 @@
       <translation>설치된 앱 페이로드 버전: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="169"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="181"></location>
       <source>Installed launcher: %1</source>
       <translation>설치된 실행기: %1</translation>
     </message>
@@ -264,7 +264,7 @@
       <translation>다른 항목은 변경되지 않았습니다. 보고서를 확인한 다음 이 단계를 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="165"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="192"></location>
       <source>Open SugarSubstitute</source>
       <translation>SugarSubstitute 열기</translation>
     </message>
@@ -364,7 +364,7 @@
       <translation>Substitute 및 관리형 ComfyUI 복구</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="161"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
       <source>Repair complete</source>
       <translation>복구 완료</translation>
     </message>
@@ -384,7 +384,7 @@
       <translation>복구 준비가 완료되었습니다. 앱 파일을 교체하기 위해 이 창을 닫습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="123"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="127"></location>
       <source>Repair keeps your files and models.</source>
       <translation>복구 중에도 파일과 모델은 유지됩니다.</translation>
     </message>
@@ -394,12 +394,12 @@
       <translation>복구 모드가 요청되었습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="167"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="194"></location>
       <source>Repair needs attention</source>
       <translation>복구 확인 필요</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="122"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="126"></location>
       <source>Repairing SugarSubstitute</source>
       <translation>SugarSubstitute 복구 중</translation>
     </message>
@@ -434,12 +434,12 @@
       <translation>해당 Windows 세션으로 돌아가 SugarSubstitute를 닫은 다음 여기에서 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="169"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="196"></location>
       <source>Review the details, then try the repair again.</source>
       <translation>세부 정보를 확인한 후 복구를 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="101"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="102"></location>
       <source>Runtime ready: %1</source>
       <translation>런타임 준비됨: %1</translation>
     </message>
@@ -479,7 +479,7 @@
       <translation>설정 시작됨</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="103"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="115"></location>
       <source>Setup stopped at a safe point.</source>
       <translation>설정이 안전한 지점에서 중지되었습니다.</translation>
     </message>
@@ -489,7 +489,7 @@
       <translation>세부 정보 표시</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="176"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="188"></location>
       <source>Source-run launcher detected; skipped executable self-copy.</source>
       <translation>소스 실행용 실행기를 감지하여 실행 파일 자체 복사를 건너뛰었습니다.</translation>
     </message>
@@ -509,7 +509,7 @@
       <translation>복구 시작</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="114"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="126"></location>
       <source>Started SugarSubstitute setup.</source>
       <translation>SugarSubstitute 설정을 시작했습니다.</translation>
     </message>
@@ -544,7 +544,7 @@
       <translation>SugarSubstitute 런처를 %1(으)로 계속 업데이트하고 있습니다—네트워크 또는 느린 저장 장치로 인해 지연되고 있을 수 있습니다</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="144"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="148"></location>
       <source>Stopping repair. This window will close when the repair process has stopped.</source>
       <translation>복구를 중지하고 있습니다. 복구 프로세스가 중지되면 이 창이 닫힙니다.</translation>
     </message>
@@ -569,9 +569,14 @@
       <translation>다른 Windows 세션에서 SugarSubstitute가 열려 있습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="163"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="190"></location>
       <source>SugarSubstitute is ready to open.</source>
       <translation>SugarSubstitute를 열 준비가 되었습니다.</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="109"></location>
+      <source>SugarSubstitute is repaired. Your files were preserved, but the previous session could not be restored. Recovery copies are in %1.</source>
+      <translation>SugarSubstitute 복구가 완료되었습니다. 파일은 보존되었지만 이전 세션을 복원할 수 없습니다. 복구 사본은 %1에 있습니다.</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="373"></location>
@@ -599,7 +604,7 @@
       <translation>처음에는 시간이 걸릴 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="198"></location>
       <source>Try again</source>
       <translation>다시 시도</translation>
     </message>
@@ -659,7 +664,7 @@
       <translation>작업 중...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="185"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="197"></location>
       <source>Wrote launcher config: %1</source>
       <translation>실행기 구성을 기록했습니다: %1</translation>
     </message>
@@ -667,6 +672,11 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="66"></location>
       <source>You can retry or open the launcher logs for details.</source>
       <translation>다시 시도하거나 런처 로그를 열어 자세한 내용을 확인할 수 있습니다.</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="180"></location>
+      <source>the repair recovery folder</source>
+      <translation>복구 작업의 복구 폴더</translation>
     </message>
   </context>
   <context>

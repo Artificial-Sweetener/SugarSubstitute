@@ -63,7 +63,7 @@ class LiveNodeDefinitionError(RuntimeError):
         super().__init__(self._message())
 
     def _message(self) -> str:
-        """Return a concise diagnostic message for logs and modal reports."""
+        """Return a concise diagnostic message for logs and recovery checks."""
 
         missing_classes = ", ".join(
             item.class_type for item in self.missing_definitions
@@ -98,6 +98,31 @@ class LiveNodeDefinitionAuthority:
         """Return one required live Comfy node definition or raise."""
 
         payload = self._node_definition_gateway.get_required_node_definition(class_type)
+        definition = payload.get(class_type) if isinstance(payload, Mapping) else None
+        if isinstance(definition, Mapping):
+            return deepcopy(dict(definition))
+        raise LiveNodeDefinitionError(
+            operation=operation,
+            missing_definitions=(
+                MissingLiveNodeDefinition(
+                    class_type=class_type,
+                    cube_aliases=tuple(cube_aliases),
+                    node_names=tuple(node_names),
+                ),
+            ),
+        )
+
+    def get_available_definition(
+        self,
+        class_type: str,
+        *,
+        operation: str,
+        cube_aliases: Sequence[str] = (),
+        node_names: Sequence[str] = (),
+    ) -> Mapping[str, object]:
+        """Return cached live metadata or raise while refresh continues asynchronously."""
+
+        payload = self._node_definition_gateway.get_node_definition(class_type)
         definition = payload.get(class_type) if isinstance(payload, Mapping) else None
         if isinstance(definition, Mapping):
             return deepcopy(dict(definition))

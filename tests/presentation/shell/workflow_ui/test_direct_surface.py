@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from pathlib import Path
 
 import pytest
 
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.workflow_surface_results import WorkflowUiSurfaces
 from substitute.presentation.shell.workflow_ui_factory import WorkflowUiFactory
@@ -32,6 +33,23 @@ from tests.presentation.shell.workflow_ui.support import (
     build_workflow_shell,
     install_signal_binder,
 )
+
+
+def _direct_workflow() -> WorkflowState:
+    """Build a real direct Comfy document with one ordinary node."""
+
+    return WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("direct.json"),
+            source_workflow={
+                "version": 0.4,
+                "nodes": [{"id": "ordinary", "type": "VendorNode"}],
+                "links": [],
+                "definitions": {"subgraphs": []},
+            },
+            buffer={"nodes": {}},
+        )
+    )
 
 
 def test_direct_workflow_creates_editor_without_phantom_cube_stack(
@@ -47,9 +65,7 @@ def test_direct_workflow_creates_editor_without_phantom_cube_stack(
         lambda shell, **kwargs: FakeOverrideManager(shell, **kwargs),
     )
     shell = build_workflow_shell()
-    direct = WorkflowState()
-    direct.direct_workflow = cast(Any, object())
-    shell.workflow_session_service.workflows["wf-1"] = direct
+    shell.workflow_session_service.workflows["wf-1"] = _direct_workflow()
     install_signal_binder(monkeypatch, shell)
 
     surfaces = WorkflowUiFactory(shell).create_workflow_ui("wf-1")
@@ -69,9 +85,7 @@ def test_blank_cube_surface_is_disposed_when_document_becomes_direct() -> None:
     shell.cube_stack_container.addWidget(stack)
     shell.cube_stack_container.setCurrentWidget(stack)
     shell.cube_stack = stack
-    direct = WorkflowState()
-    direct.direct_workflow = cast(Any, object())
-    shell.workflow_session_service.workflows["wf-1"] = direct
+    shell.workflow_session_service.workflows["wf-1"] = _direct_workflow()
 
     result = WorkflowUiFactory(shell).reconcile_cube_stack_surface(
         "wf-1",

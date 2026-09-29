@@ -22,6 +22,9 @@ from collections.abc import Callable
 
 import pytest
 
+from substitute.infrastructure.comfy.session_video_artifact_store import (
+    close_default_session_video_store,
+)
 from substitute.presentation.shell import main_window_output_composition
 
 
@@ -127,6 +130,13 @@ class _OutputDocument:
         """Represent release of the Output document and workspace."""
 
 
+class _VideoPresentation:
+    """Provide the native player cleanup endpoint owned by the shell."""
+
+    def close(self) -> None:
+        """Represent release of video playback resources."""
+
+
 class _CanvasHost:
     """Expose the Output document to shell composition."""
 
@@ -134,6 +144,7 @@ class _CanvasHost:
         """Create a document with an observable cleanup endpoint."""
 
         self.document = _OutputDocument()
+        self.video_presentation = _VideoPresentation()
 
     def canvas_for(self, route: str) -> _CanvasHost:
         """Return the Output view for the requested route."""
@@ -210,6 +221,11 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
     assert registry.parent is shell
     assert shell.output_floating_chrome_factory.registrations == [registry]
     assert shell.shell_resource_lifecycle.registrations == [
+        (
+            "session_video_artifacts",
+            close_default_session_video_store,
+        ),
         ("output_document", shell.canvas_host.document.close),
+        ("output_video_player", shell.canvas_host.video_presentation.close),
         ("output_image_pipeline", pipeline.shutdown),
     ]

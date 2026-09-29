@@ -22,7 +22,7 @@ from collections.abc import Callable, Mapping
 from time import perf_counter
 from typing import cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 
 from substitute.presentation.shell.workflow_surface_invalidation import (
@@ -212,7 +212,7 @@ class MainWindowOverrideSurfaceAdapter:
             if on_complete is not None:
                 on_complete(result)
 
-        QTimer.singleShot(0, rebuild_if_current)
+        QTimer.singleShot(0, cast(QObject, self._shell), rebuild_if_current)
         return surface_result(
             workflow_id=workflow_id,
             surface=WorkflowSurface.OVERRIDES,

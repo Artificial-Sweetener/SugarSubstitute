@@ -143,9 +143,9 @@ def test_superseded_projection_discards_only_unrevealed_projected_widgets(
     assert first_a_session.step_calls == 1
     assert first_b_session.step_calls == 0
     assert replacement_a_session.step_calls == 1
-    assert replacement_b_session.step_calls == 1
-    assert first_a_widget.parents == [None]
-    assert first_a_widget.deleted == 1
+    assert replacement_b_session.step_calls == 0
+    assert first_a_widget.parents == []
+    assert first_a_widget.deleted == 0
     assert first_b_widget.parents == [None]
     assert first_b_widget.deleted == 1
     assert replacement_a_widget.parents == []
@@ -153,8 +153,8 @@ def test_superseded_projection_discards_only_unrevealed_projected_widgets(
     assert replacement_b_widget.parents == []
     assert replacement_b_widget.deleted == 0
     assert panel.cube_widgets == {
-        "A": replacement_a_widget,
-        "B": replacement_b_widget,
+        "A": first_a_widget,
+        "B": replacement_a_widget,
     }
     assert coordinator._composition.active_sessions.active_session is None
 

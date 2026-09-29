@@ -26,6 +26,8 @@ from _pytest.monkeypatch import MonkeyPatch
 import substitute.presentation.editor.panel.field_state_controller as field_state_mod
 from substitute.presentation.editor.panel.field_state_controller import (
     EditorPanelFieldStateController,
+)
+from substitute.presentation.editor.panel.prompt_field_state_controller import (
     EditorPanelFieldStateHost,
 )
 

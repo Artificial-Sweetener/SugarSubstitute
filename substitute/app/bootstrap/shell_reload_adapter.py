@@ -28,6 +28,11 @@ from substitute.app.bootstrap.gui_reload_coordinator import (
     GuiReloadCoordinator,
     ShellFrameProtocol,
 )
+from substitute.app.bootstrap.nodepack_recovery_handoff import (
+    NodepackRecoveryHandoff,
+    NodepackShellSurface,
+    NodepackSplashSurface,
+)
 from substitute.app.bootstrap.deferred_restart_coordinator import (
     DeferredRestartCoordinator,
 )
@@ -138,6 +143,21 @@ class ShellReloadAdapter:
             has_cancellable_jobs=self.has_cancellable_generation_jobs,
             message_sink=self.show_reload_message,
         )
+        self._nodepack_recovery_handoff = NodepackRecoveryHandoff(
+            current_shell=cast(
+                Callable[[], NodepackShellSurface | None], self.current_shell
+            ),
+            has_cancellable_jobs=self.has_cancellable_generation_jobs,
+            create_splash=self._create_nodepack_recovery_splash,
+            reload_gui=self._gui_reload_coordinator.reload_shell,
+        )
+
+    def _create_nodepack_recovery_splash(self) -> NodepackSplashSurface:
+        """Build the application-owned splash for the install/restart interval."""
+
+        from substitute.presentation.shell.splash_window import SplashWindow
+
+        return SplashWindow()
 
     @property
     def restart_after_cleanup_requested(self) -> bool:
@@ -313,6 +333,7 @@ class ShellReloadAdapter:
     def show_reloaded_shell(self, frame: object) -> object:
         """Show a reloaded shell without overwriting restored geometry."""
 
+        self._nodepack_recovery_handoff.finish()
         log_info(
             _LOGGER,
             "startup show reloaded shell",
@@ -333,6 +354,7 @@ class ShellReloadAdapter:
     def show_reload_message(self, message: ApplicationText) -> None:
         """Show one non-fatal GUI reload message."""
 
+        self._nodepack_recovery_handoff.cancel()
         try:
             from PySide6.QtWidgets import QMessageBox
             from PySide6.QtWidgets import QWidget
@@ -356,6 +378,11 @@ class ShellReloadAdapter:
             main_window,
             "request_full_gui_reload",
             self._gui_reload_coordinator.reload_shell,
+        )
+        setattr(
+            main_window,
+            "nodepack_recovery_handoff",
+            self._nodepack_recovery_handoff,
         )
         self._comfy_runtime_actions_for(main_window).set_comfy_restart_request_handler(
             self.request_comfy_restart_from_shell

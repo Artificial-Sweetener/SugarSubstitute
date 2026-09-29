@@ -22,6 +22,7 @@ import ast
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QCoreApplication
 
 from substitute.app.bootstrap import startup_qt_timers
 
@@ -79,16 +80,16 @@ def test_startup_single_shot_delegates_to_qtimer(
 ) -> None:
     """Startup single-shot scheduler should delegate delay and callback to Qt."""
 
-    callbacks: list[tuple[int, object]] = []
+    callbacks: list[tuple[int, object, object]] = []
 
     class _TimerFactory:
         """Expose one recording Qt single-shot replacement."""
 
         @staticmethod
-        def singleShot(delay_ms: int, callback: object) -> None:
+        def singleShot(delay_ms: int, owner: object, callback: object) -> None:
             """Record the scheduled callback."""
 
-            callbacks.append((delay_ms, callback))
+            callbacks.append((delay_ms, owner, callback))
 
     def callback() -> None:
         """No-op scheduled callback."""
@@ -100,7 +101,7 @@ def test_startup_single_shot_delegates_to_qtimer(
 
     startup_qt_timers.startup_single_shot(25, callback)
 
-    assert callbacks == [(25, callback)]
+    assert callbacks == [(25, QCoreApplication.instance(), callback)]
 
 
 def test_schedule_visible_startup_summary_uses_zero_delay(

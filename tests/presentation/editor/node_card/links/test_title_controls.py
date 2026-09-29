@@ -65,21 +65,18 @@ def test_linked_card_still_builds_local_rows(
     )
     builder = build_node_card_builder(panel, Gateway())
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
-    wrapper = cast(
-        QWidget | None,
-        builder.build_node_card(
-            node_name=node_name,
-            inputs=inputs,
-            node_type=node_type,
-            field_specs=snapshot.field_specs_by_alias["B"][node_name],
-            cube_state=cube_state,
-            resolved_behavior=snapshot.resolved_nodes_by_alias["B"][node_name],
-            display_decision=snapshot.card_decisions_by_alias["B"][node_name],
-            alias="B",
-        ),
+    wrapper = builder.build_node_card(
+        node_name=node_name,
+        inputs=inputs,
+        node_type=node_type,
+        field_specs=snapshot.field_specs_by_alias["B"][node_name],
+        cube_state=cube_state,
+        resolved_behavior=snapshot.resolved_nodes_by_alias["B"][node_name],
+        display_decision=snapshot.card_decisions_by_alias["B"][node_name],
+        alias="B",
     )
     try:
         assert wrapper is not None
@@ -123,7 +120,7 @@ def test_node_link_selector_precedes_enabled_switch(
     panel.behavior_snapshot = snapshot
     builder = build_node_card_builder(panel, Gateway())
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_widget_for_field_spec",
+        "substitute.presentation.editor.panel.node_card.field_factory_adapter.build_widget_for_field_spec",
         lambda **_kwargs: QWidget(panel),
     )
 
@@ -135,22 +132,19 @@ def test_node_link_selector_precedes_enabled_switch(
         return widget
 
     monkeypatch.setattr(
-        "substitute.presentation.editor.panel.node_card_builder.build_enabled_switch",
+        "substitute.presentation.editor.panel.node_card.title_composer.build_enabled_switch",
         build_switch,
     )
     inputs = cast(dict[str, object], cube_b.buffer["nodes"][node_name]["inputs"])
-    wrapper = cast(
-        QWidget | None,
-        builder.build_node_card(
-            node_name=node_name,
-            inputs=inputs,
-            node_type=node_type,
-            field_specs=snapshot.field_specs_by_alias["B"][node_name],
-            cube_state=cube_b,
-            resolved_behavior=snapshot.resolved_nodes_by_alias["B"][node_name],
-            display_decision=snapshot.card_decisions_by_alias["B"][node_name],
-            alias="B",
-        ),
+    wrapper = builder.build_node_card(
+        node_name=node_name,
+        inputs=inputs,
+        node_type=node_type,
+        field_specs=snapshot.field_specs_by_alias["B"][node_name],
+        cube_state=cube_b,
+        resolved_behavior=snapshot.resolved_nodes_by_alias["B"][node_name],
+        display_decision=snapshot.card_decisions_by_alias["B"][node_name],
+        alias="B",
     )
     try:
         assert wrapper is not None

@@ -52,6 +52,7 @@ from substitute.app.bootstrap.localization_composition import (
     build_node_presentation_service,
 )
 from substitute.app.bootstrap.lazy_civitai_client import LazyCivitaiClient
+from substitute.app.bootstrap.lazy_comfy_gateway import LazyComfyGateway
 from substitute.app.bootstrap.main_window_runtime import load_main_window_runtime
 from substitute.application.comfy_environment import ComfyEnvironmentService
 from substitute.application.model_metadata.ultralytics_thumbnail_associations import (
@@ -145,20 +146,6 @@ _SHELL_ATTENTION_DELAY_MS = 200
 if TYPE_CHECKING:
     from substitute.application.cache_lifecycle import PreparedCacheCatalog
     from substitute.application.ports import NodeDefinitionHydrationResult
-    from substitute.application.ports.comfy_gateway import (
-        ComfyGateway,
-        ComfyQueueMutationResult,
-        ComfyQueueSnapshot,
-        InterruptResult,
-        ListenerCallbacks,
-        ListenerSessionHandle,
-        ListenerSessionConnectRequest,
-        ListenerSessionConnectResult,
-        ListenerStartRequest,
-        ListenerStartResult,
-        QueuePromptResult,
-        QueueVisualRunContext,
-    )
     from substitute.application.danbooru.image_preview_service import (
         DanbooruImagePreviewClient,
         DanbooruImagePreviewService,
@@ -244,125 +231,6 @@ class GenerationQueueTransitionRelay(QObject):
         """Schedule one queue transition through Qt signal delivery."""
 
         self.transition_requested.emit(callback)
-
-
-class _LazyComfyGateway:
-    """Defer Comfy transport imports until generation actually uses the gateway."""
-
-    def __init__(
-        self,
-        endpoint: ComfyEndpoint,
-        *,
-        listener_task_factory: Callable[..., object] | None = None,
-        listener_preview_image_decoder: Callable[[bytes], object] | None = None,
-    ) -> None:
-        """Store the endpoint used to construct the concrete transport gateway."""
-
-        self._endpoint = endpoint
-        self._listener_task_factory = listener_task_factory
-        self._listener_preview_image_decoder = listener_preview_image_decoder
-        self._gateway: ComfyGateway | None = None
-
-    def connect_listener_session(
-        self,
-        request: "ListenerSessionConnectRequest",
-    ) -> "ListenerSessionConnectResult":
-        """Open a listener session through the concrete gateway on first use."""
-
-        return self._resolve().connect_listener_session(request)
-
-    def queue_prompt(
-        self,
-        workflow_payload: dict[str, object],
-        *,
-        client_id: str,
-        execution_targets: tuple[str, ...] | None = None,
-        preview_method: str | None = None,
-        sugar_script: str | None = None,
-        visual_context: "QueueVisualRunContext | None" = None,
-    ) -> "QueuePromptResult":
-        """Queue one workflow through the concrete gateway on first use."""
-
-        return self._resolve().queue_prompt(
-            workflow_payload,
-            client_id=client_id,
-            execution_targets=execution_targets,
-            preview_method=preview_method,
-            sugar_script=sugar_script,
-            visual_context=visual_context,
-        )
-
-    def queue_cube_workflow(
-        self,
-        workflow: dict[str, object],
-        *,
-        client_id: str,
-        preview_method: str | None = None,
-        visual_context: "QueueVisualRunContext",
-        persistence_sugar_script: str | None = None,
-    ) -> "QueuePromptResult":
-        """Queue one canonical Cube graph through SugarCubes on first use."""
-
-        return self._resolve().queue_cube_workflow(
-            workflow,
-            client_id=client_id,
-            preview_method=preview_method,
-            visual_context=visual_context,
-            persistence_sugar_script=persistence_sugar_script,
-        )
-
-    def start_listener(
-        self,
-        request: "ListenerStartRequest",
-        callbacks: "ListenerCallbacks",
-    ) -> "ListenerStartResult":
-        """Start a generation listener through the concrete gateway on first use."""
-
-        return self._resolve().start_listener(request, callbacks)
-
-    def interrupt(self) -> "InterruptResult":
-        """Interrupt active generation through the concrete gateway on first use."""
-
-        return self._resolve().interrupt()
-
-    def get_queue(self) -> "ComfyQueueSnapshot":
-        """Load the Comfy queue snapshot through the concrete gateway on first use."""
-
-        return self._resolve().get_queue()
-
-    def delete_pending_prompt(self, prompt_id: str) -> "ComfyQueueMutationResult":
-        """Delete one queued prompt through the concrete gateway on first use."""
-
-        return self._resolve().delete_pending_prompt(prompt_id)
-
-    def close_listener_session(self, handle: "ListenerSessionHandle") -> None:
-        """Close a preconnected listener session through the concrete gateway."""
-
-        self._resolve().close_listener_session(handle)
-
-    def _resolve(self) -> "ComfyGateway":
-        """Build and cache the concrete Comfy gateway implementation."""
-
-        if self._gateway is None:
-            from substitute.infrastructure.comfy.gateway_adapter import (
-                InfrastructureComfyGatewayAdapter,
-            )
-            from substitute.infrastructure.comfy.prompt_gateway import (
-                ComfyPromptGateway,
-            )
-            from substitute.infrastructure.comfy.native_cube_execution_client import (
-                NativeCubeExecutionClient,
-            )
-
-            self._gateway = InfrastructureComfyGatewayAdapter(
-                gateway=ComfyPromptGateway(
-                    endpoint=self._endpoint,
-                    listener_task_factory=self._listener_task_factory,
-                    listener_preview_image_decoder=self._listener_preview_image_decoder,
-                ),
-                native_cube_client=NativeCubeExecutionClient(endpoint=self._endpoint),
-            )
-        return self._gateway
 
 
 class _LazyDanbooruImagePreviewService:
@@ -1568,7 +1436,7 @@ def _build_main_window_dependencies(
     generation_listener_dispatcher = QtOwnerThreadDispatcher(
         generation_queue_transition_relay
     )
-    comfy_gateway = _LazyComfyGateway(
+    comfy_gateway = LazyComfyGateway(
         context.comfy_target.endpoint,
         listener_task_factory=(
             lambda identity, task_context, work, thread_name: (
@@ -2479,7 +2347,7 @@ def _build_main_window_dependencies(
         graph_section_service=graph_section_service,
         recipe_io_service=recipe_io_service,
         create_recipe_model_load_resolver=lambda: RecipeModelLoadResolver(
-            RecipeModelResolutionIndex.from_catalog(
+            RecipeModelResolutionIndex.from_cached_catalog(
                 model_catalog_service,
                 kinds=(
                     "checkpoints",
@@ -2925,13 +2793,14 @@ def _request_shell_activation(frame: QWidget) -> None:
         "shell.activation.delayed",
         delay_ms=0,
     )
-    QTimer.singleShot(0, lambda: _activate_shell_window(frame))
+    QTimer.singleShot(0, frame, lambda: _activate_shell_window(frame))
     trace_mark(
         "shell.attention.scheduled",
         delay_ms=_SHELL_ATTENTION_DELAY_MS,
     )
     QTimer.singleShot(
         _SHELL_ATTENTION_DELAY_MS,
+        frame,
         lambda: _request_shell_attention_if_inactive(frame),
     )
 
@@ -3253,7 +3122,7 @@ def show_built_main_window(
             "shell.geometry.default.delayed_apply",
             delay_ms=0,
         )
-        QTimer.singleShot(0, lambda: _apply_main_window_geometry(frame))
+        QTimer.singleShot(0, frame, lambda: _apply_main_window_geometry(frame))
     _request_shell_activation(frame)
     trace_mark("shell.show_built.end", **_widget_geometry_fields(frame))
     return frame

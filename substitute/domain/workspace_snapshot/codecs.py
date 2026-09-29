@@ -48,7 +48,7 @@ from substitute.domain.workflow.asset_models import (
     workflow_asset_ref_to_json,
 )
 from substitute.domain.workspace_snapshot.models import (
-    WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
+    SUPPORTED_WORKSPACE_SNAPSHOT_SCHEMA_VERSIONS,
     CanvasLayoutSnapshot,
     EditorViewportSnapshot,
     FloatingCanvasWindowSnapshot,
@@ -61,6 +61,7 @@ from substitute.domain.workspace_snapshot.models import (
     WorkflowSnapshot,
     WorkspaceSnapshot,
 )
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workspace_snapshot.direct_workflow_codec import (
     direct_workflow_from_json as _direct_workflow_from_json,
     direct_workflow_to_json as _direct_workflow_to_json,
@@ -94,7 +95,7 @@ def workspace_snapshot_from_json(payload: Mapping[str, object]) -> WorkspaceSnap
     """Build a workspace snapshot from a decoded JSON mapping."""
 
     schema_version = _required_str(payload, "schema_version")
-    if schema_version != WORKSPACE_SNAPSHOT_SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_WORKSPACE_SNAPSHOT_SCHEMA_VERSIONS:
         raise SnapshotCodecError(
             f"Unsupported workspace snapshot schema version: {schema_version}"
         )
@@ -683,6 +684,9 @@ def _image_meta_to_json(metadata: ImageMetaSnapshot) -> JsonObject:
         "width": metadata.width,
         "height": metadata.height,
         "cube_execution_duration_ms": metadata.cube_execution_duration_ms,
+        "media_kind": metadata.media_kind.value,
+        "duration_seconds": metadata.duration_seconds,
+        "mime_type": metadata.mime_type,
     }
 
 
@@ -715,7 +719,20 @@ def _image_meta_from_json(value: object) -> ImageMetaSnapshot:
         cube_execution_duration_ms=_optional_float(
             payload.get("cube_execution_duration_ms")
         ),
+        media_kind=_output_media_kind_from_json(payload.get("media_kind")),
+        duration_seconds=_optional_float(payload.get("duration_seconds")),
+        mime_type=_optional_str(payload.get("mime_type")),
     )
+
+
+def _output_media_kind_from_json(value: object) -> OutputMediaKind:
+    """Decode media kind while treating schema-v1 absence as an image."""
+
+    text = _optional_str(value) or OutputMediaKind.IMAGE.value
+    try:
+        return OutputMediaKind(text)
+    except ValueError as error:
+        raise SnapshotCodecError(f"Unsupported output media kind: {text}") from error
 
 
 def _input_image_from_json(value: object) -> InputImageReference:

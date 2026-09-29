@@ -38,6 +38,8 @@ from substitute.domain.generation import (
     OutputPersistenceMode,
     OutputPreferences,
     OutputTransferFormat,
+    VideoHardwareDecoding,
+    VideoRenderer,
 )
 from substitute.presentation.settings.jpeg_companion_settings import (
     JpegCompanionSettingsControl,
@@ -94,6 +96,8 @@ def test_generation_output_catalog_controls_persist_unified_output_policy(
         "generation.output.persistence",
         "generation.output.jpeg",
         "generation.output.transfer",
+        "generation.output.video-hardware-decoding",
+        "generation.output.video-renderer",
     )
 
     persistence_row = settings_control(page, "generation.output.persistence").factory(
@@ -127,6 +131,23 @@ def test_generation_output_catalog_controls_persist_unified_output_policy(
         repository.preferences.transfer.preferred_format
         is OutputTransferFormat.COMPANION_JPEG
     )
+
+    hardware_row = settings_control(
+        page, "generation.output.video-hardware-decoding"
+    ).factory(parent)
+    hardware_combo = hardware_row.findChild(ComboBox)
+    assert hardware_combo is not None
+    hardware_combo.setCurrentIndex(1)
+
+    renderer_row = settings_control(page, "generation.output.video-renderer").factory(
+        parent
+    )
+    renderer_combo = renderer_row.findChild(ComboBox)
+    assert renderer_combo is not None
+    renderer_combo.setCurrentIndex(2)
+
+    assert repository.preferences.video.hardware_decoding is VideoHardwareDecoding.OFF
+    assert repository.preferences.video.renderer is VideoRenderer.GPU
 
 
 def test_generation_preview_catalog_uses_one_switch_control_and_persists_state() -> (

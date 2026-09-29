@@ -140,8 +140,7 @@ class PromptTokenGeometry:
         binding = self._weight_rendering(token, scroll_offset=scroll_offset)
         if binding is None:
             return None
-        renderer, run, rect = binding
-        return renderer.weight_text_rect(run, token, rect, base_font=self._base_font)
+        return binding[3]
 
     def token_weight_edit_rect(
         self,
@@ -154,7 +153,7 @@ class PromptTokenGeometry:
         binding = self._weight_rendering(token, scroll_offset=scroll_offset)
         if binding is None:
             return None
-        renderer, run, rect = binding
+        renderer, run, rect, _weight_rect = binding
         if not isinstance(
             renderer, PromptEmphasisSuffixRenderer | PromptLoraInlineObjectRenderer
         ):
@@ -173,10 +172,11 @@ class PromptTokenGeometry:
             | PromptWildcardInlineObjectRenderer,
             PromptProjectionRun,
             QRectF,
+            QRectF,
         ]
         | None
     ):
-        """Find the prepared renderer and fragment for one weighted token."""
+        """Find one numeric run and its prepared fragment and label rectangle."""
 
         for run in self._projection_document.runs_for_token(token.token_id):
             if run.kind is not PromptProjectionRunKind.INLINE_OBJECT:
@@ -194,10 +194,17 @@ class PromptTokenGeometry:
             )
             if not object_fragments:
                 continue
+            rect = object_fragments[-1].rect.translated(0.0, -scroll_offset)
+            weight_rect = renderer.weight_text_rect(
+                run, token, rect, base_font=self._base_font
+            )
+            if weight_rect is None:
+                continue
             return (
                 renderer,
                 run,
-                object_fragments[-1].rect.translated(0.0, -scroll_offset),
+                rect,
+                weight_rect,
             )
         return None
 

@@ -224,7 +224,7 @@ class PromptShellScrollDelegate:
             return
         self._shell_geometry_sync_pending = True
         self._shell_geometry_follow_up_pending = True
-        QTimer.singleShot(0, self.sync_shell_geometry)
+        QTimer.singleShot(0, self._shell_viewport, self.sync_shell_geometry)
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SHELL_GEOMETRY_SYNC)
     def sync_shell_geometry(self) -> None:
@@ -259,7 +259,7 @@ class PromptShellScrollDelegate:
             return
         if self._shell_geometry_follow_up_pending:
             self._shell_geometry_follow_up_pending = False
-            QTimer.singleShot(0, self.sync_shell_geometry)
+            QTimer.singleShot(0, self._shell_viewport, self.sync_shell_geometry)
             return
         self._shell_geometry_sync_pending = False
 

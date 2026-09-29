@@ -275,7 +275,7 @@ def test_project_restored_workflow_restores_exact_editor_viewport(
     monkeypatch.setattr(
         QTimer,
         "singleShot",
-        lambda _delay, callback: callback(),
+        lambda _delay, _owner, callback: callback(),
     )
     shell: Any = SimpleNamespace(
         workspace_controller=SimpleNamespace(project_workflow=project_workflow),

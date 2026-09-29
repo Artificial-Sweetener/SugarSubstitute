@@ -44,6 +44,7 @@ _PYTHON_CONSUMERS = {
     "platform-tests.yml",
     "quality-gates.yml",
     "release-build.yml",
+    "release-candidate.yml",
     "release-current-install-qualification.yml",
     "release-update-qualification.yml",
 }

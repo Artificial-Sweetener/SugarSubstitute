@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -50,4 +51,38 @@ class NodeBehaviorRuntimeState:
     )
 
 
-__all__ = ["CubeStateProtocol", "NodeBehaviorRuntimeState"]
+def ensure_node_behavior_runtime_state(
+    cube_state: CubeStateProtocol,
+) -> NodeBehaviorRuntimeState:
+    """Return the process-owned behavior state attached to one cube."""
+
+    ui_payload = getattr(cube_state, "ui", None)
+    if not isinstance(ui_payload, dict):
+        ui_payload = {}
+        cube_state.ui = ui_payload
+    runtime_state = ui_payload.get("node_behavior_runtime")
+    if isinstance(runtime_state, NodeBehaviorRuntimeState):
+        return runtime_state
+    runtime_state = NodeBehaviorRuntimeState()
+    ui_payload["node_behavior_runtime"] = runtime_state
+    return runtime_state
+
+
+def is_loaded_cube_state(cube_state: CubeStateProtocol) -> bool:
+    """Return whether one state originated from a loaded cube document."""
+
+    ui_payload = getattr(cube_state, "ui", None)
+    if isinstance(ui_payload, Mapping) and isinstance(
+        ui_payload.get("canonical_cube"),
+        Mapping,
+    ):
+        return True
+    return isinstance(getattr(cube_state, "original_cube", None), Mapping)
+
+
+__all__ = [
+    "CubeStateProtocol",
+    "NodeBehaviorRuntimeState",
+    "ensure_node_behavior_runtime_state",
+    "is_loaded_cube_state",
+]

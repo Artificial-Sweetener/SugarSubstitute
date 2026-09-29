@@ -41,6 +41,7 @@ from substitute.presentation.canvas.output.output_transfer_clipboard_controller 
 from substitute.presentation.canvas.output.output_transfer_resolver import (
     OutputTransferResolver,
 )
+from substitute.presentation.canvas.shared.types import OutputImageMeta
 
 
 @dataclass(slots=True)
@@ -72,6 +73,7 @@ def compose_output_transfer_lifecycle(
     *,
     document: OutputCanvasDocument,
     is_image_authorized: Callable[[UUID], bool],
+    metadata_for: Callable[[UUID], OutputImageMeta | None] | None = None,
     preference_service: OutputPreferenceService,
     drag_submitter: TaskSubmitter,
     close_drag_submitter: Callable[[], None],
@@ -89,6 +91,7 @@ def compose_output_transfer_lifecycle(
         preference_service=preference_service,
         artifact_store=artifact_store,
         is_image_authorized=is_image_authorized,
+        metadata_for=metadata_for,
     )
     return OutputTransferLifecycle(
         resolver=resolver,

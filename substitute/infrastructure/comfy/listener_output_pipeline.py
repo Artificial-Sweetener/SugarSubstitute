@@ -48,6 +48,9 @@ from substitute.infrastructure.comfy.output_source_identity_resolver import (
     collect_cube_output_node_ids,
     output_cube_numbers_by_alias,
 )
+from substitute.infrastructure.comfy.output_destination_allocator import (
+    OutputDestinationAllocator,
+)
 from substitute.infrastructure.comfy.output_image_persistence import (
     OutputImagePersistence,
 )
@@ -55,15 +58,25 @@ from substitute.infrastructure.comfy.final_image_event import FinalImageScene
 from substitute.infrastructure.comfy.final_image_event_handler import (
     FinalImageEventHandler,
 )
+from substitute.infrastructure.comfy.final_video_event_handler import (
+    FinalVideoEventHandler,
+)
+from substitute.infrastructure.comfy.output_video_persistence import (
+    OutputVideoPersistence,
+)
 from substitute.infrastructure.comfy.prompt_history_output_recovery import (
     ComfyPromptHistoryReader,
     PromptHistoryOutputRecovery,
     PromptHistoryRecoveryContext,
 )
-from substitute.infrastructure.comfy.standard_executed_image_handler import (
-    StandardExecutedImageContext,
-    StandardExecutedImageHandler,
+from substitute.infrastructure.comfy.session_video_artifact_store import (
+    default_session_video_store,
 )
+from substitute.infrastructure.comfy.standard_executed_output_handler import (
+    StandardExecutedOutputContext,
+    StandardExecutedOutputHandler,
+)
+from substitute.infrastructure.video.mpv_video_probe import BundledMpvVideoProbe
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("infrastructure.comfy.listener_output_pipeline")
@@ -76,7 +89,7 @@ class ListenerOutputPipeline:
     cube_output_node_ids: set[str]
     output_source_resolver: ListenerOutputSourceResolver
     cube_output_handler: CubeOutputEventHandler
-    standard_output_handler: StandardExecutedImageHandler
+    standard_output_handler: StandardExecutedOutputHandler
     history_output_recovery: PromptHistoryOutputRecovery
 
 
@@ -123,16 +136,30 @@ def build_listener_output_pipeline(
     )
     cube_numbers_by_alias = output_cube_numbers_by_alias(request.workflow_payload)
     cube_numbers_by_alias.update(output_save_plan.cube_numbers_by_alias)
+    destination_allocator = OutputDestinationAllocator(
+        output_save_plan=output_save_plan,
+        cube_numbers_by_alias=cube_numbers_by_alias,
+    )
     output_persistence = OutputImagePersistence(
         output_save_plan=output_save_plan,
         workflow_payload=request.workflow_payload,
         persistence_sugar_script=request.persistence_sugar_script,
         cube_numbers_by_alias=cube_numbers_by_alias,
+        destination_allocator=destination_allocator,
     )
     final_image_handler = FinalImageEventHandler(
         artifact_fetcher=artifact_fetcher,
         output_persistence=output_persistence,
         on_output_image=callbacks.on_output_image,
+    )
+    final_video_handler = FinalVideoEventHandler(
+        artifact_streamer=artifact_fetcher,
+        output_persistence=OutputVideoPersistence(
+            destination_allocator=destination_allocator,
+            session_store=default_session_video_store(),
+        ),
+        video_probe=BundledMpvVideoProbe(),
+        on_output_video=callbacks.on_output_video,
     )
     cube_output_handler = CubeOutputEventHandler(
         context=CubeOutputRouteContext(
@@ -142,6 +169,7 @@ def build_listener_output_pipeline(
         ),
         workflow_payload=request.workflow_payload,
         final_image_handler=final_image_handler,
+        final_video_handler=final_video_handler,
         identity_acceptor=lambda identity, prompt_id, node_id: _accept_final_output(
             visual_event_guard=visual_event_guard,
             identity=identity,
@@ -158,7 +186,7 @@ def build_listener_output_pipeline(
         order=request.scene_order,
         count=request.scene_count,
     )
-    standard_output_context = StandardExecutedImageContext(
+    standard_output_context = StandardExecutedOutputContext(
         workflow_id=request.workflow_id,
         generation_run_id=request.generation_run_id,
         prompt_id=request.prompt_id,
@@ -167,12 +195,13 @@ def build_listener_output_pipeline(
         output_session_id=request.output_session_id,
         scene=scene,
     )
-    standard_output_handler = StandardExecutedImageHandler(
+    standard_output_handler = StandardExecutedOutputHandler(
         context=standard_output_context,
         sources_by_node={
             source.node_id: source for source in request.standard_output_sources
         },
         final_image_handler=final_image_handler,
+        final_video_handler=final_video_handler,
     )
     history_output_recovery = PromptHistoryOutputRecovery(
         history_reader=ComfyPromptHistoryReader(endpoint=endpoint),
@@ -191,6 +220,7 @@ def build_listener_output_pipeline(
         ),
         source_resolver=output_source_resolver.resolve,
         final_image_handler=final_image_handler,
+        final_video_handler=final_video_handler,
     )
     return ListenerOutputPipeline(
         cube_output_node_ids=cube_output_node_ids,

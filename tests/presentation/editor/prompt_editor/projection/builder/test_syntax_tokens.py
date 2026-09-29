@@ -57,12 +57,14 @@ def test_projection_builder_emits_projected_runs_for_emphasis_and_wildcard_token
         },
     )
 
-    assert projection.projection_text.count(OBJECT_REPLACEMENT_CHARACTER) == 3
+    assert projection.projection_text.count(OBJECT_REPLACEMENT_CHARACTER) == 4
     assert [token.kind for token in projection.tokens] == [
         PromptProjectionTokenKind.EMPHASIS,
         PromptProjectionTokenKind.WILDCARD,
     ]
     assert [run.kind for run in projection.runs] == [
+        PromptProjectionRunKind.INLINE_OBJECT,
+        PromptProjectionRunKind.TEXT,
         PromptProjectionRunKind.INLINE_OBJECT,
         PromptProjectionRunKind.TEXT,
         PromptProjectionRunKind.INLINE_OBJECT,
@@ -74,8 +76,11 @@ def test_projection_builder_emits_projected_runs_for_emphasis_and_wildcard_token
     assert projection.runs[1].token_id == projection.tokens[0].token_id
     assert projection.runs[2].display_text == "1.05"
     assert projection.runs[2].renderer_key == "emphasis_suffix"
-    assert projection.runs[4].display_text == "animal"
+    assert projection.runs[4].display_text == "{"
     assert projection.runs[4].renderer_key == "wildcard_chip"
+    assert projection.runs[5].display_text == "animal"
+    assert projection.runs[5].token_id == projection.tokens[1].token_id
+    assert projection.runs[6].renderer_key == "wildcard_chip"
     assert projection.tokens[0].display_text == "cat"
     assert projection.tokens[0].value_text == "1.05"
     assert projection.tokens[0].content_range == (1, 4)
@@ -89,7 +94,7 @@ def test_projection_builder_emits_projected_runs_for_emphasis_and_wildcard_token
     assert projection.tokens[1].wildcard_can_step_tag is False
     assert (
         projection.tokens[1].navigation_mode
-        is PromptProjectionTokenNavigationMode.ATOMIC
+        is PromptProjectionTokenNavigationMode.TEXT_CONTENT
     )
 
 
@@ -149,7 +154,7 @@ def test_emphasis_shell_keeps_nested_wildcard_chip_visible() -> None:
         PromptProjectionTokenKind.EMPHASIS,
         PromptProjectionTokenKind.WILDCARD,
     ]
-    assert projection.projection_text.count(OBJECT_REPLACEMENT_CHARACTER) == 3
+    assert projection.projection_text.count(OBJECT_REPLACEMENT_CHARACTER) == 4
     assert ":1.15)" not in projection.projection_text
 
 

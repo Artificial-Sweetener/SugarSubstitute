@@ -122,7 +122,7 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     )
     monkeypatch.setattr(
         "PySide6.QtCore.QTimer.singleShot",
-        lambda delay_ms, callback: single_shots.append((delay_ms, callback)),
+        lambda delay_ms, _owner, callback: single_shots.append((delay_ms, callback)),
     )
 
     services = build_application_runtime_services(

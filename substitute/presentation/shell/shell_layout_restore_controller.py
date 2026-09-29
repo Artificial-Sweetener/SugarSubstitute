@@ -195,6 +195,7 @@ class ShellLayoutRestoreController:
             )
             QTimer.singleShot(
                 0,
+                self._shell,
                 lambda: self.apply_deferred_restored_shell_layout(
                     snapshot,
                     finalize=True,

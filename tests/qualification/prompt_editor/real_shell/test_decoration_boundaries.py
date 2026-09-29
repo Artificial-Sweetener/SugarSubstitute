@@ -234,6 +234,217 @@ def test_left_from_emphasis_leading_edge_moves_before_adjacent_comma(
     assert not snapshot_invariant_violations(returned_leading)
 
 
+def test_typing_after_inserting_space_before_emphasis_uses_reported_caret(
+    harness: PromptEditorRealShellScenario,
+) -> None:
+    """Insert the next character at the caret left between two plain spaces."""
+
+    source_text = "portrait, (red ornaments:1.10), heart"
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, PromptProjectionTokenKind.EMPHASIS)
+    harness.input.focus_editor(field)
+    harness.input.set_source_cursor_position(field, token.source_start - 1)
+    before_space = harness.snapshots.capture(field, label="before-extra-space")
+    assert before_space.cursor_position == token.source_start - 1
+    assert before_space.caret_state_placement == "plain_text"
+    harness.input.press_key(field, Qt.Key.Key_Space, text=" ")
+    before_letter = harness.snapshots.capture(field, label="space-before-emphasis")
+
+    insertion_position = before_letter.cursor_position
+    assert before_letter.source_text == "portrait,  (red ornaments:1.10), heart"
+    assert before_letter.source_text[insertion_position] == " "
+    assert before_letter.caret_state_source_position == insertion_position
+    assert before_letter.caret_state_placement == "plain_text"
+
+    harness.input.type_text(field, "j")
+    after_letter = harness.snapshots.capture(field, label="letter-before-emphasis")
+
+    assert after_letter.source_text == (
+        before_letter.source_text[:insertion_position]
+        + "j"
+        + before_letter.source_text[insertion_position:]
+    )
+    assert after_letter.cursor_position == insertion_position + 1
+    assert not snapshot_invariant_violations(after_letter)
+
+
+@pytest.mark.parametrize(
+    ("token_kind", "source_text"),
+    (
+        (PromptProjectionTokenKind.EMPHASIS, "portrait, (red ornaments:1.10), heart"),
+        (PromptProjectionTokenKind.LORA, "portrait, <lora:detail_booster:1.00>, heart"),
+        (PromptProjectionTokenKind.WILDCARD, "portrait, {lighting/day}, heart"),
+    ),
+)
+def test_typing_after_space_and_left_at_token_edge_uses_reported_caret(
+    harness: PromptEditorRealShellScenario,
+    token_kind: PromptProjectionTokenKind,
+    source_text: str,
+) -> None:
+    """Keep the new plain boundary left of a token after editing its leading edge."""
+
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, token_kind)
+    harness.input.focus_editor(field)
+    harness.input.set_source_cursor_position(field, token.source_start)
+
+    harness.input.press_key(field, Qt.Key.Key_Space, text=" ")
+    after_space = harness.snapshots.capture(
+        field, label="space-at-emphasis-leading-edge"
+    )
+    assert after_space.source_text == (
+        source_text[: token.source_start] + " " + source_text[token.source_start :]
+    )
+    assert after_space.cursor_position == token.source_start + 1
+
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    before_letter = harness.snapshots.capture(field, label="left-after-leading-space")
+    assert before_letter.cursor_position == token.source_start
+    assert before_letter.caret_state_placement == "plain_text"
+
+    harness.input.type_text(field, "f")
+    after_letter = harness.snapshots.capture(field, label="letter-between-spaces")
+    assert after_letter.source_text == (
+        after_space.source_text[: token.source_start]
+        + "f"
+        + after_space.source_text[token.source_start :]
+    )
+    assert after_letter.cursor_position == token.source_start + 1
+    assert not snapshot_invariant_violations(after_letter)
+
+
+@pytest.mark.parametrize(
+    ("token_kind", "source_text"),
+    (
+        (PromptProjectionTokenKind.EMPHASIS, "portrait, x(red ornaments:1.10), heart"),
+        (
+            PromptProjectionTokenKind.LORA,
+            "portrait, x<lora:detail_booster:1.00>, heart",
+        ),
+        (PromptProjectionTokenKind.WILDCARD, "portrait, x{lighting/day}, heart"),
+    ),
+)
+def test_backspace_at_token_leading_edge_deletes_preceding_plain_character(
+    harness: PromptEditorRealShellScenario,
+    token_kind: PromptProjectionTokenKind,
+    source_text: str,
+) -> None:
+    """Delete the character left of a chip without selecting the chip to the right."""
+
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, token_kind)
+    harness.input.focus_editor(field)
+    harness.input.set_source_cursor_position(field, token.source_start)
+
+    harness.input.press_key(field, Qt.Key.Key_Backspace)
+    after_delete = harness.snapshots.capture(field, label="backspace-before-emphasis")
+
+    assert after_delete.source_text == (
+        source_text[: token.source_start - 1] + source_text[token.source_start :]
+    )
+    assert after_delete.cursor_position == token.source_start - 1
+    assert after_delete.selection_range == (
+        after_delete.cursor_position,
+        after_delete.cursor_position,
+    )
+    assert not snapshot_invariant_violations(after_delete)
+
+
+def test_backspace_before_emphasis_deletes_previous_space_not_next_token(
+    harness: PromptEditorRealShellScenario,
+) -> None:
+    """Delete the preceding plain space while a decorated token is to the right."""
+
+    source_text = "portrait, (red ornaments:1.10), heart"
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, PromptProjectionTokenKind.EMPHASIS)
+    harness.input.focus_editor(field)
+    harness.input.set_source_cursor_position(field, token.source_start - 1)
+    harness.input.press_key(field, Qt.Key.Key_Space, text=" ")
+    before_delete = harness.snapshots.capture(field, label="before-space-backspace")
+
+    assert before_delete.source_text == "portrait,  (red ornaments:1.10), heart"
+    assert before_delete.cursor_position == token.source_start
+    assert before_delete.source_text[before_delete.cursor_position - 1] == " "
+    assert before_delete.caret_state_placement == "plain_text"
+
+    harness.input.press_key(field, Qt.Key.Key_Backspace)
+    after_delete = harness.snapshots.capture(field, label="after-space-backspace")
+
+    assert after_delete.source_text == (
+        before_delete.source_text[: before_delete.cursor_position - 1]
+        + before_delete.source_text[before_delete.cursor_position :]
+    )
+    assert after_delete.cursor_position == before_delete.cursor_position - 1
+    assert after_delete.selection_range == (
+        after_delete.cursor_position,
+        after_delete.cursor_position,
+    )
+    assert not snapshot_invariant_violations(after_delete)
+
+    harness.input.undo(field)
+    after_undo = harness.snapshots.capture(field, label="undo-space-backspace")
+    assert after_undo.source_text == before_delete.source_text
+    assert not snapshot_invariant_violations(after_undo)
+
+
+def test_expanded_emphasis_recovers_after_leading_space_round_trip(
+    harness: PromptEditorRealShellScenario,
+) -> None:
+    """Restore the decorated token after editing before its leading delimiter."""
+
+    source_text = "portrait,    (red ornaments:1.10), heart"
+    field = harness.workflows.add_prompt_workflow(initial_text=source_text)
+    probe = RealShellPromptDecorationBoundaryProbe(
+        input_driver=harness.input,
+        snapshots=harness.snapshots,
+    )
+    token = probe.token_for_kind(field, PromptProjectionTokenKind.EMPHASIS)
+    assert token.content_start is not None
+    harness.input.focus_editor(field)
+    harness.input.set_source_cursor_position(field, token.content_start)
+
+    harness.input.press_key(field, Qt.Key.Key_Backspace)
+    expanded = harness.snapshots.capture(field, label="expanded-before-leading-edit")
+    assert expanded.source_text == source_text
+    assert expanded.selection_range == (token.source_start, token.source_end)
+    assert expanded.projection_token_count == 0
+
+    harness.input.press_key(field, Qt.Key.Key_Left)
+    at_leading_edge = harness.snapshots.capture(
+        field, label="expanded-left-to-leading-edge"
+    )
+    assert at_leading_edge.cursor_position == token.source_start
+    assert at_leading_edge.projection_token_count == 1
+
+    for _ in range(4):
+        harness.input.press_key(field, Qt.Key.Key_Space, text=" ")
+    for _ in range(4):
+        harness.input.press_key(field, Qt.Key.Key_Backspace)
+
+    restored = harness.snapshots.capture(field, label="expanded-leading-round-trip")
+    assert restored.source_text == source_text
+    assert restored.cursor_position == token.source_start
+    assert restored.projection_token_count == 1
+    assert not snapshot_invariant_violations(restored)
+
+
 def test_additional_tag_remains_inside_weighted_emphasis(
     harness: PromptEditorRealShellScenario,
 ) -> None:
@@ -377,6 +588,6 @@ def test_abuse_workload_checks_each_settled_boundary_edit(
 
     assert scenario.expected_text == "(1girl, blue hair, red eyes:1.2)"
     assert result.correct
-    assert autocomplete_start_counters["instrumented_layout_snapshot_count"] == 2
+    assert autocomplete_start_counters["instrumented_layout_snapshot_count"] == 1
     assert all(sample.source_exact for sample in result.dispatch_samples)
     assert all(sample.caret_exact for sample in result.dispatch_samples)

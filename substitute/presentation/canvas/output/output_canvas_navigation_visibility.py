@@ -85,13 +85,14 @@ class OutputCanvasNavigationVisibilityPolicy:
         has_source_selector: bool,
         expanded_width: int,
         available_width: int,
+        force_collapsed: bool = False,
     ) -> SourceNavigationDisplay:
         """Return whether source navigation renders tabs or a compact selector."""
 
         collapsed = bool(
             show_source_navigation
             and has_source_selector
-            and expanded_width > available_width
+            and (force_collapsed or expanded_width > available_width)
         )
         return SourceNavigationDisplay(
             source_tabs_collapsed=collapsed,

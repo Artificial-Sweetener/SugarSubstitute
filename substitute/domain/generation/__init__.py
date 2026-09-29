@@ -67,6 +67,9 @@ from substitute.domain.generation.output_preferences import (
     OutputPreferences,
     OutputTransferFormat,
     OutputTransferSettings,
+    VideoHardwareDecoding,
+    VideoPlaybackSettings,
+    VideoRenderer,
 )
 from substitute.domain.generation.result_snapshot import (
     GENERATION_RESULT_SNAPSHOT_SCHEMA_VERSION,
@@ -103,6 +106,9 @@ __all__ = [
     "OutputPreferences",
     "OutputTransferFormat",
     "OutputTransferSettings",
+    "VideoHardwareDecoding",
+    "VideoPlaybackSettings",
+    "VideoRenderer",
     "OutputPathPattern",
     "OutputPathRenderContext",
     "OutputPathRenderResult",

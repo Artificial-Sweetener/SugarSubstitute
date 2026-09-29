@@ -60,6 +60,14 @@ def _panel_module() -> ModuleType:
     return importlib.import_module("substitute.presentation.editor.panel.view")
 
 
+def _field_presentation_module() -> ModuleType:
+    """Return the production field-presentation controller module."""
+
+    return importlib.import_module(
+        "substitute.presentation.editor.panel.field_presentation_controller"
+    )
+
+
 def test_model_field_load_progress_routes_only_to_model_picker(
     monkeypatch: MonkeyPatch,
     caplog: LogCaptureFixture,
@@ -67,8 +75,9 @@ def test_model_field_load_progress_routes_only_to_model_picker(
     """EditorPanel should route progress only through indexed model pickers."""
 
     panel_module = _panel_module()
+    presentation_module = _field_presentation_module()
     caplog.set_level(logging.INFO)
-    monkeypatch.setattr(panel_module, "ModelPickerField", _ModelPicker)
+    monkeypatch.setattr(presentation_module, "ModelPickerField", _ModelPicker)
     picker = _ModelPicker()
     widget_map = {
         ("Cube", "checkpoint", "ckpt_name"): picker,
@@ -77,6 +86,13 @@ def test_model_field_load_progress_routes_only_to_model_picker(
     panel = SimpleNamespace(
         _field_registry=SimpleNamespace(widget_map=widget_map),
         input_widgets_by_field_key=widget_map,
+    )
+    panel.field_presentation = (
+        presentation_module.EditorPanelFieldPresentationController(
+            panel,
+            field_registry=panel._field_registry,
+            preset_context_refresh=SimpleNamespace(refresh=lambda **_kwargs: None),
+        )
     )
 
     panel_module.EditorPanel.set_model_field_load_progress(
@@ -116,7 +132,8 @@ def test_clear_model_field_load_progress_clears_tracked_model_pickers(
     """EditorPanel cleanup should clear every tracked model picker once."""
 
     panel_module = _panel_module()
-    monkeypatch.setattr(panel_module, "ModelPickerField", _ModelPicker)
+    presentation_module = _field_presentation_module()
+    monkeypatch.setattr(presentation_module, "ModelPickerField", _ModelPicker)
     picker = _ModelPicker()
     widget_map = {
         ("Cube", "checkpoint", "ckpt_name"): picker,
@@ -126,6 +143,13 @@ def test_clear_model_field_load_progress_clears_tracked_model_pickers(
     panel = SimpleNamespace(
         _field_registry=SimpleNamespace(widget_map=widget_map),
         input_widgets_by_field_key=widget_map,
+    )
+    panel.field_presentation = (
+        presentation_module.EditorPanelFieldPresentationController(
+            panel,
+            field_registry=panel._field_registry,
+            preset_context_refresh=SimpleNamespace(refresh=lambda **_kwargs: None),
+        )
     )
 
     panel_module.EditorPanel.clear_model_field_load_progress(panel)
@@ -139,7 +163,8 @@ def test_refresh_model_metadata_for_event_delegates_to_model_pickers(
     """EditorPanel should target model picker refreshes for metadata events."""
 
     panel_module = _panel_module()
-    monkeypatch.setattr(panel_module, "ModelPickerField", _ModelPicker)
+    presentation_module = _field_presentation_module()
+    monkeypatch.setattr(presentation_module, "ModelPickerField", _ModelPicker)
     event = ModelMetadataRefreshEvent(
         kind="checkpoints",
         value="models/base.safetensors",
@@ -160,6 +185,13 @@ def test_refresh_model_metadata_for_event_delegates_to_model_pickers(
         _preset_context_refresh=SimpleNamespace(
             refresh=lambda *, reason: refresh_reasons.append(reason)
         ),
+    )
+    panel.field_presentation = (
+        presentation_module.EditorPanelFieldPresentationController(
+            panel,
+            field_registry=panel._field_registry,
+            preset_context_refresh=panel._preset_context_refresh,
+        )
     )
 
     refreshed_count = panel_module.EditorPanel.refresh_model_metadata_for_event(

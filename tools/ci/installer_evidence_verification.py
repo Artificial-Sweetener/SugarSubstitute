@@ -31,6 +31,12 @@ from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 _SHELL_FRAME_PAINT_EVENT = "main_shell.first_paint"
 _REQUIRED_STARTUP_EVENTS = (
     "launch_splash.started",
+    "launch_splash.closed",
+    "main_shell.shown",
+    _SHELL_FRAME_PAINT_EVENT,
+)
+_HISTORICAL_STARTUP_EVENTS = (
+    "launch_splash.started",
     "main_shell.shown",
     _SHELL_FRAME_PAINT_EVENT,
     "launch_splash.closed",
@@ -82,7 +88,22 @@ def assert_qualification_event_sequence(
 
 
 def assert_startup_trace_sequence(trace_path: Path) -> None:
-    """Require the splash to remain until its replacement shell has painted."""
+    """Require splash closure before shell reveal and a subsequent real paint."""
+
+    _assert_startup_trace_sequence(trace_path, _REQUIRED_STARTUP_EVENTS)
+
+
+def assert_historical_startup_trace_sequence(trace_path: Path) -> None:
+    """Accept the painted-shell handoff used by the unchanged historical build."""
+
+    _assert_startup_trace_sequence(trace_path, _HISTORICAL_STARTUP_EVENTS)
+
+
+def _assert_startup_trace_sequence(
+    trace_path: Path,
+    required_events: tuple[str, ...],
+) -> None:
+    """Check a release-specific launch sequence against its durable trace."""
 
     try:
         lines = trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -102,10 +123,10 @@ def assert_startup_trace_sequence(trace_path: Path) -> None:
             events.append(payload["event"])
             if _is_shell_frame_paint(payload):
                 events.append(_SHELL_FRAME_PAINT_EVENT)
-    if not _contains_ordered_events(events, _REQUIRED_STARTUP_EVENTS):
+    if not _contains_ordered_events(events, required_events):
         raise InstallerLifecycleError(
             "Open Substitute did not complete the required splash-to-shell sequence: "
-            + " -> ".join(_REQUIRED_STARTUP_EVENTS)
+            + " -> ".join(required_events)
             + ".\n"
             + diagnostic_tail(trace_path)
         )
@@ -185,6 +206,7 @@ def _contains_ordered_events(
 
 
 __all__ = [
+    "assert_historical_startup_trace_sequence",
     "assert_no_launch_splash_replacement",
     "assert_qualification_event_sequence",
     "assert_startup_trace_sequence",

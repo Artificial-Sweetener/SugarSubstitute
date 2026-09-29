@@ -34,7 +34,7 @@ from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     install_nodepack_python_dependencies,
 )
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
-    PinnedNodepackSourceInstaller,
+    TrustedNodepackArchiveInstaller,
 )
 from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
     sugarcubes_maintenance_path,
@@ -73,7 +73,7 @@ def restore_historical_sugarcubes(
         ),
     )
     target_path = workspace / historical_manifest.expected_folder
-    PinnedNodepackSourceInstaller().install_fallback(
+    TrustedNodepackArchiveInstaller().install_fallback(
         target_path=target_path,
         nodepack=historical_manifest,
         on_log=None,

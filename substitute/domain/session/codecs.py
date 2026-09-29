@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from datetime import datetime
 
 from substitute.domain.common import JsonObject
+from substitute.domain.session.migrations import migrate_session_snapshot_payload
 from substitute.domain.session.models import SessionSnapshot
 from substitute.domain.workspace_snapshot import (
     SnapshotCodecError,
@@ -29,15 +30,16 @@ from substitute.domain.workspace_snapshot import (
     workspace_snapshot_to_json,
 )
 
-SESSION_SNAPSHOT_SCHEMA_VERSION = "1"
+SESSION_SNAPSHOT_SCHEMA_VERSION = "2"
 
 
 def session_snapshot_to_json(snapshot: SessionSnapshot) -> JsonObject:
     """Return a JSON-ready mapping for one session snapshot."""
 
     return {
-        "schema_version": snapshot.schema_version,
+        "schema_version": SESSION_SNAPSHOT_SCHEMA_VERSION,
         "captured_at": snapshot.captured_at.isoformat(),
+        "source_application_version": snapshot.source_application_version,
         "workspace": workspace_snapshot_to_json(snapshot.workspace),
     }
 
@@ -45,15 +47,20 @@ def session_snapshot_to_json(snapshot: SessionSnapshot) -> JsonObject:
 def session_snapshot_from_json(payload: Mapping[str, object]) -> SessionSnapshot:
     """Build a session snapshot from a decoded JSON mapping."""
 
-    schema_version = _required_str(payload, "schema_version")
-    if schema_version != SESSION_SNAPSHOT_SCHEMA_VERSION:
-        raise SnapshotCodecError(
-            f"Unsupported session snapshot schema version: {schema_version}"
-        )
+    migrated = migrate_session_snapshot_payload(payload)
+    schema_version = _required_str(migrated, "schema_version")
+    source_application_version = migrated.get("source_application_version")
+    if source_application_version is not None and not isinstance(
+        source_application_version, str
+    ):
+        raise SnapshotCodecError("Invalid session snapshot source_application_version")
     return SessionSnapshot(
         schema_version=schema_version,
-        captured_at=_datetime_from_text(_required_str(payload, "captured_at")),
-        workspace=workspace_snapshot_from_json(_required_mapping(payload, "workspace")),
+        captured_at=_datetime_from_text(_required_str(migrated, "captured_at")),
+        workspace=workspace_snapshot_from_json(
+            _required_mapping(migrated, "workspace")
+        ),
+        source_application_version=source_application_version,
     )
 
 

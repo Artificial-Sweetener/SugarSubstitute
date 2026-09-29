@@ -56,7 +56,7 @@ class _SurfacePresentationGate(QObject):
         if self._scheduled:
             return
         self._scheduled = True
-        QTimer.singleShot(0, self._complete)
+        QTimer.singleShot(0, self, self._complete)
 
     def _complete(self) -> None:
         """Run the handoff callback once and release this gate."""

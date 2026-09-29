@@ -19,9 +19,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections import OrderedDict
 from types import SimpleNamespace
 from typing import Any, cast
 
+import pytest
+
+from substitute.application.recipes import (
+    RecipeModelCivitaiState,
+    RecipeModelResolutionRequired,
+    RecipeModelResolutionSummary,
+    RecipeModelUnresolvedReference,
+)
+from substitute.domain.recipes import ParsedSugarScript
 from substitute.presentation.shell.model_resolution_execution import (
     ModelResolutionRoute,
 )
@@ -151,10 +161,12 @@ def test_recipe_model_resolution_handler_can_supply_downloaded_script() -> None:
     assert result is handled_payload
 
 
+@pytest.mark.parametrize("decline_acquisition", [False, True])
 def test_recipe_model_resolution_runtime_continues_materialization_after_completion(
     tmp_path: Path,
+    decline_acquisition: bool,
 ) -> None:
-    """Runtime-backed recipe model resolution should defer workflow materialization."""
+    """Runtime-backed recipe loading materializes with or without acquisition."""
 
     mod = _import_module()
     workflow_id = "wf-a"
@@ -165,13 +177,30 @@ def test_recipe_model_resolution_runtime_continues_materialization_after_complet
     runtime = _QueuedExecutionRuntime(submitter)
     calls: list[object] = []
     loader_calls: list[dict[str, object]] = []
-    parsed_script = SimpleNamespace(
-        buffers={"A": {"cube_id": "cube-a"}},
-        global_overrides={"seed": 1},
+    parsed_script = ParsedSugarScript(
+        buffers=OrderedDict({"A": OrderedDict({"cube_id": "cube-a"})}),
+        global_overrides={"seed": {"value": 1}},
         global_override_selections={},
         field_control_states_by_alias={},
         override_control_states={},
+        model_hashes_by_field={("A", "loader", "ckpt_name"): "A" * 64},
+        prompt_lora_hashes_by_field={},
         project_name="Resolved Recipe",
+    )
+    required = RecipeModelResolutionRequired(
+        references=(
+            RecipeModelUnresolvedReference(
+                alias="A",
+                node_name="loader",
+                input_key="ckpt_name",
+                kind="checkpoints",
+                value="missing.safetensors",
+                sha256="A" * 64,
+                civitai_state=RecipeModelCivitaiState.DISABLED,
+            ),
+        ),
+        partial_script=parsed_script,
+        summary=RecipeModelResolutionSummary(unresolved_hashes=1),
     )
     resolved_script = SimpleNamespace(
         parsed_script=parsed_script,
@@ -189,6 +218,8 @@ def test_recipe_model_resolution_runtime_continues_materialization_after_complet
             """Return the resolved script payload."""
 
             calls.append(("resolve", parsed))
+            if decline_acquisition:
+                raise required
             return resolved_script
 
     workflow = SimpleNamespace(
@@ -240,6 +271,9 @@ def test_recipe_model_resolution_runtime_continues_materialization_after_complet
         add_workflow_tab_requested=lambda: calls.append("new-workflow"),
         build_cube_load_ui_callbacks=lambda **_kwargs: SimpleNamespace(),
         output_image_registrar=_noop_output_registrar(),
+        recipe_model_resolution_handler=(
+            lambda error: error.continue_without_download()
+        ),
         recipe_model_resolution_route_factory=(
             lambda request_id, target_workflow_id: ModelResolutionRoute(
                 submitter=runtime.submitter(
@@ -271,8 +305,14 @@ def test_recipe_model_resolution_runtime_continues_materialization_after_complet
         submitter.requests[0].identity.cancellation_generation
         == submitter.cancellations[0].generation
     )
-    result = submitter.requests[0].work(submitter.cancellations[0])
-    submitter.handles[0].complete_success(result)
+    if decline_acquisition:
+        with pytest.raises(RecipeModelResolutionRequired) as raised:
+            submitter.requests[0].work(submitter.cancellations[0])
+        assert raised.value is required
+        submitter.handles[0].complete_failed(required)
+    else:
+        result = submitter.requests[0].work(submitter.cancellations[0])
+        submitter.handles[0].complete_success(result)
 
     assert calls[0] == ("resolve", parsed_script)
     assert loader_calls[0]["cube_id"] == "cube-a"

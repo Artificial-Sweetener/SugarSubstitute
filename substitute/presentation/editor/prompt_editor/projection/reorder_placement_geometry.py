@@ -283,9 +283,10 @@ def placement_for_drag_rect(
                 **reorder_drag_point_context(point, prefix="intent_center"),
             )
             return active
-        selected = containing[0]
+        selected = _nearest_anchor_placement(containing, point.x())
+        assert selected is not None
         log_reorder_drag_timing(
-            "placement_hit.containing_first",
+            "placement_hit.containing_nearest_anchor",
             started_at=started_at,
             gesture_id=gesture_id,
             event_id=event_id,

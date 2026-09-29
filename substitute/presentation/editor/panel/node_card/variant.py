@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from substitute.presentation.editor.panel.widgets.field_row import EDITOR_ROW_HEIGHT
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
+    EDITOR_ROW_HEIGHT,
+)
 
 
 class NodeCardVariant(Enum):

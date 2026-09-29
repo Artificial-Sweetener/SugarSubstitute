@@ -21,6 +21,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import cast
 
+from PySide6.QtCore import QObject, Signal
+
 from substitute.app.bootstrap.shell_session_finalization_adapter import (
     ShellSessionFinalizationAdapter,
 )
@@ -87,3 +89,43 @@ def test_app_level_shutdown_falls_back_to_current_shell() -> None:
 
     assert adapter.prepare_shutdown(None) is prepared
     assert resolved_shells == [current_shell]
+
+
+def test_close_during_restore_waits_for_finalization_before_authorizing() -> None:
+    """Keep an early close from saving incomplete restored session state."""
+
+    close_requests: list[str] = []
+    restore_pending = True
+
+    class RestoreSignal(QObject):
+        """Emit the production Qt restoration-complete signal."""
+
+        restore_finalized = Signal()
+
+    def restore_in_progress() -> bool:
+        """Expose the session owner's current restoration state."""
+
+        return restore_pending
+
+    restore_signal = RestoreSignal()
+    shell = SimpleNamespace(close=lambda: close_requests.append("close"))
+    controller = SimpleNamespace(restore_in_progress=restore_in_progress)
+    main_window = SimpleNamespace(
+        session_autosave_controller=controller,
+        restore_finalized=restore_signal.restore_finalized,
+    )
+    adapter = ShellSessionFinalizationAdapter(
+        current_shell=lambda: shell,
+        main_window_for_shell=lambda _shell: main_window,
+    )
+
+    assert not adapter.confirm_shutdown(shell)
+    assert not adapter.confirm_shutdown(shell)
+    assert close_requests == []
+
+    restore_pending = False
+    restore_signal.restore_finalized.emit()
+    restore_signal.restore_finalized.emit()
+
+    assert close_requests == ["close"]
+    assert adapter.confirm_shutdown(shell)
