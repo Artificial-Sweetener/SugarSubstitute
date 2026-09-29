@@ -224,7 +224,9 @@ class DirectWorkflowModelResolutionController:
             failed(error)
             return
         if request is None:
-            cancelled()
+            self._complete_without_download(
+                pending=pending, completed=completed, failed=failed
+            )
             return
         self._download(
             pending=pending,
@@ -305,6 +307,11 @@ class DirectWorkflowModelResolutionController:
             """Complete projection after every verified transfer settles."""
 
             self._finish_download(active)
+            if cancellation.reason == "portable_model_download_cancelled":
+                self._complete_without_download(
+                    pending=pending, completed=completed, failed=failed
+                )
+                return
             if outcome.status == "cancelled":
                 cancelled()
                 return
@@ -320,6 +327,22 @@ class DirectWorkflowModelResolutionController:
         except Exception:
             self._finish_download(active)
             raise
+
+    def _complete_without_download(
+        self,
+        *,
+        pending: PendingPortableWorkflowResolution,
+        completed: Callable[[JsonObject], None],
+        failed: Callable[[BaseException], None],
+    ) -> None:
+        """Materialize an authored graph after its model acquisition is skipped."""
+
+        try:
+            workflow = self._service.continue_without_download(pending).workflow
+        except Exception as error:
+            failed(error)
+            return
+        completed(workflow)
 
     def _publish_progress(
         self,

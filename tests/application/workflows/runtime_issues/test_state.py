@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from substitute.application.workflows import (
     CubeRuntimeIssue,
     CubeRuntimeIssueKind,
@@ -97,7 +99,33 @@ def test_errored_aliases_ignores_warning_issues() -> None:
 
     assert state.errored_aliases("workflow-a") == ("Error",)
     assert state.has_error("workflow-a", "Error")
+    assert not state.has_cube_scoped_error("workflow-a", "Error")
     assert not state.has_error("workflow-a", "Warn")
+
+
+def test_cube_scoped_error_excludes_failed_saved_node_metadata() -> None:
+    """Missing definitions and fields stay local to their saved nodes."""
+
+    state = WorkflowIssueState()
+    node_issue = _issue()
+    cube_issue = replace(
+        node_issue,
+        kind=CubeRuntimeIssueKind.PROJECTION_HYDRATION_FAILED,
+        node_names=(),
+    )
+    state.add_issues((node_issue,))
+
+    assert not state.has_cube_scoped_error("workflow-a", "Cube")
+
+    state.add_issues(
+        (replace(node_issue, kind=CubeRuntimeIssueKind.MISSING_LIVE_NODE_FIELD),)
+    )
+
+    assert not state.has_cube_scoped_error("workflow-a", "Cube")
+
+    state.add_issues((cube_issue,))
+
+    assert state.has_cube_scoped_error("workflow-a", "Cube")
 
 
 def test_duplicate_issues_collapse_deterministically() -> None:

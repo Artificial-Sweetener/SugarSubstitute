@@ -20,10 +20,18 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import cast
+from collections import OrderedDict
 
 import pytest
 
-from substitute.application.recipes import RecipeModelResolutionRequired
+from substitute.application.recipes import (
+    RecipeModelCivitaiState,
+    RecipeModelResolutionRequired,
+    RecipeModelResolutionSummary,
+    RecipeModelUnresolvedReference,
+    ResolvedRecipeModelScript,
+)
+from substitute.domain.recipes import ParsedSugarScript
 from substitute.presentation.shell.shell_recipe_model_resolution_controller import (
     ShellRecipeModelResolutionController,
 )
@@ -74,3 +82,55 @@ def test_resolve_missing_recipe_models_passes_shell_dependencies(
             ),
         }
     ]
+
+
+def test_recipe_prompt_cancel_continues_without_missing_model_link(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The recipe shell handler must return a materializable script on Cancel."""
+
+    monkeypatch.setattr(
+        controller_module,
+        "prepare_missing_recipe_model_download",
+        lambda **_kwargs: None,
+    )
+    field = ("Cube", "loader", "ckpt_name")
+    script = ParsedSugarScript(
+        buffers=OrderedDict(),
+        global_overrides={},
+        global_override_selections={},
+        field_control_states_by_alias={},
+        override_control_states={},
+        model_hashes_by_field={field: "A" * 64},
+        prompt_lora_hashes_by_field={},
+        project_name=None,
+    )
+    required = RecipeModelResolutionRequired(
+        references=(
+            RecipeModelUnresolvedReference(
+                alias="Cube",
+                node_name="loader",
+                input_key="ckpt_name",
+                kind="checkpoints",
+                value="missing.safetensors",
+                sha256="A" * 64,
+                civitai_state=RecipeModelCivitaiState.DISABLED,
+            ),
+        ),
+        partial_script=script,
+        summary=RecipeModelResolutionSummary(unresolved_hashes=1),
+    )
+    shell = SimpleNamespace(
+        recipe_model_download_resolution_service=None,
+        civitai_credential_service=object(),
+        settings_route_controller=SimpleNamespace(
+            project_generation_model_download_settings=lambda: None,
+        ),
+    )
+
+    result = ShellRecipeModelResolutionController(shell).resolve_missing_recipe_models(
+        required
+    )
+
+    assert isinstance(result, ResolvedRecipeModelScript)
+    assert result.parsed_script.model_hashes_by_field == {}

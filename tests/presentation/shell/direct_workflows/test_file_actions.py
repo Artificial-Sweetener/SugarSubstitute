@@ -244,61 +244,6 @@ def test_materialized_workflow_starts_missing_node_recovery(
     assert recovery.requests == [(workflow_payload, "wf-1")]
 
 
-def test_rehydrate_preserves_authoring_state_without_marking_saved_again(
-    tmp_path: Path,
-) -> None:
-    """Rebuild live node cards after restart without changing document ownership."""
-
-    source = tmp_path / "rehydrated-workflow.json"
-    source.write_text(
-        json.dumps(
-            {
-                "nodes": [
-                    {
-                        "id": 1,
-                        "type": "KSampler",
-                        "inputs": [],
-                        "outputs": [],
-                        "widgets_values": [],
-                    }
-                ],
-                "links": [],
-            }
-        ),
-        encoding="utf-8",
-    )
-    workflow = WorkflowState()
-    view = _view(workflow, _TabItem("wf-1", "Untitled Workflow"))
-    saved: list[tuple[str, Path]] = []
-    view.unsaved_work_service = SimpleNamespace(
-        mark_saved=lambda workflow_id, path: saved.append((workflow_id, path))
-    )
-    actions = _actions(
-        view=view,
-        add_workflow_tab=lambda: None,
-        refresh_active_workflow=lambda: None,
-    )
-    assert actions.load_document(source) == "wf-1"
-    current = workflow.direct_workflow
-    assert current is not None
-    current.dirty = True
-    current.ui = {
-        "node_behavior_runtime": object(),
-        "persistent_layout": {"expanded": True},
-    }
-    current.cube_projection_state = {"cube": {"expanded": False}}
-
-    actions.rehydrate_node_definitions("wf-1")
-
-    rehydrated = workflow.direct_workflow
-    assert rehydrated is not None
-    assert rehydrated is not current
-    assert rehydrated.dirty is True
-    assert rehydrated.ui == {"persistent_layout": {"expanded": True}}
-    assert rehydrated.cube_projection_state == {"cube": {"expanded": False}}
-    assert saved == [("wf-1", source.resolve())]
-
-
 def test_direct_workflow_file_action_rejects_non_workflow_json(
     tmp_path: Path,
 ) -> None:

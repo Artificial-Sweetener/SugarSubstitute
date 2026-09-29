@@ -106,7 +106,6 @@ def compose_editor_panel(panel: Any, inputs: EditorPanelCompositionInputs) -> No
     panel._runtime_issue_presenter = EditorPanelRuntimeIssuePresenter(
         cast(EditorPanelRuntimeIssueHost, panel),
         workflow_issue_state=inputs.workflow_issue_state or WorkflowIssueState(),
-        error_presenter=inputs.error_presenter,
     )
     panel.model_choice_snapshot_controller = PanelModelChoiceSnapshotController(
         model_catalog_service=inputs.model_catalog_service,

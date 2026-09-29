@@ -30,6 +30,10 @@ from substitute.app.bootstrap.gui_reload_coordinator import (
 from substitute.app.bootstrap.gui_reload_session_finalizer import (
     GuiReloadSessionFinalizer,
 )
+from substitute.app.bootstrap.nodepack_recovery_handoff import (
+    NodepackRecoveryHandoff,
+    NodepackShellSurface,
+)
 from substitute.app.bootstrap.lifecycle import (
     ManagedComfyCleanupOutcome,
     ManagedComfyCleanupResult,
@@ -267,6 +271,56 @@ def test_gui_reload_keeps_old_shell_usable_while_finalization_is_pending() -> No
     assert main_window.detach_calls == 1
 
 
+def test_nodepack_handoff_saves_session_before_showing_fresh_gui() -> None:
+    """The splash covers Comfy recovery until session-backed GUI restoration."""
+
+    state = _CoordinatorState()
+    old_shell = _FakeShell("old", state.events)
+    new_shell = _FakeShell("new", state.events)
+    old_main_window = _FakeMainWindow()
+    state.current_shell = old_shell
+    splash = _RecoverySplash(state.events)
+    coordinator: GuiReloadCoordinator | None = None
+
+    def request_reload() -> bool:
+        """Request the composed GUI reload after fresh node verification."""
+
+        assert coordinator is not None
+        return coordinator.reload_shell()
+
+    handoff = NodepackRecoveryHandoff(
+        current_shell=lambda: cast(NodepackShellSurface | None, state.current_shell),
+        has_cancellable_jobs=lambda: False,
+        create_splash=lambda: splash,
+        reload_gui=request_reload,
+    )
+
+    def show_shell(shell: _FakeShell) -> _FakeShell:
+        """End the splash interval before exposing the restored shell."""
+
+        handoff.finish()
+        state.record("new:show")
+        return shell
+
+    coordinator = state.build_coordinator(
+        main_window_for_shell=lambda shell: (
+            old_main_window if shell is old_shell else _FakeMainWindow()
+        ),
+        build_shell=lambda: new_shell,
+        show_shell=show_shell,
+    )
+
+    assert handoff.begin()
+    assert handoff.reload()
+
+    assert old_main_window.save_calls == 1
+    assert old_main_window.detach_calls == 1
+    assert state.cleanup_calls == []
+    assert state.current_shell is new_shell
+    assert state.events.index("splash:hidden") < state.events.index("new:show")
+    assert state.events.index("old:close") < state.events.index("new:show")
+
+
 class _CoordinatorState:
     """Hold mutable collaborator state for coordinator tests."""
 
@@ -395,6 +449,11 @@ class _FakeShell:
 
         self._events.append(f"{self.name}:hide")
 
+    def show(self) -> None:
+        """Record old-shell restoration after a failed recovery."""
+
+        self._events.append(f"{self.name}:show")
+
     def close(self) -> object:
         """Record shell close."""
 
@@ -405,6 +464,42 @@ class _FakeShell:
         """Record deferred deletion."""
 
         self._events.append(f"{self.name}:delete")
+
+
+class _RecoverySplash:
+    """Record the application-owned splash used during nodepack recovery."""
+
+    def __init__(self, events: list[str]) -> None:
+        """Store a shared sequence of externally visible transitions."""
+
+        self._events = events
+
+    def set_cancellation_enabled(self, _enabled: bool) -> None:
+        """Accept installation's non-cancellable interval."""
+
+    def center_on_screen(self) -> None:
+        """Accept deterministic test positioning."""
+
+    def append_log(self, _line: str) -> None:
+        """Accept localized recovery progress."""
+
+    def start_activity(self, _activity: object) -> None:
+        """Accept the active recovery stage."""
+
+    def show(self) -> None:
+        """Record splash reveal."""
+
+        self._events.append("splash:show")
+
+    def dismiss(self) -> None:
+        """Record splash dismissal."""
+
+        self._events.append("splash:hidden")
+
+    def deleteLater(self) -> None:
+        """Record deferred splash cleanup."""
+
+        self._events.append("splash:delete")
 
 
 class _FakeMainWindow:

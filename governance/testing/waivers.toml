@@ -172,6 +172,27 @@ issue = "chore:SS-TEST-WAIVER-C0190"
 review_by = 2026-12-15
 
 [[waivers]]
+id = "SS-TEST-WAIVER-C0299"
+owner = "Offscreen custom-node recovery rendering"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/dialogs/test_workflow_nodepack_recovery_dialog.py|isolated-module",
+  "ISOLATED001|tests/presentation/shell/splash/test_nodepack_recovery_feedback.py|isolated-module",
+  "ISOLATED001|tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_open_nodepack_reassessment.py|isolated-module",
+]
+paths = [
+  "tests/presentation/dialogs/test_workflow_nodepack_recovery_dialog.py",
+  "tests/presentation/shell/splash/test_nodepack_recovery_feedback.py",
+  "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_open_nodepack_reassessment.py",
+]
+fingerprint = "sha256:2347190db55d8c0afb10255ada87bd1391845f5b8f4f424cb57f873f22951c50"
+rationale = "These production Qt visual proofs register a Windows font when the offscreen font catalog is empty. Repeated registration and removal in a reused worker changed unrelated font metrics and scroll geometry; each module passes in a fresh process. Each proof retains real widget behavior and remains safely concurrent, so process isolation bounds the native font lifetime without global serialization."
+issue = "chore:SS-TEST-WAIVER-C0299"
+review_by = 2026-12-15
+
+[[waivers]]
 id = "SS-TEST-WAIVER-C0191"
 owner = "Bounded native Qt fresh-process execution"
 kind = "classification"

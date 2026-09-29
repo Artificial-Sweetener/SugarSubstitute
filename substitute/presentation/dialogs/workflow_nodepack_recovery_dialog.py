@@ -54,8 +54,8 @@ from substitute.presentation.shell.chrome_style import (
     winui_card_fill_color,
 )
 
-_DIALOG_WIDTH = 700
-_DIALOG_MINIMUM_HEIGHT = 420
+_DIALOG_WIDTH = 620
+_DIALOG_MAX_HEIGHT_MARGIN = 48
 _ACTION_BUTTON_HEIGHT = 34
 
 
@@ -78,11 +78,12 @@ class WorkflowNodepackRecoveryDialog(FullWindowModalBase):
         self.setModal(True)
         self.hideYesButton()
         self.hideCancelButton()
-        self.widget.setMinimumSize(_DIALOG_WIDTH, _DIALOG_MINIMUM_HEIGHT)
+        self.widget.setMinimumWidth(_DIALOG_WIDTH)
         self.widget.setMaximumWidth(_DIALOG_WIDTH)
         self._build_header()
         self._build_review()
         self._build_actions()
+        self._sync_review_height()
         self._apply_theme()
         connect_theme_refresh(self, self._apply_theme)
 
@@ -113,7 +114,7 @@ class WorkflowNodepackRecoveryDialog(FullWindowModalBase):
         )
         guidance = LocalizedBodyLabel(
             app_text(
-                "Review the custom node packages matched to missing workflow nodes before installing them."
+                "Installing these custom node packages will restart ComfyUI and reload Substitute. Your workflow will reopen when they are ready."
             ),
             header,
         )
@@ -159,9 +160,35 @@ class WorkflowNodepackRecoveryDialog(FullWindowModalBase):
             unresolved.setObjectName("WorkflowNodepackUnresolvedClasses")
             unresolved.setWordWrap(True)
             layout.addWidget(unresolved)
-        layout.addStretch(1)
         scroll.setWidget(host)
-        self.viewLayout.addWidget(scroll, 1)
+        self._review_scroll = scroll
+        self._review_host = host
+        self.viewLayout.addWidget(scroll)
+
+    def _sync_review_height(self) -> None:
+        """Fit the review to its rows and scroll only when the owner is too short."""
+
+        self.viewLayout.activate()
+        self._review_host.adjustSize()
+        margins = self.viewLayout.contentsMargins()
+        header_height = self.viewLayout.itemAt(0).sizeHint().height()
+        available_height = max(
+            1,
+            self.modal_owner.height()
+            - _DIALOG_MAX_HEIGHT_MARGIN
+            - self.buttonGroup.height()
+            - header_height
+            - self.viewLayout.spacing()
+            - margins.top()
+            - margins.bottom(),
+        )
+        content_height = self._review_host.sizeHint().height()
+        self._review_scroll.setFixedHeight(min(content_height + 2, available_height))
+        self._review_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            if content_height > available_height
+            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
 
     def _candidate_row(
         self,
@@ -216,10 +243,7 @@ class WorkflowNodepackRecoveryDialog(FullWindowModalBase):
         self.cancel_action.clicked.connect(self.reject)
         self.buttonLayout.addWidget(self.cancel_action)
         self.install_action = LocalizedPrimaryPushButton(
-            app_text(
-                "Install %1 custom node packages",
-                len(self._plan.resolution.candidates),
-            ),
+            app_text("Install and restart"),
             self.buttonGroup,
         )
         self.install_action.setObjectName("WorkflowNodepackInstallAction")

@@ -72,7 +72,6 @@ from substitute.presentation.widgets.model_metadata_context_menu import (
 from substitute.presentation.model_discovery import EmptyModelPickerAction
 from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.application.user_presets import UserPresetService
-from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
     EDITOR_SECTION_GAP,
 )
@@ -257,7 +256,6 @@ class EditorPanel(
         empty_model_picker_action: EmptyModelPickerAction | None = None,
         model_updates: ModelUpdatePickerBridge | None = None,
         user_preset_service: UserPresetService | None = None,
-        error_presenter: ErrorReportPresenterProtocol | None = None,
         workflow_issue_state: WorkflowIssueState | None = None,
         workflow_id: str | None = None,
         editor_panel_execution_factories: EditorPanelExecutionFactories | None = None,
@@ -294,7 +292,6 @@ class EditorPanel(
                 empty_model_picker_action=empty_model_picker_action,
                 model_updates=model_updates,
                 user_preset_service=user_preset_service,
-                error_presenter=error_presenter,
                 workflow_issue_state=workflow_issue_state,
                 workflow_id=workflow_id,
                 execution_factories=editor_panel_execution_factories,

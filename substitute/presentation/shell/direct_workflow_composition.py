@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
+from qfluentwidgets import InfoBar  # type: ignore[import-untyped]
 
 from substitute.application.direct_workflows import (
     DirectWorkflowLoadService,
@@ -36,7 +38,6 @@ from substitute.application.comfy_nodepacks.workflow_node_definition_assessment 
 from substitute.application.comfy_nodepacks.workflow_nodepack_recovery_plan import (
     WorkflowNodepackRecoveryPlanService,
 )
-from substitute.application.errors import SubstituteOperationContext
 from substitute.application.workflows.portable_model_projection import (
     PortableModelManifestService,
 )
@@ -49,8 +50,15 @@ from substitute.infrastructure.comfy.comfy_workflow_nodepack_catalog import (
 from substitute.infrastructure.comfy.workflow_nodepack_installer import (
     WorkflowNodepackInstaller,
 )
-from substitute.domain.onboarding import ComfyTargetConfiguration
-from sugarsubstitute_shared.presentation.localization import app_text
+from substitute.infrastructure.comfy.managed_validation import (
+    is_workspace_installed,
+    workspace_python_path,
+)
+from substitute.domain.onboarding import ComfyTargetConfiguration, ComfyTargetMode
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    render_application_text,
+)
 from substitute.presentation.dialogs.workflow_nodepack_recovery_dialog import (
     WorkflowNodepackRecoveryPresenter,
 )
@@ -63,6 +71,7 @@ from .direct_workflow_model_resolution import (
 )
 from .direct_workflow_nodepack_recovery import (
     DirectWorkflowNodepackRecoveryController,
+    NodepackRecoveryHandoffPort,
 )
 from .workflow_nodepack_recovery_execution import WorkflowNodepackRecoveryRoute
 from .workspace_controller_composition import (
@@ -71,6 +80,10 @@ from .workspace_controller_composition import (
 )
 from .comfy_connection_composition import ComfyConnectionRuntimeComposition
 from .main_window_dependencies import MainWindowDependencies
+from .open_workflow_nodepack_reassessment import OpenWorkflowNodepackReassessment
+from substitute.shared.logging.logger import get_logger, log_exception
+
+_LOGGER = get_logger("presentation.shell.direct_workflow_composition")
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,9 +151,7 @@ def compose_direct_workflow_nodepack_recovery(
     shell: Any,
     *,
     target: ComfyTargetConfiguration,
-    file_actions: DirectWorkflowFileActions,
     connection_recovery: ComfyConnectionRecoveryService,
-    error_presenter: ErrorReportPresenterProtocol,
 ) -> DirectWorkflowNodepackRecoveryComposition:
     """Compose missing-node planning, review, install, restart, and rehydration."""
 
@@ -153,30 +164,39 @@ def compose_direct_workflow_nodepack_recovery(
     ) -> WorkflowNodepackRecoveryRoute:
         """Create one owner-thread route on the package-maintenance lane."""
 
+        dispatcher = QtOwnerThreadDispatcher(shell)
         submitter = shell.execution_runtime.submitter(
             "package_maintenance",
             owner_id=(f"workflow_nodepack_recovery_{target_workflow_id}_{request_id}"),
-            dispatcher=QtOwnerThreadDispatcher(shell),
+            dispatcher=dispatcher,
         )
         return WorkflowNodepackRecoveryRoute(
             submitter=submitter,
             close=submitter.close,
+            publish=lambda callback, reason: dispatcher.publish(
+                callback, reason=reason
+            ),
         )
 
     def present_failure(workflow_id: str, stage: str, error: BaseException) -> None:
-        """Present one non-blocking recovery failure with stable workflow context."""
+        """Keep a failed repair visible without blocking the loaded workflow."""
 
-        error_presenter.show_exception_report(
-            title=app_text("Custom node recovery failed"),
-            message=app_text(
-                "Substitute could not recover every custom node required by this workflow."
-            ),
-            stage=stage,
+        log_exception(
+            _LOGGER,
+            "Custom node recovery did not complete",
             error=error,
-            context=SubstituteOperationContext(
-                operation="recover_workflow_nodepacks",
-                workflow_id=workflow_id,
+            workflow_id=workflow_id,
+            stage=stage,
+        )
+        InfoBar.warning(
+            title=render_application_text(app_text("Custom node recovery failed")),
+            content=render_application_text(
+                app_text(
+                    "Substitute could not recover every custom node required by this workflow."
+                )
             ),
+            duration=5000,
+            parent=shell,
         )
 
     controller = DirectWorkflowNodepackRecoveryController(
@@ -190,16 +210,15 @@ def compose_direct_workflow_nodepack_recovery(
         ),
         installer=WorkflowNodepackInstaller(),
         workspace=target.workspace_path,
-        python_executable=(
-            target.python_binding.executable
-            if target.python_binding is not None
-            else None
-        ),
-        editor_busy=shell.editor_busy,
+        python_executable=_nodepack_install_python(target),
         present_review=presenter.present,
         present_failure=present_failure,
+        can_restart=lambda: connection_recovery.state.can_restart,
+        handoff_provider=lambda: cast(
+            NodepackRecoveryHandoffPort | None,
+            getattr(shell, "nodepack_recovery_handoff", None),
+        ),
         request_restart=connection_recovery.request_restart,
-        rehydrate_workflow=file_actions.rehydrate_node_definitions,
         route_factory=route_factory,
     )
     connection_recovery.add_observer(controller.observe_connection)
@@ -209,20 +228,33 @@ def compose_direct_workflow_nodepack_recovery(
     )
 
 
+def _nodepack_install_python(target: ComfyTargetConfiguration) -> Path | None:
+    """Use the selected binding or an installed, owned managed runtime."""
+
+    if target.python_binding is not None:
+        return target.python_binding.executable
+    workspace = target.workspace_path
+    if (
+        target.mode is ComfyTargetMode.MANAGED_LOCAL
+        and target.install_owned
+        and workspace is not None
+        and is_workspace_installed(workspace)
+    ):
+        return workspace_python_path(workspace)
+    return None
+
+
 def bind_nodepack_recovery(
     shell: Any,
     dependencies: MainWindowDependencies,
     comfy_connection: ComfyConnectionRuntimeComposition,
-    error_presenter: ErrorReportPresenterProtocol,
 ) -> None:
     """Compose workflow nodepack recovery and bind its shell lifecycle."""
 
     composition = compose_direct_workflow_nodepack_recovery(
         shell,
         target=dependencies.comfy_target,
-        file_actions=shell.direct_workflow_file_actions,
         connection_recovery=comfy_connection.recovery_service,
-        error_presenter=error_presenter,
     )
     shell.shell_resource_lifecycle.register(
         "direct_workflow_nodepack_recovery",
@@ -233,6 +265,24 @@ def bind_nodepack_recovery(
         composition.presenter.close,
     )
     shell.direct_workflow_nodepack_recovery_controller = composition.controller
+    reassessment = OpenWorkflowNodepackReassessment(
+        shell=shell,
+        recovery=composition.controller,
+    )
+    connection = comfy_connection.recovery_service
+    connection.add_observer(reassessment.observe_connection)
+    shell.restore_finalized.connect(reassessment.schedule_after_restore)
+
+    def close_reassessment() -> None:
+        """Detach both runtime notifications before the shell is destroyed."""
+
+        connection.remove_observer(reassessment.observe_connection)
+        shell.restore_finalized.disconnect(reassessment.schedule_after_restore)
+
+    shell.shell_resource_lifecycle.register(
+        "open_workflow_nodepack_reassessment",
+        close_reassessment,
+    )
 
 
 def _model_resolution_controller(
@@ -252,7 +302,7 @@ def _model_resolution_controller(
         ),
         editor_busy=shell.editor_busy,
         prompt_for_download=(
-            shell.shell_recipe_model_resolution_controller.resolve_missing_recipe_models
+            shell.shell_recipe_model_resolution_controller.prompt_for_direct_workflow_download
         ),
         resolution_route_factory=(
             lambda request_id, target_workflow_id: model_resolution_route(

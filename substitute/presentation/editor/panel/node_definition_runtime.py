@@ -68,13 +68,6 @@ class EditorPanelNodeDefinitionRuntime:
             unavailable_count=len(result.unavailable) if result is not None else 0,
         )
 
-    def begin_live_node_definition_report_projection(self) -> None:
-        """Start a projection-scoped live metadata report dedupe window."""
-
-        runtime_issue_presenter_for_panel(
-            self
-        ).begin_live_node_definition_report_projection()
-
     def register_projection_live_node_definition_error(
         self,
         error: LiveNodeDefinitionError,
@@ -82,7 +75,7 @@ class EditorPanelNodeDefinitionRuntime:
         reason: str,
         source: CubeRuntimeIssueSource,
     ) -> bool:
-        """Register a cube-attributed projection hydration failure."""
+        """Register missing projection metadata against saved cube nodes."""
 
         return runtime_issue_presenter_for_panel(
             self
@@ -90,30 +83,6 @@ class EditorPanelNodeDefinitionRuntime:
             error,
             reason=reason,
             source=source,
-        )
-
-    def present_recoverable_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show a deduplicated non-fatal live metadata report for a cube issue."""
-
-        runtime_issue_presenter_for_panel(
-            self
-        ).present_recoverable_live_node_definition_error(error, reason=reason)
-
-    def _present_live_node_definition_error_once(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show one live metadata report unless the same report was already shown."""
-
-        runtime_issue_presenter_for_panel(self).present_live_node_definition_error_once(
-            error, reason=reason
         )
 
     def clear_projection_runtime_issues(self) -> None:
@@ -181,19 +150,6 @@ class EditorPanelNodeDefinitionRuntime:
         return runtime_issue_presenter_for_panel(self).build_error_cube_widget(
             route_key,
             cube_state,
-        )
-
-    def _present_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show the blocking live-metadata report through the injected presenter."""
-
-        runtime_issue_presenter_for_panel(self).present_live_node_definition_error(
-            error,
-            reason=reason,
         )
 
     def refresh_projection_after_node_definition_update(
