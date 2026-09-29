@@ -44,7 +44,7 @@ def test_production_trace_instrumentation_matches_current_projection_owners() ->
 
 
 def test_production_trace_waits_for_timer_driven_projection_completion() -> None:
-    """The rig must allow production staged-build timers to publish completion."""
+    """Require a queued Qt timer to publish staged-build completion."""
 
     ensure_qapplication()
     recorder = ProjectionTraceRecorder()
@@ -52,7 +52,9 @@ def test_production_trace_waits_for_timer_driven_projection_completion() -> None
         shell=None,
         override_manager=TraceOverrideManager(recorder=recorder),
     )
-    QTimer.singleShot(5, lambda: setattr(trace, "projection_complete", True))
+    QTimer.singleShot(0, lambda: setattr(trace, "projection_complete", True))
+
+    assert trace.projection_complete is False
 
     drain_until(lambda: trace.projection_complete, max_turns=10)
 
