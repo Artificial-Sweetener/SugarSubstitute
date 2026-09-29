@@ -172,7 +172,7 @@ def _materialize_historical_managed_configuration(
     layout = InstallLayout.from_root(install_root)
     FileRuntimeConfigurationRepository(installation).save(
         RuntimeConfiguration(
-            runtime_root=installation.runtime_dir,
+            runtime_root=layout.runtime_python.parent.parent.parent,
             python_executable=layout.runtime_python,
             bootstrap_status=RuntimeBootstrapStatus.READY,
         )
