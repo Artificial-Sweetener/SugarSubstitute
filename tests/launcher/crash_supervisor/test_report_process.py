@@ -32,6 +32,11 @@ from launcher.sugarsubstitute_launcher.launcher_ui_process import (
     present_crash_report,
 )
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    CRASH_RUN_ID_ENV,
+    CRASH_RUN_ROOT_ENV,
+    CrashRunContext,
+)
 
 
 class _CompletedProcess:
@@ -172,6 +177,41 @@ def test_immediate_report_retains_supervisor_until_reporter_exits(
     )
 
     assert starter.processes[0].wait_count == 1
+
+
+@pytest.mark.parametrize("pending", [False, True])
+def test_report_child_does_not_inherit_incomplete_crash_supervision(
+    tmp_path: Path, pending: bool
+) -> None:
+    """Detach the report child from the launcher's consumed crash contract."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    starter = _ProcessStarter()
+    parent_environment = {
+        "BROKER": "authorized",
+        CRASH_RUN_ID_ENV: "previous-run",
+        CRASH_RUN_ROOT_ENV: str(tmp_path / "runs"),
+    }
+    if pending:
+        run_pending_crash_reporter(
+            layout,
+            "incident",
+            locale_override=None,
+            environment=parent_environment,
+            process_starter=starter,
+        )
+    else:
+        present_crash_report(
+            layout,
+            "incident",
+            parent_environment,
+            process_starter=starter,
+        )
+
+    child_environment = starter.calls[0][1]
+    assert child_environment is not None
+    assert child_environment["BROKER"] == "authorized"
+    assert CrashRunContext.from_environment(child_environment) is None
 
 
 def test_repair_report_uses_independent_bundle_and_original_incident_root(
