@@ -1,3 +1,74 @@
+# [0.27.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.26.0...v0.27.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **ci:** stage video runtime before packaged acceptance ([07719af](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/07719af9b7584218a0ddb70b3a93d003a6032a95))
+* **dependencies:** require SugarCubes video output release ([60b29d8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/60b29d8b384c7d6ff4226c6748214f05cdaafac5))
+* **generation:** run disconnected Cubes in authored order ([4b4428d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4b4428d669c8e374122d3b6553ab7db134a38b04))
+* **installer:** install reliably on slower drives ([82c9b74](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/82c9b740944a9532ac87f33e1fd19b1b6cd481e8))
+* **installer:** repair existing installs without losing user data ([0edc17e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0edc17e19acce0e4825cdfaaecebf04f9c811d41))
+* **node-behavior:** preserve hidden linked activation ([afda0c9](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/afda0c9c6dc8f0f72c4fc5a7396dd29c69f8779e))
+* **nodepacks:** install only active Registry releases ([87495b5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/87495b58dbaa8a18cc93d5e900b2f84454316332))
+* **nodepacks:** recover transient custom-node installation ([f7b41d0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f7b41d048f8064e23be9a20650a01c3d3732b683))
+* **output:** initialize video rendering only when opened ([d96aee9](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d96aee95ed64e6fee42f2ed2c948f544f722b3b4))
+* **outputs:** save videos across separate temporary and output drives ([9a99338](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9a99338484c06dcc068325ee4f622a4b95c3a878))
+* **persistence:** preserve video state across upgrades ([4fd4bab](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4fd4bab072eae1afe55669d6049e1dd302ef933f))
+* **prompt-editor:** keep overlapping drag targets reachable ([090b99d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/090b99d9e2f7b4f880181e4208b25b2a4ed22a0c))
+* **prompt-editor:** make decorated text editable with predictable controls ([3bf8157](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3bf8157a3e4226fa4e8583b1eb8908989388206e))
+* **qt:** cancel deferred callbacks with their native owners ([4527197](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/45271971134cb694a0d1bd88f6a0cef3d456a5f5))
+* **setup:** prevent crashes after choosing model folders ([8a40d0f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/8a40d0f01390bfedb6464a87fafda05bf2a91d0b))
+* **shell:** preserve workspace material when video initializes ([4b12ce3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4b12ce391afa6b60806bbe515ff46984a5472c5b))
+* **startup:** close safely after session restore and installer handoff ([0c7f143](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0c7f1439f25331dd7603d352403ad6edac467b65))
+* **startup:** Keep diagnostics usable when the cursor has no screen ([a1c4b9e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a1c4b9e846639fcaa62034d2eb039d6614104856))
+* **updates:** allow fresh installs to complete app updates ([b3768c8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b3768c8aa7f91c130509d312b5dd1b50ffa410f7))
+* **updates:** Keep crash recovery usable after historical upgrades ([2de4591](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2de45913be5a257560514ded6e7affb8e8450b7c))
+* **video:** anchor navigation and contain the video surface ([612ff32](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/612ff324f42facee19f6cfbf1610e3e792c2e6f8))
+* **video:** compact volume controls and sharpen high zoom ([dbc4033](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/dbc40333cc3614bb8f449e2e9eabb6116ce0e63b))
+* **video:** keep compact volume controls in the canvas window ([3c4495d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3c4495d669182590ab105480ea86bfd2b46d0c60))
+* **video:** keep generated video playback stable ([0764b7e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0764b7e1b0bb125a4e6f6d605e80c4d32cd8da59))
+* **video:** keep Play stable while stepping frames ([0764ccf](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0764ccfbc5b9419f3503a954fcff7bc40e73c4c3))
+* **video:** keep the paused frame in comparison ([bf1e8a9](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bf1e8a956b7cf27707781267712593635952997c))
+* **video:** match fitted margins to the Output canvas ([c6938e4](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c6938e4576aa1064b70319a6197d13b8b6a6695c))
+* **video:** preserve canvas wash and playback across undocking ([de3fe09](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/de3fe099ff544cdaefb3c110276ac26740b8daa8))
+* **video:** preserve frame stepping while seeks settle ([91c3025](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/91c3025247707a9d63015f528162d21ee9eabaa5))
+* **video:** prevent native crashes during embedded playback ([d096a3a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d096a3a9acc2bc538d406d9b13e3c15201c1593d))
+* **video:** recognize Comfy video outputs as video instead of images ([e4446d5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e4446d57ed2901cdbb8e6332bda2659829795f10))
+* **video:** restore native Output actions and exact volume stacking ([cadf0ad](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cadf0ad4651a5a32641d30fbd83cc065331e1d2c))
+* **video:** reveal the Output wash around fitted video ([f7ab8f7](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f7ab8f7eccb65434b3f03910751b1f75b348fc7e))
+* **video:** ship and qualify playback runtime in Canary releases ([39a3a37](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/39a3a3782dfa1eeb454d4acda316e2d5ffd64d7c))
+* **video:** stabilize packaged playback on Windows ([d8229f6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d8229f692f46a9703677b3d36d72c8a573778815))
+* **workflows:** keep Add Cube available after closing the last Cube ([186277f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/186277faf05c640cb500e0995068f2e8a1148851))
+* **workflows:** keep imported workflows usable through dependency recovery ([58fddaf](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/58fddaf341d63aaefa2f1ad6549540465d1ca764))
+* **workflows:** open new and restored workflows without a toolbar crash ([33d2a44](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/33d2a44589475dfb9a37c911b8cf8d952c683f23))
+
+
+### Features
+
+* **editor:** add interruption-safe surface motion ([6eb651d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6eb651d15124e6b9ae7f3adfd99dc834fed0b1ac))
+* **editor:** animate cube layout transitions ([382d918](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/382d918b57c0ce81511abe8c22c1f72320a0c812))
+* **editor:** make surface motion deterministic and bounded ([258f93d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/258f93d8ee9d79409adc500e6636bd5a921eb27d))
+* **output:** deliver validated video artifacts ([9d3f114](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9d3f1145c2019a92b82a4f4d032b2f597ab6f4b7))
+* **output:** discover generated video sources ([218c5e2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/218c5e2cfafe53c5c853a0ab53af7876cc5df466))
+* **output:** integrate video playback with Output canvas ([6f0417d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6f0417d74749573c45730e2b91dba95b25232909))
+* **output:** securely materialize generated video artifacts ([c762795](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c762795e4e819ebcb256f5216f402da5ec9703d8))
+* **video:** align volume flyout and reflect audio level ([b92ce4c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b92ce4cf564af728b22ec62e86b3e4abf8c7c960))
+* **video:** expose playback settings and diagnostics ([92eb768](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/92eb76887c9da5ead72abf22fb80851eb681e56e))
+* **video:** navigate playback with Space-held pan and zoom ([994fde2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/994fde2e2f036bf32cd4746937fee2b939e69ac8))
+* **video:** play generated videos in output canvas ([5a999c4](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5a999c4521c61ebb918665e9bdf9ae0afdc30a1b))
+* **video:** preserve playback viewport state ([5048352](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5048352be717651681b1f0b51fa0f58920962194))
+* **video:** release temporary artifacts safely ([512b5c5](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/512b5c55418574b5aff8e949fd7bb79e27503c5a))
+* **video:** remember the last paused frame in Output ([105b729](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/105b72960f210a5ad1a93ef495c56741ac4cb704))
+* **workflows:** recover imports with missing models and custom nodes ([b307771](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b3077713794a954799295860226fd5893dbb7552))
+* **workspace:** restore durable video outputs ([e953d03](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e953d03b84f5499eb822310feb9377a897f77a47))
+
+
+### Performance Improvements
+
+* **editor:** make retained cube reordering immediate ([333cd9e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/333cd9e72fc6257c7ea954bb62a9b768f4027d82))
+* **editor:** reveal usable cubes during construction ([cd02d4e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cd02d4e3399b703275f56e2da04a20b5887e6095))
+* **nodepacks:** make installs and updates skip global catalog reloads ([b4e4784](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b4e47840e8167fd6de3a97fe633d0e84c767e7f2))
+
 # [0.26.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.25.0...v0.26.0) (2026-09-24)
 
 
