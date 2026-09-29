@@ -78,13 +78,48 @@ def test_setup_execution_finishes_only_after_worker_thread_stops(
     )
     wait_for_launcher_condition(application, lambda: not executor.setup_running)
 
-    assert events == [("succeeded", True), ("finished", False)]
+    assert events == [("succeeded", False), ("finished", False)]
     assert progress == [
         InstallationProgress(InstallationStage.RUNTIME),
         InstallationProgress(InstallationStage.RUNTIME, True),
         InstallationProgress(InstallationStage.HANDOFF),
         InstallationProgress(InstallationStage.HANDOFF, True),
     ]
+
+
+def test_setup_handoff_starts_after_worker_releases_ownership(tmp_path: Path) -> None:
+    """Launch the new supervisor only after the installer worker has stopped."""
+
+    application = launcher_test_application()
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    observed_running: list[bool] = []
+    observed_on_ui_thread: list[bool] = []
+    executor: QtInstallationExecutor
+
+    def start_handoff(_command: object) -> None:
+        """Observe the worker boundary when the replacement process starts."""
+
+        observed_running.append(executor.setup_running)
+        observed_on_ui_thread.append(QThread.currentThread() is application.thread())
+
+    executor = QtInstallationExecutor(
+        workflow_factory=workflow_factory(process_starter=start_handoff)
+    )
+    installed_application = InstalledApplication(
+        layout=layout,
+        app_command=("python.exe", "main.py"),
+        app_version="0.4.0",
+        launcher_installed=True,
+    )
+
+    assert executor.start_setup(
+        application=installed_application,
+        setup_command=installed_application.app_command,
+    )
+    wait_for_launcher_condition(application, lambda: not executor.setup_running)
+
+    assert observed_running == [False]
+    assert observed_on_ui_thread == [True]
 
 
 def test_setup_execution_waits_for_initial_thread_release(tmp_path: Path) -> None:
