@@ -41,6 +41,7 @@ from tools.ci.historical_launcher_chain_evidence import (
 )
 from tools.ci.loopback_port_lease import LoopbackPortLease
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci.installer_ui_qualification import InstallerQualificationEvidence
 
 
 @pytest.mark.parametrize(
@@ -88,6 +89,7 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
     candidate_installer = tmp_path / "candidate.AppImage"
     candidate_installer.write_bytes(b"candidate")
+    model_root = tmp_path / "user-models"
     events: list[object] = []
 
     def run_installer(
@@ -104,6 +106,12 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
 
         events.append("launch")
         return object()
+
+    def verify_candidate(**arguments: object) -> None:
+        """Require the update probe to target the persisted user model root."""
+
+        evidence = cast(InstallerQualificationEvidence, arguments["evidence"])
+        events.append(("verify", evidence.plan.managed_model_root))
 
     monkeypatch.setattr(
         "tools.ci.historical_update_qualification.sys.platform",
@@ -126,7 +134,7 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
     )
     monkeypatch.setattr(
         "tools.ci.historical_update_qualification._verify_candidate_evidence",
-        lambda **_arguments: events.append("verify"),
+        verify_candidate,
     )
     monkeypatch.setattr(
         "tools.ci.historical_update_qualification.assert_installed_release_channel",
@@ -157,7 +165,7 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
                 candidate_installer_path=candidate_installer,
                 expected_update_manifest_url=None,
                 managed_workspace=install_root / "comfyui",
-                managed_model_root=install_root / "qualified-models",
+                managed_model_root=model_root,
                 preservation_marker=install_root / "user" / "settings" / "marker.json",
                 timeout_seconds=30.0,
             ),
@@ -175,7 +183,7 @@ def test_legacy_posix_route_runs_exact_candidate_installer_before_launch(
     ]
     assert events[1:] == [
         "launch",
-        "verify",
+        ("verify", model_root.resolve()),
         "root",
         "root_ready",
         "channel",
