@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -70,6 +70,25 @@ class WorkflowNodepackInstallStatus(StrEnum):
     INSTALLED = "installed"
     VERSION_UNAVAILABLE = "version_unavailable"
     FAILED = "failed"
+
+
+class WorkflowNodepackInstallStage(StrEnum):
+    """Identify a real package acquisition milestone."""
+
+    SOURCE = "source"
+    DEPENDENCIES = "dependencies"
+    INSTALLED = "installed"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowNodepackInstallProgress:
+    """Carry a package-local milestone without leaking installation paths."""
+
+    stage: WorkflowNodepackInstallStage
+    display_name: str
+    package_index: int
+    package_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,19 +149,51 @@ class WorkflowNodepackInstaller:
         workspace: Path,
         python_executable: Path,
         env: Mapping[str, str] | None = None,
+        on_progress: Callable[[WorkflowNodepackInstallProgress], None] | None = None,
     ) -> WorkflowNodepackInstallResult:
         """Install each approved package independently and retain partial outcomes."""
 
-        items = tuple(
-            self._install_one(
+        items: list[WorkflowNodepackInstallItemResult] = []
+        for index, candidate in enumerate(candidates, start=1):
+
+            def report(stage: WorkflowNodepackInstallStage) -> None:
+                """Publish one observed stage without making feedback installation-critical."""
+
+                if on_progress is None:
+                    return
+                try:
+                    on_progress(
+                        WorkflowNodepackInstallProgress(
+                            stage=stage,
+                            display_name=candidate.nodepack.display_name,
+                            package_index=index,
+                            package_count=len(candidates),
+                        )
+                    )
+                except Exception as error:
+                    log_exception(
+                        _LOGGER,
+                        "Could not publish workflow nodepack install progress",
+                        error=error,
+                        package_id=candidate.nodepack.identifier,
+                        stage=stage.value,
+                    )
+
+            report(WorkflowNodepackInstallStage.SOURCE)
+            item = self._install_one(
                 candidate,
                 workspace=workspace,
                 python_executable=python_executable,
                 env=env,
+                report=report,
             )
-            for candidate in candidates
-        )
-        return WorkflowNodepackInstallResult(items=items)
+            items.append(item)
+            report(
+                WorkflowNodepackInstallStage.INSTALLED
+                if item.status is WorkflowNodepackInstallStatus.INSTALLED
+                else WorkflowNodepackInstallStage.FAILED
+            )
+        return WorkflowNodepackInstallResult(items=tuple(items))
 
     def _install_one(
         self,
@@ -151,6 +202,7 @@ class WorkflowNodepackInstaller:
         workspace: Path,
         python_executable: Path,
         env: Mapping[str, str] | None,
+        report: Callable[[WorkflowNodepackInstallStage], None],
     ) -> WorkflowNodepackInstallItemResult:
         """Install one candidate while classifying expected acquisition failures."""
 
@@ -176,6 +228,10 @@ class WorkflowNodepackInstaller:
                     self._stage_git(candidate, target=staged)
                 else:
                     raise ValueError("Unsupported workflow nodepack source kind.")
+                if (staged / "requirements.txt").is_file() or (
+                    staged / "pyproject.toml"
+                ).is_file():
+                    report(WorkflowNodepackInstallStage.DEPENDENCIES)
                 _install_dependencies(
                     target=staged,
                     display_name=nodepack.display_name,
@@ -357,5 +413,7 @@ __all__ = [
     "WorkflowNodepackInstallItemResult",
     "WorkflowNodepackInstallResult",
     "WorkflowNodepackInstallStatus",
+    "WorkflowNodepackInstallStage",
+    "WorkflowNodepackInstallProgress",
     "WorkflowNodepackInstaller",
 ]

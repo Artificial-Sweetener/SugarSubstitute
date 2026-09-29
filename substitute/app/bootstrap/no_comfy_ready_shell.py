@@ -20,12 +20,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
+from substitute.app.bootstrap.splash_surface_handoff import (
+    SplashCloseProtocol,
+    close_splash_before_reveal,
+)
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.domain.onboarding import InstallationContext
-from substitute.shared.logging.logger import get_logger, log_exception
-
-_LOGGER = get_logger("app.bootstrap.no_comfy_ready_shell")
 
 
 @dataclass(frozen=True)
@@ -52,11 +54,9 @@ def launch_no_comfy_ready_shell(
     """Close splash, show the shell directly, and attach reload commands."""
 
     if splash is not None:
-        try:
-            close = getattr(splash, "close")
-            close()
-        except Exception:
-            log_exception(_LOGGER, "Failed to close launch splash")
+        close_splash_before_reveal(
+            cast(SplashCloseProtocol, splash), replacement="no_comfy_shell"
+        )
         splash = None
     with trace_span("ready_shell.no_comfy.show_main_window"):
         shell_frame = show_main_window(

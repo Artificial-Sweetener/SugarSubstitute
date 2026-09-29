@@ -87,4 +87,4 @@ def test_plans_resolution_from_observed_missing_nodes_only() -> None:
     assert assessment.calls == [workflow]
     assert resolution.calls == [(missing,)]
     assert plan.assessment.available == (available,)
-    assert plan.requires_review
+    assert not plan.requires_review

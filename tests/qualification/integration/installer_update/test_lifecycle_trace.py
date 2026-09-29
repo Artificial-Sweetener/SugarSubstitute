@@ -37,13 +37,14 @@ from tools.ci.installer_evidence_verification import (
 
 
 def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -> None:
-    """The install proof should accept the painted-shell handoff sequence."""
+    """The install proof should accept close-before-show and painted shell."""
 
     trace_path = tmp_path / "startup-trace.jsonl"
     trace_path.write_text(
         "\n".join(
             (
                 json.dumps({"event": "launch_splash.started"}),
+                json.dumps({"event": "launch_splash.closed"}),
                 json.dumps({"event": "main_shell.shown"}),
                 json.dumps(
                     {
@@ -54,7 +55,6 @@ def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -
                         },
                     }
                 ),
-                json.dumps({"event": "launch_splash.closed"}),
             )
         ),
         encoding="utf-8",
@@ -63,8 +63,8 @@ def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -
     assert_startup_trace_sequence(trace_path)
 
 
-def test_lifecycle_rejects_splash_close_before_shell_paint(tmp_path: Path) -> None:
-    """A splash must remain until its replacement shell has actually painted."""
+def test_lifecycle_rejects_shell_without_first_paint(tmp_path: Path) -> None:
+    """A shown shell without confirmed paint is not complete launch proof."""
 
     trace_path = tmp_path / "startup-trace.jsonl"
     trace_path.write_text(
@@ -83,19 +83,24 @@ def test_lifecycle_rejects_splash_close_before_shell_paint(tmp_path: Path) -> No
         assert_startup_trace_sequence(trace_path)
 
 
-def test_lifecycle_rejects_unpainted_shell_before_splash_close(
+def test_lifecycle_rejects_shell_reveal_before_splash_close(
     tmp_path: Path,
 ) -> None:
-    """Calling show is not proof that the replacement surface reached the user."""
+    """A shown shell cannot overlap an undisposed launch splash."""
 
     trace_path = tmp_path / "startup-trace.jsonl"
     trace_path.write_text(
         "\n".join(
-            json.dumps({"event": event})
-            for event in (
-                "launch_splash.started",
-                "main_shell.shown",
-                "launch_splash.closed",
+            (
+                json.dumps({"event": "launch_splash.started"}),
+                json.dumps({"event": "main_shell.shown"}),
+                json.dumps({"event": "launch_splash.closed"}),
+                json.dumps(
+                    {
+                        "event": "startup.visibility.first_event",
+                        "fields": {"event_type": "Paint", "label": "shell_frame"},
+                    }
+                ),
             )
         ),
         encoding="utf-8",

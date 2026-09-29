@@ -31,6 +31,7 @@ class WorkflowNodepackRecoveryRoute:
 
     submitter: TaskSubmitter
     close: Callable[[], None]
+    publish: Callable[[Callable[[], None], str], None]
 
 
 class WorkflowNodepackRecoveryRouteFactory(Protocol):

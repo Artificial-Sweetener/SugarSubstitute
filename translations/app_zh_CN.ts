@@ -464,7 +464,7 @@ This is taking much longer than expected</source>
       <translation>系统会保留恢复副本，但手动保存的项目文件才是持久文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="279"></location>
+      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="310"></location>
       <source>A required live Comfy field definition is unavailable.</source>
       <translation>所需的实时 Comfy 字段定义不可用。</translation>
     </message>
@@ -949,7 +949,7 @@ This is taking much longer than expected</source>
       <translation>取消任务</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="428"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="439"></location>
       <source>Cancel loading</source>
       <translation>取消加载</translation>
     </message>
@@ -1087,6 +1087,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
       <source>Checking model links…</source>
       <translation>正在检查模型链接…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="220"></location>
+      <source>Checking required custom nodes in restarted ComfyUI</source>
+      <translation>正在检查重启后的 ComfyUI 中所需的自定义节点</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="413"></location>
@@ -2259,6 +2264,11 @@ This is taking much longer than expected</source>
       <translation>目前无法检查此模型链接</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="48"></location>
+      <source>Could not install %1 (%2/%3)</source>
+      <translation>无法安装 %1（%2/%3）</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="621"></location>
       <source>Could not install required Cube Library nodes.</source>
       <translation>无法安装立方体库所需的节点。</translation>
@@ -2414,7 +2424,7 @@ This is taking much longer than expected</source>
       <translation>修复立方体依赖项更改了目标环境。请先重启 ComfyUI，再使用修复后的立方体进行生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="48"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="51"></location>
       <source>Cube disabled</source>
       <translation>立方体已禁用</translation>
     </message>
@@ -2492,12 +2502,12 @@ Install these nodes now?</source>
       <translation>无法加载自定义节点 %1。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="168"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="192"></location>
       <source>Custom node recovery failed</source>
       <translation>自定义节点恢复失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="110"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="111"></location>
       <source>Custom nodes required by this workflow</source>
       <translation>此工作流所需的自定义节点</translation>
     </message>
@@ -2762,7 +2772,7 @@ Install these nodes now?</source>
       <translation>下载版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="259"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="261"></location>
       <source>Downloading %1</source>
       <translation>正在下载 %1</translation>
     </message>
@@ -3027,7 +3037,7 @@ Install these nodes now?</source>
       <translation>失败 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="877"></location>
       <source>Failed to allocate output run number.</source>
       <translation>无法分配输出运行编号。</translation>
     </message>
@@ -3037,7 +3047,7 @@ Install these nodes now?</source>
       <translation>无法捕获用于生成的输入画布内容。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="155"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="156"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="510"></location>
       <source>Failed to connect generation listener session</source>
       <translation>无法连接生成监听会话</translation>
@@ -3073,7 +3083,7 @@ Install these nodes now?</source>
       <translation>无法将一个或多个暂存立方体加入队列。请重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="290"></location>
+      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="289"></location>
       <source>Failed to refresh editor visibility after cube load</source>
       <translation>加载立方体后无法刷新编辑器可见性</translation>
     </message>
@@ -3098,13 +3108,13 @@ Install these nodes now?</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="436"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>无法暂存工作流资源 %1.%2：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="403"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="405"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>无法启动生成监听</translation>
@@ -3280,7 +3290,7 @@ Install these nodes now?</source>
       <translation>无法生成，因为每个立方体都有运行时错误。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1061"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成任务派发失败。</translation>
     </message>
@@ -3343,6 +3353,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>生成队列快照绑定不可用。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="40"></location>
+      <source>Getting source for %1 (%2/%3)</source>
+      <translation>正在获取 %1 的源文件（%2/%3）</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
@@ -3435,7 +3450,7 @@ Install these nodes now?</source>
       <translation>已根据内容偏好隐藏</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="455"></location>
       <source>Hide Comfy output</source>
       <translation>隐藏 Comfy 输出</translation>
     </message>
@@ -3605,14 +3620,14 @@ Install these nodes now?</source>
       <translation>插入触发词</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="219"></location>
-      <source>Install %1 custom node packages</source>
-      <translation>安装 %1 个自定义节点包</translation>
-    </message>
-    <message>
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="37"></location>
       <source>Install and enable GNOME Keyring, KWallet, or another Secret Service-compatible keyring through your distribution's package manager, then sign in or unlock it and restart Substitute.</source>
       <translation>通过发行版的软件包管理器安装并启用 GNOME Keyring、KWallet 或其他兼容 Secret Service 的钥匙环，然后登录或解锁该钥匙环并重启 Substitute。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="246"></location>
+      <source>Install and restart</source>
+      <translation>安装并重启</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="546"></location>
@@ -3638,6 +3653,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="186"></location>
       <source>Install support</source>
       <translation>安装支持组件</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="46"></location>
+      <source>Installed %1 (%2/%3)</source>
+      <translation>已安装 %1（%2/%3）</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="695"></location>
@@ -3670,6 +3690,11 @@ Install these nodes now?</source>
       <translation>正在安装 Substitute Comfy 节点包。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="42"></location>
+      <source>Installing dependencies for %1 (%2/%3)</source>
+      <translation>正在安装 %1 的依赖项（%2/%3）</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/comfy_startup_status.py" line="43"></location>
       <source>Installing dependencies for %1.</source>
       <translation>正在为 %1 安装依赖项。</translation>
@@ -3680,9 +3705,14 @@ Install these nodes now?</source>
       <translation>ComfyUI 运行时安装软件包或更改模型路径可能会导致其环境状态不一致。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="278"></location>
+      <location filename="../substitute/app/bootstrap/nodepack_recovery_handoff.py" line="112"></location>
       <source>Installing required custom nodes</source>
       <translation>正在安装所需的自定义节点</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="116"></location>
+      <source>Installing these custom node packages will restart ComfyUI and reload Substitute. Your workflow will reopen when they are ready.</source>
+      <translation>安装这些自定义节点包将重启 ComfyUI 并重新加载 Substitute。准备就绪后，您的工作流会重新打开。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="202"></location>
@@ -3853,11 +3883,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="84"></location>
       <source>Likely cause: %1</source>
       <translation>可能的原因：%1</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="324"></location>
-      <source>Live Comfy node definitions unavailable</source>
-      <translation>实时 Comfy 节点定义不可用</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="215"></location>
@@ -4230,12 +4255,12 @@ Install these nodes now?</source>
       <translation>缺少自定义节点：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="483"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="307"></location>
       <source>Missing definition: %1</source>
       <translation>缺少定义：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="488"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="312"></location>
       <source>Missing field: %1</source>
       <translation>缺少字段：%1</translation>
     </message>
@@ -4270,7 +4295,7 @@ Install these nodes now?</source>
       <translation>模型查找返回了无效结果。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="360"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="329"></location>
       <source>Model download failed</source>
       <translation>模型下载失败</translation>
     </message>
@@ -4642,7 +4667,7 @@ I’ll bring my own</source>
 我会自备。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="153"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="154"></location>
       <source>No trusted package match was found for: %1</source>
       <translation>未找到与以下节点匹配的可信软件包：%1</translation>
     </message>
@@ -5247,7 +5272,7 @@ I’ll bring my own</source>
       <translation>正在准备您现有的 ComfyUI 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/startup_bootstrap_feedback.py" line="60"></location>
+      <location filename="../substitute/app/bootstrap/nodepack_recovery_handoff.py" line="141"></location>
       <source>Preparing your saved workspace.</source>
       <translation>正在准备您保存的工作区。</translation>
     </message>
@@ -5357,7 +5382,7 @@ I’ll bring my own</source>
       <translation>提示词：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="182"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="209"></location>
       <source>Provides: %1</source>
       <translation>提供：%1</translation>
     </message>
@@ -5612,7 +5637,7 @@ I’ll bring my own</source>
       <translation>请为当前 Python、PyTorch、CUDA 和 Windows 环境重新安装加载失败的原生依赖项。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="343"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="365"></location>
       <source>Reload GUI</source>
       <translation>重新加载图形界面</translation>
     </message>
@@ -5921,7 +5946,7 @@ No known extension claimant.</source>
       <translation>正在重启 Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/application/comfy_startup_status.py" line="55"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="447"></location>
       <source>Restarting ComfyUI to apply updated dependencies.</source>
       <translation>正在重启 ComfyUI 以应用更新后的依赖项。</translation>
     </message>
@@ -5991,11 +6016,6 @@ No known extension claimant.</source>
       <translation>请检查连接详细信息，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="115"></location>
-      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
-      <translation>安装前，请检查与工作流中缺失节点匹配的自定义节点包。</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="219"></location>
       <source>Review the details below and continue through repair to finish setting things up.</source>
       <translation>请检查下面的详细信息，并继续执行修复以完成设置。</translation>
@@ -6056,7 +6076,7 @@ No known extension claimant.</source>
       <translation>将这些完全匹配的模型下载到已连接的 ComfyUI 安装之前，请先进行检查。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="197"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="224"></location>
       <source>Revision: %1</source>
       <translation>修订版本：%1</translation>
     </message>
@@ -6571,7 +6591,7 @@ No known extension claimant.</source>
       <translation>请缩短 %1 中的文件或文件夹名称，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="455"></location>
       <source>Show Comfy output</source>
       <translation>显示 Comfy 输出</translation>
     </message>
@@ -6763,12 +6783,12 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>来源：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="188"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="215"></location>
       <source>Source: Comfy Registry</source>
       <translation>来源：Comfy Registry</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="190"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="217"></location>
       <source>Source: ComfyUI-Manager catalog</source>
       <translation>来源：ComfyUI-Manager 目录</translation>
     </message>
@@ -7008,7 +7028,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 无法确认关闭已完成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="365"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="334"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute 无法下载并验证此工作流所需的所有模型。</translation>
     </message>
@@ -7043,12 +7063,12 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 无法准备此本地 ComfyUI 安装</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="369"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="338"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute 无法读取此 ComfyUI 工作流文档。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="169"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="194"></location>
       <source>Substitute could not recover every custom node required by this workflow.</source>
       <translation>Substitute 无法恢复此工作流所需的所有自定义节点。</translation>
     </message>
@@ -7293,7 +7313,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2790"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2658"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -8057,7 +8077,7 @@ Diagnostic evidence:
       <translation>首次执行可能需要一些时间。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="256"></location>
+      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="284"></location>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>无法渲染此立方体，因为实时 Comfy 元数据不可用。</translation>
     </message>
@@ -8637,7 +8657,7 @@ Diagnostic evidence:
       <translation>版本、项目和致谢。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="195"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="222"></location>
       <source>Version: %1</source>
       <translation>版本：%1</translation>
     </message>
@@ -8847,7 +8867,7 @@ Diagnostic evidence:
       <translation>工作流和提示上下文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="362"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="331"></location>
       <source>Workflow could not be loaded</source>
       <translation>无法加载工作流</translation>
     </message>
@@ -9007,12 +9027,12 @@ Diagnostic evidence:
       <translation>模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="289"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="287"></location>
       <source>node missing from cube buffer</source>
       <translation>立方体缓冲区中缺少节点</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="310"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="308"></location>
       <source>node payload is not a mapping</source>
       <translation>节点负载不是映射</translation>
     </message>
@@ -9022,7 +9042,7 @@ Diagnostic evidence:
       <translation>无</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="204"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="206"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="556"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>提交提示词后未返回 prompt_id</translation>

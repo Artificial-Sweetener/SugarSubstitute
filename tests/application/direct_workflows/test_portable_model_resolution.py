@@ -113,6 +113,34 @@ def test_missing_model_can_complete_with_downloaded_backend_value() -> None:
     assert PortableModelManifestCodec().read(result.workflow)[0].sha256 == "A" * 64
 
 
+def test_declining_missing_model_loads_graph_without_unresolved_portable_link() -> None:
+    """Keep the authored field while dropping its unusable portable identity."""
+
+    graph = _graph()
+    manifest = PortableModelManifestService(_HashLookup())
+    manifest.annotate(graph)
+    service = PortableWorkflowModelResolutionService(
+        manifest,
+        lambda: RecipeModelLoadResolver(
+            RecipeModelResolutionIndex(()),
+            backend=_BackendLookup(None),
+            civitai_missing_model_lookup_enabled=lambda: False,
+        ),
+    )
+
+    with pytest.raises(PortableWorkflowModelResolutionRequired) as raised:
+        service.resolve(graph)
+
+    result = service.continue_without_download(raised.value.pending)
+
+    assert _model_value(result.workflow) == "original.safetensors"
+    assert _override_value(result.workflow) == "original.safetensors"
+    assert PortableModelManifestCodec().read(result.workflow) == ()
+    assert PortableModelManifestCodec().read(graph)[0].sha256 == "A" * 64
+    assert result.summary.unresolved_hashes == 0
+    assert service.resolve(result.workflow).workflow == result.workflow
+
+
 def test_hashless_workflow_loads_unchanged_without_inventing_identity() -> None:
     """An old workflow without hashes cannot and must not invent model identity."""
 

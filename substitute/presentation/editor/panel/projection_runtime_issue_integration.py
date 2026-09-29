@@ -49,17 +49,6 @@ class EditorProjectionRuntimeIssueIntegration:
 
         self._panel = panel
 
-    def begin_live_node_definition_report_projection(self) -> None:
-        """Start a projection-scoped live metadata report dedupe window."""
-
-        begin_reports = getattr(
-            self._panel,
-            "begin_live_node_definition_report_projection",
-            None,
-        )
-        if callable(begin_reports):
-            begin_reports()
-
     def hydrate_node_definitions_for_projection(
         self,
         *,
@@ -93,7 +82,7 @@ class EditorProjectionRuntimeIssueIntegration:
         reason: str,
         workflow_id: str,
     ) -> bool:
-        """Register a cube-attributed live metadata error or report fatal failure."""
+        """Register missing metadata on saved cubes without opening an error modal."""
 
         register = getattr(
             self._panel,
@@ -112,15 +101,6 @@ class EditorProjectionRuntimeIssueIntegration:
             else False
         )
         if handled:
-            present_recoverable = getattr(
-                self._panel,
-                "present_recoverable_live_node_definition_error",
-                None,
-            )
-            if callable(present_recoverable):
-                present_recoverable(error, reason=reason)
-            else:
-                self._present_live_node_definition_error(error, reason=reason)
             log_warning(
                 _LOGGER,
                 "Recovered editor projection from cube-attributed live metadata error",
@@ -131,7 +111,15 @@ class EditorProjectionRuntimeIssueIntegration:
                 ),
             )
             return True
-        self._present_live_node_definition_error(error, reason=reason)
+        log_warning(
+            _LOGGER,
+            "Could not attribute missing live metadata to a saved cube",
+            workflow_id=workflow_id,
+            reason=reason,
+            missing_node_classes=",".join(
+                item.class_type for item in error.missing_definitions
+            ),
+        )
         return False
 
     def cube_runtime_error_aliases(self) -> frozenset[str]:
@@ -194,18 +182,6 @@ class EditorProjectionRuntimeIssueIntegration:
         finally:
             self._panel._cube_states = full_cube_states
             self._panel._stack_order = full_stack_order
-
-    def _present_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Route a blocking live metadata report through the runtime presenter."""
-
-        present = getattr(self._panel, "_present_live_node_definition_error", None)
-        if callable(present):
-            present(error, reason=reason)
 
 
 __all__ = [

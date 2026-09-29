@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Protocol, cast
 
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import app_text
@@ -33,12 +33,14 @@ from substitute.application.comfy_nodepacks.workflow_nodepack_recovery_plan impo
     WorkflowNodepackRecoveryPlan,
     WorkflowNodepackRecoveryPlanService,
 )
+from substitute.application.comfy_nodepacks.workflow_node_definition_assessment import (
+    WorkflowNodeDefinitionAssessment,
+)
 from substitute.application.execution import (
     ExecutionContext,
     TaskIdentity,
     TaskOutcome,
     TaskRequest,
-    TaskScope,
 )
 from substitute.domain.comfy_connection import (
     ComfyConnectionPhase,
@@ -49,14 +51,21 @@ from substitute.infrastructure.comfy.workflow_nodepack_installer import (
     WorkflowNodepackInstaller,
     WorkflowNodepackInstallResult,
 )
-from substitute.presentation.shell.editor_busy_coordinator import (
-    EditorBusyControllerProtocol,
+from substitute.presentation.shell.workflow_nodepack_progress_presentation import (
+    describe_nodepack_install_progress,
 )
 from substitute.presentation.shell.workflow_nodepack_recovery_execution import (
-    WorkflowNodepackRecoveryRoute,
     WorkflowNodepackRecoveryRouteFactory,
 )
-from substitute.shared.logging.logger import get_logger, log_exception, log_info
+from substitute.presentation.shell.workflow_nodepack_recovery_tasks import (
+    WorkflowNodepackRecoveryTasks,
+)
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_exception,
+    log_info,
+    log_warning,
+)
 
 _LOGGER = get_logger("presentation.shell.direct_workflow_nodepack_recovery")
 
@@ -79,21 +88,20 @@ class WorkflowNodepackRestartUnavailableError(RuntimeError):
     """Report that installed packages cannot be activated automatically."""
 
 
-class WorkflowNodepackRecoveryIncompleteError(RuntimeError):
-    """Report definitions that remain unavailable after restart."""
+class NodepackRecoveryHandoffPort(Protocol):
+    """Keep the splash and old shell alive across installation and GUI reload."""
 
+    def begin(self) -> bool:
+        """Hide the shell behind a recovery splash when safe."""
 
-class WorkflowNodepackInstallationUnavailableError(RuntimeError):
-    """Report that the selected Comfy target has no writable local environment."""
+    def report(self, message: ApplicationText) -> None:
+        """Publish the current recovery stage."""
 
+    def reload(self) -> bool:
+        """Save the session and rebuild the GUI after Comfy verification."""
 
-@dataclass(slots=True)
-class _ActiveOperation:
-    """Retain one execution route until its owner-thread callback settles."""
-
-    scope: TaskScope
-    route: WorkflowNodepackRecoveryRoute
-    busy_token: object | None = None
+    def cancel(self) -> None:
+        """Return to the preserved shell after a recoverable failure."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,11 +121,11 @@ class DirectWorkflowNodepackRecoveryController:
         installer: WorkflowNodepackInstaller,
         workspace: Path | None,
         python_executable: Path | None,
-        editor_busy: EditorBusyControllerProtocol,
         present_review: NodepackReviewPresenter,
         present_failure: RecoveryFailurePresenter,
+        can_restart: Callable[[], bool],
+        handoff_provider: Callable[[], NodepackRecoveryHandoffPort | None],
         request_restart: Callable[[], bool],
-        rehydrate_workflow: Callable[[str], None],
         route_factory: WorkflowNodepackRecoveryRouteFactory,
     ) -> None:
         """Store planning, acquisition, recovery, and owner-thread collaborators."""
@@ -126,15 +134,15 @@ class DirectWorkflowNodepackRecoveryController:
         self._installer = installer
         self._workspace = workspace
         self._python_executable = python_executable
-        self._editor_busy = editor_busy
         self._present_review = present_review
         self._present_failure = present_failure
+        self._can_restart = can_restart
+        self._handoff_provider = handoff_provider
         self._request_restart = request_restart
-        self._rehydrate_workflow = rehydrate_workflow
-        self._route_factory = route_factory
-        self._request_id = 0
-        self._active: list[_ActiveOperation] = []
+        self._tasks = WorkflowNodepackRecoveryTasks(route_factory)
         self._pending: dict[str, _PendingRecovery] = {}
+        self._reassessment_ids: set[str] = set()
+        self._active_handoff: NodepackRecoveryHandoffPort | None = None
 
     def recover(self, *, workflow: JsonObject, target_workflow_id: str) -> None:
         """Assess one visible workflow and offer any deterministic package matches."""
@@ -154,12 +162,45 @@ class DirectWorkflowNodepackRecoveryController:
             )
             self._present_failure(target_workflow_id, "resolve_nodepacks", error)
 
+    def reassess_open_workflow(
+        self,
+        *,
+        workflow: JsonObject,
+        target_workflow_id: str,
+        refresh_projection: Callable[[WorkflowNodeDefinitionAssessment], None],
+    ) -> None:
+        """Recheck a visible saved workflow and replace stale node-card state."""
+
+        if (
+            self._active_handoff is not None
+            or self._pending
+            or target_workflow_id in self._reassessment_ids
+        ):
+            return
+        self._reassessment_ids.add(target_workflow_id)
+        try:
+            self._submit_plan(
+                workflow=workflow,
+                target_workflow_id=target_workflow_id,
+                verification=False,
+                refresh_projection=refresh_projection,
+            )
+        except Exception as error:
+            self._reassessment_ids.discard(target_workflow_id)
+            log_exception(
+                _LOGGER,
+                "Could not schedule open workflow nodepack reassessment",
+                error=error,
+                workflow_id=target_workflow_id,
+            )
+            self._present_failure(target_workflow_id, "resolve_nodepacks", error)
+
     def observe_connection(self, change: ComfyConnectionStateChange) -> None:
         """Verify pending workflows after a restart reconnects or report failure."""
 
         if change.current.phase is ComfyConnectionPhase.RESTART_FAILED:
             for workflow_id in tuple(self._pending):
-                self._present_failure(
+                self._fail_recovery(
                     workflow_id,
                     "restart",
                     WorkflowNodepackRestartUnavailableError(
@@ -173,18 +214,34 @@ class DirectWorkflowNodepackRecoveryController:
         ):
             return
         for workflow_id, pending in tuple(self._pending.items()):
-            self._submit_plan(
-                workflow=pending.workflow,
-                target_workflow_id=workflow_id,
-                verification=True,
-            )
+            try:
+                if self._active_handoff is not None:
+                    self._active_handoff.report(
+                        app_text("Checking required custom nodes in restarted ComfyUI")
+                    )
+                self._submit_plan(
+                    workflow=pending.workflow,
+                    target_workflow_id=workflow_id,
+                    verification=True,
+                )
+            except Exception as error:
+                log_exception(
+                    _LOGGER,
+                    "Could not schedule post-restart nodepack verification",
+                    error=error,
+                    workflow_id=workflow_id,
+                )
+                self._fail_recovery(workflow_id, "verify_nodepacks", error)
 
     def close(self) -> None:
         """Release active task scopes during shell teardown."""
 
-        for active in tuple(self._active):
-            self._finish(active)
+        self._tasks.close()
+        if self._active_handoff is not None:
+            self._active_handoff.cancel()
+            self._active_handoff = None
         self._pending.clear()
+        self._reassessment_ids.clear()
 
     def _submit_plan(
         self,
@@ -192,10 +249,12 @@ class DirectWorkflowNodepackRecoveryController:
         workflow: JsonObject,
         target_workflow_id: str,
         verification: bool,
+        refresh_projection: Callable[[WorkflowNodeDefinitionAssessment], None]
+        | None = None,
     ) -> None:
         """Run live definition assessment and package lookup off the owner thread."""
 
-        active, request_id = self._begin_operation(target_workflow_id)
+        active, request_id = self._tasks.begin(target_workflow_id)
         request: TaskRequest[object] = TaskRequest(
             identity=TaskIdentity(
                 request_id=request_id,
@@ -218,21 +277,42 @@ class DirectWorkflowNodepackRecoveryController:
         def receive(outcome: TaskOutcome[object]) -> None:
             """Continue with review, recovery completion, or diagnostics."""
 
-            self._finish(active)
+            self._tasks.finish(active)
+            if refresh_projection is not None:
+                self._reassessment_ids.discard(target_workflow_id)
             if outcome.status != "succeeded":
                 if outcome.status == "failed":
-                    self._present_failure(
-                        target_workflow_id,
-                        "verify_nodepacks" if verification else "resolve_nodepacks",
-                        outcome.error
-                        or RuntimeError("Workflow nodepack resolution failed."),
+                    stage = "verify_nodepacks" if verification else "resolve_nodepacks"
+                    error = outcome.error or RuntimeError(
+                        "Workflow nodepack resolution failed."
                     )
+                    if verification:
+                        self._fail_recovery(target_workflow_id, stage, error)
+                    else:
+                        self._present_failure(target_workflow_id, stage, error)
+                elif verification:
+                    self._cancel_recovery(target_workflow_id)
                 return
             plan = cast(WorkflowNodepackRecoveryPlan, outcome.result)
             if verification:
                 self._finish_verification(target_workflow_id, plan)
                 return
+            if refresh_projection is not None:
+                refresh_projection(plan.assessment)
             if not plan.requires_review:
+                return
+            if (
+                self._workspace is None
+                or self._python_executable is None
+                or not self._can_restart()
+                or self._handoff_provider() is None
+            ):
+                log_warning(
+                    _LOGGER,
+                    "Skipped unavailable custom node installation offer",
+                    workflow_id=target_workflow_id,
+                    missing_node_classes=",".join(plan.assessment.missing_class_types),
+                )
                 return
             self._present_review(
                 plan,
@@ -249,7 +329,7 @@ class DirectWorkflowNodepackRecoveryController:
                 ),
             )
 
-        self._submit(active, request, receive)
+        self._tasks.submit(active, request, receive)
 
     def _install(
         self,
@@ -258,25 +338,48 @@ class DirectWorkflowNodepackRecoveryController:
         workflow: JsonObject,
         target_workflow_id: str,
     ) -> None:
-        """Install one approved batch before requesting managed Comfy restart."""
+        """Install one approved batch behind the recovery splash."""
 
         if not candidates:
             return
         workspace = self._workspace
         python_executable = self._python_executable
         if workspace is None or python_executable is None:
+            log_warning(
+                _LOGGER,
+                "Skipped approved custom node installation without a local runtime",
+                workflow_id=target_workflow_id,
+            )
+            return
+        try:
+            handoff = self._handoff_provider()
+            prepared = bool(
+                self._can_restart() and handoff is not None and handoff.begin()
+            )
+        except Exception as error:
+            log_exception(
+                _LOGGER,
+                "Could not prepare approved nodepack installation",
+                error=error,
+                workflow_id=target_workflow_id,
+            )
+            prepared = False
+            handoff = None
+        if not prepared or handoff is None:
             self._present_failure(
                 target_workflow_id,
-                "install_nodepacks",
-                WorkflowNodepackInstallationUnavailableError(
-                    "Automatic custom node installation requires a local ComfyUI workspace and Python environment."
+                "prepare_restart",
+                WorkflowNodepackRestartUnavailableError(
+                    "Cannot safely restart this ComfyUI session and GUI."
                 ),
             )
             return
-        active, request_id = self._begin_operation(
-            target_workflow_id,
-            busy_message=app_text("Installing required custom nodes"),
-        )
+        self._active_handoff = handoff
+        try:
+            active, request_id = self._tasks.begin(target_workflow_id)
+        except Exception as error:
+            self._fail_recovery(target_workflow_id, "install_nodepacks", error)
+            return
         request: TaskRequest[object] = TaskRequest(
             identity=TaskIdentity(
                 request_id=request_id,
@@ -293,36 +396,68 @@ class DirectWorkflowNodepackRecoveryController:
                 candidates,
                 workspace=workspace,
                 python_executable=python_executable,
+                on_progress=lambda progress: active.route.publish(
+                    lambda: handoff.report(
+                        describe_nodepack_install_progress(progress)
+                    ),
+                    "workflow_nodepack_install_progress",
+                ),
             ),
         )
 
         def receive(outcome: TaskOutcome[object]) -> None:
             """Request restart after successful source installation settles."""
 
-            self._finish(active)
+            self._tasks.finish(active)
             if outcome.status != "succeeded":
                 if outcome.status == "failed":
-                    self._present_failure(
+                    self._fail_recovery(
                         target_workflow_id,
                         "install_nodepacks",
                         outcome.error
                         or RuntimeError("Workflow nodepack installation failed."),
                     )
+                else:
+                    self._cancel_recovery(target_workflow_id)
                 return
             result = cast(WorkflowNodepackInstallResult, outcome.result)
             if result.failed:
-                self._present_failure(
-                    target_workflow_id,
-                    "install_nodepacks",
-                    WorkflowNodepackInstallIncompleteError(
-                        "One or more approved custom node packages could not be installed."
+                log_warning(
+                    _LOGGER,
+                    "Approved nodepack batch contained installation failures",
+                    workflow_id=target_workflow_id,
+                    failed_package_count=(
+                        len(result.items) - len(result.installed_package_ids)
                     ),
                 )
             if not result.installed_package_ids:
+                if result.failed:
+                    self._fail_recovery(
+                        target_workflow_id,
+                        "install_nodepacks",
+                        WorkflowNodepackInstallIncompleteError(
+                            "One or more approved custom node packages could not be installed."
+                        ),
+                    )
+                else:
+                    self._cancel_recovery(target_workflow_id)
                 return
             self._pending[target_workflow_id] = _PendingRecovery(workflow=workflow)
-            if not self._request_restart():
-                self._present_failure(
+            handoff.report(
+                app_text("Restarting ComfyUI to apply updated dependencies.")
+            )
+            try:
+                restart_accepted = self._request_restart()
+            except Exception as error:
+                log_exception(
+                    _LOGGER,
+                    "Could not request managed Comfy restart after nodepack install",
+                    error=error,
+                    workflow_id=target_workflow_id,
+                )
+                restart_accepted = False
+            if not restart_accepted:
+                self._fail_recovery(
                     target_workflow_id,
                     "restart",
                     WorkflowNodepackRestartUnavailableError(
@@ -330,93 +465,77 @@ class DirectWorkflowNodepackRecoveryController:
                     ),
                 )
 
-        self._submit(active, request, receive)
+        try:
+            self._tasks.submit(active, request, receive)
+        except Exception as error:
+            self._fail_recovery(target_workflow_id, "install_nodepacks", error)
 
     def _finish_verification(
         self,
         target_workflow_id: str,
         plan: WorkflowNodepackRecoveryPlan,
     ) -> None:
-        """Rehydrate a recovered workflow or preserve explicit degraded evidence."""
+        """Reload with fresh metadata even when some definitions remain unavailable."""
 
         if plan.assessment.missing:
-            self._present_failure(
+            log_warning(
+                _LOGGER,
+                "Custom node definitions remain unavailable after restart",
+                workflow_id=target_workflow_id,
+                missing_node_classes=",".join(plan.assessment.missing_class_types),
+            )
+        self._pending.pop(target_workflow_id, None)
+        handoff = self._active_handoff
+        try:
+            reload_accepted = handoff is not None and handoff.reload()
+        except Exception as error:
+            log_exception(
+                _LOGGER,
+                "Could not request GUI reload after nodepack verification",
+                error=error,
+                workflow_id=target_workflow_id,
+            )
+            reload_accepted = False
+        if not reload_accepted:
+            self._fail_recovery(
                 target_workflow_id,
-                "verify_nodepacks",
-                WorkflowNodepackRecoveryIncompleteError(
-                    "Missing definitions after restart: "
-                    + ", ".join(plan.assessment.missing_class_types)
+                "reload_gui",
+                WorkflowNodepackRestartUnavailableError(
+                    "Substitute could not reload the GUI after ComfyUI restarted."
                 ),
             )
             return
-        self._pending.pop(target_workflow_id, None)
-        self._rehydrate_workflow(target_workflow_id)
+        self._active_handoff = None
         log_info(
             _LOGGER,
-            "Workflow nodepack recovery completed",
+            "Assessed nodepacks and requested session-preserving GUI reload",
             workflow_id=target_workflow_id,
+            missing_node_classes=",".join(plan.assessment.missing_class_types),
         )
 
-    def _begin_operation(
-        self,
-        target_workflow_id: str,
-        *,
-        busy_message: ApplicationText | None = None,
-    ) -> tuple[_ActiveOperation, int]:
-        """Create and retain one package-maintenance task route."""
+    def _cancel_recovery(self, target_workflow_id: str) -> None:
+        """Release the handoff without discarding the visible workflow."""
 
-        self._request_id += 1
-        request_id = self._request_id
-        route = self._route_factory(
-            request_id=request_id,
-            target_workflow_id=target_workflow_id,
-        )
-        scope = TaskScope(
-            submitter=route.submitter,
-            scope_id=f"workflow_nodepack_recovery_{target_workflow_id}_{request_id}",
-        )
-        busy_token = (
-            self._editor_busy.begin(target_workflow_id, message=busy_message)
-            if busy_message is not None
-            else None
-        )
-        active = _ActiveOperation(scope=scope, route=route, busy_token=busy_token)
-        self._active.append(active)
-        return active, request_id
+        self._pending.pop(target_workflow_id, None)
+        handoff = self._active_handoff
+        self._active_handoff = None
+        if handoff is not None:
+            handoff.cancel()
 
-    def _submit(
-        self,
-        active: _ActiveOperation,
-        request: TaskRequest[object],
-        receive: Callable[[TaskOutcome[object]], None],
+    def _fail_recovery(
+        self, target_workflow_id: str, stage: str, error: BaseException
     ) -> None:
-        """Submit one operation and register its owner-thread completion."""
+        """Restore the shell before reporting a recoverable failure."""
 
-        try:
-            handle = active.scope.submit(request)
-            handle.add_done_callback(receive, reason="workflow_nodepack_recovery_done")
-        except Exception:
-            self._finish(active)
-            raise
-
-    def _finish(self, active: _ActiveOperation) -> None:
-        """Release one completed or cancelled operation exactly once."""
-
-        if active not in self._active:
-            return
-        if active.busy_token is not None:
-            self._editor_busy.end(active.busy_token)
-        active.scope.close(reason="workflow_nodepack_recovery_finished")
-        active.route.close()
-        self._active.remove(active)
+        self._cancel_recovery(target_workflow_id)
+        self._present_failure(target_workflow_id, stage, error)
 
 
 __all__ = [
     "DirectWorkflowNodepackRecoveryController",
+    "NodepackRecoveryHandoffPort",
     "NodepackReviewPresenter",
     "RecoveryFailurePresenter",
     "WorkflowNodepackInstallIncompleteError",
-    "WorkflowNodepackInstallationUnavailableError",
-    "WorkflowNodepackRecoveryIncompleteError",
     "WorkflowNodepackRestartUnavailableError",
 ]

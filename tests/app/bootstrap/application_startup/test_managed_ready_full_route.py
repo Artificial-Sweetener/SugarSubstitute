@@ -750,7 +750,7 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     assert all(callable(handler) for handler in comfy_restart_handlers)
     assert calls.index("pre_show_start:wf-a") < calls.index("show")
     assert calls.index("prepare_restore_runtime") < calls.index("show")
-    assert calls.index("show") < calls.index("splash_close")
+    assert calls.index("splash_close") < calls.index("show")
     assert calls.index("show") < calls.index("finish_layout")
     assert "splash_log" not in calls[calls.index("splash_close") + 1 :]
     assert "finalize_restore_runtime" not in calls

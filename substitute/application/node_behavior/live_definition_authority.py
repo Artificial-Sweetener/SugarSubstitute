@@ -63,7 +63,7 @@ class LiveNodeDefinitionError(RuntimeError):
         super().__init__(self._message())
 
     def _message(self) -> str:
-        """Return a concise diagnostic message for logs and modal reports."""
+        """Return a concise diagnostic message for logs and recovery checks."""
 
         missing_classes = ", ".join(
             item.class_type for item in self.missing_definitions

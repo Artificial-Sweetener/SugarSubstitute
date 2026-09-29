@@ -19,17 +19,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
+import pytest
+
 from substitute.application.comfy_nodepacks.workflow_dependency_resolution import (
-    ResolvedWorkflowNodepack,
     WorkflowNodepackInstallCandidate,
     WorkflowNodepackResolutionPlan,
     WorkflowNodepackSourceKind,
-)
-from substitute.application.comfy_nodepacks.workflow_node_definition_assessment import (
-    WorkflowNodeDefinitionAssessment,
+    UnresolvedWorkflowNode,
+    UnresolvedWorkflowNodeReason,
 )
 from substitute.application.comfy_nodepacks.workflow_nodepack_recovery_plan import (
     WorkflowNodepackRecoveryPlan,
@@ -37,11 +38,7 @@ from substitute.application.comfy_nodepacks.workflow_nodepack_recovery_plan impo
 )
 from substitute.domain.comfy_connection import (
     ComfyConnectionPhase,
-    ComfyConnectionState,
-    ComfyConnectionStateChange,
 )
-from substitute.domain.comfy_workflow.node_inventory import WorkflowNodeInventoryItem
-from substitute.domain.onboarding import ComfyTargetMode
 from substitute.infrastructure.comfy.workflow_nodepack_installer import (
     WorkflowNodepackInstaller,
     WorkflowNodepackInstallItemResult,
@@ -52,133 +49,23 @@ from substitute.presentation.shell.direct_workflow_nodepack_recovery import (
     DirectWorkflowNodepackRecoveryController,
     WorkflowNodepackRestartUnavailableError,
 )
-from substitute.presentation.shell.editor_busy_coordinator import (
-    EditorBusyControllerProtocol,
-)
 from substitute.presentation.shell.workflow_nodepack_recovery_execution import (
     WorkflowNodepackRecoveryRoute,
 )
 from tests.support.execution import ImmediateTaskSubmitter
+from tests.support.nodepack_recovery import (
+    Handoff as _Handoff,
+    Installer as _Installer,
+    Plans as _Plans,
+    change as _change,
+    plan as _plan,
+)
 
 
-class _Plans:
-    """Return queued recovery plans in request order."""
-
-    def __init__(self, plans: list[WorkflowNodepackRecoveryPlan]) -> None:
-        """Store queued plans and initialize workflow recording."""
-
-        self.plans = plans
-        self.workflows: list[object] = []
-
-    def plan(self, workflow: object) -> WorkflowNodepackRecoveryPlan:
-        """Record the workflow and return the next plan."""
-
-        self.workflows.append(workflow)
-        return self.plans.pop(0)
-
-
-class _Installer:
-    """Return one configured install result and record approved candidates."""
-
-    def __init__(self, result: WorkflowNodepackInstallResult) -> None:
-        """Store the result and initialize call recording."""
-
-        self.result = result
-        self.calls: list[tuple[object, Path, Path]] = []
-
-    def install(
-        self,
-        candidates: object,
-        *,
-        workspace: Path,
-        python_executable: Path,
-    ) -> WorkflowNodepackInstallResult:
-        """Record the approved package batch and return its result."""
-
-        self.calls.append((candidates, workspace, python_executable))
-        return self.result
-
-
-class _Busy:
-    """Record workflow busy-token lifecycles."""
-
-    def __init__(self) -> None:
-        """Initialize busy operation recording."""
-
-        self.begun: list[tuple[str, object]] = []
-        self.ended: list[object] = []
-
-    def begin(self, workflow_id: str, *, message: object) -> object:
-        """Return a stable token for one busy operation."""
-
-        token = object()
-        self.begun.append((workflow_id, message))
-        return token
-
-    def end(self, token: object) -> None:
-        """Record completion for one token."""
-
-        self.ended.append(token)
-
-
-def _candidate() -> WorkflowNodepackInstallCandidate:
-    """Build one confirmed Registry candidate."""
-
-    node = WorkflowNodeInventoryItem("1", "Missing", "Missing", None, None)
-    return WorkflowNodepackInstallCandidate(
-        nodepack=ResolvedWorkflowNodepack(
-            identifier="missing-pack",
-            display_name="Missing Pack",
-            source_kind=WorkflowNodepackSourceKind.REGISTRY,
-            repository_url=None,
-            version="1.0.0",
-        ),
-        nodes=(node,),
-        persisted_versions=(),
-    )
-
-
-def _plan(*, missing: bool) -> WorkflowNodepackRecoveryPlan:
-    """Build a missing or fully recovered assessment and resolution plan."""
-
-    node = _candidate().nodes[0]
-    return WorkflowNodepackRecoveryPlan(
-        assessment=WorkflowNodeDefinitionAssessment(
-            available=() if missing else (node,),
-            missing=(node,) if missing else (),
-        ),
-        resolution=WorkflowNodepackResolutionPlan(
-            candidates=(_candidate(),) if missing else (),
-            unresolved=(),
-        ),
-    )
-
-
-def _change(
-    previous: ComfyConnectionPhase,
-    current: ComfyConnectionPhase,
-) -> ComfyConnectionStateChange:
-    """Build one managed-local connection transition."""
-
-    return ComfyConnectionStateChange(
-        previous=ComfyConnectionState(
-            previous,
-            ComfyTargetMode.MANAGED_LOCAL,
-            True,
-        ),
-        current=ComfyConnectionState(
-            current,
-            ComfyTargetMode.MANAGED_LOCAL,
-            True,
-            revision=1,
-        ),
-    )
-
-
-def test_approved_install_restarts_verifies_and_rehydrates_same_workflow(
+def test_approved_install_restarts_verifies_and_reloads_same_workflow(
     tmp_path: Path,
 ) -> None:
-    """Successful recovery should preserve the workflow through reconnect."""
+    """Successful recovery reloads the GUI only after fresh Comfy verification."""
 
     plans = _Plans([_plan(missing=True), _plan(missing=False)])
     installer = _Installer(
@@ -193,11 +80,10 @@ def test_approved_install_restarts_verifies_and_rehydrates_same_workflow(
             )
         )
     )
-    busy = _Busy()
+    handoff = _Handoff()
     reviews: list[WorkflowNodepackRecoveryPlan] = []
     failures: list[tuple[str, str, BaseException]] = []
     restarts: list[str] = []
-    rehydrated: list[str] = []
     closed: list[str] = []
     workflow: dict[str, object] = {"nodes": [], "links": []}
 
@@ -222,16 +108,17 @@ def test_approved_install_restarts_verifies_and_rehydrates_same_workflow(
         installer=cast(WorkflowNodepackInstaller, installer),
         workspace=tmp_path,
         python_executable=tmp_path / "python.exe",
-        editor_busy=cast(EditorBusyControllerProtocol, busy),
         present_review=present_review,
         present_failure=lambda workflow_id, stage, error: failures.append(
             (workflow_id, stage, error)
         ),
+        can_restart=lambda: True,
+        handoff_provider=lambda: handoff,
         request_restart=request_restart,
-        rehydrate_workflow=rehydrated.append,
         route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
             submitter=ImmediateTaskSubmitter(),
             close=lambda: closed.append("closed"),
+            publish=lambda callback, _reason: callback(),
         ),
     )
 
@@ -241,15 +128,14 @@ def test_approved_install_restarts_verifies_and_rehydrates_same_workflow(
     assert len(installer.calls) == 1
     assert restarts == ["restart"]
     assert failures == []
-    assert len(busy.begun) == 1
-    assert len(busy.ended) == 1
+    assert handoff.events == ["begin", "report", "report"]
 
     controller.observe_connection(
         _change(ComfyConnectionPhase.RESTARTING, ComfyConnectionPhase.READY)
     )
 
     assert plans.workflows == [workflow, workflow]
-    assert rehydrated == ["workflow-1"]
+    assert handoff.events == ["begin", "report", "report", "report", "reload"]
     assert len(closed) == 3
 
 
@@ -282,13 +168,15 @@ def test_cancelled_review_leaves_visible_workflow_untouched(tmp_path: Path) -> N
         installer=cast(WorkflowNodepackInstaller, installer),
         workspace=tmp_path,
         python_executable=tmp_path / "python.exe",
-        editor_busy=cast(EditorBusyControllerProtocol, _Busy()),
         present_review=present_review,
         present_failure=lambda _workflow_id, _stage, _error: None,
+        can_restart=lambda: True,
+        handoff_provider=lambda: _Handoff(),
         request_restart=request_restart,
-        rehydrate_workflow=lambda _workflow_id: None,
         route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
-            submitter=ImmediateTaskSubmitter(), close=lambda: None
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
         ),
     )
 
@@ -297,6 +185,125 @@ def test_cancelled_review_leaves_visible_workflow_untouched(tmp_path: Path) -> N
     assert cancelled == ["shown"]
     assert installer.calls == []
     assert restarts == []
+
+
+def test_reassessed_open_workflow_updates_cards_before_install_offer(
+    tmp_path: Path,
+) -> None:
+    """A restored workflow can become degraded and offer repair without a reload."""
+
+    plan = _plan(missing=True)
+    events: list[str] = []
+    controller = DirectWorkflowNodepackRecoveryController(
+        plan_service=cast(WorkflowNodepackRecoveryPlanService, _Plans([plan])),
+        installer=cast(
+            WorkflowNodepackInstaller,
+            _Installer(WorkflowNodepackInstallResult(items=())),
+        ),
+        workspace=tmp_path,
+        python_executable=tmp_path / "python.exe",
+        present_review=lambda _plan, _approve, _cancel: events.append("offer"),
+        present_failure=lambda _workflow_id, _stage, _error: events.append("failure"),
+        can_restart=lambda: True,
+        handoff_provider=lambda: _Handoff(),
+        request_restart=lambda: True,
+        route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
+        ),
+    )
+
+    controller.reassess_open_workflow(
+        workflow={"nodes": [{"id": 1, "type": "Missing"}]},
+        target_workflow_id="existing-workflow",
+        refresh_projection=lambda assessment: events.append(
+            f"cards:{','.join(assessment.missing_class_types)}"
+        ),
+    )
+
+    assert events == ["cards:Missing", "offer"]
+
+
+def test_unknown_missing_node_does_not_offer_unavailable_install(
+    tmp_path: Path,
+) -> None:
+    """An unidentified package leaves the workflow visible without a false offer."""
+
+    plan = _plan(missing=True)
+    unresolved_plan = replace(
+        plan,
+        resolution=WorkflowNodepackResolutionPlan(
+            candidates=(),
+            unresolved=(
+                UnresolvedWorkflowNode(
+                    node=plan.assessment.missing[0],
+                    reason=UnresolvedWorkflowNodeReason.NOT_IN_CATALOG,
+                ),
+            ),
+        ),
+    )
+    reviews: list[WorkflowNodepackRecoveryPlan] = []
+    failures: list[BaseException] = []
+    controller = DirectWorkflowNodepackRecoveryController(
+        plan_service=cast(
+            WorkflowNodepackRecoveryPlanService, _Plans([unresolved_plan])
+        ),
+        installer=cast(
+            WorkflowNodepackInstaller,
+            _Installer(WorkflowNodepackInstallResult(items=())),
+        ),
+        workspace=tmp_path,
+        python_executable=tmp_path / "python.exe",
+        present_review=lambda review, _approve, _cancel: reviews.append(review),
+        present_failure=lambda _workflow_id, _stage, error: failures.append(error),
+        can_restart=lambda: True,
+        handoff_provider=lambda: _Handoff(),
+        request_restart=lambda: True,
+        route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
+        ),
+    )
+
+    controller.recover(workflow={"nodes": [], "links": []}, target_workflow_id="wf")
+
+    assert reviews == []
+    assert failures == []
+
+
+def test_missing_local_install_environment_does_not_offer_false_repair() -> None:
+    """A known package is not offered when this Comfy target cannot install it."""
+
+    reviews: list[WorkflowNodepackRecoveryPlan] = []
+    failures: list[BaseException] = []
+    controller = DirectWorkflowNodepackRecoveryController(
+        plan_service=cast(
+            WorkflowNodepackRecoveryPlanService, _Plans([_plan(missing=True)])
+        ),
+        installer=cast(
+            WorkflowNodepackInstaller,
+            _Installer(WorkflowNodepackInstallResult(items=())),
+        ),
+        workspace=None,
+        python_executable=None,
+        present_review=lambda plan, _approve, _cancel: reviews.append(plan),
+        present_failure=lambda _workflow_id, _stage, error: failures.append(error),
+        can_restart=lambda: True,
+        handoff_provider=lambda: _Handoff(),
+        request_restart=lambda: True,
+        route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
+        ),
+    )
+
+    controller.recover(workflow={"nodes": [], "links": []}, target_workflow_id="wf")
+
+    assert reviews == []
+    assert failures == []
 
 
 def test_restart_refusal_is_diagnostic_and_does_not_softlock(tmp_path: Path) -> None:
@@ -312,7 +319,7 @@ def test_restart_refusal_is_diagnostic_and_does_not_softlock(tmp_path: Path) -> 
             ),
         )
     )
-    busy = _Busy()
+    handoff = _Handoff()
     failures: list[BaseException] = []
     controller = DirectWorkflowNodepackRecoveryController(
         plan_service=cast(
@@ -321,21 +328,129 @@ def test_restart_refusal_is_diagnostic_and_does_not_softlock(tmp_path: Path) -> 
         installer=cast(WorkflowNodepackInstaller, _Installer(result)),
         workspace=tmp_path,
         python_executable=tmp_path / "python.exe",
-        editor_busy=cast(EditorBusyControllerProtocol, busy),
         present_review=lambda plan, approve, _cancel: approve(
             plan.resolution.candidates
         ),
         present_failure=lambda _workflow_id, _stage, error: failures.append(error),
+        can_restart=lambda: True,
+        handoff_provider=lambda: handoff,
         request_restart=lambda: False,
-        rehydrate_workflow=lambda _workflow_id: None,
         route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
-            submitter=ImmediateTaskSubmitter(), close=lambda: None
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
         ),
     )
 
     controller.recover(workflow={"nodes": [], "links": []}, target_workflow_id="wf")
 
-    assert len(busy.begun) == len(busy.ended) == 1
+    assert handoff.events == ["begin", "report", "report", "cancel"]
     assert any(
         isinstance(error, WorkflowNodepackRestartUnavailableError) for error in failures
     )
+
+
+@pytest.mark.parametrize(
+    ("post_restart_phase", "reload_accepted"),
+    [
+        (ComfyConnectionPhase.RESTART_FAILED, True),
+        (ComfyConnectionPhase.READY, False),
+    ],
+)
+def test_recovery_failure_restores_old_shell_without_false_success(
+    tmp_path: Path,
+    post_restart_phase: ComfyConnectionPhase,
+    reload_accepted: bool,
+) -> None:
+    """Restart and GUI reload failures both restore the visible old shell."""
+
+    installed = WorkflowNodepackInstallResult(
+        items=(
+            WorkflowNodepackInstallItemResult(
+                package_id="missing-pack",
+                version="1.0.0",
+                source_kind=WorkflowNodepackSourceKind.REGISTRY,
+                status=WorkflowNodepackInstallStatus.INSTALLED,
+            ),
+        )
+    )
+    plans = _Plans([_plan(missing=True), _plan(missing=False)])
+    handoff = _Handoff(reload_accepted=reload_accepted)
+    failures: list[tuple[str, BaseException]] = []
+    controller = DirectWorkflowNodepackRecoveryController(
+        plan_service=cast(WorkflowNodepackRecoveryPlanService, plans),
+        installer=cast(WorkflowNodepackInstaller, _Installer(installed)),
+        workspace=tmp_path,
+        python_executable=tmp_path / "python.exe",
+        present_review=lambda plan, approve, _cancel: approve(
+            plan.resolution.candidates
+        ),
+        present_failure=lambda _id, stage, error: failures.append((stage, error)),
+        can_restart=lambda: True,
+        handoff_provider=lambda: handoff,
+        request_restart=lambda: True,
+        route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
+        ),
+    )
+
+    controller.recover(workflow={"nodes": [], "links": []}, target_workflow_id="wf")
+    controller.observe_connection(
+        _change(ComfyConnectionPhase.RESTARTING, post_restart_phase)
+    )
+
+    assert len(failures) == 1
+    assert handoff.events[-1] == "cancel"
+    assert handoff.events.count("reload") == (
+        1 if post_restart_phase is ComfyConnectionPhase.READY else 0
+    )
+
+
+def test_remaining_missing_nodes_reload_gui_with_fresh_degraded_cards(
+    tmp_path: Path,
+) -> None:
+    """A partial Comfy recovery must not preserve stale old-shell definitions."""
+
+    installed = WorkflowNodepackInstallResult(
+        items=(
+            WorkflowNodepackInstallItemResult(
+                package_id="missing-pack",
+                version="1.0.0",
+                source_kind=WorkflowNodepackSourceKind.REGISTRY,
+                status=WorkflowNodepackInstallStatus.INSTALLED,
+            ),
+        )
+    )
+    handoff = _Handoff()
+    failures: list[BaseException] = []
+    controller = DirectWorkflowNodepackRecoveryController(
+        plan_service=cast(
+            WorkflowNodepackRecoveryPlanService,
+            _Plans([_plan(missing=True), _plan(missing=True)]),
+        ),
+        installer=cast(WorkflowNodepackInstaller, _Installer(installed)),
+        workspace=tmp_path,
+        python_executable=tmp_path / "python.exe",
+        present_review=lambda plan, approve, _cancel: approve(
+            plan.resolution.candidates
+        ),
+        present_failure=lambda _id, _stage, error: failures.append(error),
+        can_restart=lambda: True,
+        handoff_provider=lambda: handoff,
+        request_restart=lambda: True,
+        route_factory=lambda **_kwargs: WorkflowNodepackRecoveryRoute(
+            submitter=ImmediateTaskSubmitter(),
+            close=lambda: None,
+            publish=lambda callback, _reason: callback(),
+        ),
+    )
+
+    controller.recover(workflow={"nodes": [], "links": []}, target_workflow_id="wf")
+    controller.observe_connection(
+        _change(ComfyConnectionPhase.RESTARTING, ComfyConnectionPhase.READY)
+    )
+
+    assert handoff.events == ["begin", "report", "report", "report", "reload"]
+    assert failures == []

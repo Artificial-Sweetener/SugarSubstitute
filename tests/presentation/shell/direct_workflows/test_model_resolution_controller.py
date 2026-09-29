@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from collections import OrderedDict
 from typing import cast
 
@@ -32,6 +33,7 @@ from substitute.application.direct_workflows import (
     ResolvedPortableWorkflow,
     PortableWorkflowModelResolutionService,
 )
+from substitute.application.execution import CancellationSource
 from substitute.application.recipes import (
     RecipeModelCivitaiState,
     RecipeModelDownloadResolutionService,
@@ -155,14 +157,15 @@ def test_controller_downloads_all_approved_models_before_completion() -> None:
     assert completed == [{"nodes": [], "links": [], "downloaded": True}]
 
 
-def test_controller_cancels_load_when_user_declines_model_acquisition() -> None:
-    """Leave the current workflow untouched when model review is declined."""
+def test_controller_loads_workflow_when_user_declines_model_acquisition() -> None:
+    """Declining acquisition should materialize without the missing model link."""
 
     submitter = _QueuedRuntimeSubmitter()
     service = _PendingService()
     service.required = _required()
     busy_calls: list[object] = []
     cancelled: list[bool] = []
+    completed: list[JsonObject] = []
     controller = DirectWorkflowModelResolutionController(
         service=cast(PortableWorkflowModelResolutionService, service),
         editor_busy=cast(
@@ -181,13 +184,14 @@ def test_controller_cancels_load_when_user_declines_model_acquisition() -> None:
     controller.resolve(
         workflow={"nodes": [], "links": []},
         target_workflow_id="wf-1",
-        completed=lambda _workflow: pytest.fail("declined load must not complete"),
+        completed=completed.append,
         cancelled=lambda: cancelled.append(True),
         failed=lambda error: pytest.fail(f"declined load failed: {error}"),
     )
     _complete_resolution_as_required(submitter)
 
-    assert cancelled == [True]
+    assert completed == [{"nodes": [], "links": [], "skipped": True}]
+    assert cancelled == []
     assert cast(tuple[object, object], busy_calls[0])[0] == "begin"
     assert cast(tuple[str, tuple[str, str]], busy_calls[0])[1][1] == (
         "Checking model links"
@@ -215,6 +219,7 @@ def test_controller_delivers_required_model_review_through_real_qt_runtime() -> 
     busy_calls: list[object] = []
     prompts: list[RecipeModelResolutionRequired] = []
     cancelled: list[bool] = []
+    completed: list[JsonObject] = []
 
     def resolution_route(**_kwargs: object) -> ModelResolutionRoute:
         """Create one production-shaped route through the real runtime."""
@@ -243,14 +248,16 @@ def test_controller_delivers_required_model_review_through_real_qt_runtime() -> 
         controller.resolve(
             workflow={"nodes": [], "links": []},
             target_workflow_id="wf-real-qt",
-            completed=lambda _workflow: pytest.fail("blocked load must not complete"),
+            completed=completed.append,
             cancelled=lambda: cancelled.append(True),
             failed=lambda error: pytest.fail(f"blocked load failed: {error}"),
         )
 
-        wait_for_qt_condition(lambda: cancelled == [True])
+        wait_for_qt_condition(lambda: len(completed) == 1)
 
         assert prompts == [service.required]
+        assert completed == [{"nodes": [], "links": [], "skipped": True}]
+        assert cancelled == []
         assert busy_calls[-1] == ("end", "busy-token")
     finally:
         runtime.shutdown()
@@ -266,6 +273,7 @@ def test_controller_defers_review_until_busy_completion_callback_unwinds() -> No
     prompts: list[RecipeModelResolutionRequired] = []
     deferred_callbacks: list[object] = []
     cancelled: list[bool] = []
+    completed: list[JsonObject] = []
     controller = DirectWorkflowModelResolutionController(
         service=cast(PortableWorkflowModelResolutionService, service),
         editor_busy=cast(EditorBusyControllerProtocol, _EditorBusyRecorder(busy_calls)),
@@ -281,7 +289,7 @@ def test_controller_defers_review_until_busy_completion_callback_unwinds() -> No
     controller.resolve(
         workflow={"nodes": [], "links": []},
         target_workflow_id="wf-1",
-        completed=lambda _workflow: pytest.fail("blocked load must not complete"),
+        completed=completed.append,
         cancelled=lambda: cancelled.append(True),
         failed=lambda error: pytest.fail(f"blocked load failed: {error}"),
     )
@@ -297,7 +305,8 @@ def test_controller_defers_review_until_busy_completion_callback_unwinds() -> No
     callback()
 
     assert prompts == [service.required]
-    assert cancelled == [True]
+    assert completed == [{"nodes": [], "links": [], "skipped": True}]
+    assert cancelled == []
 
 
 def test_controller_surfaces_download_failure_and_releases_busy_state() -> None:
@@ -348,6 +357,56 @@ def test_controller_surfaces_download_failure_and_releases_busy_state() -> None:
     assert download_submitter.closed
 
 
+def test_controller_loads_workflow_after_active_download_is_cancelled() -> None:
+    """Cancelling an approved transfer must not cancel the workflow load."""
+
+    resolution_submitter = _QueuedRuntimeSubmitter()
+    download_submitter = _QueuedRuntimeSubmitter()
+    service = _PendingService()
+    service.required = _required()
+    completed: list[JsonObject] = []
+    cancelled: list[bool] = []
+    busy = _CancellableBusyRecorder()
+    controller = DirectWorkflowModelResolutionController(
+        service=cast(PortableWorkflowModelResolutionService, service),
+        editor_busy=cast(EditorBusyControllerProtocol, busy),
+        prompt_for_download=lambda required: DeferredRecipeModelDownload(
+            service=cast(RecipeModelDownloadResolutionService, _DownloadService()),
+            required=required,
+        ),
+        resolution_route_factory=lambda **_kwargs: ModelResolutionRoute(
+            submitter=resolution_submitter,
+            close=resolution_submitter.close,
+        ),
+        download_route_factory=lambda **_kwargs: ModelDownloadRoute(
+            submitter=download_submitter,
+            progress_dispatcher=_ImmediateDispatcher(),
+            close=download_submitter.close,
+        ),
+        defer_to_owner=lambda callback: callback(),
+    )
+
+    controller.resolve(
+        workflow={"nodes": [], "links": []},
+        target_workflow_id="wf-1",
+        completed=completed.append,
+        cancelled=lambda: cancelled.append(True),
+        failed=lambda error: pytest.fail(f"cancelled download failed: {error}"),
+    )
+    _complete_resolution_as_required(resolution_submitter)
+    source = cast(CancellationSource, download_submitter.cancellations[0])
+    assert busy.cancel_callback is not None
+    busy.cancel_callback()
+    assert source.reason == "portable_model_download_cancelled"
+    download_submitter.handles[0].complete_cancelled(
+        reason="portable_model_download_cancelled"
+    )
+
+    assert completed == [{"nodes": [], "links": [], "skipped": True}]
+    assert cancelled == []
+    assert download_submitter.closed
+
+
 class _ResolvedService:
     """Resolve a graph immediately when its queued work runs."""
 
@@ -388,6 +447,16 @@ class _PendingService:
             summary=RecipeModelResolutionSummary(hash_matches=1),
         )
 
+    def continue_without_download(
+        self, pending: PendingPortableWorkflowResolution
+    ) -> ResolvedPortableWorkflow:
+        """Return a graph marked as loaded without acquisition."""
+
+        return ResolvedPortableWorkflow(
+            workflow={**pending.workflow, "skipped": True},
+            summary=RecipeModelResolutionSummary(),
+        )
+
 
 class _DownloadService:
     """Return a resolved script after one approved acquisition call."""
@@ -404,6 +473,21 @@ class _DownloadService:
             parsed_script=typed.partial_script,
             summary=RecipeModelResolutionSummary(hash_matches=1),
         )
+
+
+class _CancellableBusyRecorder(_EditorBusyRecorder):
+    """Expose the actual busy-overlay cancellation callback to the test."""
+
+    def __init__(self) -> None:
+        """Begin without an active cancellation callback."""
+
+        super().__init__()
+        self.cancel_callback: Callable[[], None] | None = None
+
+    def set_cancel_callback(self, _token: object, callback: object) -> None:
+        """Retain the user action while the download is active."""
+
+        self.cancel_callback = cast(Callable[[], None], callback) if callback else None
 
 
 def _required() -> RecipeModelResolutionRequired:

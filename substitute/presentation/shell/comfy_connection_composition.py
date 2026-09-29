@@ -76,10 +76,10 @@ def compose_comfy_connection_runtime(
     recovery_service.add_observer(presenter.present)
 
     def refresh_runtime_contracts(change: ComfyConnectionStateChange) -> None:
-        """Refresh Comfy-derived caches after monitor-confirmed restart readiness."""
+        """Refresh Comfy-derived caches after any newly ready server session."""
 
         if (
-            change.previous.phase is ComfyConnectionPhase.RESTARTING
+            change.previous.phase is not ComfyConnectionPhase.READY
             and change.current.phase is ComfyConnectionPhase.READY
         ):
             settings_route_controller.refresh_runtime_contracts_after_cube_dependency_restart()

@@ -31,6 +31,9 @@ from substitute.app.bootstrap.shell_reload_adapter import (
     create_shell_reload_adapter,
     create_startup_shell_reload_state,
 )
+from substitute.app.bootstrap.nodepack_recovery_handoff import (
+    NodepackRecoveryHandoff,
+)
 from substitute.app.bootstrap.lifecycle import (
     ManagedComfyCleanupOutcome,
     ManagedComfyCleanupResult,
@@ -62,6 +65,7 @@ def test_shell_reload_adapter_attaches_reload_and_restart_commands() -> None:
     adapter.attach_gui_reload_command(shell)
 
     assert callable(main_window.request_full_gui_reload)
+    assert isinstance(main_window.nodepack_recovery_handoff, NodepackRecoveryHandoff)
     assert (
         state.restart_handler_for(main_window)
         == adapter.request_comfy_restart_from_shell

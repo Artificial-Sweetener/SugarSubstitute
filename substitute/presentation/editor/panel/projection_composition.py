@@ -280,7 +280,6 @@ def compose_editor_projection(
             active_sessions=active_sessions,
             projection_completions=projection_completions,
             session_completions=session_completions,
-            runtime_issues=runtime_issues,
             projection_preparation=projection_preparation,
             projection_lifecycle=projection_lifecycle,
             projected_widget_builder=projected_widget_builder,

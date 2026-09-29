@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
+from substitute.application.recipes.lora_prompt_names import (
+    normalized_prompt_lora_name,
+)
 from substitute.application.recipes.model_download_candidate import (
     RecipeModelDownloadCandidate,
 )
@@ -94,6 +97,56 @@ class RecipeModelResolutionRequired(ValueError):
         self.references = references
         self.partial_script = partial_script
         self.summary = summary
+
+    def continue_without_download(self) -> ResolvedRecipeModelScript:
+        """Keep authored values while discarding only unresolved portable links."""
+
+        missing_fields = {
+            (
+                reference.alias,
+                reference.node_name,
+                reference.input_key,
+            ): reference.sha256
+            for reference in self.references
+            if reference.kind != "loras"
+        }
+        missing_loras = {
+            (
+                (reference.alias, reference.node_name, reference.input_key),
+                normalized_prompt_lora_name(reference.value),
+                reference.sha256,
+            )
+            for reference in self.references
+            if reference.kind == "loras"
+        }
+        hashes = {
+            field: sha256
+            for field, sha256 in self.partial_script.model_hashes_by_field.items()
+            if missing_fields.get(field) != sha256
+        }
+        lora_hashes = {
+            field: kept
+            for field, values in self.partial_script.prompt_lora_hashes_by_field.items()
+            if (
+                kept := {
+                    name: sha256
+                    for name, sha256 in values.items()
+                    if (field, normalized_prompt_lora_name(name), sha256)
+                    not in missing_loras
+                }
+            )
+        }
+        return ResolvedRecipeModelScript(
+            parsed_script=replace(
+                self.partial_script,
+                model_hashes_by_field=hashes,
+                prompt_lora_hashes_by_field=lora_hashes,
+            ),
+            summary=RecipeModelResolutionSummary(
+                literal_matches=self.summary.literal_matches,
+                hash_matches=self.summary.hash_matches,
+            ),
+        )
 
 
 __all__ = [

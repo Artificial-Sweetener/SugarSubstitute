@@ -241,37 +241,6 @@ class DirectWorkflowFileActions:
                 )
         return target_workflow_id
 
-    def rehydrate_node_definitions(self, workflow_id: str) -> None:
-        """Rebuild one direct editor from its current canonical workflow after restart."""
-
-        session = self._view.workflow_session_service
-        workflows = getattr(session, "workflows", None)
-        workflow = (
-            workflows.get(workflow_id) if isinstance(workflows, Mapping) else None
-        )
-        current = getattr(workflow, "direct_workflow", None)
-        if not isinstance(current, DirectWorkflowState):
-            raise RuntimeError("Recovered workflow is no longer available.")
-        document = self._load_service.materialize(
-            current.source_path,
-            current.source_workflow,
-        )
-        document.dirty = current.dirty
-        document.ui = {
-            key: value
-            for key, value in current.ui.items()
-            if key != "node_behavior_runtime"
-        }
-        document.cube_projection_state = current.cube_projection_state
-        document.field_control_states = current.field_control_states
-        self._materialize_document(
-            current.source_path,
-            document,
-            target_workflow_id=workflow_id,
-            start_nodepack_recovery=False,
-            mark_saved=False,
-        )
-
     def _resolve_target_workflow_id(self) -> str:
         """Reserve the stable workflow target before asynchronous model work."""
 
