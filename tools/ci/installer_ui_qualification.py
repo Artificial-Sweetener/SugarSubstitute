@@ -118,8 +118,9 @@ def prepare_qualification_evidence(
     phase: str,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
     target_mode: InstallerQualificationTarget = "managed_local",
+    managed_model_root: Path | None = None,
 ) -> InstallerQualificationEvidence:
-    """Build inherited automation and readiness state for one continuous chain."""
+    """Build readiness state for the actual managed root of one install chain."""
 
     resolved_root = install_root.resolve()
     layout = InstallLayout.from_root(resolved_root)
@@ -146,7 +147,11 @@ def prepare_qualification_evidence(
             resolved_root / "comfyui" if target_mode == "managed_local" else None
         ),
         managed_model_root=(
-            resolved_root / "qualified-models"
+            (
+                managed_model_root.resolve()
+                if managed_model_root is not None
+                else resolved_root / "qualified-models"
+            )
             if target_mode == "managed_local"
             else None
         ),
