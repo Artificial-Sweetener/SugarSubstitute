@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -33,11 +34,66 @@ from substitute.infrastructure.comfy.managed_environment_validator import (
 from substitute.infrastructure.comfy.managed_setup_cache_storage import (
     prepare_managed_setup_cache,
 )
+from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
+from substitute.infrastructure.onboarding.file_runtime_repository import (
+    FileRuntimeConfigurationRepository,
+)
+from substitute.infrastructure.onboarding.readiness_checks import (
+    FileSystemReadinessChecks,
+)
+from substitute.domain.onboarding import InstallationConfiguration
 from tools.ci.historical_managed_configuration import (
     _materialize_historical_managed_configuration,
     materialize_historical_managed_configuration,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+
+
+def test_historical_install_runtime_matches_its_release_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep a fully configured historical app out of the repair route."""
+
+    install_root = tmp_path / "installed"
+    release_runtime = (
+        install_root / "launcher" / "releases" / "generations" / "published" / "runtime"
+    )
+    release_python = runtime_layout_for_root(release_runtime).python_executable
+    monkeypatch.setattr(
+        "tools.ci.historical_managed_configuration.InstallLayout",
+        SimpleNamespace(
+            from_root=lambda _root: SimpleNamespace(runtime_python=release_python)
+        ),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_managed_configuration.prepare_checkout",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_managed_configuration.prepare_environment",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_managed_configuration._prepare_qualified_existing_managed_workspace",
+        lambda **_kwargs: None,
+    )
+
+    _materialize_historical_managed_configuration(
+        repository_root=tmp_path,
+        install_root=install_root,
+        endpoint_port=48188,
+        managed_workspace=install_root / "comfyui",
+        managed_model_root=install_root / "qualified-models",
+        source_repository=tmp_path / "source.git",
+    )
+
+    runtime = FileRuntimeConfigurationRepository(
+        InstallationConfiguration.create_default(install_root)
+    ).load()
+    assert runtime.runtime_root == release_runtime
+    assert runtime.python_executable == release_python
+    assert FileSystemReadinessChecks().is_runtime_configuration_valid(runtime)
 
 
 def test_timeout_preserves_last_phase_and_owned_process_boundary(
