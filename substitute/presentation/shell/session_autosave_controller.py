@@ -62,6 +62,11 @@ _MUTED_RESTORE_LIFECYCLES = {
     "gui_reloading",
     "shutting_down",
 }
+_IN_PROGRESS_RESTORE_LIFECYCLES = {
+    "constructing",
+    "prehydrating",
+    "restoring",
+}
 
 
 class SessionAutosaveController:
@@ -367,6 +372,14 @@ class SessionAutosaveController:
         return (
             getattr(self._shell, "_shell_restore_lifecycle", "running")
             in _MUTED_RESTORE_LIFECYCLES
+        )
+
+    def restore_in_progress(self) -> bool:
+        """Keep shutdown capture behind the completed workspace restore."""
+
+        return (
+            getattr(self._shell, "_shell_restore_lifecycle", "running")
+            in _IN_PROGRESS_RESTORE_LIFECYCLES
         )
 
     def _log_editor_width_trace(self, event: str, **context: object) -> None:

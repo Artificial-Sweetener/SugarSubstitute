@@ -63,7 +63,9 @@ def test_wire_imagepicker_state_restores_thumbnail_without_writing_buffer(
         dirty=False,
     )
 
-    module.wire_imagepicker_state(_as_image_picker(imagepicker), cube_state)
+    module.EditorPanelFieldStateController().wire_imagepicker_state(
+        _as_image_picker(imagepicker), cube_state
+    )
     imagepicker.imageSelected.emit("E:/new.png")
 
     assert imagepicker.current_file_path() == "E:/old.png"

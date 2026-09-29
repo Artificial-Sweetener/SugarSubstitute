@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workspace_snapshot.codecs import (
     workspace_snapshot_from_json,
     workspace_snapshot_to_json,
@@ -27,12 +28,99 @@ from substitute.domain.workspace_snapshot.codecs import (
 from substitute.domain.workspace_snapshot import (
     CanvasLayoutSnapshot,
     FloatingCanvasWindowSnapshot,
+    ImageMetaSnapshot,
+    OutputImageReference,
     ShellLayoutSnapshot,
     WindowGeometrySnapshot,
     WorkspaceSnapshot,
     WorkflowSnapshot,
 )
 from substitute.domain.workflow import WorkflowState
+
+
+def test_schema_v2_round_trips_durable_video_metadata() -> None:
+    """Version two should retain the facts required to revalidate a video."""
+
+    video_path = Path("outputs") / "clip.webm"
+    snapshot = WorkspaceSnapshot(
+        schema_version="2",
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="workflow-1",
+                tab_label="Video",
+                workflow=WorkflowState(),
+                output_images=(
+                    OutputImageReference(
+                        image_id="11111111-1111-1111-1111-111111111111",
+                        path=video_path,
+                        metadata=ImageMetaSnapshot(
+                            workflow_name="Video",
+                            cube_name="Combine",
+                            image_number=1,
+                            suffix="",
+                            path=video_path,
+                            media_kind=OutputMediaKind.VIDEO,
+                            duration_seconds=2.5,
+                            mime_type="video/webm",
+                        ),
+                        sequence=1,
+                    ),
+                ),
+            ),
+        ),
+        tab_order=("workflow-1",),
+        active_route="workflow-1",
+    )
+
+    restored = workspace_snapshot_from_json(workspace_snapshot_to_json(snapshot))
+
+    metadata = restored.workflows[0].output_images[0].metadata
+    assert metadata.media_kind is OutputMediaKind.VIDEO
+    assert metadata.duration_seconds == 2.5
+    assert metadata.mime_type == "video/webm"
+
+
+def test_schema_v1_output_without_media_kind_decodes_as_image() -> None:
+    """Released version-one image records should migrate without data loss."""
+
+    payload = workspace_snapshot_to_json(
+        WorkspaceSnapshot(
+            schema_version="1",
+            workflows=(
+                WorkflowSnapshot(
+                    workflow_id="workflow-1",
+                    tab_label="Legacy",
+                    workflow=WorkflowState(),
+                    output_images=(
+                        OutputImageReference(
+                            image_id="11111111-1111-1111-1111-111111111111",
+                            path=Path("legacy.png"),
+                            metadata=ImageMetaSnapshot(
+                                "Legacy",
+                                "Save",
+                                1,
+                                "",
+                                Path("legacy.png"),
+                            ),
+                            sequence=1,
+                        ),
+                    ),
+                ),
+            ),
+            tab_order=("workflow-1",),
+            active_route="workflow-1",
+        )
+    )
+    workflows = payload["workflows"]
+    assert isinstance(workflows, list)
+    del workflows[0]["output_images"][0]["metadata"]["media_kind"]
+
+    restored = workspace_snapshot_from_json(payload)
+
+    assert (
+        restored.workflows[0].output_images[0].metadata.media_kind
+        is OutputMediaKind.IMAGE
+    )
 
 
 def test_workspace_snapshot_codec_round_trips_floating_canvas_layout() -> None:

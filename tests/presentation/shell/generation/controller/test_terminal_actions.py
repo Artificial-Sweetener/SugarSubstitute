@@ -94,6 +94,7 @@ def test_continuous_skip_requeues_when_cycle_is_empty() -> None:
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
         on_output_image=base_bindings.on_output_image,
+        on_output_video=base_bindings.on_output_video,
         on_failure=base_bindings.on_failure,
         on_timing=base_bindings.on_timing,
         on_completed=base_bindings.on_completed,

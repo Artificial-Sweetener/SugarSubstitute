@@ -27,6 +27,9 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    without_crash_supervision_environment,
+)
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
@@ -98,7 +101,7 @@ def run_crash_reporter(
     process_starter: LauncherUiProcessStarter = spawn_supervised_process,
     bundle_layout: InstallLayout | None = None,
 ) -> int:
-    """Keep incident storage independent of the executable hosting its report."""
+    """Present a report without inheriting the launcher's consumed crash run."""
 
     process, _log_path = process_starter(
         _build_crash_report_command(
@@ -108,7 +111,7 @@ def run_crash_reporter(
             continue_launch=False,
             bundle_layout=bundle_layout,
         ),
-        environment=environment,
+        environment=without_crash_supervision_environment(environment),
     )
     return process.wait()
 
@@ -121,13 +124,13 @@ def run_pending_crash_reporter(
     *,
     process_starter: LauncherUiProcessStarter = spawn_supervised_process,
 ) -> int:
-    """Dismiss a pending report into the launch already owned by its caller."""
+    """Dismiss a pending report without inheriting a partial crash contract."""
 
     process, _log_path = process_starter(
         _build_crash_report_command(
             layout, incident_id, locale_override, continue_launch=True
         ),
-        environment=environment,
+        environment=without_crash_supervision_environment(environment),
     )
     return process.wait()
 

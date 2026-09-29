@@ -30,7 +30,6 @@ class CoreNodepackAction(str, Enum):
     USE_LOCAL_SOURCE = "use_local_source"
     MIGRATE_GIT = "migrate_git"
     INSTALL_REGISTRY = "install_registry"
-    SETTLE_REGISTRY_UPDATE = "settle_registry_update"
     INSTALL_FALLBACK = "install_fallback"
     BLOCK_DIRTY = "block_dirty"
     BLOCK_UNMANAGED_GIT = "block_unmanaged_git"
@@ -42,7 +41,6 @@ class RegistryInstallOutcome(str, Enum):
 
     INSTALLED = "installed"
     ALREADY_INSTALLED = "already_installed"
-    PENDING_STARTUP = "pending_startup"
     VERSION_UNAVAILABLE = "version_unavailable"
     REGISTRY_UNREACHABLE = "registry_unreachable"
     FAILED = "failed"
@@ -93,8 +91,6 @@ def plan_after_registry_attempt(
 
     if registry_installation_matches:
         return CoreNodepackAction.READY
-    if outcome is RegistryInstallOutcome.PENDING_STARTUP:
-        return CoreNodepackAction.SETTLE_REGISTRY_UPDATE
     if outcome in {
         RegistryInstallOutcome.VERSION_UNAVAILABLE,
         RegistryInstallOutcome.REGISTRY_UNREACHABLE,

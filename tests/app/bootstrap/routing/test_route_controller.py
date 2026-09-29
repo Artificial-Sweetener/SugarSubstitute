@@ -32,6 +32,7 @@ from substitute.app.bootstrap.bootstrap_route_controller import (
     create_bootstrap_route_controller,
     trace_bootstrap_route,
 )
+from substitute.app.bootstrap.splash_surface_handoff import SplashHandoffError
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
@@ -59,17 +60,43 @@ FORBIDDEN_BOOTSTRAP_ROUTE_IMPORT_PREFIXES = (
 )
 
 
+@pytest.mark.parametrize("route", [BootstrapRoute.ONBOARDING, BootstrapRoute.REPAIR])
+def test_non_ready_route_closes_splash_before_showing_window(
+    tmp_path: Path,
+    route: BootstrapRoute,
+) -> None:
+    """Neither setup nor repair may coexist visibly with the launch splash."""
+
+    events: list[str] = []
+    controller = _build_controller(events=events)
+    window = _RouteWindow()
+
+    def show_window(**kwargs: object) -> BootstrapRouteWindowProtocol:
+        """Reject a second visible surface before splash close confirmation."""
+
+        assert events == ["splash_close"]
+        return _record_window(events, route.value, kwargs, window)
+
+    controller.show_onboarding_or_repair_route(
+        readiness_assessment=ReadinessAssessment(route=route, issues=()),
+        installation_context=_build_context(tmp_path),
+        entrypoint_path=tmp_path / "main.py",
+        initial_geometry=None,
+        splash=_Splash(events),
+        show_onboarding_window=show_window,
+        show_repair_window=show_window,
+    )
+
+    assert events == ["splash_close", f"show_{route.value}"]
+
+
 def test_bootstrap_route_controller_shows_onboarding_and_wires_signals(
     tmp_path: Path,
 ) -> None:
-    """Onboarding must paint before the preceding splash is closed."""
+    """Onboarding must follow splash closure and wire completion signals."""
 
     events: list[str] = []
-    paint_callbacks: list[Callable[[], None]] = []
-    controller = _build_controller(
-        events=events,
-        paint_callbacks=paint_callbacks,
-    )
+    controller = _build_controller(events=events)
     context = _build_context(tmp_path)
     assessment = ReadinessAssessment(route=BootstrapRoute.ONBOARDING, issues=())
     onboarding_window = _RouteWindow()
@@ -97,11 +124,8 @@ def test_bootstrap_route_controller_shows_onboarding_and_wires_signals(
     )
 
     assert result.onboarding_window is cast(object, onboarding_window)
-    assert result.splash is splash
-    assert events == ["show_onboarding"]
-    assert len(paint_callbacks) == 1
-    paint_callbacks[0]()
-    assert events == ["show_onboarding", "splash_close"]
+    assert result.splash is None
+    assert events == ["splash_close", "show_onboarding"]
     assert onboarding_window.launch_requested.callbacks == [
         controller.launch_after_onboarding_completion
     ]
@@ -109,41 +133,33 @@ def test_bootstrap_route_controller_shows_onboarding_and_wires_signals(
     assert repair_window.launch_requested.callbacks == []
 
 
-def test_bootstrap_route_controller_shows_repair_and_tolerates_splash_close_failure(
+def test_bootstrap_route_controller_blocks_repair_after_splash_close_failure(
     tmp_path: Path,
 ) -> None:
-    """Repair route should continue showing repair when splash close fails."""
+    """Repair must not reveal another top-level window after a failed close."""
 
     events: list[str] = []
-    paint_callbacks: list[Callable[[], None]] = []
-    controller = _build_controller(
-        events=events,
-        paint_callbacks=paint_callbacks,
-    )
+    controller = _build_controller(events=events)
     context = _build_context(tmp_path)
     assessment = ReadinessAssessment(route=BootstrapRoute.REPAIR, issues=())
     repair_window = _RouteWindow()
 
-    result = controller.show_onboarding_or_repair_route(
-        readiness_assessment=assessment,
-        installation_context=context,
-        entrypoint_path=tmp_path / "main.py",
-        initial_geometry=None,
-        splash=_Splash(events, fail=True),
-        show_onboarding_window=lambda **_kwargs: _fail_window("unexpected onboarding"),
-        show_repair_window=lambda **kwargs: _record_window(
-            events,
-            "repair",
-            kwargs,
-            repair_window,
-        ),
-    )
+    with pytest.raises(RuntimeError, match="close failed"):
+        controller.show_onboarding_or_repair_route(
+            readiness_assessment=assessment,
+            installation_context=context,
+            entrypoint_path=tmp_path / "main.py",
+            initial_geometry=None,
+            splash=_Splash(events, fail=True),
+            show_onboarding_window=lambda **_kwargs: _fail_window(
+                "unexpected onboarding"
+            ),
+            show_repair_window=lambda **kwargs: _record_window(
+                events, "repair", kwargs, repair_window
+            ),
+        )
 
-    assert result.onboarding_window is cast(object, repair_window)
-    assert result.splash is not None
-    assert events == ["show_repair"]
-    paint_callbacks[0]()
-    assert events == ["show_repair", "splash_close"]
+    assert events == ["splash_close"]
 
 
 def test_bootstrap_route_controller_does_not_claim_unacknowledged_splash_close(
@@ -156,7 +172,6 @@ def test_bootstrap_route_controller_does_not_claim_unacknowledged_splash_close(
 
     events: list[str] = []
     trace_events: list[str] = []
-    warnings: list[str] = []
     controller = _build_controller(events=events)
     context = _build_context(tmp_path)
     assessment = ReadinessAssessment(route=BootstrapRoute.REPAIR, issues=())
@@ -166,28 +181,19 @@ def test_bootstrap_route_controller_does_not_claim_unacknowledged_splash_close(
         "trace_mark",
         lambda event_name, **_fields: trace_events.append(event_name),
     )
-    monkeypatch.setattr(
-        route_controller,
-        "log_warning",
-        lambda _logger, message, **_context: warnings.append(message),
-    )
+    with pytest.raises(SplashHandoffError, match="not confirmed"):
+        controller.show_onboarding_or_repair_route(
+            readiness_assessment=assessment,
+            installation_context=context,
+            entrypoint_path=tmp_path / "main.py",
+            initial_geometry=None,
+            splash=_Splash(events, acknowledge=False),
+            show_onboarding_window=lambda **_kwargs: _fail_window("onboarding"),
+            show_repair_window=lambda **_kwargs: _fail_window("repair"),
+        )
 
-    result = controller.show_onboarding_or_repair_route(
-        readiness_assessment=assessment,
-        installation_context=context,
-        entrypoint_path=tmp_path / "main.py",
-        initial_geometry=None,
-        splash=_Splash(events, acknowledge=False),
-        show_onboarding_window=lambda **_kwargs: _fail_window("onboarding"),
-        show_repair_window=lambda **_kwargs: _RouteWindow(),
-    )
-
-    assert result.splash is not None
     assert events == ["splash_close"]
-    assert trace_events == ["bootstrap_surface.shown", "bootstrap_surface.first_paint"]
-    assert warnings == [
-        "Launch splash did not acknowledge closure after replacement surface paint"
-    ]
+    assert trace_events == []
 
 
 def test_bootstrap_route_controller_completion_relaunches_ready_app_with_no_comfy(
@@ -328,7 +334,6 @@ def test_create_bootstrap_route_controller_returns_controller(tmp_path: Path) ->
         start_ready_app_process=start_ready_app_process,
         launch_ready_shell=lambda _context: events.append("launch"),
         quit_app=lambda: events.append("quit"),
-        schedule_after_surface_paint=lambda _window, callback: callback(),
     )
 
     controller.launch_after_onboarding_completion(_build_context(tmp_path))
@@ -374,7 +379,6 @@ def test_startup_facade_delegates_non_ready_bootstrap_routes() -> None:
 def _build_controller(
     *,
     events: list[str],
-    paint_callbacks: list[Callable[[], None]] | None = None,
     launched_commands: list[tuple[str, ...]] | None = None,
     launched_contexts: list[InstallationContext] | None = None,
     launch_result: bool = True,
@@ -402,11 +406,6 @@ def _build_controller(
         start_ready_app_process=start_ready_app_process,
         launch_ready_shell=launch_ready_shell,
         quit_app=lambda: events.append("quit"),
-        schedule_after_surface_paint=lambda _window, callback: (
-            paint_callbacks.append(callback)
-            if paint_callbacks is not None
-            else callback()
-        ),
     )
 
 

@@ -34,6 +34,7 @@ from substitute.application.workflows.output_canvas_focus_service import (
     OutputFocusSnapshot,
 )
 from substitute.domain.workflow import OutputFocusMode
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.shell.output_image_commit_pipeline import (
     OutputImageCommitRequest,
     PreparedOutputImage,
@@ -132,6 +133,10 @@ class CanvasIoServiceProtocol(Protocol):
         width: int | None = None,
         height: int | None = None,
         cube_execution_duration_ms: float | None = None,
+        media_kind: OutputMediaKind = OutputMediaKind.IMAGE,
+        duration_seconds: float | None = None,
+        mime_type: str | None = None,
+        temporary: bool = False,
     ) -> object:
         """Build output image metadata payload."""
 
@@ -319,6 +324,10 @@ class WorkspaceCanvasActions:
             height=request.artifact_height or prepared.image.height(),
             cube_execution_duration_ms=cube_execution_duration_ms,
             node_id=request.node_id,
+            media_kind=request.media_kind,
+            duration_seconds=request.duration_seconds,
+            mime_type=request.mime_type,
+            temporary=request.temporary,
         )
         if request.live_event is not None:
             result = view.output_generated_result_service.commit_generated_output(

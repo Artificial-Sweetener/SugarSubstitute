@@ -14,14 +14,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify direct Comfy image-output discovery."""
+"""Verify direct Comfy visual-output discovery."""
 
 from __future__ import annotations
 
 from substitute.domain.comfy_workflow.output_manifest import (
-    ComfyImageOutputDiscovery,
+    ComfyOutputDiscovery,
     ComfyOutputSocket,
 )
+from substitute.domain.output_media import OutputMediaKind
 
 
 def _definition(*, output_node: bool, input_type: str = "IMAGE") -> dict[str, object]:
@@ -61,7 +62,7 @@ def test_discovery_deduplicates_output_nodes_by_upstream_socket() -> None:
         },
     }
 
-    manifest = ComfyImageOutputDiscovery().discover(
+    manifest = ComfyOutputDiscovery().discover(
         graph,
         node_definitions=definitions,
     )
@@ -70,6 +71,7 @@ def test_discovery_deduplicates_output_nodes_by_upstream_socket() -> None:
     source = manifest.sources[0]
     assert source.socket == ComfyOutputSocket("10", 0)
     assert source.label == "1"
+    assert source.media_kind is OutputMediaKind.IMAGE
     assert tuple(sink.node_id for sink in source.sinks) == ("20", "21")
     assert manifest.hijacked_sink_node_ids == frozenset({"20", "21"})
     assert manifest.preserved_output_node_ids == ("22",)
@@ -95,7 +97,7 @@ def test_discovery_preserves_distinct_source_order_and_rejects_unsafe_nodes() ->
         "Consumer": {"output_node": False, "input": {}},
     }
 
-    manifest = ComfyImageOutputDiscovery().discover(
+    manifest = ComfyOutputDiscovery().discover(
         graph,
         node_definitions=definitions,
     )
@@ -107,3 +109,42 @@ def test_discovery_preserves_distinct_source_order_and_rejects_unsafe_nodes() ->
     assert tuple(source.label for source in manifest.sources) == ("1", "2")
     assert manifest.hijacked_sink_node_ids == frozenset({"30", "31"})
     assert manifest.preserved_output_node_ids == ("32", "33")
+
+
+def test_discovery_preserves_and_classifies_video_output_sinks() -> None:
+    """Keep video sinks executable while discovering generic and adapted inputs."""
+
+    graph: dict[str, object] = {
+        "1": {"class_type": "VideoSource", "inputs": {}},
+        "2": {"class_type": "ImageSource", "inputs": {}},
+        "10": {"class_type": "SaveVideo", "inputs": {"video": ["1", 0]}},
+        "11": {
+            "class_type": "VHS_VideoCombine",
+            "inputs": {"images": ["2", 0]},
+        },
+    }
+    definitions = {
+        "VideoSource": {"output_node": False, "input": {}},
+        "ImageSource": {"output_node": False, "input": {}},
+        "SaveVideo": {
+            "output_node": True,
+            "input": {"required": {"video": ["VIDEO", {}]}},
+        },
+        "VHS_VideoCombine": _definition(output_node=True),
+    }
+
+    manifest = ComfyOutputDiscovery().discover(
+        graph,
+        node_definitions=definitions,
+    )
+
+    assert tuple(source.media_kind for source in manifest.sources) == (
+        OutputMediaKind.VIDEO,
+        OutputMediaKind.VIDEO,
+    )
+    assert tuple(source.source_key for source in manifest.sources) == (
+        "direct:10",
+        "direct:11",
+    )
+    assert manifest.hijacked_sink_node_ids == frozenset()
+    assert manifest.preserved_output_node_ids == ("10", "11")

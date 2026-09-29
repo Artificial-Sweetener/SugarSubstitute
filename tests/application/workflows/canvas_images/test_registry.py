@@ -122,3 +122,21 @@ def test_registry_remove_drops_payload_and_metadata_without_policy() -> None:
     assert image_id not in registry
     assert registry.payload_for(image_id) is None
     assert registry.metadata_for(image_id) is None
+
+
+def test_registry_notifies_artifact_owner_after_last_record_removal() -> None:
+    """Registry retirement should release external artifact lifetime exactly once."""
+
+    removed: list[tuple[object, ImageMeta]] = []
+    registry = CanvasImageRegistry(
+        on_record_removed=lambda removed_id, record: removed.append(
+            (removed_id, record.metadata)
+        )
+    )
+    image_id = uuid4()
+    metadata = _metadata()
+    registry.store(image_id, payload=object(), metadata=metadata)
+
+    assert registry.remove(image_id)
+    assert not registry.remove(image_id)
+    assert removed == [(image_id, metadata)]

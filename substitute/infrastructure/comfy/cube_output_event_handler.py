@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Handle validated Comfy cube-output image artifacts."""
+"""Handle validated Comfy cube-output image and video artifacts."""
 
 from __future__ import annotations
 
@@ -34,8 +34,8 @@ from substitute.infrastructure.comfy.final_image_event import (
     FinalImageScene,
     FinalImageSource,
 )
-from substitute.infrastructure.comfy.final_image_event_handler import (
-    FinalImageEventHandler,
+from substitute.infrastructure.comfy.final_output_event_sink import (
+    FinalOutputEventSink,
 )
 from substitute.infrastructure.comfy.output_source_identity_resolver import (
     OutputSourceIdentity,
@@ -48,7 +48,8 @@ class CubeOutputEventHandler:
 
     context: CubeOutputRouteContext
     workflow_payload: dict[str, object]
-    final_image_handler: FinalImageEventHandler
+    final_image_handler: FinalOutputEventSink
+    final_video_handler: FinalOutputEventSink
     identity_acceptor: Callable[
         [SubstituteVisualIdentity | None, str | None, str | None], bool
     ]
@@ -76,31 +77,33 @@ class CubeOutputEventHandler:
         source_identity: OutputSourceIdentity = route_result.source_identity
         if self.source_identity_resolver is not None:
             source_identity = self.source_identity_resolver(cube_output.node_id)
-        self.final_image_handler.handle(
-            FinalImageEvent(
-                workflow_id=visual_identity.workflow_id,
-                generation_run_id=visual_identity.generation_run_id,
-                prompt_id=self.context.prompt_id,
-                client_id=visual_identity.client_id,
-                workflow_payload=self.workflow_payload,
-                source=FinalImageSource(
-                    node_id=source_identity.node_id,
-                    source_key=source_identity.source_key,
-                    source_label=source_identity.source_label,
-                    cube_alias=source_identity.cube_alias,
-                ),
-                artifacts=cube_output.artifacts,
-                list_index=cube_output.list_index or 0,
-                output_session_id=visual_identity.output_session_id,
-                scene=FinalImageScene(
-                    run_id=visual_identity.scene_run_id,
-                    key=visual_identity.scene_key,
-                    title=visual_identity.scene_title,
-                    order=visual_identity.scene_order,
-                    count=visual_identity.scene_count,
-                ),
-            )
+        event = FinalImageEvent(
+            workflow_id=visual_identity.workflow_id,
+            generation_run_id=visual_identity.generation_run_id,
+            prompt_id=self.context.prompt_id,
+            client_id=visual_identity.client_id,
+            workflow_payload=self.workflow_payload,
+            source=FinalImageSource(
+                node_id=source_identity.node_id,
+                source_key=source_identity.source_key,
+                source_label=source_identity.source_label,
+                cube_alias=source_identity.cube_alias,
+            ),
+            artifacts=cube_output.artifacts,
+            list_index=cube_output.list_index or 0,
+            output_session_id=visual_identity.output_session_id,
+            scene=FinalImageScene(
+                run_id=visual_identity.scene_run_id,
+                key=visual_identity.scene_key,
+                title=visual_identity.scene_title,
+                order=visual_identity.scene_order,
+                count=visual_identity.scene_count,
+            ),
         )
+        if cube_output.media_kind == "video":
+            self.final_video_handler.handle(event)
+        else:
+            self.final_image_handler.handle(event)
 
 
 __all__ = [

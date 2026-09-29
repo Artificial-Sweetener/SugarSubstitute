@@ -33,6 +33,9 @@ from substitute.presentation.editor.prompt_editor.core.editing.source_commands i
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
 )
+from substitute.presentation.editor.prompt_editor.projection.caret_map_builder import (
+    build_prompt_projection_caret_map,
+)
 from tests.support.prompt_editor.projection_surface_factory import (
     surface_source_commands,
 )
@@ -109,6 +112,33 @@ def test_incremental_selection_delete_keeps_plain_text_caret_map_consistent(
         2,
         3,
     )
+
+
+def test_insertion_at_token_edge_matches_canonical_caret_boundaries(
+    widgets: list[QWidget],
+) -> None:
+    """Keep the new plain stop before the shifted token's leading edge."""
+
+    source_text = "portrait, (red ornaments:1.10), heart"
+    box = show_prompt_editor(widgets, text=source_text, width=500)
+    token_start = source_text.index("(red ornaments:1.10)")
+    cursor = box.textCursor()
+    cursor.setPosition(token_start)
+    box.setTextCursor(cursor)
+
+    QTest.keyClick(box, Qt.Key.Key_Space)
+    process_events(ensure_qapp())
+    document = surface_for(box).projection_document()
+    canonical_map = build_prompt_projection_caret_map(
+        runs=tuple(document.runs),
+        tokens=tuple(document.tokens),
+        source_length=len(document.source_text),
+        projection_length=len(document.projection_text),
+    )
+
+    assert tuple(document.caret_map.stops) == tuple(canonical_map.stops)
+    assert canonical_map.state_for_source_position(token_start).token_id is None
+    assert canonical_map.state_for_source_position(token_start + 1).token_id is not None
 
 
 def test_incremental_unicode_edits_preserve_only_grapheme_caret_boundaries(

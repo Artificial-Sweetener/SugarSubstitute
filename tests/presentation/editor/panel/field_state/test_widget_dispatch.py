@@ -65,7 +65,11 @@ def test_wire_any_widget_state_uses_direct_prompt_editor_type_dispatch(
         dirty=False,
     )
 
-    module.wire_any_widget_state(prompt_editor, cube_state)
+    module.EditorPanelFieldStateController().bind_node_widget_state(
+        prompt_editor,
+        cube_state,
+        {"node_name": "positive_prompt", "key": "text"},
+    )
 
     assert prompt_editor.toPlainText() == "from-buffer"
 

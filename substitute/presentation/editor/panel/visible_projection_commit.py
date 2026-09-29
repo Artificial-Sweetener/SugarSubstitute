@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from time import perf_counter
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 
 from substitute.shared.logging.logger import (
     elapsed_ms_since,
@@ -33,7 +33,7 @@ from substitute.shared.logging.logger import (
 )
 
 from .projection_observability import log_panel_projection_event
-from .projection_session import ActiveProjectionSession
+from .projection_session_models import ActiveProjectionSession
 from .rendering.render_reconciler import ProjectedCubeBuildProtocol
 
 _LOGGER = get_logger("presentation.editor.panel.visible_projection_commit")
@@ -56,6 +56,7 @@ def editor_panel_is_visible(panel: object) -> bool:
 class EditorVisibleProjectionCommitPorts:
     """Group typed collaborators used by visible projection commit publication."""
 
+    lifetime_owner: QObject
     active_workflow_id: Callable[[], str]
     panel_is_visible: Callable[[], bool]
     is_projection_session_current: Callable[[ActiveProjectionSession], bool]
@@ -138,6 +139,47 @@ class EditorVisibleProjectionCommitPipeline:
             return False
         return self.commit_visible_projection(pending)
 
+    def commit_partial_visible_projection(
+        self,
+        *,
+        workflow_id: str,
+        projection_session: ActiveProjectionSession,
+        projected_builds: Sequence[ProjectedCubeBuildProtocol],
+    ) -> bool:
+        """Publish a usable staged batch without resolving the full projection."""
+
+        if not self.can_commit_visible_projection(workflow_id):
+            return False
+        if not self._ports.is_projection_session_current(projection_session):
+            return False
+        try:
+            self._ports.reveal_projected_cube_builds(projected_builds, workflow_id)
+            for completed_build in projected_builds:
+                self._ports.mark_build_complete(
+                    completed_build.cube_alias,
+                    completed_build.token,
+                )
+        except (RuntimeError, TypeError, ValueError) as error:
+            log_warning(
+                _LOGGER,
+                "Failed editor visible projection commit",
+                workflow_id=workflow_id,
+                active_workflow_id=self._ports.active_workflow_id(),
+                panel_visible=self._ports.panel_is_visible(),
+                pending_build_count=len(projected_builds),
+                error_type=type(error).__name__,
+            )
+            raise
+        log_panel_projection_event(
+            "visible_commit.partial_completed",
+            level="info",
+            workflow_id=workflow_id,
+            projection_aliases=tuple(
+                projected_build.cube_alias for projected_build in projected_builds
+            ),
+        )
+        return True
+
     def store_pending_visible_projection_commit(
         self,
         pending: PendingVisibleProjectionCommit,
@@ -189,7 +231,11 @@ class EditorVisibleProjectionCommitPipeline:
             retry_attempts=self._pending_visible_projection_retry_attempts,
             retry_limit=_PENDING_VISIBLE_PROJECTION_RETRY_LIMIT,
         )
-        QTimer.singleShot(0, self.retry_pending_visible_projection_commit)
+        QTimer.singleShot(
+            0,
+            self._ports.lifetime_owner,
+            self.retry_pending_visible_projection_commit,
+        )
 
     def retry_pending_visible_projection_commit(self) -> None:
         """Commit a deferred active-panel reveal once the stacked route is visible."""

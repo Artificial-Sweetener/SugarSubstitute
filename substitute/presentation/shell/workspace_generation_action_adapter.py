@@ -136,6 +136,7 @@ def build_generation_action_bindings(
         on_model_load_progress=feedback.on_model_load_progress,
         on_preview=feedback.on_preview,
         on_output_image=feedback.on_output_image,
+        on_output_video=feedback.on_output_video,
         on_failure=feedback.on_failure,
         on_timing=feedback.on_timing,
         on_completed=feedback.on_completed,

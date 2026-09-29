@@ -50,6 +50,7 @@ from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
 from substitute.domain.workflow import ImageMeta, WorkflowState
+from substitute.domain.output_media import OutputMediaKind
 from substitute.presentation.shell.generation_feedback_coalescer import (
     GenerationFeedbackCoalescer,
 )
@@ -370,7 +371,7 @@ class _CanvasIoService:
         *,
         workflow_name: str,
         node_meta_title: str,
-        file_path: Path,
+        file_path: Path | None,
         source_key: str = "",
         source_label: str = "",
         node_id: str = "",
@@ -388,6 +389,10 @@ class _CanvasIoService:
         width: int | None = None,
         height: int | None = None,
         cube_execution_duration_ms: float | None = None,
+        media_kind: OutputMediaKind = OutputMediaKind.IMAGE,
+        duration_seconds: float | None = None,
+        mime_type: str | None = None,
+        temporary: bool = False,
     ) -> ImageMeta:
         """Build domain metadata matching production output registration."""
 
@@ -396,7 +401,7 @@ class _CanvasIoService:
             cube_name=source_label or node_meta_title,
             image_number=(list_index or 0) + 1,
             suffix="",
-            path=str(file_path),
+            path=str(file_path) if file_path is not None else "",
             source_key=source_key,
             source_label=source_label,
             node_id=node_id,
@@ -416,6 +421,10 @@ class _CanvasIoService:
             list_index=list_index,
             batch_index=batch_index,
             cube_execution_duration_ms=cube_execution_duration_ms,
+            media_kind=media_kind,
+            duration_seconds=duration_seconds,
+            mime_type=mime_type,
+            temporary=temporary,
         )
 
     def open_image_in_external_editor(

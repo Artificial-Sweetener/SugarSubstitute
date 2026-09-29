@@ -26,8 +26,44 @@ source_paths = [
   "assets/Rotate Right/SVG/ic_fluent_rotate_right_20_regular.svg",
   "assets/Flip Horizontal/SVG/ic_fluent_flip_horizontal_20_regular.svg",
   "assets/Flip Vertical/SVG/ic_fluent_flip_vertical_20_regular.svg",
+  "assets/Play/SVG/ic_fluent_play_20_regular.svg",
+  "assets/Pause/SVG/ic_fluent_pause_20_regular.svg",
+  "assets/Previous/SVG/ic_fluent_previous_20_regular.svg",
+  "assets/Next/SVG/ic_fluent_next_20_regular.svg",
+  "assets/Arrow Repeat All/SVG/ic_fluent_arrow_repeat_all_20_regular.svg",
+  "assets/Speaker 0/SVG/ic_fluent_speaker_0_20_regular.svg",
+  "assets/Speaker 1/SVG/ic_fluent_speaker_1_20_regular.svg",
+  "assets/Speaker 2/SVG/ic_fluent_speaker_2_20_regular.svg",
+  "assets/Speaker Mute/SVG/ic_fluent_speaker_mute_20_regular.svg",
+  "assets/Zoom Fit/SVG/ic_fluent_zoom_fit_20_regular.svg",
+  "assets/Ratio One To One/SVG/ic_fluent_ratio_one_to_one_20_regular.svg",
+  "assets/Info/SVG/ic_fluent_info_20_regular.svg",
 ]
 vendored_files = [
+  "substitute/presentation/resources/icons/Play20Regular_black.svg",
+  "substitute/presentation/resources/icons/Play20Regular_white.svg",
+  "substitute/presentation/resources/icons/Pause20Regular_black.svg",
+  "substitute/presentation/resources/icons/Pause20Regular_white.svg",
+  "substitute/presentation/resources/icons/Previous20Regular_black.svg",
+  "substitute/presentation/resources/icons/Previous20Regular_white.svg",
+  "substitute/presentation/resources/icons/Next20Regular_black.svg",
+  "substitute/presentation/resources/icons/Next20Regular_white.svg",
+  "substitute/presentation/resources/icons/ArrowRepeatAll20Regular_black.svg",
+  "substitute/presentation/resources/icons/ArrowRepeatAll20Regular_white.svg",
+  "substitute/presentation/resources/icons/Speaker020Regular_black.svg",
+  "substitute/presentation/resources/icons/Speaker020Regular_white.svg",
+  "substitute/presentation/resources/icons/Speaker120Regular_black.svg",
+  "substitute/presentation/resources/icons/Speaker120Regular_white.svg",
+  "substitute/presentation/resources/icons/Speaker220Regular_black.svg",
+  "substitute/presentation/resources/icons/Speaker220Regular_white.svg",
+  "substitute/presentation/resources/icons/SpeakerMute20Regular_black.svg",
+  "substitute/presentation/resources/icons/SpeakerMute20Regular_white.svg",
+  "substitute/presentation/resources/icons/ZoomFit20Regular_black.svg",
+  "substitute/presentation/resources/icons/ZoomFit20Regular_white.svg",
+  "substitute/presentation/resources/icons/RatioOneToOne20Regular_black.svg",
+  "substitute/presentation/resources/icons/RatioOneToOne20Regular_white.svg",
+  "substitute/presentation/resources/icons/Info20Regular_black.svg",
+  "substitute/presentation/resources/icons/Info20Regular_white.svg",
   "substitute/presentation/resources/icons/ArrowAutofitWidth20Regular_black.svg",
   "substitute/presentation/resources/icons/ArrowAutofitWidth20Regular_white.svg",
   "substitute/presentation/resources/icons/ArrowCircleUpSparkle20Regular_black.svg",
@@ -297,3 +333,63 @@ vendored_files = [
   "third_party/bin/crashpad/windows-x64/crashpad_handler.exe",
   "third_party/bin/crashpad/windows-x64/sugarsubstitute_crashpad_client.dll",
 ]
+
+[[component]]
+name = "mpv generated-video playback runtime"
+license = "LGPL-2.1-or-later"
+license_file = "third_party/licenses/mpv.LGPL.txt"
+additional_license_files = [
+  "third_party/licenses/mpv.Copyright.txt",
+]
+source = "https://github.com/mpv-player/mpv"
+binary_source = "https://github.com/Paxton-PKJ/libmpv/releases/tag/release"
+builder_source = "https://github.com/Paxton-PKJ/libmpv"
+builder_revision = "630cfb0e6cafce97122f67122a53ef63f47e64c1"
+revision = "v0.41.0"
+archive = "libmpv-lgpl-windows-x86_64.zip"
+archive_sha256 = "30fecef3c97d9634190bc5ac0a023694b414d3fd9e0938dbadd802ba34bf8794"
+runtime_sha256 = "d3f3337a28fc26ecee34e5b74e0d13ac1d0a819d205b46b10865cd6bfb10a2e3"
+build_options = [
+  "-Dgpl=false",
+  "-Dlua=disabled",
+  "-Djavascript=disabled",
+]
+source_paths = [
+  "Copyright",
+  "LICENSE.LGPL",
+  "libmpv/client.h",
+  "libmpv/render.h",
+  "libmpv/render_gl.h",
+]
+vendored_files = []
+runtime_files = [
+  "third_party/bin/mpv/windows-x64/avcodec-60.dll",
+  "third_party/bin/mpv/windows-x64/avdevice-60.dll",
+  "third_party/bin/mpv/windows-x64/avfilter-9.dll",
+  "third_party/bin/mpv/windows-x64/avformat-60.dll",
+  "third_party/bin/mpv/windows-x64/avutil-58.dll",
+  "third_party/bin/mpv/windows-x64/libass-9.dll",
+  "third_party/bin/mpv/windows-x64/libbrotlicommon.dll",
+  "third_party/bin/mpv/windows-x64/libbrotlidec.dll",
+  "third_party/bin/mpv/windows-x64/libbz2-1.dll",
+  "third_party/bin/mpv/windows-x64/libfreetype-6.dll",
+  "third_party/bin/mpv/windows-x64/libfribidi-0.dll",
+  "third_party/bin/mpv/windows-x64/libgcc_s_seh-1.dll",
+  "third_party/bin/mpv/windows-x64/libglib-2.0-0.dll",
+  "third_party/bin/mpv/windows-x64/libgraphite2.dll",
+  "third_party/bin/mpv/windows-x64/libharfbuzz-0.dll",
+  "third_party/bin/mpv/windows-x64/libiconv-2.dll",
+  "third_party/bin/mpv/windows-x64/libintl-8.dll",
+  "third_party/bin/mpv/windows-x64/liblzma-5.dll",
+  "third_party/bin/mpv/windows-x64/libmpv-2.dll",
+  "third_party/bin/mpv/windows-x64/libpcre2-8-0.dll",
+  "third_party/bin/mpv/windows-x64/libplacebo-338.dll",
+  "third_party/bin/mpv/windows-x64/libpng16-16.dll",
+  "third_party/bin/mpv/windows-x64/libshaderc_shared.dll",
+  "third_party/bin/mpv/windows-x64/libstdc++-6.dll",
+  "third_party/bin/mpv/windows-x64/libwinpthread-1.dll",
+  "third_party/bin/mpv/windows-x64/swresample-4.dll",
+  "third_party/bin/mpv/windows-x64/swscale-7.dll",
+  "third_party/bin/mpv/windows-x64/zlib1.dll",
+]
+preparation_tool = "tools/prepare_mpv_runtime.py"

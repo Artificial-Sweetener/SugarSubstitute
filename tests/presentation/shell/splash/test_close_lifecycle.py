@@ -49,3 +49,25 @@ def test_every_user_close_cancels_once_and_owner_dismissal_never_cancels(
         assert cancellations == ([] if origin == "owner" else [True])
     finally:
         destroy_qt_object(splash)
+
+
+def test_approved_nodepack_work_cannot_be_abandoned_by_closing_splash() -> None:
+    """Hide cancellation during install while allowing owner dismissal."""
+
+    splash = SplashWindow(backdrop_mode=None, defer_animation_until_first_paint=True)
+    cancellations: list[bool] = []
+    splash.cancelRequested.connect(lambda: cancellations.append(True))
+    try:
+        splash.show()
+        splash.set_cancellation_enabled(False)
+
+        assert not splash.titleBar.closeBtn.isVisible()
+        assert not splash.close()
+        assert splash.isVisible()
+        assert cancellations == []
+
+        splash.dismiss()
+        assert not splash.isVisible()
+        assert cancellations == []
+    finally:
+        destroy_qt_object(splash)

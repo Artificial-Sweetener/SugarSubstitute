@@ -25,11 +25,13 @@ from uuid import UUID
 
 from PySide6.QtGui import QImage
 
+from substitute.application.ports.video import VideoProbe
 from substitute.application.workflows import ImageMeta
 from substitute.application.workflows.mask_asset_recovery_port import (
     WorkflowMaskAssetRecoveryPort,
 )
 from substitute.domain.workflow import WorkflowState
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.workspace_snapshot import (
     InputImageReference,
     InputMaskReference,
@@ -37,6 +39,7 @@ from substitute.domain.workspace_snapshot import (
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 from substitute.shared.startup_trace import trace_mark, trace_span
+from substitute.infrastructure.video.mpv_video_probe import BundledMpvVideoProbe
 
 _LOGGER = get_logger("presentation.shell.workspace_restore_image_adapter")
 
@@ -49,11 +52,13 @@ class WorkspaceRestoreImageAdapter:
         shell: Any,
         *,
         mask_asset_recovery: WorkflowMaskAssetRecoveryPort | None = None,
+        video_probe: VideoProbe | None = None,
     ) -> None:
         """Store the shell that supplies restore image services."""
 
         self._shell = shell
         self._mask_asset_recovery = mask_asset_recovery
+        self._video_probe = video_probe or BundledMpvVideoProbe()
 
     def set_restore_asset_preload(self, preload: object | None) -> None:
         """Attach preloaded restore image bytes for GUI-thread decoding."""
@@ -239,8 +244,14 @@ class WorkspaceRestoreImageAdapter:
                 return str(workflow_id), workflow
         return None
 
-    def load_restored_output_image(self, path: Path) -> object | None:
-        """Load one output image payload for session materialization."""
+    def load_restored_output_image(
+        self, reference: OutputImageReference
+    ) -> object | None:
+        """Load one image or freshly validated video poster for restoration."""
+
+        path = reference.path
+        if reference.metadata.media_kind is OutputMediaKind.VIDEO:
+            return self._load_restored_video_poster(reference)
 
         trace_mark(
             "main_window.load_restored_output_image.start",
@@ -267,6 +278,34 @@ class WorkspaceRestoreImageAdapter:
             loaded=image is not None,
         )
         return image
+
+    def _load_restored_video_poster(
+        self,
+        reference: OutputImageReference,
+    ) -> QImage | None:
+        """Revalidate one durable video and decode its derived poster."""
+
+        try:
+            probe = self._video_probe.probe(reference.path)
+        except (OSError, RuntimeError, ValueError) as error:
+            log_warning(
+                _LOGGER,
+                "Skipped restored video because validation failed",
+                media_id=reference.image_id,
+                path_suffix=reference.path.suffix,
+                error_type=type(error).__name__,
+            )
+            return None
+        poster = QImage.fromData(probe.poster_bytes)
+        if poster.isNull():
+            log_warning(
+                _LOGGER,
+                "Skipped restored video because its poster could not be decoded",
+                media_id=reference.image_id,
+                path_suffix=reference.path.suffix,
+            )
+            return None
+        return poster
 
     def load_preloaded_restore_image(self, path: Path) -> QImage | None:
         """Decode preloaded restore bytes into a detached QImage on the GUI thread."""

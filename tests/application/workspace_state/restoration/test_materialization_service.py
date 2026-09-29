@@ -96,9 +96,12 @@ class _MaterializationPort:
         self.restored_masks.append(reference.mask_id)
         return True
 
-    def load_restored_output_image(self, path: Path) -> object | None:
+    def load_restored_output_image(
+        self, reference: OutputImageReference
+    ) -> object | None:
         """Return deterministic output payloads."""
 
+        path = reference.path
         self.loaded_outputs.append(path)
         return None if path in self.missing_paths else f"output:{path.name}"
 

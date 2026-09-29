@@ -20,9 +20,15 @@ from __future__ import annotations
 
 import pytest
 
-from PySide6.QtCore import QAbstractAnimation
-from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QAbstractButton, QApplication, QLabel, QWidget
+from PySide6.QtCore import QAbstractAnimation, Qt
+from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QApplication,
+    QLabel,
+    QPushButton,
+    QWidget,
+)
 from qfluentwidgets import PrimaryPushButton  # type: ignore[import-untyped]
 from shiboken6 import delete
 
@@ -36,6 +42,7 @@ from substitute.presentation.dialogs.error_report_dialog import (
     ErrorReportDialog,
     ReportSeverityGlyphWidget,
 )
+from substitute.presentation.errors import ErrorPresenter
 from substitute.application.update_rollback_notice import SUGARSUBSTITUTE_ISSUES_URL
 
 pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
@@ -114,6 +121,62 @@ def test_error_report_dialog_renders_summary_and_full_report() -> None:
         dialog.close()
         delete(dialog)
         app.processEvents()
+
+
+def test_error_report_opened_during_an_event_can_close_and_restore_parent_input() -> (
+    None
+):
+    """Non-blocking presentation should unwind its caller and restore input."""
+
+    app = _app()
+    parent = QWidget()
+    parent.resize(900, 640)
+    parent_button = QPushButton("Parent action", parent)
+    parent_button.move(20, 20)
+    parent_clicks: list[bool] = []
+    parent_button.clicked.connect(lambda: parent_clicks.append(True))
+    dialogs: list[ErrorReportDialog] = []
+
+    def _factory(
+        owner: object | None,
+        report: ErrorReport,
+        report_text: str,
+        _open_console: object | None,
+    ) -> ErrorReportDialog:
+        dialog = ErrorReportDialog(
+            report=report,
+            report_text=report_text,
+            parent=owner,
+        )
+        dialogs.append(dialog)
+        return dialog
+
+    presenter = ErrorPresenter(parent=parent, dialog_factory=_factory)
+    parent.show()
+    app.processEvents()
+
+    presenter.show_error_report(
+        ErrorReport(
+            kind=ErrorReportKind.COMFY_CONNECTION,
+            title="Live Comfy node definitions unavailable",
+            message="Required custom nodes are missing.",
+            stage="load_node_definitions",
+        )
+    )
+
+    dialog = dialogs[0]
+    finished = QSignalSpy(dialog.finished)
+    assert dialog.isVisible()
+    QTest.mouseClick(dialog.content._close_button, Qt.MouseButton.LeftButton)
+    assert finished.wait(1000)
+
+    QTest.mouseClick(parent_button, Qt.MouseButton.LeftButton)
+
+    assert not dialog.isVisible()
+    assert parent_clicks == [True]
+    parent.close()
+    delete(parent)
+    app.processEvents()
 
 
 def test_error_report_dialog_uses_warning_presentation_for_warning_reports() -> None:

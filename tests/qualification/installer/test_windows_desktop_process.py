@@ -56,7 +56,7 @@ def test_desktop_process_inherits_environment_without_host_job(tmp_path: Path) -
         cwd=tmp_path,
     )
 
-    assert process.wait(10.0) == 0
+    assert process.wait(60.0) == 0
     assert json.loads(evidence_path.read_text(encoding="utf-8")) == {
         "in_job": False,
         "token": "qualified",

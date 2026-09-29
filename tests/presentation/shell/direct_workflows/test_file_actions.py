@@ -44,6 +44,9 @@ from substitute.presentation.shell.direct_workflow_composition import (
 from substitute.presentation.shell.direct_workflow_model_resolution import (
     DirectWorkflowModelResolutionController,
 )
+from substitute.presentation.shell.direct_workflow_nodepack_recovery import (
+    DirectWorkflowNodepackRecoveryController,
+)
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowInvalidationReason,
@@ -199,6 +202,46 @@ def test_direct_workflow_file_action_loads_blank_tab_and_refreshes(
     assert WorkflowSurface.EDITOR in dirty.dirty_surfaces
     assert WorkflowSurface.CUBE_STACK in dirty.dirty_surfaces
     assert dirty.reasons == (WorkflowInvalidationReason.DIRECT_WORKFLOW_LOADED,)
+
+
+def test_materialized_workflow_starts_missing_node_recovery(
+    tmp_path: Path,
+) -> None:
+    """Assess the canonical graph only after its degraded editor is usable."""
+
+    source = tmp_path / "missing-node-workflow.json"
+    workflow_payload = {
+        "nodes": [
+            {
+                "id": 1,
+                "type": "MissingCustomNode",
+                "inputs": [],
+                "outputs": [],
+                "widgets_values": [],
+            }
+        ],
+        "links": [],
+    }
+    source.write_text(json.dumps(workflow_payload), encoding="utf-8")
+    workflow = WorkflowState()
+    recovery = _RecordingNodepackRecoveryController()
+    actions = DirectWorkflowFileActions(
+        view=_view(workflow, _TabItem("wf-1", "Untitled Workflow")),
+        load_service=DirectWorkflowLoadService(
+            ComfyWorkflowDocumentRepository(),
+            PassthroughCubeWorkflowAnalyzer(),
+        ),
+        add_workflow_tab=lambda: None,
+        refresh_active_workflow=lambda: None,
+        nodepack_recovery_controller_provider=lambda: cast(
+            DirectWorkflowNodepackRecoveryController,
+            recovery,
+        ),
+    )
+
+    assert actions.load_document(source) == "wf-1"
+    assert workflow.direct_workflow is not None
+    assert recovery.requests == [(workflow_payload, "wf-1")]
 
 
 def test_direct_workflow_file_action_rejects_non_workflow_json(
@@ -389,3 +432,17 @@ class _DeferredModelResolutionController:
         assert self._completed is not None
         assert self._workflow is not None
         self._completed(self._workflow)
+
+
+class _RecordingNodepackRecoveryController:
+    """Record canonical workflow assessments requested after materialization."""
+
+    def __init__(self) -> None:
+        """Initialize without recovery requests."""
+
+        self.requests: list[tuple[JsonObject, str]] = []
+
+    def recover(self, *, workflow: JsonObject, target_workflow_id: str) -> None:
+        """Record the exact graph and stable tab target."""
+
+        self.requests.append((workflow, target_workflow_id))

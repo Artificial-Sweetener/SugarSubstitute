@@ -18,11 +18,11 @@
 
 from __future__ import annotations
 
+import ctypes
 import os
 from pathlib import Path
 import sys
 
-import psutil  # type: ignore[import-untyped]  # psutil ships without type information.
 import pytest
 
 from launcher.sugarsubstitute_launcher.application.installation.composition import (
@@ -44,6 +44,41 @@ from tests.launcher.installation_workflow.support import wait_for_launcher_condi
 from tests.launcher.support import launcher_test_application
 
 
+class NativeChildExit:
+    """Retain the launched child's kernel identity until cancellation completes."""
+
+    def __init__(self, pid: int) -> None:
+        """Open a waitable handle before the child can leave the process table."""
+        self._kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._kernel.OpenProcess.argtypes = [
+            ctypes.c_ulong,
+            ctypes.c_int,
+            ctypes.c_ulong,
+        ]
+        self._kernel.OpenProcess.restype = ctypes.c_void_p
+        self._kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        self._kernel.WaitForSingleObject.restype = ctypes.c_ulong
+        self._kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+        self._kernel.CloseHandle.restype = ctypes.c_int
+        self._handle = self._kernel.OpenProcess(0x00100000, False, pid)
+        if not self._handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def has_exited(self) -> bool:
+        """Observe the original process, independent of PID-table retirement."""
+        result = self._kernel.WaitForSingleObject(self._handle, 0)
+        if result == 0:
+            return True
+        if result == 258:
+            return False
+        raise ctypes.WinError(ctypes.get_last_error())
+
+    def close(self) -> None:
+        """Release the observation handle after the Qt workflow stops."""
+        if not self._kernel.CloseHandle(self._handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+
 @pytest.mark.platforms("windows")
 @pytest.mark.parametrize("cancelled_attempts", [1, 2])
 def test_setup_cancellation_releases_native_command_before_qt_completion(
@@ -55,7 +90,7 @@ def test_setup_cancellation_releases_native_command_before_qt_completion(
     LauncherConfig.from_layout(layout=layout, runtime_setup_pending=True).save(
         layout.config_path
     )
-    children: list[psutil.Process] = []
+    children: list[NativeChildExit] = []
     handoffs: list[tuple[str, ...]] = []
     failures: list[str] = []
     attempts: list[Path] = []
@@ -109,15 +144,14 @@ def test_setup_cancellation_releases_native_command_before_qt_completion(
         """Cancel once the runtime's native child has reported readiness."""
         if line.isdecimal():
             if len(attempts) <= cancelled_attempts:
-                children.append(psutil.Process(int(line)))
+                children.append(NativeChildExit(int(line)))
                 executor.request_cancel()
 
     executor.log.connect(observe)
     executor.setup_failed.connect(lambda stage, detail: failures.append(detail))
     executor.setup_finished.connect(
         lambda: completion_cleanup.append(
-            not executor.setup_running
-            and all(not child.is_running() for child in children)
+            not executor.setup_running and all(child.has_exited() for child in children)
         )
     )
     try:
@@ -144,3 +178,5 @@ def test_setup_cancellation_releases_native_command_before_qt_completion(
         wait_for_launcher_condition(app, lambda: not executor.setup_running)
         executor.deleteLater()
         app.processEvents()
+        for child in children:
+            child.close()

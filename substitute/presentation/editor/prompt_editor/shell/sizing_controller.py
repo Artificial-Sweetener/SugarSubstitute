@@ -229,7 +229,11 @@ class PromptShellSizingController:
         if self._manual_height_layout_reapply_pending:
             return
         self._manual_height_layout_reapply_pending = True
-        QTimer.singleShot(0, self.reapply_manual_height_for_current_layout)
+        QTimer.singleShot(
+            0,
+            cast(QObject, self._host),
+            self.reapply_manual_height_for_current_layout,
+        )
 
     def reapply_manual_height_for_current_layout(self) -> None:
         """Recompute visible height after parent layout bounds settle."""
@@ -297,7 +301,11 @@ class PromptShellSizingController:
         if self._height_commit_pending:
             return
         self._height_commit_pending = True
-        QTimer.singleShot(0, self._commit_pending_height)
+        QTimer.singleShot(
+            0,
+            cast(QObject, self._host),
+            self._commit_pending_height,
+        )
 
     def _commit_pending_height(self) -> None:
         """Apply the latest pending content height to the public widget."""

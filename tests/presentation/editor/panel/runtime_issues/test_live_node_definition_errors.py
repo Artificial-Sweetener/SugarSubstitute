@@ -25,15 +25,17 @@ from typing import Any, cast
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from substitute.application.errors import SubstituteOperationContext
 from substitute.application.node_behavior import (
     LiveNodeDefinitionError,
     MissingLiveNodeDefinition,
     NodeBehaviorService,
 )
-from substitute.application.workflows import CubeRuntimeIssueSource
 from substitute.application.ports import NodeDefinitionHydrationResult
 from substitute.presentation.editor.panel.view import EditorPanel
+from substitute.presentation.editor.panel.projection_runtime_issue_integration import (
+    EditorProjectionRuntimeIssueIntegration,
+    RuntimeIssueIntegrationPanelPort,
+)
 from tests.support.execution.runtime_support import (
     immediate_editor_panel_execution_factories,
 )
@@ -80,62 +82,6 @@ class _FailingHydrationService:
         )
 
 
-class _RecordingErrorPresenter:
-    """Record structured error reports requested by the editor panel."""
-
-    def __init__(self) -> None:
-        """Initialize the recorded call list."""
-
-        self.comfy_reports: list[dict[str, object]] = []
-
-    def show_error_report(self, report: object) -> None:
-        """Record a prepared report when a caller uses the generic surface."""
-
-        self.comfy_reports.append({"report": report})
-
-    def show_exception_report(
-        self,
-        *,
-        title: str,
-        message: str,
-        stage: str,
-        error: BaseException,
-        context: SubstituteOperationContext,
-    ) -> None:
-        """Record an exception report when a caller uses the exception surface."""
-
-        self.comfy_reports.append(
-            {
-                "title": title,
-                "message": message,
-                "stage": stage,
-                "error": error,
-                "context": context,
-            }
-        )
-
-    def show_comfy_connection_report(
-        self,
-        *,
-        title: str,
-        message: str,
-        stage: str,
-        context: SubstituteOperationContext,
-        error: BaseException | None = None,
-    ) -> None:
-        """Record the Comfy metadata report shown by the editor panel."""
-
-        self.comfy_reports.append(
-            {
-                "title": title,
-                "message": message,
-                "stage": stage,
-                "error": error,
-                "context": context,
-            }
-        )
-
-
 def _ensure_qapp() -> QApplication:
     """Return the shared QApplication used by editor-panel tests."""
 
@@ -150,18 +96,20 @@ def test_editor_hydration_error_can_register_cube_runtime_issue() -> None:
 
     _ensure_qapp()
     gateway = _EmptyNodeDefinitionGateway()
-    presenter = _RecordingErrorPresenter()
     panel = EditorPanel(
         node_definition_gateway=gateway,
         prompt_autocomplete_gateway=SimpleNamespace(),
         prompt_wildcard_catalog_gateway=SimpleNamespace(),
         node_behavior_service=NodeBehaviorService(node_definition_gateway=gateway),
         node_presentation_service=empty_node_presentation_service(),
-        error_presenter=presenter,
         workflow_id="workflow-a",
         editor_panel_execution_factories=immediate_editor_panel_execution_factories(),
     )
     panel_for_test = cast(Any, panel)
+    reports: list[tuple[object, str]] = []
+    panel_for_test._present_live_node_definition_error = lambda error, *, reason: (
+        reports.append((error, reason))
+    )
     panel_for_test._node_definition_hydration_service = _FailingHydrationService()
     panel_for_test._cube_states = {
         "Automask Detailer": SimpleNamespace(buffer={"nodes": {}})
@@ -171,14 +119,12 @@ def test_editor_hydration_error_can_register_cube_runtime_issue() -> None:
     try:
         with pytest.raises(LiveNodeDefinitionError) as error_info:
             panel.hydrate_node_definitions_for_projection(reason="test_projection")
-        handled = panel.register_projection_live_node_definition_error(
+        handled = EditorProjectionRuntimeIssueIntegration(
+            cast(RuntimeIssueIntegrationPanelPort, panel)
+        ).register_recoverable_live_definition_error(
             error_info.value,
             reason="test_projection",
-            source=CubeRuntimeIssueSource.PROJECTION,
-        )
-        panel.present_recoverable_live_node_definition_error(
-            error_info.value,
-            reason="test_projection",
+            workflow_id="workflow-a",
         )
         issues = panel.cube_runtime_issues("Automask Detailer")
         errored_aliases = panel.cube_runtime_error_aliases()
@@ -186,36 +132,22 @@ def test_editor_hydration_error_can_register_cube_runtime_issue() -> None:
         destroy_qt_object(panel)
 
     assert handled
-    assert len(presenter.comfy_reports) == 1
-    report = presenter.comfy_reports[0]
-    assert report["title"] == "Live Comfy node definitions unavailable"
-    assert report["error"] is error_info.value
-    context = cast(SubstituteOperationContext, report["context"])
-    assert context.operation == "hydrate editor projection node definitions"
-    assert context.workflow_id == "workflow-a"
-    assert context.values["projection_reason"] == "test_projection"
-    assert context.values["missing_node_classes"] == (
-        "SimpleSyrup.DetailSEGSByScaleFactor",
-    )
-    assert context.values["cube_aliases"] == ("Automask Detailer",)
-    assert context.values["node_names"] == ("detailer",)
-    assert errored_aliases == ("Automask Detailer",)
+    assert reports == []
+    assert errored_aliases == ()
     assert issues[0].missing_node_classes == ("SimpleSyrup.DetailSEGSByScaleFactor",)
 
 
-def test_recoverable_live_node_definition_report_is_deduplicated() -> None:
-    """Recoverable live metadata reports should dedupe within one projection."""
+def test_unowned_live_node_definition_error_never_opens_error_report() -> None:
+    """An unmatched missing class must not open an error modal."""
 
     _ensure_qapp()
     gateway = _EmptyNodeDefinitionGateway()
-    presenter = _RecordingErrorPresenter()
     panel = EditorPanel(
         node_definition_gateway=gateway,
         prompt_autocomplete_gateway=SimpleNamespace(),
         prompt_wildcard_catalog_gateway=SimpleNamespace(),
         node_behavior_service=NodeBehaviorService(node_definition_gateway=gateway),
         node_presentation_service=empty_node_presentation_service(),
-        error_presenter=presenter,
         workflow_id="workflow-a",
         editor_panel_execution_factories=immediate_editor_panel_execution_factories(),
     )
@@ -224,29 +156,26 @@ def test_recoverable_live_node_definition_report_is_deduplicated() -> None:
         missing_definitions=(
             MissingLiveNodeDefinition(
                 class_type="SimpleSyrup.KSamplerMixtureOfDiffusers",
-                cube_aliases=("Anima/Diffusion Upscale",),
+                cube_aliases=(),
                 node_names=("resize_by_factor",),
             ),
         ),
     )
+    reports: list[tuple[object, str]] = []
+    cast(Any, panel)._present_live_node_definition_error = lambda error, *, reason: (
+        reports.append((error, reason))
+    )
 
     try:
-        panel.present_recoverable_live_node_definition_error(
+        handled = EditorProjectionRuntimeIssueIntegration(
+            cast(RuntimeIssueIntegrationPanelPort, panel)
+        ).register_recoverable_live_definition_error(
             error,
             reason="prompt_link_reconciliation",
-        )
-        panel.present_recoverable_live_node_definition_error(
-            error,
-            reason="prompt_link_reconciliation",
-        )
-        panel.begin_live_node_definition_report_projection()
-        panel.present_recoverable_live_node_definition_error(
-            error,
-            reason="prompt_link_reconciliation",
+            workflow_id="workflow-a",
         )
     finally:
         destroy_qt_object(panel)
 
-    assert len(presenter.comfy_reports) == 2
-    assert presenter.comfy_reports[0]["error"] is error
-    assert presenter.comfy_reports[1]["error"] is error
+    assert not handled
+    assert reports == []

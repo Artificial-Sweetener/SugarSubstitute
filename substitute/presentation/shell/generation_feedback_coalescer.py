@@ -37,6 +37,7 @@ from substitute.application.ports import (
     ListenerCompleted,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
+    OutputVideoUpdate,
     PreviewImageUpdate,
     ProgressUpdate,
 )
@@ -80,6 +81,7 @@ class GenerationFeedbackBatch:
     model_load_updates: tuple[ModelLoadProgressUpdate, ...] = ()
     preview_updates: tuple[LivePreviewEvent, ...] = ()
     output_image_updates: tuple[LiveFinalOutputEvent, ...] = ()
+    output_video_updates: tuple[OutputVideoUpdate, ...] = ()
     timing_updates: tuple[GenerationExecutionTiming, ...] = ()
     failures: tuple[GenerationFailure, ...] = ()
     completed_events: tuple[ListenerCompleted, ...] = ()
@@ -93,6 +95,7 @@ class GenerationFeedbackBatch:
             or self.model_load_updates
             or self.preview_updates
             or self.output_image_updates
+            or self.output_video_updates
             or self.timing_updates
             or self.failures
             or self.completed_events
@@ -107,6 +110,7 @@ class GenerationFeedbackPendingCounts:
     model_load_count: int = 0
     preview_count: int = 0
     output_image_count: int = 0
+    output_video_count: int = 0
     timing_count: int = 0
     failure_count: int = 0
     completed_count: int = 0
@@ -183,6 +187,7 @@ class GenerationFeedbackCoalescer:
         LivePreviewEvent,
     ] = field(default_factory=dict)
     _output_image_updates: list[LiveFinalOutputEvent] = field(default_factory=list)
+    _output_video_updates: list[OutputVideoUpdate] = field(default_factory=list)
     _timing_updates: list[GenerationExecutionTiming] = field(default_factory=list)
     _failures: list[GenerationFailure] = field(default_factory=list)
     _completed_events: list[ListenerCompleted] = field(default_factory=list)
@@ -341,6 +346,31 @@ class GenerationFeedbackCoalescer:
         if not self._final_output_is_authorized(update):
             self._log_visual_rejected(update, reason="stale_output_run")
             return FeedbackFlushIntent.schedule()
+        self._close_preview_lane(output_key, update)
+        self._output_image_updates.append(live_event)
+        return FeedbackFlushIntent.immediate()
+
+    def submit_output_video(self, update: OutputVideoUpdate) -> FeedbackFlushIntent:
+        """Append one validated video output without coalescing it."""
+
+        output_key = self._output_key(update)
+        if output_key is None:
+            self._log_visual_rejected(update, reason="missing_output_lane_identity")
+            return FeedbackFlushIntent.schedule()
+        if not self._final_output_is_authorized(update):
+            self._log_visual_rejected(update, reason="stale_output_run")
+            return FeedbackFlushIntent.schedule()
+        self._close_preview_lane(output_key, update)
+        self._output_video_updates.append(update)
+        return FeedbackFlushIntent.immediate()
+
+    def _close_preview_lane(
+        self,
+        output_key: VisualLaneKey,
+        update: OutputImageUpdate | OutputVideoUpdate,
+    ) -> None:
+        """Retire previews replaced by one authoritative final media item."""
+
         source_level_key = output_key.source_level()
         self._preview_updates.pop(output_key, None)
         self._preview_updates.pop(source_level_key, None)
@@ -370,8 +400,6 @@ class GenerationFeedbackCoalescer:
             scene_key=update.scene_key,
             list_index=update.list_index,
         )
-        self._output_image_updates.append(live_event)
-        return FeedbackFlushIntent.immediate()
 
     def submit_timing(
         self,
@@ -460,6 +488,7 @@ class GenerationFeedbackCoalescer:
             model_load_count=len(self._model_load_updates),
             preview_count=len(self._preview_updates),
             output_image_count=len(self._output_image_updates),
+            output_video_count=len(self._output_video_updates),
             timing_count=len(self._timing_updates),
             failure_count=len(self._failures),
             completed_count=len(self._completed_events),
@@ -480,6 +509,7 @@ class GenerationFeedbackCoalescer:
                 for update in self._model_load_updates.values()
             )
             or self._output_image_updates
+            or self._output_video_updates
             or self._timing_updates
             or self._failures
             or self._completed_events
@@ -496,6 +526,7 @@ class GenerationFeedbackCoalescer:
             model_load_updates=tuple(self._model_load_updates.values()),
             preview_updates=tuple(self._preview_updates.values()),
             output_image_updates=tuple(self._output_image_updates),
+            output_video_updates=tuple(self._output_video_updates),
             timing_updates=tuple(self._timing_updates),
             failures=tuple(self._failures),
             completed_events=tuple(self._completed_events),
@@ -505,6 +536,7 @@ class GenerationFeedbackCoalescer:
         self._model_load_updates.clear()
         self._preview_updates.clear()
         self._output_image_updates.clear()
+        self._output_video_updates.clear()
         self._timing_updates.clear()
         self._failures.clear()
         self._completed_events.clear()
@@ -544,7 +576,9 @@ class GenerationFeedbackCoalescer:
         )
 
     @staticmethod
-    def _output_key(update: OutputImageUpdate) -> VisualLaneKey | None:
+    def _output_key(
+        update: OutputImageUpdate | OutputVideoUpdate,
+    ) -> VisualLaneKey | None:
         """Return the final-output lane identity for lifecycle closure."""
 
         if (
@@ -566,7 +600,7 @@ class GenerationFeedbackCoalescer:
 
     def _update_matches_active_run(
         self,
-        update: PreviewImageUpdate | OutputImageUpdate,
+        update: PreviewImageUpdate | OutputImageUpdate | OutputVideoUpdate,
     ) -> bool:
         """Return whether a visual update belongs to the active workflow run."""
 
@@ -588,7 +622,10 @@ class GenerationFeedbackCoalescer:
             identity
         )
 
-    def _final_output_is_authorized(self, update: OutputImageUpdate) -> bool:
+    def _final_output_is_authorized(
+        self,
+        update: OutputImageUpdate | OutputVideoUpdate,
+    ) -> bool:
         """Return whether one final output passes the authoritative visual gate."""
 
         if self._visual_authorization is None:
@@ -640,7 +677,7 @@ class GenerationFeedbackCoalescer:
 
     @staticmethod
     def _log_visual_rejected(
-        update: PreviewImageUpdate | OutputImageUpdate,
+        update: PreviewImageUpdate | OutputImageUpdate | OutputVideoUpdate,
         *,
         reason: str,
     ) -> None:
@@ -684,7 +721,7 @@ def _is_terminal_model_load_update(update: ModelLoadProgressUpdate) -> bool:
 
 
 def _visual_identity_from_update(
-    update: PreviewImageUpdate | OutputImageUpdate,
+    update: PreviewImageUpdate | OutputImageUpdate | OutputVideoUpdate,
 ) -> GenerationVisualIdentity | None:
     """Build a strict visual identity from an incoming update."""
 

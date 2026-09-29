@@ -27,7 +27,7 @@ from tests.support.node_behavior import (
     cube_state,
 )
 from tests.application.node_behavior.service.support import (
-    RequiredOnlyNodeDefinitionGateway,
+    RecordingNodeDefinitionGateway,
 )
 
 
@@ -36,7 +36,7 @@ def test_loaded_wrapper_preserves_authored_defaults_over_live_metadata() -> None
 
     wrapper_id = "de2c84e5-02a8-4c50-831d-3c169dee4820"
     service = NodeBehaviorService(
-        node_definition_gateway=RequiredOnlyNodeDefinitionGateway(
+        node_definition_gateway=RecordingNodeDefinitionGateway(
             {
                 "VideoUpscaler": {
                     "input": {
@@ -134,7 +134,7 @@ def test_loaded_wrapper_preserves_authored_combo_default_outside_live_options() 
 
     wrapper_id = "de2c84e5-02a8-4c50-831d-3c169dee4820"
     service = NodeBehaviorService(
-        node_definition_gateway=RequiredOnlyNodeDefinitionGateway(
+        node_definition_gateway=RecordingNodeDefinitionGateway(
             {
                 "VideoUpscaler": {
                     "input": {

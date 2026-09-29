@@ -134,6 +134,7 @@ def qualify_historical_update(
                 expected_version=qualification.candidate_version,
                 endpoint_port=endpoint_lease.port,
                 phase=f"upgrade-{qualification.historical_version}",
+                managed_model_root=qualification.managed_model_root,
                 timeout_seconds=_remaining_timeout(
                     deadline,
                     phase="candidate qualification setup",

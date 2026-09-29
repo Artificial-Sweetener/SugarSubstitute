@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.application.recipes import RecipeModelResolutionRequired
 from substitute.presentation.shell.recipe_model_resolution_flow import (
+    DeferredRecipeModelDownload,
     prepare_missing_recipe_model_download,
 )
 
@@ -39,8 +40,25 @@ class ShellRecipeModelResolutionController:
     def resolve_missing_recipe_models(
         self,
         required: RecipeModelResolutionRequired,
-    ) -> object | None:
-        """Prompt for missing recipe models and defer downloads to the workflow."""
+    ) -> object:
+        """Continue a recipe load with downloads or without unresolved links."""
+
+        request = self._prepare_download(required)
+        return required.continue_without_download() if request is None else request
+
+    def prompt_for_direct_workflow_download(
+        self,
+        required: RecipeModelResolutionRequired,
+    ) -> DeferredRecipeModelDownload | None:
+        """Prompt for missing models before a direct workflow load."""
+
+        return self._prepare_download(required)
+
+    def _prepare_download(
+        self,
+        required: RecipeModelResolutionRequired,
+    ) -> DeferredRecipeModelDownload | None:
+        """Collect one approved download request from the shared model dialog."""
 
         return prepare_missing_recipe_model_download(
             parent=cast(QWidget, self._shell),

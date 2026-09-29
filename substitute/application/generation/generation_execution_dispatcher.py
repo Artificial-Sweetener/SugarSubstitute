@@ -119,10 +119,11 @@ class GenerationExecutionDispatcher:
         native_cube_execution: bool,
         execution_targets: tuple[str, ...] | None = None,
         standard_output_sources: tuple[ListenerOutputSource, ...] = (),
+        generation_run_id: str | None = None,
     ) -> GenerationStartResult:
         """Queue one prepared payload and start its connected listener."""
 
-        generation_run_id = uuid4().hex
+        generation_run_id = generation_run_id or uuid4().hex
         run_client_id = self._client_id_for_run(generation_run_id)
         listener_session_result = self._comfy_gateway.connect_listener_session(
             ListenerSessionConnectRequest(
@@ -171,6 +172,7 @@ class GenerationExecutionDispatcher:
                 preview_method=self._preview_method_resolver.resolved_comfy_preview_method(),
                 visual_context=visual_context,
                 persistence_sugar_script=request.persistence_sugar_script,
+                execution_targets=execution_targets,
             )
         else:
             queue_result = self._comfy_gateway.queue_prompt(
@@ -348,6 +350,7 @@ class GenerationExecutionDispatcher:
             on_model_load_progress=callbacks.on_model_load_progress,
             on_preview=callbacks.on_preview,
             on_output_image=callbacks.on_output_image,
+            on_output_video=callbacks.on_output_video,
             on_failed=on_listener_failed,
             on_timing=callbacks.on_timing,
             on_completed=on_listener_completed,

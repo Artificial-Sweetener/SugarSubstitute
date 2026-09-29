@@ -117,7 +117,7 @@ class _FieldWidgetRelayoutFilter(QObject):
             return
         self._update_pending = True
         del reason
-        QTimer.singleShot(0, self._apply_relayout)
+        QTimer.singleShot(0, self, self._apply_relayout)
 
     def _apply_relayout(self) -> None:
         """Invalidate the row and card body after one field size change."""

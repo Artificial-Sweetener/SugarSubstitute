@@ -22,11 +22,13 @@ import pytest
 from PySide6.QtWidgets import QApplication, QLineEdit, QSpinBox, QWidget
 
 from substitute.application.node_behavior import DimensionFieldPair
-from substitute.presentation.editor.panel.menus.dimension_row_actions import (
+from substitute.presentation.editor.panel.menus.dimension_commands import (
+    apply_aspect_ratio,
+)
+from substitute.presentation.editor.panel.menus.dimension_contract import (
     AspectRatioPreset,
     DimensionRowBinding,
     DimensionSide,
-    apply_aspect_ratio,
 )
 from tests.support.qt.lifecycle import destroy_qt_object
 

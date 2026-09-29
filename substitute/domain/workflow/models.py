@@ -30,6 +30,7 @@ from substitute.domain.common import (
 )
 from substitute.domain.cube_library import CubeUpdatePolicy, WorkflowCubeClassification
 from substitute.domain.generation.seed_control import SeedControlState
+from substitute.domain.output_media import OutputMediaKind
 from substitute.domain.comfy_workflow.models import DirectWorkflowState
 from substitute.domain.workflow.canvas_models import WorkflowCanvasState
 from substitute.domain.workflow.document_kind import WorkflowDocumentKind
@@ -146,12 +147,21 @@ class WorkflowState:
 
     @property
     def document_kind(self) -> WorkflowDocumentKind:
-        """Return the mutually exclusive authoring model owned by this tab."""
+        """Keep an empty canonical Cube graph editable after its last removal."""
 
         if self.direct_workflow is not None:
+            graph = self.direct_workflow.source_workflow
+            nodes = graph.get("nodes")
+            definitions = graph.get("definitions")
+            empty_canonical_graph = (
+                isinstance(nodes, list)
+                and not nodes
+                and isinstance(definitions, Mapping)
+                and isinstance(definitions.get("subgraphs"), list)
+            )
             return (
                 WorkflowDocumentKind.COMFY_CUBE_GRAPH
-                if self.cubes
+                if self.cubes or empty_canonical_graph
                 else WorkflowDocumentKind.DIRECT_COMFY
             )
         return WorkflowDocumentKind.CUBE_STACK
@@ -337,7 +347,7 @@ class WorkflowState:
 
 @dataclass
 class ImageMeta:
-    """Store origin metadata required to label and route generated images."""
+    """Store origin metadata required to label and route generated media."""
 
     workflow_name: str
     cube_name: str
@@ -361,6 +371,10 @@ class ImageMeta:
     list_index: int | None = None
     batch_index: int | None = None
     cube_execution_duration_ms: float | None = None
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE
+    duration_seconds: float | None = None
+    mime_type: str | None = None
+    temporary: bool = False
 
     def __post_init__(self) -> None:
         """Default source display text to the generated cube label."""

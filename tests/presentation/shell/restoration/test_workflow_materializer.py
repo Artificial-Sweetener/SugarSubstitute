@@ -123,8 +123,10 @@ def test_add_restored_workflow_defers_inactive_ui_creation() -> None:
     assert shell.editor_panels == {}
 
 
-def test_add_restored_workflow_clears_outgoing_override_toolbar_on_activation() -> None:
-    """Active restored workflows should clear stale outgoing override controls."""
+def test_add_restored_workflow_detaches_outgoing_override_toolbar_on_activation() -> (
+    None
+):
+    """Active restored workflows should detach stale outgoing override controls."""
 
     session = _WorkflowSessionService(active_workflow_id="wf-old")
     tabbar = _WorkflowTabbar()
@@ -137,7 +139,7 @@ def test_add_restored_workflow_clears_outgoing_override_toolbar_on_activation() 
         editor_panels={},
         override_managers={
             "wf-old": SimpleNamespace(
-                _clear_all_override_widgets=lambda: calls.append("clear:overrides")
+                detach_override_widgets=lambda: calls.append("detach:overrides")
             )
         },
         _clear_all_model_field_load_progress=lambda: calls.append("clear:model"),
@@ -168,8 +170,8 @@ def test_add_restored_workflow_clears_outgoing_override_toolbar_on_activation() 
         activate=True,
     )
 
-    assert "clear:overrides" in calls
-    assert calls.index("clear:overrides") < calls.index("create:wf-restored:True")
+    assert "detach:overrides" in calls
+    assert calls.index("detach:overrides") < calls.index("create:wf-restored:True")
     assert "clear:model" in calls
     assert shell._pending_restored_workflow_snapshots == {}
 

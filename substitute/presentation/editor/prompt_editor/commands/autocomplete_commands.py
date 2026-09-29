@@ -37,6 +37,9 @@ from substitute.application.prompt_editor.autocomplete.text import (
 from substitute.application.prompt_editor.editing.structured_text import (
     PromptStructuredTextMutationService,
 )
+from substitute.application.prompt_editor.document.visible_source import (
+    map_prompt_source_for_display,
+)
 from substitute.domain.prompt.document.ranges import SourceRange
 from ..core.editing.commands import PromptReplaceRangeEdit
 from ..core.editing.session import PromptEditingSession
@@ -428,10 +431,12 @@ def _tag_replacement_end_for_source(
     if acceptance.active_tag_end <= acceptance.word_end:
         return acceptance.word_end
     completion_suffix = autocomplete_completion_suffix(
-        replacement_text,
+        map_prompt_source_for_display(replacement_text).display_text,
         acceptance.prefix,
     )
-    right_text = source_text[acceptance.word_end : acceptance.active_tag_end]
+    right_text = map_prompt_source_for_display(
+        source_text[acceptance.word_end : acceptance.active_tag_end]
+    ).display_text
     if (
         right_text
         and autocomplete_suffix_without_existing_right_text(

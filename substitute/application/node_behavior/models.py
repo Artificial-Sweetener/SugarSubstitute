@@ -71,6 +71,17 @@ class ResolvedFieldSpec:
         return self.meta_info.get("advanced") is True
 
 
+@dataclass(frozen=True, slots=True)
+class DegradedNodeBehavior:
+    """Describe one saved node whose live definition is unavailable."""
+
+    node_name: str
+    class_type: str
+    title: str
+    missing_definition_classes: tuple[str, ...]
+    missing_fields: tuple[str, ...] = ()
+
+
 @dataclass(frozen=True)
 class EditorBehaviorSnapshot:
     """Expose the complete behavior snapshot consumed by editor presentation code."""
@@ -93,6 +104,14 @@ class EditorBehaviorSnapshot:
         default_factory=dict
     )
     card_order_by_alias: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    degraded_nodes_by_alias: dict[str, dict[str, DegradedNodeBehavior]] = field(
+        default_factory=dict
+    )
 
 
-__all__ = ["EditorBehaviorSnapshot", "FieldValueSource", "ResolvedFieldSpec"]
+__all__ = [
+    "DegradedNodeBehavior",
+    "EditorBehaviorSnapshot",
+    "FieldValueSource",
+    "ResolvedFieldSpec",
+]

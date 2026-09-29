@@ -95,6 +95,52 @@ def test_readiness_wait_observes_launcher_handoff_until_main_shell(
     assert receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
 
 
+def test_readiness_wait_retries_a_transient_receipt_access_denial(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Windows scanner lock must not turn valid readiness into a failure."""
+
+    readiness_path = tmp_path / "readiness.json"
+    token = "qualification-token"
+    publish_application_readiness_receipt(
+        receipt_path=readiness_path,
+        receipt=ApplicationReadinessReceipt(
+            pid=202,
+            token=token,
+            surface=ApplicationReadinessSurface.MAIN_SHELL,
+            parent_pid=201,
+        ),
+    )
+    original_read_text = Path.read_text
+    attempts = 0
+
+    def read_text(
+        path: Path,
+        encoding: str | None = None,
+        errors: str | None = None,
+    ) -> str:
+        """Deny the first exact receipt read, then expose the valid receipt."""
+
+        nonlocal attempts
+        if path == readiness_path and attempts == 0:
+            attempts += 1
+            raise PermissionError("receipt is temporarily locked")
+        return original_read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    monkeypatch.setattr("tools.ci.installer_ui_qualification.sleep", lambda _: None)
+
+    receipt = installer_ui_qualification._wait_for_readiness_receipt(
+        readiness_path=readiness_path,
+        token=token,
+        timeout_seconds=30.0,
+    )
+
+    assert attempts == 1
+    assert receipt.pid == 202
+
+
 @pytest.mark.parametrize(
     "terminal_event",
     ["startup.gui_task.failure", "startup.managed.failure"],

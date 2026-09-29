@@ -204,9 +204,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self, initial_geometry=parse_handoff_geometry(handoff_geometry)
         )
         apply_launcher_window_effects(self)
-        QTimer.singleShot(0, self._finish_native_shell)
+        QTimer.singleShot(0, self, self._finish_native_shell)
         if continue_install:
-            QTimer.singleShot(0, self._install_app_payload)
+            QTimer.singleShot(0, self, self._install_app_payload)
 
     def _finish_native_shell(self) -> None:
         """Reapply native material and center its final visible frame once."""
@@ -470,7 +470,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._refresh_primary_button()
             return
         if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
-            QTimer.singleShot(0, self.start_runtime_setup)
+            QTimer.singleShot(0, self, self.start_runtime_setup)
 
     def _refresh_primary_button(self) -> None:
         """Project the current setup phase onto editable and primary controls."""

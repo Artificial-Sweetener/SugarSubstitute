@@ -22,7 +22,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from substitute.presentation.editor.panel.widgets.field_row import BuiltFieldRow
+from substitute.presentation.editor.panel.widgets.field_row_models import BuiltFieldRow
 
 
 @dataclass(frozen=True, slots=True)
