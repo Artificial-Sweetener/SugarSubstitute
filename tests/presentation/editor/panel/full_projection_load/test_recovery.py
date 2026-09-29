@@ -192,21 +192,10 @@ def test_projection_metadata_retry_stops_when_issue_aliases_do_not_change() -> N
         calls.append("register")
         return True
 
-    def _present_recoverable_error(
-        _error: object,
-        *,
-        reason: str,
-    ) -> None:
-        """Record recoverable report presentation."""
-
-        _ = reason
-        calls.append("present")
-
     panel = SimpleNamespace(
         _cube_states={"Bad": object()},
         _stack_order=["Bad"],
         register_projection_live_node_definition_error=_register_projection_error,
-        present_recoverable_live_node_definition_error=_present_recoverable_error,
         cube_runtime_error_aliases=lambda: (),
     )
     coordinator = mod.EditorPanelProjectionCoordinator(panel)
@@ -222,7 +211,7 @@ def test_projection_metadata_retry_stops_when_issue_aliases_do_not_change() -> N
             action=_raise_metadata_error,
         )
 
-    assert calls == ["metadata", "register", "present"]
+    assert calls == ["metadata", "register"]
 
 
 def test_load_all_cubes_recovers_when_prompt_reconciliation_finds_bad_cube() -> None:
@@ -272,13 +261,6 @@ def test_load_all_cubes_recovers_when_prompt_reconciliation_finds_bad_cube() -> 
         errored_aliases.add("Bad")
         return True
 
-    def _present_recoverable(
-        error: object,
-        *,
-        reason: str,
-    ) -> None:
-        calls.append(f"present:{reason}:{error is live_error}")
-
     def _build_behavior_snapshot(**_kwargs: object) -> str:
         calls.append("snapshot")
         assert panel._stack_order == ["Good"]
@@ -312,11 +294,7 @@ def test_load_all_cubes_recovers_when_prompt_reconciliation_finds_bad_cube() -> 
             "hydrate"
         ),
         register_projection_live_node_definition_error=_register,
-        present_recoverable_live_node_definition_error=_present_recoverable,
         cube_runtime_error_aliases=lambda: tuple(sorted(errored_aliases)),
-        begin_live_node_definition_report_projection=lambda: calls.append(
-            "begin_reports"
-        ),
         clear_projection_runtime_issues=lambda: calls.append("clear_issues"),
         _build_behavior_snapshot=_build_behavior_snapshot,
         _on_scroll_updated=lambda _value: calls.append("scroll"),
@@ -330,10 +308,7 @@ def test_load_all_cubes_recovers_when_prompt_reconciliation_finds_bad_cube() -> 
     )
 
     assert "register:prompt_link_reconciliation:projection" in calls
-    assert calls.count("present:prompt_link_reconciliation:True") == 1
-    assert calls.index("begin_reports") < calls.index(
-        "present:prompt_link_reconciliation:True"
-    )
+    assert not any(call.startswith("present:") for call in calls)
     assert "reconcile:('Good',)" in calls
     assert panel.cube_widgets == {"Good": good_widget, "Bad": bad_widget}
     assert panel.cube_sections == {"Good": good_widget, "Bad": bad_widget}
@@ -377,13 +352,6 @@ def test_load_all_cubes_recovers_when_behavior_snapshot_finds_bad_cube() -> None
         errored_aliases.add("Bad")
         return True
 
-    def _present_recoverable(
-        error: object,
-        *,
-        reason: str,
-    ) -> None:
-        calls.append(f"present:{reason}:{error is live_error}")
-
     def _build_behavior_snapshot(**_kwargs: object) -> str:
         current_stack = tuple(panel._stack_order or ())
         calls.append(f"snapshot:{current_stack}")
@@ -419,7 +387,6 @@ def test_load_all_cubes_recovers_when_behavior_snapshot_finds_bad_cube() -> None
             "hydrate"
         ),
         register_projection_live_node_definition_error=_register,
-        present_recoverable_live_node_definition_error=_present_recoverable,
         cube_runtime_error_aliases=lambda: tuple(sorted(errored_aliases)),
         clear_projection_runtime_issues=lambda: calls.append("clear_issues"),
         _build_behavior_snapshot=_build_behavior_snapshot,
@@ -434,7 +401,7 @@ def test_load_all_cubes_recovers_when_behavior_snapshot_finds_bad_cube() -> None
     )
 
     assert "register:behavior_snapshot:projection" in calls
-    assert calls.count("present:behavior_snapshot:True") == 1
+    assert not any(call.startswith("present:") for call in calls)
     assert "snapshot:('Good', 'Bad')" in calls
     assert "snapshot:('Good',)" in calls
     assert panel._stack_order == ["Good", "Bad"]

@@ -21,9 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from substitute.presentation.editor.panel.field_state_controller import (
-    EditorFieldBinding,
-)
+from substitute.presentation.editor.panel.field_state_binding import EditorFieldBinding
 from substitute.presentation.editor.panel.field_value_change_coordinator import (
     PanelFieldValueChangeCoordinator,
 )

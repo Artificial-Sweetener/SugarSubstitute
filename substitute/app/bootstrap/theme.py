@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QObject
 from PySide6.QtGui import QColor
 
 from substitute.domain.appearance import (
@@ -53,13 +54,19 @@ def configure_accent_color(*, accent_color: str) -> None:
     setThemeColor(QColor(accent_color))
 
 
-def schedule_splash_theme(*, theme_mode: str | None, accent_color: str | None) -> None:
+def schedule_splash_theme(
+    *,
+    owner: QObject,
+    theme_mode: str | None,
+    accent_color: str | None,
+) -> None:
     """Defer Fluent setup until the lightweight paint callback has returned."""
     from functools import partial
     from PySide6.QtCore import QTimer
 
     QTimer.singleShot(
         0,
+        owner,
         partial(
             configure_theme,
             theme_mode=(

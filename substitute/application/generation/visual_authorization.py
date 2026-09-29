@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from substitute.application.ports import GenerationVisualIdentity
@@ -37,11 +37,12 @@ class VisualRunState(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class AcceptedVisualRun:
-    """Capture one prompt-bound run accepted for visual routing."""
+    """Capture all accepted prompt stages of one visual run."""
 
     workflow_id: str
     generation_run_id: str
     prompt_id: str
+    prompt_ids: frozenset[str]
     client_id: str
     preview_source_keys: frozenset[str]
     state: VisualRunState = VisualRunState.RUNNING
@@ -69,7 +70,7 @@ class VisualAuthorizationService:
         client_id: str,
         preview_source_keys: frozenset[str] = frozenset(),
     ) -> None:
-        """Accept one run and supersede older active runs for the workflow."""
+        """Accept a prompt stage and supersede older workflow runs."""
 
         previous_run_id = self._active_run_by_workflow.get(workflow_id)
         if previous_run_id is not None and previous_run_id != generation_run_id:
@@ -78,10 +79,17 @@ class VisualAuthorizationService:
                 generation_run_id=previous_run_id,
                 state=VisualRunState.SUPERSEDED,
             )
+        prior = self._runs.get((workflow_id, generation_run_id))
+        if prior is not None and (
+            prior.client_id != client_id or prior.state is not VisualRunState.RUNNING
+        ):
+            return
         self._runs[(workflow_id, generation_run_id)] = AcceptedVisualRun(
             workflow_id=workflow_id,
             generation_run_id=generation_run_id,
             prompt_id=prompt_id,
+            prompt_ids=(prior.prompt_ids if prior is not None else frozenset())
+            | {prompt_id},
             client_id=client_id,
             preview_source_keys=preview_source_keys,
             state=VisualRunState.RUNNING,
@@ -100,13 +108,8 @@ class VisualAuthorizationService:
         run = self._runs.get((workflow_id, generation_run_id))
         if run is None or run.prompt_id != prompt_id:
             return
-        self._runs[(workflow_id, generation_run_id)] = AcceptedVisualRun(
-            workflow_id=run.workflow_id,
-            generation_run_id=run.generation_run_id,
-            prompt_id=run.prompt_id,
-            client_id=run.client_id,
-            preview_source_keys=run.preview_source_keys,
-            state=VisualRunState.COMPLETED,
+        self._runs[(workflow_id, generation_run_id)] = replace(
+            run, state=VisualRunState.COMPLETED
         )
 
     def fail_run(
@@ -131,6 +134,7 @@ class VisualAuthorizationService:
             return False
         return (
             run.state is VisualRunState.RUNNING
+            and run.prompt_id == identity.prompt_id
             and self._active_run_by_workflow.get(identity.workflow_id)
             == identity.generation_run_id
         )
@@ -162,7 +166,10 @@ class VisualAuthorizationService:
         run = self._runs.get((identity.workflow_id, identity.generation_run_id))
         if run is None:
             return None
-        if run.prompt_id != identity.prompt_id or run.client_id != identity.client_id:
+        if (
+            identity.prompt_id not in run.prompt_ids
+            or run.client_id != identity.client_id
+        ):
             return None
         if not identity.source_key or not identity.source_label:
             return None
@@ -180,14 +187,7 @@ class VisualAuthorizationService:
         run = self._runs.get((workflow_id, generation_run_id))
         if run is None:
             return
-        self._runs[(workflow_id, generation_run_id)] = AcceptedVisualRun(
-            workflow_id=run.workflow_id,
-            generation_run_id=run.generation_run_id,
-            prompt_id=run.prompt_id,
-            client_id=run.client_id,
-            preview_source_keys=run.preview_source_keys,
-            state=state,
-        )
+        self._runs[(workflow_id, generation_run_id)] = replace(run, state=state)
         if self._active_run_by_workflow.get(workflow_id) == generation_run_id:
             self._active_run_by_workflow.pop(workflow_id, None)
 

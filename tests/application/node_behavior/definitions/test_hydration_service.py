@@ -101,7 +101,12 @@ def test_hydration_service_collects_direct_and_wrapper_body_node_classes() -> No
                                     "link": 11,
                                 }
                             ],
-                        }
+                        },
+                        {
+                            "id": 43,
+                            "type": "HiddenExecutionDependency",
+                            "inputs": [],
+                        },
                     ],
                 }
             ],
@@ -115,9 +120,17 @@ def test_hydration_service_collects_direct_and_wrapper_body_node_classes() -> No
 
     assert result is not None
     assert hydrator.requests == [
-        ("KSampler", "SimpleSyrup.ResizeImageToTarget"),
+        (
+            "HiddenExecutionDependency",
+            "KSampler",
+            "SimpleSyrup.ResizeImageToTarget",
+        ),
     ]
-    assert result.available == ("KSampler", "SimpleSyrup.ResizeImageToTarget")
+    assert result.available == (
+        "HiddenExecutionDependency",
+        "KSampler",
+        "SimpleSyrup.ResizeImageToTarget",
+    )
 
 
 def test_hydration_service_raises_when_gateway_has_no_foreground_port() -> None:
@@ -232,8 +245,8 @@ def test_hydration_service_attributes_same_missing_class_to_each_cube() -> None:
     )
 
 
-def test_hydration_skips_frontend_value_proxy_and_tolerates_local_fallback() -> None:
-    """Local workflow schemas should render without backend-only UI node classes."""
+def test_hydration_skips_value_proxy_but_requires_executable_live_definition() -> None:
+    """Persisted schemas must not conceal unavailable executable node classes."""
 
     class _UnavailableHydrator:
         """Record optional enrichment and report it unavailable."""
@@ -255,44 +268,49 @@ def test_hydration_skips_frontend_value_proxy_and_tolerates_local_fallback() -> 
 
     hydrator = _UnavailableHydrator()
     service = EditorNodeDefinitionHydrationService(hydrator)
-    result = service.hydrate_for_projection(
-        cube_states={
-            "A": _CubeState(
-                buffer={
-                    "nodes": {
-                        "45": {
-                            "class_type": "PrimitiveNode",
-                            "inputs": {"steps": 25},
-                            "_workflow": {
-                                "execution_role": "value_proxy",
-                                "editor_definition": {
-                                    "input": {
-                                        "required": {"steps": ["INT", {"default": 25}]}
-                                    }
-                                },
-                            },
-                        },
-                        "7": {
-                            "class_type": "MissingCustomNode",
-                            "inputs": {"amount": 0.75},
-                            "_workflow": {
-                                "execution_role": "executable",
-                                "editor_definition": {
-                                    "input": {
-                                        "required": {
-                                            "amount": ["FLOAT", {"default": 0.75}]
+    with pytest.raises(LiveNodeDefinitionError) as error_info:
+        service.hydrate_for_projection(
+            cube_states={
+                "A": _CubeState(
+                    buffer={
+                        "nodes": {
+                            "45": {
+                                "class_type": "PrimitiveNode",
+                                "inputs": {"steps": 25},
+                                "_workflow": {
+                                    "execution_role": "value_proxy",
+                                    "editor_definition": {
+                                        "input": {
+                                            "required": {
+                                                "steps": ["INT", {"default": 25}]
+                                            }
                                         }
-                                    }
+                                    },
                                 },
                             },
-                        },
+                            "7": {
+                                "class_type": "MissingCustomNode",
+                                "inputs": {"amount": 0.75},
+                                "_workflow": {
+                                    "execution_role": "executable",
+                                    "editor_definition": {
+                                        "input": {
+                                            "required": {
+                                                "amount": [
+                                                    "FLOAT",
+                                                    {"default": 0.75},
+                                                ]
+                                            }
+                                        },
+                                    },
+                                },
+                            },
+                        }
                     }
-                }
-            )
-        },
-        stack_order=["A"],
-    )
+                )
+            },
+            stack_order=["A"],
+        )
 
-    assert result is not None
     assert hydrator.requests == [("MissingCustomNode",)]
-    assert result.unavailable == ("MissingCustomNode",)
+    assert error_info.value.missing_definitions[0].class_type == "MissingCustomNode"

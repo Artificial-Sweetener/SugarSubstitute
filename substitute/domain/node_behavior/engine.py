@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from substitute.domain.links.node_links import NodeLinkEndpointIndex
     from substitute.domain.links.prompt_endpoints import PromptEndpointIndex
 
+from .activation_policy import is_active
 from .models import (
     ActivationDefault,
     ActivationSwitchRole,
@@ -243,12 +244,6 @@ def _activation_default_for_policy(
     return fallback_active
 
 
-def _activation_can_ignore_visibility(behavior: ResolvedNodeBehavior) -> bool:
-    """Return whether activation is explicitly independent from card visibility."""
-
-    return behavior.card.activation_default == ActivationDefault.ENABLED
-
-
 def _resolve_activation_policy(
     *,
     alias: str,
@@ -425,10 +420,7 @@ def compute_card_decisions(
                     or policy.default_visible
                 )
             )
-            effective_enabled = bool(
-                activation_enabled
-                and (policy_visible or _activation_can_ignore_visibility(behavior))
-            )
+            effective_enabled = is_active(activation_enabled, policy_visible, behavior)
 
             search_matches = _matches_node_search(
                 alias=alias,
@@ -465,7 +457,9 @@ def compute_card_decisions(
                 source_alias, source_node = link_source
                 source_decision = decisions.get(source_alias, {}).get(source_node)
                 if source_decision is not None:
-                    effective_enabled = bool(policy_visible and source_decision.enabled)
+                    effective_enabled = is_active(
+                        source_decision.enabled, policy_visible, behavior
+                    )
                     reason = "node-link:inherited-enabled"
 
             per_node[node_name] = NodeDisplayDecision(

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QApplication
 
 from collections.abc import Callable
@@ -160,7 +160,7 @@ class ModelCatalogUpdateController:
         ):
             return
         self._listener_start_scheduled = True
-        QTimer.singleShot(0, self.start)
+        QTimer.singleShot(0, cast(QObject, self._shell), self.start)
 
 
 __all__ = ["ModelCatalogUpdateController"]

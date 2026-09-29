@@ -33,6 +33,8 @@ from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.presentation.editor.panel.search_controller import (
     EditorPanelSearchController,
     EditorPanelSearchHost,
+)
+from substitute.presentation.editor.panel.search_refresh_scheduler import (
     SearchPromptEditorProtocol,
     SignalConnectorProtocol,
 )
@@ -243,7 +245,7 @@ def test_text_search_refresh_scheduling_clears_editor_and_coalesces(
     monkeypatch.setattr(
         QTimer,
         "singleShot",
-        lambda _delay_ms, callback: queued_callbacks.append(callback),
+        lambda _delay_ms, _owner, callback: queued_callbacks.append(callback),
     )
     host = _SearchHost()
     controller = EditorPanelSearchController(cast(EditorPanelSearchHost, host))

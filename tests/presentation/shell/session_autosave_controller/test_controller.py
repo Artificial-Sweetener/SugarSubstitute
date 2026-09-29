@@ -62,6 +62,20 @@ def test_session_finalization_is_muted_during_restore_lifecycle() -> None:
     assert calls == []
 
 
+def test_restore_in_progress_ends_only_when_shell_reaches_running() -> None:
+    """Expose the restore boundary used to defer terminal session capture."""
+
+    shell = SimpleNamespace(_shell_restore_lifecycle="constructing")
+    controller = SessionAutosaveController(shell)
+
+    for lifecycle in ("constructing", "prehydrating", "restoring"):
+        shell._shell_restore_lifecycle = lifecycle
+        assert controller.restore_in_progress()
+
+    shell._shell_restore_lifecycle = "running"
+    assert not controller.restore_in_progress()
+
+
 def test_request_autosave_skips_until_initial_workspace_hydrates() -> None:
     """Autosave requests before hydration should not call persistence."""
 

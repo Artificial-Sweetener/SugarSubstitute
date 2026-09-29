@@ -30,6 +30,7 @@ from sugarsubstitute_shared.windows_process_family import WindowsProcessFamily
 from .support import _write_scheduled_update_request
 
 pytestmark = pytest.mark.platforms("windows")
+_HANDOFF_READINESS_TIMEOUT_SECONDS = 60.0
 
 
 @pytest.mark.parametrize("allow_handoff", [False, True])
@@ -46,7 +47,7 @@ def test_updater_requires_actual_native_detachment(
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
-        listener.settimeout(10)
+        listener.settimeout(_HANDOFF_READINESS_TIMEOUT_SECONDS)
         package = app / "sugarsubstitute_shared"
         updates = package / "launcher_update"
         updates.mkdir(parents=True)

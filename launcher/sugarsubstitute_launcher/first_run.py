@@ -25,6 +25,10 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
+from launcher.sugarsubstitute_launcher.application.installation.existing_installation_rescue import (
+    ExistingInstallationRescueService,
+    InstallationRootKind,
+)
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.launcher_bundle import LauncherBundleInstaller
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
@@ -54,6 +58,8 @@ class DownloadedLauncherInstallResult:
 
     layout: InstallLayout
     continue_command: list[str]
+    rescued_existing_installation: bool = False
+    rescue_quarantine_root: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +81,7 @@ class FirstRunInstaller:
         launcher_bundle_installer: LauncherBundleInstaller | None = None,
         payload_installer: AppPayloadInstaller | None = None,
         process_starter: ProcessStarter = start_detached,
+        existing_installation_rescue: ExistingInstallationRescueService | None = None,
     ) -> None:
         """Store collaborators used by first-run install steps."""
 
@@ -84,6 +91,9 @@ class FirstRunInstaller:
         )
         self._payload_installer = payload_installer or AppPayloadInstaller()
         self._process_starter = process_starter
+        self._existing_installation_rescue = (
+            existing_installation_rescue or ExistingInstallationRescueService()
+        )
 
     def install_downloaded_launcher(
         self,
@@ -96,8 +106,8 @@ class FirstRunInstaller:
         """Install the permanent launcher bundle into the install root and hand off."""
 
         with installation_mutation(install_root) as operation:
-            InstallationRecovery(InstallLayout.from_root(install_root)).recover(
-                ownership=operation
+            rescue = self._existing_installation_rescue.prepare(
+                InstallLayout.from_root(install_root), ownership=operation
             )
             layout_result = self._layout_installer.prepare(install_root)
             manifest = release_source.load_manifest()
@@ -116,6 +126,10 @@ class FirstRunInstaller:
         return DownloadedLauncherInstallResult(
             layout=layout_result.layout,
             continue_command=continue_command,
+            rescued_existing_installation=(
+                rescue.kind is InstallationRootKind.EXISTING_SUBSTITUTE
+            ),
+            rescue_quarantine_root=rescue.quarantine_root,
         )
 
     def continue_install(

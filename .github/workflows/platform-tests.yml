@@ -65,6 +65,10 @@ jobs:
         run: >-
           ${{ matrix.python }} -c
           "from pathlib import Path; Path('build/test-results').mkdir(parents=True, exist_ok=True)"
+      - name: Prepare pinned Windows video runtime
+        if: runner.os == 'Windows' && matrix.partition == 'ordinary'
+        run: >-
+          ${{ matrix.python }} tools/prepare_mpv_runtime.py
       - name: Run parallel-safe test partition
         if: matrix.partition == 'ordinary'
         run: >-

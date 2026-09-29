@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from substitute.application.cube_library import CubeLibraryUpdateDetectionService
-from substitute.application.ports import CubeCatalogRecord, CubeCatalogSnapshot
+from substitute.application.ports import CubeCatalogSnapshot
 from substitute.application.workspace_state import (
     SnapshotNormalizationService,
     WorkspaceMaterializationService,
@@ -29,11 +29,7 @@ from substitute.application.workspace_state import (
     WorkspaceRuntimeHydrationService,
     WorkspaceSnapshot,
 )
-from substitute.domain.cube_library import (
-    CubeCatalog,
-    CubeCatalogEntry,
-    CubeSourceMetadata,
-)
+from substitute.domain.cube_library import CubeCatalog
 from substitute.presentation.cube_updates import CubeUpdateModal
 from substitute.presentation.shell.main_window_startup_trace import (
     mark_startup_milestone,
@@ -54,6 +50,9 @@ from substitute.presentation.shell.shell_workspace_prehydration_port import (
 )
 from substitute.presentation.shell.shell_workspace_materialization_port import (
     ShellWorkspaceMaterializationPort,
+)
+from substitute.presentation.shell.workspace_restore_catalog_adapter import (
+    catalog_from_picker_snapshot,
 )
 from substitute.shared.logging.logger import (
     get_logger,
@@ -295,6 +294,7 @@ class WorkspaceRestoreController:
             restore_projection_controller_for(
                 self._shell
             ).maybe_capture_restore_projection_cache()
+            self._shell.restore_finalized.emit()
         trace_mark(
             "main_window.restore_initial_workspace_snapshot.end",
             restore_warning_count=len(restore_result.warnings),
@@ -439,7 +439,7 @@ class WorkspaceRestoreController:
             cube_count=len(snapshot.entries),
             catalog_revision=snapshot.catalog_revision,
         )
-        return _catalog_from_picker_snapshot(snapshot)
+        return catalog_from_picker_snapshot(snapshot)
 
     def install_hydrated_prehydrated_workspace(
         self,
@@ -521,34 +521,6 @@ def workspace_restore_controller_for(shell: Any) -> WorkspaceRestoreController:
     controller = WorkspaceRestoreController(shell)
     setattr(shell, "workspace_restore_controller", controller)
     return controller
-
-
-def _catalog_from_picker_snapshot(snapshot: CubeCatalogSnapshot) -> CubeCatalog:
-    """Convert picker cache records into the update-detection catalog model."""
-
-    return CubeCatalog(
-        schema_version=1,
-        catalog_revision=snapshot.catalog_revision,
-        generated_at="",
-        cubes=tuple(_catalog_entry_from_record(record) for record in snapshot.entries),
-    )
-
-
-def _catalog_entry_from_record(record: CubeCatalogRecord) -> CubeCatalogEntry:
-    """Convert one picker catalog record into a domain catalog entry."""
-
-    return CubeCatalogEntry(
-        cube_id=record.cube_id,
-        version=record.version,
-        display_name=record.display_name,
-        description=record.description,
-        source=record.source or CubeSourceMetadata(kind="", path=""),
-        content_hash=record.content_hash,
-        updated_at=record.updated_at,
-        target_model=record.target_model,
-        supported_models=record.supported_models,
-        icon=record.icon,
-    )
 
 
 __all__ = [

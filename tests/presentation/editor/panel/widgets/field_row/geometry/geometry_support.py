@@ -50,7 +50,7 @@ from substitute.application.node_behavior import (
 from substitute.presentation.editor.panel.factories.field_pipeline import (
     build_widget_for_field_spec,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_row_geometry import (
     EDITOR_FIELD_ROW_HEIGHT,
 )
 from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder

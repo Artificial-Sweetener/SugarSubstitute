@@ -32,6 +32,7 @@ from substitute.application.execution import (
     TaskSubmitter,
 )
 from substitute.domain.workspace_snapshot import WorkspaceSnapshot
+from substitute.domain.output_media import OutputMediaKind
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.shared.logging.logger import get_logger, log_debug, log_info
 
@@ -212,7 +213,8 @@ def _restored_image_paths(snapshot: WorkspaceSnapshot) -> tuple[Path, ...]:
         for input_reference in workflow.input_images:
             paths[Path(input_reference.path)] = None
         for output_reference in workflow.output_images:
-            paths[Path(output_reference.path)] = None
+            if output_reference.metadata.media_kind is OutputMediaKind.IMAGE:
+                paths[Path(output_reference.path)] = None
     return tuple(paths)
 
 

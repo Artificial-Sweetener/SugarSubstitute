@@ -49,7 +49,7 @@
       <translation>取消</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="128"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="132"></location>
       <source>Cancel repair</source>
       <translation>取消修复</translation>
     </message>
@@ -59,7 +59,7 @@
       <translation>正在检查 SugarSubstitute 更新。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="124"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="128"></location>
       <source>Checking repair files</source>
       <translation>正在检查修复文件</translation>
     </message>
@@ -104,7 +104,7 @@
       <translation>选择你的语言</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="156"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="166"></location>
       <source>Close</source>
       <translation>关闭</translation>
     </message>
@@ -129,12 +129,12 @@
       <translation>无法启动 SugarSubstitute 设置。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="182"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="194"></location>
       <source>Created install root: %1</source>
       <translation>已创建安装根目录：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="73"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="77"></location>
       <source>Details</source>
       <translation>详细信息</translation>
     </message>
@@ -204,7 +204,7 @@
       <translation>已安装的应用版本：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="169"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="181"></location>
       <source>Installed launcher: %1</source>
       <translation>已安装启动器：%1</translation>
     </message>
@@ -264,7 +264,7 @@
       <translation>未更改任何其他内容。请查看报告，然后重试此步骤。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="165"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="192"></location>
       <source>Open SugarSubstitute</source>
       <translation>打开 SugarSubstitute</translation>
     </message>
@@ -364,7 +364,7 @@
       <translation>修复 Substitute 和托管的 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="161"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
       <source>Repair complete</source>
       <translation>修复完成</translation>
     </message>
@@ -384,7 +384,7 @@
       <translation>修复已准备就绪。正在关闭此窗口以替换应用文件。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="123"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="127"></location>
       <source>Repair keeps your files and models.</source>
       <translation>修复会保留您的文件和模型。</translation>
     </message>
@@ -394,12 +394,12 @@
       <translation>已请求修复模式。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="167"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="194"></location>
       <source>Repair needs attention</source>
       <translation>修复需要处理</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="122"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="126"></location>
       <source>Repairing SugarSubstitute</source>
       <translation>正在修复 SugarSubstitute</translation>
     </message>
@@ -434,12 +434,12 @@
       <translation>请返回该 Windows 会话并关闭 SugarSubstitute，然后在此处重试。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="169"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="196"></location>
       <source>Review the details, then try the repair again.</source>
       <translation>请查看详细信息，然后重试修复。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="101"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="102"></location>
       <source>Runtime ready: %1</source>
       <translation>运行环境已就绪：%1</translation>
     </message>
@@ -479,7 +479,7 @@
       <translation>设置已启动</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="103"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="115"></location>
       <source>Setup stopped at a safe point.</source>
       <translation>设置已在安全节点停止。</translation>
     </message>
@@ -489,7 +489,7 @@
       <translation>显示详细信息</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="176"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="188"></location>
       <source>Source-run launcher detected; skipped executable self-copy.</source>
       <translation>检测到从源代码运行的启动器；已跳过复制可执行文件。</translation>
     </message>
@@ -509,7 +509,7 @@
       <translation>开始修复</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="114"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="126"></location>
       <source>Started SugarSubstitute setup.</source>
       <translation>已启动 SugarSubstitute 设置。</translation>
     </message>
@@ -544,7 +544,7 @@
       <translation>仍在将 SugarSubstitute 启动器更新到 %1—网络或存储速度较慢可能导致延迟</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="144"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="148"></location>
       <source>Stopping repair. This window will close when the repair process has stopped.</source>
       <translation>正在停止修复。修复进程停止后，此窗口将关闭。</translation>
     </message>
@@ -569,9 +569,14 @@
       <translation>SugarSubstitute 已在另一个 Windows 会话中打开。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="163"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="190"></location>
       <source>SugarSubstitute is ready to open.</source>
       <translation>现在可以打开 SugarSubstitute。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="109"></location>
+      <source>SugarSubstitute is repaired. Your files were preserved, but the previous session could not be restored. Recovery copies are in %1.</source>
+      <translation>SugarSubstitute 已修复。你的文件已保留，但无法恢复之前的会话。恢复副本位于 %1。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="373"></location>
@@ -599,7 +604,7 @@
       <translation>首次安装可能需要一些时间。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="198"></location>
       <source>Try again</source>
       <translation>重试</translation>
     </message>
@@ -659,7 +664,7 @@
       <translation>正在处理...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="185"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="197"></location>
       <source>Wrote launcher config: %1</source>
       <translation>已写入启动器配置：%1</translation>
     </message>
@@ -667,6 +672,11 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="66"></location>
       <source>You can retry or open the launcher logs for details.</source>
       <translation>您可以重试，或打开启动器日志查看详细信息。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="180"></location>
+      <source>the repair recovery folder</source>
+      <translation>修复恢复文件夹</translation>
     </message>
   </context>
   <context>

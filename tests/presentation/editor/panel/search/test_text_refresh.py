@@ -30,6 +30,7 @@ from substitute.application.node_behavior import EditorBehaviorSnapshot
 from tests.support.node_behavior import build_behavior_snapshot, cube_state
 
 import substitute.presentation.editor.panel.search_controller as mod
+import substitute.presentation.editor.panel.search_widget_presenter as widget_mod
 
 
 class _PromptEditor:
@@ -120,7 +121,7 @@ def test_text_search_refresh_recomputes_prompt_highlight_offsets(
 ) -> None:
     """Refreshing text search should rebuild ranges after prompt insertions."""
 
-    monkeypatch.setattr(mod, "PromptEditor", _PromptEditor)
+    monkeypatch.setattr(widget_mod, "PromptEditor", _PromptEditor)
     prompt = _PromptEditor(record_cursor_updates=True)
     controller, panel = _search_controller(
         _behavior_snapshot("dog alpha"),
@@ -143,7 +144,7 @@ def test_text_search_refresh_removes_prompt_highlight_when_match_disappears(
 ) -> None:
     """Refreshing text search should clear stale prompt ranges when no match remains."""
 
-    monkeypatch.setattr(mod, "PromptEditor", _PromptEditor)
+    monkeypatch.setattr(widget_mod, "PromptEditor", _PromptEditor)
     prompt = _PromptEditor(record_cursor_updates=False)
     controller, panel = _search_controller(
         _behavior_snapshot("dog alpha"),

@@ -33,6 +33,7 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
 )
+from substitute.domain.generation import VideoPlaybackSettings
 from substitute.presentation.canvas.host import (
     CanvasHost,
     CanvasHostPage,
@@ -87,6 +88,7 @@ def create_canvas_host(
     generation_progress_strip_registry: (GenerationProgressStripRegistry | None) = None,
     output_floating_chrome_factory: OutputFloatingChromeFactory | None = None,
     route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
+    video_settings_provider: Callable[[], VideoPlaybackSettings] | None = None,
 ) -> CanvasHost:
     """Build the app canvas host from explicit Input and Output pages."""
 
@@ -126,6 +128,7 @@ def create_canvas_host(
                 final_output_payload_lookup=final_output_payload_lookup,
                 final_output_metadata_lookup=final_output_metadata_lookup,
                 route_session_boundary=route_session_boundary,
+                video_settings_provider=video_settings_provider,
             ),
         )
     with trace_span("canvas_host.create.host"):

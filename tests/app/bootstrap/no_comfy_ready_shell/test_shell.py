@@ -108,37 +108,27 @@ def test_launch_no_comfy_ready_shell_closes_splash_and_shows_shell(
     ]
 
 
-def test_launch_no_comfy_ready_shell_tolerates_splash_close_failure(
-    monkeypatch: pytest.MonkeyPatch,
+def test_no_comfy_shell_does_not_show_after_splash_close_failure(
     tmp_path: Path,
 ) -> None:
-    """Splash close errors should be logged without blocking shell launch."""
+    """A failed close must not create overlapping top-level windows."""
 
-    exception_logs: list[str] = []
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.no_comfy_ready_shell.log_exception",
-        lambda _logger, message: exception_logs.append(message),
-    )
-    shell_frame = object()
-    attached_frames: list[object] = []
+    show_calls: list[bool] = []
+    with pytest.raises(RuntimeError, match="close failed"):
+        launch_no_comfy_ready_shell(
+            context=_context(tmp_path),
+            splash=_FailingSplash(),
+            comfy_output_stream=object(),
+            shutdown_request=object(),
+            startup_timer=object(),
+            runtime_services=object(),
+            initial_shell_placement=None,
+            initial_workspace=None,
+            show_main_window=lambda *_args, **_kwargs: show_calls.append(True),
+            attach_gui_reload_command=lambda _frame: None,
+        )
 
-    result = launch_no_comfy_ready_shell(
-        context=_context(tmp_path),
-        splash=_FailingSplash(),
-        comfy_output_stream=object(),
-        shutdown_request=object(),
-        startup_timer=object(),
-        runtime_services=object(),
-        initial_shell_placement=None,
-        initial_workspace=None,
-        show_main_window=lambda *_args, **_kwargs: shell_frame,
-        attach_gui_reload_command=attached_frames.append,
-    )
-
-    assert result.shell_frame is shell_frame
-    assert result.splash is None
-    assert attached_frames == [shell_frame]
-    assert exception_logs == ["Failed to close launch splash"]
+    assert show_calls == []
 
 
 def test_publish_no_comfy_ready_shell_result_updates_current_shell() -> None:

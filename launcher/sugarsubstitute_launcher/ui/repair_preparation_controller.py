@@ -139,7 +139,7 @@ class RepairPreparationController(QObject):
             working=True,
         )
         self._handoff_completed()
-        QTimer.singleShot(0, self._window.close)
+        QTimer.singleShot(0, self._window, self._window.close)
 
     @Slot(str)
     def _failed(self, details: str) -> None:

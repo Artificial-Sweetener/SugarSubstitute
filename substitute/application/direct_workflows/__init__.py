@@ -19,7 +19,7 @@
 from .execution_projection import (
     DirectWorkflowExecutionProjection,
     DirectWorkflowExecutionProjector,
-    RecoveryOutputIdentity,
+    ProjectedOutputIdentity,
 )
 from .generation_plan_service import DirectWorkflowGenerationPlanService
 from .prompt_field_overlay import DirectWorkflowPromptFieldOverlayService
@@ -32,6 +32,7 @@ from .scene_preparation_service import (
     DirectWorkflowScenePreparationService,
 )
 from .load_service import DirectWorkflowLoadService, DirectWorkflowRepository
+from .node_compatibility import DirectWorkflowNodeCompatibilityService
 from .portable_model_resolution import (
     PendingPortableWorkflowResolution,
     PortableWorkflowModelResolutionRequired,
@@ -49,10 +50,11 @@ __all__ = [
     "DirectScenePreparationResult",
     "DirectWorkflowScenePreparationService",
     "DirectWorkflowLoadService",
+    "DirectWorkflowNodeCompatibilityService",
     "DirectWorkflowRepository",
     "PendingPortableWorkflowResolution",
     "PortableWorkflowModelResolutionRequired",
     "PortableWorkflowModelResolutionService",
-    "RecoveryOutputIdentity",
+    "ProjectedOutputIdentity",
     "ResolvedPortableWorkflow",
 ]

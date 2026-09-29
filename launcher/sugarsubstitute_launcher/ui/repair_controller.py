@@ -33,6 +33,10 @@ from launcher.sugarsubstitute_launcher.ui.repair_worker import RepairWorker
 from sugarsubstitute_shared.qt_application_instance_control import (
     request_supervised_application_restart,
 )
+from sugarsubstitute_shared.session_recovery import (
+    SessionRecoveryResult,
+    SessionRecoveryState,
+)
 
 
 class RepairController(QObject):
@@ -56,6 +60,7 @@ class RepairController(QObject):
         self._worker: RepairWorker | None = None
         self._succeeded = False
         self._failure = ""
+        self._session_recovery = SessionRecoveryResult(SessionRecoveryState.NO_SESSION)
         self._close_pending = False
         self._retire_host = False
         self._details: deque[str] = deque(maxlen=500)
@@ -69,6 +74,7 @@ class RepairController(QObject):
             return
         self._succeeded = False
         self._failure = ""
+        self._session_recovery = SessionRecoveryResult(SessionRecoveryState.NO_SESSION)
         self._details.clear()
         self._window.progress_view.begin_attempt()
         self._window.set_running(True)
@@ -78,6 +84,7 @@ class RepairController(QObject):
         thread.started.connect(worker.run)
         worker.progress.connect(self._progress)
         worker.output.connect(self._output)
+        worker.session_recovery.connect(self._record_session_recovery)
         worker.succeeded.connect(self._success)
         worker.failed.connect(self._failed)
         worker.fatal_failure.connect(self._fatal_failure)
@@ -118,6 +125,14 @@ class RepairController(QObject):
         """Retain completion until the worker thread has fully released its resources."""
         self._succeeded = True
 
+    @Slot(object)
+    def _record_session_recovery(self, value: object) -> None:
+        """Retain a typed session outcome independently of repair success."""
+
+        if not isinstance(value, SessionRecoveryResult):
+            raise TypeError("Repair worker emitted an invalid session result.")
+        self._session_recovery = value
+
     @Slot(str)
     def _failed(self, details: str) -> None:
         """Keep failure details for the terminal view without racing worker cleanup."""
@@ -146,6 +161,7 @@ class RepairController(QObject):
         self._window.progress_view.show_result(
             succeeded=self._succeeded,
             details=self._failure or "\n".join(self._details),
+            session_recovery=self._session_recovery,
         )
         if self._succeeded and self._request.relaunch:
             self._primary_action()

@@ -23,13 +23,19 @@ from pathlib import Path
 
 import pytest
 
+from substitute.domain.comfy_workflow.cube_analysis import CanonicalCubeGraphAnalysis
 from substitute.domain.generation.seed_control import SeedControlState, SeedMode
 from substitute.domain.workspace_snapshot import SnapshotCodecError
 from substitute.domain.workspace_snapshot.codecs import (
     workflow_state_from_json,
     workflow_state_to_json,
 )
-from substitute.domain.workflow import CubeState, ProjectMaskAssetRef, WorkflowState
+from substitute.domain.workflow import (
+    CubeState,
+    ProjectMaskAssetRef,
+    WorkflowDocumentKind,
+    WorkflowState,
+)
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 
@@ -205,6 +211,38 @@ def test_workflow_state_codec_persists_graph_backed_cubes_only_in_native_graph()
             "inputs": {"seed": 8675309},
         }
     }
+
+
+def test_empty_canonical_graph_restores_as_cube_authoring_document() -> None:
+    """Reopening a workflow after its last Cube closes must keep Add Cube available."""
+
+    graph = {
+        "version": 0.4,
+        "nodes": [],
+        "links": [],
+        "definitions": {"subgraphs": []},
+    }
+    state = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("empty-cube-workflow.json"),
+            source_workflow=graph,
+            buffer={"nodes": {}},
+            cube_analysis=CanonicalCubeGraphAnalysis(
+                workflow_semantic_hash="empty-cube-graph",
+                instances=(),
+                edges=(),
+                proximity_edges=(),
+                segments=(),
+                workflow=graph,
+            ),
+        )
+    )
+
+    restored = workflow_state_from_json(workflow_state_to_json(state))
+
+    assert restored.document_kind is WorkflowDocumentKind.COMFY_CUBE_GRAPH
+    assert restored.direct_workflow is not None
+    assert restored.direct_workflow.source_workflow == graph
 
 
 def test_workflow_state_codec_persists_canonical_value_without_rewriting_flavors() -> (

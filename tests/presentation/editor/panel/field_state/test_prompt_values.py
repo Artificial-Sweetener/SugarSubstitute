@@ -70,7 +70,7 @@ def test_bind_node_widget_state_restores_and_persists_prompt_editor_buffer_value
         dirty=False,
     )
 
-    module.bind_node_widget_state(
+    module.EditorPanelFieldStateController().bind_node_widget_state(
         prompt_editor,
         cube_state,
         {"node_name": "positive_prompt", "key": "text"},
@@ -133,7 +133,7 @@ def test_bind_node_widget_state_preserves_escaped_prompt_source_verbatim(
         dirty=False,
     )
 
-    module.bind_node_widget_state(
+    module.EditorPanelFieldStateController().bind_node_widget_state(
         prompt_editor,
         cube_state,
         {"node_name": "positive_prompt", "key": "text"},

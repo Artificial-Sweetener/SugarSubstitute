@@ -17,9 +17,12 @@
 """Coordinate persisted installation transactions before admitting new work."""
 
 from __future__ import annotations
+import logging
+
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_activation_journal import (
-    update_journal_path,
+    UpdateRecoveryError,
+    update_journal_paths,
 )
 from launcher.sugarsubstitute_launcher.update_activation_recovery import (
     recover_interrupted_update,
@@ -30,6 +33,8 @@ from sugarsubstitute_shared.installation_mutation import (
 )
 from sugarsubstitute_shared.repair_recovery.execution import recover_interrupted_repair
 from sugarsubstitute_shared.repair_recovery.journal import PENDING_JOURNAL
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class InstallationRecovery:
@@ -42,9 +47,9 @@ class InstallationRecovery:
     @property
     def pending(self) -> bool:
         """Detect journal presence without trusting or interpreting recovery data."""
-        return (self._layout.root / PENDING_JOURNAL).exists() or update_journal_path(
-            self._layout
-        ).exists()
+        return (self._layout.root / PENDING_JOURNAL).exists() or any(
+            path.exists() for path in update_journal_paths(self._layout)
+        )
 
     def recover(
         self, *, ownership: InstallationMutationOwnership | None = None
@@ -57,4 +62,26 @@ class InstallationRecovery:
             update_recovered = recover_interrupted_update(
                 self._layout, ownership=operation
             )
+            return repair_recovered or update_recovered
+
+    def recover_for_repair(
+        self, *, ownership: InstallationMutationOwnership | None = None
+    ) -> bool:
+        """Recover safe transactions while leaving an unreadable update for quarantine."""
+
+        with installation_mutation(self._layout.root, ownership=ownership) as operation:
+            repair_recovered = recover_interrupted_repair(
+                self._layout.root, ownership=operation
+            )
+            try:
+                update_recovered = recover_interrupted_update(
+                    self._layout, ownership=operation
+                )
+            except UpdateRecoveryError:
+                _LOGGER.warning(
+                    "Deferring incompatible update journal to transactional repair",
+                    exc_info=True,
+                    extra={"install_root": str(self._layout.root)},
+                )
+                update_recovered = False
             return repair_recovered or update_recovered

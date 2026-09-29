@@ -124,6 +124,40 @@ def test_release_payload_contains_required_runtime_roots(tmp_path: Path) -> None
     )
 
 
+def test_release_payload_requires_and_archives_manifest_runtime_files(
+    tmp_path: Path,
+) -> None:
+    """A declared native runtime must exist and ship in the application payload."""
+
+    repo_root = _write_fixture_repo(tmp_path)
+    runtime_relative = "third_party/bin/mpv/windows-x64/libmpv-2.dll"
+    (repo_root / "third_party" / "manifest.toml").write_text(
+        "[[component]]\n"
+        'name = "video runtime"\n'
+        f'runtime_files = ["{runtime_relative}"]\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        FileNotFoundError,
+        match="Repository root is missing declared runtime files",
+    ):
+        build_local_release_channel(
+            repo_root=repo_root,
+            output_dir=repo_root / ".local-release-channel",
+            version="0.4.0",
+        )
+
+    _write_file(repo_root / runtime_relative, "native runtime")
+    result = build_local_release_channel(
+        repo_root=repo_root,
+        output_dir=repo_root / ".local-release-channel",
+        version="0.4.0",
+    )
+
+    assert runtime_relative in inspect_payload_zip(result.app_zip_path)
+
+
 def test_release_payload_excludes_non_runtime_artifacts(tmp_path: Path) -> None:
     """The app zip excludes repo state, caches, test files, and user data."""
 

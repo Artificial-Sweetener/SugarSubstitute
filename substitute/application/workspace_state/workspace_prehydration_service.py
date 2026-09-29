@@ -80,8 +80,10 @@ class WorkspacePrehydrationPort(Protocol):
     def restore_input_mask(self, reference: InputMaskReference) -> bool:
         """Restore one input mask reference when supported."""
 
-    def load_restored_output_image(self, path: Path) -> object | None:
-        """Load one output image payload for restore."""
+    def load_restored_output_image(
+        self, reference: OutputImageReference
+    ) -> object | None:
+        """Load one output media tile payload for restore."""
 
     def restore_output_image(
         self,
@@ -243,7 +245,7 @@ class WorkspacePrehydrationService:
             count=len(workflow.output_images),
         )
         for reference in workflow.output_images:
-            image = port.load_restored_output_image(reference.path)
+            image = port.load_restored_output_image(reference)
             if image is None:
                 warnings.append(
                     f"Skipped output image {reference.image_id} because it could not be loaded."
@@ -298,6 +300,10 @@ def _image_meta_from_snapshot(snapshot: ImageMetaSnapshot) -> ImageMeta:
         width=snapshot.width,
         height=snapshot.height,
         cube_execution_duration_ms=snapshot.cube_execution_duration_ms,
+        media_kind=snapshot.media_kind,
+        duration_seconds=snapshot.duration_seconds,
+        mime_type=snapshot.mime_type,
+        temporary=False,
     )
 
 

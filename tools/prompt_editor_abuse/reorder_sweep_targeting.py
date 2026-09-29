@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, QSizeF
+from PySide6.QtCore import QEventLoop, QPoint, QPointF, QRect, QRectF, QSizeF, QTimer
 
 from substitute.presentation.editor.prompt_editor.projection.reorder_placement_geometry import (
     PromptReorderPlacementGeometry,
@@ -28,6 +28,64 @@ from substitute.presentation.editor.prompt_editor.projection.reorder_placement_g
     PromptReorderPlacementSnapshot,
     placement_for_drag_rect,
 )
+
+type ReorderSweepSnapshotSupplier = Callable[[], PromptReorderPlacementSnapshot | None]
+type ReorderSweepConditionWaiter = Callable[[Callable[[], bool]], bool]
+
+
+def wait_for_reorder_sweep_pointer_plan(
+    *,
+    snapshot_supplier: ReorderSweepSnapshotSupplier,
+    drag_intent_size: QSizeF | None,
+    drag_grab_offset: QPointF | None,
+    pointer_bounds: QRect,
+    wait: ReorderSweepConditionWaiter | None = None,
+) -> tuple[PromptReorderPlacementSnapshot, tuple[QPoint, ...]]:
+    """Wait until every published placement has a real pointer coordinate."""
+
+    if (
+        drag_intent_size is None
+        or drag_intent_size.isEmpty()
+        or drag_grab_offset is None
+    ):
+        raise RuntimeError("Reorder drag sweep has no captured drag intent geometry.")
+    plan: tuple[PromptReorderPlacementSnapshot, tuple[QPoint, ...]] | None = None
+    last_error: RuntimeError | None = None
+
+    def capture_reachable_plan() -> bool:
+        """Capture one coherent topology without retaining a provisional frame."""
+
+        nonlocal last_error, plan
+        snapshot = snapshot_supplier()
+        if snapshot is None or not snapshot.placements:
+            return False
+        try:
+            pointers = tuple(
+                pointer_for_reorder_sweep_placement(
+                    snapshot,
+                    placement,
+                    drag_intent_size=drag_intent_size,
+                    drag_grab_offset=drag_grab_offset,
+                    pointer_bounds=pointer_bounds,
+                    active_placement_id=None,
+                )
+                for placement in snapshot.placements
+            )
+        except RuntimeError as error:
+            last_error = error
+            return False
+        plan = (snapshot, pointers)
+        return True
+
+    condition_waiter = wait or _wait_for_condition
+    if condition_waiter(capture_reachable_plan):
+        assert plan is not None
+        return plan
+    if last_error is not None:
+        raise RuntimeError(
+            "Reorder drag sweep placements did not become coherently reachable."
+        ) from last_error
+    raise RuntimeError("Reorder drag sweep has no prepared placements.")
 
 
 def pointer_for_reorder_sweep_placement(
@@ -55,7 +113,15 @@ def pointer_for_reorder_sweep_placement(
     x_samples = _axis_samples(
         placement.hit_rect.left(),
         placement.hit_rect.right(),
-        (rect.left() for rect in competing_rects),
+        (
+            *(rect.left() for rect in competing_rects),
+            placement.insertion_anchor_rect.center().x(),
+            *(
+                candidate.insertion_anchor_rect.center().x()
+                for candidate in snapshot.placements
+                if candidate.placement_id != placement.placement_id
+            ),
+        ),
         (rect.right() for rect in competing_rects),
     )
     y_samples = _axis_samples(
@@ -98,6 +164,21 @@ def pointer_for_reorder_sweep_placement(
         f"target={placement.target!r}:hit={placement.hit_rect!r}:"
         f"active_id={active_placement_id!r}"
     )
+
+
+def _wait_for_condition(
+    predicate: Callable[[], bool], *, timeout_ms: int = 1_000
+) -> bool:
+    """Run queued Qt work until a coherent sweep topology is observable."""
+
+    remaining_ms = timeout_ms
+    while not predicate() and remaining_ms > 0:
+        loop = QEventLoop()
+        interval_ms = min(5, remaining_ms)
+        QTimer.singleShot(interval_ms, loop.quit)
+        loop.exec()
+        remaining_ms -= interval_ms
+    return predicate()
 
 
 def _axis_samples(

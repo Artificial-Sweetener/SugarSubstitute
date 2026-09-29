@@ -26,11 +26,12 @@ from PySide6.QtGui import QImage
 from substitute.application.ports import GenerationVisualIdentity
 from substitute.application.workflows.output_visual_events import LiveFinalOutputEvent
 from substitute.domain.generation import OutputResultPosition
+from substitute.domain.output_media import OutputMediaKind
 
 
 @dataclass(frozen=True, slots=True)
 class OutputImageCommitRequest:
-    """Capture narrow final-output metadata before preparation starts."""
+    """Capture narrow final-output media metadata before preparation starts."""
 
     workflow_id: str
     file_path: Path | None
@@ -54,6 +55,10 @@ class OutputImageCommitRequest:
     scene_order: int | None = None
     scene_count: int | None = None
     cube_execution_duration_ms: float | None = None
+    media_kind: OutputMediaKind = OutputMediaKind.IMAGE
+    duration_seconds: float | None = None
+    mime_type: str | None = None
+    temporary: bool = False
 
 
 @dataclass(frozen=True, slots=True)

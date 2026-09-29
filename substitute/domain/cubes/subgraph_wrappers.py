@@ -25,6 +25,8 @@ from typing import Mapping, Pattern, Sequence
 
 from substitute.shared.logging.logger import get_logger, log_debug
 
+from .subgraph_body_inventory import subgraph_body_node_classes
+
 _LOGGER = get_logger("domain.cubes.subgraph_wrappers")
 DEFAULT_SOURCE_AUTHORED_PUBLIC_INTERFACE = "authored_public_interface"
 DEFAULT_SOURCE_AUTHORED_BODY_WIDGET = "authored_body_widget"
@@ -48,12 +50,20 @@ def is_subgraph_wrapper_class_type(class_type: object) -> bool:
 class SubgraphWrapperDefinitionIndex:
     """Resolve virtual node definitions for surface subgraph wrapper nodes."""
 
-    def __init__(self, definitions: Mapping[str, Mapping[str, object]]) -> None:
-        """Store virtual definitions keyed by subgraph wrapper class type."""
+    def __init__(
+        self,
+        definitions: Mapping[str, Mapping[str, object]],
+        body_node_classes_by_wrapper: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
+        """Store virtual definitions and their complete body class inventory."""
 
         self._definitions = {
             class_type: deepcopy(dict(definition))
             for class_type, definition in definitions.items()
+        }
+        self._body_node_classes_by_wrapper = {
+            class_type: tuple(sorted(set(body_classes)))
+            for class_type, body_classes in (body_node_classes_by_wrapper or {}).items()
         }
 
     @classmethod
@@ -68,6 +78,10 @@ class SubgraphWrapperDefinitionIndex:
             return cls({})
 
         subgraph_entries = _subgraph_entries(subgraphs)
+        body_node_classes_by_wrapper = {
+            subgraph_id: subgraph_body_node_classes(subgraph)
+            for subgraph_id, subgraph in subgraph_entries
+        }
         node_definitions = _definition_map(graph.get("definitions"))
         definitions: dict[str, Mapping[str, object]] = {}
         for _ in range(max(1, len(subgraph_entries) + 1)):
@@ -93,7 +107,7 @@ class SubgraphWrapperDefinitionIndex:
             _log_wrapper_definition_trace(
                 subgraph_id=subgraph_id, definition=final_definition
             )
-        return cls(definitions)
+        return cls(definitions, body_node_classes_by_wrapper)
 
     def definition_for_class_type(
         self,
@@ -123,20 +137,17 @@ class SubgraphWrapperDefinitionIndex:
         return stripped or None
 
     def body_node_classes(self) -> tuple[str, ...]:
-        """Return hidden body node classes referenced by wrapper public inputs."""
+        """Return every node class persisted inside a wrapper body."""
 
         body_classes: set[str] = set()
-        for definition in self._definitions.values():
-            body_classes.update(_body_node_classes_from_definition(definition))
+        for classes in self._body_node_classes_by_wrapper.values():
+            body_classes.update(classes)
         return tuple(sorted(body_classes))
 
     def body_node_classes_for_class_type(self, class_type: str) -> tuple[str, ...]:
-        """Return hidden body node classes for one wrapper class type."""
+        """Return every node class persisted inside one wrapper body."""
 
-        definition = self._definitions.get(class_type)
-        if definition is None:
-            return ()
-        return tuple(sorted(_body_node_classes_from_definition(definition)))
+        return self._body_node_classes_by_wrapper.get(class_type, ())
 
 
 @dataclass(frozen=True)
@@ -719,43 +730,6 @@ def _body_definition_metadata(
     if raw_field is None:
         return None, {}
     return _field_type_and_metadata(raw_field)
-
-
-def _body_node_class_from_field_spec(field_spec: object) -> str | None:
-    """Return the hidden body node class recorded on one wrapper field spec."""
-
-    if (
-        not isinstance(field_spec, Sequence)
-        or isinstance(field_spec, (str, bytes))
-        or len(field_spec) < 2
-        or not isinstance(field_spec[1], Mapping)
-    ):
-        return None
-    body_node_type = field_spec[1].get("body_node_type")
-    if not isinstance(body_node_type, str):
-        return None
-    stripped = body_node_type.strip()
-    return stripped or None
-
-
-def _body_node_classes_from_definition(
-    definition: Mapping[str, object],
-) -> set[str]:
-    """Return hidden body node classes referenced by one wrapper definition."""
-
-    body_classes: set[str] = set()
-    input_section = definition.get("input")
-    if not isinstance(input_section, Mapping):
-        return body_classes
-    for section_name in ("required", "optional"):
-        section = input_section.get(section_name)
-        if not isinstance(section, Mapping):
-            continue
-        for field_spec in section.values():
-            body_class = _body_node_class_from_field_spec(field_spec)
-            if body_class is not None:
-                body_classes.add(body_class)
-    return body_classes
 
 
 def _definition_field(

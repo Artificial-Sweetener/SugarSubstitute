@@ -273,6 +273,29 @@ def test_apply_hidden_field_keys_keeps_empty_title_control_cards_visible() -> No
     assert card.visible is True
 
 
+def test_apply_hidden_field_keys_keeps_runtime_issue_cards_visible() -> None:
+    """Runtime-issue content should remain visible without registered field rows."""
+
+    mod = _import_module()
+    card = _Widget(
+        props={
+            "base_card_visible": True,
+            "has_title_controls": False,
+            "node_card_variant": "runtime_issue",
+        }
+    )
+    panel = SimpleNamespace(
+        _hidden_field_keys=set(),
+        row_widgets={},
+        col_widgets={},
+        card_wrappers={("CubeA", "missing_node"): card},
+    )
+
+    mod.EditorPanelFieldSyncController(panel).apply_hidden_field_keys(set())
+
+    assert card.visible is True
+
+
 def test_apply_hidden_field_keys_preserves_policy_hidden_cards() -> None:
     """Empty-card visibility should not override node policy/search hidden state."""
 

@@ -48,10 +48,15 @@ from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
 from sugarsubstitute_shared.application_runtime_mode import (
     packaged_application_environment,
 )
+from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 from sugarsubstitute_shared.update_rollback_report import UpdateRollbackStage
 
 
 _LOGGER = logging.getLogger(__name__)
+_CANDIDATE_READY_SURFACES = (
+    ApplicationReadinessSurface.MAIN_SHELL,
+    ApplicationReadinessSurface.ONBOARDING,
+)
 
 
 class CandidateUpdateRollbackError(RuntimeError):
@@ -146,7 +151,8 @@ def launch_prepared_update(
     """Commit after visible readiness or restore and relaunch the prior app."""
 
     readiness_supervisor = supervisor or ApplicationReadinessSupervisor(
-        cancellation_requested=cancellation_requested
+        accepted_surfaces=_CANDIDATE_READY_SURFACES,
+        cancellation_requested=cancellation_requested,
     )
     crash_owner = crash_supervisor or ApplicationCrashSupervisor()
     prepared = crash_owner.prepare(

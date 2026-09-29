@@ -79,7 +79,9 @@ def test_prompt_editor_missing_rich_rendering_state_keeps_default_enabled(
         ui={},
     )
 
-    module.wire_prompt_editor_state(_as_prompt_editor(prompt_editor), cube_state)
+    module.EditorPanelFieldStateController().wire_prompt_editor_state(
+        _as_prompt_editor(prompt_editor), cube_state
+    )
 
     assert prompt_editor.richPromptRenderingEnabled() is True
     assert cube_state.dirty is False
@@ -136,7 +138,9 @@ def test_prompt_editor_restores_disabled_rich_rendering_without_dirtying(
         },
     )
 
-    module.wire_prompt_editor_state(_as_prompt_editor(prompt_editor), cube_state)
+    module.EditorPanelFieldStateController().wire_prompt_editor_state(
+        _as_prompt_editor(prompt_editor), cube_state
+    )
 
     assert prompt_editor.richPromptRenderingEnabled() is False
     assert cube_state.dirty is False
@@ -193,7 +197,9 @@ def test_prompt_editor_invalid_rich_rendering_state_is_ignored(
         },
     )
 
-    module.wire_prompt_editor_state(_as_prompt_editor(prompt_editor), cube_state)
+    module.EditorPanelFieldStateController().wire_prompt_editor_state(
+        _as_prompt_editor(prompt_editor), cube_state
+    )
 
     assert prompt_editor.richPromptRenderingEnabled() is True
     assert cube_state.dirty is False
@@ -244,7 +250,7 @@ def test_prompt_editor_rich_rendering_changes_update_cube_ui_and_autosave(
         ui=None,
     )
 
-    module.wire_prompt_editor_state(
+    module.EditorPanelFieldStateController().wire_prompt_editor_state(
         _as_prompt_editor(prompt_editor),
         cube_state,
         manual_height_changed=lambda: autosaves.append("autosave"),

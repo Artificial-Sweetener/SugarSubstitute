@@ -29,7 +29,7 @@ from substitute.application.cubes import CubeStackService
 from substitute.domain.comfy_workflow.models import DirectWorkflowState
 from substitute.domain.comfy_workflow.cube_analysis import CubeGraphEdgeOrigin
 from substitute.domain.common import JsonObject
-from substitute.domain.workflow import WorkflowState
+from substitute.domain.workflow import WorkflowDocumentKind, WorkflowState
 from substitute.domain.cube_library import CubeUpdatePolicy
 from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 from tests.application.cubes.cube_stack.graph_backed_support import (
@@ -496,3 +496,29 @@ def test_removing_last_cube_restores_no_cube_direct_graph_projection() -> None:
     assert workflow.stack_order == []
     assert workflow.direct_workflow is not None
     assert workflow.direct_workflow.source_workflow == ordinary_graph
+
+
+def test_removing_last_cube_from_pure_cube_graph_keeps_authoring_available() -> None:
+    """An empty canonical Cube graph must still accept another Cube."""
+
+    workflow = graph_backed_cube_workflow("Temporary")
+    service = _graph_stack_service(_StructuralGraphGateway())
+
+    service.apply_cube_removal(workflow, "Temporary")
+
+    assert workflow.cubes == {}
+    assert workflow.stack_order == []
+    assert workflow.document_kind is WorkflowDocumentKind.COMFY_CUBE_GRAPH
+    assert workflow.direct_workflow is not None
+    assert workflow.direct_workflow.source_workflow["nodes"] == []
+
+    replacement = _cube_state("Replacement")
+    service.apply_cube_addition(
+        workflow,
+        replacement.cube_id,
+        replacement.alias,
+        replacement,
+    )
+
+    assert workflow.stack_order == ["Replacement"]
+    assert workflow.document_kind is WorkflowDocumentKind.COMFY_CUBE_GRAPH

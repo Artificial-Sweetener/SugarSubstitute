@@ -18,65 +18,30 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QTextCursor
+from PySide6.QtCore import QObject
 
 from substitute.application.editor_search import (
     EditorSearchResult,
-    EditorSearchService,
     TextSearchMatch,
 )
 from substitute.application.node_behavior import EditorBehaviorSnapshot
-from substitute.presentation.editor.prompt_editor import PromptEditor
 
-
-class SignalConnectorProtocol(Protocol):
-    """Describe a Qt-like signal that accepts connected callbacks."""
-
-    def connect(self, callback: Callable[[], None]) -> None:
-        """Connect one callback to the signal."""
-
-
-class SearchPromptEditorProtocol(Protocol):
-    """Describe prompt editor APIs used by panel search ownership."""
-
-    textChanged: SignalConnectorProtocol
-
-    def property(self, name: str) -> object:
-        """Return one dynamic Qt property."""
-
-    def setProperty(self, name: str, value: object) -> object:
-        """Set one dynamic Qt property."""
-
-    def clear_search_matches(self) -> None:
-        """Clear rendered text-search ranges."""
-
-
-class NodeBehaviorServiceProtocol(Protocol):
-    """Describe behavior snapshot construction used for search corpus snapshots."""
-
-    def build_snapshot(
-        self,
-        *,
-        cube_states: Mapping[str, object],
-        stack_order: list[str],
-        workflow_overrides: Mapping[str, object],
-        search_hidden_keys: set[object],
-        node_search_text: str | None,
-        search_matching_nodes: set[tuple[str, str]] | None,
-    ) -> EditorBehaviorSnapshot:
-        """Build a behavior snapshot for the supplied search corpus inputs."""
+from .search_corpus import EditorSearchCorpus, SearchCorpusHost
+from .search_refresh_scheduler import SearchPromptEditorProtocol, SearchRefreshScheduler
+from .search_visibility_controller import (
+    SearchVisibilityController,
+    SearchVisibilityHost,
+)
+from .search_widget_presenter import SearchWidgetHost, SearchWidgetPresenter
 
 
 class EditorPanelSearchHost(Protocol):
     """Describe panel state and facades needed by search ownership."""
 
-    node_behavior_service: NodeBehaviorServiceProtocol
     input_widgets_by_field_key: Mapping[tuple[str, str, str], object]
     _cube_states: Mapping[str, object] | None
     _stack_order: list[str] | None
@@ -140,16 +105,20 @@ class EditorPanelSearchController:
         """Store host and publish default mirrored search state."""
 
         self._host = host
-        self._current_node_search_text: str | None = None
-        self._current_search_hidden_keys: set[object] = set()
-        self._current_search_matching_nodes: set[tuple[str, str]] | None = None
         self._current_search_result: EditorSearchResult | None = None
         self._navigation = PanelSearchNavigationState(
             matches=(),
             index=-1,
             needle="",
         )
-        self._text_search_refresh_pending = False
+        self._corpus = EditorSearchCorpus(cast(SearchCorpusHost, host))
+        self._widgets = SearchWidgetPresenter(cast(SearchWidgetHost, host))
+        self._visibility = SearchVisibilityController(cast(SearchVisibilityHost, host))
+        self._refresh_scheduler = SearchRefreshScheduler(
+            on_pending_changed=self._publish_refresh_pending,
+            on_refresh=self.refresh_editor_search_result_after_text_change,
+            lifetime_owner=cast(QObject, host),
+        )
         self._publish_search_state()
 
     @property
@@ -168,7 +137,7 @@ class EditorPanelSearchController:
     def text_search_refresh_pending(self) -> bool:
         """Return whether a text-search refresh is queued."""
 
-        return self._text_search_refresh_pending
+        return self._refresh_scheduler.pending
 
     def configure_prompt_text_search_refresh(
         self,
@@ -176,11 +145,9 @@ class EditorPanelSearchController:
     ) -> None:
         """Attach active search recomputation to one prompt editor."""
 
-        if prompt_editor.property("promptTextSearchRefreshTracked") is True:
-            return
-        prompt_editor.setProperty("promptTextSearchRefreshTracked", True)
-        prompt_editor.textChanged.connect(
-            lambda: self.schedule_text_search_refresh(prompt_editor)
+        self._refresh_scheduler.configure(
+            prompt_editor,
+            self.schedule_text_search_refresh,
         )
 
     def schedule_text_search_refresh(
@@ -193,29 +160,12 @@ class EditorPanelSearchController:
             return
         if not self.editor_search_result_has_text_needle(self._current_search_result):
             return
-        if prompt_editor is not None:
-            prompt_editor.clear_search_matches()
-        if self._text_search_refresh_pending:
-            return
-        self._text_search_refresh_pending = True
-        self._publish_search_state()
-        QTimer.singleShot(0, self.refresh_scheduled_text_search)
-
-    def refresh_scheduled_text_search(self) -> None:
-        """Recompute active editor text-search highlights from latest buffers."""
-
-        self._text_search_refresh_pending = False
-        self._publish_search_state()
-        self.refresh_editor_search_result_after_text_change()
+        self._refresh_scheduler.schedule(prompt_editor)
 
     def clear_search_filters(self) -> None:
         """Clear editor search state and reapply visibility without search filters."""
 
-        self._current_node_search_text = None
-        self._current_search_hidden_keys = set()
-        self._current_search_matching_nodes = None
         self._current_search_result = None
-        self._set_field_search_state(None, active=False)
         self.highlight_inputs_matching("")
         self._navigation = PanelSearchNavigationState(
             matches=(),
@@ -223,32 +173,19 @@ class EditorPanelSearchController:
             needle="",
         )
         self._publish_search_state()
-        self._host.refresh_node_behavior_state(
-            search_hidden_keys=set(),
-            node_search_text=None,
-            reason="search_changed",
-        )
+        self._visibility.clear()
 
     def build_search_corpus_snapshot(self) -> EditorBehaviorSnapshot | None:
         """Build an unfiltered snapshot used as the authoritative search corpus."""
 
-        if not self._host._stack_order or not self._host._cube_states:
-            return None
-        return self._host.node_behavior_service.build_snapshot(
-            cube_states=self._host._cube_states,
-            stack_order=list(self._host._stack_order),
-            workflow_overrides=self._host._workflow_overrides(),
-            search_hidden_keys=set(),
-            node_search_text=None,
-            search_matching_nodes=None,
-        )
+        return self._corpus.snapshot()
 
     def highlight_inputs_matching(self, text: str) -> None:
         """Maintain backward-compatible highlight clearing for direct callers."""
 
         if text.strip():
             return
-        self._clear_search_widget_state()
+        self._widgets.clear_widget_state()
         self._navigation = PanelSearchNavigationState(
             matches=(),
             index=-1,
@@ -273,7 +210,7 @@ class EditorPanelSearchController:
         """Cycle already-computed text-search matches for the active result."""
 
         if not search_text.strip():
-            self._clear_search_widget_state()
+            self._widgets.clear_widget_state()
             self._navigation = PanelSearchNavigationState(
                 matches=(),
                 index=-1,
@@ -323,20 +260,7 @@ class EditorPanelSearchController:
             )
             self._publish_search_state()
         selected_match = matches[index]
-        selected_widget = self._host.input_widgets_by_field_key.get(
-            (
-                selected_match.cube_alias,
-                selected_match.node_name,
-                selected_match.field_key,
-            )
-        )
-        if selected_widget is None:
-            return
-
-        set_focus = getattr(selected_widget, "setFocus", None)
-        if callable(set_focus):
-            set_focus()
-        self._apply_selection_to_widget(selected_widget, selected_match)
+        self._widgets.focus(selected_match)
 
     def apply_search_result(self, result: EditorSearchResult) -> None:
         """Apply one application-owned search result to live widget state."""
@@ -357,12 +281,11 @@ class EditorPanelSearchController:
         if not self.editor_search_result_has_text_needle(previous_result):
             return
 
-        snapshot = self.build_search_corpus_snapshot()
-        if snapshot is None:
+        result = self._corpus.rebuild(previous_result)
+        if result is None:
             return
 
         active_match = self._current_navigation_match()
-        result = EditorSearchService().build_result(snapshot, previous_result.query)
         self._apply_editor_search_result(
             result,
             preferred_match=active_match,
@@ -373,7 +296,7 @@ class EditorPanelSearchController:
     def editor_search_result_has_text_needle(self, result: EditorSearchResult) -> bool:
         """Return whether one search result owns source-text matches."""
 
-        return bool(self._result_needle(result).strip())
+        return bool(self._corpus.result_needle(result).strip())
 
     def _apply_editor_search_result(
         self,
@@ -388,7 +311,7 @@ class EditorPanelSearchController:
         navigation_matches = tuple(
             match
             for match in result.navigation_matches
-            if self._match_widget_supports_navigation(match)
+            if self._widgets.supports_navigation(match)
         )
         active_index = self._navigation_index_for_preferred_match(
             navigation_matches,
@@ -398,169 +321,31 @@ class EditorPanelSearchController:
         self._navigation = PanelSearchNavigationState(
             matches=navigation_matches,
             index=active_index,
-            needle=self._result_needle(result),
+            needle=self._corpus.result_needle(result),
         )
 
         if update_visibility:
-            self._apply_search_visibility_state(result)
+            self._visibility.apply(result)
 
         if select_current_match:
-            self._clear_search_widget_state()
+            self._widgets.clear_widget_state()
         else:
-            self._clear_search_rendering_state()
-        self._apply_all_text_search_state(result)
+            self._widgets.clear_rendering_state()
+        self._widgets.apply_text_matches(result, self._current_navigation_match())
         self._publish_search_state()
         if navigation_matches and select_current_match:
             self._apply_current_navigation_match()
-
-    def _apply_search_visibility_state(self, result: EditorSearchResult) -> None:
-        """Apply node and field visibility filters for a newly submitted query."""
-
-        if result.query.mode.value == "field":
-            if result.query.tokens:
-                self._current_node_search_text = None
-                self._current_search_hidden_keys = set()
-                self._current_search_matching_nodes = set(result.matching_nodes)
-                self._set_field_search_state(result.matching_fields, active=True)
-                self._publish_search_state()
-                self._host.refresh_node_behavior_state(
-                    search_hidden_keys=set(),
-                    node_search_text=None,
-                    search_matching_nodes=result.matching_nodes,
-                    reason="search_changed",
-                )
-            else:
-                self._clear_editor_visibility_filters()
-        elif result.query.mode.value == "node":
-            self._set_field_search_state(None, active=False)
-            self._current_search_hidden_keys = set()
-            self._current_node_search_text = None
-            if result.query.node_filter_text:
-                self._current_search_matching_nodes = set(result.matching_nodes)
-                self._publish_search_state()
-                self._host.refresh_node_behavior_state(
-                    search_hidden_keys=set(),
-                    node_search_text=None,
-                    search_matching_nodes=result.matching_nodes,
-                    reason="search_changed",
-                )
-            else:
-                self._clear_editor_visibility_filters()
-        else:
-            self._set_field_search_state(None, active=False)
-            self._clear_editor_visibility_filters()
-
-    def _clear_editor_visibility_filters(self) -> None:
-        """Clear node and field visibility filters without clearing text search."""
-
-        self._current_node_search_text = None
-        self._current_search_hidden_keys = set()
-        self._current_search_matching_nodes = None
-        self._set_field_search_state(None, active=False)
-        self._publish_search_state()
-        self._host.refresh_node_behavior_state(
-            search_hidden_keys=set(),
-            node_search_text=None,
-            reason="search_changed",
-        )
-
-    def _clear_search_widget_state(self) -> None:
-        """Clear transient line-edit and prompt-editor search rendering state."""
-
-        seen_widgets: set[int] = set()
-        for widget in self._host.input_widgets_by_field_key.values():
-            widget_id = id(widget)
-            if widget_id in seen_widgets:
-                continue
-            seen_widgets.add(widget_id)
-            if isinstance(widget, PromptEditor):
-                widget.clear_search_matches()
-                cursor = widget.textCursor()
-                cursor.clearSelection()
-                widget.setTextCursor(cursor)
-                continue
-            deselect = getattr(widget, "deselect", None)
-            if callable(deselect):
-                deselect()
-
-    def _clear_search_rendering_state(self) -> None:
-        """Clear rendered search ranges without changing widget cursor positions."""
-
-        seen_widgets: set[int] = set()
-        for widget in self._host.input_widgets_by_field_key.values():
-            widget_id = id(widget)
-            if widget_id in seen_widgets:
-                continue
-            seen_widgets.add(widget_id)
-            if isinstance(widget, PromptEditor):
-                widget.clear_search_matches()
-
-    def _set_field_search_state(
-        self,
-        match_keys: set[tuple[str, str, str]] | None,
-        *,
-        active: bool,
-    ) -> None:
-        """Apply field-search state through the current field-sync facade."""
-
-        set_search_field_match_keys = getattr(
-            self._host,
-            "set_search_field_match_keys",
-            None,
-        )
-        if callable(set_search_field_match_keys):
-            set_search_field_match_keys(match_keys, active=active)
-
-    def _apply_all_text_search_state(self, result: EditorSearchResult) -> None:
-        """Apply prompt highlight ranges for every field with text matches."""
-
-        matches_by_field: dict[tuple[str, str, str], list[TextSearchMatch]] = (
-            defaultdict(list)
-        )
-        for match in result.text_matches:
-            matches_by_field[
-                (match.cube_alias, match.node_name, match.field_key)
-            ].append(match)
-
-        active_match = self._current_navigation_match()
-        for field_key, matches in matches_by_field.items():
-            widget = self._host.input_widgets_by_field_key.get(field_key)
-            if not isinstance(widget, PromptEditor):
-                continue
-            active_index = None
-            if (
-                active_match is not None
-                and (
-                    active_match.cube_alias,
-                    active_match.node_name,
-                    active_match.field_key,
-                )
-                == field_key
-            ):
-                active_index = matches.index(active_match)
-            widget.set_search_matches(
-                tuple((match.start, match.length) for match in matches),
-                active_index=active_index,
-                query_identity=result.query,
-            )
 
     def _apply_current_navigation_match(self) -> None:
         """Render and scroll to the current navigation match when one exists."""
 
         active_match = self._current_navigation_match()
-        self._clear_search_widget_state()
+        self._widgets.clear_widget_state()
         if isinstance(self._current_search_result, EditorSearchResult):
-            self._apply_all_text_search_state(self._current_search_result)
+            self._widgets.apply_text_matches(self._current_search_result, active_match)
         if active_match is None:
             return
-        widget = self._host.input_widgets_by_field_key.get(
-            (active_match.cube_alias, active_match.node_name, active_match.field_key)
-        )
-        if widget is None:
-            return
-        self._apply_selection_to_widget(widget, active_match)
-        self._host.scroll_to_cube(active_match.cube_alias, animated=True)
-        self._host.scroll_to_input_widget(widget, animated=True)
+        self._widgets.reveal(active_match)
 
     def _current_navigation_match(self) -> TextSearchMatch | None:
         """Return the currently selected navigation match for active search."""
@@ -609,60 +394,22 @@ class EditorPanelSearchController:
         )
         return nearest_index
 
-    @staticmethod
-    def _apply_selection_to_widget(widget: object, match: TextSearchMatch) -> None:
-        """Apply the active navigation selection to one searchable widget."""
+    def _publish_refresh_pending(self, _pending: bool) -> None:
+        """Publish scheduler state through the transitional panel mirror."""
 
-        if isinstance(widget, PromptEditor):
-            cursor = widget.textCursor()
-            cursor.setPosition(match.start)
-            cursor.movePosition(
-                QTextCursor.MoveOperation.Right,
-                QTextCursor.MoveMode.KeepAnchor,
-                match.length,
-            )
-            widget.setTextCursor(cursor)
-            return
-        set_selection = getattr(widget, "setSelection", None)
-        if callable(set_selection):
-            set_selection(match.start, match.length)
-
-    @staticmethod
-    def _result_needle(result: EditorSearchResult) -> str:
-        """Return the active text needle used by one search result."""
-
-        if result.query.mode.value == "text":
-            return result.query.normalized_text
-        return result.query.text_filter_text
-
-    def _match_widget_supports_navigation(self, match: TextSearchMatch) -> bool:
-        """Return whether one text match maps to a navigable widget."""
-
-        widget = self._host.input_widgets_by_field_key.get(
-            (match.cube_alias, match.node_name, match.field_key)
-        )
-        if widget is None:
-            return False
-        return isinstance(widget, PromptEditor) or hasattr(widget, "setSelection")
+        self._publish_search_state()
 
     def _publish_search_state(self) -> None:
         """Mirror search state for adjacent owners not yet extracted."""
 
-        self._host._current_node_search_text = self._current_node_search_text
-        self._host._current_search_hidden_keys = set(self._current_search_hidden_keys)
-        self._host._current_search_matching_nodes = (
-            None
-            if self._current_search_matching_nodes is None
-            else set(self._current_search_matching_nodes)
-        )
+        self._visibility.publish()
         self._host._current_search_result = self._current_search_result
         self._host._current_search = self._navigation.to_panel_dict()
-        self._host._text_search_refresh_pending = self._text_search_refresh_pending
+        self._host._text_search_refresh_pending = self._refresh_scheduler.pending
 
 
 __all__ = [
     "EditorPanelSearchController",
     "EditorPanelSearchHost",
     "PanelSearchNavigationState",
-    "SearchPromptEditorProtocol",
 ]

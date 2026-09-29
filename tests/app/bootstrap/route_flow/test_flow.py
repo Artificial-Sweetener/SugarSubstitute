@@ -147,11 +147,6 @@ def test_route_flow_shows_non_ready_route_and_returns_live_references(
         return repair_window
 
     monkeypatch.setattr(startup_route_flow, "trace_bootstrap_route", trace_route)
-    monkeypatch.setattr(
-        startup_route_flow,
-        "run_after_surface_paint",
-        lambda _window, callback: callback(),
-    )
 
     result = startup_route_flow.run_startup_route_flow(
         readiness_assessment=assessment,
@@ -173,7 +168,7 @@ def test_route_flow_shows_non_ready_route_and_returns_live_references(
 
     assert result.onboarding_window is repair_window
     assert result.route_controller is not None
-    assert result.splash is splash
+    assert result.splash is None
     assert result.update_splash_reference is True
     assert events == [
         ("trace", BootstrapRoute.REPAIR),
@@ -186,6 +181,7 @@ def test_route_flow_shows_non_ready_route_and_returns_live_references(
                 "shell_placement_present": False,
             },
         ),
+        ("splash_close", splash),
         (
             "show_repair",
             {
@@ -195,7 +191,6 @@ def test_route_flow_shows_non_ready_route_and_returns_live_references(
                 "initial_geometry": "geometry",
             },
         ),
-        ("splash_close", splash),
     ]
     assert repair_window.launch_requested.callbacks
     assert repair_window.close_requested.callbacks

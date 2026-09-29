@@ -24,22 +24,21 @@ from sugarsubstitute_shared.presentation.localization import (
 )
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import Protocol
 
 from PySide6.QtWidgets import QWidget
 
-from substitute.application.errors import SubstituteOperationContext
-from substitute.application.node_behavior import LiveNodeDefinitionError
+from substitute.application.node_behavior import (
+    LiveNodeDefinitionError,
+    required_node_definition_requirements_for_editor_projection,
+)
 from substitute.application.workflows import (
     CubeRuntimeIssue,
-    CubeRuntimeIssueSeverity,
     CubeRuntimeIssueSource,
     WorkflowIssueState,
     live_node_definition_error_to_cube_issues,
 )
-from substitute.presentation.errors import ErrorReportPresenterProtocol
-from substitute.shared.logging.logger import get_logger, log_debug, log_warning
+from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("presentation.editor.panel.runtime_issue_presenter")
 
@@ -60,48 +59,26 @@ class EditorPanelRuntimeIssueHost(Protocol):
     """Expose the panel state needed to project runtime issues."""
 
     _workflow_id: str | None
+    _cube_states: Mapping[str, object] | None
     _stack_order: Sequence[str] | None
     _cube_section_builder: RuntimeIssueWidgetBuilderProtocol
     cube_sections: Mapping[str, object]
 
 
-@dataclass(frozen=True, slots=True)
-class LiveNodeDefinitionReportFingerprint:
-    """Identify one user-visible live metadata report for deduplication."""
-
-    workflow_id: str
-    reason: str
-    operation: str
-    missing_node_classes: tuple[str, ...]
-    missing_fields: tuple[str, ...]
-    cube_aliases: tuple[str, ...]
-    node_names: tuple[str, ...]
-
-
 class EditorPanelRuntimeIssuePresenter:
-    """Transform runtime issues into panel, tab, and error-report presentation."""
+    """Transform runtime issues into panel and cube-stack presentation."""
 
     def __init__(
         self,
         host: EditorPanelRuntimeIssueHost,
         *,
         workflow_issue_state: WorkflowIssueState | None = None,
-        error_presenter: ErrorReportPresenterProtocol | None = None,
     ) -> None:
         """Store collaborators for runtime issue projection."""
 
         self._host = host
-        self._error_presenter = error_presenter
         self._workflow_issue_state = workflow_issue_state or WorkflowIssueState()
         self._cube_runtime_issues: dict[str, tuple[CubeRuntimeIssue, ...]] = {}
-        self._shown_live_node_definition_report_fingerprints: set[
-            LiveNodeDefinitionReportFingerprint
-        ] = set()
-
-    def begin_live_node_definition_report_projection(self) -> None:
-        """Start a projection-scoped live metadata report dedupe window."""
-
-        self._shown_live_node_definition_report_fingerprints.clear()
 
     def register_projection_live_node_definition_error(
         self,
@@ -110,15 +87,32 @@ class EditorPanelRuntimeIssuePresenter:
         reason: str,
         source: CubeRuntimeIssueSource,
     ) -> bool:
-        """Register a cube-attributed projection hydration failure."""
+        """Register missing projection metadata against saved cube nodes."""
 
         workflow_id = self._workflow_id()
+        cube_states = getattr(self._host, "_cube_states", None) or {}
+        buffers = {
+            alias: buffer
+            for alias, state in cube_states.items()
+            if isinstance(buffer := getattr(state, "buffer", None), Mapping)
+        }
         issues = live_node_definition_error_to_cube_issues(
             error,
             workflow_id=workflow_id,
             source=source,
+            requirements=required_node_definition_requirements_for_editor_projection(
+                buffers
+            ),
         )
-        if not issues or _has_unowned_live_node_definition_error(error):
+        covered_classes = {
+            class_type for issue in issues for class_type in issue.missing_node_classes
+        }
+        covered_fields = {field for issue in issues for field in issue.missing_fields}
+        if (
+            not issues
+            or set(_missing_live_node_classes(error)) - covered_classes
+            or set(_missing_live_node_fields(error)) - covered_fields
+        ):
             log_warning(
                 _LOGGER,
                 "Editor projection blocked by unowned missing live node definitions",
@@ -151,45 +145,6 @@ class EditorPanelRuntimeIssuePresenter:
                 reason=reason,
             )
         return True
-
-    def present_recoverable_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show a deduplicated non-fatal live metadata report for a cube issue."""
-
-        self.present_live_node_definition_error_once(error, reason=reason)
-
-    def present_live_node_definition_error_once(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show one live metadata report unless the same report was already shown."""
-
-        workflow_id = self._nullable_workflow_id()
-        fingerprint = _live_node_definition_report_fingerprint(
-            error,
-            workflow_id=workflow_id,
-            reason=reason,
-        )
-        if fingerprint in self._shown_live_node_definition_report_fingerprints:
-            log_debug(
-                _LOGGER,
-                "Skipped duplicate recoverable live node definition report",
-                workflow_id=workflow_id,
-                reason=reason,
-                missing_node_classes=",".join(fingerprint.missing_node_classes),
-                cube_aliases=",".join(fingerprint.cube_aliases),
-                node_names=",".join(fingerprint.node_names),
-                operation=fingerprint.operation,
-            )
-            return
-        self._shown_live_node_definition_report_fingerprints.add(fingerprint)
-        self.present_live_node_definition_error(error, reason=reason)
 
     def clear_projection_runtime_issues(self) -> None:
         """Clear projection-owned runtime issues after successful hydration."""
@@ -233,9 +188,7 @@ class EditorPanelRuntimeIssuePresenter:
             sorted(
                 alias
                 for alias, issues in self._cube_runtime_issues.items()
-                if any(
-                    issue.severity == CubeRuntimeIssueSeverity.ERROR for issue in issues
-                )
+                if any(issue.is_cube_scoped_error for issue in issues)
             )
         )
 
@@ -260,9 +213,7 @@ class EditorPanelRuntimeIssuePresenter:
 
         issues = self._cube_runtime_issues.get(cube_alias, ())
         severity = (
-            "error"
-            if any(issue.severity == CubeRuntimeIssueSeverity.ERROR for issue in issues)
-            else None
+            "error" if any(issue.is_cube_scoped_error for issue in issues) else None
         )
         self.apply_cube_runtime_issues_to_stack(cube_alias, severity)
         cube_sections = getattr(self._host, "cube_sections", {})
@@ -304,42 +255,13 @@ class EditorPanelRuntimeIssuePresenter:
             issue_lines=_issue_display_lines(issues),
         )
 
-    def present_live_node_definition_error(
-        self,
-        error: LiveNodeDefinitionError,
-        *,
-        reason: str,
-    ) -> None:
-        """Show the blocking live-metadata report through the injected presenter."""
-
-        if self._error_presenter is None:
-            log_warning(
-                _LOGGER,
-                "Cannot present live node definition error without error presenter",
-                reason=reason,
-                workflow_id=self._nullable_workflow_id(),
-                missing_node_classes=",".join(_missing_live_node_classes(error)),
-            )
-            return
-        self._error_presenter.show_comfy_connection_report(
-            title=app_text("Live Comfy node definitions unavailable"),
-            message=_live_node_definition_error_message(error),
-            stage="load_node_definitions",
-            context=_live_node_definition_operation_context(
-                error,
-                workflow_id=self._nullable_workflow_id(),
-                reason=reason,
-            ),
-            error=error,
-        )
-
     def _workflow_id(self) -> str:
         """Return the host workflow ID as an issue-state key."""
 
         return self._nullable_workflow_id() or ""
 
     def _nullable_workflow_id(self) -> str | None:
-        """Return the host workflow ID preserving absence for error reports."""
+        """Return the host workflow ID while preserving absence."""
 
         workflow_id = getattr(self._host, "_workflow_id", None)
         return workflow_id if workflow_id else None
@@ -370,105 +292,6 @@ def _missing_live_node_fields(error: LiveNodeDefinitionError) -> tuple[str, ...]
                 if item.class_type.strip() and item.field_key.strip()
             }
         )
-    )
-
-
-def _live_node_definition_error_message(error: LiveNodeDefinitionError) -> str:
-    """Build user-facing copy for unavailable live Comfy metadata."""
-
-    lines = ["Substitute could not load required live Comfy node definitions."]
-    missing_classes = _missing_live_node_classes(error)
-    missing_fields = _missing_live_node_fields(error)
-    if missing_classes:
-        lines.extend(("", "Missing definitions:"))
-        lines.extend(f"- {class_type}" for class_type in missing_classes)
-    if missing_fields:
-        lines.extend(("", "Missing fields:"))
-        lines.extend(f"- {field}" for field in missing_fields)
-    lines.extend(
-        (
-            "",
-            "Substitute cannot safely render or validate controls without live "
-            "Comfy metadata.",
-            "Start or restart ComfyUI and confirm the required custom nodes "
-            "loaded successfully.",
-        )
-    )
-    return "\n".join(lines)
-
-
-def _live_node_definition_operation_context(
-    error: LiveNodeDefinitionError,
-    *,
-    workflow_id: str | None,
-    reason: str,
-) -> SubstituteOperationContext:
-    """Build structured operation context for live metadata failures."""
-
-    cube_aliases = tuple(
-        sorted(
-            {
-                cube_alias
-                for item in error.missing_definitions
-                for cube_alias in item.cube_aliases
-                if cube_alias.strip()
-            }
-        )
-    )
-    node_names = tuple(
-        sorted(
-            {
-                node_name
-                for item in error.missing_definitions
-                for node_name in item.node_names
-                if node_name.strip()
-            }
-        )
-    )
-    return SubstituteOperationContext(
-        operation=error.operation,
-        workflow_id=workflow_id,
-        values={
-            "projection_reason": reason,
-            "missing_node_classes": _missing_live_node_classes(error),
-            "missing_fields": _missing_live_node_fields(error),
-            "cube_aliases": cube_aliases,
-            "node_names": node_names,
-        },
-    )
-
-
-def _live_node_definition_report_fingerprint(
-    error: LiveNodeDefinitionError,
-    *,
-    workflow_id: str | None,
-    reason: str,
-) -> LiveNodeDefinitionReportFingerprint:
-    """Build a stable fingerprint for one live metadata report."""
-
-    context = _live_node_definition_operation_context(
-        error,
-        workflow_id=workflow_id,
-        reason=reason,
-    )
-    return LiveNodeDefinitionReportFingerprint(
-        workflow_id=workflow_id or "",
-        reason=reason,
-        operation=error.operation,
-        missing_node_classes=tuple(
-            cast(tuple[str, ...], context.values["missing_node_classes"])
-        ),
-        missing_fields=tuple(cast(tuple[str, ...], context.values["missing_fields"])),
-        cube_aliases=tuple(cast(tuple[str, ...], context.values["cube_aliases"])),
-        node_names=tuple(cast(tuple[str, ...], context.values["node_names"])),
-    )
-
-
-def _has_unowned_live_node_definition_error(error: LiveNodeDefinitionError) -> bool:
-    """Return whether any missing live metadata lacks cube attribution."""
-
-    return any(not item.cube_aliases for item in error.missing_definitions) or bool(
-        error.missing_fields
     )
 
 

@@ -822,8 +822,16 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Chëckïng för rünnïng CömfyÜÏ… ···⟧</translation>
     </message>
     <message>
+      <source>Checking model links</source>
+      <translation>⟦Chëckïng mödël lïnks ···⟧</translation>
+    </message>
+    <message>
       <source>Checking model links…</source>
       <translation>⟦Chëckïng mödël lïnks… ···⟧</translation>
+    </message>
+    <message>
+      <source>Checking required custom nodes in restarted ComfyUI</source>
+      <translation>⟦Chëckïng rëqüïrëd cüstöm nödës ïn rëstàrtëd CömfyÜÏ ···⟧</translation>
     </message>
     <message>
       <source>Checking that ComfyUI is ready.</source>
@@ -928,6 +936,14 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose audio</source>
       <translation>⟦Chöösë àüdïö ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose automatic fallback or a specific supported GPU renderer.</source>
+      <translation>⟦Chöösë àütömàtïc fàllbàck ör à spëcïfïc süppörtëd GPÜ rëndërër. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose automatic hardware decoding or software decoding.</source>
+      <translation>⟦Chöösë àütömàtïc hàrdwàrë dëcödïng ör söftwàrë dëcödïng. ···⟧</translation>
     </message>
     <message>
       <source>Choose color</source>
@@ -1056,6 +1072,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
     <message>
       <source>Choose the point that stays fixed while the canvas changes.</source>
       <translation>⟦Chöösë thë pöïnt thàt stàys fïxëd whïlë thë cànvàs chàngës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose the renderer used for generated video playback.</source>
+      <translation>⟦Chöösë thë rëndërër üsëd för gënëràtëd vïdëö plàybàck. ···⟧</translation>
     </message>
     <message>
       <source>Choose the way you use ComfyUI.</source>
@@ -1750,6 +1770,10 @@ Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
       <translation>⟦Cöüld nöt chëck thïs mödël lïnk rïght nöw ···⟧</translation>
     </message>
     <message>
+      <source>Could not install %1 (%2/%3)</source>
+      <translation>⟦Cöüld nöt ïnstàll %1 (%2/%3) ···⟧</translation>
+    </message>
+    <message>
       <source>Could not install required Cube Library nodes.</source>
       <translation>⟦Cöüld nöt ïnstàll rëqüïrëd Cübë Lïbràry nödës. ···⟧</translation>
     </message>
@@ -1936,6 +1960,14 @@ Install these nodes now?</source>
     <message>
       <source>Custom node %1 could not load.</source>
       <translation>⟦Cüstöm nödë %1 cöüld nöt löàd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Custom node recovery failed</source>
+      <translation>⟦Cüstöm nödë rëcövëry fàïlëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Custom nodes required by this workflow</source>
+      <translation>⟦Cüstöm nödës rëqüïrëd by thïs wörkflöw ···⟧</translation>
     </message>
     <message>
       <source>Cut</source>
@@ -2474,6 +2506,10 @@ Install these nodes now?</source>
       <translation>⟦Fïnïshïng yöür sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Fit video</source>
+      <translation>⟦Fït vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Fix the reported issue if you can.</source>
       <translation>⟦Fïx thë rëpörtëd ïssüë ïf yöü càn. ···⟧</translation>
     </message>
@@ -2516,6 +2552,10 @@ Install these nodes now?</source>
     <message>
       <source>GPU</source>
       <translation>⟦GPÜ ···⟧</translation>
+    </message>
+    <message>
+      <source>GPU Next</source>
+      <translation>⟦GPÜ Nëxt ···⟧</translation>
     </message>
     <message>
       <source>GUI restart is not available in this session.</source>
@@ -2602,6 +2642,10 @@ Install these nodes now?</source>
       <translation>⟦Gënëràtïön qüëüë snàpshöt bïndïngs àrë ünàvàïlàblë. ···⟧</translation>
     </message>
     <message>
+      <source>Getting source for %1 (%2/%3)</source>
+      <translation>⟦Gëttïng söürcë för %1 (%2/%3) ···⟧</translation>
+    </message>
+    <message>
       <source>GitHub URL needed</source>
       <translation>⟦GïtHüb ÜRL nëëdëd ···⟧</translation>
     </message>
@@ -2640,6 +2684,10 @@ Install these nodes now?</source>
     <message>
       <source>Hardness</source>
       <translation>⟦Hàrdnëss ···⟧</translation>
+    </message>
+    <message>
+      <source>Hardware video decoding was unavailable. Software decoding is active.</source>
+      <translation>⟦Hàrdwàrë vïdëö dëcödïng wàs ünàvàïlàblë. Söftwàrë dëcödïng ïs àctïvë. ···⟧</translation>
     </message>
     <message>
       <source>Height</source>
@@ -2810,6 +2858,10 @@ Install these nodes now?</source>
       <translation>⟦Ïnstàll ànd ënàblë GNÖMË Këyrïng, KWàllët, ör ànöthër Sëcrët Sërvïcë-cömpàtïblë këyrïng thröügh yöür dïstrïbütïön's pàckàgë mànàgër, thën sïgn ïn ör ünlöck ït ànd rëstàrt Sübstïtütë. ···⟧</translation>
     </message>
     <message>
+      <source>Install and restart</source>
+      <translation>⟦Ïnstàll ànd rëstàrt ···⟧</translation>
+    </message>
+    <message>
       <source>Install missing custom nodes required by enabled cubes.</source>
       <translation>⟦Ïnstàll mïssïng cüstöm nödës rëqüïrëd by ënàblëd cübës. ···⟧</translation>
     </message>
@@ -2828,6 +2880,10 @@ Install these nodes now?</source>
     <message>
       <source>Install support</source>
       <translation>⟦Ïnstàll süppört ···⟧</translation>
+    </message>
+    <message>
+      <source>Installed %1 (%2/%3)</source>
+      <translation>⟦Ïnstàllëd %1 (%2/%3) ···⟧</translation>
     </message>
     <message>
       <source>Installed Python packages</source>
@@ -2854,12 +2910,24 @@ Install these nodes now?</source>
       <translation>⟦Ïnstàllïng Sübstïtütë Cömfy nödëpàcks. ···⟧</translation>
     </message>
     <message>
+      <source>Installing dependencies for %1 (%2/%3)</source>
+      <translation>⟦Ïnstàllïng dëpëndëncïës för %1 (%2/%3) ···⟧</translation>
+    </message>
+    <message>
       <source>Installing dependencies for %1.</source>
       <translation>⟦Ïnstàllïng dëpëndëncïës för %1. ···⟧</translation>
     </message>
     <message>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>⟦Ïnstàllïng pàckàgës ör chàngïng mödël pàths whïlë CömfyÜÏ ïs rünnïng càn lëàvë ïts ënvïrönmënt ïn àn ïncönsïstënt stàtë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Installing required custom nodes</source>
+      <translation>⟦Ïnstàllïng rëqüïrëd cüstöm nödës ···⟧</translation>
+    </message>
+    <message>
+      <source>Installing these custom node packages will restart ComfyUI and reload Substitute. Your workflow will reopen when they are ready.</source>
+      <translation>⟦Ïnstàllïng thësë cüstöm nödë pàckàgës wïll rëstàrt CömfyÜÏ ànd rëlöàd Sübstïtütë. Yöür wörkflöw wïll rëöpën whën thëy àrë rëàdy. ···⟧</translation>
     </message>
     <message>
       <source>Interaction</source>
@@ -2996,10 +3064,6 @@ Install these nodes now?</source>
     <message>
       <source>Likely cause: %1</source>
       <translation>⟦Lïkëly càüsë: %1 ···⟧</translation>
-    </message>
-    <message>
-      <source>Live Comfy node definitions unavailable</source>
-      <translation>⟦Lïvë Cömfy nödë dëfïnïtïöns ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
       <source>LoRA</source>
@@ -3148,6 +3212,10 @@ Install these nodes now?</source>
     <message>
       <source>Lookup failed</source>
       <translation>⟦Lööküp fàïlëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Loop video</source>
+      <translation>⟦Lööp vïdëö ···⟧</translation>
     </message>
     <message>
       <source>Make sure ComfyUI is running at %1.</source>
@@ -3434,6 +3502,10 @@ Install these nodes now?</source>
       <translation>⟦Mövë üp ···⟧</translation>
     </message>
     <message>
+      <source>Mute video</source>
+      <translation>⟦Mütë vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Name</source>
       <translation>⟦Nàmë ···⟧</translation>
     </message>
@@ -3476,6 +3548,10 @@ Install these nodes now?</source>
     <message>
       <source>Next</source>
       <translation>⟦Nëxt ···⟧</translation>
+    </message>
+    <message>
+      <source>Next frame</source>
+      <translation>⟦Nëxt fràmë ···⟧</translation>
     </message>
     <message>
       <source>Next match (Enter)</source>
@@ -3616,6 +3692,10 @@ I’ll bring my own</source>
 Ï’ll brïng my öwn ···⟧</translation>
     </message>
     <message>
+      <source>No trusted package match was found for: %1</source>
+      <translation>⟦Nö trüstëd pàckàgë màtch wàs föünd för: %1 ···⟧</translation>
+    </message>
+    <message>
       <source>No, show recommendations</source>
       <translation>⟦Nö, shöw rëcömmëndàtïöns ···⟧</translation>
     </message>
@@ -3702,6 +3782,10 @@ I’ll bring my own</source>
     <message>
       <source>OS: %1</source>
       <translation>⟦ÖS: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Off</source>
+      <translation>⟦Öff ···⟧</translation>
     </message>
     <message>
       <source>Offer model downloads</source>
@@ -3992,6 +4076,10 @@ I’ll bring my own</source>
       <translation>⟦Plànnëd chàngës üpdàtëd. ···⟧</translation>
     </message>
     <message>
+      <source>Play or pause</source>
+      <translation>⟦Plày ör pàüsë ···⟧</translation>
+    </message>
+    <message>
       <source>Please wait a moment.</source>
       <translation>⟦Plëàsë wàït à mömënt. ···⟧</translation>
     </message>
@@ -4132,6 +4220,10 @@ I’ll bring my own</source>
       <translation>⟦Prëvïëw ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
+      <source>Previous frame</source>
+      <translation>⟦Prëvïöüs fràmë ···⟧</translation>
+    </message>
+    <message>
       <source>Previous match (Shift+Enter)</source>
       <translation>⟦Prëvïöüs màtch (Shïft+Ëntër) ···⟧</translation>
     </message>
@@ -4170,6 +4262,10 @@ I’ll bring my own</source>
     <message>
       <source>Prompt: %1</source>
       <translation>⟦Prömpt: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Provides: %1</source>
+      <translation>⟦Prövïdës: %1 ···⟧</translation>
     </message>
     <message>
       <source>Provisioning ComfyUI-Manager.</source>
@@ -4628,6 +4724,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëtry ···⟧</translation>
     </message>
     <message>
+      <source>Retry video</source>
+      <translation>⟦Rëtry vïdëö ···⟧</translation>
+    </message>
+    <message>
       <source>Return to setup and try again.</source>
       <translation>⟦Rëtürn tö sëtüp ànd try àgàïn. ···⟧</translation>
     </message>
@@ -4718,6 +4818,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Review these exact model matches before downloading them to the connected ComfyUI installation.</source>
       <translation>⟦Rëvïëw thësë ëxàct mödël màtchës bëförë döwnlöàdïng thëm tö thë cönnëctëd CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Revision: %1</source>
+      <translation>⟦Rëvïsïön: %1 ···⟧</translation>
     </message>
     <message>
       <source>Rich prompt rendering</source>
@@ -5184,6 +5288,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Shöw sëtüp lög ···⟧</translation>
     </message>
     <message>
+      <source>Show video at actual size</source>
+      <translation>⟦Shöw vïdëö àt àctüàl sïzë ···⟧</translation>
+    </message>
+    <message>
       <source>Showing stale catalog</source>
       <translation>⟦Shöwïng stàlë càtàlög ···⟧</translation>
     </message>
@@ -5276,6 +5384,14 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
     <message>
       <source>Source: %1</source>
       <translation>⟦Söürcë: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Source: Comfy Registry</source>
+      <translation>⟦Söürcë: Cömfy Rëgïstry ···⟧</translation>
+    </message>
+    <message>
+      <source>Source: ComfyUI-Manager catalog</source>
+      <translation>⟦Söürcë: CömfyÜÏ-Mànàgër càtàlög ···⟧</translation>
     </message>
     <message>
       <source>Special thanks</source>
@@ -5496,6 +5612,10 @@ Thën crëàtë àn ÅPÏ këy ïn Åccöünt Sëttïngs ànd pàstë ït hërë
     <message>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>⟦Sübstïtütë cöüld nöt rëàd thïs CömfyÜÏ wörkflöw döcümënt. ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute could not recover every custom node required by this workflow.</source>
+      <translation>⟦Sübstïtütë cöüld nöt rëcövër ëvëry cüstöm nödë rëqüïrëd by thïs wörkflöw. ···⟧</translation>
     </message>
     <message>
       <source>Substitute could not update this cube from the Cube Library: %1</source>
@@ -6060,6 +6180,10 @@ Dïàgnöstïc ëvïdëncë:
       <translation>⟦Thë àttàchëd CömfyÜÏ ënvïrönmënt döës nöt sàtïsfy ïts üpdàtëd rëqüïrëmënts. Rëpàïr thàt ënvïrönmënt bëförë cöntïnüïng. %1 ···⟧</translation>
     </message>
     <message>
+      <source>The bundled video runtime is unavailable.</source>
+      <translation>⟦Thë bündlëd vïdëö rüntïmë ïs ünàvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>⟦Thë cànvàs chàngëd whïlë thïs dïàlög wàs öpën. Rëvïëw thë cürrënt sïzë ànd try àgàïn. ···⟧</translation>
     </message>
@@ -6178,6 +6302,10 @@ Dïàgnöstïc ëvïdëncë:
     <message>
       <source>The requested definition is not available.</source>
       <translation>⟦Thë rëqüëstëd dëfïnïtïön ïs nöt àvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
+      <source>The requested video renderer was unavailable. A safe fallback is active.</source>
+      <translation>⟦Thë rëqüëstëd vïdëö rëndërër wàs ünàvàïlàblë. Å sàfë fàllbàck ïs àctïvë. ···⟧</translation>
     </message>
     <message>
       <source>The running ComfyUI Python environment could not be validated.</source>
@@ -6692,6 +6820,10 @@ Dïàgnöstïc ëvïdëncë:
       <translation>⟦Üsë rëmötë CömfyÜÏ ···⟧</translation>
     </message>
     <message>
+      <source>Use safe automatic hardware decoding or always decode in software.</source>
+      <translation>⟦Üsë sàfë àütömàtïc hàrdwàrë dëcödïng ör àlwàys dëcödë ïn söftwàrë. ···⟧</translation>
+    </message>
+    <message>
       <source>Use the ComfyUI page package filter to inspect installed packages and maintenance actions.</source>
       <translation>⟦Üsë thë CömfyÜÏ pàgë pàckàgë fïltër tö ïnspëct ïnstàllëd pàckàgës ànd màïntënàncë àctïöns. ···⟧</translation>
     </message>
@@ -6770,6 +6902,26 @@ Dïàgnöstïc ëvïdëncë:
     <message>
       <source>Versions of %1</source>
       <translation>⟦Vërsïöns öf %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Video hardware decoding</source>
+      <translation>⟦Vïdëö hàrdwàrë dëcödïng ···⟧</translation>
+    </message>
+    <message>
+      <source>Video playback is unavailable (%1).</source>
+      <translation>⟦Vïdëö plàybàck ïs ünàvàïlàblë (%1). ···⟧</translation>
+    </message>
+    <message>
+      <source>Video position</source>
+      <translation>⟦Vïdëö pösïtïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Video renderer</source>
+      <translation>⟦Vïdëö rëndërër ···⟧</translation>
+    </message>
+    <message>
+      <source>Video volume</source>
+      <translation>⟦Vïdëö völümë ···⟧</translation>
     </message>
     <message>
       <source>View %1 on %2</source>

@@ -201,7 +201,11 @@ class PromptRegionInlineEditor(QObject):
     def _commit_if_focus_remains_lost(self, reason: Qt.FocusReason) -> None:
         """Commit only when the next Qt turn confirms a durable focus departure."""
 
-        QTimer.singleShot(0, lambda: self._commit_after_focus_transition(reason))
+        QTimer.singleShot(
+            0,
+            self,
+            lambda: self._commit_after_focus_transition(reason),
+        )
 
     def _record_focus_acquisition(self) -> None:
         """Permit focus-loss commits only after this edit session received focus."""

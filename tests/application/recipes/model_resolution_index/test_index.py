@@ -30,26 +30,16 @@ class _Catalog:
 
         self._items = items
 
-    def list_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Return catalog items for one kind."""
+    def cached_models(self, kind: str) -> tuple[ModelCatalogItem, ...] | None:
+        """Return already-loaded catalog items for one kind."""
 
         return tuple(item for item in self._items if item.kind == kind)
-
-    def refresh_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Return refreshed catalog items for one kind."""
-
-        return self.list_models(kind)
-
-    def invalidate(self, kind: str | None = None) -> None:
-        """Ignore invalidation in the test double."""
-
-        _ = kind
 
 
 def test_recipe_model_resolution_index_finds_literal_value() -> None:
     """Resolve literal recipe model values from the local catalog."""
 
-    index = RecipeModelResolutionIndex.from_catalog(
+    index = RecipeModelResolutionIndex.from_cached_catalog(
         _Catalog((_item("checkpoints", "SDXL/base.safetensors", "A" * 64),)),
         kinds=("checkpoints",),
     )
@@ -67,7 +57,7 @@ def test_recipe_model_resolution_index_finds_same_hash_local_model() -> None:
     """Resolve renamed local models by kind and SHA-256."""
 
     sha256 = "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
-    index = RecipeModelResolutionIndex.from_catalog(
+    index = RecipeModelResolutionIndex.from_cached_catalog(
         _Catalog((_item("loras", "Installed/renamed.safetensors", sha256),)),
         kinds=("loras",),
     )
@@ -82,7 +72,7 @@ def test_recipe_model_resolution_index_rejects_kind_mismatch() -> None:
     """Reject hash lookups that cross model-kind boundaries."""
 
     sha256 = "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789"
-    index = RecipeModelResolutionIndex.from_catalog(
+    index = RecipeModelResolutionIndex.from_cached_catalog(
         _Catalog((_item("vae", "same.safetensors", sha256),)),
         kinds=("vae",),
     )

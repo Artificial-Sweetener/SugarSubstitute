@@ -23,6 +23,9 @@ from typing import Any, cast
 from PySide6.QtCore import Qt
 import pytest
 
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionTokenKind,
+)
 from tests.support.prompt_editor.projection_surface_support import (
     delay_projection_update_scheduler,
 )
@@ -151,6 +154,73 @@ def test_real_shell_ordinary_typing_never_prepares_region_chrome(
     assert after.region_chrome_prepare_count == 0
     assert after.region_chrome_visited_line_count == 0
     assert not snapshot_invariant_violations(after)
+
+
+def test_typing_inside_escaped_emphasis_keeps_decoration_in_immediate_frame(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Keep valid escaped emphasis projected before delayed semantics settle."""
+
+    initial_text = r"(casshern \(series\):1.25)"
+    field = real_shell_scenario.workflows.add_prompt_workflow(
+        alias="escaped-emphasis-immediate-frame",
+        initial_text=initial_text,
+    )
+    surface = cast(Any, field.editor)._runtime.projection.surface
+    delay_projection_update_scheduler(surface)
+    real_shell_scenario.input.set_source_cursor_position(
+        field,
+        initial_text.index(r"\)"),
+    )
+
+    for suffix in ("f", "fa", "fas"):
+        immediate = real_shell_scenario.input.type_text_and_capture_immediate_state(
+            field, suffix[-1], label=f"escaped-emphasis-after-{suffix}"
+        )
+        tokens = tuple(
+            token
+            for token in surface.projection_document().tokens
+            if token.kind is PromptProjectionTokenKind.EMPHASIS
+        )
+
+        assert immediate.source_text == rf"(casshern \(series{suffix}\):1.25)"
+        assert len(tokens) == 1
+        assert tokens[0].display_text == f"casshern (series{suffix})"
+        assert not snapshot_invariant_violations(immediate)
+
+
+def test_nested_emphasis_keeps_both_decorations_during_inner_text_typing(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Retain both enclosing emphasis spans while their shared content grows."""
+
+    initial_text = "(this (and then:1.20):1.40)"
+    field = real_shell_scenario.workflows.add_prompt_workflow(
+        alias="nested-emphasis-immediate-frame",
+        initial_text=initial_text,
+    )
+    surface = cast(Any, field.editor)._runtime.projection.surface
+    delay_projection_update_scheduler(surface)
+    real_shell_scenario.input.set_source_cursor_position(
+        field, initial_text.index("and") + len("and")
+    )
+
+    immediate = real_shell_scenario.input.type_text_and_capture_immediate_state(
+        field, "f", label="nested-emphasis-after-typing"
+    )
+    tokens = tuple(
+        token
+        for token in surface.projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+    )
+
+    assert immediate.source_text == "(this (andf then:1.20):1.40)"
+    assert len(tokens) == 2
+    assert {token.display_text for token in tokens} == {
+        "this (andf then:1.20)",
+        "andf then",
+    }
+    assert not snapshot_invariant_violations(immediate)
 
 
 def test_real_shell_scene_marker_formation_reflows_and_projects_immediately(

@@ -27,6 +27,7 @@ from typing import Protocol
 from substitute.application.cubes import cube_alias_body
 from substitute.application.ports.image_repository import ImageRepository
 from substitute.domain.workflow import ImageMeta
+from substitute.domain.output_media import OutputMediaKind
 from substitute.shared.logging.logger import get_logger, log_exception
 from substitute.shared.util.path_safety import (
     ensure_within_root,
@@ -311,6 +312,10 @@ class CanvasIoService:
         list_index: int | None = None,
         batch_index: int | None = None,
         cube_execution_duration_ms: float | None = None,
+        media_kind: OutputMediaKind = OutputMediaKind.IMAGE,
+        duration_seconds: float | None = None,
+        mime_type: str | None = None,
+        temporary: bool = False,
     ) -> ImageMeta:
         """Build output metadata for either durable or memory-only generated output."""
 
@@ -348,6 +353,10 @@ class CanvasIoService:
             list_index=list_index,
             batch_index=batch_index,
             cube_execution_duration_ms=cube_execution_duration_ms,
+            media_kind=media_kind,
+            duration_seconds=duration_seconds,
+            mime_type=mime_type,
+            temporary=temporary,
         )
 
     def open_image_in_external_editor(

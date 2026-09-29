@@ -116,7 +116,11 @@ class QtUiScheduler(QObject):
         if not self._receiver_is_operational():
             return
         typed_scheduled = cast(_ScheduledCallback, scheduled)
-        QTimer.singleShot(typed_scheduled.delay_ms, typed_scheduled.callback)
+        QTimer.singleShot(
+            typed_scheduled.delay_ms,
+            self._receiver,
+            typed_scheduled.callback,
+        )
 
     @Slot()
     def _mark_destroyed(self) -> None:
