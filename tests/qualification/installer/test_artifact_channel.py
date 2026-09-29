@@ -234,3 +234,21 @@ def test_qualification_evidence_preserves_focused_timeout(tmp_path: Path) -> Non
     )
 
     assert evidence.plan.timeout_seconds == 900.0
+
+
+def test_qualification_evidence_uses_the_existing_model_root(tmp_path: Path) -> None:
+    """An upgrade must validate the user's root, not a fixture default."""
+
+    existing_model_root = tmp_path / "user-models"
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        endpoint_port=8188,
+        phase="upgrade",
+        managed_model_root=existing_model_root,
+    )
+
+    assert evidence.plan.managed_model_root == existing_model_root.resolve()
+    restored = InstallerQualificationPlan.from_environment(evidence.environment)
+    assert restored is not None
+    assert restored.managed_model_root == existing_model_root.resolve()
