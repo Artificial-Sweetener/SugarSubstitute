@@ -21,12 +21,17 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol, cast
 
+from PySide6.QtCore import Qt
+
 from substitute.application.execution import TaskHandle
 from substitute.application.workspace_state import (
     PreparedSessionSave,
     SessionFinalizationReason,
     SessionSaveResult,
 )
+from substitute.shared.logging.logger import get_logger, log_info
+
+_LOGGER = get_logger("app.bootstrap.shell_session_finalization_adapter")
 
 
 class SessionFinalizationControllerProtocol(Protocol):
@@ -65,6 +70,7 @@ class ShellSessionFinalizationAdapter:
 
         self._current_shell = current_shell
         self._main_window_for_shell = main_window_for_shell
+        self._pending_restore_close_shell_ids: set[int] = set()
 
     def prepare_shutdown(self, source_shell: object | None) -> PreparedSessionSave:
         """Capture the exact source shell, falling back for app-level quit."""
@@ -86,11 +92,56 @@ class ShellSessionFinalizationAdapter:
         main_window = self._main_window_for_shell(shell)
         if main_window is None:
             return True
+        controller = getattr(main_window, "session_autosave_controller", None)
+        restore_in_progress = getattr(controller, "restore_in_progress", None)
+        if callable(restore_in_progress) and restore_in_progress():
+            self._defer_close_until_restore_finishes(shell, main_window)
+            return False
         controller = getattr(main_window, "unsaved_work_controller", None)
         confirm = getattr(controller, "confirm_shutdown", None)
         if not callable(confirm):
             return True
         return bool(confirm())
+
+    def _defer_close_until_restore_finishes(
+        self,
+        shell: object,
+        main_window: object,
+    ) -> None:
+        """Retry the original close once restored state is safe to persist."""
+
+        shell_id = id(shell)
+        if shell_id in self._pending_restore_close_shell_ids:
+            return
+        close = getattr(shell, "close", None)
+        restore_finalized = getattr(main_window, "restore_finalized", None)
+        connect = getattr(restore_finalized, "connect", None)
+        if not callable(close) or not callable(connect):
+            raise RuntimeError("restoring shell cannot defer shutdown")
+        workflow_id = getattr(
+            getattr(main_window, "workflow_session_service", None),
+            "active_workflow_id",
+            "",
+        )
+
+        def resume_close() -> None:
+            """Return the deferred request to the normal shutdown boundary."""
+
+            self._pending_restore_close_shell_ids.discard(shell_id)
+            log_info(
+                _LOGGER,
+                "Resuming shell close after workspace restore",
+                workflow_id=workflow_id,
+            )
+            close()
+
+        connect(resume_close, Qt.ConnectionType.SingleShotConnection)
+        self._pending_restore_close_shell_ids.add(shell_id)
+        log_info(
+            _LOGGER,
+            "Deferred shell close until workspace restore completes",
+            workflow_id=workflow_id,
+        )
 
     def begin_gui_reload(
         self,

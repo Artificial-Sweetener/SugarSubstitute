@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from threading import Event
 
 from PySide6.QtCore import QObject, Signal, Slot
@@ -53,20 +53,19 @@ InstallationWorkflowFactory = Callable[
 
 
 class SetupWorker(QObject):
-    """Provision the runtime and hand off setup away from the UI thread."""
+    """Provision the runtime before the UI releases its worker ownership."""
 
     log = Signal(str)
     progress = Signal(object)
     activity = Signal()
     failed = Signal(str, str)
-    succeeded = Signal()
+    provisioned = Signal()
     finished = Signal()
 
     def __init__(
         self,
         *,
         application: InstalledApplication,
-        setup_command: Sequence[str],
         workflow_factory: InstallationWorkflowFactory,
         cancellation: Event,
     ) -> None:
@@ -74,7 +73,6 @@ class SetupWorker(QObject):
 
         super().__init__()
         self._application = application
-        self._setup_command = list(setup_command)
         self._workflow_factory = workflow_factory
         self._cancellation = cancellation
 
@@ -115,17 +113,7 @@ class SetupWorker(QObject):
             self.log.emit(launcher_text("Setup stopped at a safe point."))
             self.finished.emit()
             return
-        self.log.emit(launcher_text("Starting SugarSubstitute setup."))
-        try:
-            workflow.start_setup(self._setup_command)
-        except Exception as error:
-            self.failed.emit("setup", launcher_failure_detail(error))
-            self.finished.emit()
-            return
-
-        self.log.emit(launcher_text("Started SugarSubstitute setup."))
-        self.log.emit(launcher_text("Waiting for the setup window to open."))
-        self.succeeded.emit()
+        self.provisioned.emit()
         self.finished.emit()
 
 
