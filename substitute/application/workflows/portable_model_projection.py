@@ -177,6 +177,8 @@ class PortableModelManifestService:
         }
         refreshed_references: list[PortableModelReference] = []
         for field, instance_id in projection.instance_id_by_field.items():
+            if field not in parsed_script.model_hashes_by_field:
+                continue
             alias, node_symbol, input_name = field
             value = resolver_buffer_field_value(
                 parsed_script.buffers,

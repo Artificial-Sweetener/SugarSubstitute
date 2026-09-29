@@ -89,7 +89,6 @@ class EditorFullProjectionLoadPipeline:
             projection_session=projection_session,
         )
         self._log_projection_started(request)
-        ports.runtime_issues.begin_live_node_definition_report_projection()
         try:
             preparation = ports.projection_preparation.prepare_projection(
                 request.cube_entries,

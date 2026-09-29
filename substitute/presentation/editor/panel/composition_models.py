@@ -59,7 +59,6 @@ from substitute.application.prompt_editor.lora.scheduled import (
 from substitute.application.user_presets import UserPresetService
 from substitute.application.workflows import WorkflowIssueState
 from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
-from substitute.presentation.errors import ErrorReportPresenterProtocol
 from substitute.presentation.model_discovery import EmptyModelPickerAction
 from substitute.presentation.model_updates.picker_bridge import ModelUpdatePickerBridge
 from substitute.presentation.widgets.model_metadata_context_menu import (
@@ -96,7 +95,6 @@ class EditorPanelCompositionInputs:
     empty_model_picker_action: EmptyModelPickerAction | None
     model_updates: ModelUpdatePickerBridge | None
     user_preset_service: UserPresetService | None
-    error_presenter: ErrorReportPresenterProtocol | None
     workflow_issue_state: WorkflowIssueState | None
     workflow_id: str | None
     execution_factories: EditorPanelExecutionFactories | None

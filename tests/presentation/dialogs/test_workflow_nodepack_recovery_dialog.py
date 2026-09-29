@@ -18,7 +18,12 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from pathlib import Path
+
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from qfluentwidgets import Theme  # type: ignore[import-untyped]
 
 from substitute.application.comfy_nodepacks.workflow_dependency_resolution import (
     ResolvedWorkflowNodepack,
@@ -39,7 +44,10 @@ from substitute.presentation.dialogs.workflow_nodepack_recovery_dialog import (
     WorkflowNodepackRecoveryDialog,
     WorkflowNodepackRecoveryPresenter,
 )
+from tests.presentation.theme.support import fluent_theme
 from tests.support.qt.semantic_wait import wait_for_qt_condition
+
+pytest_plugins = ("tests.support.qt.rendering_font",)
 
 
 def _plan() -> WorkflowNodepackRecoveryPlan:
@@ -111,8 +119,53 @@ def test_dialog_truthfully_lists_sources_classes_and_unresolved_nodes(
     assert "Version: 1.0.0" in labels
     assert f"Revision: {'1' * 40}" in labels
     assert "No trusted package match was found for: UnknownNode" in labels
+    assert (
+        "Installing these custom node packages will restart ComfyUI and reload "
+        "Substitute. Your workflow will reopen when they are ready."
+    ) in labels
+    assert dialog.install_action.text() == "Install and restart"
     assert dialog.install_action.isEnabled()
     assert dialog.candidates == _plan().resolution.candidates
+
+
+def test_single_package_review_fits_content_without_dead_space(
+    qt_application_owner: QApplication,
+    tmp_path: Path,
+    offscreen_rendering_font: None,
+) -> None:
+    """A rendered one-package review must not retain an empty fixed-height list."""
+
+    parent = QWidget()
+    parent.resize(1200, 800)
+    parent.show()
+    _ = offscreen_rendering_font
+    with fluent_theme(Theme.DARK):
+        plan = _plan()
+        plan = replace(
+            plan,
+            assessment=replace(plan.assessment, missing=plan.assessment.missing[:1]),
+            resolution=replace(
+                plan.resolution,
+                candidates=plan.resolution.candidates[:1],
+                unresolved=(),
+            ),
+        )
+        dialog = WorkflowNodepackRecoveryDialog(plan, parent=parent)
+        dialog.show()
+        qt_application_owner.processEvents()
+
+        assert dialog.widget.height() < 350
+        assert (
+            dialog._review_scroll.height()
+            <= dialog._review_host.sizeHint().height() + 2
+        )
+        assert (
+            dialog._review_scroll.verticalScrollBarPolicy()
+            is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        assert dialog.widget.grab().save(str(tmp_path / "compact-nodepack-dialog.png"))
+        dialog.close()
+    parent.close()
 
 
 def test_presenter_opens_without_nested_exec_and_dispatches_cancellation(

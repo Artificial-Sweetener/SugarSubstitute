@@ -812,7 +812,7 @@ def compose_runtime_controllers(
         dependencies=dependencies,
         settings_route_controller=settings_route_controller,
     )
-    bind_nodepack_recovery(shell, dependencies, comfy_connection, error_presenter)
+    bind_nodepack_recovery(shell, dependencies, comfy_connection)
     composition = MainWindowRuntimeControllerComposition(
         generation_job_queue_observer=generation_job_queue_observer,
         generation_interrupt_failure_presenter=(generation_interrupt_failure_presenter),

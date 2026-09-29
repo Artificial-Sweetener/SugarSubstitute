@@ -409,7 +409,7 @@ This is taking much longer than expected</source>
       <translation>복구 사본은 유지되지만 직접 저장한 프로젝트 파일이 영구 파일입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="279"></location>
+      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="310"></location>
       <source>A required live Comfy field definition is unavailable.</source>
       <translation>필요한 실시간 Comfy 필드 정의를 사용할 수 없습니다.</translation>
     </message>
@@ -894,7 +894,7 @@ This is taking much longer than expected</source>
       <translation>작업 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="428"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="439"></location>
       <source>Cancel loading</source>
       <translation>불러오기 취소</translation>
     </message>
@@ -1032,6 +1032,11 @@ This is taking much longer than expected</source>
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="271"></location>
       <source>Checking model links…</source>
       <translation>모델 링크 확인 중…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="220"></location>
+      <source>Checking required custom nodes in restarted ComfyUI</source>
+      <translation>재시작한 ComfyUI에서 필요한 사용자 지정 노드를 확인하고 있습니다</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="413"></location>
@@ -2204,6 +2209,11 @@ This is taking much longer than expected</source>
       <translation>지금은 이 모델 링크를 확인할 수 없습니다</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="48"></location>
+      <source>Could not install %1 (%2/%3)</source>
+      <translation>%1 설치 실패 (%2/%3)</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="621"></location>
       <source>Could not install required Cube Library nodes.</source>
       <translation>필요한 큐브 라이브러리 노드를 설치하지 못했습니다.</translation>
@@ -2359,7 +2369,7 @@ This is taking much longer than expected</source>
       <translation>큐브 종속성 복구로 대상 환경이 변경되었습니다. 복구된 큐브로 생성하기 전에 ComfyUI를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="48"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/runtime_issue_card.py" line="51"></location>
       <source>Cube disabled</source>
       <translation>큐브 비활성화됨</translation>
     </message>
@@ -2437,12 +2447,12 @@ Install these nodes now?</source>
       <translation>사용자 지정 노드 %1을(를) 불러오지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="168"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="192"></location>
       <source>Custom node recovery failed</source>
       <translation>커스텀 노드 복구 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="110"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="111"></location>
       <source>Custom nodes required by this workflow</source>
       <translation>이 워크플로에 필요한 커스텀 노드</translation>
     </message>
@@ -2707,7 +2717,7 @@ Install these nodes now?</source>
       <translation>버전 다운로드</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="259"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_model_resolution.py" line="261"></location>
       <source>Downloading %1</source>
       <translation>%1 다운로드 중</translation>
     </message>
@@ -2972,7 +2982,7 @@ Install these nodes now?</source>
       <translation>실패 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="879"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="877"></location>
       <source>Failed to allocate output run number.</source>
       <translation>출력 실행 번호를 할당하지 못했습니다.</translation>
     </message>
@@ -2982,7 +2992,7 @@ Install these nodes now?</source>
       <translation>생성에 사용할 입력 캔버스 내용을 캡처하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="155"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="156"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="510"></location>
       <source>Failed to connect generation listener session</source>
       <translation>생성 리스너 세션에 연결하지 못했습니다</translation>
@@ -3018,7 +3028,7 @@ Install these nodes now?</source>
       <translation>준비된 큐브 하나 이상을 대기열에 넣지 못했습니다. 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="290"></location>
+      <location filename="../substitute/presentation/editor/panel/full_projection_load_pipeline.py" line="289"></location>
       <source>Failed to refresh editor visibility after cube load</source>
       <translation>큐브를 불러온 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
@@ -3043,13 +3053,13 @@ Install these nodes now?</source>
       <translation>큐브를 증분 삽입한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="436"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>워크플로 자산 %1.%2 준비 실패: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="403"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="405"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>생성 리스너를 시작하지 못했습니다</translation>
@@ -3225,7 +3235,7 @@ Install these nodes now?</source>
       <translation>모든 큐브에 런타임 오류가 있어 생성을 실행할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1063"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1061"></location>
       <source>Generation dispatch failed.</source>
       <translation>생성 전송에 실패했습니다.</translation>
     </message>
@@ -3288,6 +3298,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="543"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>생성 대기열 스냅샷 바인딩을 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="40"></location>
+      <source>Getting source for %1 (%2/%3)</source>
+      <translation>%1 소스 가져오는 중 (%2/%3)</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="667"></location>
@@ -3380,7 +3395,7 @@ Install these nodes now?</source>
       <translation>콘텐츠 환경 설정에 의해 숨겨짐</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="455"></location>
       <source>Hide Comfy output</source>
       <translation>Comfy 출력 숨기기</translation>
     </message>
@@ -3550,14 +3565,14 @@ Install these nodes now?</source>
       <translation>트리거 단어 삽입</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="219"></location>
-      <source>Install %1 custom node packages</source>
-      <translation>커스텀 노드 패키지 %1개 설치</translation>
-    </message>
-    <message>
       <location filename="../substitute/infrastructure/security/civitai_credential_store_factory.py" line="37"></location>
       <source>Install and enable GNOME Keyring, KWallet, or another Secret Service-compatible keyring through your distribution's package manager, then sign in or unlock it and restart Substitute.</source>
       <translation>배포판의 패키지 관리자를 통해 GNOME 키링, KWallet 또는 다른 Secret Service 호환 키링을 설치하고 활성화한 다음 로그인하거나 잠금을 해제하고 Substitute를 다시 시작하세요.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="246"></location>
+      <source>Install and restart</source>
+      <translation>설치하고 다시 시작</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="546"></location>
@@ -3583,6 +3598,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="186"></location>
       <source>Install support</source>
       <translation>지원 설치</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="46"></location>
+      <source>Installed %1 (%2/%3)</source>
+      <translation>%1 설치 완료 (%2/%3)</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="695"></location>
@@ -3615,6 +3635,11 @@ Install these nodes now?</source>
       <translation>Substitute Comfy 노드 팩을 설치하는 중입니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/workflow_nodepack_progress_presentation.py" line="42"></location>
+      <source>Installing dependencies for %1 (%2/%3)</source>
+      <translation>%1의 종속 항목 설치 중 (%2/%3)</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/comfy_startup_status.py" line="43"></location>
       <source>Installing dependencies for %1.</source>
       <translation>%1의 의존성을 설치하고 있습니다.</translation>
@@ -3625,9 +3650,14 @@ Install these nodes now?</source>
       <translation>ComfyUI가 실행 중일 때 패키지를 설치하거나 모델 경로를 변경하면 환경이 일관되지 않은 상태가 될 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="278"></location>
+      <location filename="../substitute/app/bootstrap/nodepack_recovery_handoff.py" line="112"></location>
       <source>Installing required custom nodes</source>
       <translation>필요한 커스텀 노드 설치 중</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="116"></location>
+      <source>Installing these custom node packages will restart ComfyUI and reload Substitute. Your workflow will reopen when they are ready.</source>
+      <translation>이 사용자 지정 노드 패키지를 설치하면 ComfyUI가 다시 시작되고 Substitute 화면이 다시 로드됩니다. 준비가 끝나면 워크플로가 다시 열립니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="202"></location>
@@ -3798,11 +3828,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="84"></location>
       <source>Likely cause: %1</source>
       <translation>가능성 높은 원인: %1</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="324"></location>
-      <source>Live Comfy node definitions unavailable</source>
-      <translation>실시간 Comfy 노드 정의를 사용할 수 없음</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/model_acquisition_card.py" line="215"></location>
@@ -4175,12 +4200,12 @@ Install these nodes now?</source>
       <translation>누락된 사용자 지정 노드: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="483"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="307"></location>
       <source>Missing definition: %1</source>
       <translation>누락된 정의: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="488"></location>
+      <location filename="../substitute/presentation/editor/panel/runtime_issue_presenter.py" line="312"></location>
       <source>Missing field: %1</source>
       <translation>누락된 필드: %1</translation>
     </message>
@@ -4215,7 +4240,7 @@ Install these nodes now?</source>
       <translation>모델 검색에서 잘못된 결과를 반환했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="360"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="329"></location>
       <source>Model download failed</source>
       <translation>모델 다운로드 실패</translation>
     </message>
@@ -4587,7 +4612,7 @@ I’ll bring my own</source>
 직접 준비하겠습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="153"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="154"></location>
       <source>No trusted package match was found for: %1</source>
       <translation>다음 노드와 일치하는 신뢰할 수 있는 패키지를 찾지 못했습니다: %1</translation>
     </message>
@@ -5192,7 +5217,7 @@ I’ll bring my own</source>
       <translation>기존 ComfyUI 설정을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/startup_bootstrap_feedback.py" line="60"></location>
+      <location filename="../substitute/app/bootstrap/nodepack_recovery_handoff.py" line="141"></location>
       <source>Preparing your saved workspace.</source>
       <translation>저장된 작업 공간을 준비하는 중입니다.</translation>
     </message>
@@ -5302,7 +5327,7 @@ I’ll bring my own</source>
       <translation>프롬프트: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="182"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="209"></location>
       <source>Provides: %1</source>
       <translation>제공 노드: %1</translation>
     </message>
@@ -5557,7 +5582,7 @@ I’ll bring my own</source>
       <translation>이 Python, PyTorch, CUDA 및 Windows 설정에 맞는 실패한 네이티브 종속성을 다시 설치하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="343"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="365"></location>
       <source>Reload GUI</source>
       <translation>GUI 다시 불러오기</translation>
     </message>
@@ -5866,7 +5891,7 @@ No known extension claimant.</source>
       <translation>Comfy를 다시 시작하는 중</translation>
     </message>
     <message>
-      <location filename="../substitute/application/comfy_startup_status.py" line="55"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_nodepack_recovery.py" line="447"></location>
       <source>Restarting ComfyUI to apply updated dependencies.</source>
       <translation>업데이트된 의존성을 적용하기 위해 ComfyUI를 다시 시작하고 있습니다.</translation>
     </message>
@@ -5936,11 +5961,6 @@ No known extension claimant.</source>
       <translation>연결 세부 정보를 검토하고 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="115"></location>
-      <source>Review the custom node packages matched to missing workflow nodes before installing them.</source>
-      <translation>누락된 워크플로 노드와 일치하는 커스텀 노드 패키지를 설치하기 전에 검토하세요.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="219"></location>
       <source>Review the details below and continue through repair to finish setting things up.</source>
       <translation>아래 세부 정보를 검토하고 복구를 계속하여 설정을 마치세요.</translation>
@@ -6001,7 +6021,7 @@ No known extension claimant.</source>
       <translation>연결된 ComfyUI 설치에 다운로드하기 전에 정확히 일치하는 모델을 검토하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="197"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="224"></location>
       <source>Revision: %1</source>
       <translation>리비전: %1</translation>
     </message>
@@ -6516,7 +6536,7 @@ No known extension claimant.</source>
       <translation>%1의 파일 또는 폴더 이름을 줄인 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="444"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="455"></location>
       <source>Show Comfy output</source>
       <translation>Comfy 출력 표시</translation>
     </message>
@@ -6708,12 +6728,12 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>소스: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="188"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="215"></location>
       <source>Source: Comfy Registry</source>
       <translation>출처: Comfy Registry</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="190"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="217"></location>
       <source>Source: ComfyUI-Manager catalog</source>
       <translation>출처: ComfyUI-Manager 카탈로그</translation>
     </message>
@@ -6953,7 +6973,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute에서 종료가 완료되었는지 확인하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="365"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="334"></location>
       <source>Substitute could not download and verify every model this workflow needs.</source>
       <translation>Substitute가 이 워크플로에 필요한 모든 모델을 다운로드하고 검증하지 못했습니다.</translation>
     </message>
@@ -6988,12 +7008,12 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>이 로컬 ComfyUI 설정을 준비하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="369"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="338"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>이 ComfyUI 워크플로 문서를 읽지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="169"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_composition.py" line="194"></location>
       <source>Substitute could not recover every custom node required by this workflow.</source>
       <translation>Substitute에서 이 워크플로에 필요한 모든 커스텀 노드를 복구하지 못했습니다.</translation>
     </message>
@@ -7238,7 +7258,7 @@ Then create an API key in Account Settings and paste it here.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2790"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2658"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -8002,7 +8022,7 @@ Diagnostic evidence:
       <translation>처음에는 시간이 조금 걸릴 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="256"></location>
+      <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="284"></location>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>실시간 Comfy 메타데이터를 사용할 수 없어 이 큐브를 표시할 수 없습니다.</translation>
     </message>
@@ -8582,7 +8602,7 @@ Diagnostic evidence:
       <translation>버전, 프로젝트 및 감사의 말입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="195"></location>
+      <location filename="../substitute/presentation/dialogs/workflow_nodepack_recovery_dialog.py" line="222"></location>
       <source>Version: %1</source>
       <translation>버전: %1</translation>
     </message>
@@ -8792,7 +8812,7 @@ Diagnostic evidence:
       <translation>워크플로 및 프롬프트 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="362"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="331"></location>
       <source>Workflow could not be loaded</source>
       <translation>워크플로를 불러오지 못했습니다</translation>
     </message>
@@ -8952,12 +8972,12 @@ Diagnostic evidence:
       <translation>모델</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="289"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="287"></location>
       <source>node missing from cube buffer</source>
       <translation>큐브 버퍼에 노드가 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="310"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="308"></location>
       <source>node payload is not a mapping</source>
       <translation>노드 페이로드가 매핑이 아님</translation>
     </message>
@@ -8967,7 +8987,7 @@ Diagnostic evidence:
       <translation>없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="204"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="206"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="556"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt에서 prompt_id를 반환하지 않음</translation>

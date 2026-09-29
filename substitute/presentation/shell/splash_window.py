@@ -125,6 +125,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
 
         super().__init__(parent)
         self._closure_requested = False
+        self._cancellation_enabled = True
         self._localization: LocalizationBindings | None = None
         self._accent_color = accent_color
         window_icon = icon or application_icon()
@@ -263,9 +264,19 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         self._closure_requested = True
         self.close()
 
+    def set_cancellation_enabled(self, enabled: bool) -> None:
+        """Prevent cancellation while approved environment work is in progress."""
+
+        self._cancellation_enabled = enabled
+        titlebar = cast(_SplashTitleBar, self.titleBar)
+        titlebar.closeBtn.setVisible(enabled)
+
     def closeEvent(self, event: QCloseEvent) -> None:
         """Cancel startup once for every user close, including native window commands."""
 
+        if not self._closure_requested and not self._cancellation_enabled:
+            event.ignore()
+            return
         self._feedback.shutdown()
         if not self._closure_requested:
             self._closure_requested = True
