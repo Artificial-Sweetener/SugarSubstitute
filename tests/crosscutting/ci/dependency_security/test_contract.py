@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 import re
 
+import pytest
 import yaml  # type: ignore[import-untyped]
 
 from tests.support.execution.node_runtime import run_node
@@ -90,7 +91,7 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
         "GHSA-mwp4-54f8-5fhr",
     } <= set(re.findall(r"GHSA-[a-z0-9-]+", audit_source))
     assert "!ignoredAdvisoryUrls.has(finding.url)" in audit_source
-    assert "!isUnloadedBundledNpmUndiciFinding(vulnerability, finding)" in audit_source
+    assert "!isUnloadedBundledNpmFinding(vulnerability, finding)" in audit_source
     release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
         encoding="utf-8"
     )
@@ -103,16 +104,28 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     assert "--ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}" in platform_script
 
 
-def test_dormant_npm_bundle_exception_never_masks_active_undici() -> None:
+@pytest.mark.parametrize(
+    ("package_name", "advisory"),
+    [
+        ("undici", "GHSA-rfgv-xxqx-mfg5"),
+        ("brace-expansion", "GHSA-qhr7-859c-m2p7"),
+        ("brace-expansion", "GHSA-6j4f-fj2g-mc7p"),
+    ],
+)
+def test_dormant_npm_bundle_exception_never_masks_active_dependencies(
+    package_name: str,
+    advisory: str,
+) -> None:
     """Allow the unused npm bundle only when every vulnerable node is inside it."""
 
     script = """
-import { isUnloadedBundledNpmUndiciFinding } from './scripts/release-dependency-audit-policy.mjs';
-const finding = {url: 'https://github.com/advisories/GHSA-rfgv-xxqx-mfg5'};
-const bundle = 'node_modules/npm/node_modules/undici';
-const active = 'node_modules/@semantic-release/github/node_modules/undici';
-const matches = (nodes, url = finding.url) => isUnloadedBundledNpmUndiciFinding(
-  {name: 'undici', nodes}, {url},
+import { isUnloadedBundledNpmFinding } from './scripts/release-dependency-audit-policy.mjs';
+const packageName = process.argv[1];
+const finding = {url: `https://github.com/advisories/${process.argv[2]}`};
+const bundle = `node_modules/npm/node_modules/${packageName}`;
+const active = `node_modules/@semantic-release/github/node_modules/${packageName}`;
+const matches = (nodes, url = finding.url) => isUnloadedBundledNpmFinding(
+  {name: packageName, nodes}, {url},
 );
 process.stdout.write(JSON.stringify({
   dormantOnly: matches([bundle]),
@@ -120,10 +133,13 @@ process.stdout.write(JSON.stringify({
   activeOnly: matches([active]),
   empty: matches([]),
   unrelatedAdvisory: matches([bundle], 'https://github.com/advisories/other'),
+  missingNodes: matches(undefined),
+  malformedNodes: matches(bundle),
+  unrelatedPackage: isUnloadedBundledNpmFinding({name: 'other', nodes: [bundle]}, finding),
 }));
 """
     result = run_node(
-        ("--input-type=module", "-e", script),
+        ("--input-type=module", "-e", script, package_name, advisory),
         cwd=PROJECT_ROOT,
         timeout_seconds=30,
         check=False,
@@ -136,6 +152,9 @@ process.stdout.write(JSON.stringify({
         "activeOnly": False,
         "empty": False,
         "unrelatedAdvisory": False,
+        "missingNodes": False,
+        "malformedNodes": False,
+        "unrelatedPackage": False,
     }
 
 

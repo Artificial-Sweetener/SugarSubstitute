@@ -16,7 +16,7 @@
 
 import { spawnSync } from "node:child_process";
 
-import { isUnloadedBundledNpmUndiciFinding } from "./release-dependency-audit-policy.mjs";
+import { isUnloadedBundledNpmFinding } from "./release-dependency-audit-policy.mjs";
 
 const ignoredAdvisoryIds = new Set([1124334]);
 const ignoredAdvisoryUrls = new Set([
@@ -52,7 +52,7 @@ const unresolvedFindings = Object.values(report.vulnerabilities ?? []).flatMap(
         ["high", "critical"].includes(finding.severity) &&
         !ignoredAdvisoryIds.has(finding.source) &&
         !ignoredAdvisoryUrls.has(finding.url) &&
-        !isUnloadedBundledNpmUndiciFinding(vulnerability, finding),
+        !isUnloadedBundledNpmFinding(vulnerability, finding),
     ),
 );
 
