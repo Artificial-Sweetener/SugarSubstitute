@@ -26,7 +26,7 @@ import os
 import pytest
 
 from launcher.sugarsubstitute_launcher import application_readiness_supervisor
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.application_startup_contract import (

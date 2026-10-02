@@ -95,7 +95,9 @@ def test_root_refresh_handoff_precedes_app_update_and_launch(
     class _Refresh:
         """Report a required root replacement at the handoff boundary."""
 
-        def start_if_required(self, *, layout: InstallLayout) -> bool:
+        def start_if_required(
+            self, *, layout: InstallLayout, cancellation_requested: object = None
+        ) -> bool:
             """Require refresh before the app update orchestrator starts."""
 
             assert layout.root == expected_root
@@ -108,6 +110,10 @@ def test_root_refresh_handoff_precedes_app_update_and_launch(
             """Record that the selected launcher relinquished presentation."""
 
             closed.append(True)
+
+        def cancellation_requested(self) -> bool:
+            """Keep cancellation outside the required refresh ordering scenario."""
+            return False
 
     monkeypatch.setattr(installed_app_handoff, "LauncherBaselineRefresh", _Refresh)
     monkeypatch.setattr(
@@ -318,6 +324,7 @@ def test_launcher_update_handoff_preserves_app_until_helper_starts(
         client=SimpleNamespace(close=lambda: closed.append(True)),
         app_arguments=(),
         close=lambda: closed.append(True),
+        cancellation_requested=lambda: False,
     )
 
     class _LauncherUpdate:

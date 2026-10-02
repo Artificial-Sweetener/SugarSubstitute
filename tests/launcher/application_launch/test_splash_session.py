@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from io import StringIO
+from tests.launcher.application_launch.splash_process_fixture import SplashProcessDouble
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -55,11 +55,11 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "protocol_version": 2,
     }
 
-    def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
+    def _fake_popen(command: list[str], **kwargs: Any) -> SplashProcessDouble:
         """Record host process creation and return a ready fake process."""
 
         calls.append({"command": command, **kwargs})
-        return _FakeProcess(stdout=json.dumps(ready) + "\n")
+        return SplashProcessDouble(stdout=json.dumps(ready) + "\n")
 
     session = start_launcher_splash_session(
         layout=layout,
@@ -99,9 +99,9 @@ def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
     """Malformed host output should stop its splash before direct fallback starts."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    process = _FakeProcess(stdout='{"type":"not-ready"}\n')
+    process = SplashProcessDouble(stdout='{"type":"not-ready"}\n')
 
-    def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
+    def _fake_popen(command: list[str], **kwargs: Any) -> SplashProcessDouble:
         """Return invalid stdout while accepting the host command."""
 
         _ = command
@@ -152,7 +152,7 @@ def test_splash_cancellation_is_scoped_to_its_authenticated_session(
         client=SocketSplashSessionClient(spec),
         app_arguments=(),
         host_pid=1234,
-        process=cast(Any, _FakeProcess(stdout="")),
+        process=cast(Any, SplashProcessDouble(stdout="")),
     )
     assert not session.cancellation_requested()
     splash_cancel_signal_path(other).write_text("cancel\n", encoding="utf-8")
@@ -164,7 +164,7 @@ def test_splash_cancellation_is_scoped_to_its_authenticated_session(
 def test_unacknowledged_splash_close_terminates_the_owned_process() -> None:
     """An unresponsive splash can never survive its launcher-owned handoff."""
 
-    process = _FakeProcess(stdout="", wait_times_out_while_running=True)
+    process = SplashProcessDouble(stdout="", wait_times_out_while_running=True)
     session = LauncherSplashSession(
         client=cast(Any, _UnresponsiveClient()),
         app_arguments=(),
@@ -185,52 +185,3 @@ class _UnresponsiveClient:
         """Report that the GUI never applied closure."""
 
         return False
-
-
-class _FakeProcess:
-    """Provide the process-control and text-pipe boundary used by splash startup."""
-
-    def __init__(
-        self,
-        *,
-        stdout: str,
-        wait_times_out_while_running: bool = False,
-    ) -> None:
-        """Create fake text pipes."""
-
-        self.stdout = StringIO(stdout)
-        self.stderr = StringIO("")
-        self.terminated = False
-        self.killed = False
-        self.wait_timeouts: list[float] = []
-        self.wait_times_out_while_running = wait_times_out_while_running
-
-    def poll(self) -> int | None:
-        """Report the fake process as running until it is terminated."""
-
-        return 0 if self.terminated or self.killed else None
-
-    def terminate(self) -> None:
-        """Record graceful process termination."""
-
-        self.terminated = True
-
-    def kill(self) -> None:
-        """Record forced process termination."""
-
-        self.killed = True
-
-    def wait(self, timeout: float | None = None) -> int:
-        """Record the bounded wait and report successful process exit."""
-
-        if timeout is not None:
-            self.wait_timeouts.append(timeout)
-        if (
-            self.wait_times_out_while_running
-            and not self.terminated
-            and not self.killed
-        ):
-            import subprocess
-
-            raise subprocess.TimeoutExpired("splash", timeout or 0.0)
-        return 0

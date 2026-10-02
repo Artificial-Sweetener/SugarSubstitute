@@ -18,7 +18,10 @@
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.installation_mutation import InstallationMutationBusyError
+from sugarsubstitute_shared.installation_mutation import (
+    InstallationMutationBusyError,
+    InstallationMutationOwnership,
+)
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -53,6 +56,13 @@ from launcher.sugarsubstitute_launcher.update_activation_journal import (
     UpdateRecoveryError,
 )
 from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
+from launcher.sugarsubstitute_launcher.startup_installation_wait import (
+    StartupInstallationWait,
+)
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    ApplicationStartupCancelled,
+    InstallationStartupDeferred,
+)
 from launcher.sugarsubstitute_launcher.update_policy import (
     AppPayloadUpdateDecision,
     UpdateCheckDecision,
@@ -162,6 +172,7 @@ class LauncherUpdateOrchestrator:
         release_source: ReleaseSource | None,
         no_update_check: bool,
         progress: LauncherUpdateProgress | None = None,
+        cancellation_requested: Callable[[], bool] | None = None,
     ) -> PreLaunchUpdateResult:
         """Run a best-effort update before launching the installed app."""
 
@@ -190,10 +201,13 @@ class LauncherUpdateOrchestrator:
                 config=config,
                 release_source=release_source,
                 progress=progress,
+                cancellation_requested=cancellation_requested,
             )
         except (
             UpdateRecoveryError,
             InstallationMutationBusyError,
+            InstallationStartupDeferred,
+            ApplicationStartupCancelled,
         ):
             raise
         except Exception as error:
@@ -215,10 +229,32 @@ class LauncherUpdateOrchestrator:
         config: LauncherConfig,
         release_source: ReleaseSource,
         progress: LauncherUpdateProgress,
+        cancellation_requested: Callable[[], bool] | None = None,
     ) -> PreLaunchUpdateResult:
         """Recover and run the supervisor-serialized update transaction."""
 
-        InstallationRecovery(layout).recover()
+        with StartupInstallationWait(
+            cancellation_requested=cancellation_requested
+        ).acquire(layout.root) as operation:
+            return self._run_owned_update(
+                layout=layout,
+                config=config,
+                release_source=release_source,
+                progress=progress,
+                operation=operation,
+            )
+
+    def _run_owned_update(
+        self,
+        *,
+        layout: InstallLayout,
+        config: LauncherConfig,
+        release_source: ReleaseSource,
+        progress: LauncherUpdateProgress,
+        operation: InstallationMutationOwnership,
+    ) -> PreLaunchUpdateResult:
+        """Retain admission through planning and transfer it to pending activation."""
+        InstallationRecovery(layout).recover(ownership=operation)
         state = LauncherUpdateState.load(layout.state_path)
         manifest = release_source.load_manifest()
         if (
@@ -280,6 +316,7 @@ class LauncherUpdateOrchestrator:
             )
             activation = PendingUpdateActivation.begin(
                 layout=layout,
+                operation=operation,
                 successful_state=successful_state,
                 generation_backed=True,
                 candidate_sha256=manifest.app.sha256,

@@ -20,11 +20,16 @@ from __future__ import annotations
 from dataclasses import replace
 from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupCandidate
 from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
-from sugarsubstitute_shared.installation_mutation import installation_mutation
+from collections.abc import Callable
+from launcher.sugarsubstitute_launcher.startup_installation_wait import (
+    StartupInstallationWait,
+)
 
 
 def recover_startup_candidate(
     candidate: LauncherStartupCandidate,
+    *,
+    cancellation_requested: Callable[[], bool] | None = None,
 ) -> LauncherStartupCandidate:
     """Recover under native ownership and reassess configuration after restoration.
 
@@ -34,8 +39,12 @@ def recover_startup_candidate(
     """
     layout = candidate.layout
     recovery = InstallationRecovery(layout)
-    if not recovery.pending:
+    if not recovery.pending and not layout.root.exists():
         return candidate
-    with installation_mutation(layout.root) as operation:
+    admission = StartupInstallationWait(cancellation_requested=cancellation_requested)
+    with admission.acquire(layout.root) as operation:
         recovery.recover(ownership=operation)
-        return replace(candidate, installed_config_found=layout.config_path.is_file())
+        config_found = layout.config_path.is_file()
+        if config_found == candidate.installed_config_found:
+            return candidate
+        return replace(candidate, installed_config_found=config_found)

@@ -103,6 +103,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     startup_plan: LauncherStartupPlan | None = None
     splash_session: StartupSplashSession | None = None
     startup_resource_registrar: Callable[[Callable[[], None]], str] | None = None
+    from launcher.sugarsubstitute_launcher.application_startup_contract import (
+        ApplicationStartupCancelled,
+        InstallationStartupDeferred,
+    )
     from sugarsubstitute_shared.supervisor_handoff import supervisor_handoff_present
 
     if (
@@ -117,11 +121,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             wait_for_outgoing_supervisor,
         )
 
-        splash_session = wait_for_outgoing_supervisor(
-            layout=layout,
-            locale_override=args.locale_override,
-            environment=os.environ,
-        )
+        try:
+            splash_session = wait_for_outgoing_supervisor(
+                layout=layout,
+                locale_override=args.locale_override,
+                environment=os.environ,
+            )
+        except ApplicationStartupCancelled:
+            return 0
     from sugarsubstitute_shared.application_broker_session import DELEGATED_LAUNCHER_ENV
 
     delegated_launcher = os.environ.pop(DELEGATED_LAUNCHER_ENV, None) == "1"
@@ -185,12 +192,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
 
             try:
-                recovered_candidate = recover_startup_candidate(startup_candidate)
+                recovered_candidate = recover_startup_candidate(
+                    startup_candidate,
+                    cancellation_requested=(
+                        splash_session.cancellation_requested
+                        if splash_session is not None
+                        else None
+                    ),
+                )
                 if recovered_candidate is not startup_candidate:
                     startup_candidate = recovered_candidate
                     attempt_installed_app = should_attempt_installed_app_launch(
                         args=args, candidate=startup_candidate
                     )
+            except (ApplicationStartupCancelled, InstallationStartupDeferred):
+                if splash_session is not None:
+                    splash_session.close()
+                if broker is not None:
+                    broker.close()
+                return 0
             except Exception as error:
                 app_launch_error = error
                 logging.getLogger(__name__).exception(
@@ -228,6 +248,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if splash_session is not None:
                         splash_session.close()
                     return selected_result
+        except ApplicationStartupCancelled:
+            if broker is not None:
+                broker.close()
+            if splash_session is not None:
+                splash_session.close()
+            return 0
         except BaseException:
             if broker is not None:
                 broker.close()
@@ -313,9 +339,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 broker.close()
                 broker = None
                 return 0
-        except ApplicationStartupCancelled:
+        except (ApplicationStartupCancelled, InstallationStartupDeferred) as stopped:
             logging.getLogger(__name__).info(
-                "Installed application launch cancelled by the user"
+                "Installed application startup stopped | reason=%s",
+                type(stopped).__name__,
             )
             try:
                 if splash_session is not None:
@@ -444,7 +471,7 @@ def _acknowledge_startup_incident_handled_by_repair(
 ) -> None:
     """Retain but retire an incident only after painted recovery replaces splash."""
 
-    from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+    from launcher.sugarsubstitute_launcher.application_startup_contract import (
         ApplicationReadinessError,
     )
 

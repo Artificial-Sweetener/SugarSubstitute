@@ -21,12 +21,15 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessSupervisor,
 )
 from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationStartupCancelled,
+    ApplicationStartupCompleted,
     CandidateProcess,
 )
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
@@ -81,8 +84,23 @@ class LauncherGenerationSupervisor:
         )
         try:
             process = self._readiness.launch_until_ready(
-                layout=layout, command=command, environment=prepared.environment
+                layout=layout,
+                command=command,
+                environment=prepared.environment,
+                expected_exit=lambda exited: (
+                    exited.poll() == 0
+                    and prepared.context.inspect_exit_evidence(
+                        process_id=exited.pid
+                    ).validates_clean_exit
+                ),
             )
+        except ApplicationStartupCompleted as completed:
+            return crash.supervise_process(
+                layout=layout,
+                process=completed.process,
+                prepared=prepared,
+                present_report=False,
+            ).return_code
         except ApplicationStartupCancelled as cancelled:
             if cancelled.terminated_process is not None:
                 crash.supervise_process(

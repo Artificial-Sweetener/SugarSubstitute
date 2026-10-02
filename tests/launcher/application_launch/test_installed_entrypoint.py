@@ -42,7 +42,7 @@ from launcher.sugarsubstitute_launcher import logging_setup
 from launcher.sugarsubstitute_launcher import localization
 from launcher.sugarsubstitute_launcher import splash_session
 from launcher.sugarsubstitute_launcher import startup_plan
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -233,6 +233,10 @@ def test_installed_launcher_performs_only_reviewed_work_before_splash(
     class _Splash:
         """Provide the startup presentation contract without a Qt process."""
 
+        def cancellation_requested(self) -> bool:
+            """Keep cancellation outside the startup ordering scenario."""
+            return False
+
         def present(self) -> str:
             """Report the already-visible startup surface."""
 
@@ -406,6 +410,10 @@ def test_launch_failure_closes_splash_only_after_repair_window_is_ready(
 
     class _Splash:
         """Record idempotent closure of the visible startup surface."""
+
+        def cancellation_requested(self) -> bool:
+            """Allow startup to reach the injected application readiness failure."""
+            return False
 
         closed = False
 

@@ -27,8 +27,10 @@ import sys
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout

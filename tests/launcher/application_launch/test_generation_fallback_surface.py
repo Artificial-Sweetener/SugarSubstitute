@@ -57,6 +57,10 @@ def test_generation_fallback_replaces_closed_splash_under_same_owner(
             """Close idempotently as a real owned splash does."""
             self.closed = True
 
+        def cancellation_requested(self) -> bool:
+            """Keep cancellation independent of the fallback lifetime scenario."""
+            return False
+
     surfaces: list[Surface] = []
 
     def start(**_kwargs: object) -> Surface:

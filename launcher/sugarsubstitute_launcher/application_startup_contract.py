@@ -18,7 +18,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol
+
+
+DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
 
 
 class CandidateProcess(Protocol):
@@ -48,3 +52,41 @@ class ApplicationStartupCancelled(Exception):
         """Retain a retired process for cancellation-aware run classification."""
         super().__init__("Application startup was cancelled by the user.")
         self.terminated_process = terminated_process
+
+
+class InstallationStartupDeferred(Exception):
+    """Leave a still-owned installation intact instead of requesting repair."""
+
+
+class ApplicationStartupCompleted(Exception):
+    """Carry an authenticated terminal launcher exit without claiming UI readiness."""
+
+    def __init__(self, process: CandidateProcess) -> None:
+        """Retain the exited process for its authoritative lifetime classifier."""
+        super().__init__("Launcher completed its authenticated startup handoff.")
+        self.process = process
+
+
+class ApplicationReadinessError(RuntimeError):
+    """Report a candidate that exits or stalls before its shell is ready."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        terminated_process: CandidateProcess | None = None,
+        incident_id: str | None = None,
+        diagnostics: Mapping[str, str] | None = None,
+    ) -> None:
+        """Retain terminated-process and durable-incident recovery context."""
+
+        super().__init__(message)
+        self.terminated_process = terminated_process
+        self.incident_id = incident_id
+        self.diagnostics = dict(diagnostics or {})
+
+    def add_diagnostics(self, values: Mapping[str, object]) -> None:
+        """Add non-secret supervisor facts without replacing specific evidence."""
+
+        for key, value in values.items():
+            self.diagnostics.setdefault(key, str(value))
