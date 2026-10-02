@@ -113,10 +113,19 @@ class VideoViewportInteraction(QObject):
                     self._end_navigation()
                 key.accept()
                 return True
-        if event.type() in {
-            QEvent.Type.ApplicationDeactivate,
-            QEvent.Type.WindowDeactivate,
-        } or (watched is self._surface and event.type() == QEvent.Type.Hide):
+        if (
+            event.type()
+            in {
+                QEvent.Type.ApplicationDeactivate,
+                QEvent.Type.WindowDeactivate,
+            }
+            or (watched is self._surface and event.type() == QEvent.Type.Hide)
+            or (
+                event.type() == QEvent.Type.FocusIn
+                and isinstance(watched, QWidget)
+                and self._owns_text_input(watched)
+            )
+        ):
             self._end_navigation()
             return super().eventFilter(watched, event)
         if watched is not self._surface:
@@ -177,14 +186,31 @@ class VideoViewportInteraction(QObject):
         return super().eventFilter(watched, event)
 
     def _accepts_space_press(self, watched: QObject) -> bool:
-        """Accept Space from the video subtree or while its surface is hovered."""
+        """Navigate visible video only while text entry does not own the key."""
 
+        if not self._surface.isVisible() or self._owns_text_input(
+            QApplication.focusWidget()
+        ):
+            return False
         if isinstance(watched, QWidget):
+            if self._owns_text_input(watched):
+                return False
             scope = self._keyboard_scope
             if watched is scope or scope.isAncestorOf(watched):
                 return True
+        if self._surface.window() is not QApplication.activeWindow():
+            return False
         local_pointer = self._surface.mapFromGlobal(QCursor.pos())
         return self._surface.rect().contains(local_pointer)
+
+    @staticmethod
+    def _owns_text_input(widget: QWidget | None) -> bool:
+        """Honor Qt input ownership through editor viewports and focus proxies."""
+        while widget is not None:
+            if widget.testAttribute(Qt.WidgetAttribute.WA_InputMethodEnabled):
+                return True
+            widget = widget.parentWidget()
+        return False
 
     def _publish(self, state: VideoViewportState) -> None:
         """Store and forward one viewport update."""

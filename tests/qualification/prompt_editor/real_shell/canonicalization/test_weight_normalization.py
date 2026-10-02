@@ -18,7 +18,29 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
+import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtTest import QSignalSpy
+
+from substitute.application.prompt_editor.editing.mutation_service import (
+    PromptMutationService,
+)
+from substitute.application.prompt_editor.editing.syntax_actions import (
+    PromptAdjustEmphasisAction,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxService,
+)
+from substitute.presentation.editor.prompt_editor.commands.weight_commands import (
+    PromptWeightActionRequest,
+)
+from tests.support.prompt_editor.autocomplete_support import (
+    EmptyPromptWildcardCatalogGateway,
+    prompt_syntax_profile,
+)
+from tests.support.prompt_editor.projection_engine_support import surface_for
 
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
     snapshot_invariant_violations,
@@ -201,3 +223,90 @@ def test_real_shell_manual_unescape_persists_until_segment_replacement(
 
     assert replaced.source_text == "(fresh:1.10)"
     assert not snapshot_invariant_violations(replaced)
+
+
+@pytest.mark.parametrize("prefix", ["", "😀, "])
+def test_real_shell_weight_normalization_publishes_one_coherent_history_edit(
+    real_shell_scenario: PromptEditorRealShellScenario,
+    prefix: str,
+) -> None:
+    """Keep normalized weight edits coherent through Qt, field wiring, and history."""
+
+    original = prefix + "(cat:1.05), (dog)"
+    expected = prefix + "(cat:1.10), (dog:1.10)"
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text=original)
+    editor = field.editor
+    surface = surface_for(editor)
+    cursor_position = len(prefix) + 2
+    real_shell_scenario.input.set_source_cursor_position(field, cursor_position)
+    before = real_shell_scenario.snapshots.capture(field, label="before-weight-step")
+    changed = QSignalSpy(editor.textChanged)
+    moved = QSignalSpy(editor.cursorPositionChanged)
+
+    result = editor.execute_weight_action(
+        PromptWeightActionRequest(
+            action=PromptAdjustEmphasisAction(
+                outer_start=len(prefix),
+                outer_end=len(prefix) + len("(cat:1.05)"),
+                delta=Decimal("0.05"),
+            ),
+            source_identity=editor.prompt_command_source_identity(),
+            cursor_policy="preserve_cursor",
+        ),
+        mutation_service=PromptMutationService(),
+        syntax_service=PromptSyntaxService(EmptyPromptWildcardCatalogGateway()),
+        syntax_profile=prompt_syntax_profile("emphasis"),
+    )
+
+    assert result.status == "applied"
+    assert result.edit_commit is not None
+    assert result.edit_commit.next_snapshot.source_text == expected
+    assert editor.toPlainText() == surface.document().toPlainText() == expected
+    assert surface._editing_session.source_text == expected  # noqa: SLF001
+    assert surface.editor_state.source.source_text == expected
+    assert surface.editor_state.edit_semantic.document.source_text == expected
+    assert surface.projection_document().source_text == expected
+    assert surface.cursor_position == editor.textCursor().position() == cursor_position
+    assert editor.textCursor().selectionStart() == cursor_position
+    assert editor.textCursor().selectionEnd() == cursor_position
+    assert surface._editing_session.anchor_position == cursor_position  # noqa: SLF001
+    assert changed.count() == 1
+    assert moved.count() == 1
+    after = real_shell_scenario.snapshots.capture(field, label="normalized-weight-step")
+    assert after.undo_depth == before.undo_depth + 1
+    assert after.undo_edit_block_depth == 0
+    assert after.editing_session_source_revision == after.source_revision
+    assert after.semantic_is_current
+    assert not snapshot_invariant_violations(after)
+    assert field.workflow.cube_state.dirty
+    nodes = field.workflow.cube_state.buffer["nodes"]
+    assert isinstance(nodes, dict)
+    node = nodes[field.node_name]
+    assert isinstance(node, dict)
+    inputs = node["inputs"]
+    assert isinstance(inputs, dict)
+    assert inputs[field.field_key] == expected
+
+    real_shell_scenario.input.undo(field)
+    undone = real_shell_scenario.snapshots.capture(field, label="undone-weight-step")
+    assert undone.source_text == original
+    assert surface.document().toPlainText() == original
+    assert surface._editing_session.source_text == original  # noqa: SLF001
+    assert undone.cursor_position == before.cursor_position
+    assert undone.selection_range == before.selection_range
+    assert undone.undo_depth == before.undo_depth
+    assert undone.redo_depth == 1
+    assert not snapshot_invariant_violations(undone)
+    assert changed.count() == 2
+
+    real_shell_scenario.input.redo(field)
+    redone = real_shell_scenario.snapshots.capture(field, label="redone-weight-step")
+    assert redone.source_text == expected
+    assert surface.document().toPlainText() == expected
+    assert surface._editing_session.source_text == expected  # noqa: SLF001
+    assert redone.cursor_position == after.cursor_position
+    assert redone.selection_range == after.selection_range
+    assert redone.undo_depth == after.undo_depth
+    assert redone.redo_depth == 0
+    assert not snapshot_invariant_violations(redone)
+    assert changed.count() == 3

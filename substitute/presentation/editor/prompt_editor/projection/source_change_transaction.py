@@ -20,6 +20,12 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_warning,
+    log_warning_exception,
+)
+
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
     PromptRegionStructureView,
@@ -65,6 +71,10 @@ from .caret_publication_owner import PromptProjectionCaretPublicationOwner
 from .source_document import PromptProjectionSourceDocument
 from .source_edit_projection_policy import PromptSourceEditProjectionDecision
 from .source_projection_application import PromptSourceProjectionApplication
+
+_LOGGER = get_logger(
+    "presentation.editor.prompt_editor.projection.source_change_transaction"
+)
 
 TProjectionPayload = TypeVar("TProjectionPayload")
 
@@ -153,6 +163,16 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             and source_edit_end - source_edit_start <= 1
             and len(source_edit_replacement_text) <= 1
         )
+        document_view_started_at = projection_observability_started_at()
+        next_document_view, next_render_plan = self._prepare_prompt_state(
+            text=text,
+            optimistic_prompt_state=optimistic_prompt_state,
+            previous_source_text=previous_source_text,
+            source_edit_start=source_edit_start,
+            source_edit_end=source_edit_end,
+            source_edit_replacement_text=source_edit_replacement_text,
+            region_structure_requires_rebuild=region_structure_requires_rebuild,
+        )
         self._source_change_publication.publish(
             deferrable_projection=deferrable_projection,
             source_snapshot=commit.next_snapshot,
@@ -172,42 +192,6 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
             presentation_sink._caret_visibility_prompt_state_revision = (
                 self._editor_state.source.source_revision
             )
-        document_view_started_at = projection_observability_started_at()
-        if optimistic_prompt_state is None:
-            optimistic_prompt_state = (
-                self._semantic_remapper.optimistic_prompt_state_for_source_edit(
-                    current_document_view=self._editor_state.edit_semantic.document,
-                    current_render_plan=self._editor_state.edit_semantic.render_plan,
-                    previous_text=previous_source_text,
-                    next_text=text,
-                    start=source_edit_start,
-                    end=source_edit_end,
-                    replacement_text=source_edit_replacement_text,
-                    region_structure_requires_rebuild=(
-                        region_structure_requires_rebuild
-                    ),
-                )
-            )
-        if optimistic_prompt_state is None:
-            next_document_view = PromptDocumentView(
-                source_text=text,
-                segments=(),
-                emphasis_spans=(),
-                wildcard_spans=(),
-                lora_spans=(),
-                syntax_spans=(),
-                region_structure=PromptRegionStructureView.empty(len(text)),
-                has_trailing_comma=False,
-            )
-            next_render_plan = PromptSyntaxRenderPlan(
-                syntax_spans=(),
-                renderer_views=(),
-                document_semantics_identity=(
-                    self._editor_state.edit_semantic.render_plan.document_semantics_identity
-                ),
-            )
-        else:
-            next_document_view, next_render_plan = optimistic_prompt_state
         next_projection_semantic = self._editor_state.prepare_semantic(
             next_document_view,
             next_render_plan,
@@ -295,6 +279,77 @@ class PromptProjectionSourceChangeTransaction(Generic[TProjectionPayload]):
         if emit_text_changed:
             presentation_sink.textChanged.emit()
         presentation_sink.cursorPositionChanged.emit()
+
+    def _prepare_prompt_state(
+        self,
+        *,
+        text: str,
+        optimistic_prompt_state: PromptProjectionOptimisticPromptState | None,
+        previous_source_text: str | None,
+        source_edit_start: int | None,
+        source_edit_end: int | None,
+        source_edit_replacement_text: str | None,
+        region_structure_requires_rebuild: bool | None,
+    ) -> PromptProjectionOptimisticPromptState:
+        """Resolve optional semantics before publishing the committed source.
+
+        Prepared and remapped state are disposable optimizations. Reject stale
+        text, including equal-length mismatches, and preserve the committed edit
+        with a source-matched empty view until the semantic refresh owner runs.
+        """
+
+        if optimistic_prompt_state is None:
+            try:
+                optimistic_prompt_state = self._semantic_remapper.optimistic_prompt_state_for_source_edit(
+                    current_document_view=self._editor_state.edit_semantic.document,
+                    current_render_plan=self._editor_state.edit_semantic.render_plan,
+                    previous_text=previous_source_text,
+                    next_text=text,
+                    start=source_edit_start,
+                    end=source_edit_end,
+                    replacement_text=source_edit_replacement_text,
+                    region_structure_requires_rebuild=(
+                        region_structure_requires_rebuild
+                    ),
+                )
+            except Exception as error:
+                log_warning_exception(
+                    _LOGGER,
+                    "Prompt source-change semantic remap failed",
+                    error=error,
+                    source_length=len(text),
+                    source_revision=self._editor_state.source.source_revision,
+                )
+        if optimistic_prompt_state is not None:
+            document_view, render_plan = optimistic_prompt_state
+            if document_view.source_text == text:
+                return document_view, render_plan
+            log_warning(
+                _LOGGER,
+                "Discarded mismatched prompt source-change semantics",
+                source_length=len(text),
+                prepared_source_length=len(document_view.source_text),
+                source_revision=self._editor_state.source.source_revision,
+            )
+        return (
+            PromptDocumentView(
+                source_text=text,
+                segments=(),
+                emphasis_spans=(),
+                wildcard_spans=(),
+                lora_spans=(),
+                syntax_spans=(),
+                region_structure=PromptRegionStructureView.empty(len(text)),
+                has_trailing_comma=False,
+            ),
+            PromptSyntaxRenderPlan(
+                syntax_spans=(),
+                renderer_views=(),
+                document_semantics_identity=(
+                    self._editor_state.edit_semantic.render_plan.document_semantics_identity
+                ),
+            ),
+        )
 
     def _remap_diagnostics_for_source_edit(
         self,

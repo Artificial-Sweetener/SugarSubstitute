@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
+import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QApplication, QPushButton, QWidget
@@ -34,7 +37,14 @@ from substitute.presentation.canvas.output.video_viewport_interaction import (
 from substitute.presentation.canvas.output.video_viewport_geometry import (
     VideoViewportGeometry,
 )
-from tests.support.qt.lifecycle import ensure_qt_application
+from tests.support.qt.lifecycle import ensure_qt_application, widget_root_scope
+
+
+@pytest.fixture(autouse=True)
+def viewport_widget_lifetime() -> Iterator[None]:
+    """Release every viewport's application event filter after its contract test."""
+    with widget_root_scope():
+        yield
 
 
 def test_zoom_anchors_cursor_and_reset_scale_prevents_pan() -> None:
@@ -130,6 +140,7 @@ def test_space_temporarily_owns_anchored_wheel_zoom_and_drag_pan() -> None:
         show_fit=lambda: None,
         show_actual_size=lambda _position: None,
     )
+    surface.show()
     wheel = _wheel_event(surface, QPointF(300.0, 50.0))
 
     QApplication.sendEvent(surface, wheel)
@@ -190,6 +201,7 @@ def test_space_double_click_toggles_fit_and_anchored_one_to_one() -> None:
         show_fit=lambda: fits.append(True),
         show_actual_size=actual_positions.append,
     )
+    surface.show()
     point = QPointF(300.0, 50.0)
 
     QApplication.sendEvent(surface, _double_click_event(surface, point))
@@ -240,6 +252,7 @@ def test_space_from_page_child_survives_focus_change_for_double_click() -> None:
         show_actual_size=show_actual_size,
         keyboard_scope=page,
     )
+    page.show()
     point = QPointF(40.0, 30.0)
 
     QApplication.sendEvent(

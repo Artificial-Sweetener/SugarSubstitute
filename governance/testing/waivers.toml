@@ -1080,7 +1080,7 @@ rule = "ISOLATED001"
 candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/canonicalization/test_weight_normalization.py|isolated-module"]
 paths = ["tests/qualification/prompt_editor/real_shell/canonicalization/test_weight_normalization.py"]
 fingerprint = "sha256:2c7c68fe0cd5ee8848ad37013ceb725c67596310a5afff00e768021f6a728daf"
-rationale = "This six-test real-shell prompt-weight canonicalization owner mounts the production prompt workspace to prove pasted and typed implicit emphasis, nested wrapping, undo/redo provenance, and manual-escape handling. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, prompt state, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+rationale = "This real-shell prompt-weight canonicalization owner mounts the production prompt workspace to prove pasted and typed implicit emphasis, nested wrapping, normalized weight-command publication, undo/redo provenance, and manual-escape handling. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, prompt state, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
 issue = "chore:SS-TEST-WAIVER-C0259"
 review_by = 2026-12-15
 
