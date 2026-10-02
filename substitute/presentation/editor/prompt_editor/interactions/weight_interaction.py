@@ -583,19 +583,19 @@ class PromptWeightInteraction:
         self,
         result: PromptWeightCommandResult[object],
     ) -> None:
-        """Adopt one source-applied weight result and refresh active syntax."""
+        """Retire scheduled semantic recovery only after successful state adoption."""
 
         mutation = result.mutation
         if mutation is None:
             return
-        self._semantic_refresh.cancel_pending(reason="state_applied")
-        self._syntax_state.clear_pending_prompt_state()
-        self._syntax_state.apply_mutation(
+        if self._syntax_state.apply_mutation(
             mutation,
             current_text=self._editor.toPlainText(),
             render_plan=result.render_plan,
-        )
-        self._syntax_state.refresh_active_span()
+        ):
+            self._semantic_refresh.cancel_pending(reason="state_applied")
+            self._syntax_state.clear_pending_prompt_state()
+            self._syntax_state.refresh_active_span()
 
 
 __all__ = [

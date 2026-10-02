@@ -26,6 +26,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, Literal, TypeAlias, TypeVar, cast
 
+from substitute.application.prompt_editor.document.projector import (
+    PromptDocumentProjector,
+)
 from substitute.application.prompt_editor.editing.mutation_service import (
     PromptMutationService,
 )
@@ -161,7 +164,7 @@ class PromptApplySyntaxWeightCommand(Generic[TPayload]):
         self,
         session: PromptEditingSession[TPayload],
     ) -> PromptWeightCommandResult[TPayload]:
-        """Apply this weight request through the supplied session."""
+        """Commit normalized source and reuse semantics only for that exact text."""
 
         stale_result = _stale_result(
             command_name=self.name,
@@ -178,11 +181,6 @@ class PromptApplySyntaxWeightCommand(Generic[TPayload]):
         if mutation is None:
             return _rejected(self.name, "stale_or_invalid_weight_action")
 
-        render_plan = _render_plan_for_mutation(
-            syntax_service=self.syntax_service,
-            syntax_profile=self.syntax_profile,
-            mutation=mutation,
-        )
         cursor_position, anchor_position = _cursor_output_for_mutation(
             session=session,
             mutation=mutation,
@@ -201,12 +199,24 @@ class PromptApplySyntaxWeightCommand(Generic[TPayload]):
                 undo_snapshot=self.undo_snapshot,
             )
         )
-        edit_commit = edit_commit.with_prepared_state(
-            PromptEditApplicationState(
-                document_view=mutation.document_view,
-                render_plan=render_plan,
-            )
+        mutation = _mutation_for_committed_source(
+            mutation,
+            text=edit_commit.next_snapshot.source_text,
+            normalizer=self.normalizer,
         )
+        render_plan = None
+        if mutation is not None:
+            render_plan = _render_plan_for_mutation(
+                syntax_service=self.syntax_service,
+                syntax_profile=self.syntax_profile,
+                mutation=mutation,
+            )
+            edit_commit = edit_commit.with_prepared_state(
+                PromptEditApplicationState(
+                    document_view=mutation.document_view,
+                    render_plan=render_plan,
+                )
+            )
         return PromptWeightCommandResult(
             command_name=self.name,
             status="applied" if edit_commit.source_changed else "noop",
@@ -333,6 +343,54 @@ def _after_mutation_cursor_position(
                 return wildcard_span.outer_end
         return mutation.selection_end
     return mutation.selection_end
+
+
+def _mutation_for_committed_source(
+    mutation: PromptMutation,
+    *,
+    text: str,
+    normalizer: PromptSourceNormalizer,
+) -> PromptMutation | None:
+    """Reconcile optional weight feedback with the session's normalized source.
+
+    The session owns normalization and cursor mapping. Only when it changes
+    the mutation text, reuse its normalizer to map feedback selections and
+    rebuild a cached document view. Failure must not undo the committed edit
+    or cancel the normal semantic refresh path.
+    """
+
+    if mutation.text == text and mutation.document_view.source_text == text:
+        return mutation
+    try:
+        normalization = normalizer.normalize_for_storage(mutation.text)
+        if normalization.text != text:
+            raise ValueError(
+                "Weight feedback normalization does not match committed source."
+            )
+        document_view = PromptDocumentProjector().build_document_view(text)
+        return PromptMutation(
+            text=text,
+            selection_start=(
+                None
+                if mutation.selection_start is None
+                else normalization.boundary_positions[mutation.selection_start]
+            ),
+            selection_end=(
+                None
+                if mutation.selection_end is None
+                else normalization.boundary_positions[mutation.selection_end]
+            ),
+            document_view=document_view,
+        )
+    except Exception as error:
+        log_warning_exception(
+            _LOGGER,
+            "Prompt weight feedback preparation failed",
+            error=error,
+            source_length=len(text),
+            mutation_source_length=len(mutation.text),
+        )
+        return None
 
 
 def _render_plan_for_mutation(
