@@ -74,7 +74,14 @@ def complete_installed_app_handoff(
 ) -> None:
     """Run update policy and start the app with the requested presentation policy."""
 
-    if LauncherBaselineRefresh().start_if_required(layout=layout):
+    if LauncherBaselineRefresh().start_if_required(
+        layout=layout,
+        cancellation_requested=(
+            splash_session.cancellation_requested
+            if splash_session is not None
+            else None
+        ),
+    ):
         if splash_session is not None:
             splash_session.close()
         return
@@ -85,6 +92,11 @@ def complete_installed_app_handoff(
         release_source=_normal_launch_release_source(config),
         no_update_check=no_update_check,
         progress=splash_session.client if splash_session is not None else None,
+        cancellation_requested=(
+            splash_session.cancellation_requested
+            if splash_session is not None
+            else None
+        ),
     )
     try:
         if update_result.launcher_update_request_path is not None:

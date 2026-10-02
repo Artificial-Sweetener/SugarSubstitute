@@ -22,7 +22,10 @@ from pathlib import Path
 import shutil
 from uuid import uuid4
 
-from sugarsubstitute_shared.installation_mutation import installation_mutation
+from sugarsubstitute_shared.installation_mutation import (
+    InstallationMutationOwnership,
+    installation_mutation,
+)
 from sugarsubstitute_shared.launcher_update.bundle_selection import (
     LauncherBundleSelection,
     SelectedLauncherBundle,
@@ -43,6 +46,7 @@ class LauncherBaselineRefreshStager:
         install_root: Path,
         selected: SelectedLauncherBundle,
         target: LauncherBundleTarget,
+        ownership: InstallationMutationOwnership | None = None,
     ) -> Path:
         """Return a durable request only while the selected generation stays sealed."""
 
@@ -53,7 +57,7 @@ class LauncherBaselineRefreshStager:
             )
         update_root = root / "launcher" / "updates"
         attempt_root = update_root / "staging" / "baseline-refresh" / uuid4().hex
-        with installation_mutation(root):
+        with installation_mutation(root, ownership=ownership):
             selection = LauncherBundleSelection(root, target)
             if selection.resolve() != selected:
                 raise ValueError("Selected launcher changed before baseline staging.")

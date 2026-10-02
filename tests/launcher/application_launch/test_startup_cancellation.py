@@ -29,19 +29,34 @@ from launcher.sugarsubstitute_launcher import (
     installed_app_handoff,
     launcher_ui_supervision,
     splash_session,
+    startup_recovery,
 )
 from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    InstallationStartupDeferred,
     ApplicationStartupCancelled,
 )
+
 from tests.launcher.application_launch.instance_routing_support import (
     BrokerDouble,
     installed_layout,
 )
 
 
-def test_cancelled_installed_startup_closes_splash_and_broker_without_repair(
+@pytest.mark.parametrize(
+    "source,deferred",
+    [
+        ("handoff", False),
+        ("recovery", False),
+        ("splash", False),
+        ("handoff", True),
+        ("recovery", True),
+    ],
+)
+def test_stopped_installed_startup_closes_splash_and_broker_without_repair(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    source: str,
+    deferred: bool,
 ) -> None:
     """Respect user cancellation even though the application never became ready."""
     layout = installed_layout(tmp_path)
@@ -59,18 +74,29 @@ def test_cancelled_installed_startup_closes_splash_and_broker_without_repair(
             """Record release of the launcher's visible helper."""
             closed.append(True)
 
-    def cancelled(**kwargs: object) -> None:
+        def cancellation_requested(self) -> bool:
+            """Leave the separate handoff cancellation as the test's trigger."""
+            return False
+
+    def cancelled(*args: object, **kwargs: object) -> None:
         """Report explicit cancellation after the handoff retires its child."""
-        raise ApplicationStartupCancelled()
+        raise (
+            InstallationStartupDeferred() if deferred else ApplicationStartupCancelled()
+        )
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(application_launch, "elect_application", lambda *_args: broker)
     monkeypatch.setattr(
         splash_session, "start_launcher_splash_session", lambda **_kwargs: Splash()
     )
-    monkeypatch.setattr(
-        installed_app_handoff, "complete_installed_app_handoff", cancelled
-    )
+    if source == "handoff":
+        monkeypatch.setattr(
+            installed_app_handoff, "complete_installed_app_handoff", cancelled
+        )
+    elif source == "recovery":
+        monkeypatch.setattr(startup_recovery, "recover_startup_candidate", cancelled)
+    else:
+        monkeypatch.setattr(splash_session, "start_launcher_splash_session", cancelled)
     monkeypatch.setattr(
         launcher_ui_supervision,
         "supervise_launcher_window",
@@ -78,4 +104,4 @@ def test_cancelled_installed_startup_closes_splash_and_broker_without_repair(
     )
     assert app.main([]) == 0
     assert broker.closed
-    assert closed == [True]
+    assert closed == ([] if source == "splash" else [True])

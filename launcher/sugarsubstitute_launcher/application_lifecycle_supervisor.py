@@ -22,8 +22,10 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from pathlib import Path
 import logging
 
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessSupervisor,
 )
 from launcher.sugarsubstitute_launcher.application_startup_contract import (

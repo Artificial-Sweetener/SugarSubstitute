@@ -19,10 +19,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import dataclass
 import json
 import logging
-import os
 from pathlib import Path
 import secrets
 import subprocess
@@ -31,10 +29,18 @@ import time
 
 from launcher.sugarsubstitute_launcher.application_startup_contract import (
     CandidateProcess,
+    DEFAULT_READINESS_TIMEOUT_SECONDS,
     ApplicationStartupCancelled,
+    ApplicationStartupCompleted,
+    ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.application_readiness_qualification import (
     publish_qualification_receipt,
+)
+from launcher.sugarsubstitute_launcher.application_readiness_contract import (
+    resolve_readiness_contract,
+    publish_outer_receipt,
+    extended_attestation_chain,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
@@ -46,45 +52,17 @@ from sugarsubstitute_shared.application_readiness import (
     READINESS_DELEGATION_SCHEMA_ENV,
     READINESS_DELEGATION_TOKEN_ENV,
     READINESS_PATH_ENV,
-    READINESS_LEGACY_DELEGATION_SCHEMA_VERSION,
     READINESS_SCHEMA_ENV,
     READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
     WRITABLE_READINESS_SCHEMA_VERSIONS,
-    publish_application_readiness_receipt,
 )
 
 
-DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
 _POLL_INTERVAL_SECONDS = 0.05
 _RECEIPT_PUBLICATION_GRACE_SECONDS = 2.0
 _TERMINATION_TIMEOUT_SECONDS = 5.0
 _LOGGER = logging.getLogger(__name__)
-
-
-class ApplicationReadinessError(RuntimeError):
-    """Report a candidate that exits or stalls before its shell is ready."""
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        terminated_process: CandidateProcess | None = None,
-        incident_id: str | None = None,
-        diagnostics: Mapping[str, str] | None = None,
-    ) -> None:
-        """Retain terminated-process and durable-incident recovery context."""
-
-        super().__init__(message)
-        self.terminated_process = terminated_process
-        self.incident_id = incident_id
-        self.diagnostics = dict(diagnostics or {})
-
-    def add_diagnostics(self, values: Mapping[str, object]) -> None:
-        """Add non-secret supervisor facts without replacing specific evidence."""
-
-        for key, value in values.items():
-            self.diagnostics.setdefault(key, str(value))
 
 
 def _unreadable_receipt_error(receipt_path: Path) -> ApplicationReadinessError:
@@ -97,24 +75,6 @@ def _unreadable_receipt_error(receipt_path: Path) -> ApplicationReadinessError:
             "readiness_observed_schema": "unavailable",
         },
     )
-
-
-@dataclass(frozen=True, slots=True)
-class _OuterReadinessReceipt:
-    """Identify one supervising ancestor's authenticated receipt."""
-
-    path: Path
-    token: str
-    schema_version: int
-
-
-@dataclass(frozen=True, slots=True)
-class _ReadinessContract:
-    """Separate the child proof from every supervising ancestor's proof."""
-
-    child_receipt_path: Path
-    child_token: str
-    outer_receipts: tuple[_OuterReadinessReceipt, ...]
 
 
 class ApplicationReadinessSupervisor:
@@ -156,12 +116,15 @@ class ApplicationReadinessSupervisor:
         layout: InstallLayout,
         command: Sequence[str],
         environment: Mapping[str, str],
+        expected_exit: Callable[[CandidateProcess], bool] | None = None,
     ) -> CandidateProcess:
         """Return the running process after an accepted surface is responsive."""
 
         self._check_cancellation()
 
-        contract = self._readiness_contract(layout=layout, environment=environment)
+        contract = resolve_readiness_contract(
+            layout=layout, environment=environment, token_factory=self._token_factory
+        )
         receipt_path = contract.child_receipt_path
         token = contract.child_token
         receipt_path.unlink(missing_ok=True)
@@ -201,6 +164,13 @@ class ApplicationReadinessSupervisor:
                 self._check_cancellation(process)
                 return_code = process.poll()
                 if return_code is not None:
+                    if expected_exit is not None and expected_exit(process):
+                        _LOGGER.info(
+                            "Accepted authenticated launcher startup completion | candidate_pid=%s | exit_code=%s",
+                            process.pid,
+                            return_code,
+                        )
+                        raise ApplicationStartupCompleted(process)
                     raise ApplicationReadinessError(
                         "SugarSubstitute exited before its main window became ready. "
                         f"Exit code: {return_code}. Startup log: {startup_log_path}.",
@@ -227,11 +197,11 @@ class ApplicationReadinessSupervisor:
                         self._wait(_POLL_INTERVAL_SECONDS)
                         continue
                     self._require_accepted_surface(receipt)
-                    self._publish_outer_receipt(contract=contract, receipt=receipt)
+                    publish_outer_receipt(contract=contract, receipt=receipt)
                     publish_qualification_receipt(
                         environment=environment,
                         receipt=receipt,
-                        attester_pids=_extended_attestation_chain(receipt),
+                        attester_pids=extended_attestation_chain(receipt),
                     )
                     _LOGGER.info(
                         "Accepted painted application surface | candidate_pid=%s | "
@@ -250,6 +220,8 @@ class ApplicationReadinessSupervisor:
                 f"timeout. Startup log: {startup_log_path}.",
                 diagnostics={"readiness_failure_kind": "timeout"},
             )
+        except ApplicationStartupCompleted:
+            raise
         except BaseException as error:
             termination_action = stop_candidate_process(process)
             if isinstance(error, ApplicationReadinessError):
@@ -297,104 +269,6 @@ class ApplicationReadinessSupervisor:
         """Distinguish the user's cancellation from an unresponsive or failed child."""
         if self._cancellation_requested is not None and self._cancellation_requested():
             raise ApplicationStartupCancelled(process)
-
-    def _readiness_contract(
-        self,
-        *,
-        layout: InstallLayout,
-        environment: Mapping[str, str],
-    ) -> _ReadinessContract:
-        """Adopt a complete outer proof contract or create a private one."""
-
-        external_path = environment.get(READINESS_PATH_ENV)
-        external_token = environment.get(READINESS_TOKEN_ENV)
-        external_schema = environment.get(READINESS_SCHEMA_ENV)
-        delegated_path = environment.get(READINESS_DELEGATION_PATH_ENV)
-        delegated_token = environment.get(READINESS_DELEGATION_TOKEN_ENV)
-        delegated_schema = environment.get(READINESS_DELEGATION_SCHEMA_ENV)
-        if bool(external_path) != bool(external_token):
-            raise ApplicationReadinessError(
-                "Application readiness path and token must be supplied together."
-            )
-        if bool(delegated_path) != bool(delegated_token):
-            raise ApplicationReadinessError(
-                "Application readiness delegation path and token must be supplied "
-                "together."
-            )
-        if external_schema and not (external_path and external_token):
-            raise ApplicationReadinessError(
-                "Application readiness schema requires a path and token."
-            )
-        if delegated_schema and not (delegated_path and delegated_token):
-            raise ApplicationReadinessError(
-                "Application readiness delegation schema requires a path and token."
-            )
-        outer_receipts = tuple(
-            _OuterReadinessReceipt(
-                path=Path(path).expanduser().resolve(),
-                token=token,
-                schema_version=_resolve_outer_schema_version(
-                    declared_schema=schema,
-                    advertised_versions=environment.get(
-                        READINESS_ACCEPTED_SCHEMA_VERSIONS_ENV
-                    ),
-                ),
-            )
-            for path, token, schema in (
-                (external_path, external_token, external_schema),
-                (delegated_path, delegated_token, delegated_schema),
-            )
-            if path and token
-        )
-        if len(outer_receipts) == 2 and (
-            outer_receipts[0].path == outer_receipts[1].path
-        ):
-            if outer_receipts[0] != outer_receipts[1]:
-                raise ApplicationReadinessError(
-                    "Application readiness contracts conflict at one receipt path."
-                )
-            outer_receipts = outer_receipts[:1]
-        if outer_receipts:
-            return _ReadinessContract(
-                child_receipt_path=(
-                    layout.launcher_dir
-                    / "readiness"
-                    / f"candidate-{secrets.token_hex(16)}.json"
-                ),
-                child_token=self._token_factory(),
-                outer_receipts=outer_receipts,
-            )
-        return _ReadinessContract(
-            child_receipt_path=layout.launcher_dir / "readiness" / "candidate.json",
-            child_token=self._token_factory(),
-            outer_receipts=(),
-        )
-
-    @staticmethod
-    def _publish_outer_receipt(
-        *,
-        contract: _ReadinessContract,
-        receipt: ApplicationReadinessReceipt,
-    ) -> None:
-        """Preserve the painted process while attesting through this process hop."""
-
-        for target in contract.outer_receipts:
-            publish_application_readiness_receipt(
-                receipt_path=target.path,
-                receipt=ApplicationReadinessReceipt(
-                    pid=receipt.pid,
-                    token=target.token,
-                    surface=receipt.surface,
-                    parent_pid=(
-                        receipt.parent_pid
-                        if target.schema_version >= READINESS_SCHEMA_VERSION
-                        else os.getpid()
-                    ),
-                    milestones=receipt.milestones,
-                    attester_pids=_extended_attestation_chain(receipt),
-                ),
-                schema_version=target.schema_version,
-            )
 
     @staticmethod
     def _validate_receipt(
@@ -477,47 +351,6 @@ def _start_candidate_process(
     return process, log_path
 
 
-def _resolve_outer_schema_version(
-    *,
-    declared_schema: str | None,
-    advertised_versions: str | None,
-) -> int:
-    """Resolve an explicit schema, negotiated capability, or legacy fallback."""
-
-    if declared_schema is not None:
-        return _compatible_outer_schema(declared_schema)
-    if advertised_versions is None:
-        return READINESS_LEGACY_DELEGATION_SCHEMA_VERSION
-    raw_versions = advertised_versions.split(",")
-    if not raw_versions or any(
-        not raw_version or not raw_version.isdecimal() for raw_version in raw_versions
-    ):
-        raise ApplicationReadinessError(
-            "Application readiness schema capabilities are invalid."
-        )
-    compatible_versions = {
-        int(raw_version)
-        for raw_version in raw_versions
-        if int(raw_version) in WRITABLE_READINESS_SCHEMA_VERSIONS
-    }
-    if not compatible_versions:
-        raise ApplicationReadinessError(
-            "Application readiness schema capabilities are incompatible."
-        )
-    return max(compatible_versions)
-
-
-def _extended_attestation_chain(
-    receipt: ApplicationReadinessReceipt,
-) -> tuple[int, ...]:
-    """Append this supervisor and its OS parent without duplicating prior hops."""
-
-    process_ids = (*receipt.attester_pids, os.getpid(), os.getppid())
-    return tuple(
-        dict.fromkeys(process_id for process_id in process_ids if process_id > 0)
-    )
-
-
 def stop_candidate_process(process: CandidateProcess) -> str:
     """Stop a failed candidate and return the exact supervisor action."""
 
@@ -533,24 +366,6 @@ def stop_candidate_process(process: CandidateProcess) -> str:
         return "killed"
 
 
-def _compatible_outer_schema(raw_schema: str | None) -> int:
-    """Return the richest schema a declared or pre-negotiation outer accepts."""
-
-    if raw_schema is None:
-        return READINESS_LEGACY_DELEGATION_SCHEMA_VERSION
-    try:
-        requested = int(raw_schema)
-    except ValueError as error:
-        raise ApplicationReadinessError(
-            "Application readiness schema must be an integer."
-        ) from error
-    if requested <= 0:
-        raise ApplicationReadinessError(
-            "Application readiness schema must be positive."
-        )
-    return min(requested, READINESS_SCHEMA_VERSION)
-
-
 def _observed_schema(payload: object) -> str:
     """Return a safe schema label from untrusted receipt data."""
 
@@ -563,8 +378,6 @@ def _observed_schema(payload: object) -> str:
 
 
 __all__ = [
-    "ApplicationReadinessError",
     "ApplicationReadinessSupervisor",
-    "DEFAULT_READINESS_TIMEOUT_SECONDS",
     "stop_candidate_process",
 ]

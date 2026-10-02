@@ -56,7 +56,10 @@ from sugarsubstitute_shared.application_readiness import (
     ],
 )
 def test_generation_failure_distinguishes_startup_from_owned_lifetime(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: str,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Distinguish failed readiness from failures after a usable surface appeared."""
     layout = InstallLayout.from_root(tmp_path)
@@ -154,6 +157,7 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
             == 0
         )
         assert not process.running
+        assert "Application readiness supervision failed" not in caplog.text
         assert (
             CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes").pending()
             == ()

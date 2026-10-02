@@ -28,7 +28,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
     ApplicationLifecycleSupervisor,
 )
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.crash_supervisor import (

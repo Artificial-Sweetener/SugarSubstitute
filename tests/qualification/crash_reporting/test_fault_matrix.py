@@ -35,8 +35,10 @@ from launcher.sugarsubstitute_launcher.candidate_update_launch import (
 from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
     ApplicationLifecycleSupervisor,
 )
-from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessSupervisor,
 )
 from launcher.sugarsubstitute_launcher.crash_report_application import (

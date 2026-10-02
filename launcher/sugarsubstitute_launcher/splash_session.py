@@ -44,6 +44,12 @@ from sugarsubstitute_shared.launch_splash.session import (
     splash_cancel_signal_path,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
+from launcher.sugarsubstitute_launcher.splash_host_readiness import (
+    read_splash_host_ready_line,
+)
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    ApplicationStartupCancelled,
+)
 from sugarsubstitute_shared.launch_splash.timing import (
     SPLASH_HOST_EXIT_TIMEOUT_SECONDS,
 )
@@ -57,7 +63,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 _HOST_MODULE = "substitute.app.bootstrap.shared_splash_host"
-_READY_TIMEOUT_SECONDS = 8.0
 _HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV = (
     "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
 )
@@ -123,7 +128,13 @@ def start_launcher_splash_session(
             label="stderr",
             ignore_ready_message=False,
         )
-        spec = _read_ready_spec(process=process, timeout_seconds=_READY_TIMEOUT_SECONDS)
+        spec = _read_ready_spec(process=process)
+    except ApplicationStartupCancelled:
+        if process is not None:
+            _terminate_failed_splash_host(process)
+            if process.poll() is not None:
+                process.stdout.close()
+        raise
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         _LOGGER.warning("Shared launcher splash session unavailable: %r", error)
         if process is not None:
@@ -200,7 +211,6 @@ def _splash_host_environment(layout: InstallLayout) -> dict[str, str]:
 def _read_ready_spec(
     *,
     process: SupervisedTextProcess,
-    timeout_seconds: float,
 ) -> SplashSessionSpec:
     """Read and validate the host process ready line."""
 
@@ -208,8 +218,10 @@ def _read_ready_spec(
     if stdout is None:
         raise ValueError("Splash host started without stdout.")
 
-    line = _readline_with_timeout(stdout, timeout_seconds=timeout_seconds)
+    line = read_splash_host_ready_line(process)
     payload = json.loads(line)
+    if isinstance(payload, dict) and payload.get("type") == "cancel":
+        raise ApplicationStartupCancelled()
     if not isinstance(payload, dict) or payload.get("type") != "ready":
         raise ValueError("Splash host did not send a ready message.")
     endpoint = _required_string(payload, "endpoint")
@@ -227,35 +239,6 @@ def _read_ready_spec(
     )
     validate_splash_session_spec(spec)
     return spec
-
-
-def _readline_with_timeout(stream: IO[str], *, timeout_seconds: float) -> str:
-    """Read one text line with a bounded wait."""
-
-    result: dict[str, str | BaseException] = {}
-
-    def _reader() -> None:
-        try:
-            result["line"] = stream.readline()
-        except BaseException as error:  # pragma: no cover - defensive thread bridge
-            result["error"] = error
-
-    thread = threading.Thread(
-        target=_reader,
-        name="sugarsubstitute-splash-ready-reader",
-        daemon=True,
-    )
-    thread.start()
-    thread.join(timeout=timeout_seconds)
-    if thread.is_alive():
-        raise subprocess.TimeoutExpired("splash host ready", timeout_seconds)
-    error = result.get("error")
-    if isinstance(error, BaseException):
-        raise ValueError("Splash host ready stream failed.") from error
-    line = result.get("line")
-    if not isinstance(line, str) or not line.strip():
-        raise ValueError("Splash host exited before sending a ready message.")
-    return line
 
 
 def _start_background_pipe_reader(

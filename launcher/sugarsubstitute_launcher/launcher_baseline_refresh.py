@@ -21,6 +21,11 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from collections.abc import Callable
+from launcher.sugarsubstitute_launcher.startup_installation_wait import (
+    StartupInstallationWait,
+)
+from sugarsubstitute_shared.installation_mutation import InstallationMutationOwnership
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.runtime_paths import (
@@ -59,6 +64,7 @@ class LauncherBaselineRefresh:
         *,
         layout: InstallLayout,
         running_executable: Path | None = None,
+        cancellation_requested: Callable[[], bool] | None = None,
     ) -> bool:
         """Schedule a root replacement before a newer selected launcher starts the app."""
 
@@ -71,6 +77,26 @@ class LauncherBaselineRefresh:
         )
         if generation_payload is None:
             return False
+        with StartupInstallationWait(
+            cancellation_requested=cancellation_requested
+        ).acquire(layout.root) as operation:
+            return self._start_owned_refresh(
+                layout=layout,
+                image=image,
+                generation_payload=generation_payload,
+                operation=operation,
+            )
+
+    def _start_owned_refresh(
+        self,
+        *,
+        layout: InstallLayout,
+        image: Path,
+        generation_payload: Path,
+        operation: InstallationMutationOwnership,
+    ) -> bool:
+        """Keep selection assessment and sealed staging under one native claim."""
+        target = launcher_bundle_target_for_key(layout.target.key)
         selected = LauncherBundleSelection(layout.root, target).resolve()
         if selected.generation is None or selected.version is None:
             raise ValueError("Running launcher generation is no longer selected.")
@@ -90,6 +116,7 @@ class LauncherBaselineRefresh:
             install_root=layout.root,
             selected=selected,
             target=target,
+            ownership=operation,
         )
         helper_pid = schedule_required_baseline_refresh(
             request_path=request_path,

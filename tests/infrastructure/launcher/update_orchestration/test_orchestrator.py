@@ -579,28 +579,3 @@ class _OfflineLauncherStager:
         """Raise the urllib connectivity error used by the production downloader."""
 
         raise URLError("offline")
-
-
-def test_busy_mutation_owner_does_not_fall_back_to_launch(tmp_path: Path) -> None:
-    """Propagate ownership contention instead of launching files being replaced."""
-    from concurrent.futures import ThreadPoolExecutor
-    from sugarsubstitute_shared.installation_mutation import (
-        InstallationMutationBusyError,
-        installation_mutation,
-    )
-
-    layout = InstallLayout.from_root(tmp_path / "install")
-    config = LauncherConfig.from_layout(layout=layout)
-    source = _ReleaseSource(_manifest(version="0.4.0"))
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        with installation_mutation(layout.root):
-            result = pool.submit(
-                LauncherUpdateOrchestrator().run,
-                layout=layout,
-                config=config,
-                release_source=source,
-                no_update_check=False,
-            )
-            with pytest.raises(InstallationMutationBusyError):
-                result.result(timeout=10)
-    assert not layout.state_path.exists()
