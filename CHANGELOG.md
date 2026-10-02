@@ -1,3 +1,11 @@
+## [0.27.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.27.0...v0.27.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **prompts:** preserve edits when weight normalization changes source ([0f9746c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0f9746c31cee513cae257d843c42c3c75c0330c8))
+* **prompts:** preserve spaces while viewing images and videos ([c43cf27](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c43cf275ee6015c606d69f2ca1c49e3ddf01cb7e))
+
 # [0.27.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.26.0...v0.27.0) (2026-09-29)
 
 
