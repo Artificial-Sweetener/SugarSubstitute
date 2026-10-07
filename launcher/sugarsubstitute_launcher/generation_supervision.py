@@ -149,5 +149,5 @@ def _start_generation(
         return spawn_supervised_process(
             command, environment=environment, allow_handoff=True
         )
-    except (OSError, ValueError) as error:
+    except ValueError as error:
         raise GenerationStartupError("Selected launcher could not start") from error

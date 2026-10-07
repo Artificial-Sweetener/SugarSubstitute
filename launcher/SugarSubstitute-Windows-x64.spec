@@ -16,7 +16,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # ruff: noqa: F821
-"""PyInstaller onedir build configuration for the installed SugarSubstitute launcher."""
+"""Embed the recovery bootstrap while retaining separate installed UI and repair roles."""
 
 from pathlib import Path
 
@@ -110,16 +110,18 @@ repair_pyz = PYZ(repair_a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
     name="SugarSubstitute",
     debug=False,
     bootloader_ignore_signals=False,
-    exclude_binaries=True,
+    exclude_binaries=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     console=False,
-    disable_windowed_traceback=False,
+    disable_windowed_traceback=True,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,

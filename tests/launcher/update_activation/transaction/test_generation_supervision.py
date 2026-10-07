@@ -148,7 +148,7 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
     )
     supervisor = generation_supervision.LauncherGenerationSupervisor()
     if outcome == "spawn-error":
-        with pytest.raises(generation_supervision.GenerationStartupError):
+        with pytest.raises(OSError, match="spawn failed"):
             supervisor.supervise(layout=layout, command=("fixture",), environment={})
         assert not process.killed
     elif outcome == "clean-handoff":

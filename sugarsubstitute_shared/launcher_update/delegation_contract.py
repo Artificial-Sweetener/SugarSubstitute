@@ -53,7 +53,7 @@ def supports_launcher_delegation(root: Path, target: LauncherBundleTarget) -> bo
     path = root / target.support_relative_path / "launcher_assets" / CONTRACT_FILENAME
     try:
         contract = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
+    except (FileNotFoundError, ValueError) as error:
         _LOGGER.warning(
             "Launcher delegation contract unavailable | bundle=%s | reason=%s",
             root,
