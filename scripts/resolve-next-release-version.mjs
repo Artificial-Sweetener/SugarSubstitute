@@ -14,28 +14,28 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { appendFileSync, readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
-const releaseConfig = require("../.releaserc.cjs");
-const { createCanaryVersion, latestStableTag, nextStableVersion } = require(
+const { createCanaryVersion } = require(
   "./canary-release-version.cjs",
 );
-const { selectVersionResolutionPlugins } = require(
-  "./release-version-plugins.cjs",
-);
-const FIRST_RELEASE_VERSION = "0.9.0";
+import { git as runGit } from "./release-git.mjs";
+import { resolveStableVersion } from "./stable-release-version.mjs";
 const qualificationVersion = process.env.SUGAR_SUBSTITUTE_QUALIFICATION_VERSION;
 const canaryRunNumber = process.env.SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER?.trim();
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
+const pendingStableVersion = process.env.SUGAR_SUBSTITUTE_PENDING_STABLE_VERSION;
+if (pendingStableVersion && !/^0\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(pendingStableVersion)) {
+  throw new Error("Pending Stable publication requires a plain beta version.");
+}
 const releaseTags = git(["tag", "--list", "v[0-9]*"])
   .split(/\r?\n/)
   .map((tag) => tag.trim())
-  .filter(Boolean);
+  .filter((tag) => tag && tag !== `v${pendingStableVersion}`);
 
 let version;
 let shouldRelease;
@@ -51,14 +51,15 @@ if (qualificationVersion) {
   shouldRelease = true;
   firstRelease = false;
 } else if (releaseTags.length === 0) {
-  const firstReleaseVersion = readFirstReleaseVersion();
+  const firstReleaseVersion = resolveStableVersion(projectRoot, releaseTags);
   version = canaryRunNumber
     ? createCanaryVersion(firstReleaseVersion, canaryRunNumber)
     : firstReleaseVersion;
   shouldRelease = true;
   firstRelease = !canaryRunNumber;
 } else {
-  const resolvedStableVersion = await resolveStableVersion(
+  const resolvedStableVersion = resolveStableVersion(
+    projectRoot,
     releaseTags,
     canaryRunNumber ? "patch" : undefined,
   );
@@ -67,31 +68,6 @@ if (qualificationVersion) {
     : resolvedStableVersion;
   shouldRelease = canaryRunNumber ? true : version.length > 0;
   firstRelease = false;
-}
-
-/**
- * Resolve the next Stable version through semantic-release's configured analyzer.
- *
- * @param {string[]} tags Existing Stable release tags.
- * @param {"patch" | undefined} fallbackReleaseType Canary's rolling fallback.
- * @returns {Promise<string>} Next Stable version, or empty when no release is due.
- */
-async function resolveStableVersion(tags, fallbackReleaseType) {
-  const analyzer = selectVersionResolutionPlugins(releaseConfig)[0];
-  const analyzerOptions = Array.isArray(analyzer) ? analyzer[1] : {};
-  const stableTag = latestStableTag(tags);
-  const commits = git(["log", `${stableTag}..HEAD`, "--format=%B%x00"])
-    .split("\0")
-    .map((message) => message.trim())
-    .filter(Boolean)
-    .map((message) => ({ message }));
-  const { analyzeCommits } = await import("@semantic-release/commit-analyzer");
-  const analyzedReleaseType = await analyzeCommits(analyzerOptions, {
-    commits,
-    logger: { log() {} },
-  });
-  const releaseType = analyzedReleaseType ?? fallbackReleaseType;
-  return releaseType ? nextStableVersion(tags, releaseType) : "";
 }
 
 if (process.env.GITHUB_OUTPUT) {
@@ -106,29 +82,7 @@ if (process.env.GITHUB_OUTPUT) {
   );
 }
 
-function readFirstReleaseVersion() {
-  const packagePath = resolve(projectRoot, "package.json");
-  const metadata = JSON.parse(readFileSync(packagePath, "utf8"));
-  if (metadata.version !== FIRST_RELEASE_VERSION) {
-    throw new Error(
-      `The first release must be ${FIRST_RELEASE_VERSION}; package.json contains ${metadata.version ?? "<missing>"}.`,
-    );
-  }
-  return FIRST_RELEASE_VERSION;
-}
-
+/** Run Git in the version resolver's repository. */
 function git(args) {
-  const result = spawnSync("git", args, {
-    cwd: projectRoot,
-    encoding: "utf8",
-  });
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      `git ${args.join(" ")} failed.\n${result.stdout ?? ""}\n${result.stderr ?? ""}`,
-    );
-  }
-  return result.stdout ?? "";
+  return runGit(projectRoot, args);
 }

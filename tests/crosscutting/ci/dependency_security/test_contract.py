@@ -81,21 +81,10 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     assert "npm run audit:release" in quality_script
     release_audit_script = PROJECT_ROOT / "scripts" / "audit-release-dependencies.mjs"
     audit_source = release_audit_script.read_text(encoding="utf-8")
-    assert '"audit", "--json"' in audit_source
-    assert "ignoredAdvisoryIds" in audit_source
-    assert "ignoredAdvisoryUrls" in audit_source
-    assert "1124334" in audit_source
-    assert {
-        "GHSA-mh99-v99m-4gvg",
-        "GHSA-rgw5-rvv9-x895",
-        "GHSA-mwp4-54f8-5fhr",
-    } <= set(re.findall(r"GHSA-[a-z0-9-]+", audit_source))
-    assert "!ignoredAdvisoryUrls.has(finding.url)" in audit_source
-    assert "!isUnloadedBundledNpmFinding(vulnerability, finding)" in audit_source
-    release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
-        encoding="utf-8"
-    )
-    assert '"@semantic-release/npm"' not in release_configuration
+    assert '["npm", "audit", "--json"]' in audit_source
+    assert '"corepack.cmd" : "corepack"' in audit_source
+    assert "ignoredAdvisory" not in audit_source
+    assert "unresolvedReleaseFindings(report)" in audit_source
     assert "-m pip_audit" in platform_script
     assert "--local --strict --progress-spinner off" in platform_script
     assert platform_workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == (
@@ -107,36 +96,28 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
 @pytest.mark.parametrize(
     ("package_name", "advisory"),
     [
+        ("braces", "GHSA-vfj7-8cjw-p6xm"),
+        ("http-cache-semantics", "GHSA-ch52-4w7c-c8xp"),
         ("undici", "GHSA-rfgv-xxqx-mfg5"),
-        ("brace-expansion", "GHSA-qhr7-859c-m2p7"),
-        ("brace-expansion", "GHSA-6j4f-fj2g-mc7p"),
     ],
 )
-def test_dormant_npm_bundle_exception_never_masks_active_dependencies(
+def test_release_audit_rejects_vulnerabilities_in_every_dependency_location(
     package_name: str,
     advisory: str,
 ) -> None:
-    """Allow the unused npm bundle only when every vulnerable node is inside it."""
+    """Reject known high findings in bundled, active, and newly added locations."""
 
     script = """
-import { isUnloadedBundledNpmFinding } from './scripts/release-dependency-audit-policy.mjs';
+import { unresolvedReleaseFindings } from './scripts/release-dependency-audit.mjs';
 const packageName = process.argv[1];
-const finding = {url: `https://github.com/advisories/${process.argv[2]}`};
+const finding = {source: 1124334, url: `https://github.com/advisories/${process.argv[2]}`};
 const bundle = `node_modules/npm/node_modules/${packageName}`;
-const active = `node_modules/@semantic-release/github/node_modules/${packageName}`;
-const matches = (nodes, url = finding.url) => isUnloadedBundledNpmFinding(
-  {name: packageName, nodes}, {url},
-);
-process.stdout.write(JSON.stringify({
-  dormantOnly: matches([bundle]),
-  activeAlsoAffected: matches([bundle, active]),
-  activeOnly: matches([active]),
-  empty: matches([]),
-  unrelatedAdvisory: matches([bundle], 'https://github.com/advisories/other'),
-  missingNodes: matches(undefined),
-  malformedNodes: matches(bundle),
-  unrelatedPackage: isUnloadedBundledNpmFinding({name: 'other', nodes: [bundle]}, finding),
-}));
+const active = `node_modules/${packageName}`;
+const results = [[bundle], [bundle, active], [active], [], ['node_modules/unknown']]
+ .map(nodes => unresolvedReleaseFindings({auditReportVersion:2, vulnerabilities:{
+  [packageName]:{name:packageName, severity:'high', nodes, via:[finding]},
+ }}).length);
+process.stdout.write(JSON.stringify(results));
 """
     result = run_node(
         ("--input-type=module", "-e", script, package_name, advisory),
@@ -146,16 +127,52 @@ process.stdout.write(JSON.stringify({
     )
 
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {
-        "dormantOnly": True,
-        "activeAlsoAffected": False,
-        "activeOnly": False,
-        "empty": False,
-        "unrelatedAdvisory": False,
-        "missingNodes": False,
-        "malformedNodes": False,
-        "unrelatedPackage": False,
+    assert json.loads(result.stdout) == [1, 1, 1, 1, 1]
+
+
+def test_release_lock_contains_no_vulnerable_release_engines() -> None:
+    """Keep the removed vulnerable graph out of reproducible installations."""
+
+    lock = json.loads((PROJECT_ROOT / "package-lock.json").read_text(encoding="utf-8"))
+    forbidden = {
+        "braces",
+        "http-cache-semantics",
+        "npm",
+        "micromatch",
+        "semantic-release",
     }
+    assert not {
+        name
+        for name in lock["packages"]
+        if name.rsplit("node_modules/", 1)[-1] in forbidden
+    }
+
+
+@pytest.mark.parametrize(
+    "report",
+    [
+        None,
+        {},
+        {"error": {"code": "network"}},
+        {"auditReportVersion": 2, "vulnerabilities": []},
+        {"auditReportVersion": 2, "vulnerabilities": {"unsafe": {"severity": "high"}}},
+    ],
+)
+def test_release_audit_fails_closed_on_missing_or_malformed_evidence(
+    report: object,
+) -> None:
+    """Reject unusable audit output rather than accepting an empty finding set."""
+
+    script = """
+import { unresolvedReleaseFindings } from './scripts/release-dependency-audit.mjs';
+try { unresolvedReleaseFindings(JSON.parse(process.argv[1])); process.exitCode = 1; }
+catch (error) { process.stdout.write(error.message); }
+"""
+    result = run_node(
+        ("--input-type=module", "-e", script, json.dumps(report)), cwd=PROJECT_ROOT
+    )
+    assert result.returncode == 0, result.stderr
+    assert "npm audit" in result.stdout
 
 
 def test_python_audit_exception_remains_tied_to_photoshop_constraint() -> None:

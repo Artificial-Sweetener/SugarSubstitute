@@ -169,9 +169,9 @@ process.stdout.write(JSON.stringify({
 def test_canary_version_resolution_does_not_probe_ambiguous_remote_ref() -> None:
     """Canary analysis must work while the legacy Canary tag still exists."""
 
-    resolver_text = (
-        PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
-    ).read_text(encoding="utf-8")
+    resolver_text = (PROJECT_ROOT / "scripts" / "stable-release-version.mjs").read_text(
+        encoding="utf-8"
+    )
 
     assert "analyzeCommits" in resolver_text
     assert "branches:" not in resolver_text

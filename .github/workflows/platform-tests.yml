@@ -61,6 +61,11 @@ jobs:
           ${{ matrix.python }} -m pip_audit
           --local --strict --progress-spinner off
           --ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}
+      - name: Set up verified release-history dependencies
+        if: matrix.partition == 'ordinary'
+        uses: ./.github/actions/setup-node-toolchain
+        with:
+          node-version: "22.22.2"
       - name: Prepare test result directory
         run: >-
           ${{ matrix.python }} -c

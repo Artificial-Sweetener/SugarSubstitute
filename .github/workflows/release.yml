@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Run semantic-release in dry-run mode without publishing"
+        description: "Qualify release artifacts without publishing"
         required: false
         default: "false"
         type: choice

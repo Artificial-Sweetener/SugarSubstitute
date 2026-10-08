@@ -49,6 +49,7 @@ _PYTHON_CONSUMERS = {
     "release-update-qualification.yml",
 }
 _NODE_CONSUMERS = {
+    "platform-tests.yml",
     "quality-gates.yml",
     "release-build.yml",
     "release-candidate.yml",
