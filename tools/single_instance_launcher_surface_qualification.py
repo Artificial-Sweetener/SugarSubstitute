@@ -27,10 +27,12 @@ import subprocess
 import time
 from typing import TypeVar
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from tools.single_instance_packaged_launcher import PackagedLauncherProcess
 from tools.single_instance_log_evidence import audit_launcher_log
+from tools.single_instance_windows_process_support import _terminate_launchers
 from tools.single_instance_qualification_installation import (
     prepare_launcher_surface_qualification_installation,
 )
@@ -53,7 +55,7 @@ def qualify_launcher_surfaces(
         launcher_bundle=launcher_bundle,
         install_root=temporary_root / "LauncherSurface",
     )
-    processes: list[subprocess.Popen[bytes]] = []
+    processes: list[PackagedLauncherProcess] = []
     try:
         setup_launches = [
             _launch_launcher(layout, repair=False)
@@ -63,7 +65,7 @@ def qualify_launcher_surfaces(
         setup_owner = _wait_for_single_owner(setup_launches)
         setup_child_pid = _wait_for_registered_child(
             layout,
-            owner_pid=setup_owner.pid,
+            owner_pid=setup_owner.runtime_pid,
         )
         _require_successful_forwarders(setup_launches, owner=setup_owner)
         setup_forwarder = _launch_launcher(layout, repair=False)
@@ -71,13 +73,13 @@ def qualify_launcher_surfaces(
         _wait_for_successful_exit(setup_forwarder)
         setup_surface = _wait_for_forwarder_surface(
             layout,
-            requester_pid=setup_forwarder.pid,
+            requester_pid=setup_forwarder.runtime_pid,
         )
         setup_evidence = {
             "burst_size": len(setup_launches),
             "child_pid": setup_child_pid,
             "forwarder_exit_code": setup_forwarder.returncode,
-            "owner_pid": setup_owner.pid,
+            "owner_pid": setup_owner.runtime_pid,
             "presented_surface": setup_surface,
         }
         _crash_owner_and_require_child_exit(
@@ -89,19 +91,19 @@ def qualify_launcher_surfaces(
         processes.append(repair_owner)
         repair_child_pid = _wait_for_registered_child(
             layout,
-            owner_pid=repair_owner.pid,
+            owner_pid=repair_owner.runtime_pid,
         )
         repair_forwarder = _launch_launcher(layout, repair=True)
         processes.append(repair_forwarder)
         _wait_for_successful_exit(repair_forwarder)
         repair_surface = _wait_for_forwarder_surface(
             layout,
-            requester_pid=repair_forwarder.pid,
+            requester_pid=repair_forwarder.runtime_pid,
         )
         repair_evidence = {
             "child_pid": repair_child_pid,
             "forwarder_exit_code": repair_forwarder.returncode,
-            "owner_pid": repair_owner.pid,
+            "owner_pid": repair_owner.runtime_pid,
             "presented_surface": repair_surface,
         }
         _crash_owner_and_require_child_exit(
@@ -113,19 +115,19 @@ def qualify_launcher_surfaces(
         processes.append(replacement_owner)
         replacement_child_pid = _wait_for_registered_child(
             layout,
-            owner_pid=replacement_owner.pid,
+            owner_pid=replacement_owner.runtime_pid,
         )
         replacement_forwarder = _launch_launcher(layout, repair=True)
         processes.append(replacement_forwarder)
         _wait_for_successful_exit(replacement_forwarder)
         replacement_surface = _wait_for_forwarder_surface(
             layout,
-            requester_pid=replacement_forwarder.pid,
+            requester_pid=replacement_forwarder.runtime_pid,
         )
         replacement_evidence = {
             "child_pid": replacement_child_pid,
             "forwarder_exit_code": replacement_forwarder.returncode,
-            "owner_pid": replacement_owner.pid,
+            "owner_pid": replacement_owner.runtime_pid,
             "presented_surface": replacement_surface,
         }
         _crash_owner_and_require_child_exit(
@@ -136,6 +138,9 @@ def qualify_launcher_surfaces(
         if launcher_log.is_file():
             shutil.copy2(launcher_log, artifact_dir / "launcher-surfaces.log")
         return {
+            "launcher_invocations": [
+                process.runtime_evidence.to_json() for process in processes
+            ],
             "first_run_setup": setup_evidence,
             "repair": repair_evidence,
             "repair_after_owner_crash": replacement_evidence,
@@ -150,7 +155,7 @@ def qualify_launcher_surfaces(
             ),
         }
     finally:
-        _terminate_processes(processes)
+        _terminate_launchers(processes)
         _terminate_installation_processes(layout)
 
 
@@ -158,7 +163,7 @@ def _launch_launcher(
     layout: InstallLayout,
     *,
     repair: bool,
-) -> subprocess.Popen[bytes]:
+) -> PackagedLauncherProcess:
     """Start one real packaged setup or repair parent."""
 
     command = [
@@ -171,7 +176,7 @@ def _launch_launcher(
         command.append("--repair")
     environment = os.environ.copy()
     environment["QT_QPA_PLATFORM"] = "offscreen"
-    return subprocess.Popen(  # noqa: S603
+    process = subprocess.Popen(  # noqa: S603
         command,
         cwd=layout.root,
         stdin=subprocess.DEVNULL,
@@ -180,14 +185,15 @@ def _launch_launcher(
         env=environment,
         shell=False,
     )
+    return PackagedLauncherProcess(process, layout)
 
 
 def _wait_for_single_owner(
-    processes: list[subprocess.Popen[bytes]],
-) -> subprocess.Popen[bytes]:
+    processes: list[PackagedLauncherProcess],
+) -> PackagedLauncherProcess:
     """Return the sole live supervisor after every secondary has forwarded."""
 
-    def sole_owner() -> subprocess.Popen[bytes] | None:
+    def sole_owner() -> PackagedLauncherProcess | None:
         failures = [
             process.returncode
             for process in processes
@@ -263,9 +269,9 @@ def _wait_for_forwarder_surface(
 
 
 def _require_successful_forwarders(
-    processes: list[subprocess.Popen[bytes]],
+    processes: list[PackagedLauncherProcess],
     *,
-    owner: subprocess.Popen[bytes],
+    owner: PackagedLauncherProcess,
 ) -> None:
     """Require every losing setup launch to finish successfully."""
 
@@ -274,27 +280,29 @@ def _require_successful_forwarders(
             _wait_for_successful_exit(process)
 
 
-def _wait_for_successful_exit(process: subprocess.Popen[bytes]) -> None:
+def _wait_for_successful_exit(process: PackagedLauncherProcess) -> None:
     """Require one forwarded launcher to terminate successfully within a bound."""
 
     try:
         return_code = process.wait(timeout=_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired as error:
-        raise AssertionError(f"Forwarder {process.pid} did not exit.") from error
+        raise AssertionError(
+            f"Forwarder {process.runtime_pid} did not exit."
+        ) from error
     if return_code != 0:
         raise AssertionError(
-            f"Forwarder {process.pid} exited with status {return_code}."
+            f"Forwarder {process.runtime_pid} exited with status {return_code}."
         )
 
 
 def _crash_owner_and_require_child_exit(
     *,
-    owner: subprocess.Popen[bytes],
+    owner: PackagedLauncherProcess,
     child_pid: int,
 ) -> None:
     """Prove losing the supervisor cannot leave its Qt surface orphaned."""
 
-    psutil.Process(owner.pid).kill()
+    owner.kill()
     owner.wait(timeout=5.0)
     try:
         psutil.Process(child_pid).wait(timeout=10.0)
@@ -302,7 +310,7 @@ def _crash_owner_and_require_child_exit(
         return
     except psutil.TimeoutExpired as error:
         raise AssertionError(
-            f"Launcher child {child_pid} survived owner {owner.pid}."
+            f"Launcher child {child_pid} survived owner {owner.runtime_pid}."
         ) from error
 
 
@@ -320,19 +328,6 @@ def _wait_for_value(
             return value
         time.sleep(0.05)
     raise TimeoutError(f"Timed out waiting for {description}.")
-
-
-def _terminate_processes(processes: list[subprocess.Popen[bytes]]) -> None:
-    """Stop only parent processes created by this qualification."""
-
-    for process in processes:
-        if process.poll() is None:
-            process.kill()
-    for process in processes:
-        try:
-            process.wait(timeout=5.0)
-        except subprocess.TimeoutExpired:
-            continue
 
 
 def _terminate_installation_processes(layout: InstallLayout) -> None:

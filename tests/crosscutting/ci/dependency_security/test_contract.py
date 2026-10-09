@@ -18,14 +18,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import re
 
-import pytest
 import yaml  # type: ignore[import-untyped]
-
-from tests.support.execution.node_runtime import run_node
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -81,81 +77,16 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     assert "npm run audit:release" in quality_script
     release_audit_script = PROJECT_ROOT / "scripts" / "audit-release-dependencies.mjs"
     audit_source = release_audit_script.read_text(encoding="utf-8")
-    assert '"audit", "--json"' in audit_source
-    assert "ignoredAdvisoryIds" in audit_source
-    assert "ignoredAdvisoryUrls" in audit_source
-    assert "1124334" in audit_source
-    assert {
-        "GHSA-mh99-v99m-4gvg",
-        "GHSA-rgw5-rvv9-x895",
-        "GHSA-mwp4-54f8-5fhr",
-    } <= set(re.findall(r"GHSA-[a-z0-9-]+", audit_source))
-    assert "!ignoredAdvisoryUrls.has(finding.url)" in audit_source
-    assert "!isUnloadedBundledNpmFinding(vulnerability, finding)" in audit_source
-    release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
-        encoding="utf-8"
-    )
-    assert '"@semantic-release/npm"' not in release_configuration
+    assert '["npm", "audit", "--json"]' in audit_source
+    assert '"corepack.cmd" : "corepack"' in audit_source
+    assert "ignoredAdvisory" not in audit_source
+    assert "unresolvedReleaseFindings(report, lock)" in audit_source
     assert "-m pip_audit" in platform_script
     assert "--local --strict --progress-spinner off" in platform_script
     assert platform_workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == (
         "CVE-2026-24049"
     )
     assert "--ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}" in platform_script
-
-
-@pytest.mark.parametrize(
-    ("package_name", "advisory"),
-    [
-        ("undici", "GHSA-rfgv-xxqx-mfg5"),
-        ("brace-expansion", "GHSA-qhr7-859c-m2p7"),
-        ("brace-expansion", "GHSA-6j4f-fj2g-mc7p"),
-    ],
-)
-def test_dormant_npm_bundle_exception_never_masks_active_dependencies(
-    package_name: str,
-    advisory: str,
-) -> None:
-    """Allow the unused npm bundle only when every vulnerable node is inside it."""
-
-    script = """
-import { isUnloadedBundledNpmFinding } from './scripts/release-dependency-audit-policy.mjs';
-const packageName = process.argv[1];
-const finding = {url: `https://github.com/advisories/${process.argv[2]}`};
-const bundle = `node_modules/npm/node_modules/${packageName}`;
-const active = `node_modules/@semantic-release/github/node_modules/${packageName}`;
-const matches = (nodes, url = finding.url) => isUnloadedBundledNpmFinding(
-  {name: packageName, nodes}, {url},
-);
-process.stdout.write(JSON.stringify({
-  dormantOnly: matches([bundle]),
-  activeAlsoAffected: matches([bundle, active]),
-  activeOnly: matches([active]),
-  empty: matches([]),
-  unrelatedAdvisory: matches([bundle], 'https://github.com/advisories/other'),
-  missingNodes: matches(undefined),
-  malformedNodes: matches(bundle),
-  unrelatedPackage: isUnloadedBundledNpmFinding({name: 'other', nodes: [bundle]}, finding),
-}));
-"""
-    result = run_node(
-        ("--input-type=module", "-e", script, package_name, advisory),
-        cwd=PROJECT_ROOT,
-        timeout_seconds=30,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {
-        "dormantOnly": True,
-        "activeAlsoAffected": False,
-        "activeOnly": False,
-        "empty": False,
-        "unrelatedAdvisory": False,
-        "missingNodes": False,
-        "malformedNodes": False,
-        "unrelatedPackage": False,
-    }
 
 
 def test_python_audit_exception_remains_tied_to_photoshop_constraint() -> None:

@@ -72,6 +72,8 @@ def test_dispatch_retains_baseline_authority_and_routes_failure(
     )
     assert owner is not None
 
+    launches: list[Path] = []
+
     class GenerationProcess:
         """Replace the external process boundary while exercising native delegation."""
 
@@ -83,6 +85,7 @@ def test_dispatch_retains_baseline_authority_and_routes_failure(
             environment: Mapping[str, str],
         ) -> int:
             """Verify selected image and credentials before simulating its terminal action."""
+            launches.append(Path(command[0]))
             assert Path(command[0]) == candidate.root / "SugarSubstitute.exe"
             assert f"--install-root={root}" in command
             assert environment["SUGAR_SUBSTITUTE_DELEGATED_LAUNCHER"] == "1"
@@ -93,7 +96,7 @@ def test_dispatch_retains_baseline_authority_and_routes_failure(
             )
             assert client is not None
             try:
-                if outcome in {"restart", "restart-zero"}:
+                if outcome in {"restart", "restart-zero"} and len(launches) == 1:
                     assert client.request_restart()
                     return 0 if outcome == "restart-zero" else 1
                 return 1 if outcome == "failed-closed" else 0
@@ -109,13 +112,17 @@ def test_dispatch_retains_baseline_authority_and_routes_failure(
             supervisor=GenerationProcess(),
             on_baseline_fallback=lambda: fallbacks.append(True),
         )
-        expected = {"closed": 0, "failed-closed": 1}.get(outcome)
+        expected = {
+            "closed": 0,
+            "restart": 0,
+            "restart-zero": 0,
+            "failed-closed": 1,
+        }.get(outcome)
         assert result == expected
-        assert fallbacks == (
-            [True] if outcome in {"restart", "restart-zero", "spawn-error"} else []
-        )
+        assert fallbacks == ([True] if outcome == "spawn-error" else [])
+        assert len(launches) == (2 if outcome in {"restart", "restart-zero"} else 1)
         assert selection.resolve().root == (
-            candidate.root if outcome == "closed" else root
+            root if outcome == "spawn-error" else candidate.root
         )
         owner.bind_startup_presenter(lambda _: "baseline")
         assert (

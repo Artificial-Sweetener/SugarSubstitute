@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 from pathlib import Path
+from uuid import uuid4
 
 from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -34,7 +35,7 @@ from sugarsubstitute_shared.launcher_update.archive import (
 
 
 class VerifiedUvExecutableProvider:
-    """Provide uv from an existing, bundled, or checksummed archive source."""
+    """Reconcile managed uv with a trusted bundled or checksummed source."""
 
     def __init__(
         self,
@@ -50,17 +51,17 @@ class VerifiedUvExecutableProvider:
         self._downloader = downloader or AssetDownloader()
 
     def ensure(self, *, layout: InstallLayout) -> Path:
-        """Ensure the standalone uv executable exists under runtime tools."""
+        """Use the configured trusted uv source before returning a managed tool."""
 
         uv_executable = layout.uv_executable
-        if uv_executable.is_file():
-            return uv_executable
         if self._bundled_uv_path is not None:
             return _copy_uv_executable(
                 source_path=self._bundled_uv_path,
                 destination_path=uv_executable,
             )
         if self._uv_archive_asset is None:
+            if uv_executable.is_file():
+                return uv_executable
             raise RuntimeProvisioningError(
                 f"{layout.target.uv_executable_name} is missing and no bundled uv "
                 "executable or verified uv archive is configured."
@@ -108,16 +109,34 @@ def _find_uv_executable(extracted_dir: Path, *, executable_name: str) -> Path:
 
 
 def _copy_uv_executable(*, source_path: Path, destination_path: Path) -> Path:
-    """Copy a bundled uv executable into the launcher-managed runtime."""
+    """Atomically reconcile the managed tool with the trusted source bytes."""
 
     if not source_path.is_file():
         raise RuntimeProvisioningError(
             f"Bundled uv executable is missing: {source_path}"
         )
-    destination_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source_path, destination_path)
-    destination_path.chmod(destination_path.stat().st_mode | 0o111)
-    return destination_path
+    temporary_path = destination_path.with_name(
+        f".{destination_path.name}.{uuid4().hex}.partial"
+    )
+    try:
+        source_digest = _file_sha256(source_path)
+        if (
+            destination_path.is_file()
+            and _file_sha256(destination_path) == source_digest
+        ):
+            return destination_path
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, temporary_path)
+        _verify_file_sha256(path=temporary_path, expected_sha256=source_digest)
+        temporary_path.chmod(temporary_path.stat().st_mode | 0o111)
+        temporary_path.replace(destination_path)
+        return destination_path
+    except OSError as error:
+        raise RuntimeProvisioningError(
+            f"Unable to install uv executable: {destination_path}"
+        ) from error
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def _extract_uv_archive(*, archive_path: Path, destination_dir: Path) -> None:
@@ -144,11 +163,17 @@ def _extract_uv_archive(*, archive_path: Path, destination_dir: Path) -> None:
 
 
 def _verify_file_sha256(*, path: Path, expected_sha256: str) -> None:
-    """Verify a downloaded uv archive before extracting it."""
+    """Verify trusted uv content before extraction or executable publication."""
+
+    if _file_sha256(path) != expected_sha256.lower():
+        raise RuntimeProvisioningError(f"uv archive SHA256 mismatch: {path}")
+
+
+def _file_sha256(path: Path) -> str:
+    """Hash uv source or installed bytes with bounded memory."""
 
     digest = hashlib.sha256()
     with path.open("rb") as file:
         for chunk in iter(lambda: file.read(1024 * 1024), b""):
             digest.update(chunk)
-    if digest.hexdigest().lower() != expected_sha256.lower():
-        raise RuntimeProvisioningError(f"uv archive SHA256 mismatch: {path}")
+    return digest.hexdigest()

@@ -143,19 +143,36 @@ def test_setup_window_relaunches_as_supervised_source_child(
     assert "--locale=ja" in command
 
 
+@pytest.mark.parametrize(
+    ("setup_filename", "inside_installation"),
+    [
+        ("renamed-installer.exe", False),
+        ("SugarSubstitute.exe", False),
+        ("SugarSubstitute.exe", True),
+    ],
+)
 def test_frozen_standalone_setup_relaunches_its_single_executable(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    setup_filename: str,
+    inside_installation: bool,
 ) -> None:
-    """A downloaded one-file setup must not require an adjacent UI executable."""
+    """A standalone setup must keep its own UI despite an installed destination."""
 
-    setup_executable = tmp_path / "downloads" / "renamed-installer.exe"
     layout = InstallLayout.from_root(
         tmp_path / "SugarSubstitute",
         target=WINDOWS_X64,
     )
+    setup_executable = (
+        layout.root if inside_installation else tmp_path / "downloads"
+    ) / setup_filename
+    installed_ui = layout.launcher_ui_executable_path
+    assert installed_ui is not None
+    installed_ui.parent.mkdir(parents=True)
+    installed_ui.write_bytes(b"unrelated installed UI")
     supervisor = RecordingSupervisor()
     monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.delattr(sys, "_sugarsubstitute_installed_launcher", raising=False)
     monkeypatch.setattr(sys, "executable", str(setup_executable))
     monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "_MEI1234"), raising=False)
 
@@ -171,9 +188,11 @@ def test_frozen_standalone_setup_relaunches_its_single_executable(
     assert "--launcher-ui-child" in command
 
 
+@pytest.mark.parametrize("onefile", [False, True])
 def test_frozen_installed_launcher_uses_its_ui_executable(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    onefile: bool,
 ) -> None:
     """The installed supervisor must delegate Qt ownership to its UI executable."""
 
@@ -188,10 +207,14 @@ def test_frozen_installed_launcher_uses_its_ui_executable(
     supervisor = RecordingSupervisor()
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(installed_launcher))
+    if onefile:
+        monkeypatch.setattr(
+            sys, "_sugarsubstitute_installed_launcher", True, raising=False
+        )
     monkeypatch.setattr(
         sys,
         "_MEIPASS",
-        str(layout.launcher_support_path),
+        str(tmp_path / "_MEI1234" if onefile else layout.launcher_support_path),
         raising=False,
     )
 
@@ -252,8 +275,9 @@ def test_missing_recovery_child_receipt_fails_to_safe_exit(tmp_path: Path) -> No
     )
 
 
+@pytest.mark.parametrize("onefile", [False, True])
 def test_repair_recovery_uses_independent_bundle_with_installed_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, onefile: bool
 ) -> None:
     """Recover ownership even when the installation has no runnable UI payload."""
     layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
@@ -263,8 +287,15 @@ def test_repair_recovery_uses_independent_bundle_with_installed_identity(
     ui.write_bytes(b"fixture UI executable")
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(bundle.executable_path))
+    if onefile:
+        monkeypatch.setattr(
+            sys, "_sugarsubstitute_installed_launcher", True, raising=False
+        )
     monkeypatch.setattr(
-        sys, "_MEIPASS", str(bundle.launcher_support_path), raising=False
+        sys,
+        "_MEIPASS",
+        str(tmp_path / "_MEI1234" if onefile else bundle.launcher_support_path),
+        raising=False,
     )
     supervisor = RecoveryDecisionSupervisor()
     result = supervise_instance_recovery_window(

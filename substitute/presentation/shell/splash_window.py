@@ -109,6 +109,8 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
     activityClearRequested = Signal()
     cancelRequested = Signal()
     firstFramePainted = Signal()
+    runtimeInitialized = Signal()
+    runtimeInitializationFailed = Signal(object)
 
     def __init__(
         self,
@@ -517,17 +519,22 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
 
         if not self._defer_animation_until_first_paint:
             return
-        self._defer_animation_until_first_paint = False
-        self._ensure_runtime_enrichment()
-        previous_visual = self._visual
-        visual = self._build_animated_splash_visual(self._container)
-        self._visual = visual
-        visual.installEventFilter(self)
-        self._drag_widgets.discard(previous_visual)
-        self._drag_widgets.add(visual)
-        self._apply_content_geometry()
-        visual.show()
-        previous_visual.deleteLater()
+        try:
+            self._defer_animation_until_first_paint = False
+            self._ensure_runtime_enrichment()
+            previous_visual = self._visual
+            visual = self._build_animated_splash_visual(self._container)
+            self._visual = visual
+            visual.installEventFilter(self)
+            self._drag_widgets.discard(previous_visual)
+            self._drag_widgets.add(visual)
+            self._apply_content_geometry()
+            visual.show()
+            previous_visual.deleteLater()
+        except Exception as error:
+            self.runtimeInitializationFailed.emit(error)
+            raise
+        self.runtimeInitialized.emit()
 
     def _build_static_icon_label(self, icon: QIcon, parent: QWidget) -> QLabel:
         """Return the legacy static splash icon label."""

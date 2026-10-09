@@ -14,27 +14,33 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-import { isUnloadedBundledNpmFinding } from "./release-dependency-audit-policy.mjs";
+import { unresolvedReleaseFindings } from "./release-dependency-audit.mjs";
 
-const ignoredAdvisoryIds = new Set([1124334]);
-const ignoredAdvisoryUrls = new Set([
-  // These affect the embedded npm runtime of @semantic-release/npm, which the
-  // configured release lifecycle does not load.
-  "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
-  "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
-  "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
-  "https://github.com/advisories/GHSA-r292-9mhp-454m",
-]);
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-const audit = spawnSync(npmCommand, ["audit", "--json"], {
+const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
+const root = lock.packages?.[""];
+if (manifest.private !== true || manifest.name !== "sugarsubstitute-release" ||
+    manifest.scripts?.release !== "semantic-release" ||
+    ["dependencies", "optionalDependencies", "devDependencies"].some((field) =>
+      JSON.stringify(Object.entries(manifest[field] ?? {}).sort()) !==
+      JSON.stringify(Object.entries(root?.[field] ?? {}).sort()))) {
+  throw new Error("Release audit requires the private, locked semantic-release toolchain.");
+}
+
+const npmCommand = process.platform === "win32" ? "corepack.cmd" : "corepack";
+const audit = spawnSync(npmCommand, ["npm", "audit", "--json"], {
   encoding: "utf8",
   shell: process.platform === "win32",
 });
 
 if (audit.error) {
   throw audit.error;
+}
+if (![0, 1].includes(audit.status)) {
+  throw new Error(`npm audit failed before completing its report: ${audit.stderr ?? ""}`);
 }
 
 let report;
@@ -44,22 +50,12 @@ try {
   throw new Error("npm audit did not produce a JSON report.", { cause: error });
 }
 
-const unresolvedFindings = Object.values(report.vulnerabilities ?? []).flatMap(
-  (vulnerability) =>
-    vulnerability.via.filter(
-      (finding) =>
-        typeof finding === "object" &&
-        ["high", "critical"].includes(finding.severity) &&
-        !ignoredAdvisoryIds.has(finding.source) &&
-        !ignoredAdvisoryUrls.has(finding.url) &&
-        !isUnloadedBundledNpmFinding(vulnerability, finding),
-    ),
-);
+const unresolvedFindings = unresolvedReleaseFindings(report, lock);
 
 if (unresolvedFindings.length > 0) {
   console.error("Release dependency audit found unapproved high or critical vulnerabilities.");
   console.error(JSON.stringify(unresolvedFindings, null, 2));
   process.exitCode = 1;
 } else {
-  console.log("Release dependency audit found no unapproved high or critical vulnerabilities.");
+  console.log("Release dependency audit found no unapproved high or critical vulnerabilities; reviewed CI-only exceptions remain.");
 }

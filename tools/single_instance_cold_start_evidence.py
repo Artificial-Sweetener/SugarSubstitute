@@ -27,6 +27,9 @@ import time
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.process_identity_evidence import (
+    LauncherProcessEvidence,
+)
 
 
 SPLASH_SURFACE_EVIDENCE_ENV = "SUGAR_SUBSTITUTE_SPLASH_SURFACE_EVIDENCE"
@@ -65,15 +68,14 @@ def capture_cold_start_snapshot(layout: InstallLayout) -> dict[str, object]:
 def assert_cold_start_snapshot(
     snapshot: dict[str, object],
     *,
-    expected_launcher_pids: tuple[int, ...],
+    expected_launcher: LauncherProcessEvidence,
     expected_app_pid: int,
 ) -> None:
     """Require exactly one app owner, splash adoption, and visible surface."""
 
     if snapshot["application_owner_pids"] != [expected_app_pid]:
         raise AssertionError(f"Unexpected application owners: {snapshot}")
-    if snapshot["packaged_launcher_pids"] != list(sorted(expected_launcher_pids)):
-        raise AssertionError(f"Unexpected packaged launcher processes: {snapshot}")
+    _assert_launcher_family(snapshot, expected_launcher, expected_app_pid)
     surfaces = snapshot["splash_surfaces"]
     adoptions = snapshot["splash_adoptions"]
     if not isinstance(surfaces, list) or len(surfaces) != 1:
@@ -97,6 +99,74 @@ def assert_cold_start_snapshot(
     ):
         raise AssertionError(f"Splash surface evidence was not singular: {snapshot}")
     _assert_startup_phase_order(surface, snapshot=snapshot)
+
+
+def _assert_launcher_family(
+    snapshot: dict[str, object],
+    launcher: LauncherProcessEvidence,
+    app_pid: int,
+) -> None:
+    """Require the exact onefile pair and one connected application runtime chain."""
+    identities = (launcher.parent_identity, launcher.identity)
+    expected_pids = sorted(identity.pid for identity in identities)
+    if snapshot["packaged_launcher_pids"] != expected_pids:
+        raise AssertionError(f"Unexpected packaged launcher processes: {snapshot}")
+    launchers = _facts_by_pid(snapshot["packaged_launcher_processes"])
+    if sorted(launchers) != expected_pids:
+        raise AssertionError(f"Incomplete launcher process evidence: {snapshot}")
+    for identity in identities:
+        fact = launchers[identity.pid]
+        if fact.get("created_at") != identity.created_at or os.path.normcase(
+            str(fact.get("executable"))
+        ) != os.path.normcase(launcher.executable):
+            raise AssertionError(f"Launcher process incarnation changed: {snapshot}")
+    if (
+        launchers[launcher.identity.pid].get("parent_pid")
+        != launcher.parent_identity.pid
+    ):
+        raise AssertionError(f"Launcher runtime ancestry changed: {snapshot}")
+    runtimes = _facts_by_pid(snapshot["application_runtime_processes"])
+    if sorted(runtimes) != snapshot["application_runtime_process_pids"]:
+        raise AssertionError(f"Incomplete application process evidence: {snapshot}")
+    visited: set[int] = set()
+    candidate = app_pid
+    child_created_at = float("inf")
+    while candidate != launcher.identity.pid:
+        if candidate in visited or candidate not in runtimes:
+            raise AssertionError(
+                f"Application owner has unrelated ancestry: {snapshot}"
+            )
+        visited.add(candidate)
+        fact = runtimes[candidate]
+        created_at = fact.get("created_at")
+        parent_pid = fact.get("parent_pid")
+        if (
+            not isinstance(created_at, (int, float))
+            or not launcher.identity.created_at <= created_at <= child_created_at
+            or not isinstance(parent_pid, int)
+        ):
+            raise AssertionError(
+                f"Application process identity is inconsistent: {snapshot}"
+            )
+        child_created_at = created_at
+        candidate = parent_pid
+    if visited != set(runtimes):
+        raise AssertionError(f"Unexpected additional application runtime: {snapshot}")
+
+
+def _facts_by_pid(value: object) -> dict[int, dict[str, object]]:
+    """Reject missing, duplicate, or malformed process observations."""
+    if not isinstance(value, list):
+        raise AssertionError("Missing process observations")
+    result: dict[int, dict[str, object]] = {}
+    for fact in value:
+        if not isinstance(fact, dict):
+            raise AssertionError("Malformed process observation")
+        pid = fact.get("pid")
+        if not isinstance(pid, int) or pid in result:
+            raise AssertionError("Duplicate or invalid process identity")
+        result[pid] = fact
+    return result
 
 
 def _assert_startup_phase_order(
@@ -243,12 +313,13 @@ def qualification_app_pids(layout: InstallLayout) -> tuple[int, ...]:
             continue
         pid = payload.get("pid") if isinstance(payload, dict) else None
         parent_pid = payload.get("parent_pid") if isinstance(payload, dict) else None
+        created_at = payload.get("created_at") if isinstance(payload, dict) else None
         if not isinstance(pid, int) or not isinstance(parent_pid, int):
             continue
         try:
             process = psutil.Process(pid)
             command = process.cmdline()
-            if process.ppid() != parent_pid:
+            if process.ppid() != parent_pid or process.create_time() != created_at:
                 continue
         except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
             continue
@@ -268,6 +339,7 @@ def _process_facts(pids: Sequence[int]) -> tuple[dict[str, object], ...]:
             process = psutil.Process(pid)
             facts.append(
                 {
+                    "created_at": float(process.create_time()),
                     "executable": process.exe(),
                     "name": process.name(),
                     "parent_pid": process.ppid(),

@@ -87,8 +87,8 @@ def dispatch_selected_launcher(
     try:
         candidate = selection.resolve()
     except (OSError, ValueError):
-        _LOGGER.exception("Launcher selection unavailable; continuing baseline startup")
-        return None
+        _LOGGER.exception("Launcher selection unavailable; refusing baseline fallback")
+        raise
     if candidate.generation is None:
         return None
     from sugarsubstitute_shared.launcher_update.delegation_contract import (
@@ -123,42 +123,49 @@ def dispatch_selected_launcher(
         command.append(f"--install-root={layout.root}")
     environment = broker.child_environment(os.environ)
     environment[DELEGATED_LAUNCHER_ENV] = "1"
-    try:
-        with ExitStack() as startup:
-            if splash_session is not None:
-                if register_startup_resource is None:
-                    raise ValueError("Splash handoff requires its creating supervisor.")
-                from launcher.sugarsubstitute_launcher.delegated_startup_presentation import (
-                    DelegatedStartupPresentation,
-                )
+    while True:
+        try:
+            with ExitStack() as startup:
+                if splash_session is not None:
+                    if register_startup_resource is None:
+                        raise ValueError(
+                            "Splash handoff requires its creating supervisor."
+                        )
+                    from launcher.sugarsubstitute_launcher.delegated_startup_presentation import (
+                        DelegatedStartupPresentation,
+                    )
 
-                environment.update(
-                    startup.enter_context(
-                        DelegatedStartupPresentation(
-                            broker=broker,
-                            splash=splash_session,
-                            register_resource=register_startup_resource,
+                    environment.update(
+                        startup.enter_context(
+                            DelegatedStartupPresentation(
+                                broker=broker,
+                                splash=splash_session,
+                                register_resource=register_startup_resource,
+                            )
                         )
                     )
+                result = supervisor.supervise(
+                    layout=layout, command=command, environment=environment
                 )
-            result = supervisor.supervise(
-                layout=layout, command=command, environment=environment
+        except GenerationStartupError:
+            _LOGGER.exception(
+                "Selected launcher could not start; continuing baseline | generation=%s",
+                candidate.generation,
             )
-    except GenerationStartupError:
-        _LOGGER.exception(
-            "Selected launcher could not start; continuing baseline | generation=%s",
-            candidate.generation,
-        )
-        result = None
-    restart_requested = broker.consume_restart_request()
-    if result == 0 and not restart_requested:
-        return 0
-    _reject_generation(selection, candidate)
-    if result is None or restart_requested:
-        if on_baseline_fallback is not None:
-            on_baseline_fallback()
-        return None
-    return result
+            result = None
+        restart_requested = broker.consume_restart_request()
+        if result is None:
+            _reject_generation(selection, candidate)
+            if on_baseline_fallback is not None:
+                on_baseline_fallback()
+            return None
+        if restart_requested:
+            _LOGGER.info(
+                "Restarting selected launcher without changing selection | generation=%s",
+                candidate.generation,
+            )
+            continue
+        return result
 
 
 def _reject_generation(
