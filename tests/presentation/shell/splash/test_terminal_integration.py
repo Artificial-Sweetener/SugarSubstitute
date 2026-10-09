@@ -23,8 +23,8 @@ from typing import Protocol
 
 import pytest
 
-from PySide6.QtCore import QPoint, QRect
-from PySide6.QtGui import QTextCursor
+from PySide6.QtCore import QPoint, QRect, QTimer
+from PySide6.QtGui import QFontDatabase, QTextCursor
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 from sugarsubstitute_shared.launch_splash import SplashActivity
 
@@ -37,6 +37,7 @@ from substitute.presentation.splash_animation import (
 )
 from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.shell.splash_window import SplashWindow
+from tests.presentation.shell.splash.terminal_diagnostics import TerminalDiagnostics
 from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 
@@ -150,6 +151,35 @@ def _end_of_document_bottom_gap(splash: SplashWindow) -> int:
     return int(viewport_rect.bottom() - cursor_rect.bottom())
 
 
+def _terminal_state(splash: SplashWindow) -> dict[str, object]:
+    """Capture owner-visible layout and timer evidence without dispatching events."""
+
+    view = splash.log_view
+    scrollbar = view.verticalScrollBar()
+    font = view.fontInfo()
+    return {
+        "scroll_value": scrollbar.value(),
+        "scroll_maximum": scrollbar.maximum(),
+        "scroll_page_step": scrollbar.pageStep(),
+        "bottom_gap": _end_of_document_bottom_gap(splash),
+        "viewport_geometry": view.viewport().geometry().getRect(),
+        "view_geometry": view.geometry().getRect(),
+        "splash_geometry": splash.geometry().getRect(),
+        "visible": splash.isVisible(),
+        "details_visible": splash._feedback.details_visible,
+        "font_family": font.family(),
+        "font_point_size": font.pointSizeF(),
+        "font_height": view.fontMetrics().height(),
+        "font_catalog_size": len(QFontDatabase.families()),
+        "document_blocks": view.document().blockCount(),
+        "text_tail": view.toPlainText().splitlines()[-2:],
+        "timers": [
+            {"interval_ms": timer.interval(), "active": timer.isActive()}
+            for timer in splash.findChildren(QTimer)
+        ],
+    }
+
+
 @pytest.mark.parametrize(
     ("cursor_screen_present", "expected_geometry"),
     (
@@ -240,6 +270,7 @@ def test_splash_window_routes_append_log_through_shared_terminal_view(
 def test_splash_window_keeps_activity_visible_around_durable_logs(
     monkeypatch: pytest.MonkeyPatch,
     splash_window_factory: SplashWindowFactory,
+    splash_terminal_diagnostics: TerminalDiagnostics,
 ) -> None:
     """The production splash should retain one animated tail around durable output."""
 
@@ -252,18 +283,24 @@ def test_splash_window_keeps_activity_visible_around_durable_logs(
     )
 
     splash.start_activity(activity)
+    splash_terminal_diagnostics.record("activity-pending", _terminal_state(splash))
     QApplication.processEvents()
+    splash_terminal_diagnostics.record("activity-delivered", _terminal_state(splash))
     assert splash.log_view.toPlainText() == "Updating SugarCubes."
 
     splash.append_log("Downloaded package metadata.\n")
+    splash_terminal_diagnostics.record("durable-log-pending", _terminal_state(splash))
     QApplication.processEvents()
+    splash_terminal_diagnostics.record("durable-log-delivered", _terminal_state(splash))
     assert splash.log_view.toPlainText().splitlines() == [
         "Downloaded package metadata.",
         "Updating SugarCubes.",
     ]
 
     splash.clear_activity()
+    splash_terminal_diagnostics.record("clear-pending", _terminal_state(splash))
     QApplication.processEvents()
+    splash_terminal_diagnostics.record("clear-delivered", _terminal_state(splash))
     assert splash.log_view.toPlainText() == "Downloaded package metadata."
 
 
@@ -404,6 +441,7 @@ def test_splash_window_redraws_progress_records_in_place(
 def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
     monkeypatch: pytest.MonkeyPatch,
     splash_window_factory: SplashWindowFactory,
+    splash_terminal_diagnostics: TerminalDiagnostics,
 ) -> None:
     """Splash should inherit follow-tail behavior without a false blank row."""
 
@@ -423,12 +461,20 @@ def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
         splash.append_log(f"{index:02d}: {wrapped_line}\n")
 
     scrollbar = splash.log_view.verticalScrollBar()
-    wait_for_qt_condition(
-        lambda: (
-            scrollbar.value() == scrollbar.maximum()
-            and _end_of_document_bottom_gap(splash) <= _MAX_BOTTOM_CHROME_GAP_PX
+    splash_terminal_diagnostics.record("follow-tail-pending", _terminal_state(splash))
+    try:
+        wait_for_qt_condition(
+            lambda: (
+                scrollbar.value() == scrollbar.maximum()
+                and _end_of_document_bottom_gap(splash) <= _MAX_BOTTOM_CHROME_GAP_PX
+            ),
+            description="wrapped splash output pinned to the final rendered row",
+            state=lambda: _terminal_state(splash),
         )
-    )
+    finally:
+        splash_terminal_diagnostics.record(
+            "follow-tail-finished", _terminal_state(splash)
+        )
     assert scrollbar.value() == scrollbar.maximum()
     assert splash.log_view.toPlainText().splitlines()[-1] == f"24: {wrapped_line}"
     assert splash.log_view.toPlainText().endswith("\n") is False
