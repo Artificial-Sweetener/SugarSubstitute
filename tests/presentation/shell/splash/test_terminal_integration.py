@@ -119,7 +119,12 @@ def test_deferred_animation_starts_only_after_the_bootstrap_pose_paints(
     )
     first_frames: list[str] = []
     splash.firstFramePainted.connect(lambda: first_frames.append("painted"))
+    runtime_frames: list[tuple[list[str], list[str]]] = []
+    splash.runtimeInitialized.connect(
+        lambda: runtime_frames.append((list(first_frames), list(animation_builds)))
+    )
 
+    assert runtime_frames == []
     assert animation_builds == []
     assert splash._visual.objectName() == "SplashBootstrapPose"
 
@@ -130,6 +135,9 @@ def test_deferred_animation_starts_only_after_the_bootstrap_pose_paints(
     )
 
     assert splash._visual.objectName() == "CompleteSplashAnimation"
+    assert runtime_frames == [(["painted"], ["animation"])]
+    splash._finish_deferred_animation()
+    assert runtime_frames == [(["painted"], ["animation"])]
 
 
 def _end_of_document_bottom_gap(splash: SplashWindow) -> int:

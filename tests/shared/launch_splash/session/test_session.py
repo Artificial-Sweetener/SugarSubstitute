@@ -240,6 +240,7 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
 
 def test_socket_splash_session_close_reports_unresponsive_session(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Shutdown splash close should expose when the local session is gone."""
 
@@ -260,13 +261,19 @@ def test_socket_splash_session_close_reports_unresponsive_session(
         """Record the timeout used for close and simulate an unresponsive host."""
 
         timeouts.append(timeout)
-        raise TimeoutError("timed out")
+        raise TimeoutError("private-untrusted-detail:" + spec.token)
 
     monkeypatch.setattr("socket.create_connection", _raise_timeout)
 
     assert not SocketSplashSessionClient(spec).close()
 
     assert timeouts == [DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS]
+    assert "Splash close acknowledgement failed" in caplog.text
+    assert "host_pid=1234" in caplog.text
+    assert "error_type=TimeoutError" in caplog.text
+    assert "elapsed_ms=" in caplog.text
+    assert spec.token not in caplog.text
+    assert "private-untrusted-detail" not in caplog.text
 
 
 def test_socket_splash_session_non_close_writes_still_report_connection_errors(

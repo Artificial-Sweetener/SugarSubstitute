@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QObject
 from PySide6.QtGui import QColor
 
@@ -59,24 +61,32 @@ def schedule_splash_theme(
     owner: QObject,
     theme_mode: str | None,
     accent_color: str | None,
+    on_complete: Callable[[], None] | None = None,
+    on_failure: Callable[[Exception], None] | None = None,
 ) -> None:
-    """Defer Fluent setup until the lightweight paint callback has returned."""
-    from functools import partial
+    """Apply Fluent setup after first paint, then confirm successful completion."""
     from PySide6.QtCore import QTimer
 
-    QTimer.singleShot(
-        0,
-        owner,
-        partial(
-            configure_theme,
-            theme_mode=(
-                AppearanceThemeMode.LIGHT
-                if theme_mode == AppearanceThemeMode.LIGHT.value
-                else AppearanceThemeMode.DARK
-            ),
-            accent_color=accent_color or DEFAULT_CUSTOM_ACCENT_COLOR,
-        ),
-    )
+    def apply_theme() -> None:
+        """Keep readiness behind actual theme work rather than timer ordering."""
+        try:
+            configure_theme(
+                theme_mode=(
+                    AppearanceThemeMode.LIGHT
+                    if theme_mode == AppearanceThemeMode.LIGHT.value
+                    else AppearanceThemeMode.DARK
+                ),
+                accent_color=accent_color or DEFAULT_CUSTOM_ACCENT_COLOR,
+            )
+        except Exception as error:
+            if on_failure is None:
+                raise
+            on_failure(error)
+            return
+        if on_complete is not None:
+            on_complete()
+
+    QTimer.singleShot(0, owner, apply_theme)
 
 
 def _qfluent_theme_value(
