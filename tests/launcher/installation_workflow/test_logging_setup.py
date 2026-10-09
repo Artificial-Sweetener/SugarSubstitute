@@ -33,6 +33,7 @@ from launcher.sugarsubstitute_launcher.process_identity_evidence import (
     LAUNCHER_PROCESS_EVENT,
     LauncherProcessEvidence,
 )
+from sugarsubstitute_shared.windows_long_paths import logical_path
 from sugarsubstitute_shared.process_identity import (
     ProcessIdentity,
     ProcessIdentityError,
@@ -128,3 +129,49 @@ def test_logging_capture_failure_warns_once_and_does_not_block_startup(
     assert "Parent process executable is inaccessible" in content
     assert "Application startup continued" in content
     assert LAUNCHER_PROCESS_EVENT not in content
+
+
+def test_launcher_logging_writes_under_launcher_logs(
+    tmp_path: Path,
+    launcher_log_root: logging.Logger,
+) -> None:
+    """Create launcher logs beneath launcher-owned state."""
+    del launcher_log_root
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+
+    log_path = configure_launcher_logging(layout=layout)
+
+    assert log_path == layout.logs_dir / "launcher.log"
+    assert log_path.parent.is_dir()
+
+
+def test_launcher_logging_collapses_duplicate_handlers_for_the_same_file(
+    tmp_path: Path,
+    launcher_log_root: logging.Logger,
+) -> None:
+    """Repeated or racing setup must never duplicate each diagnostic event."""
+    del launcher_log_root
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    log_path = configure_launcher_logging(layout=layout)
+    duplicate = logging.FileHandler(log_path, encoding="utf-8")
+    root_logger = logging.getLogger()
+    root_logger.addHandler(duplicate)
+    try:
+        configure_launcher_logging(layout=layout)
+        matching = [
+            handler
+            for handler in root_logger.handlers
+            if isinstance(handler, logging.FileHandler)
+            and Path(logical_path(handler.baseFilename)).resolve() == log_path.resolve()
+        ]
+
+        assert len(matching) == 1
+    finally:
+        for handler in tuple(root_logger.handlers):
+            if isinstance(handler, logging.FileHandler) and (
+                Path(logical_path(handler.baseFilename)).resolve() == log_path.resolve()
+            ):
+                root_logger.removeHandler(handler)
+                handler.close()
