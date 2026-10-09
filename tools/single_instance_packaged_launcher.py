@@ -46,9 +46,16 @@ from sugarsubstitute_shared.process_identity import (
 class PackagedLauncherProcess:
     """Keep bootstrap completion and incarnation-checked runtime control distinct."""
 
-    def __init__(self, process: subprocess.Popen[bytes], layout: InstallLayout) -> None:
+    def __init__(
+        self,
+        process: subprocess.Popen[bytes],
+        layout: InstallLayout,
+        *,
+        output_path: Path | None = None,
+    ) -> None:
         """Bind the launched bootstrap before reading any runtime log evidence."""
         self.bootstrap = process
+        self.output_path = output_path
         self.bootstrap_identity = capture_process_identity(process.pid)
         self._layout = layout
         self._runtime_evidence: LauncherProcessEvidence | None = None

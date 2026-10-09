@@ -21,9 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 import json
 import os
-from pathlib import Path
 import re
-import shutil
 import time
 from typing import TypeVar
 
@@ -367,37 +365,3 @@ def _terminate_installation_processes(layout: InstallLayout) -> None:
             process.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-
-
-def _capture_failure_diagnostics(
-    layout: InstallLayout,
-    artifact_dir: Path,
-) -> None:
-    """Retain bounded launcher and crash evidence before disposal."""
-
-    diagnostics_dir = artifact_dir / "failure-diagnostics"
-    diagnostics_dir.mkdir(parents=True, exist_ok=True)
-    for source in (
-        layout.logs_dir / "launcher.log",
-        layout.logs_dir / "app-startup.log",
-    ):
-        if source.is_file():
-            shutil.copy2(source, diagnostics_dir / source.name)
-    crash_diagnostics = layout.appdata_dir / "diagnostics"
-    if crash_diagnostics.is_dir():
-        shutil.copytree(
-            crash_diagnostics,
-            diagnostics_dir / "app-diagnostics",
-            dirs_exist_ok=True,
-        )
-
-
-def _capture_success_diagnostics(
-    layout: InstallLayout,
-    artifact_dir: Path,
-) -> None:
-    """Preserve the qualified launcher log beside the structured report."""
-
-    source = layout.logs_dir / "launcher.log"
-    if source.is_file():
-        shutil.copy2(source, artifact_dir / "launcher.log")

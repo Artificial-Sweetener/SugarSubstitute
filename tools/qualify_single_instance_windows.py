@@ -26,11 +26,16 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+from uuid import uuid4
 
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from tools.single_instance_packaged_launcher import PackagedLauncherProcess
+from tools.single_instance_qualification_diagnostics import (
+    capture_failure_diagnostics,
+    capture_success_diagnostics,
+)
 from tools.single_instance_cold_start_evidence import (
     SPLASH_SURFACE_EVIDENCE_ENV,
     assert_cold_start_snapshot,
@@ -56,8 +61,6 @@ from tools.single_instance_log_evidence import audit_launcher_log
 from tools.single_instance_windows_process_support import (
     _assert_no_live_ownership_files,
     _assert_single_child,
-    _capture_failure_diagnostics,
-    _capture_success_diagnostics,
     _terminate_installation_processes,
     _terminate_launchers,
     _terminate_qualification_apps,
@@ -381,14 +384,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 process.runtime_evidence.to_json() for process in launchers
             ]
             evidence["launcher_log"] = audit_launcher_log(layout)
-            _capture_success_diagnostics(layout, artifact_dir)
+            capture_success_diagnostics(layout, artifact_dir)
             evidence["launcher_surfaces"] = qualify_launcher_surfaces(
                 launcher_bundle=arguments.launcher_bundle.resolve(),
                 temporary_root=Path(temporary),
                 artifact_dir=artifact_dir,
             )
         except BaseException:
-            _capture_failure_diagnostics(layout, artifact_dir)
+            capture_failure_diagnostics(layout, artifact_dir, launchers)
             raise
         finally:
             _terminate_launchers(launchers)
@@ -453,16 +456,19 @@ def _launch(
         environment[APPLICATION_INITIAL_WINDOW_STATE_ENV] = initial_window_state
     if gate_window_construction:
         environment[APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV] = "1"
-    process = subprocess.Popen(  # noqa: S603
-        [str(layout.executable_path), "--no-update-check", "--locale=en"],
-        cwd=layout.root,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=environment,
-        shell=False,
-    )
-    return PackagedLauncherProcess(process, layout)
+    layout.logs_dir.mkdir(parents=True, exist_ok=True)
+    output_path = layout.logs_dir / f"qualification-bootstrap-{uuid4().hex}.log"
+    with output_path.open("wb") as output:
+        process = subprocess.Popen(  # noqa: S603
+            [str(layout.executable_path), "--no-update-check", "--locale=en"],
+            cwd=layout.root,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            env=environment,
+            shell=False,
+        )
+    return PackagedLauncherProcess(process, layout, output_path=output_path)
 
 
 def _wait_for_preregistration(layout: InstallLayout) -> None:
