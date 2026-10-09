@@ -34,6 +34,10 @@ from launcher.sugarsubstitute_launcher.config import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
+from launcher.sugarsubstitute_launcher.process_identity_evidence import (
+    LAUNCHER_PROCESS_EVENT,
+    LauncherProcessEvidence,
+)
 from sugarsubstitute_shared.windows_long_paths import logical_path
 from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     parse_handoff_geometry,
@@ -212,14 +216,29 @@ logging.shutdown()
 
     log_path = InstallLayout.from_root(install_root).logs_dir / "launcher.log"
     lines = log_path.read_text(encoding="utf-8").splitlines()
+    identity_lines = [line for line in lines if LAUNCHER_PROCESS_EVENT in line]
+    identity_records = [
+        LauncherProcessEvidence.from_json(
+            json.loads(line.split(LAUNCHER_PROCESS_EVENT, 1)[1])
+        )
+        for line in identity_lines
+    ]
     record_pattern = re.compile(
         r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2} INFO process=\d+ "
         r"qualification\.concurrent_launcher_log worker=(\d+) record=(\d{3}) "
         r"marker=(x{256})$"
     )
-    records = [record_pattern.fullmatch(line) for line in lines]
+    records = [
+        record_pattern.fullmatch(line)
+        for line in lines
+        if LAUNCHER_PROCESS_EVENT not in line
+    ]
 
-    assert len(lines) == worker_count * records_per_worker
+    assert len(lines) == worker_count * (records_per_worker + 1)
+    assert len(identity_records) == worker_count
+    assert {record.identity.pid for record in identity_records} == {
+        process.pid for process in processes
+    }
     assert all(match is not None for match in records)
     assert {
         (int(match.group(1)), int(match.group(2)))

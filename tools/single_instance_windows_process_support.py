@@ -24,13 +24,13 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
 import time
 from typing import TypeVar
 
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from tools.single_instance_packaged_launcher import PackagedLauncherProcess
 from tools.single_instance_cold_start_evidence import (
     qualification_app_pids,
     splash_host_pids,
@@ -265,14 +265,14 @@ def _assert_no_live_ownership_files(layout: InstallLayout) -> None:
         raise AssertionError(f"Removed ownership files were recreated: {created}")
 
 
-def _wait_for_clean_exits(processes: Sequence[subprocess.Popen[bytes]]) -> None:
+def _wait_for_clean_exits(processes: Sequence[PackagedLauncherProcess]) -> None:
     """Require every forwarded launcher invocation to acknowledge and exit cleanly."""
 
     for process in processes:
         process.wait(timeout=_TIMEOUT_SECONDS)
         if process.returncode != 0:
             raise AssertionError(
-                f"Forwarding launcher {process.pid} exited with {process.returncode}."
+                f"Forwarding launcher {process.runtime_pid} exited with {process.returncode}."
             )
 
 
@@ -295,14 +295,15 @@ def _wait_for_process_exit(pid: int) -> None:
 
 
 def _terminate_supervisor_and_child(
-    supervisor: subprocess.Popen[bytes],
+    supervisor: PackagedLauncherProcess,
     child_pid: int,
 ) -> None:
     """Crash one qualification supervisor and require its child to follow."""
 
     if supervisor.poll() is None:
-        psutil.Process(supervisor.pid).kill()
-    _wait_for_process_exit(supervisor.pid)
+        supervisor.kill()
+    supervisor.wait(timeout=_TIMEOUT_SECONDS)
+    _wait_for_process_exit(supervisor.runtime_pid)
     _wait_for_process_exit(child_pid)
 
 
@@ -322,19 +323,11 @@ def _wait_for_value(
     raise TimeoutError(f"Timed out waiting for {description}.")
 
 
-def _terminate_launchers(processes: Sequence[subprocess.Popen[bytes]]) -> None:
+def _terminate_launchers(processes: Sequence[PackagedLauncherProcess]) -> None:
     """Stop only still-running launchers created by this qualification."""
 
     for process in processes:
-        if process.poll() is None:
-            process.terminate()
-    for process in processes:
-        if process.poll() is None:
-            try:
-                process.wait(timeout=5.0)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5.0)
+        process.cleanup()
 
 
 def _terminate_qualification_apps(layout: InstallLayout) -> None:

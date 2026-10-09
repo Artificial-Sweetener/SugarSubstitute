@@ -56,7 +56,7 @@ a = Analysis(
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[str(launcher_root / "installed_launcher_role_hook.py")],
     excludes=[
         "cv2",
         "numpy",

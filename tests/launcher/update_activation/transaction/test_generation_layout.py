@@ -40,11 +40,16 @@ from .support import _write_bundle_tree, _write_installed_layout
 
 
 @pytest.mark.parametrize(
-    "role",
-    ["SugarSubstitute.exe", "launcher-bin/Repair.exe", "launcher-bin/LauncherUi.exe"],
+    ("role", "onefile"),
+    [
+        ("SugarSubstitute.exe", False),
+        ("SugarSubstitute.exe", True),
+        ("launcher-bin/Repair.exe", False),
+        ("launcher-bin/LauncherUi.exe", False),
+    ],
 )
 def test_generation_process_uses_its_own_ui_and_installation_state(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, role: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, role: str, onefile: bool
 ) -> None:
     """Use matching bundle dependencies without relocating user or runtime state."""
     root = _write_installed_layout(tmp_path / "installation")
@@ -56,8 +61,15 @@ def test_generation_process_uses_its_own_ui_and_installation_state(
     executable = selected.root / role
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(executable))
+    if onefile:
+        monkeypatch.setattr(
+            sys, "_sugarsubstitute_installed_launcher", True, raising=False
+        )
     monkeypatch.setattr(
-        sys, "_MEIPASS", str(selected.root / "launcher-bin"), raising=False
+        sys,
+        "_MEIPASS",
+        str(tmp_path / "_MEI1234" if onefile else selected.root / "launcher-bin"),
+        raising=False,
     )
     layout = InstallLayout.from_root(root, target=WINDOWS_X64)
     assert layout.root == root
