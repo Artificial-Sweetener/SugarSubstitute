@@ -15,12 +15,14 @@
 //    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Bound the maintainer's two advisory exceptions to the reviewed release graph.
+ * Bound the reviewed advisory exceptions to the private release graph.
  * These vulnerable versions remain vulnerable. The exceptions apply only to
  * this private CI release toolchain, never application or newly added tooling.
  * Reviewed 2026-10-08: semantic-release requires braces through micromatch;
  * http-cache-semantics is inside the bundled CLI of its unused npm publisher.
- * No supported patched versions are available for these two dependency paths.
+ * Preserve the existing brace-expansion and undici exceptions in that unused
+ * CLI bundle. They do not cover the active undici copies used by other tools.
+ * The compatible npm bundle still contains these reviewed vulnerable versions.
  * Remove these exceptions when upstream fixes are available; changed versions,
  * paths, release roots, and additional advisories require another review.
  */
@@ -41,6 +43,16 @@ const reviewedNodes = Object.freeze({
     path: "node_modules/@semantic-release/npm", version: "13.1.5",
   },
   npm: { path: "node_modules/npm", version: "11.21.0" },
+  "brace-expansion": {
+    path: "node_modules/npm/node_modules/brace-expansion", version: "5.0.9",
+  },
+  undici: {
+    path: "node_modules/npm/node_modules/undici", version: "6.28.0",
+    otherInstallations: {
+      "node_modules/undici": "6.29.0",
+      "node_modules/@semantic-release/github/node_modules/undici": "7.30.0",
+    },
+  },
   micromatch: { path: "node_modules/micromatch", version: "4.0.8" },
   braces: { path: "node_modules/braces", version: "3.0.3" },
   "http-cache-semantics": {
@@ -49,8 +61,13 @@ const reviewedNodes = Object.freeze({
 });
 
 const reviewedAdvisories = Object.freeze({
-  braces: "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-  "http-cache-semantics": "https://github.com/advisories/GHSA-ch52-4w7c-c8xp",
+  braces: ["https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"],
+  "http-cache-semantics": ["https://github.com/advisories/GHSA-ch52-4w7c-c8xp"],
+  "brace-expansion": [
+    "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+    "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+  ],
+  undici: ["https://github.com/advisories/GHSA-rfgv-xxqx-mfg5"],
 });
 
 /** Return whether a value is a JSON object rather than an array or null. */
@@ -86,17 +103,20 @@ function isReviewedRoot(lock) {
     Object.keys(reviewedNodes).every((name) => isReviewedNode(name, lock));
 }
 
-/** Reject moved, duplicated, upgraded, linked, or non-development instances. */
+/** Verify every installed copy while keeping the exception on its one path. */
 function isReviewedNode(name, lock) {
   if (!Object.hasOwn(reviewedNodes, name)) return false;
   const reviewed = reviewedNodes[name];
   const paths = Object.keys(lock.packages).filter((path) =>
     path.slice(path.lastIndexOf("node_modules/") + "node_modules/".length) === name,
   );
-  if (paths.length !== 1 || paths[0] !== reviewed.path) return false;
-  const entry = lock.packages[reviewed.path];
-  return entry?.version === reviewed.version && entry.dev === true &&
-    entry.link !== true;
+  const installations = {
+    [reviewed.path]: reviewed.version, ...reviewed.otherInstallations,
+  };
+  return paths.length === Object.keys(installations).length &&
+    paths.every((path) => Object.hasOwn(installations, path) &&
+      lock.packages[path].version === installations[path] &&
+      lock.packages[path].dev === true && lock.packages[path].link !== true);
 }
 
 /** Keep both direct and propagated exceptions within exact reviewed nodes. */
@@ -106,10 +126,10 @@ export function isReviewedReleaseFinding(finding, lock) {
     finding.nodes[0] === reviewedNodes[finding.name].path;
 }
 
-/** Accept only the two high-severity advisories explicitly waived by ID. */
+/** Accept only reviewed high-severity advisory IDs at the scoped finding. */
 export function isReviewedReleaseAdvisory(finding, advisory) {
   return finding.severity === "high" && advisory.severity === "high" &&
     Object.hasOwn(reviewedAdvisories, finding.name) &&
     advisory.name === finding.name && advisory.dependency === finding.name &&
-    advisory.url === reviewedAdvisories[finding.name];
+    reviewedAdvisories[finding.name].includes(advisory.url);
 }

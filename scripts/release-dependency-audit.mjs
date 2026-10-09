@@ -110,7 +110,7 @@ function includeDependents(names, findings) {
 }
 
 /**
- * Return high/critical findings not wholly covered by the two scoped exceptions.
+ * Return high/critical findings not wholly covered by the scoped exceptions.
  * npm's peer-derived via graph contains cycles. First require an approved leaf
  * to ground every reachable record, then propagate any unreviewed evidence to
  * all dependents. A cycle is never evidence of its own acceptability.
@@ -129,6 +129,9 @@ export function unresolvedReleaseFindings(report, lock) {
     }
     for (const cause of finding.via) {
       if (typeof cause === "string") continue;
+      // Lower-severity advisories remain visible in npm's report but are below
+      // this gate's existing high/critical threshold; they are not exceptions.
+      if (!["high", "critical"].includes(cause.severity)) continue;
       if (isReviewedReleaseAdvisory(finding, cause)) grounded.add(name);
       else blocked.add(name);
     }

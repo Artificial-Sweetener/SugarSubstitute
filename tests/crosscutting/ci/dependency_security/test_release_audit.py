@@ -185,11 +185,77 @@ def test_release_audit_fails_closed_on_malformed_evidence(mutation: str) -> None
 
 
 def test_release_audit_preserves_unrelated_bundled_findings() -> None:
-    """Keep older bundled-npm issues blocking unless separately authorized."""
+    """Keep unreviewed high findings blocking even within the unused npm bundle."""
+
+    script = """
+report.vulnerabilities.undici = direct('undici', 'GHSA-2222-3333-4444',
+  'node_modules/npm/node_modules/undici');
+process.stdout.write(JSON.stringify(audit()));
+"""
+    assert _evaluate(script) == ["undici"]
+
+
+@pytest.mark.parametrize(
+    ("package", "advisory"),
+    [
+        ("brace-expansion", "GHSA-qhr7-859c-m2p7"),
+        ("brace-expansion", "GHSA-6j4f-fj2g-mc7p"),
+        ("undici", "GHSA-rfgv-xxqx-mfg5"),
+    ],
+)
+def test_release_audit_preserves_existing_bundled_npm_exceptions(
+    package: str, advisory: str
+) -> None:
+    """Retain prior scoped IDs without accepting active or drifted installations."""
+
+    script = f"""
+const name = {json.dumps(package)};
+const bundledPath = `node_modules/npm/node_modules/${{name}}`;
+const finding = direct(name, {json.dumps(advisory)}, bundledPath);
+report.vulnerabilities[name] = finding;
+const accepted = audit();
+finding.nodes = [`node_modules/${{name}}`];
+const moved = audit();
+finding.nodes = [bundledPath, `node_modules/${{name}}`];
+const mixed = audit();
+finding.nodes = [bundledPath];
+lock.packages[bundledPath].version = '0.0.0';
+const versionChanged = audit();
+process.stdout.write(JSON.stringify([accepted, moved, mixed, versionChanged]));
+"""
+    result = _evaluate(script)
+    assert isinstance(result, list)
+    assert result[0] == []
+    assert package in result[1]
+    assert package in result[2]
+    assert package in result[3]
+
+
+def test_reviewed_high_finding_with_lower_severities_keeps_gate_threshold() -> None:
+    """Allow reviewed high causes while still rejecting any new high cause."""
+
+    script = """
+const finding = direct('undici', 'GHSA-rfgv-xxqx-mfg5',
+  'node_modules/npm/node_modules/undici');
+report.vulnerabilities.undici = finding;
+finding.via.push({...finding.via[0], severity: 'moderate',
+  url: 'https://github.com/advisories/GHSA-2222-3333-4444'});
+const belowThreshold = audit();
+finding.via[1].severity = 'high';
+const newHigh = audit();
+finding.via[1].severity = finding.severity = 'critical';
+const newCritical = audit();
+process.stdout.write(JSON.stringify([belowThreshold, newHigh, newCritical]));
+"""
+    assert _evaluate(script) == [[], ["undici"], ["undici"]]
+
+
+def test_bundled_exception_never_waives_active_github_undici_copy() -> None:
+    """Reject the same advisory when its report includes the GitHub plugin copy."""
 
     script = """
 report.vulnerabilities.undici = direct('undici', 'GHSA-rfgv-xxqx-mfg5',
-  'node_modules/npm/node_modules/undici');
+  'node_modules/@semantic-release/github/node_modules/undici');
 process.stdout.write(JSON.stringify(audit()));
 """
     assert _evaluate(script) == ["undici"]
