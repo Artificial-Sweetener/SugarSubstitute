@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from tests.qualification.release.workflow.support import (
@@ -26,6 +27,39 @@ from tests.qualification.release.workflow.support import (
     workflow_text,
 )
 from tests.support.execution.node_runtime import run_node
+
+
+def test_release_notes_plugin_preserves_conventional_notes() -> None:
+    """GitHub guidance should prepend without changing generated history notes."""
+
+    script = """
+const context = {
+  nextRelease: {version: '1.2.3', notes: '## Features\\n\\n* Added Cubes.'},
+};
+const publisher = require('./scripts/github-release-publisher.cjs');
+const presented = publisher.withInstallerReleaseNotes(
+  {repository: 'Artificial-Sweetener/Substitute-Test'},
+  context,
+);
+process.stdout.write(JSON.stringify({
+  original: context.nextRelease.notes,
+  presented: presented.nextRelease.notes,
+}));
+"""
+    result = run_node(
+        ("-e", script),
+        cwd=PROJECT_ROOT,
+        timeout_seconds=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    notes = json.loads(result.stdout)
+    assert notes["presented"].index("## Install SugarSubstitute") < notes[
+        "presented"
+    ].index("## Features")
+    assert notes["presented"].endswith("## Features\n\n* Added Cubes.")
+    assert notes["original"] == "## Features\n\n* Added Cubes."
 
 
 def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None:
@@ -55,17 +89,19 @@ def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None
 def test_release_pipeline_uses_one_notes_owner_and_updates_the_changelog() -> None:
     """Every release path should share installer notes and conventional history."""
 
-    config = (PROJECT_ROOT / "scripts" / "prepare-stable-release.mjs").read_text(
-        encoding="utf-8"
-    )
+    config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
     candidate_workflow = workflow_text("release-candidate.yml")
     publication_workflow = workflow_text("release-publication.yml")
 
-    assert "generateReleaseNotes(commits" in config
-    assert "createInstallerReleaseNotes(repository, version)" in config
-    assert 'join(root, "CHANGELOG.md")' in config
+    github_publisher = '"./scripts/github-release-publisher.cjs"'
+    conventional_notes = '"@semantic-release/release-notes-generator"'
+    changelog_plugin = '"@semantic-release/changelog"'
+    assert config.index(conventional_notes) < config.index(changelog_plugin)
+    assert config.index(changelog_plugin) < config.index(github_publisher)
+    assert 'changelogFile: "CHANGELOG.md"' in config
     assert "release-notes-preamble.cjs" in candidate_workflow
-    assert "node scripts/publish-stable-release.mjs" in publication_workflow
+    assert "npx semantic-release" in publication_workflow
+    assert github_publisher in config
     assert (PROJECT_ROOT / "CHANGELOG.md").is_file()
 
 
@@ -154,22 +190,19 @@ def test_readme_explains_comfy_setup_modes_and_remote_requirements() -> None:
 def test_release_configuration_targets_the_active_github_repository() -> None:
     """Test and production repositories should release against their active remote."""
 
-    config = (PROJECT_ROOT / "scripts" / "publish-stable-release.mjs").read_text(
-        encoding="utf-8"
-    )
+    config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
 
     assert "process.env.GITHUB_REPOSITORY" in config
     assert "process.env.GITHUB_SERVER_URL" in config
-    assert 'repository: process.env.GITHUB_REPOSITORY ?? ""' in config
+    assert "repositoryUrl," in config
+    assert "https://github.com/Artificial-Sweetener/SugarSubstitute.git" in config
 
 
 def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
     """Keep generated Stable commits on the narrowly authorized push identity."""
 
     publication_workflow = workflow_text("release-publication.yml")
-    release_config = (
-        PROJECT_ROOT / "scripts" / "publish-stable-release.mjs"
-    ).read_text(encoding="utf-8")
+    release_config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
 
     assert "Configure authorized Stable release push" in publication_workflow
     assert "secrets.STABLE_RELEASE_DEPLOY_KEY" in publication_workflow
@@ -183,7 +216,7 @@ def test_stable_release_commits_are_attributed_to_daisy() -> None:
 
     publication_workflow = workflow_text("release-publication.yml")
     publish_step = publication_workflow.split(
-        "      - name: Publish exact qualified Stable release",
+        "      - name: Publish exact qualified Stable release with semantic release",
         maxsplit=1,
     )[1].split("      - name:", maxsplit=1)[0]
 
@@ -203,7 +236,7 @@ def test_failed_qualification_cannot_leave_a_public_stable_prerelease() -> None:
     assert "contents: write" not in candidate_workflow
     assert "gh release create" not in candidate_workflow
     assert "gh release edit" not in candidate_workflow
-    assert "publish-stable-release.mjs" not in candidate_workflow
+    assert "npx semantic-release" not in candidate_workflow
     publish_call = workflow_text("release.yml").split("  publish-release:", maxsplit=1)[
         1
     ]
@@ -213,7 +246,9 @@ def test_failed_qualification_cannot_leave_a_public_stable_prerelease() -> None:
     assert publish_call.index("contents: write") < publish_call.index(
         "./.github/workflows/release-publication.yml"
     )
-    assert "Publish exact qualified Stable release" in (publication_workflow)
+    assert "Publish exact qualified Stable release with semantic release" in (
+        publication_workflow
+    )
 
 
 def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:

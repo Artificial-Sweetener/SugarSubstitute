@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml  # type: ignore[import-untyped]
@@ -67,7 +68,7 @@ def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
 def test_release_workflow_builds_every_published_platform_after_version_resolution() -> (
     None
 ):
-    """Native builders should share one canonical release version decision."""
+    """Native builders should share one semantic-release version decision."""
 
     orchestrator = yaml.safe_load(
         workflow_path("release.yml").read_text(encoding="utf-8")
@@ -133,7 +134,7 @@ def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
     assert "release-qualification.yml" in orchestrator
     assert "needs.prepare-release.result == 'success'" in orchestrator
     assert "needs.prepare-release.outputs.staged == 'true'" in orchestrator
-    assert "Publish exact qualified Stable release" in publication
+    assert "Publish exact qualified Stable release with semantic release" in publication
     assert "prepare-release-assets" not in publication
     assert "PyInstaller" not in publication
 
@@ -168,26 +169,36 @@ def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
         PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
     ).read_text(encoding="utf-8")
 
-    version_owner = (PROJECT_ROOT / "scripts" / "stable-release-version.mjs").read_text(
-        encoding="utf-8"
-    )
-    assert 'const FIRST_RELEASE_VERSION = "0.9.0"' in version_owner
+    assert 'const FIRST_RELEASE_VERSION = "0.9.0"' in resolver_text
     assert "resolveStableVersion" in resolver_text
     assert "first_release=${firstRelease}" in resolver_text
     assert "prepare-release-assets.mjs" in candidate_text
-    assert "node scripts/publish-stable-release.mjs" in publication_text
+    assert "npx semantic-release" in publication_text
     assert "prime-first-release-tag" not in candidate_text
 
 
-def test_version_resolution_excludes_publication_side_effects() -> None:
-    """Version calculation should import only the read-only history boundary."""
+def test_version_resolution_excludes_publishing_plugins() -> None:
+    """Version calculation should not require GitHub publishing authentication."""
 
-    resolver = (
-        PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
-    ).read_text(encoding="utf-8")
-    assert 'from "./stable-release-version.mjs"' in resolver
-    assert "publish-stable-release" not in resolver
-    assert '"gh"' not in resolver
+    script = """
+const releaseConfig = require('./.releaserc.cjs');
+const {selectVersionResolutionPlugins} = require(
+  './scripts/release-version-plugins.cjs',
+);
+process.stdout.write(JSON.stringify(selectVersionResolutionPlugins(releaseConfig)));
+"""
+    result = run_node(
+        ("-e", script),
+        cwd=PROJECT_ROOT,
+        timeout_seconds=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    plugins = json.loads(result.stdout)
+    assert len(plugins) == 1
+    assert plugins[0][0] == "@semantic-release/commit-analyzer"
+    assert plugins[0][1]["releaseRules"]
 
 
 def test_macos_release_requires_no_paid_apple_credentials() -> None:
@@ -436,14 +447,12 @@ def test_native_build_workflows_use_disposable_package_cache_owner() -> None:
 
 
 def test_release_publisher_includes_every_required_stable_asset() -> None:
-    """Stable publication should attach binaries and trusted update metadata."""
+    """Semantic release should attach binaries and trusted update metadata."""
 
-    config = (PROJECT_ROOT / "scripts" / "prepare-stable-release.mjs").read_text(
-        encoding="utf-8"
-    )
+    config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
     expected_fragments = (
-        "SugarSubstitute-${version}-Windows-x64-Setup.exe",
-        "installer-payload-windows-x64-v${version}.zip",
+        "SugarSubstitute-*-Windows-x64-Setup.exe",
+        "installer-payload-windows-x64-v*.zip",
         "manifest.signed.json",
     )
     assert all(fragment in config for fragment in expected_fragments)

@@ -12,6 +12,7 @@ source_roots = [
   "scripts",
 ]
 source_files = [
+  ".releaserc.cjs",
   "main.py",
   "sitecustomize.py",
 ]

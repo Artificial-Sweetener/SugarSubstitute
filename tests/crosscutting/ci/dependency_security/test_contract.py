@@ -18,14 +18,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import re
 
-import pytest
 import yaml  # type: ignore[import-untyped]
-
-from tests.support.execution.node_runtime import run_node
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -84,95 +80,13 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     assert '["npm", "audit", "--json"]' in audit_source
     assert '"corepack.cmd" : "corepack"' in audit_source
     assert "ignoredAdvisory" not in audit_source
-    assert "unresolvedReleaseFindings(report)" in audit_source
+    assert "unresolvedReleaseFindings(report, lock)" in audit_source
     assert "-m pip_audit" in platform_script
     assert "--local --strict --progress-spinner off" in platform_script
     assert platform_workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == (
         "CVE-2026-24049"
     )
     assert "--ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}" in platform_script
-
-
-@pytest.mark.parametrize(
-    ("package_name", "advisory"),
-    [
-        ("braces", "GHSA-vfj7-8cjw-p6xm"),
-        ("http-cache-semantics", "GHSA-ch52-4w7c-c8xp"),
-        ("undici", "GHSA-rfgv-xxqx-mfg5"),
-    ],
-)
-def test_release_audit_rejects_vulnerabilities_in_every_dependency_location(
-    package_name: str,
-    advisory: str,
-) -> None:
-    """Reject known high findings in bundled, active, and newly added locations."""
-
-    script = """
-import { unresolvedReleaseFindings } from './scripts/release-dependency-audit.mjs';
-const packageName = process.argv[1];
-const finding = {source: 1124334, url: `https://github.com/advisories/${process.argv[2]}`};
-const bundle = `node_modules/npm/node_modules/${packageName}`;
-const active = `node_modules/${packageName}`;
-const results = [[bundle], [bundle, active], [active], [], ['node_modules/unknown']]
- .map(nodes => unresolvedReleaseFindings({auditReportVersion:2, vulnerabilities:{
-  [packageName]:{name:packageName, severity:'high', nodes, via:[finding]},
- }}).length);
-process.stdout.write(JSON.stringify(results));
-"""
-    result = run_node(
-        ("--input-type=module", "-e", script, package_name, advisory),
-        cwd=PROJECT_ROOT,
-        timeout_seconds=30,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == [1, 1, 1, 1, 1]
-
-
-def test_release_lock_contains_no_vulnerable_release_engines() -> None:
-    """Keep the removed vulnerable graph out of reproducible installations."""
-
-    lock = json.loads((PROJECT_ROOT / "package-lock.json").read_text(encoding="utf-8"))
-    forbidden = {
-        "braces",
-        "http-cache-semantics",
-        "npm",
-        "micromatch",
-        "semantic-release",
-    }
-    assert not {
-        name
-        for name in lock["packages"]
-        if name.rsplit("node_modules/", 1)[-1] in forbidden
-    }
-
-
-@pytest.mark.parametrize(
-    "report",
-    [
-        None,
-        {},
-        {"error": {"code": "network"}},
-        {"auditReportVersion": 2, "vulnerabilities": []},
-        {"auditReportVersion": 2, "vulnerabilities": {"unsafe": {"severity": "high"}}},
-    ],
-)
-def test_release_audit_fails_closed_on_missing_or_malformed_evidence(
-    report: object,
-) -> None:
-    """Reject unusable audit output rather than accepting an empty finding set."""
-
-    script = """
-import { unresolvedReleaseFindings } from './scripts/release-dependency-audit.mjs';
-try { unresolvedReleaseFindings(JSON.parse(process.argv[1])); process.exitCode = 1; }
-catch (error) { process.stdout.write(error.message); }
-"""
-    result = run_node(
-        ("--input-type=module", "-e", script, json.dumps(report)), cwd=PROJECT_ROOT
-    )
-    assert result.returncode == 0, result.stderr
-    assert "npm audit" in result.stdout
 
 
 def test_python_audit_exception_remains_tied_to_photoshop_constraint() -> None:

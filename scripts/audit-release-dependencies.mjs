@@ -14,9 +14,21 @@
 //    You should have received a copy of the GNU General Public License
 //    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 import { unresolvedReleaseFindings } from "./release-dependency-audit.mjs";
+
+const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
+const root = lock.packages?.[""];
+if (manifest.private !== true || manifest.name !== "sugarsubstitute-release" ||
+    manifest.scripts?.release !== "semantic-release" ||
+    ["dependencies", "optionalDependencies", "devDependencies"].some((field) =>
+      JSON.stringify(Object.entries(manifest[field] ?? {}).sort()) !==
+      JSON.stringify(Object.entries(root?.[field] ?? {}).sort()))) {
+  throw new Error("Release audit requires the private, locked semantic-release toolchain.");
+}
 
 const npmCommand = process.platform === "win32" ? "corepack.cmd" : "corepack";
 const audit = spawnSync(npmCommand, ["npm", "audit", "--json"], {
@@ -38,12 +50,12 @@ try {
   throw new Error("npm audit did not produce a JSON report.", { cause: error });
 }
 
-const unresolvedFindings = unresolvedReleaseFindings(report);
+const unresolvedFindings = unresolvedReleaseFindings(report, lock);
 
 if (unresolvedFindings.length > 0) {
-  console.error("Release dependency audit found high or critical vulnerabilities.");
+  console.error("Release dependency audit found unapproved high or critical vulnerabilities.");
   console.error(JSON.stringify(unresolvedFindings, null, 2));
   process.exitCode = 1;
 } else {
-  console.log("Release dependency audit found no high or critical vulnerabilities.");
+  console.log("Release dependency audit found no unapproved high or critical vulnerabilities; reviewed CI-only exceptions remain.");
 }

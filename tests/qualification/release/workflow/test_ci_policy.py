@@ -232,17 +232,20 @@ def test_pre_commit_hooks_use_an_immutable_verified_revision() -> None:
 
 
 def test_release_node_dependencies_use_exact_verified_versions() -> None:
-    """Keep conventional release components reproducible through the npm lockfile."""
+    """Keep semantic-release packages reproducible through the npm lockfile."""
 
     package = json.loads((PROJECT_ROOT / "package.json").read_text(encoding="utf-8"))
     lock = json.loads((PROJECT_ROOT / "package-lock.json").read_text(encoding="utf-8"))
 
     assert re.fullmatch(r"npm@\d+\.\d+\.\d+", package["packageManager"])
     assert package["devDependencies"].keys() == {
-        "conventional-changelog-angular",
-        "conventional-changelog-writer",
-        "conventional-commits-parser",
-        "conventional-commits-filter",
+        "@semantic-release/changelog",
+        "@semantic-release/commit-analyzer",
+        "@semantic-release/exec",
+        "@semantic-release/git",
+        "@semantic-release/github",
+        "@semantic-release/release-notes-generator",
+        "semantic-release",
     }
     assert all(
         re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version)

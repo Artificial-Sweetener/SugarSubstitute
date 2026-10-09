@@ -36,7 +36,7 @@ function createCanaryVersion(nextStableVersion, runNumber) {
 }
 
 /**
- * Return the Stable version implied by a conventional commit change type.
+ * Return the Stable version implied by a semantic-release change type.
  *
  * @param {string[]} releaseTags Stable tags in vMAJOR.MINOR.PATCH form.
  * @param {"major" | "minor" | "patch"} releaseType Semantic release type.
