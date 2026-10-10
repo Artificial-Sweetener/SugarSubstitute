@@ -24,7 +24,10 @@ from typing import Any
 
 from PySide6.QtCore import QSignalBlocker
 
-from substitute.application.overrides import PinnedOverrideService
+from substitute.application.overrides import (
+    PinnedOverrideControl,
+    PinnedOverrideService,
+)
 from substitute.domain.generation.seed_control import (
     SeedControlState,
     SeedMode,
@@ -77,6 +80,23 @@ class OverrideControlInteractionController:
             setter = getattr(widget, "setValue", None)
             if callable(setter):
                 setter(int(value))
+        finally:
+            del blocker
+
+    def reconcile_seed_state(
+        self,
+        control: PinnedOverrideControl,
+        widget: Any,
+    ) -> None:
+        """Restore reused seed value and mode without committing user edits."""
+
+        if not self._is_seed_widget(control.override_key, widget):
+            return
+        blocker = QSignalBlocker(widget)
+        try:
+            if widget.value() != control.value:
+                self.project_seed_value(widget, int(control.value))
+            self._restore_seed_mode(control.override_key, widget)
         finally:
             del blocker
 
