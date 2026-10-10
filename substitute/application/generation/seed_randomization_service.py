@@ -21,9 +21,9 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 import random
-from typing import cast
 
 from substitute.application.node_behavior import EditorBehaviorSnapshot
+from substitute.application.overrides import PinnedOverrideService
 from substitute.application.workflows.editor_projection_service import (
     WorkflowEditorProjectionService,
 )
@@ -184,14 +184,13 @@ class SeedRandomizationService:
         """Randomize global seed override values using workflow-owned mode state."""
 
         changes: list[SeedValueChange] = []
-        constraints = self._override_seed_constraints(behavior_snapshot)
         for override_key, override in workflow.global_overrides.items():
             canonical_key = canonicalize_global_override_key(str(override_key))
             if canonical_key != SEED_FIELD_KEY or not isinstance(override, dict):
                 continue
             if self._override_seed_mode(workflow, canonical_key).mode == SeedMode.FIXED:
                 continue
-            bounds = _seed_bounds(constraints)
+            bounds = self._override_seed_bounds(workflow, behavior_snapshot)
             if bounds is None:
                 log_warning(
                     _LOGGER,
@@ -246,20 +245,39 @@ class SeedRandomizationService:
         state = workflow.override_control_states.get(override_key)
         return state if isinstance(state, SeedControlState) else SeedControlState()
 
-    @staticmethod
-    def _override_seed_constraints(
+    def _override_seed_bounds(
+        self,
+        workflow: WorkflowState,
         behavior_snapshot: EditorBehaviorSnapshot | None,
-    ) -> Mapping[str, object]:
-        """Return representative constraints for the global seed override."""
+    ) -> tuple[int, int] | None:
+        """Intersect bounds of the fields receiving the global seed override."""
 
         if behavior_snapshot is None:
-            return {}
-        for node_specs in behavior_snapshot.field_specs_by_alias.values():
-            for field_specs in node_specs.values():
-                spec = field_specs.get(SEED_FIELD_KEY)
-                if spec is not None:
-                    return cast(Mapping[str, object], spec.constraints)
-        return {}
+            return _seed_bounds({})
+        projection = self._editor_projection_service.project(workflow)
+        participation = PinnedOverrideService().build_participation_snapshot(
+            overrides=workflow.global_overrides,
+            behavior_snapshot=behavior_snapshot,
+            stack_order=projection.order,
+        )
+        shared_bounds: tuple[int, int] | None = None
+        for participant in participation.participants_by_key.get(SEED_FIELD_KEY, ()):
+            spec = behavior_snapshot.field_specs_by_alias[participant.cube_alias][
+                participant.node_name
+            ][participant.field_key]
+            bounds = _seed_bounds(spec.constraints)
+            if bounds is None:
+                return None
+            if shared_bounds is None:
+                shared_bounds = bounds
+            else:
+                shared_bounds = (
+                    max(shared_bounds[0], bounds[0]),
+                    min(shared_bounds[1], bounds[1]),
+                )
+                if shared_bounds[0] > shared_bounds[1]:
+                    return None
+        return shared_bounds if shared_bounds is not None else _seed_bounds({})
 
 
 def _spec_uses_seed_override(spec: object) -> bool:
