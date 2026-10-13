@@ -36,7 +36,11 @@ from sugarsubstitute_shared.launcher_update.models import (
     LauncherInstallationRecord,
 )
 from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
-from sugarsubstitute_shared.launcher_update.persistence import write_json_atomic
+from sugarsubstitute_shared.launcher_update.persistence import (
+    read_json_object,
+    replace_atomic,
+    write_json_atomic,
+)
 from sugarsubstitute_shared.process_identity import wait_for_process_exit
 from sugarsubstitute_shared.launcher_update.bundle_validation import (
     validate_launcher_bundle,
@@ -51,6 +55,7 @@ from sugarsubstitute_shared.windows_long_paths import (
 
 
 _LOGGER = logging.getLogger(__name__)
+_BASELINE_JOURNAL_SCHEMA_VERSION = 2
 
 
 class LauncherBaselineTransactionError(RuntimeError):
@@ -126,14 +131,34 @@ class LauncherBaselineTransaction:
                 backup_root=backup_root,
                 journal_path=journal_path,
             )
+            write_json_atomic(
+                journal_path,
+                {
+                    "schema_version": _BASELINE_JOURNAL_SCHEMA_VERSION,
+                    "phase": "promoted",
+                    "target_key": target.key,
+                    "version": request.version,
+                },
+            )
             LauncherInstallationRecord(
                 version=request.version,
                 target_key=request.target_key,
             ).save(install_root / "launcher" / "installation.json")
-            request_path.unlink(missing_ok=True)
-            shutil.rmtree(backup_root, ignore_errors=True)
-            shutil.rmtree(staged_dir, ignore_errors=True)
-            journal_path.unlink(missing_ok=True)
+            write_json_atomic(
+                journal_path,
+                {
+                    "schema_version": _BASELINE_JOURNAL_SCHEMA_VERSION,
+                    "phase": "committed",
+                    "target_key": target.key,
+                    "version": request.version,
+                },
+            )
+            self._finish_cleanup(
+                backup_root=backup_root,
+                journal_path=journal_path,
+                staged_dir=staged_dir,
+                request_path=request_path,
+            )
         if request.relaunch:
             relaunch_updated_launcher(install_root / target.executable_relative_path)
 
@@ -150,6 +175,7 @@ class LauncherBaselineTransaction:
 
         deadline = time.monotonic() + self._wait_timeout_seconds
         while True:
+            _remove_path(backup_root)
             try:
                 self._promote(
                     install_root=install_root,
@@ -189,11 +215,14 @@ class LauncherBaselineTransaction:
     ) -> None:
         """Move the old bundle aside, then copy the complete staged bundle."""
 
-        shutil.rmtree(backup_root, ignore_errors=True)
         backup_root.mkdir(parents=True, exist_ok=True)
         write_json_atomic(
             journal_path,
-            {"phase": "promoting", "target_key": target.key},
+            {
+                "schema_version": _BASELINE_JOURNAL_SCHEMA_VERSION,
+                "phase": "promoting",
+                "target_key": target.key,
+            },
         )
         for relative_path in target.replacement_roots:
             destination = install_root / relative_path
@@ -201,7 +230,10 @@ class LauncherBaselineTransaction:
             source = staged_dir / relative_path
             if destination.exists():
                 backup.parent.mkdir(parents=True, exist_ok=True)
-                destination.replace(backup)
+                if destination.is_dir():
+                    destination.replace(backup)
+                else:
+                    shutil.copy2(destination, backup)
             else:
                 absence_marker = _absence_marker(backup_root, relative_path)
                 absence_marker.parent.mkdir(parents=True, exist_ok=True)
@@ -218,15 +250,75 @@ class LauncherBaselineTransaction:
     ) -> None:
         """Restore a bundle left behind by a terminated prior helper."""
 
-        if not journal_path.exists() or not backup_root.exists():
+        if not journal_path.exists():
             return
-        _LOGGER.warning("Recovering interrupted launcher update transaction.")
+        journal = read_json_object(journal_path)
+        if journal.get("target_key") != target.key or journal.get(
+            "schema_version", 1
+        ) not in {1, 2}:
+            raise LauncherBaselineTransactionError(
+                "Launcher recovery journal does not match its installation."
+            )
+        phase = journal.get("phase")
+        if phase in {"promoted", "committed"}:
+            version = journal.get("version")
+            if not isinstance(version, str) or not version.strip():
+                raise LauncherBaselineTransactionError(
+                    "Published launcher recovery has no version."
+                )
+            validate_launcher_bundle(
+                bundle_dir=install_root, target=target, allow_installation_content=True
+            )
+            LauncherInstallationRecord(version=version, target_key=target.key).save(
+                install_root / "launcher" / "installation.json"
+            )
+            write_json_atomic(journal_path, {**journal, "phase": "committed"})
+            _LOGGER.info(
+                "Retaining published launcher baseline | phase=%s | version=%s",
+                phase,
+                version,
+            )
+            self._finish_cleanup(backup_root=backup_root, journal_path=journal_path)
+            return
+        if phase != "promoting":
+            raise LauncherBaselineTransactionError(
+                "Unsupported launcher recovery journal phase."
+            )
+        _LOGGER.warning("Recovering uncommitted launcher update transaction.")
         self._rollback(
-            install_root=install_root,
-            target=target,
-            backup_root=backup_root,
+            install_root=install_root, target=target, backup_root=backup_root
         )
-        journal_path.unlink(missing_ok=True)
+        self._finish_cleanup(backup_root=backup_root, journal_path=journal_path)
+
+    @staticmethod
+    def _finish_cleanup(
+        *,
+        backup_root: Path,
+        journal_path: Path,
+        staged_dir: Path | None = None,
+        request_path: Path | None = None,
+    ) -> None:
+        """Retain recovery intent until obsolete transaction content can be removed."""
+        complete = True
+        for path in (backup_root, staged_dir, request_path):
+            if path is None:
+                continue
+            try:
+                _remove_path(path)
+            except OSError:
+                complete = False
+                _LOGGER.warning(
+                    "Launcher cleanup deferred | path=%s", path, exc_info=True
+                )
+        if complete:
+            try:
+                journal_path.unlink(missing_ok=True)
+            except OSError:
+                _LOGGER.warning(
+                    "Launcher journal cleanup deferred | path=%s",
+                    journal_path,
+                    exc_info=True,
+                )
 
     @staticmethod
     def _rollback(
@@ -241,9 +333,11 @@ class LauncherBaselineTransaction:
             destination = install_root / relative_path
             backup = backup_root / relative_path
             if backup.exists():
-                _remove_path(destination)
-                backup.parent.mkdir(parents=True, exist_ok=True)
-                backup.replace(destination)
+                if backup.is_dir():
+                    _remove_path(destination)
+                    backup.replace(destination)
+                else:
+                    replace_atomic(backup, destination)
             elif _absence_marker(backup_root, relative_path).exists():
                 _remove_path(destination)
 
@@ -255,7 +349,12 @@ def _copy_path(*, source: Path, destination: Path) -> None:
     if source.is_dir():
         shutil.copytree(source, destination, symlinks=True)
     else:
-        shutil.copy2(source, destination)
+        temporary = destination.with_name(destination.name + ".promotion.tmp")
+        try:
+            shutil.copy2(source, temporary)
+            replace_atomic(temporary, destination)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def _remove_path(path: Path) -> None:

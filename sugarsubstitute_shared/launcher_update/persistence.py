@@ -204,10 +204,11 @@ def write_json_atomic(path: Path, payload: Mapping[str, object]) -> None:
     path = operational_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_name(f"{path.name}.tmp")
-    temporary_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    with temporary_path.open("w", encoding="utf-8") as stream:
+        json.dump(payload, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
     replace_atomic(temporary_path, path)
 
 

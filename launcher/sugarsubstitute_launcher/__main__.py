@@ -32,8 +32,16 @@ if TYPE_CHECKING:
 def run_launcher(launcher_main: Callable[[], int] | None = None) -> int:
     """Run the launcher and preserve unexpected packaged-bootstrap failures."""
 
-    crash_runtime = _install_supervised_crash_runtime()
+    crash_runtime: ProcessCrashRuntime | None = None
     try:
+        from launcher.sugarsubstitute_launcher.baseline_recovery_bootstrap import (
+            run_baseline_recovery_bootstrap,
+        )
+
+        bootstrap_result = run_baseline_recovery_bootstrap(sys.argv[1:])
+        if bootstrap_result is not None:
+            return bootstrap_result
+        crash_runtime = _install_supervised_crash_runtime()
         from launcher.sugarsubstitute_launcher.launcher_update_entrypoint import (
             run_launcher_update_invocation,
         )

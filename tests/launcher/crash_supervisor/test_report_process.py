@@ -80,9 +80,11 @@ class _ProcessStarter:
         return process, Path("reporter.log")
 
 
+@pytest.mark.parametrize("onefile", [False, True])
 def test_frozen_installed_reporter_uses_qt_capable_ui_executable(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    onefile: bool,
 ) -> None:
     """The Qt-free installed supervisor must never present a report itself."""
 
@@ -93,10 +95,14 @@ def test_frozen_installed_reporter_uses_qt_capable_ui_executable(
     ui_executable.write_bytes(b"launcher UI")
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    if onefile:
+        monkeypatch.setattr(
+            sys, "_sugarsubstitute_installed_launcher", True, raising=False
+        )
     monkeypatch.setattr(
         sys,
         "_MEIPASS",
-        str(layout.launcher_support_path),
+        str(tmp_path / "_MEI1234" if onefile else layout.launcher_support_path),
         raising=False,
     )
 
@@ -214,8 +220,9 @@ def test_report_child_does_not_inherit_incomplete_crash_supervision(
     assert CrashRunContext.from_environment(child_environment) is None
 
 
+@pytest.mark.parametrize("onefile", [False, True])
 def test_repair_report_uses_independent_bundle_and_original_incident_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, onefile: bool
 ) -> None:
     """Keep crash presentation usable while the live launcher roots are replaced."""
     layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
@@ -224,8 +231,15 @@ def test_repair_report_uses_independent_bundle_and_original_incident_root(
     )
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(bundle.executable_path))
+    if onefile:
+        monkeypatch.setattr(
+            sys, "_sugarsubstitute_installed_launcher", True, raising=False
+        )
     monkeypatch.setattr(
-        sys, "_MEIPASS", str(bundle.launcher_support_path), raising=False
+        sys,
+        "_MEIPASS",
+        str(tmp_path / "_MEI1234" if onefile else bundle.launcher_support_path),
+        raising=False,
     )
     starter = _ProcessStarter()
     present_crash_report(

@@ -222,11 +222,11 @@ def test_refresh_helper_runs_from_selected_generation_with_clean_environment(
     )
 
     assert helper_pid == 777
-    assert launched[0][0] == [
-        str(image.resolve()),
-        "--apply-launcher-baseline-refresh",
-        str(request_path.resolve()),
-    ]
+    command = launched[0][0]
+    assert len(command) == 3
+    assert Path(command[0]).samefile(image)
+    assert command[1] == "--apply-launcher-baseline-refresh"
+    assert Path(command[2]).samefile(request_path)
     assert READINESS_PATH_ENV not in launched[0][1]
     assert READINESS_TOKEN_ENV not in launched[0][1]
     saved = LauncherUpdateRequest.load(request_path)

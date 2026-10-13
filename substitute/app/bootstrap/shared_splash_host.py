@@ -21,12 +21,14 @@
 from __future__ import annotations
 
 import argparse
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 import os
 import sys
 from threading import Event
 import time
-from typing import TYPE_CHECKING, Any, TextIO, cast
+from typing import TYPE_CHECKING, Any, Literal, TextIO, cast
 
 _HOST_MODULE_STARTED_MONOTONIC_NS = time.monotonic_ns()
 
@@ -47,6 +49,54 @@ _REQUESTED_MONOTONIC_NS_ENV = "SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS"
 _HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV = (
     "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
 )
+
+
+class _SplashHostReadiness:
+    """Publish the endpoint only after each GUI initializer and server succeeds."""
+
+    def __init__(self, publish: Callable[[], None], abort: Callable[[], None]) -> None:
+        """Keep deferred initialization inside the launcher startup budget."""
+        self._pending = {"appearance", "runtime", "server"}
+        self._publish = publish
+        self._published = False
+        self._failed = False
+        self._stopped = False
+        self._abort = abort
+
+    def complete(self, phase: Literal["appearance", "runtime", "server"]) -> None:
+        """Accept completion in any order without relying on Qt timer ordering."""
+        self._pending.discard(phase)
+        if not self._pending and not self._published and not self._stopped:
+            try:
+                self._publish()
+            except Exception as error:
+                self.fail("publication", error)
+            else:
+                self._published = True
+
+    @property
+    def failed(self) -> bool:
+        """Expose failures that occurred before Qt entered its main event loop."""
+        return self._failed
+
+    def fail(
+        self, phase: Literal["appearance", "runtime", "publication"], error: Exception
+    ) -> None:
+        """Terminate failed initialization instead of stranding a ready-line reader."""
+        if self._stopped or self._published:
+            return
+        self._failed = True
+        self._stopped = True
+        logging.getLogger(__name__).error(
+            "Splash initialization failed | phase=%s | error_type=%s",
+            phase,
+            type(error).__name__,
+        )
+        self._abort()
+
+    def cancel(self) -> None:
+        """Prevent remaining deferred callbacks from publishing after user cancel."""
+        self._stopped = True
 
 
 @dataclass(slots=True)
@@ -98,6 +148,10 @@ def main(argv: list[str] | None = None) -> int:
 
     splash_module_ready_monotonic_ns = time.monotonic_ns()
 
+    readiness = _SplashHostReadiness(
+        lambda: _write_ready_message(stream=sys.stdout, server=server),
+        lambda: app.exit(1),
+    )
     splash = SplashWindow(
         backdrop_mode=_backdrop_mode_value(args.backdrop_mode),
         theme_mode=args.theme_mode or "dark",
@@ -108,9 +162,17 @@ def main(argv: list[str] | None = None) -> int:
 
     from substitute.app.bootstrap.theme import schedule_splash_theme
 
+    splash.runtimeInitialized.connect(lambda: readiness.complete("runtime"))
+    splash.runtimeInitializationFailed.connect(
+        lambda error: readiness.fail("runtime", error)
+    )
     splash.firstFramePainted.connect(
         lambda: schedule_splash_theme(
-            owner=splash, theme_mode=args.theme_mode, accent_color=args.accent_color
+            owner=splash,
+            theme_mode=args.theme_mode,
+            accent_color=args.accent_color,
+            on_complete=lambda: readiness.complete("appearance"),
+            on_failure=lambda error: readiness.fail("appearance", error),
         )
     )
 
@@ -173,14 +235,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     _clear_stale_cancel_signal(server=server)
     server.start()
-    splash.cancelRequested.connect(
-        lambda: _handle_shared_cancel_requested(
-            app=app,
-            stream=sys.stdout,
-            server=server,
-        )
-    )
-    _write_ready_message(stream=sys.stdout, server=server)
+
+    def cancel_startup() -> None:
+        """Retire readiness before publishing the user's authoritative cancellation."""
+        readiness.cancel()
+        _handle_shared_cancel_requested(app=app, stream=sys.stdout, server=server)
+
+    splash.cancelRequested.connect(cancel_startup)
+    readiness.complete("server")
 
     timeout_timer = QTimer()
     if args.maximum_lifetime_seconds > 0:
@@ -191,11 +253,16 @@ def main(argv: list[str] | None = None) -> int:
         )
         timeout_timer.start()
 
+    previous_quit_policy = app.quitOnLastWindowClosed()
+    app.setQuitOnLastWindowClosed(False)
     try:
+        if readiness.failed:
+            return 1
         return int(app.exec())
     finally:
         server.close()
         localization_runtime.manager.close()
+        app.setQuitOnLastWindowClosed(previous_quit_policy)
 
 
 def _handle_session_message(

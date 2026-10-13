@@ -32,6 +32,10 @@ def clean_frozen_parent_environment(
     """Remove PyInstaller runtime state before starting an external child."""
 
     child_environment = dict(os.environ if environment is None else environment)
+    # Unfrozen migration helpers can inherit bootloader state from old launchers.
+    for variable_name in tuple(child_environment):
+        if variable_name.startswith("_PYI_"):
+            child_environment.pop(variable_name, None)
     frozen_root_value = getattr(sys, "_MEIPASS", None)
     if not isinstance(frozen_root_value, str) or not frozen_root_value:
         return child_environment
@@ -56,9 +60,6 @@ def clean_frozen_parent_environment(
             variable_name,
             frozen_root=frozen_root,
         )
-    for variable_name in tuple(child_environment):
-        if variable_name.startswith("_PYI_"):
-            child_environment.pop(variable_name, None)
     return child_environment
 
 

@@ -158,11 +158,18 @@ def _build_crash_report_command(
 
 
 def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
-    """Resolve the UI child only from an authoritative installed Windows bundle."""
+    """Resolve installed UI independently of a onefile extraction directory."""
 
     if layout.target.operating_system is not LauncherOperatingSystem.WINDOWS:
         return None
-    repair_root = layout.target.install_root_for_repair_executable(Path(sys.executable))
+    executable = Path(sys.executable).resolve()
+    bundle_executable = layout.bundle_path / layout.target.executable_relative_path
+    if (
+        getattr(sys, "_sugarsubstitute_installed_launcher", False) is True
+        and executable == bundle_executable.resolve()
+    ):
+        return layout.launcher_ui_executable_path
+    repair_root = layout.target.install_root_for_repair_executable(executable)
     if repair_root == layout.root.resolve():
         return layout.launcher_ui_executable_path
     support_path = frozen_support_path()

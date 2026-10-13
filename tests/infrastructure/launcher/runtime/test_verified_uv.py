@@ -124,7 +124,11 @@ def test_runtime_provisioner_extracts_posix_uv_archive_as_executable(
 
     assert uv_executable == layout.runtime_dir / "uv" / "uv"
     assert uv_executable.read_bytes() == b"uv"
-    assert any(path == uv_executable and mode & 0o111 for path, mode in chmod_calls)
+    assert len(chmod_calls) == 1
+    staged_path, executable_mode = chmod_calls[0]
+    assert staged_path.parent == uv_executable.parent
+    assert executable_mode & 0o111
+    assert not staged_path.exists()
     assert not (layout.runtime_dir / "uv_extract").exists()
 
 

@@ -1,5 +1,5 @@
 schema_version = 1
-reviewed_sources_sha256 = "5c622803554b5c13dc99569d289b91accfa3ebb783d24ab0794a0beae79d13d0"
+reviewed_sources_sha256 = "8092e18f396dd55505d1efd0a371e34968951b7e2c0fc5060aea871090bb9da3"
 
 # Preservation and compatibility defaults are owned by classification in the
 # checker. Overrides below document formats with intentional historical readers.
@@ -435,3 +435,19 @@ owner = "sugarsubstitute_shared/session_recovery.py"
 constant = "SESSION_RECOVERY_RESULT_SCHEMA_VERSION"
 current_version = "1"
 classification = "recovery_journal"
+
+[[formats]]
+id = "launcher.baseline-recovery-request"
+owner = "launcher/sugarsubstitute_launcher/baseline_recovery_request.py"
+constant = "_RECOVERY_REQUEST_SCHEMA_VERSION"
+current_version = "1"
+classification = "recovery_journal"
+
+[[formats]]
+id = "launcher.baseline-replacement-journal"
+owner = "sugarsubstitute_shared/launcher_update/baseline_transaction.py"
+constant = "_BASELINE_JOURNAL_SCHEMA_VERSION"
+current_version = "2"
+accepted_versions = ["1", "2"]
+classification = "recovery_journal"
+compatibility = "compatible_reader"

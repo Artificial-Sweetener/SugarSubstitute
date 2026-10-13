@@ -284,6 +284,14 @@ def test_update_process_does_not_inherit_retired_crash_contract(
     }
     for key, value in readiness_values.items():
         monkeypatch.setenv(key, value)
+    monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+    inherited_bootloader_state = {
+        "_PYI_ARCHIVE_FILE": str(tmp_path / "SugarSubstitute.exe"),
+        "_PYI_APPLICATION_HOME_DIR": str(tmp_path / "retired-extraction"),
+        "_PYI_PARENT_PROCESS_LEVEL": "1",
+    }
+    for key, value in inherited_bootloader_state.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setenv("QUALIFICATION_TOKEN", "preserved")
     environments: list[dict[str, str]] = []
 
@@ -327,5 +335,6 @@ def test_update_process_does_not_inherit_retired_crash_contract(
         )
     assert len(environments) == 1
     assert CrashRunContext.from_environment(environments[0]) is None
+    assert not inherited_bootloader_state.keys() & environments[0].keys()
     assert not readiness_values.keys() & environments[0].keys()
     assert environments[0]["QUALIFICATION_TOKEN"] == "preserved"

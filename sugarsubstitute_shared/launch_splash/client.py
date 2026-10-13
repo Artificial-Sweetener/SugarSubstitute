@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
+import logging
 import socket
+import time
 
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 from sugarsubstitute_shared.launch_splash.progress import SplashProgress
@@ -35,6 +37,8 @@ from sugarsubstitute_shared.launch_splash.timing import (
     SPLASH_CLOSE_ACK_TIMEOUT_SECONDS,
 )
 
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_SPLASH_CLIENT_TIMEOUT_SECONDS = 2.0
 DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = SPLASH_CLOSE_ACK_TIMEOUT_SECONDS
@@ -119,15 +123,22 @@ class SocketSplashSessionClient:
         return True
 
     def close(self) -> bool:
-        """Close the shared splash session and report confirmed application."""
+        """Close the shared splash and retain safe diagnostics when ACK fails."""
 
+        started = time.monotonic()
         try:
             self._send(
                 "close",
                 line=None,
                 timeout_seconds=self._close_timeout_seconds,
             )
-        except OSError:
+        except OSError as error:
+            _LOGGER.warning(
+                "Splash close acknowledgement failed | host_pid=%d | error_type=%s | elapsed_ms=%.1f",
+                self._spec.host_pid,
+                type(error).__name__,
+                (time.monotonic() - started) * 1000.0,
+            )
             return False
         return True
 

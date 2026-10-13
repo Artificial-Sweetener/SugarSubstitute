@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -27,6 +28,11 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.interprocess_log_handler import (
     InterprocessFileHandler,
 )
+from launcher.sugarsubstitute_launcher.process_identity_evidence import (
+    LAUNCHER_PROCESS_EVENT,
+    capture_launcher_process_evidence,
+)
+from sugarsubstitute_shared.process_identity import ProcessIdentityError
 from sugarsubstitute_shared.windows_long_paths import logical_path
 
 
@@ -58,7 +64,27 @@ def configure_launcher_logging(*, layout: InstallLayout) -> Path:
                 )
             )
             root_logger.addHandler(handler)
+            _log_process_identity()
     return log_path
+
+
+def _log_process_identity() -> None:
+    """Retain fast-launcher ancestry without turning diagnostics into startup gates."""
+
+    logger = logging.getLogger(__name__)
+    try:
+        evidence = capture_launcher_process_evidence()
+    except ProcessIdentityError:
+        logger.warning(
+            "Launcher process identity capture failed; launch correlation unavailable",
+            exc_info=True,
+        )
+        return
+    logger.info(
+        "%s%s",
+        LAUNCHER_PROCESS_EVENT,
+        json.dumps(evidence.to_json(), separators=(",", ":")),
+    )
 
 
 def _file_handlers_for(

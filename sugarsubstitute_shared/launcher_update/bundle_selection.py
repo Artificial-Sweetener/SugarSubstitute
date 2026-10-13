@@ -160,11 +160,11 @@ class LauncherBundleSelection:
                         continue
                     try:
                         return self._read_generation(generation)
-                    except (ValueError, OSError) as error:
+                    except ValueError as error:
                         _LOGGER.warning(
                             "Selected launcher generation is unavailable: %s", error
                         )
-            except (ValueError, OSError) as error:
+            except ValueError as error:
                 _LOGGER.warning("Launcher selection is unreadable: %s", error)
         validate_launcher_bundle(
             bundle_dir=self._root,
@@ -226,7 +226,10 @@ class LauncherBundleSelection:
             raise ValueError("Launcher generation escapes its storage owner.")
         if (directory / "rejected.json").exists():
             raise ValueError("Launcher generation was retired after launch failure.")
-        record = read_json_object(directory / "bundle.json")
+        record_path = directory / "bundle.json"
+        if not record_path.is_file():
+            raise ValueError("Launcher generation was never sealed.")
+        record = read_json_object(record_path)
         version = record.get("version")
         if (
             record.get("schema_version") != 1

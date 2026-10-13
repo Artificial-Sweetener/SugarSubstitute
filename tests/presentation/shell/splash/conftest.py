@@ -19,10 +19,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+import os
+from pathlib import Path
 
 import pytest
 from PySide6.QtWidgets import QApplication
 
+from tests.presentation.shell.splash.terminal_diagnostics import TerminalDiagnostics
 from tests.support.qt.lifecycle import ensure_qt_application
 
 
@@ -32,3 +35,17 @@ def splash_shell_qt_application() -> Iterator[QApplication]:
 
     application = ensure_qt_application()
     yield application
+
+
+@pytest.fixture
+def splash_terminal_diagnostics(request: pytest.FixtureRequest) -> TerminalDiagnostics:
+    """Keep per-process native-crash evidence in the existing JUnit artifact tree."""
+    junit_path = request.config.getoption("xmlpath")
+    destination = (
+        Path(junit_path).parent
+        / "splash-diagnostics"
+        / f"{os.getpid()}-{request.node.name}.json"
+        if junit_path
+        else None
+    )
+    return TerminalDiagnostics(destination, nodeid=request.node.nodeid)

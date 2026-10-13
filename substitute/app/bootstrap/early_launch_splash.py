@@ -98,7 +98,9 @@ def start_early_launch_splash(
             language_identifier,
         )
     if isinstance(splash, NullLaunchSplashClient):
-        return None, None
+        return (
+            (splash, cancel_relay) if cancel_relay.cancel_requested() else (None, None)
+        )
     if adopted_spec is not None:
         _start_cancel_signal_watcher(
             spec=adopted_spec,
@@ -125,7 +127,11 @@ def start_early_launch_splash(
                 language_identifier,
             )
             if isinstance(splash, NullLaunchSplashClient):
-                return None, None
+                return (
+                    (splash, cancel_relay)
+                    if cancel_relay.cancel_requested()
+                    else (None, None)
+                )
             if adopted_spec is not None:
                 _start_cancel_signal_watcher(
                     spec=adopted_spec,
@@ -213,19 +219,6 @@ def start_shared_launch_splash(
     if process.stdout is None:
         log_warning(_LOGGER, "Shared launch splash host started without stdout")
         return NullLaunchSplashClient(), None
-    try:
-        spec = _read_shared_splash_ready_spec(process)
-    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-        log_warning(
-            _LOGGER, "Shared launch splash host did not become ready", error=error
-        )
-        return NullLaunchSplashClient(), None
-
-    _start_shared_splash_stdout_reader(
-        stream=process.stdout,
-        on_cancel_requested=on_cancel_requested,
-        process_pump_task_factory=process_pump_task_factory,
-    )
     if process.stderr is not None:
         stderr_stream = process.stderr
         process_pump_task_factory(
@@ -241,6 +234,22 @@ def start_shared_launch_splash(
             ),
             "substitute-shared-launch-splash-stderr",
         )
+    try:
+        spec = _read_shared_splash_ready_spec(process)
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        log_warning(
+            _LOGGER, "Shared launch splash host did not become ready", error=error
+        )
+        return NullLaunchSplashClient(), None
+    if spec is None:
+        on_cancel_requested()
+        return NullLaunchSplashClient(), None
+
+    _start_shared_splash_stdout_reader(
+        stream=process.stdout,
+        on_cancel_requested=on_cancel_requested,
+        process_pump_task_factory=process_pump_task_factory,
+    )
     return cast(LaunchSplashClient, SocketSplashSessionClient(spec)), spec
 
 
@@ -292,14 +301,16 @@ def _watch_cancel_signal(
 
 def _read_shared_splash_ready_spec(
     process: subprocess.Popen[str],
-) -> SplashSessionSpec:
-    """Read the shared splash host ready line from stdout."""
+) -> SplashSessionSpec | None:
+    """Read the ready spec, or return no endpoint when the user cancels first."""
 
     stdout = process.stdout
     if stdout is None:
         raise ValueError("Shared splash host stdout is unavailable.")
     line = stdout.readline()
     payload = json.loads(line)
+    if isinstance(payload, dict) and payload.get("type") == "cancel":
+        return None
     if not isinstance(payload, dict) or payload.get("type") != "ready":
         raise ValueError("Shared splash host did not send a ready message.")
     endpoint = payload.get("endpoint")

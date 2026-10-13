@@ -26,10 +26,16 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+from uuid import uuid4
 
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from tools.single_instance_packaged_launcher import PackagedLauncherProcess
+from tools.single_instance_qualification_diagnostics import (
+    capture_failure_diagnostics,
+    capture_success_diagnostics,
+)
 from tools.single_instance_cold_start_evidence import (
     SPLASH_SURFACE_EVIDENCE_ENV,
     assert_cold_start_snapshot,
@@ -55,8 +61,6 @@ from tools.single_instance_log_evidence import audit_launcher_log
 from tools.single_instance_windows_process_support import (
     _assert_no_live_ownership_files,
     _assert_single_child,
-    _capture_failure_diagnostics,
-    _capture_success_diagnostics,
     _terminate_installation_processes,
     _terminate_launchers,
     _terminate_qualification_apps,
@@ -99,7 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             launcher_bundle=arguments.launcher_bundle.resolve(),
             install_root=Path(temporary) / "SugarSubstitute",
         )
-        launchers: list[subprocess.Popen[bytes]] = []
+        launchers: list[PackagedLauncherProcess] = []
         try:
             primary = _launch(
                 layout,
@@ -119,7 +123,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             snapshot = capture_cold_start_snapshot(layout)
             assert_cold_start_snapshot(
                 snapshot,
-                expected_launcher_pids=(primary.pid,),
+                expected_launcher=primary.runtime_evidence,
                 expected_app_pid=app_pid,
             )
             evidence["startup_burst"] = {
@@ -149,11 +153,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             evidence["supervised_restart"] = {
                 **restart_evidence,
                 "restarted_application_pid": restarted_pid,
-                "supervisor_pid": primary.pid,
+                "supervisor_pid": primary.runtime_pid,
             }
 
-            psutil.Process(primary.pid).kill()
-            _wait_for_process_exit(primary.pid)
+            primary.kill()
+            primary.wait(timeout=_TIMEOUT_SECONDS)
+            _wait_for_process_exit(primary.runtime_pid)
             _wait_for_process_exit(restarted_pid)
             replacement = _launch(layout)
             launchers.append(replacement)
@@ -165,9 +170,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             _wait_for_splash_hosts_exit(layout)
             _assert_single_child(layout, replacement_pid)
             evidence["supervisor_crash_recovery"] = {
-                "terminated_supervisor_pid": primary.pid,
+                "terminated_supervisor_pid": primary.runtime_pid,
                 "terminated_child_pid": restarted_pid,
-                "replacement_supervisor_pid": replacement.pid,
+                "replacement_supervisor_pid": replacement.runtime_pid,
                 "replacement_child_pid": replacement_pid,
             }
 
@@ -200,7 +205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "child_pid": registered_prewindow_pid,
                 "forwarder_exit_code": prewindow_forwarder.returncode,
                 "presented_surface": prewindow_surface,
-                "supervisor_pid": prewindow_supervisor.pid,
+                "supervisor_pid": prewindow_supervisor.runtime_pid,
             }
             _terminate_supervisor_and_child(
                 prewindow_supervisor,
@@ -229,7 +234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "child_pid": state_child_pid,
                     "forwarder_exit_code": forwarder.returncode,
                     "presented_surface": state_surface,
-                    "supervisor_pid": state_supervisor.pid,
+                    "supervisor_pid": state_supervisor.runtime_pid,
                 }
                 _terminate_supervisor_and_child(
                     state_supervisor,
@@ -251,9 +256,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             _wait_for_process_exit(crashed_splash_pid)
             abandoned_forwarder = _launch(layout)
             launchers.append(abandoned_forwarder)
-            _wait_for_forwarder_acceptance(layout, abandoned_forwarder.pid)
-            psutil.Process(abandoned_forwarder.pid).kill()
-            _wait_for_process_exit(abandoned_forwarder.pid)
+            _wait_for_forwarder_acceptance(layout, abandoned_forwarder.runtime_pid)
+            abandoned_forwarder.kill()
+            _wait_for_process_exit(abandoned_forwarder.runtime_pid)
             surviving_forwarder = _launch(layout)
             launchers.append(surviving_forwarder)
             _release_application_registration(layout)
@@ -270,13 +275,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             _assert_single_child(layout, splash_crash_child_pid)
             evidence["splash_crash_and_dropped_acknowledgement"] = {
-                "abandoned_forwarder_pid": abandoned_forwarder.pid,
+                "abandoned_forwarder_pid": abandoned_forwarder.runtime_pid,
                 "application_pid": splash_crash_child_pid,
                 "crashed_splash_pid": crashed_splash_pid,
                 "forwarded_invocation_count": 2,
                 "presented_surface": splash_crash_surface,
                 "surviving_forwarder_exit_code": surviving_forwarder.returncode,
-                "supervisor_pid": splash_crash_supervisor.pid,
+                "supervisor_pid": splash_crash_supervisor.runtime_pid,
             }
             _terminate_supervisor_and_child(
                 splash_crash_supervisor,
@@ -294,7 +299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _wait_for_process_exit(crashed_child_pid)
             repair_child_pid = _wait_for_replacement_broker_child(
                 layout,
-                owner_pid=child_crash_supervisor.pid,
+                owner_pid=child_crash_supervisor.runtime_pid,
                 previous_child_pid=crashed_child_pid,
             )
             _wait_for_splash_hosts_exit(layout)
@@ -303,7 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             _wait_for_clean_exits((repair_forwarder,))
             repair_surface = _wait_for_forwarder_surface(
                 layout,
-                requester_pid=repair_forwarder.pid,
+                requester_pid=repair_forwarder.runtime_pid,
                 expected_surface="LauncherMainWindow",
             )
             _terminate_supervisor_and_child(
@@ -325,14 +330,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             _assert_single_child(layout, replacement_child_pid)
             evidence["child_crash_recovery"] = {
                 "crashed_child_pid": crashed_child_pid,
-                "departed_supervisor_pid": child_crash_supervisor.pid,
+                "departed_supervisor_pid": child_crash_supervisor.runtime_pid,
                 "repair_forwarder_exit_code": repair_forwarder.returncode,
                 "repair_surface": repair_surface,
                 "repair_ui_pid": repair_child_pid,
                 "replacement_forwarder_exit_code": child_crash_forwarder.returncode,
                 "presented_surface": child_crash_surface,
                 "replacement_child_pid": replacement_child_pid,
-                "replacement_supervisor_pid": child_crash_replacement.pid,
+                "replacement_supervisor_pid": child_crash_replacement.runtime_pid,
             }
             _terminate_supervisor_and_child(
                 child_crash_replacement,
@@ -363,9 +368,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "application_pid": graceful_child_pid,
                 "forwarder_exit_code": graceful_forwarder.returncode,
                 "relaunched_application_pid": rapid_child_pid,
-                "relaunched_supervisor_pid": rapid_relaunch.pid,
+                "relaunched_supervisor_pid": rapid_relaunch.runtime_pid,
                 "supervisor_exit_code": graceful_supervisor.returncode,
-                "supervisor_pid": graceful_supervisor.pid,
+                "supervisor_pid": graceful_supervisor.runtime_pid,
             }
             _terminate_supervisor_and_child(rapid_relaunch, rapid_child_pid)
             _assert_no_live_ownership_files(layout)
@@ -375,15 +380,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "peer_scope": "same-user-session",
                 "remote_clients": "rejected",
             }
+            evidence["launcher_invocations"] = [
+                process.runtime_evidence.to_json() for process in launchers
+            ]
             evidence["launcher_log"] = audit_launcher_log(layout)
-            _capture_success_diagnostics(layout, artifact_dir)
+            capture_success_diagnostics(layout, artifact_dir)
             evidence["launcher_surfaces"] = qualify_launcher_surfaces(
                 launcher_bundle=arguments.launcher_bundle.resolve(),
                 temporary_root=Path(temporary),
                 artifact_dir=artifact_dir,
             )
         except BaseException:
-            _capture_failure_diagnostics(layout, artifact_dir)
+            capture_failure_diagnostics(layout, artifact_dir, launchers)
             raise
         finally:
             _terminate_launchers(launchers)
@@ -425,7 +433,7 @@ def _launch(
     exit_after_invocations: int | None = None,
     initial_window_state: str | None = None,
     gate_window_construction: bool = False,
-) -> subprocess.Popen[bytes]:
+) -> PackagedLauncherProcess:
     """Start one packaged launcher invocation without desktop surfaces."""
 
     environment = os.environ.copy()
@@ -448,15 +456,19 @@ def _launch(
         environment[APPLICATION_INITIAL_WINDOW_STATE_ENV] = initial_window_state
     if gate_window_construction:
         environment[APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV] = "1"
-    return subprocess.Popen(  # noqa: S603
-        [str(layout.executable_path), "--no-update-check", "--locale=en"],
-        cwd=layout.root,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=environment,
-        shell=False,
-    )
+    layout.logs_dir.mkdir(parents=True, exist_ok=True)
+    output_path = layout.logs_dir / f"qualification-bootstrap-{uuid4().hex}.log"
+    with output_path.open("wb") as output:
+        process = subprocess.Popen(  # noqa: S603
+            [str(layout.executable_path), "--no-update-check", "--locale=en"],
+            cwd=layout.root,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            env=environment,
+            shell=False,
+        )
+    return PackagedLauncherProcess(process, layout, output_path=output_path)
 
 
 def _wait_for_preregistration(layout: InstallLayout) -> None:
@@ -510,7 +522,7 @@ def _wait_for_new_app_pid(
     layout: InstallLayout,
     *,
     previous_pid: int | None = None,
-    supervisor: subprocess.Popen[bytes] | None = None,
+    supervisor: PackagedLauncherProcess | None = None,
 ) -> int:
     """Wait for a live registered child with a new process identity."""
 
@@ -519,7 +531,7 @@ def _wait_for_new_app_pid(
     def current_pid() -> int | None:
         if supervisor is not None and supervisor.poll() is not None:
             raise RuntimeError(
-                f"Application supervisor {supervisor.pid} exited with "
+                f"Application supervisor {supervisor.runtime_pid} exited with "
                 f"{supervisor.returncode} before its child registered."
             )
         try:

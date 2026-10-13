@@ -26,6 +26,8 @@ from pathlib import Path
 import sys
 import time
 
+from sugarsubstitute_shared.process_identity import capture_process_identity
+
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QApplication, QWidget
@@ -202,7 +204,14 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     owner_marker_path.write_text(
-        json.dumps({"pid": os.getpid(), "parent_pid": os.getppid()}, sort_keys=True),
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "parent_pid": os.getppid(),
+                "created_at": capture_process_identity(os.getpid()).created_at,
+            },
+            sort_keys=True,
+        ),
         encoding="utf-8",
     )
     QTimer.singleShot(120_000, application.quit)
