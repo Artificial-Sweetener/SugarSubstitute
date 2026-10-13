@@ -18,14 +18,22 @@
 
 from __future__ import annotations
 
+import weakref
+from threading import Event
+
+import pytest
+
+from substitute.infrastructure.execution import ThreadPoolExecutionLane
+from tests.support.execution import RecordingDispatcher
+
 
 from substitute.application.generation import (
     GenerationPreparationResult,
 )
-from tests.support.execution import QueuedTaskSubmitter
-from substitute.presentation.shell.workspace_generation_controller import (
+from substitute.presentation.shell.workspace_generation_preparation_executor import (
     GenerationPreparationExecutor,
 )
+from tests.support.execution import QueuedTaskSubmitter
 
 
 def test_generation_preparation_executor_close_cancels_and_suppresses_callbacks() -> (
@@ -70,3 +78,127 @@ def test_generation_preparation_executor_close_cancels_and_suppresses_callbacks(
         assert "closed" in str(error)
     else:
         raise AssertionError("closed generation preparation accepted new work")
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_cancel_pending_drops_published_outcomes_and_accepts_new_work(
+    failure: bool,
+) -> None:
+    """Cancellation must revoke already-published success and failure callbacks."""
+
+    dispatcher = RecordingDispatcher()
+    lane = ThreadPoolExecutionLane(
+        name="preparation-cancellation",
+        max_workers=1,
+        queue_capacity=8,
+        thread_name_prefix="preparation-cancellation",
+        dispatcher=dispatcher,
+    )
+    executor = GenerationPreparationExecutor(lane)
+    completed: list[GenerationPreparationResult] = []
+    failed: list[BaseException] = []
+    old_result = GenerationPreparationResult(snapshots=(), scene_run_id="cancelled")
+    new_result = GenerationPreparationResult(snapshots=(), scene_run_id="new")
+
+    def prepare_old() -> GenerationPreparationResult:
+        """Settle in the worker while holding publication at the owner-thread boundary."""
+
+        if failure:
+            raise RuntimeError("cancelled preparation failed")
+        return old_result
+
+    try:
+        executor.submit(
+            prepare_snapshots=prepare_old,
+            on_completed=completed.append,
+            on_failed=failed.append,
+        )
+        dispatcher.wait_for_callbacks(2, timeout_seconds=5)
+        executor.cancel_pending()
+        executor.cancel_pending()
+        executor.submit(
+            prepare_snapshots=lambda: new_result,
+            on_completed=completed.append,
+            on_failed=failed.append,
+        )
+        dispatcher.wait_for_callbacks(4, timeout_seconds=5)
+        dispatcher.run_all()
+        assert completed == [new_result]
+        assert failed == []
+    finally:
+        executor.close()
+        lane.shutdown(wait=True)
+        dispatcher.run_all()
+
+
+def test_cancel_pending_releases_callbacks_without_closing_executor() -> None:
+    """Pending UI owners should be released immediately when queue admission is revoked."""
+
+    submitter = QueuedTaskSubmitter()
+    executor = GenerationPreparationExecutor(submitter)
+
+    class Observer:
+        """Provide an independently collectable presentation callback owner."""
+
+        def completed(self, result: GenerationPreparationResult) -> None:
+            """Accept a preparation result without retaining it."""
+
+    observer = Observer()
+    observer_ref = weakref.ref(observer)
+    executor.submit(
+        prepare_snapshots=lambda: GenerationPreparationResult(snapshots=()),
+        on_completed=observer.completed,
+        on_failed=lambda _error: None,
+    )
+    del observer
+    assert observer_ref() is not None
+    executor.cancel_pending()
+    assert observer_ref() is None
+    assert submitter.cancellations[0].is_cancelled
+    executor.close()
+
+
+def test_cancel_pending_running_worker_finishes_without_delivering_result() -> None:
+    """Revoke a running noncooperative preparation without blocking or leaking its lane."""
+
+    started = Event()
+    release = Event()
+    dispatcher = RecordingDispatcher()
+    lane = ThreadPoolExecutionLane(
+        name="running-preparation",
+        max_workers=1,
+        queue_capacity=8,
+        thread_name_prefix="running-preparation",
+        dispatcher=dispatcher,
+    )
+    executor = GenerationPreparationExecutor(lane)
+    completed: list[GenerationPreparationResult] = []
+    failed: list[BaseException] = []
+
+    def prepare() -> GenerationPreparationResult:
+        """Hold real running work until the owner has revoked its admission."""
+
+        started.set()
+        assert release.wait(timeout=5), "Owner never released the preparation barrier"
+        return GenerationPreparationResult(snapshots=(), scene_run_id="cancelled")
+
+    try:
+        executor.submit(
+            prepare_snapshots=prepare,
+            on_completed=completed.append,
+            on_failed=failed.append,
+        )
+        assert started.wait(timeout=5), "Preparation worker did not start"
+        executor.cancel_pending()
+        assert lane.pending_count == 1
+        release.set()
+        dispatcher.wait_for_callbacks(2, timeout_seconds=5)
+        dispatcher.run_all()
+        assert completed == []
+        assert failed == []
+    finally:
+        release.set()
+        executor.close()
+        lane.shutdown(wait=True)
+        dispatcher.run_all()
+    assert lane.pending_count == 0

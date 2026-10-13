@@ -21,6 +21,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, cast
 
+from PySide6.QtCore import QObject
+
+from substitute.presentation.editor.panel.numeric_field_reveal_projection import (
+    NumericFieldRevealProjection,
+)
+
 from substitute.presentation.editor.panel.choice_field_state_controller import (
     ChoiceFieldStateController,
     string_signal,
@@ -124,8 +130,16 @@ class FieldWidgetStateController:
 
         connect_signal(signal, on_changed)
 
-    def wire_numeric_state(self, widget: object, cube_state: object) -> None:
-        """Bind a numeric widget exposing value and valueChanged."""
+    def wire_numeric_state(
+        self, widget: object, cube_state: object, *, project_on_reveal: bool = True
+    ) -> None:
+        """Bind a numeric value owner and refresh supported controls on reveal.
+
+        Legacy wrappers exposing only a child spinbox retain their existing
+        wiring: blocking that child would suppress the wrapper's internal
+        synchronization. Composite value owners bind through their public
+        control instead.
+        """
 
         self.wire_widget_state(
             widget,
@@ -134,6 +148,25 @@ class FieldWidgetStateController:
             set_val_func=lambda field, value: field.setValue(value),
             signal=getattr(widget, "valueChanged"),
         )
+        binding = EditorFieldBinding.from_widget(widget)
+        if project_on_reveal and isinstance(widget, QObject) and binding is not None:
+            NumericFieldRevealProjection(
+                widget,
+                read_value=lambda: self._numeric_display_value(cube_state, binding),
+                current_value=lambda: getattr(widget, "value")(),
+                set_value=lambda value: getattr(widget, "setValue")(value),
+            )
+
+    def _numeric_display_value(
+        self, cube_state: object, binding: EditorFieldBinding
+    ) -> object:
+        """Prefer authored numbers while preserving resolved defaults for blanks."""
+
+        current_state = self._state_resolver.resolve(cube_state, binding.cube_alias)
+        value = self._value_store.field_value(current_state, binding)
+        if isinstance(value, (int, float)):
+            return value
+        return self._value_store.display_value(current_state, binding)
 
     def wire_combo_state(self, combo: object, cube_state: object) -> None:
         """Bind a combo-box selection to cube field state."""

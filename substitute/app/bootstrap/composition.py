@@ -1369,9 +1369,9 @@ def _build_main_window_dependencies(
         PromptEditorRuntimeServices,
     )
     from substitute.presentation.shell.workspace_generation_controller import (
-        GenerationPreparationExecutor,
         WorkspaceGenerationController,
     )
+    from substitute.presentation.shell import workspace_generation_preparation_executor
     from substitute.presentation.shell.model_metadata_context_action_handler import (
         ModelMetadataContextActionScheduler,
     )
@@ -1994,7 +1994,7 @@ def _build_main_window_dependencies(
     workspace_generation_controller = WorkspaceGenerationController(
         generation_service,
         generation_job_queue_service,
-        GenerationPreparationExecutor(
+        workspace_generation_preparation_executor.GenerationPreparationExecutor(
             generation_preparation_submitter,
             close_submitter=generation_preparation_submitter.close,
         ),

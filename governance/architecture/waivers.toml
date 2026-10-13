@@ -706,7 +706,7 @@ kind = "structural"
 justification = "The module is one tolerant parser whose emphasis, wildcard, LoRA, quote, and syntax-span routines cooperate in a single source scan and return one PromptDocument. Their nesting, range, and depth invariants are shared across syntax families."
 issue = "chore:SS-WAIVER-S016"
 review_by = 2026-12-15
-max_lines = 673
+max_lines = 668
 
 [[waivers]]
 id = "SS-WAIVER-S017"
@@ -1176,10 +1176,10 @@ owner = "workspace generation activation"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workspace_generation_controller.py"
 kind = "structural"
-justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, post-admission seed rearming, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
+justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation admission, post-admission seed rearming, UI callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state. Detached task execution, callback retention, and task cancellation now belong to GenerationPreparationExecutor."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 827
+max_lines = 735
 
 [[waivers]]
 id = "SS-WAIVER-S069"

@@ -22,7 +22,6 @@ from typing import Any
 from substitute.application.generation import (
     GenerationFailure,
     GenerationJobSnapshot,
-    GenerationPreparationResult,
     GenerationRequest,
     GenerationRunStarted,
 )
@@ -76,17 +75,6 @@ class GenerationUiBindings:
         ]
         | None = ...,
         capture_queued_generation_preparation: Callable[[], object] | None = ...,
-    ) -> None: ...
-
-class GenerationPreparationExecutor:
-    def __init__(self, *args: Any, **kwargs: Any) -> None: ...
-    def close(self) -> None: ...
-    def submit(
-        self,
-        *,
-        prepare_snapshots: Callable[[], GenerationPreparationResult],
-        on_completed: Callable[[GenerationPreparationResult], None],
-        on_failed: Callable[[BaseException], None],
     ) -> None: ...
 
 class GenerationPreflightError(RuntimeError):

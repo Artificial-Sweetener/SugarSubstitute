@@ -313,7 +313,7 @@ def _is_prompt_quote_opener(
     return (
         character in QUOTE_CHARACTERS
         and _quote_delimiters_active(bracket_stack)
-        and _is_quote_delimiter(text=text, index=index, quote=character)
+        and is_structural_quote(text, index, character, opening=True)
     )
 
 
@@ -331,24 +331,16 @@ def _is_nested_quote_opener(
         and not any(
             expected_closer == ">" for expected_closer, _literal in bracket_stack
         )
-        and _is_quote_delimiter(text=text, index=index, quote=character)
+        and is_structural_quote(text, index, character, opening=True)
     )
 
 
 def _is_quote_closer(*, text: str, index: int, quote: str) -> bool:
     """Return whether one character closes the current quote."""
 
-    return text[index] == quote and _is_quote_delimiter(
-        text=text,
-        index=index,
-        quote=quote,
+    return text[index] == quote and is_structural_quote(
+        text, index, quote, opening=False
     )
-
-
-def _is_quote_delimiter(*, text: str, index: int, quote: str) -> bool:
-    """Return whether a quote mark is structural rather than an apostrophe."""
-
-    return is_structural_quote(text, index, quote)
 
 
 def _find_final_top_level_colon(
