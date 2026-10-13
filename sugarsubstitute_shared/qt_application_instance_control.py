@@ -37,7 +37,7 @@ from sugarsubstitute_shared.application_supervisor_client import (
     ApplicationSupervisorClient,
 )
 from sugarsubstitute_shared.process_identity import ProcessIdentity
-from sugarsubstitute_shared.qt_window_presentation import request_window_presentation
+from sugarsubstitute_shared.qt_invocation_presentation import QtInvocationPresentation
 
 
 _ACTIVE_CLIENT: ApplicationInstanceControlClient | None = None
@@ -92,7 +92,7 @@ class ApplicationInstanceControlClient(QObject):
         super().__init__()
         self._client = client
         self._pending_invocations: deque[RoutedApplicationInvocation] = deque()
-        self._presentations: dict[int, tuple[QWidget, list[str]]] = {}
+        self._presentations = QtInvocationPresentation(client.complete_invocation)
         self._closing_windows: set[int] = set()
         self._known_windows: list[QWidget] = [
             window for window in QApplication.topLevelWidgets() if window.isVisible()
@@ -142,7 +142,7 @@ class ApplicationInstanceControlClient(QObject):
         application = QCoreApplication.instance()
         if application is not None:
             application.removeEventFilter(self)
-        self._complete_all_presentations(outcome="unavailable")
+        self._presentations.close()
         while self._pending_invocations:
             request = self._pending_invocations.popleft()
             self._client.complete_invocation(
@@ -164,10 +164,10 @@ class ApplicationInstanceControlClient(QObject):
             self._remember_window(watched)
             self._present_pending_invocations(window=watched)
         elif event.type() == QEvent.Type.Paint and isinstance(watched, QWidget):
-            self._complete_window_presentations(watched, outcome="presented")
+            self._presentations.complete_window(watched, outcome="presented")
         elif event.type() == QEvent.Type.Close and isinstance(watched, QWidget):
             self._closing_windows.add(id(watched))
-            self._complete_window_presentations(watched, outcome="unavailable")
+            self._presentations.complete_window(watched, outcome="unavailable")
             self._forget_window(watched)
             QTimer.singleShot(
                 0,
@@ -175,7 +175,7 @@ class ApplicationInstanceControlClient(QObject):
                 lambda: self._restore_rejected_close(watched),
             )
         elif event.type() == QEvent.Type.Destroy and isinstance(watched, QWidget):
-            self._complete_window_presentations(watched, outcome="unavailable")
+            self._presentations.complete_window(watched, outcome="unavailable")
             self._forget_window(watched)
             self._closing_windows.discard(id(watched))
         return False
@@ -195,7 +195,7 @@ class ApplicationInstanceControlClient(QObject):
                 len(self._pending_invocations),
             )
             return
-        self._present_invocations(window, (invocation,))
+        self._presentations.present(window, (invocation.request_id,))
 
     def _present_pending_invocations(self, *, window: QWidget) -> None:
         """Present one newly available surface for every retained invocation."""
@@ -204,37 +204,8 @@ class ApplicationInstanceControlClient(QObject):
             return
         invocations = tuple(self._pending_invocations)
         self._pending_invocations.clear()
-        self._present_invocations(window, invocations)
-
-    def _present_invocations(
-        self,
-        window: QWidget,
-        invocations: tuple[RoutedApplicationInvocation, ...],
-    ) -> None:
-        """Present one surface and await its next paint before acknowledging."""
-
-        self._present_window(window)
-        key = id(window)
-        presentation = self._presentations.get(key)
-        if presentation is None:
-            request_ids: list[str] = []
-            self._presentations[key] = (window, request_ids)
-        else:
-            request_ids = presentation[1]
-        request_ids.extend(invocation.request_id for invocation in invocations)
-        _LOGGER.info(
-            "Requested application surface presentation | surface=%s | request_ids=%s",
-            type(window).__name__,
-            ",".join(invocation.request_id for invocation in invocations),
-        )
-        window.update()
-        QTimer.singleShot(
-            2000,
-            window,
-            lambda: self._complete_window_presentations(
-                window,
-                outcome="unavailable",
-            ),
+        self._presentations.present(
+            window, tuple(invocation.request_id for invocation in invocations)
         )
 
     def _remember_window(self, window: QWidget) -> None:
@@ -262,48 +233,6 @@ class ApplicationInstanceControlClient(QObject):
         self._closing_windows.discard(id(window))
         self._remember_window(window)
         self._present_pending_invocations(window=window)
-
-    def _complete_window_presentations(
-        self,
-        window: QWidget,
-        *,
-        outcome: ApplicationInvocationOutcome,
-    ) -> None:
-        """Complete every invocation waiting on one exact surface."""
-
-        presentation = self._presentations.pop(id(window), None)
-        if presentation is None or presentation[0] is not window:
-            return
-        surface = type(window).__name__
-        for request_id in presentation[1]:
-            _LOGGER.info(
-                "Completed application surface presentation | request_id=%s | "
-                "surface=%s | outcome=%s",
-                request_id,
-                surface,
-                outcome,
-            )
-            self._client.complete_invocation(
-                request_id,
-                outcome=outcome,
-                surface=surface,
-            )
-
-    def _complete_all_presentations(
-        self,
-        *,
-        outcome: ApplicationInvocationOutcome,
-    ) -> None:
-        """Complete every outstanding presentation during control teardown."""
-
-        for window, _request_ids in tuple(self._presentations.values()):
-            self._complete_window_presentations(window, outcome=outcome)
-
-    @staticmethod
-    def _present_window(window: QWidget) -> None:
-        """Reveal and request activation for one concrete application surface."""
-
-        request_window_presentation(window)
 
     def _quit_after_supervisor_disconnect(self) -> None:
         """Exit before another supervisor can launch a competing child."""

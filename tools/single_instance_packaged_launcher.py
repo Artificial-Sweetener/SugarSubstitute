@@ -23,12 +23,14 @@ child's identity even when a forwarder exits before the observer can sample it.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 import json
 import logging
 import os
 from pathlib import Path
 import subprocess
 import time
+from uuid import uuid4
 
 import psutil  # type: ignore[import-untyped]
 
@@ -204,6 +206,28 @@ def validate_onefile_runtime(
         or _path_key(evidence.parent_executable) != expected_image
     ):
         raise AssertionError(f"Invalid onefile runtime relationship: {evidence}")
+
+
+def start_packaged_launcher(
+    layout: InstallLayout,
+    *,
+    command: Sequence[str],
+    environment: Mapping[str, str],
+) -> PackagedLauncherProcess:
+    """Retain each native bootstrap's output before its runtime starts logging."""
+    layout.logs_dir.mkdir(parents=True, exist_ok=True)
+    output_path = layout.logs_dir / f"qualification-bootstrap-{uuid4().hex}.log"
+    with output_path.open("wb") as output:
+        process = subprocess.Popen(  # noqa: S603
+            command,
+            cwd=layout.root,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            env=environment,
+            shell=False,
+        )
+    return PackagedLauncherProcess(process, layout, output_path=output_path)
 
 
 def _path_key(value: str) -> str:

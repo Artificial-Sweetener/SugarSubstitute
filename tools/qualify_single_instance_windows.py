@@ -23,15 +23,16 @@ from collections.abc import Sequence
 import json
 import os
 from pathlib import Path
-import subprocess
 import tempfile
 import time
-from uuid import uuid4
 
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from tools.single_instance_packaged_launcher import PackagedLauncherProcess
+from tools.single_instance_packaged_launcher import (
+    PackagedLauncherProcess,
+    start_packaged_launcher,
+)
 from tools.single_instance_qualification_diagnostics import (
     capture_failure_diagnostics,
     capture_success_diagnostics,
@@ -112,8 +113,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             launchers.append(primary)
             _wait_for_preregistration(layout)
-            burst = [_launch(layout) for _index in range(_BURST_SIZE)]
-            launchers.extend(burst)
+            burst: list[PackagedLauncherProcess] = []
+            for _index in range(_BURST_SIZE):
+                process = _launch(layout)
+                launchers.append(process)
+                burst.append(process)
             _release_application_registration(layout)
             _wait_for_clean_exits(burst)
             app_pid = _wait_for_new_app_pid(layout, supervisor=primary)
@@ -132,8 +136,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "forwarder_exit_codes": [process.returncode for process in burst],
             }
 
-            steady_burst = [_launch(layout) for _index in range(_BURST_SIZE)]
-            launchers.extend(steady_burst)
+            steady_burst: list[PackagedLauncherProcess] = []
+            for _index in range(_BURST_SIZE):
+                process = _launch(layout)
+                launchers.append(process)
+                steady_burst.append(process)
             _wait_for_clean_exits(steady_burst)
             restart_evidence = _wait_for_restart_evidence(
                 layout,
@@ -456,19 +463,11 @@ def _launch(
         environment[APPLICATION_INITIAL_WINDOW_STATE_ENV] = initial_window_state
     if gate_window_construction:
         environment[APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV] = "1"
-    layout.logs_dir.mkdir(parents=True, exist_ok=True)
-    output_path = layout.logs_dir / f"qualification-bootstrap-{uuid4().hex}.log"
-    with output_path.open("wb") as output:
-        process = subprocess.Popen(  # noqa: S603
-            [str(layout.executable_path), "--no-update-check", "--locale=en"],
-            cwd=layout.root,
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            env=environment,
-            shell=False,
-        )
-    return PackagedLauncherProcess(process, layout, output_path=output_path)
+    return start_packaged_launcher(
+        layout,
+        command=[str(layout.executable_path), "--no-update-check", "--locale=en"],
+        environment=environment,
+    )
 
 
 def _wait_for_preregistration(layout: InstallLayout) -> None:

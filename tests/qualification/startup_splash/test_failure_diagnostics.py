@@ -236,7 +236,7 @@ def test_each_launch_retains_its_own_bootstrap_output(
         return _Bootstrap()
 
     monkeypatch.setattr(
-        "tools.qualify_single_instance_windows.subprocess.Popen", launch
+        "tools.single_instance_packaged_launcher.subprocess.Popen", launch
     )
     monkeypatch.setattr(
         "tools.single_instance_packaged_launcher.capture_process_identity",

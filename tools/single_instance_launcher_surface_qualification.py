@@ -30,8 +30,12 @@ from typing import TypeVar
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from tools.single_instance_packaged_launcher import PackagedLauncherProcess
+from tools.single_instance_packaged_launcher import (
+    PackagedLauncherProcess,
+    start_packaged_launcher,
+)
 from tools.single_instance_log_evidence import audit_launcher_log
+from tools.single_instance_qualification_diagnostics import capture_failure_diagnostics
 from tools.single_instance_windows_process_support import _terminate_launchers
 from tools.single_instance_qualification_installation import (
     prepare_launcher_surface_qualification_installation,
@@ -57,11 +61,11 @@ def qualify_launcher_surfaces(
     )
     processes: list[PackagedLauncherProcess] = []
     try:
-        setup_launches = [
-            _launch_launcher(layout, repair=False)
-            for _index in range(_SETUP_BURST_SIZE)
-        ]
-        processes.extend(setup_launches)
+        setup_launches: list[PackagedLauncherProcess] = []
+        for _index in range(_SETUP_BURST_SIZE):
+            process = _launch_launcher(layout, repair=False)
+            processes.append(process)
+            setup_launches.append(process)
         setup_owner = _wait_for_single_owner(setup_launches)
         setup_child_pid = _wait_for_registered_child(
             layout,
@@ -154,6 +158,11 @@ def qualify_launcher_surfaces(
                 ),
             ),
         }
+    except BaseException:
+        capture_failure_diagnostics(
+            layout, artifact_dir / "launcher-surfaces", processes
+        )
+        raise
     finally:
         _terminate_launchers(processes)
         _terminate_installation_processes(layout)
@@ -176,16 +185,7 @@ def _launch_launcher(
         command.append("--repair")
     environment = os.environ.copy()
     environment["QT_QPA_PLATFORM"] = "offscreen"
-    process = subprocess.Popen(  # noqa: S603
-        command,
-        cwd=layout.root,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=environment,
-        shell=False,
-    )
-    return PackagedLauncherProcess(process, layout)
+    return start_packaged_launcher(layout, command=command, environment=environment)
 
 
 def _wait_for_single_owner(
