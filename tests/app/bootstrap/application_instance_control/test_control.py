@@ -21,7 +21,7 @@ from collections.abc import Callable
 from pathlib import Path
 import sys
 
-from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, QTimer
 from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import QApplication, QFileDialog, QWidget
 from pytest import MonkeyPatch
@@ -37,6 +37,79 @@ from sugarsubstitute_shared.application_instance_protocol import (
 )
 from tests.support.qt.lifecycle import ensure_qt_application
 from tests.support.qt.semantic_wait import wait_for_qt_condition
+
+
+def test_completed_presentation_deadline_cannot_expire_a_later_request(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Keep a previously painted request's deadline from retiring fresh activation."""
+    application = ensure_qt_application()
+    deadlines: list[Callable[[], None]] = []
+    schedule = QTimer.singleShot
+
+    def capture_deadline(delay: int, *arguments: object) -> None:
+        """Control deadline delivery while retaining actual Qt paint and activation."""
+        callback = arguments[-1]
+        assert callable(callback)
+        if delay == 2000:
+            deadlines.append(callback)
+        elif len(arguments) == 2:
+            context = arguments[0]
+            assert isinstance(context, QObject)
+            schedule(delay, context, callback)
+        else:
+            schedule(delay, callback)
+
+    monkeypatch.setattr(QTimer, "singleShot", capture_deadline)
+    client = _RecordingSupervisorClient()
+    control = ApplicationInstanceControlClient(client)
+    window = _ActivationTrackingWindow()
+    window.show()
+    application.processEvents()
+    assert client.handler is not None
+    try:
+        client.handler(
+            RoutedApplicationInvocation("first", ApplicationInvocation.capture([]))
+        )
+        wait_for_qt_condition(lambda: bool(client.receipts), timeout_ms=2000)
+        assert client.receipts == [("first", "presented", "_ActivationTrackingWindow")]
+        assert len(deadlines) == 1
+
+        window.setUpdatesEnabled(False)
+        client.handler(
+            RoutedApplicationInvocation("later", ApplicationInvocation.capture([]))
+        )
+        wait_for_qt_condition(lambda: len(deadlines) == 2, timeout_ms=2000)
+        deadlines[0]()
+        assert client.receipts == [("first", "presented", "_ActivationTrackingWindow")]
+
+        window.setUpdatesEnabled(True)
+        wait_for_qt_condition(lambda: len(client.receipts) == 2, timeout_ms=2000)
+        assert client.receipts[-1] == (
+            "later",
+            "presented",
+            "_ActivationTrackingWindow",
+        )
+        deadlines[1]()
+        assert len(client.receipts) == 2
+
+        window.setUpdatesEnabled(False)
+        client.handler(
+            RoutedApplicationInvocation("unpainted", ApplicationInvocation.capture([]))
+        )
+        wait_for_qt_condition(lambda: len(deadlines) == 3, timeout_ms=2000)
+        deadlines[2]()
+        assert client.receipts[-1] == (
+            "unpainted",
+            "unavailable",
+            "_ActivationTrackingWindow",
+        )
+        assert len(client.receipts) == 3
+    finally:
+        control.close()
+        window.close()
+        window.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 class _RecordingSupervisorClient:
