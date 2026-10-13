@@ -41,13 +41,20 @@ def is_escaped_prompt_character(text: str, index: int) -> bool:
     return slash_count % 2 == 1
 
 
-def is_structural_quote(text: str, index: int, quote: str) -> bool:
-    """Return whether a quote mark is structural rather than an apostrophe."""
+def is_structural_quote(text: str, index: int, quote: str, *, opening: bool) -> bool:
+    """Keep word apostrophes literal while allowing quoted phrases to close.
+
+    A trailing apostrophe cannot open a quoted phrase after a word. Once a
+    phrase is open, its closing delimiter can follow a word, but an internal
+    contraction remains literal.
+    """
 
     if quote != "'":
         return True
     previous_character = text[index - 1] if index > 0 else ""
     next_character = text[index + 1] if index + 1 < len(text) else ""
+    if opening:
+        return not previous_character.isalnum()
     return not (previous_character.isalnum() and next_character.isalnum())
 
 
@@ -62,7 +69,9 @@ def balanced_parenthesis_pairs(text: str) -> tuple[PromptParenthesisPair, ...]:
         if is_escaped_prompt_character(text, index):
             continue
         if quote is not None:
-            if character == quote and is_structural_quote(text, index, quote):
+            if character == quote and is_structural_quote(
+                text, index, quote, opening=False
+            ):
                 quote = None
             continue
         if character == "<":
@@ -74,7 +83,7 @@ def balanced_parenthesis_pairs(text: str) -> tuple[PromptParenthesisPair, ...]:
         if (
             character in "\"'"
             and angle_depth == 0
-            and is_structural_quote(text, index, character)
+            and is_structural_quote(text, index, character, opening=True)
         ):
             quote = character
             continue

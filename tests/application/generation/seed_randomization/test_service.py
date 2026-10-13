@@ -24,17 +24,14 @@ from pathlib import Path
 from substitute.application.generation.seed_randomization_service import (
     SeedRandomizationService,
 )
-from substitute.application.node_behavior import (
-    EditorBehaviorSnapshot,
-    FieldBehavior,
-    ResolvedFieldSpec,
-)
 from substitute.domain.generation.seed_control import SeedControlState, SeedMode
-from substitute.domain.node_behavior import OverrideBehavior
-from substitute.domain.node_behavior import FieldPresentation
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.application.workflows import DIRECT_WORKFLOW_SECTION_KEY
-from substitute.domain.workflow import CubeState, WorkflowState
+from substitute.domain.workflow import WorkflowState
+from tests.application.generation.seed_randomization.seed_owner_fixtures import (
+    seed_snapshot,
+    seed_workflow,
+)
 
 
 def _seed_value(workflow: WorkflowState, field_key: str = "seed") -> object:
@@ -47,64 +44,13 @@ def _seed_value(workflow: WorkflowState, field_key: str = "seed") -> object:
     return inputs[field_key]
 
 
-def _workflow(*, seed_mode: SeedMode | None = None) -> WorkflowState:
-    """Build a workflow with one KSampler seed field."""
-
-    cube = CubeState(
-        cube_id="owner/repo/demo.cube",
-        version="1.0.0",
-        alias="Demo",
-        original_cube={"nodes": {}},
-        buffer={"nodes": {"KSampler": {"inputs": {"seed": 7}}}},
-    )
-    if seed_mode is not None:
-        cube.field_control_states = {"KSampler": {"seed": SeedControlState(seed_mode)}}
-    return WorkflowState(cubes={"Demo": cube}, stack_order=["Demo"])
-
-
-def _snapshot(
-    *,
-    minimum: int = 0,
-    maximum: int = 999,
-    field_key: str = "seed",
-    cube_alias: str = "Demo",
-) -> EditorBehaviorSnapshot:
-    """Build a behavior snapshot with one seed field spec."""
-
-    spec = ResolvedFieldSpec(
-        cube_alias=cube_alias,
-        node_name="KSampler",
-        class_type="KSampler",
-        field_key=field_key,
-        field_type="INT",
-        constraints={"min": minimum, "max": maximum},
-        meta_info={},
-        field_info=None,
-        value=7,
-        field_behavior=FieldBehavior(
-            field_key=field_key,
-            presentation=FieldPresentation.SEED_BOX,
-            override_behavior=OverrideBehavior(
-                override_key="seed" if field_key in {"seed", "noise_seed"} else None
-            ),
-        ),
-    )
-    return EditorBehaviorSnapshot(
-        resolved_nodes_by_alias={},
-        field_specs_by_alias={cube_alias: {"KSampler": {field_key: spec}}},
-        card_decisions_by_alias={},
-        hidden_field_keys_by_alias={},
-        reveal_entries_by_alias={},
-    )
-
-
 def test_randomize_workflow_seeds_updates_random_editor_seed() -> None:
     """Random editor seed mode should write a new seed into the cube buffer."""
 
-    workflow = _workflow()
+    workflow = seed_workflow()
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(),
+        behavior_snapshot=seed_snapshot(),
         randint=lambda lower, upper: lower + upper,
     )
 
@@ -117,10 +63,10 @@ def test_randomize_workflow_seeds_updates_random_editor_seed() -> None:
 def test_randomize_workflow_seeds_keeps_fixed_editor_seed() -> None:
     """Fixed editor seed mode should leave the cube buffer unchanged."""
 
-    workflow = _workflow(seed_mode=SeedMode.FIXED)
+    workflow = seed_workflow(seed_mode=SeedMode.FIXED)
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(),
+        behavior_snapshot=seed_snapshot(),
         randint=lambda _lower, _upper: 42,
     )
 
@@ -132,12 +78,12 @@ def test_randomize_workflow_seeds_keeps_fixed_editor_seed() -> None:
 def test_randomize_workflow_seeds_updates_random_override_seed() -> None:
     """Random override seed mode should update only the override value."""
 
-    workflow = _workflow()
+    workflow = seed_workflow()
     workflow.global_overrides = {"seed": {"value": 10, "mode": "global"}}
 
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(minimum=5, maximum=20),
+        behavior_snapshot=seed_snapshot(minimum=5, maximum=20),
         randint=lambda lower, upper: lower * upper,
     )
 
@@ -149,13 +95,13 @@ def test_randomize_workflow_seeds_updates_random_override_seed() -> None:
 def test_randomize_workflow_seeds_keeps_fixed_override_seed() -> None:
     """Fixed override seed mode should leave override value and mode unchanged."""
 
-    workflow = _workflow()
+    workflow = seed_workflow()
     workflow.global_overrides = {"seed": {"value": 10, "mode": "global"}}
     workflow.override_control_states = {"seed": SeedControlState(SeedMode.FIXED)}
 
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(),
+        behavior_snapshot=seed_snapshot(),
         randint=lambda _lower, _upper: 99,
     )
 
@@ -167,11 +113,11 @@ def test_randomize_workflow_seeds_keeps_fixed_override_seed() -> None:
 def test_randomize_workflow_seeds_skips_invalid_range() -> None:
     """Invalid seed bounds should skip randomization without mutating workflow state."""
 
-    workflow = _workflow()
+    workflow = seed_workflow()
 
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(minimum=20, maximum=5),
+        behavior_snapshot=seed_snapshot(minimum=20, maximum=5),
         randint=lambda _lower, _upper: 99,
     )
 
@@ -182,7 +128,7 @@ def test_randomize_workflow_seeds_skips_invalid_range() -> None:
 def test_randomize_workflow_seeds_updates_local_variation_seed() -> None:
     """Variation seeds should randomize as SeedBoxes without global participation."""
 
-    workflow = _workflow()
+    workflow = seed_workflow()
     inputs = cast(
         dict[str, object],
         cast(
@@ -196,7 +142,7 @@ def test_randomize_workflow_seeds_updates_local_variation_seed() -> None:
 
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(field_key="variation_seed"),
+        behavior_snapshot=seed_snapshot(field_key="variation_seed"),
         randint=lambda _lower, _upper: next(random_values),
     )
 
@@ -211,7 +157,7 @@ def test_randomize_workflow_seeds_updates_local_variation_seed() -> None:
 def test_randomize_workflow_seeds_keeps_locked_variation_seed() -> None:
     """A locked variation SeedBox should preserve its user-entered value."""
 
-    workflow = _workflow()
+    workflow = seed_workflow()
     cube = workflow.cubes["Demo"]
     inputs = cast(
         dict[str, object],
@@ -227,7 +173,7 @@ def test_randomize_workflow_seeds_keeps_locked_variation_seed() -> None:
 
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(field_key="variation_seed"),
+        behavior_snapshot=seed_snapshot(field_key="variation_seed"),
         randint=lambda _lower, _upper: 42,
     )
 
@@ -249,7 +195,7 @@ def test_randomize_workflow_seeds_updates_direct_workflow_canonical_value() -> N
 
     result = SeedRandomizationService().randomize_workflow_seeds(
         workflow=workflow,
-        behavior_snapshot=_snapshot(cube_alias=DIRECT_WORKFLOW_SECTION_KEY),
+        behavior_snapshot=seed_snapshot(cube_alias=DIRECT_WORKFLOW_SECTION_KEY),
         randint=lambda _lower, _upper: 91,
     )
 

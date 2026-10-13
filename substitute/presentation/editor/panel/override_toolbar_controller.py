@@ -116,7 +116,7 @@ class OverrideToolbarController:
             existing_signature = self.registry.control_signature(control.override_key)
             if existing_control is not None and existing_signature == signature:
                 label_widget, widget = existing_control
-                self._realizer.normalize(control, label_widget, widget)
+                self._normalize_control(control, label_widget, widget)
                 self.registry.insert(
                     override_key=control.override_key,
                     label_widget=label_widget,
@@ -170,14 +170,25 @@ class OverrideToolbarController:
         self,
         active_by_key: dict[str, PinnedOverrideControl],
     ) -> None:
-        """Restore sizing and live options on every reused control."""
+        """Restore presentation and authoritative state on every reused control."""
 
         for override_key, control in active_by_key.items():
             existing_control = self.registry.control(override_key)
             if existing_control is None:
                 continue
             label_widget, widget = existing_control
-            self._realizer.normalize(control, label_widget, widget)
+            self._normalize_control(control, label_widget, widget)
+
+    def _normalize_control(
+        self,
+        control: PinnedOverrideControl,
+        label_widget: Any,
+        widget: Any,
+    ) -> None:
+        """Reconcile a reused control independently of its creation signature."""
+
+        self._realizer.normalize(control, label_widget, widget)
+        self._interactions.reconcile_seed_state(control, widget)
 
     def _create(
         self,

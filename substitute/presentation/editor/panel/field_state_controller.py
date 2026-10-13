@@ -59,7 +59,9 @@ _QTGUI_LIGHTWEIGHT_STUB = _QTGUI_MODULE is not None and not hasattr(
 try:
     from substitute.presentation.widgets import (
         ComboBox,
+        DecimalSpinnerSlider,
         DoubleSpinBox,
+        IntegerSpinnerSlider,
         SeedBox,
         SpinBox,
     )
@@ -67,6 +69,12 @@ except ImportError:  # pragma: no cover - lightweight import stubs.
 
     class ComboBox:  # type: ignore[no-redef]
         """Fallback combo-box type used by lightweight import tests."""
+
+    class DecimalSpinnerSlider:  # type: ignore[no-redef]
+        """Fallback decimal composite used by lightweight import tests."""
+
+    class IntegerSpinnerSlider:  # type: ignore[no-redef]
+        """Fallback integer composite used by lightweight import tests."""
 
     class DoubleSpinBox:  # type: ignore[no-redef]
         """Fallback double-spinbox type used by lightweight import tests."""
@@ -147,11 +155,17 @@ class EditorPanelFieldStateController:
         """Route one node widget to its concrete state adapter."""
 
         self._ensure_widget_metadata(widget, metadata)
+        if isinstance(widget, (DecimalSpinnerSlider, IntegerSpinnerSlider)):
+            self._ensure_widget_metadata(widget.spinbox, metadata)
+            self._widget_state.wire_numeric_state(widget, cube_state)
+            return
         if hasattr(widget, "spinbox"):
             spinbox = cast(object, getattr(widget, "spinbox"))
             self._ensure_widget_metadata(spinbox, metadata)
             if isinstance(spinbox, (DoubleSpinBox, SpinBox)):
-                self._widget_state.wire_numeric_state(spinbox, cube_state)
+                self._widget_state.wire_numeric_state(
+                    spinbox, cube_state, project_on_reveal=False
+                )
                 return
         if isinstance(widget, PromptEditor):
             self.wire_prompt_editor_state(
@@ -310,7 +324,9 @@ class EditorPanelFieldStateController:
             or not hasattr(value_changed, "connect")
         ):
             return False
-        self._widget_state.wire_numeric_state(widget, cube_state)
+        self._widget_state.wire_numeric_state(
+            widget, cube_state, project_on_reveal=False
+        )
         return True
 
     @staticmethod
