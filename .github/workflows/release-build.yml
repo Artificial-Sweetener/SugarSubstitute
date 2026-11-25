@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload Windows Crashpad qualification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: crashpad-qualification-windows${{ inputs.artifact_suffix }}
           path: build/qualification/crashpad
@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload single-instance qualification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: single-instance-qualification${{ inputs.artifact_suffix }}
           path: build/qualification/single-instance
@@ -105,7 +105,7 @@ jobs:
 
       - name: Upload model lifecycle qualification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: model-lifecycle-qualification${{ inputs.artifact_suffix }}
           path: |
@@ -115,7 +115,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Windows release inputs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-inputs-windows${{ inputs.artifact_suffix }}
           path: build/release-inputs/windows
@@ -156,7 +156,7 @@ jobs:
 
       - name: Upload Apple Silicon Crashpad qualification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: crashpad-qualification-macos${{ inputs.artifact_suffix }}
           path: build/qualification/crashpad
@@ -183,7 +183,7 @@ jobs:
           .venv/bin/python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/release-inputs/macos/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
 
       - name: Upload Apple Silicon release inputs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-inputs-macos${{ inputs.artifact_suffix }}
           path: build/release-inputs/macos
@@ -227,7 +227,7 @@ jobs:
 
       - name: Upload Linux Crashpad qualification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: crashpad-qualification-linux${{ inputs.artifact_suffix }}
           path: build/qualification/crashpad
@@ -251,7 +251,7 @@ jobs:
           .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool "${{ steps.appimagetool.outputs.path }}" --version ${{ inputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
 
       - name: Upload Linux release inputs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-inputs-linux${{ inputs.artifact_suffix }}
           path: build/release-inputs/linux
